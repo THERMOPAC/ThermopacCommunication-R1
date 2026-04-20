@@ -952,7 +952,7 @@ function SmartMechanicalColumnForm({
         if (p.key === 'physicalState' || p.key === 'serviceFluid') {
           const options = p.key === 'physicalState' ? PHYSICAL_STATE_OPTIONS : SERVICE_FLUID_OPTIONS;
           const isAtDefault = val === FIELD_DEFAULTS[p.key];
-          const isSynced = p.key === 'physicalState' && !!appliedCode && appliedCode !== 'AS 4343:2014';
+          const isSynced = p.key === 'physicalState' && !!appliedCode;
           return (
             <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground leading-tight">{p.label}</Label>
@@ -1803,15 +1803,13 @@ function HazardClassificationPanel({
       {/* Code-specific inputs */}
       {code && (
         <div className="grid grid-cols-2 gap-2">
-          {!isAS4343 && (
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Fluid State</Label>
-              <Select value={data.fluidState || 'Fluid'} onValueChange={(v) => handleField({ fluidState: v })}>
-                <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                <SelectContent>{FLUID_STATE_HC_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Fluid State</Label>
+            <Select value={data.fluidState || 'Fluid'} onValueChange={(v) => handleField({ fluidState: v })}>
+              <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+              <SelectContent>{FLUID_STATE_HC_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
 
           {isVIII && (
             <div className="space-y-1">
@@ -2118,8 +2116,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     setEquipmentConfig(s.equipment_config);
     setInspectionBy(s.inspection_by);
     const loadedHazard = loadColumnHazardFromSheet(s.hazard_data);
-    const notAS4343 = loadedHazard.shell.appliedCode !== 'AS 4343:2014';
-    const fluidFor = (h: HazardData | null) => notAS4343 ? (h?.fluidState ?? undefined) : undefined;
+    const fluidFor = (h: HazardData | null) => h?.fluidState ?? undefined;
     setMechShell(seedColumn(s.mechanical_data.shell || emptyMechanicalColumn(), fluidFor(loadedHazard.shell)));
     setMechTube(seedColumn(s.mechanical_data.tube || emptyMechanicalColumn(), fluidFor(loadedHazard.tube)));
     setMechJacket(seedColumn(s.mechanical_data.jacket || emptyMechanicalColumn(), fluidFor(loadedHazard.jacket)));
@@ -2666,11 +2663,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                       const newTube   = colHazard.tube   ? deriveHazardFields({ ...clearCodeSpecificFields(colHazard.tube),   appliedCode: newCode }) : null;
                       const newJacket = colHazard.jacket ? deriveHazardFields({ ...clearCodeSpecificFields(colHazard.jacket), appliedCode: newCode }) : null;
                       setColHazard({ shell: newShell, tube: newTube, jacket: newJacket });
-                      if (newCode !== 'AS 4343:2014') {
-                        setMechShell(p => ({ ...p, physicalState: newShell.fluidState }));
-                        if (newTube)   setMechTube(p =>   ({ ...p, physicalState: newTube.fluidState }));
-                        if (newJacket) setMechJacket(p => ({ ...p, physicalState: newJacket.fluidState }));
-                      }
+                      setMechShell(p => ({ ...p, physicalState: newShell.fluidState }));
+                      if (newTube)   setMechTube(p =>   ({ ...p, physicalState: newTube.fluidState }));
+                      if (newJacket) setMechJacket(p => ({ ...p, physicalState: newJacket.fluidState }));
                     }
 
                     function makeOnChange(
@@ -2685,7 +2680,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                             const sg = SG_BY_FLUID[d.fluidState];
                             if (sg) updates.specificGravity = sg;
                           }
-                          if (d.appliedCode !== 'AS 4343:2014') updates.physicalState = d.fluidState;
+                          updates.physicalState = d.fluidState;
                           return Object.keys(updates).length ? { ...prev, ...updates } : prev;
                         });
                         setColHazard(prev => ({ ...prev, [colKey]: d }));
