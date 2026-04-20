@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-title ThermopacAgent v1.0.28
+title ThermopacAgent v1.0.29
 
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
