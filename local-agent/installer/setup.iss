@@ -11,7 +11,7 @@
 ;   - dist\python\          Python 3.11 embeddable (downloaded by build-installer.bat)
 
 #define AppName      "ThermopacAgent"
-#define AppVersion   "1.0.33"
+#define AppVersion   "1.0.28"
 #define AppPublisher "Thermopac"
 #define AppURL       "https://thermopac-communication-thermopacllp.replit.app"
 #define AppExeName   "run.bat"
@@ -172,16 +172,14 @@ begin
   // Force-kill all cmd.exe windows whose title contains ThermopacAgent
   Exec('taskkill.exe', '/F /FI "WINDOWTITLE eq ThermopacAgent*" /T',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  // Force-kill the PyInstaller EXE (used since v1.0.30)
-  Exec('taskkill.exe', '/F /FI "IMAGENAME eq ThermopacAgent.exe" /T',
-       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  // Force-kill python.exe processes (used in older / source installs)
+  // Force-kill python.exe processes running from the install folder
+  // (Targets any pythonw.exe / python.exe regardless of window)
   Exec('taskkill.exe', '/F /FI "IMAGENAME eq python.exe" /T',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('taskkill.exe', '/F /FI "IMAGENAME eq pythonw.exe" /T',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   // Give Windows a moment to release file handles before extraction starts
-  Sleep(2000);
+  Sleep(1500);
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -224,12 +222,12 @@ begin
       if FileExists(Ps1) then
       begin
         MsgBox(
-          'A PowerShell window will now download Python 3.11 and install' + #13#10 +
-          'required packages (pywin32, requests).' + #13#10 + #13#10 +
-          'Leave it running until it says "Done" and closes automatically.',
+          'Python was not bundled in this installer.' + #13#10 +
+          'setup.ps1 will now download Python 3.11 from python.org.' + #13#10 + #13#10 +
+          'A PowerShell window will open — leave it running until complete.',
           mbInformation, MB_OK);
         Exec('powershell.exe',
-          '-ExecutionPolicy Bypass -File "' + Ps1 + '" -Silent',
+          '-ExecutionPolicy Bypass -File "' + Ps1 + '"',
           ExpandConstant('{app}'), SW_SHOW, ewWaitUntilTerminated, ResultCode);
       end else
         MsgBox(
