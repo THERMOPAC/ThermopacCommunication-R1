@@ -19,6 +19,7 @@ import time
 
 try:
     import win32com.client
+    import win32com.client.gencache
     import pythoncom
     PYWIN32_AVAILABLE = True
 except ImportError:
@@ -30,6 +31,12 @@ try:
     WIN32GUI_AVAILABLE = True
 except ImportError:
     WIN32GUI_AVAILABLE = False
+
+try:
+    import winreg
+    WINREG_AVAILABLE = True
+except ImportError:
+    WINREG_AVAILABLE = False
 
 from extractor.extract_properties    import ExtractProperties
 from extractor.extract_sheets        import ExtractSheets
@@ -73,6 +80,59 @@ def _decode_sw_error(code: int) -> str:
         return "0 (none)"
     parts = [name for bit, name in _SW_OPEN_ERRORS.items() if code & bit]
     return f"{code} ({', '.join(parts) if parts else 'unknown'})"
+
+
+def _ensure_sw_makepy(progid: str, logger) -> bool:
+    """
+    Generate win32com makepy (early-binding) cache for the SolidWorks type library
+    using only the Windows registry — no COM instance is created.
+
+    Without this cache, win32com.client.CastTo('IDrawingDoc') fails with
+    'cannot automate the makepy process'.  With the cache, IDrawingDoc-specific
+    methods (GetCurrentSheet, GetFirstView, ActivateSheet) are accessible.
+
+    Returns True if cache is confirmed present, False if unavailable.
+    """
+    if not WINREG_AVAILABLE or not PYWIN32_AVAILABLE:
+        logger.warning("[Extractor] winreg/pywin32 unavailable — makepy skipped")
+        return False
+
+    try:
+        # 1. Resolve TypeLib CLSID from ProgID registry entry
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, f"{progid}\\TypeLib") as k:
+            typelib_clsid = winreg.QueryValue(k, "")
+        logger.info(f"[Extractor] SW TypeLib CLSID: {typelib_clsid}")
+
+        # 2. Find the highest available version under TypeLib\{CLSID}
+        versions = []
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, f"TypeLib\\{typelib_clsid}") as k:
+            idx = 0
+            while True:
+                try:
+                    ver_str = winreg.EnumKey(k, idx)
+                    idx += 1
+                    try:
+                        parts = ver_str.split(".")
+                        major = int(parts[0])
+                        minor = int(parts[1]) if len(parts) > 1 else 0
+                        versions.append((major, minor))
+                    except Exception:
+                        pass
+                except OSError:
+                    break
+        if not versions:
+            raise ValueError(f"No version entries found for TypeLib {typelib_clsid}")
+        major, minor = sorted(versions)[-1]
+        logger.info(f"[Extractor] SW TypeLib version: {major}.{minor}")
+
+        # 3. Generate (or confirm) the makepy cache module
+        win32com.client.gencache.EnsureModule(typelib_clsid, 0, major, minor)
+        logger.info(f"[Extractor] makepy cache ready — CastTo(IDrawingDoc) available")
+        return True
+
+    except Exception as e:
+        logger.warning(f"[Extractor] makepy cache generation failed: {e}")
+        return False
 
 
 def _get_user_sw_search_paths(progid: str, logger) -> dict:
@@ -221,9 +281,13 @@ def run_extraction(temp_path: str, config, cancel_event: threading.Event,
         _check_cancel(cancel_event, "before SW launch")
         logger.info(f"[Extractor] Launching SolidWorks ({config.sw_progid})…")
         t_launch = time.monotonic()
+        # ── Generate makepy cache (required for CastTo IDrawingDoc) ──────────
+        # Reads SolidWorks type library info from Windows registry — no COM
+        # instance created.  Must run before DispatchEx so the cache is ready
+        # when we call CastTo after OpenDoc.
+        _ensure_sw_makepy(config.sw_progid, logger)
+
         # ── Inherit search paths from user's running SW session (read-only) ───
-        # Must happen BEFORE DispatchEx so we query the user's instance,
-        # then apply the same paths to our dedicated instance after launch.
         inherited_paths = _get_user_sw_search_paths(config.sw_progid, logger)
 
         swApp = win32com.client.DispatchEx(config.sw_progid)
