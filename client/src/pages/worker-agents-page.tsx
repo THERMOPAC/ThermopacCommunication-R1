@@ -494,10 +494,12 @@ export default function WorkerAgentsPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={downloadExtractor}>
-              <Download className="h-4 w-4 mr-2" />
-              Download solidworks_extractor.py
-            </Button>
+            <a href="/ThermopacAgent-v1.0.1.zip" download="ThermopacAgent-v1.0.1.zip">
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Download Agent ZIP (v1.0.1)
+              </Button>
+            </a>
             <Button variant="outline" size="sm" onClick={invalidateAll}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
