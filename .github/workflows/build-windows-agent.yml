@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Agent version (e.g. 1.0.0)'
-        required: true
-        default: '1.0.0'
+        description: 'Agent version override (leave blank to auto-read from job_client.py)'
+        required: false
+        default: ''
   push:
     paths:
       - 'local-agent/**'
@@ -15,6 +15,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PY_EMBED_VERSION: "3.11.9"
 
 jobs:
   build:
@@ -22,27 +23,48 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # ── Checkout ────────────────────────────────────────────────────────────
+      # ── Checkout ─────────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── Python 3.11 ─────────────────────────────────────────────────────────
+      # ── Resolve agent version ─────────────────────────────────────────────────
+      # If workflow_dispatch provided a version, use it.
+      # Otherwise read AGENT_VERSION from local-agent/agent/job_client.py.
+      - name: Resolve agent version
+        id: version
+        working-directory: local-agent
+        run: |
+          $override = "${{ github.event.inputs.version }}".Trim()
+          if ($override -ne '') {
+            $ver = $override
+            Write-Host "Version from input: $ver"
+          } else {
+            $line = Select-String -Path "agent\job_client.py" -Pattern 'AGENT_VERSION\s*=\s*"([^"]+)"'
+            $ver  = $line.Matches[0].Groups[1].Value
+            Write-Host "Version from job_client.py: $ver"
+          }
+          echo "ver=$ver" >> $env:GITHUB_OUTPUT
+
+      # ── Python 3.11 (build toolchain) ─────────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           architecture: 'x64'
 
-      # ── Install dependencies ─────────────────────────────────────────────────
+      # ── Install build dependencies ────────────────────────────────────────────
       - name: Install Python dependencies
         working-directory: local-agent
         run: |
           python -m pip install --upgrade pip
           pip install pywin32 requests pyinstaller pywin32-ctypes
 
-      # ── PyInstaller — build ThermopacAgent.exe ───────────────────────────────
+      # ── PyInstaller — build ThermopacAgent.exe ────────────────────────────────
       - name: Build EXE with PyInstaller
         working-directory: local-agent
+        env:
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: utf-8
         run: |
           pyinstaller `
             --name ThermopacAgent `
@@ -57,35 +79,37 @@ jobs:
             --add-data "agent;agent" `
             --hidden-import win32com `
             --hidden-import win32com.client `
+            --hidden-import win32com.client.gencache `
             --hidden-import pythoncom `
             --hidden-import pywintypes `
             --hidden-import win32api `
             --hidden-import win32con `
+            --hidden-import winreg `
             --hidden-import requests `
             --hidden-import configparser `
             --paths agent `
             --paths extractor `
             agent\main.py
 
-      # ── Verify EXE exists ────────────────────────────────────────────────────
+      # ── Verify EXE ────────────────────────────────────────────────────────────
       - name: Verify EXE
         working-directory: local-agent
         run: |
           $exe = "dist\ThermopacAgent\ThermopacAgent.exe"
           if (!(Test-Path $exe)) {
-            Write-Error "ThermopacAgent.exe not found: $exe"
+            Write-Error "ThermopacAgent.exe not found"
             Get-ChildItem dist -Recurse -ErrorAction SilentlyContinue
             exit 1
           }
           $sizeMB = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-          Write-Host "EXE found: $exe ($sizeMB MB)"
+          Write-Host "EXE OK: $exe ($sizeMB MB)"
 
-      # ── Run startup self-test (no SolidWorks needed) ─────────────────────────
-      - name: Run agent self-test (--test mode)
+      # ── Self-test (no SolidWorks needed) ──────────────────────────────────────
+      - name: Run agent self-test
         working-directory: local-agent
         env:
-          PYTHONIOENCODING: utf-8   # prevent UnicodeEncodeError on Windows cp1252 console
-          PYTHONUTF8: "1"           # Python 3.7+ UTF-8 mode — applies to all I/O streams
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: utf-8
           THERMOPAC_API_URL: ${{ secrets.THERMOPAC_API_URL }}
           THERMOPAC_NODE_ID: ${{ secrets.THERMOPAC_NODE_ID }}
           THERMOPAC_NODE_TOKEN: ${{ secrets.THERMOPAC_NODE_TOKEN }}
@@ -94,27 +118,80 @@ jobs:
             --api-url    "$env:THERMOPAC_API_URL" `
             --node-id    "$env:THERMOPAC_NODE_ID" `
             --node-token "$env:THERMOPAC_NODE_TOKEN"
-        continue-on-error: true   # non-fatal if cloud creds not set in CI
+        continue-on-error: true   # non-fatal — cloud secrets may not be set in CI
 
-      # ── Inno Setup 6 ────────────────────────────────────────────────────────
+      # ── Download Python embeddable for bundling ───────────────────────────────
+      # Provides dist\python\ so InnoSetup can bundle a complete Python runtime.
+      # Users then get a self-contained installer with no separate Python install.
+      - name: Download and prepare Python embeddable
+        working-directory: local-agent
+        run: |
+          $pyVer  = "${{ env.PY_EMBED_VERSION }}"
+          $pyZip  = "python-$pyVer-embed-amd64.zip"
+          $pyUrl  = "https://www.python.org/ftp/python/$pyVer/$pyZip"
+          $tmpZip = "$env:TEMP\$pyZip"
+          $pyDir  = "dist\python"
+
+          Write-Host "Downloading Python $pyVer embeddable..."
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          Invoke-WebRequest -Uri $pyUrl -OutFile $tmpZip -UseBasicParsing
+          Write-Host "Downloaded: $tmpZip"
+
+          New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
+          Expand-Archive -Path $tmpZip -DestinationPath $pyDir -Force
+          Write-Host "Extracted Python to $pyDir"
+
+          # Enable site-packages (required for pip and installed packages)
+          $pth = Get-ChildItem $pyDir -Filter "python*._pth" | Select-Object -First 1
+          if ($pth) {
+            (Get-Content $pth.FullName) -replace '#import site','import site' | Set-Content $pth.FullName
+            Write-Host "Enabled site-packages in $($pth.Name)"
+          }
+
+          # Install pip
+          $getPip = "$env:TEMP\get-pip.py"
+          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $getPip -UseBasicParsing
+          & "$pyDir\python.exe" $getPip --no-warn-script-location --quiet
+          Write-Host "pip installed"
+
+          # Install required packages
+          & "$pyDir\python.exe" -m pip install pywin32 requests --no-warn-script-location --quiet
+          Write-Host "pywin32 + requests installed"
+
+          # pywin32 post-install: registers COM DLLs
+          $postinstall = Get-ChildItem $pyDir -Filter "pywin32_postinstall.py" -Recurse |
+                         Select-Object -First 1
+          if ($postinstall) {
+            & "$pyDir\python.exe" $postinstall.FullName -install 2>&1 | Out-Null
+            Write-Host "pywin32 post-install done"
+          }
+
+          # Report size
+          $sizeMB = [math]::Round((Get-ChildItem $pyDir -Recurse |
+                    Measure-Object -Property Length -Sum).Sum / 1MB, 1)
+          Write-Host "Python bundle size: $sizeMB MB"
+
+      # ── Install Inno Setup 6 ──────────────────────────────────────────────────
       - name: Install Inno Setup 6
         run: |
           $out = "$env:TEMP\innosetup.exe"
-          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile $out
-          Start-Process -FilePath $out -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
-          Write-Host "Inno Setup installed"
+          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" `
+            -OutFile $out -UseBasicParsing
+          Start-Process -FilePath $out `
+            -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
+          Write-Host "Inno Setup 6 installed"
 
-      # ── Patch version into .iss ──────────────────────────────────────────────
+      # ── Patch version into setup.iss ──────────────────────────────────────────
       - name: Patch version in setup.iss
         working-directory: local-agent
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.0' }}"
+          $version = "${{ steps.version.outputs.ver }}"
           (Get-Content "installer\setup.iss") `
             -replace '#define AppVersion\s+"[^"]+"', "#define AppVersion      `"$version`"" |
             Set-Content "installer\setup.iss"
           Write-Host "Version patched to: $version"
 
-      # ── Build installer ──────────────────────────────────────────────────────
+      # ── Compile installer ─────────────────────────────────────────────────────
       - name: Build Inno Setup installer
         working-directory: local-agent
         run: |
@@ -124,17 +201,26 @@ jobs:
             Write-Error "ISCC.exe not found"
             exit 1
           }
+
+          Write-Host "dist\ThermopacAgent contents:"
+          Get-ChildItem "dist\ThermopacAgent" -ErrorAction SilentlyContinue |
+            Select-Object Name | Format-Table -HideTableHeaders
+
+          Write-Host "dist\python top-level:"
+          Get-ChildItem "dist\python" -ErrorAction SilentlyContinue |
+            Select-Object Name | Format-Table -HideTableHeaders
+
           & $iscc "installer\setup.iss"
           if ($LASTEXITCODE -ne 0) {
             Write-Error "ISCC failed with exit code $LASTEXITCODE"
             exit 1
           }
 
-      # ── Verify installer ─────────────────────────────────────────────────────
+      # ── Verify installer ──────────────────────────────────────────────────────
       - name: Verify installer
         working-directory: local-agent
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.0' }}"
+          $version  = "${{ steps.version.outputs.ver }}"
           $installer = "installer_output\ThermopacAgent-Setup-v$version.exe"
           if (!(Test-Path $installer)) {
             Get-ChildItem installer_output -ErrorAction SilentlyContinue
@@ -142,33 +228,33 @@ jobs:
             exit 1
           }
           $sizeMB = [math]::Round((Get-Item $installer).Length / 1MB, 1)
-          Write-Host "Installer: $installer ($sizeMB MB)"
+          Write-Host "Installer OK: $installer ($sizeMB MB)"
 
-      # ── Compute SHA-256 checksum ─────────────────────────────────────────────
+      # ── SHA-256 checksum ──────────────────────────────────────────────────────
       - name: Compute checksums
         working-directory: local-agent
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.0' }}"
+          $version   = "${{ steps.version.outputs.ver }}"
           $installer = "installer_output\ThermopacAgent-Setup-v$version.exe"
           $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLower()
           Write-Host "SHA-256: $hash"
           "$hash  ThermopacAgent-Setup-v$version.exe" |
             Out-File "installer_output\SHA256SUMS.txt" -Encoding utf8
 
-      # ── Upload installer artifact ────────────────────────────────────────────
+      # ── Upload installer artifact ─────────────────────────────────────────────
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacAgent-Setup-v${{ github.event.inputs.version || '1.0.0' }}
+          name: ThermopacAgent-Setup-v${{ steps.version.outputs.ver }}
           path: |
             local-agent/installer_output/ThermopacAgent-Setup-v*.exe
             local-agent/installer_output/SHA256SUMS.txt
           retention-days: 30
 
-      # ── Upload raw dist folder (for debugging) ───────────────────────────────
+      # ── Upload raw dist (debugging) ───────────────────────────────────────────
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacAgent-dist-v${{ github.event.inputs.version || '1.0.0' }}
+          name: ThermopacAgent-dist-v${{ steps.version.outputs.ver }}
           path: local-agent/dist/ThermopacAgent/
           retention-days: 7
