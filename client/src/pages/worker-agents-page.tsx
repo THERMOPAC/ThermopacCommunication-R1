@@ -494,16 +494,16 @@ export default function WorkerAgentsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a href="/ThermopacAgentInstaller-v1.0.29.zip" download="ThermopacAgentInstaller-v1.0.29.zip">
+            <a href="/ThermopacAgentInstaller-v1.0.30.zip" download="ThermopacAgentInstaller-v1.0.30.zip">
               <Button variant="default" size="sm">
                 <Download className="h-4 w-4 mr-2" />
-                Download Installer (v1.0.29)
+                Download Installer (v1.0.30)
               </Button>
             </a>
-            <a href="/ThermopacAgent-v1.0.29.zip" download="ThermopacAgent-v1.0.29.zip">
+            <a href="/ThermopacAgent-v1.0.30.zip" download="ThermopacAgent-v1.0.30.zip">
               <Button variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
-                Source ZIP (v1.0.29)
+                Source ZIP (v1.0.30)
               </Button>
             </a>
             <Button variant="outline" size="sm" onClick={invalidateAll}>
