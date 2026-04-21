@@ -24,7 +24,7 @@ REM ─────────────────────────�
 
 setlocal enabledelayedexpansion
 
-set AGENT_VERSION=1.0.35
+set AGENT_VERSION=1.0.36
 set PY_VERSION=3.11.9
 set PY_ZIP=python-%PY_VERSION%-embed-amd64.zip
 set PY_URL=https://www.python.org/ftp/python/%PY_VERSION%/%PY_ZIP%
