@@ -192,3 +192,15 @@ id = "MOahdlZK_-88EIaEE2kyh"
 uri = "file://github-upload.zip"
 type = "unspecified"
 title = "github-upload.zip — 3 files for GitHub"
+
+[[outputs]]
+id = "qHXeOOpyVjgTc5ViwR1Pr"
+uri = "file://client/public/ThermopacAgentInstaller-v1.0.34.zip"
+type = "unspecified"
+title = "ThermopacAgent Installer v1.0.34 Dev"
+
+[[outputs]]
+id = "k4X4LjKoFu4vSub4a6fO8"
+uri = "file://client/public/ThermopacAgent-v1.0.34.zip"
+type = "unspecified"
+title = "ThermopacAgent Source ZIP v1.0.34 Dev"
