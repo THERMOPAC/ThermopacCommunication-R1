@@ -398,6 +398,48 @@ router.get('/epc-drawing-controls/:id/slddrw-jobs', async (req: Request, res: Re
   return res.json(jobs);
 });
 
+router.get('/extraction-results/:jobId', async (req: Request, res: Response) => {
+  const jobId = parseInt(req.params.jobId, 10);
+  if (isNaN(jobId)) return res.status(400).json({ error: 'Invalid job ID' });
+
+  const [job] = await db
+    .select({
+      id: epcSlddrwExtractionJobs.id,
+      slddrwFilename: epcSlddrwExtractionJobs.slddrwFilename,
+      status: epcSlddrwExtractionJobs.status,
+      createdAt: epcSlddrwExtractionJobs.createdAt,
+      claimedAt: epcSlddrwExtractionJobs.claimedAt,
+      completedAt: epcSlddrwExtractionJobs.completedAt,
+      extractionResult: epcSlddrwExtractionJobs.extractionResult,
+    })
+    .from(epcSlddrwExtractionJobs)
+    .where(eq(epcSlddrwExtractionJobs.id, jobId))
+    .limit(1);
+
+  if (!job) return res.status(404).json({ error: 'Extraction job not found' });
+
+  const extraction = (job.extractionResult ?? {}) as any;
+
+  return res.json({
+    job_id: job.id,
+    file_name: job.slddrwFilename,
+    status: job.status,
+    timestamps: {
+      created_at: job.createdAt,
+      claimed_at: job.claimedAt,
+      completed_at: job.completedAt,
+    },
+    properties: extraction.properties ?? null,
+    sheets: extraction.sheets ?? null,
+    views: extraction.views ?? null,
+    dimensions: extraction.dimensions ?? null,
+    annotations: extraction.annotations ?? null,
+    tables: extraction.tables ?? null,
+    design_data: extraction.design_data ?? null,
+    extraction_warnings: extraction.extraction_warnings ?? [],
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/epc-slddrw-jobs/:id/retry  — UI: reset failed job to pending
 // ─────────────────────────────────────────────────────────────────────────────

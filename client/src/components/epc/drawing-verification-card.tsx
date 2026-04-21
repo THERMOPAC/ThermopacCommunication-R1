@@ -13,9 +13,12 @@ import { apiRequest } from '@/lib/queryClient';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
   ShieldCheck, ShieldX, ShieldAlert, Shield, RotateCcw, ChevronDown,
   CheckCircle2, XCircle, AlertTriangle, HelpCircle, Clock, Loader2,
-  Server, Cpu, FileCheck2, Info, Upload, RefreshCw, Factory,
+  Server, Cpu, FileCheck2, Info, Upload, RefreshCw, Factory, Braces,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -76,6 +79,7 @@ export function DrawingVerificationCard({
   const [showDetails, setShowDetails] = useState(false);
   const [showAllParams, setShowAllParams] = useState(false);
   const [warnAcknowledged, setWarnAcknowledged] = useState(false);
+  const [jsonJobId, setJsonJobId] = useState<number | null>(null);
 
   const { data: jobs = [], isLoading } = useQuery<Job[]>({
     queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'],
@@ -141,6 +145,16 @@ export function DrawingVerificationCard({
       toast({ title: 'Upload failed', description: err?.message ?? 'Unknown error', variant: 'destructive' });
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
+  });
+
+  const {
+    data: extractionJson,
+    isFetching: isJsonLoading,
+    error: jsonError,
+  } = useQuery<any>({
+    queryKey: ['/api/extraction-results', jsonJobId],
+    queryFn: () => apiRequest('GET', `/api/extraction-results/${jsonJobId}`),
+    enabled: jsonJobId !== null,
   });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -212,6 +226,16 @@ export function DrawingVerificationCard({
               Retry
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-5 text-[9px] px-1.5 gap-1"
+            disabled={!latest.extractionResult}
+            onClick={() => setJsonJobId(latest.id)}
+          >
+            <Braces className="h-2.5 w-2.5" />
+            View JSON
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -407,6 +431,32 @@ export function DrawingVerificationCard({
           )}
         </div>
       )}
+      <Dialog open={jsonJobId !== null} onOpenChange={(open) => !open && setJsonJobId(null)}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Extraction JSON</DialogTitle>
+            <DialogDescription className="text-xs">
+              Job {jsonJobId}{extractionJson?.file_name ? ` · ${extractionJson.file_name}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border bg-slate-950 text-slate-50 overflow-auto max-h-[68vh]">
+            {isJsonLoading ? (
+              <div className="flex items-center gap-2 p-4 text-xs text-slate-300">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Loading JSON…
+              </div>
+            ) : jsonError ? (
+              <div className="p-4 text-xs text-red-300">
+                Failed to load extraction JSON.
+              </div>
+            ) : (
+              <pre className="p-4 text-[11px] leading-relaxed whitespace-pre-wrap break-words">
+                {JSON.stringify(extractionJson, null, 2)}
+              </pre>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </_CardShell>
   );
 }
