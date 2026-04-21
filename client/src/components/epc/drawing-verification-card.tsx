@@ -158,6 +158,9 @@ export function DrawingVerificationCard({
   const _role = userRole.toLowerCase();
   const canApproveOrRelease = ALLOWED_ROLES.includes(_role);
   const isUploading = uploadMutation.isPending;
+  const extractionWarnings = Array.isArray(latest?.extractionResult?.extraction_warnings)
+    ? latest.extractionResult.extraction_warnings.filter((warning: any) => typeof warning === 'string')
+    : [];
 
   if (isLoading) {
     return (
@@ -257,6 +260,18 @@ export function DrawingVerificationCard({
           showAll={showAllParams}
           onToggleAll={() => setShowAllParams(s => !s)}
         />
+      )}
+      {latest.status === 'completed' && extractionWarnings.length > 0 && (
+        <div className="mt-1 text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-1">
+          <div className="flex items-center gap-1 font-medium">
+            <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+            Extraction warning
+          </div>
+          <div className="mt-0.5 line-clamp-2">
+            {extractionWarnings[0]}
+            {extractionWarnings.length > 1 ? ` (+${extractionWarnings.length - 1} more)` : ''}
+          </div>
+        </div>
       )}
 
       {/* ── Approve gate (only when not yet approved) ────────────────── */}
@@ -605,6 +620,7 @@ function _ExtractionSummary({ result }: { result: any }) {
   if (!result) return null;
   const p = result.properties ?? {};
   const ddt = result.design_data_table ?? {};
+  const warnings = Array.isArray(result.extraction_warnings) ? result.extraction_warnings : [];
   const sheets = result.sheets ?? [];
   const nozzles = result.nozzles ?? {};
   const errors = result.extraction_errors ?? {};
@@ -640,6 +656,12 @@ function _ExtractionSummary({ result }: { result: any }) {
       {errorKeys.length > 0 && (
         <div className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
           Soft errors: {errorKeys.join(', ')}
+        </div>
+      )}
+      {warnings.length > 0 && (
+        <div className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+          Warnings: {warnings.slice(0, 3).join(' · ')}
+          {warnings.length > 3 ? ` · +${warnings.length - 3} more` : ''}
         </div>
       )}
     </div>

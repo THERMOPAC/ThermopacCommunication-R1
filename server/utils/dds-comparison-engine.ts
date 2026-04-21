@@ -151,6 +151,28 @@ export async function runDdsComparison(
   // ── Build drawing lookup from design_data_table.rows ─────────────────────
   const ddtRows: Array<{ parameter: string; value: string; unit: string }> =
     extractionResult?.design_data_table?.rows ?? [];
+  const designDataStatus =
+    extractionResult?.design_data?.status ??
+    extractionResult?.design_data_table?.status ??
+    (ddtRows.length > 0 ? 'table' : 'missing');
+  const designDataSource =
+    extractionResult?.design_data?.source ??
+    extractionResult?.design_data_table?.source ??
+    (ddtRows.length > 0 ? 'table' : 'missing');
+
+  if (ddtRows.length === 0 || designDataStatus === 'missing' || designDataSource === 'missing') {
+    return {
+      status: 'warn',
+      result: [{
+        parameter: '__design_data__',
+        dds_value: null,
+        dwg_value: null,
+        status:    'low_confidence',
+        severity:  'warning',
+        note:      'Drawing extraction completed, but no structured Design Data table was found. Review extracted properties, sheets, notes, and warnings before approval.',
+      }],
+    };
+  }
 
   const dwgMap = new Map<string, { value: string; unit: string }>();
   for (const row of ddtRows) {

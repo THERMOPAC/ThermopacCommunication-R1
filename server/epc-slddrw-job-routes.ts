@@ -94,9 +94,12 @@ async function requireNodeAuth(req: Request, res: Response, next: NextFunction) 
 
 const designDataRowSchema = z.object({
   parameter: z.string().min(1),
-  value:     z.string(),
-  unit:      z.string(),
+  value:     z.string().optional().default(''),
+  unit:      z.string().optional().default(''),
 });
+
+const designDataStatusSchema = z.enum(['found', 'table', 'notes', 'missing']);
+const designDataSourceSchema = z.enum(['table', 'notes', 'missing']);
 
 const extractionResultSchema = z.object({
   schema_version: z.string(),
@@ -126,15 +129,15 @@ const extractionResultSchema = z.object({
   }).passthrough(),
   extraction_warnings: z.array(z.string()).optional(),
   design_data: z.object({
-    status: z.enum(['found', 'missing']).optional(),
-    source: z.enum(['table', 'notes', 'missing']).optional(),
+    status: designDataStatusSchema.optional(),
+    source: designDataSourceSchema.optional(),
   }).passthrough().optional(),
   design_data_table: z.object({
-    found: z.boolean(),
-    status: z.enum(['found', 'missing']).optional(),
-    source: z.enum(['table', 'notes', 'missing']).optional(),
-    rows:  z.array(designDataRowSchema),
-  }).passthrough(),
+    found: z.boolean().optional(),
+    status: designDataStatusSchema.optional(),
+    source: designDataSourceSchema.optional(),
+    rows:  z.array(designDataRowSchema).optional(),
+  }).passthrough().optional(),
   // All other sections optional but type-checked if present
   sheets:     z.array(z.object({}).passthrough()).optional(),
   views:      z.array(z.object({}).passthrough()).optional(),
@@ -260,7 +263,7 @@ router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Reques
     });
   }
 
-  const extraction = parseResult.data;
+  const extraction = _normaliseExtractionResult(parseResult.data);
 
   // node_id inside JSON must match x-node-id header
   if (extraction.agent?.node_id !== nodeId) {
@@ -311,6 +314,46 @@ router.post('/epc-slddrw-jobs/:id/fail', requireNodeAuth, async (req: Request, r
   console.log(`[Jobs] Job ${jobId} marked failed by node ${nodeId}: ${reason}`);
   return res.json({ ok: true });
 });
+
+function _normaliseExtractionResult(extraction: any) {
+  const warnings = Array.isArray(extraction.extraction_warnings)
+    ? extraction.extraction_warnings.filter((warning: any) => typeof warning === 'string')
+    : [];
+  const ddt = extraction.design_data_table ?? {};
+  const rows = Array.isArray(ddt.rows) ? ddt.rows : [];
+  const source =
+    ddt.source ??
+    extraction.design_data?.source ??
+    (rows.length > 0 || ddt.found === true ? 'table' : 'missing');
+  const status =
+    source === 'table' || source === 'notes'
+      ? source
+      : extraction.design_data?.status === 'table' || extraction.design_data?.status === 'notes'
+        ? extraction.design_data.status
+        : 'missing';
+
+  if (status === 'missing') {
+    const warning = 'Design Data table missing or inaccessible; extraction accepted as best-effort';
+    if (!warnings.includes(warning)) warnings.push(warning);
+  }
+
+  return {
+    ...extraction,
+    extraction_warnings: warnings,
+    design_data: {
+      ...(extraction.design_data ?? {}),
+      status,
+      source,
+    },
+    design_data_table: {
+      ...ddt,
+      found: ddt.found ?? rows.length > 0,
+      status,
+      source,
+      rows,
+    },
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/epc-drawing-controls/:id/slddrw-jobs  — UI: list jobs for card
