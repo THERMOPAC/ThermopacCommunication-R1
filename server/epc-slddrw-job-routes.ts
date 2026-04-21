@@ -237,6 +237,7 @@ router.post('/epc-slddrw-jobs/:id/claim', requireNodeAuth, async (req: Request, 
 router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Request, res: Response) => {
   const jobId  = parseInt(req.params.id, 10);
   const nodeId = (req as any).agentNodeId as string;
+  console.log(`[Jobs] Complete received for job ${jobId} from node ${nodeId} — validation=design_data_optional_warning`);
 
   // Verify job belongs to this node and is in processing
   const [job] = await db
@@ -257,6 +258,7 @@ router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Reques
   const parseResult = extractionResultSchema.safeParse(req.body?.extraction_result);
   if (!parseResult.success) {
     const issues = parseResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`);
+    console.warn(`[Jobs] Complete validation rejected for job ${jobId}: ${issues.join(' | ')}`);
     return res.status(422).json({
       error:  'Extraction result JSON validation failed',
       issues,
