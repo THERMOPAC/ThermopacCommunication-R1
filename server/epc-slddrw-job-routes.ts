@@ -287,7 +287,10 @@ router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Reques
     console.error(`[DDS] Comparison failed for job ${jobId}:`, e),
   );
 
-  return res.json({ ok: true });
+  return res.json({
+    ok: true,
+    extraction_warnings: extraction.extraction_warnings ?? [],
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -317,7 +320,13 @@ router.post('/epc-slddrw-jobs/:id/fail', requireNodeAuth, async (req: Request, r
 
 function _normaliseExtractionResult(extraction: any) {
   const warnings = Array.isArray(extraction.extraction_warnings)
-    ? extraction.extraction_warnings.filter((warning: any) => typeof warning === 'string')
+    ? extraction.extraction_warnings
+      .filter((warning: any) => typeof warning === 'string')
+      .map((warning: string) =>
+        warning.toLowerCase().includes('design data table not found')
+          ? 'Design Data table not found'
+          : warning,
+      )
     : [];
   const ddt = extraction.design_data_table ?? {};
   const rows = Array.isArray(ddt.rows) ? ddt.rows : [];
@@ -333,7 +342,7 @@ function _normaliseExtractionResult(extraction: any) {
         : 'missing';
 
   if (status === 'missing') {
-    const warning = 'Design Data table missing or inaccessible; extraction accepted as best-effort';
+    const warning = 'Design Data table not found';
     if (!warnings.includes(warning)) warnings.push(warning);
   }
 
