@@ -436,6 +436,9 @@ router.get('/extraction-results/:jobId', async (req: Request, res: Response) => 
     annotations: extraction.annotations ?? null,
     tables: extraction.tables ?? null,
     design_data: extraction.design_data ?? null,
+    design_data_table: extraction.design_data_table ?? null,
+    extraction_summary: extraction.extraction_summary ?? null,
+    open_diagnostics: extraction.open_diagnostics ?? null,
     extraction_warnings: extraction.extraction_warnings ?? [],
   });
 });

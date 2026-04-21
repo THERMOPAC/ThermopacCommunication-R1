@@ -176,9 +176,13 @@ export async function runDdsComparison(
 
   const dwgMap = new Map<string, { value: string; unit: string }>();
   for (const row of ddtRows) {
-    const key = normaliseKey(row.parameter ?? '');
+    const key = canonicaliseDrawingKey(row.parameter ?? '');
     if (key) {
       dwgMap.set(key, { value: String(row.value ?? ''), unit: String(row.unit ?? '') });
+    }
+    const rawKey = normaliseKey(row.parameter ?? '');
+    if (rawKey && !dwgMap.has(rawKey)) {
+      dwgMap.set(rawKey, { value: String(row.value ?? ''), unit: String(row.unit ?? '') });
     }
   }
 
@@ -248,6 +252,23 @@ export async function runDdsComparison(
 
 function normaliseKey(raw: string): string {
   return raw.toLowerCase().replace(/[-_\/]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function canonicaliseDrawingKey(raw: string): string {
+  const key = normaliseKey(raw);
+  if (!key) return '';
+  if ((key.includes('internal') || key.includes('int')) && key.includes('design') && key.includes('pressure')) return 'design pressure';
+  if (key.includes('mawp') || (key.includes('design') && key.includes('pressure'))) return 'design pressure';
+  if (key.includes('design') && (key.includes('temperature') || key.includes('temp'))) return 'design temperature';
+  if (key.includes('corrosion') && (key.includes('allowance') || key.includes('allow'))) return 'corrosion allowance';
+  if (key.includes('material')) return 'material';
+  if (key.includes('hazard')) return 'hazard level';
+  if (key.includes('pwht') || key.includes('post weld heat')) return 'pwht';
+  if (key.includes('radio')) return 'radiography';
+  if (key.includes('joint') && key.includes('eff')) return 'joint efficiency';
+  if (key.includes('insulation')) return 'insulation';
+  if (key.includes('hydro') && key.includes('pressure')) return 'hydro test pressure';
+  return key;
 }
 
 function _displayName(key: string): string {
