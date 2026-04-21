@@ -123,11 +123,18 @@ const extractionResultSchema = z.object({
     health:            z.string().nullable(),
     nozzles:           z.string().nullable(),
     design_data_table: z.string().nullable(),
-  }),
+  }).passthrough(),
+  extraction_warnings: z.array(z.string()).optional(),
+  design_data: z.object({
+    status: z.enum(['found', 'missing']).optional(),
+    source: z.enum(['table', 'notes', 'missing']).optional(),
+  }).passthrough().optional(),
   design_data_table: z.object({
-    found: z.literal(true),
-    rows:  z.array(designDataRowSchema).min(1, 'design_data_table.rows must be non-empty'),
-  }),
+    found: z.boolean(),
+    status: z.enum(['found', 'missing']).optional(),
+    source: z.enum(['table', 'notes', 'missing']).optional(),
+    rows:  z.array(designDataRowSchema),
+  }).passthrough(),
   // All other sections optional but type-checked if present
   sheets:     z.array(z.object({}).passthrough()).optional(),
   views:      z.array(z.object({}).passthrough()).optional(),

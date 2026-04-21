@@ -621,7 +621,13 @@ function _ExtractionSummary({ result }: { result: any }) {
         </_DetailRow>
       )}
       <_DetailRow icon={<Shield className="h-2.5 w-2.5" />} label="Design Data">
-        {ddt.found ? `${ddt.rows?.length ?? 0} rows` : 'Not found'}
+        {ddt.source === 'notes'
+          ? `Notes fallback (${ddt.fallback_text?.length ?? 0})`
+          : ddt.found
+            ? `${ddt.rows?.length ?? 0} rows`
+            : ddt.status === 'missing'
+              ? 'Missing'
+              : 'Not found'}
       </_DetailRow>
       <_DetailRow icon={<Server className="h-2.5 w-2.5" />} label="Sheets">
         {sheets.length}
