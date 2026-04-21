@@ -204,3 +204,15 @@ id = "k4X4LjKoFu4vSub4a6fO8"
 uri = "file://client/public/ThermopacAgent-v1.0.34.zip"
 type = "unspecified"
 title = "ThermopacAgent Source ZIP v1.0.34 Dev"
+
+[[outputs]]
+id = "FljpRxYd2h0ZSfeDm0rct"
+uri = "file://client/public/ThermopacAgentInstaller-v1.0.35.zip"
+type = "unspecified"
+title = "ThermopacAgent Installer v1.0.35 Dev"
+
+[[outputs]]
+id = "k_k1-19jekn9pNPRInUjZ"
+uri = "file://client/public/ThermopacAgent-v1.0.35.zip"
+type = "unspecified"
+title = "ThermopacAgent Source ZIP v1.0.35 Dev"
