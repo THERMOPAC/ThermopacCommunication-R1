@@ -92,15 +92,6 @@ async function requireNodeAuth(req: Request, res: Response, next: NextFunction) 
 // Zod schema for /complete body
 // ─────────────────────────────────────────────────────────────────────────────
 
-const designDataRowSchema = z.object({
-  parameter: z.string().min(1),
-  value:     z.string().optional().default(''),
-  unit:      z.string().optional().default(''),
-});
-
-const designDataStatusSchema = z.enum(['found', 'table', 'notes', 'missing']);
-const designDataSourceSchema = z.enum(['table', 'notes', 'missing']);
-
 const extractionResultSchema = z.object({
   schema_version: z.string(),
   agent: z.object({
@@ -114,46 +105,26 @@ const extractionResultSchema = z.object({
     sha256:            z.string().regex(/^[a-f0-9]{64}$/i, 'sha256 must be 64-char hex'),
     file_size_bytes:   z.number().positive(),
   }),
-  // ── v1.1 Layer-1 result (custom properties only) ──────────────────────────
+  // ── v1.2 Layer-1 lean payload ─────────────────────────────────────────────
+  customProperties: z.object({
+    fields: z.array(z.object({
+      property:      z.string(),
+      value:         z.string(),
+      resolvedValue: z.string(),
+      source:        z.string(),
+      found:         z.boolean(),
+    })).optional(),
+    foundCount:       z.number().optional(),
+    missingCount:     z.number().optional(),
+    totalTargetCount: z.number().optional(),
+  }).optional(),
   customPropertyVerification: z.object({
     status:          z.enum(['pass', 'fail', 'hold']),
     equipmentConfig: z.string().optional(),
     fields:          z.array(z.object({}).passthrough()).optional(),
   }).passthrough().optional(),
-  // ── v1.0 full-extraction fields (optional — legacy agents) ────────────────
-  properties:          z.object({}).passthrough().optional(),
-  extraction_errors:   z.object({
-    properties:                 z.string().nullable().optional(),
-    sheets:                     z.string().nullable().optional(),
-    views:                      z.string().nullable().optional(),
-    dimensions:                 z.string().nullable().optional(),
-    annotations:                z.string().nullable().optional(),
-    tables:                     z.string().nullable().optional(),
-    references:                 z.string().nullable().optional(),
-    health:                     z.string().nullable().optional(),
-    nozzles:                    z.string().nullable().optional(),
-    design_data_table:          z.string().nullable().optional(),
-    customPropertyVerification: z.string().nullable().optional(),
-  }).passthrough().optional(),
+  extraction_errors:   z.object({}).passthrough().optional(),
   extraction_warnings: z.array(z.string()).optional(),
-  design_data: z.object({
-    status: designDataStatusSchema.optional(),
-    source: designDataSourceSchema.optional(),
-  }).passthrough().optional(),
-  design_data_table: z.object({
-    found:  z.boolean().optional(),
-    status: designDataStatusSchema.optional(),
-    source: designDataSourceSchema.optional(),
-    rows:   z.array(designDataRowSchema).optional(),
-  }).passthrough().optional(),
-  sheets:     z.array(z.object({}).passthrough()).optional(),
-  views:      z.array(z.object({}).passthrough()).optional(),
-  dimensions: z.object({}).passthrough().optional(),
-  annotations:z.object({}).passthrough().optional(),
-  tables:     z.object({}).passthrough().optional(),
-  references: z.object({}).passthrough().optional(),
-  health:     z.object({}).passthrough().optional(),
-  nozzles:    z.object({}).passthrough().optional(),
 }).passthrough();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -329,48 +300,9 @@ router.post('/epc-slddrw-jobs/:id/fail', requireNodeAuth, async (req: Request, r
 
 function _normaliseExtractionResult(extraction: any) {
   const warnings = Array.isArray(extraction.extraction_warnings)
-    ? extraction.extraction_warnings
-      .filter((warning: any) => typeof warning === 'string')
-      .map((warning: string) =>
-        warning.toLowerCase().includes('design data table not found')
-          ? 'Design Data table not found'
-          : warning,
-      )
+    ? extraction.extraction_warnings.filter((w: any) => typeof w === 'string')
     : [];
-  const ddt = extraction.design_data_table ?? {};
-  const rows = Array.isArray(ddt.rows) ? ddt.rows : [];
-  const source =
-    ddt.source ??
-    extraction.design_data?.source ??
-    (rows.length > 0 || ddt.found === true ? 'table' : 'missing');
-  const status =
-    source === 'table' || source === 'notes'
-      ? source
-      : extraction.design_data?.status === 'table' || extraction.design_data?.status === 'notes'
-        ? extraction.design_data.status
-        : 'missing';
-
-  if (status === 'missing') {
-    const warning = 'Design Data table not found';
-    if (!warnings.includes(warning)) warnings.push(warning);
-  }
-
-  return {
-    ...extraction,
-    extraction_warnings: warnings,
-    design_data: {
-      ...(extraction.design_data ?? {}),
-      status,
-      source,
-    },
-    design_data_table: {
-      ...ddt,
-      found: ddt.found ?? rows.length > 0,
-      status,
-      source,
-      rows,
-    },
-  };
+  return { ...extraction, extraction_warnings: warnings };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -428,26 +360,17 @@ router.get('/extraction-results/:jobId', async (req: Request, res: Response) => 
   const extraction = (job.extractionResult ?? {}) as any;
 
   return res.json({
-    job_id: job.id,
+    job_id:    job.id,
     file_name: job.slddrwFilename,
-    status: job.status,
+    status:    job.status,
     timestamps: {
-      created_at: job.createdAt,
-      claimed_at: job.claimedAt,
+      created_at:   job.createdAt,
+      claimed_at:   job.claimedAt,
       completed_at: job.completedAt,
     },
-    properties: extraction.properties ?? null,
-    sheets: extraction.sheets ?? null,
-    views: extraction.views ?? null,
-    dimensions: extraction.dimensions ?? null,
-    annotations: extraction.annotations ?? null,
-    tables: extraction.tables ?? null,
-    design_data: extraction.design_data ?? null,
-    design_data_table: extraction.design_data_table ?? null,
-    extraction_summary: extraction.extraction_summary ?? null,
+    customProperties:           extraction.customProperties           ?? null,
     customPropertyVerification: extraction.customPropertyVerification ?? null,
-    open_diagnostics: extraction.open_diagnostics ?? null,
-    extraction_warnings: extraction.extraction_warnings ?? [],
+    extraction_warnings:        extraction.extraction_warnings        ?? [],
   });
 });
 
