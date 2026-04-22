@@ -175,6 +175,75 @@ def _col_is_active(mech_block: dict, col_index: int) -> bool:
     return False
 
 
+# ─── Equipment configuration helpers ─────────────────────────────────────────
+
+# Canonical config names (lowercased for matching)
+_CONFIG_VESSEL          = "vessel"
+_CONFIG_JACKETED        = "jacketed vessel"
+_CONFIG_HE              = "heat exchanger"
+_CONFIG_JACKETED_HE     = "jacketed vessel and heat exchanger"
+
+# Which IDP/MOT columns (tube, jacket) each config activates.
+# Shell is ALWAYS active when any config is found.
+_CONFIG_TUBE_ACTIVE: dict[str, bool] = {
+    _CONFIG_VESSEL:      False,
+    _CONFIG_JACKETED:    False,
+    _CONFIG_HE:          True,
+    _CONFIG_JACKETED_HE: True,
+}
+_CONFIG_JACKET_ACTIVE: dict[str, bool] = {
+    _CONFIG_VESSEL:      False,
+    _CONFIG_JACKETED:    True,
+    _CONFIG_HE:          False,
+    _CONFIG_JACKETED_HE: True,
+}
+
+
+def _resolve_equipment_config(meta_block: dict, meta_valid: bool,
+                               custom_properties: dict) -> str | None:
+    """
+    Determine the equipment configuration string.
+    Priority:
+      1. DDS METADATA block — "Equipment Configuration" / "Equipment Config" fields
+      2. Custom property "Equipment_Config" / "EquipmentConfig" / "Equipment Configuration"
+    Returns the raw value (not normalised) or None if not found.
+    """
+    if meta_valid:
+        v = _field_value_from_block_multi(
+            meta_block,
+            "Equipment Configuration", "Equipment Config",
+            "Equipment_Configuration", "Equipment_Config",
+            "EquipmentConfig", "EquipmentConfiguration",
+        )
+        if v:
+            return v
+
+    for key in ("Equipment_Config", "EquipmentConfig",
+                "Equipment Configuration", "Equipment_Configuration"):
+        raw = custom_properties.get(key)
+        if raw:
+            s = str(raw).strip()
+            if s:
+                return s
+    return None
+
+
+def _config_active_cols(config_raw: str | None) -> tuple[bool, bool, str]:
+    """
+    Map equipment configuration to (tube_active, jacket_active, canonical_name).
+    Shell is always active when the config is known.
+    Falls back to (False, False, 'unknown') when config is unrecognised.
+    """
+    if config_raw is None:
+        return False, False, "unknown"
+    norm = re.sub(r"\s+", " ", config_raw.strip().lower())
+    # Use the most specific match first (jacketed vessel and heat exchanger)
+    for key in (_CONFIG_JACKETED_HE, _CONFIG_JACKETED, _CONFIG_HE, _CONFIG_VESSEL):
+        if norm == key or norm.startswith(key):
+            return _CONFIG_TUBE_ACTIVE[key], _CONFIG_JACKET_ACTIVE[key], config_raw.strip()
+    return False, False, config_raw.strip()
+
+
 # ─── Field result builders ────────────────────────────────────────────────────
 
 def _dds_result(
@@ -184,6 +253,7 @@ def _dds_result(
     *,
     active: bool = True,
     dds_available: bool = True,
+    inactive_reason: str = "Not applicable for this equipment configuration",
 ) -> dict:
     """Build a dds_compare field result dict."""
     if not active:
@@ -193,7 +263,7 @@ def _dds_result(
             "status":       "hold",
             "custom_value": custom_val,
             "dds_value":    None,
-            "reason":       "Column not active in DDS table for this equipment configuration",
+            "reason":       inactive_reason,
         }
     if not dds_available:
         return {
@@ -296,12 +366,40 @@ def verify_custom_properties(
         f"meta={meta_block.get('status','missing')}"
     )
 
-    # Determine which columns have real data in the mechanical block
-    shell_active  = mech_valid and _col_is_active(mech_block, 2)
-    tube_active   = mech_valid and _col_is_active(mech_block, 3)
-    jacket_active = mech_valid and _col_is_active(mech_block, 4)
+    # ── Equipment configuration — drives which IDP/MOT columns are checked ────
+    equip_config_raw = _resolve_equipment_config(meta_block, meta_valid, cp)
 
-    _log(f"[CPVerify] Active columns: shell={shell_active} tube={tube_active} jacket={jacket_active}")
+    if equip_config_raw is not None:
+        tube_active, jacket_active, equip_config_name = _config_active_cols(equip_config_raw)
+        shell_active = mech_valid  # shell always required when config is known
+        config_source = "dds_metadata" if (meta_valid and _field_value_from_block_multi(
+            meta_block,
+            "Equipment Configuration", "Equipment Config",
+            "Equipment_Configuration", "Equipment_Config",
+            "EquipmentConfig", "EquipmentConfiguration",
+        )) else "custom_property"
+        # Restrict to mech_valid for mechanical fields
+        tube_active   = tube_active   and mech_valid
+        jacket_active = jacket_active and mech_valid
+    else:
+        # Config not found — fall back to data-presence detection with a warning
+        equip_config_name = "unknown"
+        config_source     = "fallback_data_detection"
+        shell_active  = mech_valid and _col_is_active(mech_block, 2)
+        tube_active   = mech_valid and _col_is_active(mech_block, 3)
+        jacket_active = mech_valid and _col_is_active(mech_block, 4)
+        _log("[CPVerify] Equipment configuration not found — falling back to data-presence detection")
+
+    _log(
+        f"[CPVerify] Equipment config: name={equip_config_name!r} source={config_source} "
+        f"shell={shell_active} tube={tube_active} jacket={jacket_active}"
+    )
+
+    def _inactive_reason(col: str) -> str:
+        return (
+            f"Not applicable for equipment configuration: {equip_config_name!r} "
+            f"(column {col} not required)"
+        )
 
     fields: list[dict] = []
     today = datetime.now().date()
@@ -325,7 +423,7 @@ def verify_custom_properties(
         active=True, dds_available=gen_valid,
     ))
 
-    # SHELL_IDP / SHELL_MOT — mechanical block, col 2 (SHELL)
+    # SHELL_IDP / SHELL_MOT — mechanical block, col 2 (SHELL — always active)
     shell_idp_dds = _mech_col_value(mech_block, "internal design pressure", 2) if mech_valid else None
     fields.append(_dds_result(
         "SHELL_IDP", _prop("SHELL_IDP"), shell_idp_dds,
@@ -343,12 +441,14 @@ def verify_custom_properties(
     fields.append(_dds_result(
         "TUBE_IDP", _prop("TUBE_IDP"), tube_idp_dds,
         active=tube_active, dds_available=mech_valid,
+        inactive_reason=_inactive_reason("TUBE"),
     ))
 
     tube_mot_dds = _mech_col_value(mech_block, "operating", 3) if mech_valid else None
     fields.append(_dds_result(
         "TUBE_MOT", _prop("TUBE_MOT"), tube_mot_dds,
         active=tube_active, dds_available=mech_valid,
+        inactive_reason=_inactive_reason("TUBE"),
     ))
 
     # JACKET_IDP / JACKET_MOT — mechanical block, col 4 (JACKET)
@@ -356,12 +456,14 @@ def verify_custom_properties(
     fields.append(_dds_result(
         "JACKET_IDP", _prop("JACKET_IDP"), jacket_idp_dds,
         active=jacket_active, dds_available=mech_valid,
+        inactive_reason=_inactive_reason("JACKET"),
     ))
 
     jacket_mot_dds = _mech_col_value(mech_block, "operating", 4) if mech_valid else None
     fields.append(_dds_result(
         "JACKET_MOT", _prop("JACKET_MOT"), jacket_mot_dds,
         active=jacket_active, dds_available=mech_valid,
+        inactive_reason=_inactive_reason("JACKET"),
     ))
 
     # Drawing_Number — from METADATA block
@@ -546,7 +648,9 @@ def verify_custom_properties(
 
     return {
         "customPropertyVerification": {
-            "status": overall,
-            "fields": fields,
+            "status":          overall,
+            "equipmentConfig": equip_config_name,
+            "configSource":    config_source,
+            "fields":          fields,
         }
     }
