@@ -14,7 +14,7 @@
 
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
-import { designDataSheets } from '@shared/schema';
+import { designDataSheets, epcDrawingControls } from '@shared/schema';
 import type { MechanicalData, GeneralData, ColumnHazardData } from '@shared/schema';
 import { compareNumeric, compareString } from './drawing-unit-normalizer';
 
@@ -163,12 +163,11 @@ export async function runDdsComparison(
   extractionResult: any,
 ): Promise<ComparisonOutput> {
 
-  // ── Fetch DDS ──────────────────────────────────────────────────────────────
-  const [dds] = await db
-    .select()
-    .from(designDataSheets)
-    .where(eq(designDataSheets.dwgControlId, drawingControlId))
-    .limit(1);
+  // ── Fetch DDS + drawing control (for revision) ────────────────────────────
+  const [[dds], [dwgCtrl]] = await Promise.all([
+    db.select().from(designDataSheets).where(eq(designDataSheets.dwgControlId, drawingControlId)).limit(1),
+    db.select({ revisionCode: epcDrawingControls.revisionCode }).from(epcDrawingControls).where(eq(epcDrawingControls.id, drawingControlId)).limit(1),
+  ]);
 
   if (!dds) {
     return {
@@ -279,6 +278,47 @@ export async function runDdsComparison(
       status,
       severity:  field.severity,
       ...(note ? { note } : {}),
+    });
+  }
+
+  // ── Revision comparison ────────────────────────────────────────────────────
+  // Compare drawing's Revision custom property against the ERP drawing control
+  // revision_code (e.g. drawing says "C", system has "A" → mismatch).
+  {
+    const dwgRevision = dwgMap.get('Revision') ?? null;
+    const erpRevision = dwgCtrl?.revisionCode?.trim() || null;
+
+    let revStatus: ParameterStatus;
+    let revNote: string | undefined;
+
+    if (!erpRevision && !dwgRevision) {
+      revStatus = 'missing_dds';
+      revNote   = 'Revision not set in drawing control record';
+    } else if (!erpRevision) {
+      revStatus = 'missing_dds';
+      revNote   = 'No revision_code set in drawing control record';
+    } else if (!dwgRevision) {
+      revStatus = 'missing_drawing';
+      revNote   = 'Revision property not found or empty in drawing';
+      hasCriticalMismatch = true;
+    } else {
+      const matched = compareString(erpRevision, dwgRevision);
+      if (matched === true) {
+        revStatus = 'match';
+      } else {
+        revStatus = 'mismatch';
+        revNote   = `System revision: "${erpRevision}" ≠ Drawing revision: "${dwgRevision}"`;
+        hasCriticalMismatch = true;
+      }
+    }
+
+    results.push({
+      parameter: 'Revision',
+      dds_value: erpRevision,   // shown as "expected" in the UI
+      dwg_value: dwgRevision,
+      status:    revStatus,
+      severity:  'critical',
+      ...(revNote ? { note: revNote } : {}),
     });
   }
 
