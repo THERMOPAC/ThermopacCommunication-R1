@@ -92,11 +92,12 @@ const FIELD_DEFS: FieldDef[] = [
   // ── Per-side mechanical fields ───────────────────────────────────────────
   {
     drawingProp:    'SHELL_IDP',
-    displayLabel:   'Shell — Internal Design Pressure',
+    displayLabel:   'Shell — Working Pressure',
     severity:       'critical',
     numericCompare: true,
     side:           'shell',
-    getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.shell?.internalDesignPressureMawp ?? null,
+    // _IDP custom property stores the working/design pressure (not MAWP)
+    getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.shell?.workingPressure ?? null,
   },
   {
     drawingProp:    'SHELL_MOT',
@@ -108,11 +109,11 @@ const FIELD_DEFS: FieldDef[] = [
   },
   {
     drawingProp:    'TUBE_IDP',
-    displayLabel:   'Tube — Internal Design Pressure',
+    displayLabel:   'Tube — Working Pressure',
     severity:       'critical',
     numericCompare: true,
     side:           'tube',
-    getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.tube?.internalDesignPressureMawp ?? null,
+    getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.tube?.workingPressure ?? null,
   },
   {
     drawingProp:    'TUBE_MOT',
@@ -124,11 +125,11 @@ const FIELD_DEFS: FieldDef[] = [
   },
   {
     drawingProp:    'JACKET_IDP',
-    displayLabel:   'Jacket — Internal Design Pressure',
+    displayLabel:   'Jacket — Working Pressure',
     severity:       'critical',
     numericCompare: true,
     side:           'jacket',
-    getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.jacket?.internalDesignPressureMawp ?? null,
+    getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.jacket?.workingPressure ?? null,
   },
   {
     drawingProp:    'JACKET_MOT',
