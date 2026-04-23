@@ -56,6 +56,15 @@ interface FieldDef {
 
 const FIELD_DEFS: FieldDef[] = [
   {
+    drawingProp:    'Tag_No',
+    displayLabel:   'Tag No',
+    severity:       'critical',
+    numericCompare: false,
+    // DDS tag_no is the authoritative equipment tag (project-assigned).
+    // Drawing Tag_No must match exactly.
+    getDdsValue:    dds => dds.tagNo ?? null,
+  },
+  {
     drawingProp:    'Equipment_Type',
     displayLabel:   'Equipment Type',
     severity:       'critical',
