@@ -282,39 +282,39 @@ export async function runDdsComparison(
   }
 
   // ── Revision comparison ────────────────────────────────────────────────────
-  // Compare drawing's Revision custom property against the ERP drawing control
-  // revision_code (e.g. drawing says "C", system has "A" → mismatch).
+  // The control record holds the LAST APPROVED revision (e.g. "A").
+  // A new drawing submission must be exactly ONE step ahead ("B").
+  // Compare drawing's Revision property against nextRevision(revisionCode).
   {
-    const dwgRevision = dwgMap.get('Revision') ?? null;
-    const erpRevision = dwgCtrl?.revisionCode?.trim() || null;
+    const dwgRevision  = dwgMap.get('Revision') ?? null;
+    const currentRev   = dwgCtrl?.revisionCode?.trim() || null;
+    const expectedNext = currentRev ? nextRevision(currentRev) : null;
 
     let revStatus: ParameterStatus;
     let revNote: string | undefined;
 
-    if (!erpRevision && !dwgRevision) {
+    if (!currentRev) {
+      // No approved revision yet — drawing can be any initial revision
       revStatus = 'missing_dds';
-      revNote   = 'Revision not set in drawing control record';
-    } else if (!erpRevision) {
-      revStatus = 'missing_dds';
-      revNote   = 'No revision_code set in drawing control record';
+      revNote   = 'No approved revision in drawing control record';
     } else if (!dwgRevision) {
       revStatus = 'missing_drawing';
       revNote   = 'Revision property not found or empty in drawing';
       hasCriticalMismatch = true;
     } else {
-      const matched = compareString(erpRevision, dwgRevision);
+      const matched = compareString(expectedNext!, dwgRevision);
       if (matched === true) {
         revStatus = 'match';
       } else {
         revStatus = 'mismatch';
-        revNote   = `System revision: "${erpRevision}" ≠ Drawing revision: "${dwgRevision}"`;
+        revNote   = `Expected next revision "${expectedNext}" (after approved "${currentRev}"), drawing shows "${dwgRevision}"`;
         hasCriticalMismatch = true;
       }
     }
 
     results.push({
       parameter: 'Revision',
-      dds_value: erpRevision,   // shown as "expected" in the UI
+      dds_value: expectedNext ?? currentRev,  // show expected next as the "required" value
       dwg_value: dwgRevision,
       status:    revStatus,
       severity:  'critical',
@@ -328,4 +328,45 @@ export async function runDdsComparison(
     'pass';
 
   return { status: overallStatus, result: results };
+}
+
+// ── Revision increment ─────────────────────────────────────────────────────────
+// Returns the expected NEXT revision after the current approved one.
+// Handles:
+//   Single alpha  : A→B, B→C, …, Z→AA
+//   Multi-alpha   : AA→AB, AZ→BA (column-style like Excel)
+//   Zero-padded # : 00→01, 09→10, 99→100
+//   Unrecognised  : returns current + "+" as a fallback label
+
+function nextRevision(current: string): string {
+  const s = current.trim().toUpperCase();
+
+  // Zero-padded numeric (e.g. "00", "01", "09")
+  if (/^\d+$/.test(s)) {
+    const n = parseInt(s, 10) + 1;
+    return String(n).padStart(s.length, '0');
+  }
+
+  // Purely alphabetic (e.g. "A", "Z", "AA", "AZ")
+  if (/^[A-Z]+$/.test(s)) {
+    return incrementAlpha(s);
+  }
+
+  // Unrecognised format — append "+" as a hint
+  return s + '+';
+}
+
+function incrementAlpha(s: string): string {
+  const chars = s.split('');
+  let i = chars.length - 1;
+  while (i >= 0) {
+    if (chars[i] < 'Z') {
+      chars[i] = String.fromCharCode(chars[i].charCodeAt(0) + 1);
+      return chars.join('');
+    }
+    chars[i] = 'A';
+    i--;
+  }
+  // All chars were 'Z' — prepend an 'A' (Z→AA, ZZ→AAA, etc.)
+  return 'A' + chars.join('');
 }
