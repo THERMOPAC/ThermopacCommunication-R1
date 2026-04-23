@@ -568,19 +568,30 @@ function _DdsComparisonBanner({
   showAll: boolean;
   onToggleAll: () => void;
 }) {
+  // Detect the sentinel-only case: drawing has no Design Data table at all.
+  // In this case the only result is a single __design_data__ entry — not a real
+  // parameter discrepancy — so we use a distinct label and suppress the count badge.
+  const isSentinelOnly =
+    results.length === 1 && results[0].parameter === '__design_data__';
+
   const cfg = {
-    pass:    { bg: 'bg-green-50 border-green-200',  text: 'text-green-700', label: 'DDS Match — All critical parameters verified',   Icon: CheckCircle2 },
-    warn:    { bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700', label: 'DDS Warning — Minor discrepancies found',          Icon: AlertTriangle },
-    fail:    { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS FAIL — Critical mismatch blocks approval',     Icon: XCircle },
-    blocked: { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS BLOCKED — No DDS record found',               Icon: ShieldX },
+    pass:    { bg: 'bg-green-50 border-green-200',  text: 'text-green-700', label: 'DDS Match — All critical parameters verified',        Icon: CheckCircle2 },
+    warn:    { bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700',
+               label: isSentinelOnly
+                 ? 'DDS — No Design Data table found in drawing'
+                 : 'DDS Warning — Discrepancies found',                                                                                    Icon: AlertTriangle },
+    fail:    { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS FAIL — Critical mismatch blocks approval',        Icon: XCircle },
+    blocked: { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS BLOCKED — No DDS record found',                  Icon: ShieldX },
   }[status] ?? {
     bg: 'bg-muted', text: 'text-muted-foreground', label: status, Icon: HelpCircle,
   };
 
-  const criticalIssues = results.filter(r =>
+  // Real discrepancies only — exclude the sentinel entry from the badge counts
+  const realResults = results.filter(r => r.parameter !== '__design_data__');
+  const criticalIssues = realResults.filter(r =>
     r.severity === 'critical' && ['mismatch', 'missing_drawing'].includes(r.status)
   );
-  const warnIssues = results.filter(r =>
+  const warnIssues = realResults.filter(r =>
     r.severity === 'warning' && ['mismatch', 'missing_drawing', 'low_confidence'].includes(r.status)
   );
   const displayed = showAll ? results : results.slice(0, 6);
@@ -590,7 +601,7 @@ function _DdsComparisonBanner({
       <div className={cn("flex items-center gap-1.5 text-[10px] font-medium", cfg.text)}>
         <cfg.Icon className="h-3 w-3" />
         {cfg.label}
-        {(criticalIssues.length > 0 || warnIssues.length > 0) && (
+        {!isSentinelOnly && (criticalIssues.length > 0 || warnIssues.length > 0) && (
           <span className="ml-auto text-[9px] font-normal">
             {criticalIssues.length > 0 && `${criticalIssues.length} critical`}
             {criticalIssues.length > 0 && warnIssues.length > 0 && ', '}
@@ -621,6 +632,17 @@ function _DdsComparisonBanner({
 
 function _ParamRow({ result }: { result: ParameterResult }) {
   const { status, severity, parameter, dds_value, dwg_value, note } = result;
+
+  // Sentinel entry — drawing has no Design Data table. Show only the explanation
+  // note; do not render a DDS vs Dwg comparison grid (both would show "—").
+  if (parameter === '__design_data__') {
+    return (
+      <div className="rounded px-1.5 py-1.5 text-[9px] bg-amber-100/60 flex items-start gap-1.5">
+        <Info className="h-2.5 w-2.5 text-amber-600 shrink-0 mt-px" />
+        <p className="text-amber-800 italic leading-relaxed">{note}</p>
+      </div>
+    );
+  }
 
   const icon =
     status === 'match'            ? <CheckCircle2 className="h-2.5 w-2.5 text-green-600 shrink-0" /> :
