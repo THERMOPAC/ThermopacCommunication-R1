@@ -161,16 +161,62 @@ export async function runDdsComparison(
     (ddtRows.length > 0 ? 'table' : 'missing');
 
   if (ddtRows.length === 0 || designDataStatus === 'missing' || designDataSource === 'missing') {
+    // No Design Data table in the drawing.
+    // Instead of a single vague sentinel, emit one row per FIELD_MAP parameter so the
+    // reviewer sees exactly which values the DDS expects that the drawing is missing.
+    const noTableResults: ParameterResult[] = [];
+    let hasCriticalMissing = false;
+    let hasWarningMissing  = false;
+    let hasDdsValues       = false;
+
+    for (const [paramKey, fieldDef] of Object.entries(FIELD_MAP)) {
+      const ddsRaw = fieldDef.getDdsValue(dds);
+      const ddsVal = ddsRaw?.trim() || null;
+
+      if (ddsVal) {
+        hasDdsValues = true;
+        if (fieldDef.severity === 'critical') hasCriticalMissing = true;
+        else hasWarningMissing = true;
+
+        noTableResults.push({
+          parameter: paramKey,
+          dds_value: ddsVal,
+          dwg_value: null,
+          status:    'missing_drawing',
+          severity:  fieldDef.severity,
+          note:      'No Design Data table found in drawing — parameter expected from DDS but absent',
+        });
+      } else {
+        // DDS also has no value — show as missing_dds so reviewer knows both sides are blank
+        noTableResults.push({
+          parameter: paramKey,
+          dds_value: null,
+          dwg_value: null,
+          status:    'missing_dds',
+          severity:  fieldDef.severity,
+          note:      'Not set in DDS',
+        });
+      }
+    }
+
+    // If the DDS had no values at all, fall back to the soft sentinel
+    if (!hasDdsValues) {
+      return {
+        status: 'warn',
+        result: [{
+          parameter: '__design_data__',
+          dds_value: null,
+          dwg_value: null,
+          status:    'low_confidence',
+          severity:  'warning',
+          note:      'Drawing extraction completed, but no structured Design Data table was found. Review extracted properties, sheets, notes, and warnings before approval.',
+        }],
+      };
+    }
+
     return {
-      status: 'warn',
-      result: [{
-        parameter: '__design_data__',
-        dds_value: null,
-        dwg_value: null,
-        status:    'low_confidence',
-        severity:  'warning',
-        note:      'Drawing extraction completed, but no structured Design Data table was found. Review extracted properties, sheets, notes, and warnings before approval.',
-      }],
+      status: hasCriticalMissing ? 'fail' : 'warn',
+      result: noTableResults,
     };
   }
 

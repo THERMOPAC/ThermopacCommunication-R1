@@ -18,7 +18,7 @@ import {
 import {
   ShieldCheck, ShieldX, ShieldAlert, Shield, RotateCcw, ChevronDown,
   CheckCircle2, XCircle, AlertTriangle, HelpCircle, Clock, Loader2,
-  Server, Cpu, FileCheck2, Info, Upload, RefreshCw, Factory, Braces,
+  Server, Cpu, FileCheck2, Info, Upload, RefreshCw, Factory, Braces, Minus,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -644,6 +644,17 @@ function _ParamRow({ result }: { result: ParameterResult }) {
     );
   }
 
+  // missing_dds with no drawing value either — both sides blank, show a quiet greyed row
+  if (status === 'missing_dds' && !dds_value && !dwg_value) {
+    return (
+      <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60 py-0.5 pl-0.5">
+        <Minus className="h-2 w-2 shrink-0" />
+        <span className="capitalize">{parameter}</span>
+        <span className="ml-auto text-[8px]">not in DDS</span>
+      </div>
+    );
+  }
+
   const icon =
     status === 'match'            ? <CheckCircle2 className="h-2.5 w-2.5 text-green-600 shrink-0" /> :
     status === 'mismatch'         ? <XCircle className="h-2.5 w-2.5 text-red-500 shrink-0" /> :
@@ -655,35 +666,44 @@ function _ParamRow({ result }: { result: ParameterResult }) {
     return (
       <div className="flex items-center gap-1 text-[9px] text-green-700 py-0.5">
         {icon}
-        <span className="font-medium">{parameter}</span>
+        <span className="font-medium capitalize">{parameter}</span>
         <span className="text-muted-foreground ml-auto">{dds_value}</span>
       </div>
     );
   }
 
+  const isMissingFromDrawing = status === 'missing_drawing';
+
   return (
     <div className={cn(
       "rounded px-1.5 py-1 text-[9px] space-y-0.5",
-      severity === 'critical' ? 'bg-red-100/60' : 'bg-amber-100/60',
+      severity === 'critical'
+        ? isMissingFromDrawing ? 'bg-red-100 border border-red-200' : 'bg-red-100/60'
+        : isMissingFromDrawing ? 'bg-amber-100 border border-amber-200' : 'bg-amber-100/60',
     )}>
       <div className="flex items-center gap-1">
         {icon}
-        <span className="font-medium">{parameter}</span>
+        <span className="font-medium capitalize">{parameter}</span>
         {severity === 'critical' && (
-          <span className="ml-auto text-[8px] bg-red-200/80 text-red-700 px-1 rounded">CRITICAL</span>
+          <span className="ml-auto text-[8px] bg-red-200/80 text-red-700 px-1 rounded font-semibold">CRITICAL</span>
         )}
       </div>
       <div className="grid grid-cols-2 gap-1 pl-3.5">
         <div>
           <span className="text-muted-foreground">DDS: </span>
-          <span className="font-medium">{dds_value ?? '—'}</span>
+          <span className="font-semibold">{dds_value ?? '—'}</span>
         </div>
         <div>
           <span className="text-muted-foreground">Dwg: </span>
-          <span className="font-medium">{dwg_value ?? '—'}</span>
+          {isMissingFromDrawing
+            ? <span className="font-semibold text-red-600">MISSING</span>
+            : <span className="font-medium">{dwg_value ?? '—'}</span>
+          }
         </div>
       </div>
-      {note && <p className="text-[8px] text-muted-foreground pl-3.5 italic">{note}</p>}
+      {note && !isMissingFromDrawing && (
+        <p className="text-[8px] text-muted-foreground pl-3.5 italic">{note}</p>
+      )}
     </div>
   );
 }
