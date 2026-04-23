@@ -61,6 +61,7 @@ interface Props {
   manufacturingReleaseRequired: boolean;
   releasedForManufacturing: boolean;
   releasedForManufacturingAt: string | null;
+  drawingNumber?: string | null;
   onStatusChange?: () => void;
 }
 
@@ -71,6 +72,7 @@ export function DrawingVerificationCard({
   manufacturingReleaseRequired,
   releasedForManufacturing,
   releasedForManufacturingAt,
+  drawingNumber,
   onStatusChange,
 }: Props) {
   const qc = useQueryClient();
@@ -164,6 +166,19 @@ export function DrawingVerificationCard({
       toast({ title: 'Invalid file', description: 'Only .slddrw files are accepted.', variant: 'destructive' });
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
+    }
+    // Client-side filename gate — instant feedback before upload
+    if (drawingNumber) {
+      const basename = file.name.slice(0, file.name.length - '.slddrw'.length);
+      if (basename.toLowerCase() !== drawingNumber.toLowerCase()) {
+        toast({
+          title: 'Filename mismatch',
+          description: `Filename must match system Drawing Number. Expected: ${drawingNumber}.slddrw`,
+          variant: 'destructive',
+        });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
     }
     uploadMutation.mutate(file);
   }

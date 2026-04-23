@@ -565,6 +565,7 @@ export default function EpcDrawingControlPage() {
                                           manufacturingReleaseRequired={rec.manufacturing_release_required}
                                           releasedForManufacturing={rec.released_for_manufacturing}
                                           releasedForManufacturingAt={rec.released_for_manufacturing_at}
+                                          drawingNumber={rec.drawing_number}
                                           onStatusChange={invalidateAll}
                                         />
 

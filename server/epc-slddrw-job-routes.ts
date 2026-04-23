@@ -442,6 +442,35 @@ router.post(
       return res.status(400).json({ error: 'Only .slddrw files are accepted' });
     }
 
+    // ── Filename gate — must match system Drawing Number exactly ───────────────
+    // Check BEFORE any GCS write or job creation.
+    // Rule: filename without extension must equal drawingNumber (case-insensitive).
+    const uploadedBasename = file.originalname.slice(0, file.originalname.length - '.slddrw'.length);
+    const [dcRecord] = await db
+      .select({ drawingNumber: epcDrawingControls.drawingNumber })
+      .from(epcDrawingControls)
+      .where(eq(epcDrawingControls.id, drawingControlId))
+      .limit(1);
+
+    if (!dcRecord) {
+      return res.status(404).json({ error: 'Drawing control not found' });
+    }
+
+    if (!dcRecord.drawingNumber) {
+      return res.status(422).json({
+        error: 'Drawing control has no Drawing Number assigned — cannot validate filename',
+      });
+    }
+
+    if (uploadedBasename.toLowerCase() !== dcRecord.drawingNumber.toLowerCase()) {
+      return res.status(400).json({
+        error: 'Filename must match system Drawing Number',
+        expected_filename: `${dcRecord.drawingNumber}.slddrw`,
+        uploaded_filename: file.originalname,
+      });
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
     const sha256 = createHash('sha256').update(file.buffer).digest('hex');
     const timestamp = Date.now();
     const safeFilename = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
