@@ -65,6 +65,15 @@ const FIELD_DEFS: FieldDef[] = [
     getDdsValue:    dds => dds.tagNo ?? null,
   },
   {
+    drawingProp:    'Serial_No',
+    displayLabel:   'Serial No',
+    severity:       'critical',
+    numericCompare: false,
+    // DDS manufactureSerialNo is the authoritative serial number.
+    // Drawing Serial_No must match exactly (trim, case-insensitive).
+    getDdsValue:    dds => dds.manufactureSerialNo ?? null,
+  },
+  {
     drawingProp:    'Equipment_Type',
     displayLabel:   'Equipment Type',
     severity:       'critical',
