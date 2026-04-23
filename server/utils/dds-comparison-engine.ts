@@ -42,11 +42,14 @@ type Side = 'shell' | 'tube' | 'jacket';
 // Each entry maps one drawing custom property to one DDS field.
 // side: if set, the row is only included when that side is active.
 
+type MatchMode = 'exact' | 'contains';  // 'contains': match if either value is a substring of the other
+
 interface FieldDef {
   drawingProp:    string;               // key in customProperties.fields[].property
   displayLabel:   string;              // label shown in the UI
   severity:       'critical' | 'warning';
   numericCompare: boolean;
+  matchMode?:     MatchMode;           // default 'exact'
   side?:          Side;                // omit row when this side is not active
   getDdsValue:    (dds: DdsRecord) => string | null;
 }
@@ -80,6 +83,9 @@ const FIELD_DEFS: FieldDef[] = [
     displayLabel:   'Inspection By',
     severity:       'warning',
     numericCompare: false,
+    // Drawing may abbreviate the agency name (e.g. "TUV" vs "TUV India").
+    // Match if either value is a case-insensitive substring of the other.
+    matchMode:      'contains',
     getDdsValue:    dds => dds.inspectionBy ?? null,
   },
   {
@@ -241,9 +247,16 @@ export async function runDdsComparison(
       if (field.severity === 'critical') hasCriticalMismatch = true;
       else hasWarningMismatch = true;
     } else {
-      const matched = field.numericCompare
-        ? compareNumeric(ddsVal, dwgVal)
-        : compareString(ddsVal, dwgVal);
+      let matched: boolean | null;
+      if (field.numericCompare) {
+        matched = compareNumeric(ddsVal, dwgVal);
+      } else if (field.matchMode === 'contains') {
+        const a = ddsVal.toLowerCase();
+        const b = dwgVal.toLowerCase();
+        matched = a.includes(b) || b.includes(a);
+      } else {
+        matched = compareString(ddsVal, dwgVal);
+      }
 
       if (matched === true) {
         status = 'match';
