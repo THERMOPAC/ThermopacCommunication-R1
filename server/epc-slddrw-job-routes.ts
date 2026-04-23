@@ -37,8 +37,11 @@ const upload = multer({
 
 const router = Router();
 
-// ── Stale job timeout (ms) — jobs stuck in 'processing' beyond this are reset ─
-const STALE_JOB_MS = 30 * 60 * 1000; // 30 minutes
+// ── Stale job timeouts ────────────────────────────────────────────────────────
+// claimed   → pending : agent claimed but never started — short window, safe to retry
+// processing→ failed  : extraction was running; long window before giving up
+const STALE_CLAIM_MS      =  5 * 60 * 1000; //  5 minutes — claimed but never started
+const STALE_JOB_MS        = 10 * 60 * 1000; // 10 minutes — processing but agent died
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth middleware — validates x-node-id + x-node-token
@@ -793,8 +796,30 @@ async function _runDdsComparison(
 }
 
 async function _resetStaleJobs(): Promise<void> {
-  const cutoff = new Date(Date.now() - STALE_JOB_MS);
-  const stale = await db
+  // 1. Stale claimed jobs (agent grabbed the job but never started extraction)
+  //    → reset to pending so the next poll picks them up again
+  const claimCutoff = new Date(Date.now() - STALE_CLAIM_MS);
+  const staleClaimed = await db
+    .update(epcSlddrwExtractionJobs)
+    .set({
+      status:    'pending',
+      nodeId:    null,
+      claimedAt: null,
+    })
+    .where(and(
+      eq(epcSlddrwExtractionJobs.status, 'claimed'),
+      sql`${epcSlddrwExtractionJobs.claimedAt} < ${claimCutoff}`,
+    ))
+    .returning({ id: epcSlddrwExtractionJobs.id });
+
+  if (staleClaimed.length > 0) {
+    console.log(`[Jobs] Reset ${staleClaimed.length} stale claimed job(s) back to pending`);
+  }
+
+  // 2. Stale processing jobs (extraction started but agent died mid-run)
+  //    → mark as failed after 30 min
+  const processCutoff = new Date(Date.now() - STALE_JOB_MS);
+  const staleProcessing = await db
     .update(epcSlddrwExtractionJobs)
     .set({
       status:       'failed',
@@ -803,12 +828,12 @@ async function _resetStaleJobs(): Promise<void> {
     })
     .where(and(
       eq(epcSlddrwExtractionJobs.status, 'processing'),
-      sql`${epcSlddrwExtractionJobs.claimedAt} < ${cutoff}`,
+      sql`${epcSlddrwExtractionJobs.claimedAt} < ${processCutoff}`,
     ))
     .returning({ id: epcSlddrwExtractionJobs.id });
 
-  if (stale.length > 0) {
-    console.log(`[Jobs] Reset ${stale.length} stale job(s) to failed`);
+  if (staleProcessing.length > 0) {
+    console.log(`[Jobs] Reset ${staleProcessing.length} stale processing job(s) to failed`);
   }
 }
 
