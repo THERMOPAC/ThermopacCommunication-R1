@@ -42,9 +42,10 @@ type Side = 'shell' | 'tube' | 'jacket';
 // Each entry maps one drawing custom property to one DDS field.
 // side: if set, the row is only included when that side is active.
 
-type MatchMode = 'exact' | 'contains' | 'normalized';
-// 'contains'   : match if either value is a case-insensitive substring of the other
-// 'normalized' : trim + collapse whitespace + lowercase before comparing
+type MatchMode = 'exact' | 'contains' | 'normalized' | 'base_equipment';
+// 'contains'       : match if either value is a case-insensitive substring of the other
+// 'normalized'     : trim + collapse whitespace + lowercase before comparing
+// 'base_equipment' : strip system-level / quantity qualifiers, match on core equipment tokens
 
 interface FieldDef {
   drawingProp:    string;               // key in customProperties.fields[].property
@@ -80,8 +81,10 @@ const FIELD_DEFS: FieldDef[] = [
     displayLabel:   'Equipment Description',
     severity:       'critical',
     numericCompare: false,
-    // Normalize: trim + collapse whitespace + lowercase before comparing.
-    matchMode:      'normalized',
+    // Base-equipment identity: strip system-level and quantity qualifiers then compare.
+    // "Continuous Polishing System – Regenerative Column Skid" and
+    // "Regenerative Column Skid" both reduce to ['regenerative','column','skid'] → PASS.
+    matchMode:      'base_equipment',
     getDdsValue:    dds => dds.equipmentDescription ?? null,
   },
   {
@@ -285,6 +288,24 @@ export async function runDdsComparison(
       } else if (field.matchMode === 'normalized') {
         const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
         matched = norm(ddsVal) === norm(dwgVal);
+      } else if (field.matchMode === 'base_equipment') {
+        const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+        if (norm(ddsVal) === norm(dwgVal)) {
+          // Exact (normalized) match — no annotation needed
+          matched = true;
+        } else {
+          const ddsBase = extractBaseTokens(ddsVal);
+          const dwgBase = extractBaseTokens(dwgVal);
+          if (ddsBase.length > 0 && ddsBase.join(' ') === dwgBase.join(' ')) {
+            matched = true;
+            note = `Base equipment identity matched: [${ddsBase.join(', ')}] — system/quantity qualifiers ignored` +
+                   ` (DDS: "${ddsVal}" | Drawing: "${dwgVal}")`;
+          } else {
+            matched = false;
+            note = `DDS: "${ddsVal}" ≠ Drawing: "${dwgVal}"` +
+                   ` | DDS base: [${ddsBase.join(', ')}] | Drawing base: [${dwgBase.join(', ')}]`;
+          }
+        }
       } else {
         matched = compareString(ddsVal, dwgVal);
       }
@@ -293,7 +314,7 @@ export async function runDdsComparison(
         status = 'match';
       } else if (matched === false) {
         status = 'mismatch';
-        note   = `DDS: "${ddsVal}" ≠ Drawing: "${dwgVal}"`;
+        note   = note ?? `DDS: "${ddsVal}" ≠ Drawing: "${dwgVal}"`;
         if (field.severity === 'critical') hasCriticalMismatch = true;
         else hasWarningMismatch = true;
       } else {
@@ -360,6 +381,42 @@ export async function runDdsComparison(
     'pass';
 
   return { status: overallStatus, result: results };
+}
+
+// ── Base equipment identity ────────────────────────────────────────────────────
+// Words stripped when computing base equipment identity for Description comparison.
+// System-level words : describe how the equipment is used (qualifiers, not identity)
+// Quantity words     : describe count / packaging (not identity)
+const BASE_EQUIPMENT_IGNORE = new Set([
+  'continuous', 'polishing', 'system',   // system-level qualifiers
+  'set', 'of',                           // quantity / connector words
+]);
+
+/**
+ * extractBaseTokens
+ *
+ * Reduces an equipment description to its core identity tokens by:
+ *   1. Lowercasing
+ *   2. Splitting on whitespace and common punctuation (-, –, —, /, ,, ;, parentheses)
+ *   3. Stripping residual non-alphanumeric characters from each token
+ *   4. Removing pure-number tokens  (e.g. "2" in "Set of 2")
+ *   5. Removing tokens in BASE_EQUIPMENT_IGNORE
+ *
+ * Examples:
+ *   "Continuous Polishing System – Regenerative Column Skid"
+ *     → ['regenerative', 'column', 'skid']
+ *
+ *   "Regenerative Column Skid (Set of 2)"
+ *     → ['regenerative', 'column', 'skid']
+ */
+function extractBaseTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[\s\-–—\/,;()]+/)
+    .map(t => t.replace(/[^a-z0-9]/g, ''))
+    .filter(t => t.length > 0)
+    .filter(t => !/^\d+$/.test(t))
+    .filter(t => !BASE_EQUIPMENT_IGNORE.has(t));
 }
 
 // ── Revision increment ─────────────────────────────────────────────────────────
