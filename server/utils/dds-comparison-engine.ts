@@ -42,7 +42,9 @@ type Side = 'shell' | 'tube' | 'jacket';
 // Each entry maps one drawing custom property to one DDS field.
 // side: if set, the row is only included when that side is active.
 
-type MatchMode = 'exact' | 'contains';  // 'contains': match if either value is a substring of the other
+type MatchMode = 'exact' | 'contains' | 'normalized';
+// 'contains'   : match if either value is a case-insensitive substring of the other
+// 'normalized' : trim + collapse whitespace + lowercase before comparing
 
 interface FieldDef {
   drawingProp:    string;               // key in customProperties.fields[].property
@@ -72,6 +74,15 @@ const FIELD_DEFS: FieldDef[] = [
     // DDS manufactureSerialNo is the authoritative serial number.
     // Drawing Serial_No must match exactly (trim, case-insensitive).
     getDdsValue:    dds => dds.manufactureSerialNo ?? null,
+  },
+  {
+    drawingProp:    'Description',
+    displayLabel:   'Equipment Description',
+    severity:       'critical',
+    numericCompare: false,
+    // Normalize: trim + collapse whitespace + lowercase before comparing.
+    matchMode:      'normalized',
+    getDdsValue:    dds => dds.equipmentDescription ?? null,
   },
   {
     drawingProp:    'Equipment_Type',
@@ -271,6 +282,9 @@ export async function runDdsComparison(
         const a = ddsVal.toLowerCase();
         const b = dwgVal.toLowerCase();
         matched = a.includes(b) || b.includes(a);
+      } else if (field.matchMode === 'normalized') {
+        const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+        matched = norm(ddsVal) === norm(dwgVal);
       } else {
         matched = compareString(ddsVal, dwgVal);
       }
