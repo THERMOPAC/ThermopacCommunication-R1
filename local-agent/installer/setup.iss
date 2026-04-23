@@ -49,7 +49,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon";      Description: "Create a &desktop shortcut";               GroupDescription: "Additional icons:"
 Name: "startmenuicon";    Description: "Create a &Start Menu shortcut";            GroupDescription: "Additional icons:"
-Name: "startupschedule";  Description: "Start agent automatically at &Windows login"; GroupDescription: "Auto-start:"; Flags: unchecked
+Name: "startupschedule";  Description: "Start agent automatically at &Windows login"; GroupDescription: "Auto-start:"
 
 [Files]
 ; Agent EXE + supporting files (PyInstaller output)
