@@ -11,7 +11,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown, Lock } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown, Lock, Copy, Check } from 'lucide-react';
+
+// ─── Copy helper ─────────────────────────────────────────────────────────────
+
+function CopyButton({ value }: { value: string | null | undefined }) {
+  const [copied, setCopied] = useState(false);
+  if (!value) return null;
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="ml-1 p-0.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+      title="Copy to clipboard"
+    >
+      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+    </button>
+  );
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2579,7 +2602,17 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Material Code <span className="text-muted-foreground text-[10px]">(auto)</span></Label>
+                  <Label className="text-xs font-medium flex items-center">Material Code <span className="text-muted-foreground text-[10px] ml-1">(auto)</span><CopyButton value={designCode ? ({
+                        'EN 13445-3:2021 + TEMA EDITION-10': 'ASME SEC II PART D 2023',
+                        'EN 13445-3:2021': 'ASME SEC II PART D 2023',
+                        'ASME SEC VIII DIV-1': 'ASME SEC II PART D 2023',
+                        'ASME SEC VIII DIV-2': 'ASME SEC II PART D 2023',
+                        'ASME B31.3': 'ASME SEC II PART D 2023',
+                        'PED 2014/68/EU': 'EN 10028 / EN 10216',
+                        'API 650': 'ASME SEC II PART D 2023',
+                        'IS 2825': 'IS 2002 / IS 1570',
+                        'AS 1210': 'AS 1548',
+                      } as Record<string, string>)[designCode] || null : null} /></Label>
                   <Input
                     className="h-8 text-xs bg-slate-50"
                     value={designCode ? (
@@ -2635,6 +2668,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   <Label className="text-xs font-medium flex items-center gap-1.5">
                     Equipment Description
                     <span className="text-[10px] text-emerald-700 font-normal bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">Auto</span>
+                    <CopyButton value={autoFields.equipmentDescription} />
                   </Label>
                   <Input
                     className="h-8 text-xs bg-slate-50 text-slate-600"
@@ -2648,6 +2682,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   <Label className="text-xs font-medium flex items-center gap-1.5">
                     Tag No
                     <span className="text-[10px] text-emerald-700 font-normal bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">Auto</span>
+                    <CopyButton value={autoFields.tagNo} />
                   </Label>
                   <Input
                     className={`h-8 text-xs ${autoFields.tagNo ? 'bg-slate-50 text-slate-600' : 'bg-amber-50 text-amber-700 border-amber-300'}`}
@@ -2661,6 +2696,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   <Label className="text-xs font-medium flex items-center gap-1.5">
                     Manufacture Serial No
                     <span className="text-[10px] text-emerald-700 font-normal bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">Auto</span>
+                    <CopyButton value={autoFields.manufactureSerialNo} />
                   </Label>
                   <Input
                     className={`h-8 text-xs ${autoFields.manufactureSerialNo ? 'bg-slate-50 text-slate-600' : 'bg-amber-50 text-amber-700 border-amber-300'}`}
