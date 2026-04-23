@@ -29,6 +29,7 @@ import { epcAgentNodes, epcSlddrwExtractionJobs, epcDrawingControls } from '@sha
 import { runDdsComparison } from './utils/dds-comparison-engine';
 import { RELEASE_GATE_CONFIG } from './utils/release-gate-config';
 import gcsClient, { bucketName } from './utils/storage-config';
+import { buildDrawingGcsPath, resolveProjectGeoCodes } from './epc-coding';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -626,6 +627,9 @@ router.post('/epc-drawing-controls/:id/release/manufacturing', async (req: Reque
       status:                      epcDrawingControls.status,
       manufacturingReleaseRequired: epcDrawingControls.manufacturingReleaseRequired,
       releasedForManufacturing:    epcDrawingControls.releasedForManufacturing,
+      projectId:                   epcDrawingControls.projectId,
+      projectItemId:               epcDrawingControls.projectItemId,
+      revisionCode:                epcDrawingControls.revisionCode,
     })
     .from(epcDrawingControls)
     .where(eq(epcDrawingControls.id, drawingControlId))
@@ -691,6 +695,85 @@ router.post('/epc-drawing-controls/:id/release/manufacturing', async (req: Reque
     `[Release] drawing_control ${drawingControlId} released for manufacturing`
     + ` by user ${user?.id ?? user?.username} (role=${role})`,
   );
+
+  // ── Promote .slddrw to canonical GCS path ─────────────────────────────────
+  // After human approval + release the file moves from the staging area
+  // (epc-slddrw/{id}/{ts}-{file}) to the permanent document store:
+  // TPEL/{continent}/{country}/{customer}/{fy}/{seq}/{itemCode}/DWG/{codeBars}_rev-{revision}.slddrw
+  //
+  // Runs non-blocking — failure is logged but does NOT roll back the release.
+  (async () => {
+    try {
+      // 1. Get the staging file from the latest completed extraction job
+      const [latestJob] = await db
+        .select({
+          slddrwGcsPath:  epcSlddrwExtractionJobs.slddrwGcsPath,
+          slddrwFilename: epcSlddrwExtractionJobs.slddrwFilename,
+        })
+        .from(epcSlddrwExtractionJobs)
+        .where(and(
+          eq(epcSlddrwExtractionJobs.drawingControlId, drawingControlId),
+          eq(epcSlddrwExtractionJobs.status, 'completed'),
+        ))
+        .orderBy(desc(epcSlddrwExtractionJobs.createdAt))
+        .limit(1);
+
+      if (!latestJob?.slddrwGcsPath) {
+        console.warn(`[Release] No staging GCS path found for drawing_control ${drawingControlId} — skipping file promotion`);
+        return;
+      }
+
+      // 2. Resolve project geo codes + project item (item_code, code_bars)
+      const geo = await resolveProjectGeoCodes(dc.projectId);
+
+      if (!dc.projectItemId) {
+        console.warn(`[Release] drawing_control ${drawingControlId} has no project_item_id — skipping file promotion`);
+        return;
+      }
+
+      const piResult = await db.execute(
+        sql`SELECT item_code, code_bars FROM project_items WHERE id = ${dc.projectItemId}`
+      );
+      const pi = piResult.rows[0] as any;
+
+      if (!pi?.code_bars) {
+        console.warn(`[Release] project_item ${dc.projectItemId} has no code_bars — skipping file promotion`);
+        return;
+      }
+
+      // 3. Build canonical path
+      const ext = (latestJob.slddrwFilename?.split('.').pop() ?? 'slddrw').toLowerCase();
+      const revision = dc.revisionCode ?? 'A';
+      const canonicalPath = buildDrawingGcsPath(
+        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.fyCode, geo.projectSeq,
+        pi.item_code, pi.code_bars,
+        revision, ext
+      );
+
+      // 4. Server-side copy in GCS (no re-download needed)
+      const srcFile  = gcsClient.bucket(bucketName).file(latestJob.slddrwGcsPath);
+      const destFile = gcsClient.bucket(bucketName).file(canonicalPath);
+      await srcFile.copy(destFile);
+
+      // 5. Stamp the drawing control record with the canonical path + filename
+      const canonicalFilename = canonicalPath.split('/').pop()!;
+      await db
+        .update(epcDrawingControls)
+        .set({
+          gcsObjectPath: canonicalPath,
+          fileName:      canonicalFilename,
+        })
+        .where(eq(epcDrawingControls.id, drawingControlId));
+
+      console.log(
+        `[Release] drawing_control ${drawingControlId} — file promoted to canonical path: ${canonicalPath}`,
+      );
+    } catch (err: any) {
+      console.error(`[Release] GCS promotion failed for drawing_control ${drawingControlId}:`, err?.message ?? err);
+    }
+  })();
+
   return res.json({ ok: true, status: 'released' });
 });
 
