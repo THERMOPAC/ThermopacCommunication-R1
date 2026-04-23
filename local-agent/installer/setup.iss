@@ -11,7 +11,7 @@
 ;   - dist\python\          Python 3.11 embeddable (downloaded by build-installer.bat)
 
 #define AppName             "ThermopacAgent Dev"
-#define AppVersion          "1.0.69"
+#define AppVersion          "1.0.70"
 #define AppPublisher        "Thermopac"
 #define DesktopShortcutName "SolidWorks Extraction Agent"
 #define AppURL       "https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev"
