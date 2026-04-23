@@ -15,7 +15,7 @@
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { designDataSheets } from '@shared/schema';
-import type { MechanicalData, GeneralData } from '@shared/schema';
+import type { MechanicalData, GeneralData, ColumnHazardData } from '@shared/schema';
 import { compareNumeric, compareString } from './drawing-unit-normalizer';
 
 export type ComparisonStatus = 'pass' | 'warn' | 'fail' | 'blocked';
@@ -64,7 +64,9 @@ const FIELD_DEFS: FieldDef[] = [
     displayLabel:   'Design Code',
     severity:       'critical',
     numericCompare: false,
-    getDdsValue:    dds => dds.designCode ?? null,
+    // dds.designCode is the regulatory umbrella code (e.g. PED applied code).
+    // The actual design standard applied per-column lives in hazardData.shell.appliedCode.
+    getDdsValue:    dds => (dds.hazardData as ColumnHazardData)?.shell?.appliedCode ?? null,
   },
   {
     drawingProp:    'Material_Code',
