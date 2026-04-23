@@ -228,3 +228,9 @@ id = "vrrh96psHHNSJnGO2e-PL"
 uri = "file://client/public/ThermopacAgent-v1.0.36.zip"
 type = "unspecified"
 title = "ThermopacAgent Source ZIP v1.0.36 Dev"
+
+[[outputs]]
+id = "E9Et2LfvwPKCRJpM0EbUP"
+uri = "file://local-agent/installer_output/ThermopacAgent-v1.0.69-dev-source.zip"
+type = "unspecified"
+title = "ThermopacAgent v1.0.69 Dev — Installer Source Package"
