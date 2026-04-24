@@ -1,0 +1,154 @@
+name: Build Structuring Agent Installer
+
+on:
+  push:
+    paths:
+      - 'local-agent/structurer_pkg/**'
+      - 'local-agent/agent/**'
+      - 'local-agent/extractor/**'
+      - 'local-agent/structurer/**'
+      - '.github/workflows/build-structuring-agent.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Agent version (e.g. 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+env:
+  STRUCTURER_VERSION: '1.0.0'
+
+jobs:
+  build-installer:
+    name: Build Structuring Agent Installer (Windows)
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        # All steps run from the structurer_pkg root
+        working-directory: local-agent/structurer_pkg
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Install Inno Setup 6 ───────────────────────────────────────────────
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          choco install innosetup --version 6.3.3 -y --no-progress
+          # Verify iscc is accessible
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            Write-Error "ISCC.exe not found after install: $iscc"
+            exit 1
+          }
+          Write-Host "Inno Setup installed: $iscc"
+        working-directory: ${{ github.workspace }}
+
+      # ── 3. Build dist folder (download Python, install packages, copy sources)
+      #       CI=true skips SolidWorks detection and makepy
+      - name: Build dist (Python + agent sources)
+        shell: cmd
+        env:
+          CI: 'true'
+        run: installer\build-installer.bat
+
+      # ── 4. Verify dist contents ───────────────────────────────────────────────
+      - name: Verify dist structure
+        shell: pwsh
+        run: |
+          $dist = "dist\ThermopacStructuringAgent"
+          Write-Host "=== dist contents ==="
+          Get-ChildItem -Recurse $dist | Select-Object FullName | Format-Table -AutoSize
+
+          $required = @(
+            "$dist\agent\main_structurer.py",
+            "$dist\agent\structure_job_client.py",
+            "$dist\extractor\sw_instance.py",
+            "$dist\structurer\solidworks_structurer.py",
+            "$dist\run.bat",
+            "$dist\config.ini"
+          )
+          $ok = $true
+          foreach ($f in $required) {
+            if (Test-Path $f) {
+              Write-Host "[OK] $f"
+            } else {
+              Write-Error "[MISSING] $f"
+              $ok = $false
+            }
+          }
+          if (-not $ok) { exit 1 }
+
+          Write-Host "=== dist\python (top-level) ==="
+          Get-ChildItem "dist\python" | Select-Object Name | Format-Table -AutoSize
+
+      # ── 5. Compile Inno Setup installer ──────────────────────────────────────
+      - name: Compile installer EXE
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
+          if errorlevel 1 (
+            echo [ERROR] ISCC compilation failed
+            exit /b 1
+          )
+          echo [OK] Installer compiled successfully
+
+      # ── 6. Verify EXE was produced ────────────────────────────────────────────
+      - name: Verify installer output
+        shell: pwsh
+        run: |
+          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$env:STRUCTURER_VERSION.exe"
+          if (-not (Test-Path $exePath)) {
+            Write-Error "Installer EXE not found: $exePath"
+            exit 1
+          }
+          $size = (Get-Item $exePath).Length
+          Write-Host "[OK] Installer EXE: $exePath"
+          Write-Host "     Size: $([math]::Round($size / 1MB, 2)) MB  ($size bytes)"
+
+      # ── 7. Upload installer EXE as workflow artifact ──────────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThermopacStructuringAgent-Setup-v${{ env.STRUCTURER_VERSION }}
+          path: local-agent/structurer_pkg/installer_output/ThermopacStructuringAgent-Setup-v${{ env.STRUCTURER_VERSION }}.exe
+          retention-days: 90
+          if-no-files-found: error
+
+      # ── 8. Build summary ──────────────────────────────────────────────────────
+      - name: Write build summary
+        shell: pwsh
+        if: always()
+        run: |
+          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$env:STRUCTURER_VERSION.exe"
+          $exists  = Test-Path $exePath
+          $size    = if ($exists) { "$([math]::Round((Get-Item $exePath).Length / 1MB, 2)) MB" } else { "N/A" }
+
+          @"
+          ## ThermopacStructuringAgent v$env:STRUCTURER_VERSION Installer Build
+
+          | Item | Value |
+          |---|---|
+          | Version | v$env:STRUCTURER_VERSION |
+          | Runner | windows-latest |
+          | Inno Setup | 6.3.3 |
+          | Python bundled | 3.11.9 embeddable |
+          | SolidWorks COM cache | Generated at first agent startup |
+          | Installer EXE | $exePath |
+          | EXE size | $size |
+          | EXE produced | $exists |
+
+          ### Installer features
+          - Installs to \`%ProgramFiles%\ThermopacStructuringAgent\`
+          - Creates Desktop shortcut: **SolidWorks Structuring Agent**
+          - Creates Start Menu group: **ThermopacStructuringAgent**
+          - Optional scheduled task: \`ThermopacStructuringAgent\` (on-logon, 30s delay)
+          - Uninstall removes scheduled task automatically
+          - Requires SolidWorks 2019–2024 on target machine
+
+          ### Phase 1 — WRITE ONLY
+          This agent writes to SolidWorks drawings. It does not extract or read.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8

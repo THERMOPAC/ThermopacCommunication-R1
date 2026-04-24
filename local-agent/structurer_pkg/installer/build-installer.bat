@@ -25,6 +25,12 @@ REM    - Windows 10+ x64
 REM    - SolidWorks 2019-2024 installed (for makepy cache)
 REM    - Internet access (to download Python embeddable)
 REM    - Inno Setup 6 optional — for .exe compilation after this script
+REM
+REM  CI mode (GitHub Actions / no SolidWorks):
+REM    Set environment variable  CI=true  before running.
+REM    In CI mode the SolidWorks detection and makepy steps are skipped.
+REM    The installer still packages Python + agent sources; makepy runs at
+REM    first agent startup on the target machine.
 REM ============================================================
 
 setlocal enabledelayedexpansion
@@ -50,7 +56,18 @@ echo  Phase 1 -- WRITE ONLY
 echo ============================================================
 echo.
 
-REM ── Detect SolidWorks ────────────────────────────────────────────────────────
+REM ── CI mode detection ─────────────────────────────────────────────────────────
+if /i "!CI!"=="true" (
+    echo [CI] CI=true detected -- skipping SolidWorks detection and makepy.
+    echo [CI] The installer will still package Python + agent sources.
+    echo [CI] SolidWorks COM cache will be generated at first agent startup.
+    echo.
+    set SW_PROGID=SldWorks.Application.32
+    set SW_VERSION=2024
+    goto :sw_done
+)
+
+REM ── Detect SolidWorks (local build only) ──────────────────────────────────────
 set SW_PROGID=
 set SW_VERSION=0
 for %%v in (32 31 30 29 28 27) do (
@@ -72,12 +89,15 @@ if "!SW_PROGID!"=="" (
     echo         The makepy COM cache cannot be generated.
     echo         Install SolidWorks or supply a pre-generated gen_py cache:
     echo         %PY_DIR%\Lib\site-packages\win32com\gen_py\
+    echo         Or set CI=true to skip this check (CI/CD builds).
     echo.
     pause
     exit /b 1
 )
 echo [OK] SolidWorks !SW_VERSION! detected: !SW_PROGID!
 echo.
+
+:sw_done
 
 REM ── Create dist directories ──────────────────────────────────────────────────
 if not exist "%PY_DIR%"      mkdir "%PY_DIR%"
@@ -153,7 +173,13 @@ if exist "%PY_DIR%\Scripts\pywin32_postinstall.py" (
 :post_done
 echo [OK] pywin32 post-install done
 
-REM ── Generate SolidWorks makepy cache ──────────────────────────────────────────
+REM ── Generate SolidWorks makepy cache (skip in CI) ────────────────────────────
+if /i "!CI!"=="true" (
+    echo [CI] Skipping makepy -- no SolidWorks in CI environment.
+    echo [CI] The agent generates the COM cache at first startup on the target machine.
+    goto :makepy_done
+)
+
 echo [STEP] Generating SolidWorks COM type library cache...
 echo        (Required on machine with SolidWorks installed)
 echo.
@@ -368,4 +394,8 @@ echo  To distribute WITHOUT an .exe (source ZIP):
 echo    ZIP contents of: %DIST_DIR%\  plus  installer\setup.ps1
 echo    Users run: powershell -ExecutionPolicy Bypass -File setup.ps1
 echo.
+if /i "!CI!"=="true" (
+    echo [CI] Build complete. Exiting for CI runner.
+    exit /b 0
+)
 pause
