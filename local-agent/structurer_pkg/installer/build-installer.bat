@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Thermopac Drawing Structuring Agent v1.0.4
+REM  Thermopac Drawing Structuring Agent v1.0.5
 REM  Installer Build Pipeline
 REM ============================================================
 REM  Run from the structurer_pkg\ directory:
@@ -35,7 +35,7 @@ REM ============================================================
 
 setlocal enabledelayedexpansion
 
-set STRUCTURER_VERSION=1.0.4
+set STRUCTURER_VERSION=1.0.5
 set PY_VERSION=3.11.9
 set PY_ZIP=python-%PY_VERSION%-embed-amd64.zip
 set PY_URL=https://www.python.org/ftp/python/%PY_VERSION%/%PY_ZIP%

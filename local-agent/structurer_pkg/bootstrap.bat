@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
 REM  Thermopac Drawing Structuring Agent — Bootstrap installer
-REM  Version: v1.0.4  |  Phase 1
+REM  Version: v1.0.5  |  Phase 1
 REM  Requires: Windows 10/11 x64, Python 3.9+ already installed
 REM  Run as Administrator for best results
 REM ============================================================
@@ -9,7 +9,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo  =========================================================
-echo   Thermopac Drawing Structuring Agent  v1.0.4
+echo   Thermopac Drawing Structuring Agent  v1.0.5
 echo   Bootstrap Installer
 echo   THERMOPAC ERP ^| SolidWorks WRITE Agent ^| Phase 1
 echo  =========================================================
@@ -99,7 +99,7 @@ REM ── Write start_structurer.bat ──────────────
 echo Writing start_structurer.bat launcher...
 (
     echo @echo off
-    echo title ThermopacStructurer v1.0.4 - THERMOPAC ERP
+    echo title ThermopacStructurer v1.0.5 - THERMOPAC ERP
     echo set AGENT_DIR=%%~dp0
     echo "%VENV_DIR%\Scripts\python.exe" "%%AGENT_DIR%%agent\main_structurer.py"
 ) > "%AGENT_DIR%start_structurer.bat"
@@ -126,7 +126,7 @@ echo Creating Desktop shortcut...
 set SHORTCUT_TARGET=%AGENT_DIR%start_structurer.bat
 set SHORTCUT_PATH=%USERPROFILE%\Desktop\ThermopacStructurer.lnk
 powershell -Command ^
-  "$s = (New-Object -COM WScript.Shell).CreateShortcut('%SHORTCUT_PATH%'); $s.TargetPath = '%SHORTCUT_TARGET%'; $s.WorkingDirectory = '%AGENT_DIR%'; $s.Description = 'Thermopac Drawing Structuring Agent v1.0.4'; $s.Save()"
+  "$s = (New-Object -COM WScript.Shell).CreateShortcut('%SHORTCUT_PATH%'); $s.TargetPath = '%SHORTCUT_TARGET%'; $s.WorkingDirectory = '%AGENT_DIR%'; $s.Description = 'Thermopac Drawing Structuring Agent v1.0.5'; $s.Save()"
 if exist "%SHORTCUT_PATH%" (
     echo   Created: Desktop\ThermopacStructurer.lnk
 ) else (
