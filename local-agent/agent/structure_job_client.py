@@ -51,7 +51,7 @@ class StructureJobClient:
         """
         import socket
         body = {
-            "agent_version": AGENT_VERSION,
+            "agent_version": STRUCTURER_VERSION,
             "machine_name":  socket.gethostname(),
         }
         try:
