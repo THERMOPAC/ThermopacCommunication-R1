@@ -112,6 +112,14 @@ class AgentConfig:
         os.makedirs(self.temp_dir, exist_ok=True)
         os.makedirs(self.log_dir,  exist_ok=True)
 
+        # ── Structurer ────────────────────────────────────────────────────────
+        self.structurer_template_path = cfg.get(
+            "structurer", "template_path", fallback=""
+        ).strip()
+        self.structurer_staging_root = cfg.get(
+            "structurer", "staging_root", fallback=r"C:\ThermopacStaging\drawings"
+        ).strip()
+
         # ── SolidWorks ────────────────────────────────────────────────────────
         self.sw_visible = cfg.getboolean("solidworks", "visible", fallback=False)
         self.sw_model_search_path = cfg.get(
@@ -257,6 +265,17 @@ visible = false
 ; Required for full-mode open when parts are NOT in the same folder as the drawing.
 ; Example:  C:\\SolidWorks Projects;D:\\CAD Vault
 model_search_path =
+
+[structurer]
+; Full path to the standard SolidWorks drawing template (.drwdot)
+; Used by the Drawing Structuring Agent when creating new drawings.
+; Example: C:\\SolidWorks Templates\\Standard_A1.drwdot
+template_path =
+
+; Root directory where structured .slddrw files are staged before release.
+; Subdirectories are created automatically per drawing_control_id.
+; Structure: {staging_root}\\{drawingControlId}\\{DrawingNumber}_rev-{Revision}.slddrw
+staging_root = C:\\ThermopacStaging\\drawings
 """
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
