@@ -1,5 +1,5 @@
 # Thermopac Drawing Structuring Agent — Installation Guide
-### THERMOPAC ERP | SolidWorks WRITE Agent | v1.0.0 | Phase 1
+### THERMOPAC ERP | SolidWorks WRITE Agent | v1.0.1 | Phase 1
 
 ---
 
@@ -134,7 +134,7 @@ A console window opens:
    | | | | | |  __/ |  | | | | | | (_) | |_) | (_| | (__
    |_| |_| |_|\___|_|  |_| |_| |_|\___/| .__/ \__,_|\___|
                                         |_|
-  Drawing Structuring Agent  v1.0.0
+  Drawing Structuring Agent  v1.0.1
   THERMOPAC ERP Integration
 
   api_url       : https://thermopac-communication-thermopacllp.replit.app

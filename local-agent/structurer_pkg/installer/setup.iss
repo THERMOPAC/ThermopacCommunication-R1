@@ -1,6 +1,6 @@
 ; ============================================================
 ; Thermopac Drawing Structuring Agent — Inno Setup 6 script
-; Version: 1.0.0  |  Phase 1  |  WRITE agent
+; Version: 1.0.1  |  Phase 1  |  WRITE agent
 ;
 ; Compile with:
 ;   iscc installer\setup.iss         (from structurer_pkg\ directory)
@@ -14,7 +14,7 @@
 ; ============================================================
 
 #define AppName             "ThermopacStructuringAgent"
-#define AppVersion          "1.0.0"
+#define AppVersion          "1.0.1"
 #define AppPublisher        "Thermopac"
 #define DesktopShortcutName "SolidWorks Structuring Agent"
 #define AppURL              "https://thermopac-communication-thermopacllp.replit.app"
