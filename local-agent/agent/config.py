@@ -37,8 +37,7 @@ SW_VERSION_PROGID = {
 }
 
 _TOKEN_PLACEHOLDER = "REPLACE_WITH_YOUR_TOKEN"
-_DEFAULT_API_URL   = "https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev"
-_LEGACY_PROD_API_URL = "https://thermopac-communication-thermopacllp.replit.app"
+_DEFAULT_API_URL   = "https://thermopac-communication-thermopacllp.replit.app"
 
 
 class AgentConfig:
@@ -55,16 +54,7 @@ class AgentConfig:
         cfg = configparser.ConfigParser()
         cfg.read(path, encoding="utf-8")
 
-        # Dev test build: migrate the old published URL to the current Development backend.
-        _early_api_url = (
-            cfg.get("cloud", "api_url", fallback="").strip().rstrip("/")
-            or _DEFAULT_API_URL
-        )
-        if _early_api_url == _LEGACY_PROD_API_URL:
-            _early_api_url = _DEFAULT_API_URL
-            _save_api_url(cfg, path, _early_api_url)
-            print("[CONFIG] Dev build: migrated api_url from published backend to Development backend")
-        print(f"[CONFIG] api_url:      {_early_api_url}")
+        print(f"[CONFIG] api_url:      {cfg.get('cloud', 'api_url', fallback=_DEFAULT_API_URL).strip()}")
 
         # ── Mode ──────────────────────────────────────────────────────────────
         raw_mode = cfg.get("agent", "mode", fallback="testing").strip().lower()
@@ -206,8 +196,13 @@ def _save_token(cfg: configparser.ConfigParser, path: str, token: str) -> None:
     if not cfg.has_section("cloud"):
         cfg.add_section("cloud")
     cfg.set("cloud", "node_token", token)
-    with open(path, "w", encoding="utf-8") as f:
-        cfg.write(f)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            cfg.write(f)
+    except PermissionError:
+        print(f"[CONFIG] Warning: cannot write token to config.ini (permission denied).")
+        print(f"[CONFIG]   Running with auto-generated token in memory for this session.")
+        print(f"[CONFIG]   To persist: run agent as Administrator once, or edit config.ini manually.")
 
 
 def _save_api_url(cfg: configparser.ConfigParser, path: str, api_url: str) -> None:
@@ -215,8 +210,12 @@ def _save_api_url(cfg: configparser.ConfigParser, path: str, api_url: str) -> No
     if not cfg.has_section("cloud"):
         cfg.add_section("cloud")
     cfg.set("cloud", "api_url", api_url)
-    with open(path, "w", encoding="utf-8") as f:
-        cfg.write(f)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            cfg.write(f)
+    except PermissionError:
+        print(f"[CONFIG] Warning: cannot update api_url in config.ini (permission denied).")
+        print(f"[CONFIG]   Using migrated URL in memory: {api_url}")
 
 
 def _create_default_config(path: str) -> None:
