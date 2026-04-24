@@ -28,6 +28,9 @@ import {
   Radio,
   Info,
   Download,
+  ScanSearch,
+  FilePen,
+  ShieldCheck,
 } from "lucide-react";
 
 const SOLIDWORKS_EXTRACTOR_PY = `"""
@@ -498,18 +501,6 @@ export default function WorkerAgentsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a href="/ThermopacAgentInstaller-v1.0.70.zip" download="ThermopacAgentInstaller-v1.0.70.zip">
-              <Button variant="default" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Download Installer (v1.0.70 Dev)
-              </Button>
-            </a>
-            <a href="/ThermopacAgent-v1.0.70.zip" download="ThermopacAgent-v1.0.70.zip">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Source ZIP (v1.0.70 Dev)
-              </Button>
-            </a>
             <Button variant="outline" size="sm" onClick={invalidateAll}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
@@ -585,6 +576,99 @@ export default function WorkerAgentsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ── Local Windows Agents ──────────────────────────────────────── */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Local Windows Agents
+            </CardTitle>
+            <CardDescription>
+              Windows-side agents — run on engineer machines, poll for jobs, interface with SolidWorks
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left py-2.5 px-4 font-medium text-muted-foreground">Agent</th>
+                  <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Role</th>
+                  <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Version</th>
+                  <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Downloads</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Row 1: Extraction Agent */}
+                <tr className="border-b last:border-b-0 hover:bg-accent/30 transition-colors">
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2.5">
+                      <ScanSearch className="h-4 w-4 text-blue-500 shrink-0" />
+                      <div>
+                        <p className="font-medium">Thermopac Extraction Agent</p>
+                        <p className="text-xs text-muted-foreground">
+                          Reads .slddrw files — extracts custom properties, runs Layer 1 verification, uploads JSON
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-3">
+                    <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:text-blue-300">
+                      READ ONLY
+                    </Badge>
+                  </td>
+                  <td className="py-3 px-3">
+                    <span className="text-xs font-mono text-muted-foreground">v1.0.70</span>
+                  </td>
+                  <td className="py-3 px-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      <a href="/ThermopacAgentInstaller-v1.0.70.zip" download="ThermopacAgentInstaller-v1.0.70.zip">
+                        <Button variant="default" size="sm" className="h-7 text-xs">
+                          <Download className="h-3 w-3 mr-1" />
+                          Installer
+                        </Button>
+                      </a>
+                      <a href="/ThermopacAgent-v1.0.70.zip" download="ThermopacAgent-v1.0.70.zip">
+                        <Button variant="outline" size="sm" className="h-7 text-xs">
+                          <Download className="h-3 w-3 mr-1" />
+                          Source ZIP
+                        </Button>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Row 2: Drawing Structuring Agent */}
+                <tr className="border-b last:border-b-0 hover:bg-accent/30 transition-colors">
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2.5">
+                      <FilePen className="h-4 w-4 text-amber-500 shrink-0" />
+                      <div>
+                        <p className="font-medium">Thermopac Drawing Structuring Agent</p>
+                        <p className="text-xs text-muted-foreground">
+                          Creates / updates .slddrw from DDS data — writes custom properties, saves to staging path
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-3">
+                    <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:text-amber-300">
+                      WRITE ONLY
+                    </Badge>
+                  </td>
+                  <td className="py-3 px-3">
+                    <span className="text-xs font-mono text-muted-foreground">v1.0.70 (Phase 1)</span>
+                  </td>
+                  <td className="py-3 px-3">
+                    <Badge variant="secondary" className="text-xs">
+                      Installer pending packaging
+                    </Badge>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-5">
