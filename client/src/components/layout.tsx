@@ -36,6 +36,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Settings,
+  SlidersHorizontal,
   FileCheck,
   CalendarClock,
   Calendar,
@@ -334,6 +335,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" },
         { icon: ShieldCheck, label: "Password Compliance", href: "/admin/password-compliance" },
+        { icon: SlidersHorizontal, label: "System Settings", href: "/admin/settings" },
         { icon: Landmark, label: "Loans & Advances", href: "/loans-advances" }
       ]
     }] : []),
