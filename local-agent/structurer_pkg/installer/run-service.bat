@@ -10,5 +10,5 @@ set "PYEXE=%AGENT_DIR%\python\python.exe"
 if not exist "%PYEXE%" set "PYEXE=%AGENT_DIR%\venv\Scripts\python.exe"
 if not exist "%PYEXE%" set "PYEXE=python"
 
-start "" /B "%PYEXE%" "%AGENT_DIR%\agent\main_structurer.py" --config "%AGENT_DIR%\config.ini"
+start "" /B "%PYEXE%" "%AGENT_DIR%\agent\main_structurer.py" "%AGENT_DIR%\config.ini"
 endlocal
