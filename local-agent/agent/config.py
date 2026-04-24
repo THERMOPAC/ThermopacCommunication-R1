@@ -88,8 +88,12 @@ class AgentConfig:
             appdata_cfg.read(_APPDATA_CONFIG, encoding="utf-8")
             print(f"[CONFIG] Token overlay:  {_APPDATA_CONFIG}")
 
-        # ── Mode ──────────────────────────────────────────────────────────────
+        # ── Mode — APPDATA overlay takes priority (no admin rights needed) ───
         raw_mode = cfg.get("agent", "mode", fallback="testing").strip().lower()
+        appdata_mode = appdata_cfg.get("agent", "mode", fallback="").strip().lower()
+        if appdata_mode in ("testing", "production"):
+            raw_mode = appdata_mode
+            print(f"[CONFIG] Mode override from APPDATA: {raw_mode}")
         if raw_mode not in ("testing", "production"):
             print(f"[CONFIG] ERROR: [agent] mode must be 'testing' or 'production', got '{raw_mode}'")
             sys.exit(1)
