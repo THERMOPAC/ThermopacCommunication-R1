@@ -128,7 +128,7 @@ def main():
 
     logger = build_logger(config.log_dir, name="thermopac_structurer")
     logger.info(f"[Structurer] Starting — {config.summary()}")
-    logger.info(f"[Structurer] Agent version: {AGENT_VERSION}")
+    logger.info(f"[Structurer] Agent version: {STRUCTURER_VERSION}")
     logger.info(f"[Structurer] template_path: {config.structurer_template_path}")
     logger.info(f"[Structurer] staging_root:  {config.structurer_staging_root}")
 
