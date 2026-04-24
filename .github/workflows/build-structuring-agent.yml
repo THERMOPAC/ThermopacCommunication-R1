@@ -13,10 +13,10 @@ on:
       version:
         description: 'Agent version (e.g. 1.0.1)'
         required: false
-        default: '1.0.1'
+        default: '1.0.2'
 
 env:
-  STRUCTURER_VERSION: '1.0.1'
+  STRUCTURER_VERSION: '1.0.2'
 
 jobs:
   build-installer:
