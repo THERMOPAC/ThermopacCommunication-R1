@@ -15,7 +15,9 @@ import json
 from typing import Optional
 import requests
 
-from agent.job_client import AGENT_VERSION, _AuthError, _ConflictError, _ValidationError
+from agent.job_client import _AuthError, _ConflictError, _ValidationError
+
+STRUCTURER_VERSION = "1.0.0"
 
 
 class StructureJobClient:
@@ -26,7 +28,7 @@ class StructureJobClient:
             "x-node-id":    node_id,
             "x-node-token": node_token,
             "Content-Type": "application/json",
-            "User-Agent":   f"ThermopacStructurer/{AGENT_VERSION}",
+            "User-Agent":   f"ThermopacStructurer/{STRUCTURER_VERSION}",
         }
 
     # ── Poll ──────────────────────────────────────────────────────────────────

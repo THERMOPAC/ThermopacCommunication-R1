@@ -19,8 +19,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from agent.job_client          import AGENT_VERSION
-from agent.structure_job_client import StructureJobClient
+from agent.structure_job_client import StructureJobClient, STRUCTURER_VERSION
 from structurer.solidworks_structurer import run_structuring, PreflightError
 
 
@@ -99,7 +98,7 @@ def run_structure_job(
         # ── Stamp agent metadata ──────────────────────────────────────────────
         structure_result["agent"] = {
             "node_id":              config.node_id,
-            "agent_version":        AGENT_VERSION,
+            "agent_version":        STRUCTURER_VERSION,
             "machine_name":         socket.gethostname(),
             "structure_timestamp":  datetime.now(timezone.utc).isoformat(),
         }

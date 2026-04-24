@@ -39,8 +39,7 @@ sys.path.insert(0, _base)
 
 from agent.config                import AgentConfig
 from agent.logger                import build_logger
-from agent.job_client            import AGENT_VERSION
-from agent.structure_job_client  import StructureJobClient
+from agent.structure_job_client  import StructureJobClient, STRUCTURER_VERSION
 from agent.structure_job_runner  import run_structure_job
 
 BANNER = r"""
@@ -83,7 +82,7 @@ def _auto_register(config, logger) -> bool:
         "node_id":       config.node_id,
         "node_token":    config.node_token,
         "machine_name":  socket.gethostname(),
-        "agent_version": AGENT_VERSION,
+        "agent_version": STRUCTURER_VERSION,
         "agent_type":    "structurer",
     }
     logger.info(f"[Structurer] Auto-registering node '{config.node_id}'…")
@@ -114,7 +113,7 @@ def main():
     global _shutdown
 
     args = _parse_args()
-    print(BANNER.format(version=AGENT_VERSION))
+    print(BANNER.format(version=STRUCTURER_VERSION))
 
     config = AgentConfig(args.config)
 

@@ -12,6 +12,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use('/images', express.static(path.join(process.cwd(), 'client/public/images')));
 app.use('/test-static', express.static(path.join(process.cwd(), 'server/public')));
+app.use('/dl', express.static(path.join(process.cwd(), 'server/public')));
 
 // Agent file downloads
 app.get('/api/agent-dl/main.py', (_req, res) => {
