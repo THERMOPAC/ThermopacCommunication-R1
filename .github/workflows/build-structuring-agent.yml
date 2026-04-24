@@ -19,21 +19,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Read version from setup.iss
-        id: version
-        shell: pwsh
-        run: |
-          $content = Get-Content "installer\setup.iss" -Raw
-          if ($content -match '#define AppVersion\s+"([^"]+)"') {
-            $ver = $Matches[1]
-            Write-Host "Detected version: $ver"
-            echo "STRUCTURER_VERSION=$ver" >> $env:GITHUB_ENV
-            echo "value=$ver" >> $env:GITHUB_OUTPUT
-          } else {
-            Write-Error "Could not parse AppVersion from installer\setup.iss"
-            exit 1
-          }
-
       - name: Ensure Inno Setup is available
         shell: pwsh
         run: |
@@ -87,26 +72,33 @@ jobs:
           echo [OK] Installer compiled successfully
 
       - name: Verify installer output
+        id: verify
         shell: pwsh
         run: |
-          $ver = $env:STRUCTURER_VERSION
-          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$ver.exe"
-          Write-Host "Looking for: $exePath"
-          if (-not (Test-Path $exePath)) {
-            Write-Host "--- installer_output contents ---"
-            Get-ChildItem "installer_output" | Select-Object Name | Format-Table -AutoSize
-            Write-Error "Installer EXE not found: $exePath"
+          Write-Host "--- installer_output contents ---"
+          Get-ChildItem "installer_output" -ErrorAction SilentlyContinue | Format-Table Name, Length
+
+          $exes = Get-ChildItem "installer_output\ThermopacStructuringAgent-Setup-v*.exe" -ErrorAction SilentlyContinue
+          if (-not $exes) {
+            Write-Error "No ThermopacStructuringAgent-Setup-v*.exe found in installer_output\"
             exit 1
           }
-          $size = (Get-Item $exePath).Length
-          Write-Host "[OK] $exePath"
-          Write-Host "     Size: $([math]::Round($size / 1MB, 2)) MB ($size bytes)"
+
+          $exe = $exes | Sort-Object Name | Select-Object -Last 1
+          $ver = $exe.BaseName -replace 'ThermopacStructuringAgent-Setup-v', ''
+
+          Write-Host "[OK] $($exe.Name)"
+          Write-Host "     Version: $ver"
+          Write-Host "     Size: $([math]::Round($exe.Length / 1MB, 2)) MB ($($exe.Length) bytes)"
+
+          echo "exe_name=$($exe.Name)" >> $env:GITHUB_OUTPUT
+          echo "version=$ver"          >> $env:GITHUB_OUTPUT
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacStructuringAgent-Setup-v${{ steps.version.outputs.value }}
-          path: installer_output/ThermopacStructuringAgent-Setup-v${{ steps.version.outputs.value }}.exe
+          name: ${{ steps.verify.outputs.exe_name }}
+          path: installer_output/${{ steps.verify.outputs.exe_name }}
           retention-days: 90
           if-no-files-found: error
 
@@ -114,11 +106,12 @@ jobs:
         shell: pwsh
         if: always()
         run: |
-          $ver = $env:STRUCTURER_VERSION
-          if (-not $ver) { $ver = "unknown" }
-          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$ver.exe"
-          $exists = Test-Path $exePath
-          $size = if ($exists) { "$([math]::Round((Get-Item $exePath).Length / 1MB, 2)) MB" } else { "N/A" }
+          $exes = Get-ChildItem "installer_output\ThermopacStructuringAgent-Setup-v*.exe" -ErrorAction SilentlyContinue
+          $exe  = $exes | Sort-Object Name | Select-Object -Last 1
+          $ver    = if ($exe) { $exe.BaseName -replace 'ThermopacStructuringAgent-Setup-v','' } else { 'unknown' }
+          $size   = if ($exe) { "$([math]::Round($exe.Length / 1MB, 2)) MB" } else { 'N/A' }
+          $exists = [bool]$exe
+
           @"
           ## ThermopacStructuringAgent v$ver Installer Build
 
@@ -128,7 +121,7 @@ jobs:
           | Runner | windows-latest |
           | Python bundled | 3.11.9 embeddable |
           | SolidWorks COM cache | Generated at first agent startup |
-          | Installer EXE | $exePath |
+          | Installer EXE | $($exe.Name) |
           | EXE size | $size |
           | EXE produced | $exists |
           "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
