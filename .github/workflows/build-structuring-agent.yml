@@ -9,14 +9,6 @@ on:
       - 'installer/**'
       - '.github/workflows/build-structuring-agent.yml'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Agent version (e.g. 1.0.1)'
-        required: false
-        default: '1.0.2'
-
-env:
-  STRUCTURER_VERSION: '1.0.2'
 
 jobs:
   build-installer:
@@ -26,6 +18,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Read version from setup.iss
+        id: version
+        shell: pwsh
+        run: |
+          $content = Get-Content "installer\setup.iss" -Raw
+          if ($content -match '#define AppVersion\s+"([^"]+)"') {
+            $ver = $Matches[1]
+            Write-Host "Detected version: $ver"
+            echo "STRUCTURER_VERSION=$ver" >> $env:GITHUB_ENV
+            echo "value=$ver" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Error "Could not parse AppVersion from installer\setup.iss"
+            exit 1
+          }
 
       - name: Ensure Inno Setup is available
         shell: pwsh
@@ -82,8 +89,12 @@ jobs:
       - name: Verify installer output
         shell: pwsh
         run: |
-          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$env:STRUCTURER_VERSION.exe"
+          $ver = $env:STRUCTURER_VERSION
+          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$ver.exe"
+          Write-Host "Looking for: $exePath"
           if (-not (Test-Path $exePath)) {
+            Write-Host "--- installer_output contents ---"
+            Get-ChildItem "installer_output" | Select-Object Name | Format-Table -AutoSize
             Write-Error "Installer EXE not found: $exePath"
             exit 1
           }
@@ -94,8 +105,8 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacStructuringAgent-Setup-v${{ env.STRUCTURER_VERSION }}
-          path: installer_output/ThermopacStructuringAgent-Setup-v${{ env.STRUCTURER_VERSION }}.exe
+          name: ThermopacStructuringAgent-Setup-v${{ steps.version.outputs.value }}
+          path: installer_output/ThermopacStructuringAgent-Setup-v${{ steps.version.outputs.value }}.exe
           retention-days: 90
           if-no-files-found: error
 
@@ -103,15 +114,17 @@ jobs:
         shell: pwsh
         if: always()
         run: |
-          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$env:STRUCTURER_VERSION.exe"
+          $ver = $env:STRUCTURER_VERSION
+          if (-not $ver) { $ver = "unknown" }
+          $exePath = "installer_output\ThermopacStructuringAgent-Setup-v$ver.exe"
           $exists = Test-Path $exePath
           $size = if ($exists) { "$([math]::Round((Get-Item $exePath).Length / 1MB, 2)) MB" } else { "N/A" }
           @"
-          ## ThermopacStructuringAgent v$env:STRUCTURER_VERSION Installer Build
+          ## ThermopacStructuringAgent v$ver Installer Build
 
           | Item | Value |
           |---|---|
-          | Version | v$env:STRUCTURER_VERSION |
+          | Version | v$ver |
           | Runner | windows-latest |
           | Python bundled | 3.11.9 embeddable |
           | SolidWorks COM cache | Generated at first agent startup |
