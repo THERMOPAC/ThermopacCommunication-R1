@@ -12,12 +12,12 @@ set "CFG=%CFG_DIR%\config.ini"
 mkdir "%CFG_DIR%" 2>nul
 
 powershell -NoProfile -Command ^
-  "$f='%CFG%'; $c = if (Test-Path $f) { Get-Content $f } else { @() }; $c = $c | Where-Object { $_ -notmatch '^\s*mode\s*=' }; if (-not ($c | Select-String '^\[agent\]')) { $c += '[agent]' }; $idx = ($c | Select-String -n '^\[agent\]').LineNumber - 1; $c = $c[0..$idx] + 'mode = testing' + $c[($idx+1)..($c.Length-1)]; Set-Content $f $c -Encoding UTF8"
+  "$f='%CFG%'; $enc=[System.Text.UTF8Encoding]::new($false); $c = if (Test-Path $f) { [System.IO.File]::ReadAllText($f, $enc) } else { '' }; $lines = $c -split \"`n\" | Where-Object { $_ -notmatch '^\s*mode\s*=' }; if (-not ($lines -match '^\[agent\]')) { $lines += '[agent]' }; $idx = [array]::IndexOf($lines, ($lines | Where-Object { $_ -match '^\[agent\]' } | Select-Object -First 1)); $out = ($lines[0..$idx] + 'mode = testing' + $lines[($idx+1)..($lines.Length-1)]) -join \"`n\"; [System.IO.File]::WriteAllText($f, $out, $enc)"
 
 echo.
 echo  Done!  mode = testing written to:
 echo  %CFG%
 echo.
-echo  Now start the agent using the desktop shortcut or Start Menu.
+echo  Now start the agent using run.bat in the install folder.
 echo.
 pause

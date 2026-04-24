@@ -85,7 +85,7 @@ class AgentConfig:
         # ── Also read APPDATA overlay (token written by testing mode) ───────
         appdata_cfg = configparser.ConfigParser()
         if os.path.exists(_APPDATA_CONFIG):
-            appdata_cfg.read(_APPDATA_CONFIG, encoding="utf-8")
+            appdata_cfg.read(_APPDATA_CONFIG, encoding="utf-8-sig")
             print(f"[CONFIG] Token overlay:  {_APPDATA_CONFIG}")
 
         # ── Mode — APPDATA overlay takes priority (no admin rights needed) ───
