@@ -17,7 +17,7 @@ import requests
 
 from agent.job_client import _AuthError, _ConflictError, _ValidationError
 
-STRUCTURER_VERSION = "1.0.6"
+STRUCTURER_VERSION = "1.0.7"
 
 
 class StructureJobClient:
@@ -98,18 +98,33 @@ class StructureJobClient:
 
     # ── Connectivity test ─────────────────────────────────────────────────────
 
-    def test_connection(self) -> bool:
-        try:
-            self._get("/api/epc-structure-jobs/pending", timeout=10)
-            return True
-        except _AuthError:
-            self._logger.error(
-                "[StructClient] Authentication failed — check node_id and node_token"
-            )
-            return False
-        except Exception as e:
-            self._logger.error(f"[StructClient] Connection test failed: {e}")
-            return False
+    def test_connection(self, retries: int = 4, retry_delay: float = 8.0) -> bool:
+        """
+        Try GET /api/epc-structure-jobs/pending up to `retries` times.
+        Replit servers may need a few seconds to wake from cold-start.
+        """
+        import time as _time
+        for attempt in range(1, retries + 1):
+            try:
+                self._get("/api/epc-structure-jobs/pending", timeout=15)
+                return True
+            except _AuthError:
+                self._logger.error(
+                    "[StructClient] Authentication failed — check node_id and node_token"
+                )
+                return False
+            except Exception as e:
+                if attempt < retries:
+                    self._logger.warning(
+                        f"[StructClient] Connection attempt {attempt}/{retries} failed: {e} "
+                        f"— retrying in {retry_delay:.0f}s…"
+                    )
+                    _time.sleep(retry_delay)
+                else:
+                    self._logger.error(
+                        f"[StructClient] Connection test failed after {retries} attempts: {e}"
+                    )
+        return False
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
@@ -135,6 +150,12 @@ class StructureJobClient:
         if r.status_code == 422:
             raise _ValidationError(r.text[:500])
         r.raise_for_status()
-        if r.content:
-            return r.json()
-        return {}
+        if not r.content or not r.content.strip():
+            return {}
+        ct = r.headers.get("Content-Type", "")
+        if "json" not in ct:
+            preview = r.text[:120].replace("\n", " ")
+            raise ValueError(
+                f"Non-JSON response (HTTP {r.status_code}, Content-Type: {ct!r}): {preview!r}"
+            )
+        return r.json()
