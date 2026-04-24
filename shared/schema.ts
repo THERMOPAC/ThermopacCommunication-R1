@@ -12821,3 +12821,57 @@ export const epcSlddrwExtractionJobs = pgTable('epc_slddrw_extraction_jobs', {
 });
 
 export type EpcSlddrwExtractionJob = typeof epcSlddrwExtractionJobs.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPC Structuring Agent Settings — template & staging path config
+// Singleton row (id=1 always)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const epcStructuringSettings = pgTable('epc_structuring_settings', {
+  id:           serial('id').primaryKey(),
+  templatePath: varchar('template_path', { length: 1000 }),
+  stagingRoot:  varchar('staging_root', { length: 1000 }),
+  updatedBy:    varchar('updated_by', { length: 255 }),
+  updatedAt:    timestamp('updated_at').defaultNow(),
+});
+
+export type EpcStructuringSettings = typeof epcStructuringSettings.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPC Structure Jobs — WRITE agent queue (create / update .slddrw)
+// pending → processing → completed | failed
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const epcStructureJobs = pgTable('epc_structure_jobs', {
+  id:               serial('id').primaryKey(),
+  drawingControlId: integer('drawing_control_id')
+                      .notNull()
+                      .references(() => epcDrawingControls.id, { onDelete: 'cascade' }),
+  drawingNumber:    varchar('drawing_number', { length: 500 }),
+  revision:         varchar('revision', { length: 50 }),
+  // create_new | update_existing
+  mode:             varchar('mode', { length: 50 }).notNull().default('create_new'),
+  // Snapshot of DDS data at job creation time
+  ddsPayload:       jsonb('dds_payload'),
+  // Project identifiers forwarded to the agent
+  projectContext:   jsonb('project_context'),
+  // Paths resolved from settings at job creation time
+  templatePath:     varchar('template_path', { length: 1000 }),
+  stagingRoot:      varchar('staging_root', { length: 1000 }),
+  // Job lifecycle
+  status:           varchar('status', { length: 50 }).notNull().default('pending'),
+  nodeId:           varchar('node_id', { length: 100 }),
+  agentVersion:     varchar('agent_version', { length: 50 }),
+  machineName:      varchar('machine_name', { length: 255 }),
+  claimedAt:        timestamp('claimed_at'),
+  completedAt:      timestamp('completed_at'),
+  failedReason:     text('failed_reason'),
+  retryCount:       integer('retry_count').notNull().default(0),
+  // Agent result (file path, properties written, duration)
+  result:           jsonb('result'),
+  // Audit
+  createdBy:        varchar('created_by', { length: 255 }),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+});
+
+export type EpcStructureJob = typeof epcStructureJobs.$inferSelect;

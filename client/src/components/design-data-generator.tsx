@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown, Lock, Copy, Check } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown, Lock, Copy, Check, FilePen } from 'lucide-react';
 
 // ─── Copy helper ─────────────────────────────────────────────────────────────
 
@@ -2116,6 +2116,43 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const autoFields = data?.autoFields || {};
   const warnings = data?.warnings || {};
 
+  // ── Structure jobs (SolidWorks WRITE agent) ────────────────────────────────
+  const { data: structureJobs = [] } = useQuery<any[]>({
+    queryKey: ['/api/epc-drawing-controls', drawingControlId, 'structure-jobs'],
+    queryFn: () => fetch(`/api/epc-drawing-controls/${drawingControlId}/structure-jobs`, { credentials: 'include' }).then(r => r.json()),
+    refetchInterval: 15000,
+  });
+
+  const latestStructureJob = structureJobs[0] ?? null;
+  const hasStagedDrawing   = latestStructureJob?.status === 'completed' && !!latestStructureJob?.result?.file_path;
+  const structureMode      = hasStagedDrawing ? 'update_existing' : 'create_new';
+  const structureJobPending = latestStructureJob?.status === 'pending' || latestStructureJob?.status === 'processing';
+
+  const createStructureMutation = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/epc-drawing-controls/${drawingControlId}/structure-jobs`, {
+      drawing_number:  autoFields.drawingNumber ?? `DWG-${drawingControlId}`,
+      revision:        sheet?.revision_code ?? null,
+      mode:            structureMode,
+      dds_payload:     sheet ?? {},
+      project_context: {
+        drawingNumber:   autoFields.drawingNumber,
+        itemCode:        autoFields.itemCode,
+        tagNo:           autoFields.tagNo,
+        equipmentDescription: autoFields.equipmentDescription,
+      },
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'structure-jobs'] });
+      toast({
+        title: structureMode === 'create_new' ? 'Drawing creation queued' : 'Drawing update queued',
+        description: 'The Structuring Agent will process this job shortly.',
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err?.message ?? 'Failed to create structuring job', variant: 'destructive' });
+    },
+  });
+
   const projMdmt = autoFields.projectMdmt || null;
 
   function seedColumn(col: MechanicalColumn, hazardFluidState?: string): MechanicalColumn {
@@ -2427,6 +2464,23 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 >
                   {sheet.status}
                 </Badge>
+              )}
+              {sheet && (
+                <Button
+                  size="sm"
+                  variant={hasStagedDrawing ? 'outline' : 'default'}
+                  className={hasStagedDrawing
+                    ? 'h-6 text-[9px] px-2 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950'
+                    : 'h-6 text-[9px] px-2 bg-amber-600 hover:bg-amber-700 text-white'}
+                  disabled={createStructureMutation.isPending || structureJobPending}
+                  onClick={() => createStructureMutation.mutate()}
+                  title={hasStagedDrawing ? 'Queue update to existing staged .slddrw' : 'Queue creation of new SolidWorks drawing'}
+                >
+                  {(createStructureMutation.isPending || structureJobPending)
+                    ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    : <FilePen className="h-3 w-3 mr-1" />}
+                  {hasStagedDrawing ? 'Update SolidWorks Drawing' : 'Create SolidWorks Drawing'}
+                </Button>
               )}
               {canEdit && (
                 <Button size="sm" variant="outline" className="h-6 text-[9px] px-2" onClick={handleStartEdit}>
