@@ -230,6 +230,10 @@ begin
         RunMakepy(ProgId);
     end;
 
+    // Force mode = testing in config.ini (works on fresh install AND upgrade)
+    // SetIniString writes without BOM using Windows API — no manual edit needed
+    SetIniString('agent', 'mode', 'testing', ExpandConstant('{app}\config.ini'));
+
     CreateScheduledTask();
 
     MsgBox(
