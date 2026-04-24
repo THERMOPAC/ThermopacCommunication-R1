@@ -661,8 +661,14 @@ export default function WorkerAgentsPage() {
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1.5">
-                      <a href="/dl/ThermopacStructuringAgent-v1.0.0.zip" download="ThermopacStructuringAgent-v1.0.0.zip">
+                      <a href="/ThermopacStructuringAgentInstaller-v1.0.0.zip" download="ThermopacStructuringAgentInstaller-v1.0.0.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white">
+                          <Download className="h-3 w-3 mr-1" />
+                          Installer
+                        </Button>
+                      </a>
+                      <a href="/dl/ThermopacStructuringAgent-v1.0.0.zip" download="ThermopacStructuringAgent-v1.0.0.zip">
+                        <Button variant="outline" size="sm" className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950">
                           <Download className="h-3 w-3 mr-1" />
                           Source ZIP v1.0.0
                         </Button>
