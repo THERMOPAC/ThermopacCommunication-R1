@@ -160,16 +160,17 @@ router.post('/epc-structure-jobs/:id/claim', requireNodeAuth, async (req: Reques
   }
 
   return res.json({
-    ok:               true,
-    job_id:           claimed.id,
+    ok:                 true,
+    job_id:             claimed.id,
+    job_type:           'drawing_structure',
     drawing_control_id: claimed.drawingControlId,
-    drawing_number:   claimed.drawingNumber,
-    revision:         claimed.revision,
-    mode:             claimed.mode,
-    dds_payload:      claimed.ddsPayload,
-    project_context:  claimed.projectContext,
-    template_path:    claimed.templatePath,
-    staging_root:     claimed.stagingRoot,
+    drawing_number:     claimed.drawingNumber,
+    revision:           claimed.revision,
+    mode:               claimed.mode,
+    dds:                claimed.ddsPayload,
+    project_context:    claimed.projectContext,
+    template_path:      claimed.templatePath,
+    staging_root:       claimed.stagingRoot,
   });
 });
 
@@ -264,7 +265,7 @@ const createJobSchema = z.object({
   drawing_number:  z.string().min(1),
   revision:        z.string().optional(),
   mode:            z.enum(['create_new', 'update_existing']),
-  dds_payload:     z.record(z.unknown()),
+  dds:             z.record(z.unknown()),
   project_context: z.record(z.unknown()).optional(),
 });
 
@@ -281,7 +282,7 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
     return res.status(422).json({ error: 'Invalid request body', issues: parse.error.issues });
   }
 
-  const { drawing_number, revision, mode, dds_payload, project_context } = parse.data;
+  const { drawing_number, revision, mode, dds, project_context } = parse.data;
 
   // Verify drawing control exists
   const [dc] = await db
@@ -309,7 +310,7 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
       drawingNumber:  drawing_number,
       revision:       revision ?? null,
       mode,
-      ddsPayload:     dds_payload as any,
+      ddsPayload:     dds as any,
       projectContext: (project_context ?? null) as any,
       templatePath,
       stagingRoot,

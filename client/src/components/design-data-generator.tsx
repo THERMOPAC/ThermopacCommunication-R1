@@ -2133,7 +2133,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       drawing_number:  autoFields.drawingNumber ?? `DWG-${drawingControlId}`,
       revision:        sheet?.revision_code ?? null,
       mode:            structureMode,
-      dds_payload:     sheet ?? {},
+      dds:             sheet ?? {},
       project_context: {
         drawingNumber:   autoFields.drawingNumber,
         itemCode:        autoFields.itemCode,
