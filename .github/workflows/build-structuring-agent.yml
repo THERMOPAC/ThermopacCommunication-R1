@@ -3,10 +3,10 @@ name: Build Structuring Agent Installer
 on:
   push:
     paths:
-      - 'local-agent/structurer_pkg/**'
-      - 'local-agent/agent/**'
-      - 'local-agent/extractor/**'
-      - 'local-agent/structurer/**'
+      - 'agent/**'
+      - 'extractor/**'
+      - 'structurer/**'
+      - 'installer/**'
       - '.github/workflows/build-structuring-agent.yml'
   workflow_dispatch:
     inputs:
@@ -23,11 +23,6 @@ jobs:
     name: Build Structuring Agent Installer (Windows)
     runs-on: windows-latest
 
-    defaults:
-      run:
-        # All steps run from the structurer_pkg root
-        working-directory: local-agent/structurer_pkg
-
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout repository
@@ -38,14 +33,12 @@ jobs:
         shell: pwsh
         run: |
           choco install innosetup --version 6.3.3 -y --no-progress
-          # Verify iscc is accessible
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) {
             Write-Error "ISCC.exe not found after install: $iscc"
             exit 1
           }
           Write-Host "Inno Setup installed: $iscc"
-        working-directory: ${{ github.workspace }}
 
       # ── 3. Build dist folder (download Python, install packages, copy sources)
       #       CI=true skips SolidWorks detection and makepy
@@ -114,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ThermopacStructuringAgent-Setup-v${{ env.STRUCTURER_VERSION }}
-          path: local-agent/structurer_pkg/installer_output/ThermopacStructuringAgent-Setup-v${{ env.STRUCTURER_VERSION }}.exe
+          path: installer_output/ThermopacStructuringAgent-Setup-v${{ env.STRUCTURER_VERSION }}.exe
           retention-days: 90
           if-no-files-found: error
 
@@ -142,13 +135,13 @@ jobs:
           | EXE produced | $exists |
 
           ### Installer features
-          - Installs to \`%ProgramFiles%\ThermopacStructuringAgent\`
+          - Installs to ``%ProgramFiles%\ThermopacStructuringAgent``
           - Creates Desktop shortcut: **SolidWorks Structuring Agent**
           - Creates Start Menu group: **ThermopacStructuringAgent**
-          - Optional scheduled task: \`ThermopacStructuringAgent\` (on-logon, 30s delay)
+          - Optional scheduled task: ``ThermopacStructuringAgent`` (on-logon, 30s delay)
           - Uninstall removes scheduled task automatically
-          - Requires SolidWorks 2019–2024 on target machine
+          - Requires SolidWorks 2019-2024 on target machine
 
-          ### Phase 1 — WRITE ONLY
+          ### Phase 1 - WRITE ONLY
           This agent writes to SolidWorks drawings. It does not extract or read.
           "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
