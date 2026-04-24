@@ -2131,7 +2131,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const createStructureMutation = useMutation({
     mutationFn: () => apiRequest('POST', `/api/epc-drawing-controls/${drawingControlId}/structure-jobs`, {
       drawing_number:  autoFields.drawingNumber ?? `DWG-${drawingControlId}`,
-      revision:        sheet?.revision_code ?? null,
+      revision:        (sheet as any)?.revision ?? undefined,
       mode:            structureMode,
       dds:             sheet ?? {},
       project_context: {
@@ -2465,23 +2465,6 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   {sheet.status}
                 </Badge>
               )}
-              {sheet && (
-                <Button
-                  size="sm"
-                  variant={hasStagedDrawing ? 'outline' : 'default'}
-                  className={hasStagedDrawing
-                    ? 'h-6 text-[9px] px-2 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950'
-                    : 'h-6 text-[9px] px-2 bg-amber-600 hover:bg-amber-700 text-white'}
-                  disabled={createStructureMutation.isPending || structureJobPending}
-                  onClick={() => createStructureMutation.mutate()}
-                  title={hasStagedDrawing ? 'Queue update to existing staged .slddrw' : 'Queue creation of new SolidWorks drawing'}
-                >
-                  {(createStructureMutation.isPending || structureJobPending)
-                    ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    : <FilePen className="h-3 w-3 mr-1" />}
-                  {hasStagedDrawing ? 'Update SolidWorks Drawing' : 'Create SolidWorks Drawing'}
-                </Button>
-              )}
               {canEdit && (
                 <Button size="sm" variant="outline" className="h-6 text-[9px] px-2" onClick={handleStartEdit}>
                   <Edit3 className="h-3 w-3 mr-1" />
@@ -2595,6 +2578,27 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   </Button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── SolidWorks drawing action ──────────────────────────────── */}
+          {sheet && (
+            <div className="mt-3 pt-3 border-t flex justify-end">
+              <Button
+                size="sm"
+                variant={hasStagedDrawing ? 'outline' : 'default'}
+                className={hasStagedDrawing
+                  ? 'h-7 text-[10px] px-3 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950'
+                  : 'h-7 text-[10px] px-3 bg-amber-600 hover:bg-amber-700 text-white'}
+                disabled={createStructureMutation.isPending || structureJobPending}
+                onClick={() => createStructureMutation.mutate()}
+                title={hasStagedDrawing ? 'Queue update to existing staged .slddrw' : 'Queue creation of new SolidWorks drawing'}
+              >
+                {(createStructureMutation.isPending || structureJobPending)
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
+                {hasStagedDrawing ? 'Update SolidWorks Drawing' : 'Create SolidWorks Drawing'}
+              </Button>
             </div>
           )}
         </CardContent>
@@ -2952,18 +2956,40 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
             </div>
           </ScrollArea>
 
-          <DialogFooter className="px-6 py-3 border-t bg-slate-50">
-            <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)} disabled={saveMutation.isPending}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={!designCode || !equipmentConfig || !inspectionBy || !!idpBlocking || !!designTempBlocking || !!grossVolumeBlocking || saveMutation.isPending}
-              onClick={() => saveMutation.mutate()}
-            >
-              {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
-              Save Design Data Sheet
-            </Button>
+          <DialogFooter className="px-6 py-3 border-t bg-slate-50 flex-row items-center justify-between">
+            {/* SolidWorks action — left side */}
+            {sheet && (
+              <Button
+                size="sm"
+                variant={hasStagedDrawing ? 'outline' : 'default'}
+                className={hasStagedDrawing
+                  ? 'h-8 text-[11px] px-3 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950'
+                  : 'h-8 text-[11px] px-3 bg-amber-600 hover:bg-amber-700 text-white'}
+                disabled={createStructureMutation.isPending || structureJobPending}
+                onClick={() => createStructureMutation.mutate()}
+                title={hasStagedDrawing ? 'Queue update to existing staged .slddrw' : 'Queue creation of new SolidWorks drawing'}
+              >
+                {(createStructureMutation.isPending || structureJobPending)
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
+                {hasStagedDrawing ? 'Update SolidWorks Drawing' : 'Create SolidWorks Drawing'}
+              </Button>
+            )}
+
+            {/* Cancel + Save — right side */}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)} disabled={saveMutation.isPending}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!designCode || !equipmentConfig || !inspectionBy || !!idpBlocking || !!designTempBlocking || !!grossVolumeBlocking || saveMutation.isPending}
+                onClick={() => saveMutation.mutate()}
+              >
+                {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
+                Save Design Data Sheet
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
