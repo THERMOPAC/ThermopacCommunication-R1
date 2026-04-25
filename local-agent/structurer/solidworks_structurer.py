@@ -201,29 +201,56 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
 
 def _verify_properties(swModel, properties_written: list, logger) -> tuple[list, list]:
     """
-    Read back each written property to confirm value round-trips correctly.
+    Read back each written property to confirm it round-trips correctly.
+
+    SW2019 COM quirk: ICustomPropertyManager.Get5/Get4 require explicit ByRef
+    VARIANT objects for their output parameters — calling with only (name, cached)
+    raises DISP_E_PARAMNOTOPTIONAL (0x8002000F).  We pass VT_BSTR|VT_BYREF
+    VARIANTs as placeholders so win32com satisfies the ByRef contract, then read
+    .value after the call.  Mirrors the extraction agent's proven strategy.
+
     Returns (verified, mismatch_warnings).
     """
+    import pythoncom
+    from win32com.client import VARIANT as _VARIANT
+    _VT_BS_REF = pythoncom.VT_BSTR | pythoncom.VT_BYREF
+    _VT_BL_REF = pythoncom.VT_BOOL | pythoncom.VT_BYREF
+
     cpm        = swModel.Extension.CustomPropertyManager("")
     verified   = []
     mismatches = []
 
     for name in properties_written:
+        read_val = None
         try:
-            result = cpm.Get5(name, False)
-            if isinstance(result, tuple):
-                resolved_val = result[1] if len(result) > 1 else result[0]
-            else:
-                resolved_val = result
-            if resolved_val is not None:
-                verified.append(name)
-                logger.debug(f"[Structurer] Verified: {name} = {str(resolved_val)!r}")
-            else:
-                msg = f"Read-back of '{name}' returned None"
-                mismatches.append(msg)
-                logger.warning(f"[Structurer] {msg}")
-        except Exception as e:
-            msg = f"Read-back of '{name}' failed: {type(e).__name__}: {e}"
+            # Try Get5 (name, useCached, val/out, resolvedVal/out, wasResolved/out)
+            v_val  = _VARIANT(_VT_BS_REF, "")
+            v_rval = _VARIANT(_VT_BS_REF, "")
+            v_wr   = _VARIANT(_VT_BL_REF, False)
+            cpm.Get5(name, False, v_val, v_rval, v_wr)
+            raw = (v_val.value  or "").strip()
+            res = (v_rval.value or "").strip()
+            read_val = res if res else raw
+        except Exception:
+            pass
+
+        if read_val is None:
+            try:
+                # Fallback: Get4 (name, useCached, val/out, resolvedVal/out)
+                v_val  = _VARIANT(_VT_BS_REF, "")
+                v_rval = _VARIANT(_VT_BS_REF, "")
+                cpm.Get4(name, False, v_val, v_rval)
+                raw = (v_val.value  or "").strip()
+                res = (v_rval.value or "").strip()
+                read_val = res if res else raw
+            except Exception:
+                pass
+
+        if read_val is not None:
+            verified.append(name)
+            logger.info(f"[Structurer] Verified: {name} = {read_val!r}")
+        else:
+            msg = f"Read-back of '{name}' returned None/unreadable"
             mismatches.append(msg)
             logger.warning(f"[Structurer] {msg}")
 
