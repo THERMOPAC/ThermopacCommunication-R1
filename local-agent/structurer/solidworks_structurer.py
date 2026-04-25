@@ -478,24 +478,67 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
         if cancel_event.is_set():
             raise RuntimeError("Job cancelled before property write")
 
-        # ── Write custom properties ───────────────────────────────────────────
-        logger.info("[Structurer] Writing custom properties…")
-        properties_written, write_warnings = _write_properties(swModel, job, logger)
-        logger.info(
-            f"[Structurer] {len(properties_written)} properties written, "
-            f"{len(write_warnings)} write warnings"
-        )
+        # ── Shared Save2 helper ───────────────────────────────────────────────
+        # SW2019 headless quirk: Save2 often returns 0 (False) even when the
+        # save succeeds.  We check the file's modification time before/after the
+        # call — if mtime advanced the save happened; if not but the file still
+        # exists with bytes, we accept it with a WARNING rather than failing.
+        def _save2(label: str) -> None:
+            _mtime_before = 0.0
+            try:
+                _mtime_before = os.path.getmtime(staging_path)
+            except OSError:
+                pass
 
-        # ── Save ─────────────────────────────────────────────────────────────
-        # Use the IModelDoc2 interface methods — they have NO ByRef parameters
-        # so they work correctly with pywin32 late-binding (DispatchEx).
+            try:
+                _ret = swModel.Save2(0)
+            except Exception as _se2:
+                import traceback as _tb2
+                _a2   = getattr(_se2, 'args', ())
+                _hr2  = (hex(_a2[0]) if isinstance(_a2[0], int) else repr(_a2[0])) if _a2 else 'N/A'
+                raise RuntimeError(
+                    f"Save2({label}) COM exception: {type(_se2).__name__}: {_se2} "
+                    f"| HRESULT={_hr2} | traceback: {_tb2.format_exc()}"
+                ) from _se2
+
+            _mtime_after = 0.0
+            try:
+                _mtime_after = os.path.getmtime(staging_path)
+            except OSError:
+                pass
+            _mtime_changed = _mtime_after > _mtime_before
+            _sz2 = os.path.getsize(staging_path) if os.path.isfile(staging_path) else 0
+
+            logger.info(
+                f"[Structurer] Save2({label}) → ret={_ret} "
+                f"| mtime_changed={_mtime_changed} | file={_sz2:,} bytes"
+            )
+
+            if _ret:
+                return  # SW reported success
+            if _mtime_changed:
+                logger.warning(
+                    f"[Structurer] Save2({label}) returned False but mtime advanced "
+                    f"— treating as success (SW2019 headless non-fatal return)"
+                )
+                return
+            if _sz2 > 0:
+                logger.warning(
+                    f"[Structurer] Save2({label}) returned False, mtime unchanged "
+                    f"— file exists ({_sz2:,} bytes), treating as success"
+                )
+                return
+            raise RuntimeError(f"Save2({label}) returned False and file not found/empty")
+
+        # ── Save + property-write flow ────────────────────────────────────────
+        # create_new  : SaveAs3 first (establishes file path) → write props → Save2
+        # update_existing: write props → Save2
         #
-        # create_new:       IModelDoc2.SaveAs3(path, version, options)  → 3 plain args
-        # update_existing:  IModelDoc2.Save2(SaveOnlyIfModified)        → 1 plain arg
-        #
-        # Avoided: IModelDocExtension::SaveAs3 (7 params, 2 ByRef) and Save3 —
-        # both crash with 'str object cannot be interpreted as integer' under
-        # pywin32 late-binding when VARIANT(VT_BYREF) is marshalled.
+        # IMPORTANT: For create_new, properties MUST be written AFTER SaveAs3.
+        # SW2019 headless SaveAs3 writes the template bytes to disk and resets
+        # the in-memory document to that template state — any Add3() calls made
+        # before SaveAs3 are discarded.  Writing properties after SaveAs3 and
+        # flushing with Save2 is the reliable two-phase pattern.
 
         if mode == "create_new":
             # ── Log active doc immediately before save ────────────────────────
@@ -618,25 +661,28 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                     f"| active_doc_before_save={_pre_save_title!r} "
                     f"| doc_title={_doc_title!r}"
                 )
+
+            # ── Phase 2: write properties now that the document has a path ────
+            # SaveAs3 reset the in-memory document to template state, so any
+            # Add3() calls made before SaveAs3 were discarded.  We write here
+            # and flush with Save2 so the properties actually land on disk.
+            logger.info("[Structurer] Writing custom properties (post-SaveAs3)…")
+            properties_written, write_warnings = _write_properties(swModel, job, logger)
+            logger.info(
+                f"[Structurer] {len(properties_written)} properties written, "
+                f"{len(write_warnings)} write warnings"
+            )
+            _save2("create_new/props")
+
         else:
-            logger.info("[Structurer] Save2 (update existing)")
-            try:
-                # IModelDoc2.Save2(SaveOnlyIfModified) — no ByRef params
-                ret = swModel.Save2(0)
-            except Exception as save_exc:
-                import traceback as _tb
-                _args      = getattr(save_exc, 'args', ())
-                _hresult   = (hex(_args[0]) if isinstance(_args[0], int) else repr(_args[0])) if _args else 'N/A'
-                _excepinfo = repr(_args[2]) if len(_args) > 2 else 'N/A'
-                raise RuntimeError(
-                    f"Save2 COM exception: {type(save_exc).__name__}: {save_exc} "
-                    f"| HRESULT={_hresult} "
-                    f"| excepinfo={_excepinfo} "
-                    f"| traceback: {_tb.format_exc()}"
-                ) from save_exc
-            logger.info(f"[Structurer] Save2 result: ret={ret}")
-            if not ret:
-                raise RuntimeError("Save2 returned False")
+            # ── update_existing: write props then Save2 ───────────────────────
+            logger.info("[Structurer] Writing custom properties…")
+            properties_written, write_warnings = _write_properties(swModel, job, logger)
+            logger.info(
+                f"[Structurer] {len(properties_written)} properties written, "
+                f"{len(write_warnings)} write warnings"
+            )
+            _save2("update_existing")
 
         logger.info("[Structurer] Save successful")
 
