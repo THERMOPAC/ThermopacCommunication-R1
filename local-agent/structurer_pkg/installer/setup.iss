@@ -14,7 +14,7 @@
 ; ============================================================
 
 #define AppName             "ThermopacStructuringAgent"
-#define AppVersion          "1.0.9"
+#define AppVersion          "1.0.10"
 #define AppPublisher        "Thermopac"
 #define DesktopShortcutName "SolidWorks Structuring Agent"
 #define AppURL              "https://thermopac-communication-thermopacllp.replit.app"
@@ -78,6 +78,9 @@ Source: "{#AgentRoot}\config.ini"; DestDir: "{app}"; Flags: ignoreversion onlyif
 
 ; ── run.bat — placed at app root; built by build-installer.bat and listed here explicitly
 Source: "{#AgentRoot}\run.bat"; DestDir: "{app}"; Flags: ignoreversion
+
+; ── APPDATA auto-fix script — run.bat calls this on every startup
+Source: "{#AgentRoot}\fix_appdata_url.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Dirs]
 ; Staging root — writable by all users
@@ -233,6 +236,14 @@ begin
     // Force mode = testing in config.ini (works on fresh install AND upgrade)
     // SetIniString writes without BOM using Windows API — no manual edit needed
     SetIniString('agent', 'mode', 'testing', ExpandConstant('{app}\config.ini'));
+
+    // ── Fix APPDATA api_url → dev server (no admin needed, user's APPDATA) ──
+    // Creates the APPDATA dir if missing, then upserts the api_url key.
+    // Preserves node_token and all other existing keys.
+    ForceDirectories(ExpandConstant('{userappdata}\ThermopacStructuringAgent'));
+    SetIniString('cloud', 'api_url',
+      'https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev',
+      ExpandConstant('{userappdata}\ThermopacStructuringAgent\config.ini'));
 
     CreateScheduledTask();
 
