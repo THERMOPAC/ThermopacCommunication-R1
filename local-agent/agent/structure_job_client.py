@@ -17,7 +17,7 @@ import requests
 
 from agent.job_client import _AuthError, _ConflictError, _ValidationError
 
-STRUCTURER_VERSION = "1.0.7"
+STRUCTURER_VERSION = "1.0.8"
 
 
 class StructureJobClient:
@@ -36,7 +36,16 @@ class StructureJobClient:
     def get_pending_jobs(self) -> list[dict]:
         """GET /api/epc-structure-jobs/pending"""
         try:
-            r = self._get("/api/epc-structure-jobs/pending", timeout=15)
+            url = self._base + "/api/epc-structure-jobs/pending"
+            raw = requests.get(url, headers=self._headers, timeout=15)
+            self._logger.info(
+                f"[StructClient] /pending → HTTP {raw.status_code} "
+                f"ct={raw.headers.get('Content-Type','?')!r} "
+                f"len={len(raw.content)} "
+                f"enc={raw.headers.get('Content-Encoding','none')!r} "
+                f"body={raw.content[:60]!r}"
+            )
+            r = self._handle(raw)
             return r.get("jobs", [])
         except Exception as e:
             self._logger.warning(f"[StructClient] poll error: {e}")
@@ -98,21 +107,26 @@ class StructureJobClient:
 
     # ── Connectivity test ─────────────────────────────────────────────────────
 
-    def test_connection(self, retries: int = 4, retry_delay: float = 8.0) -> bool:
+    def test_connection(self, retries: int = 3, retry_delay: float = 8.0) -> bool:
         """
-        Try GET /api/epc-structure-jobs/pending up to `retries` times.
-        Replit servers may need a few seconds to wake from cold-start.
+        Verify the server is reachable by checking HTTP status of
+        GET /api/epc-structure-jobs/pending.  We only need a 200 or 401;
+        we do NOT parse the body so an empty/non-JSON body is tolerated.
         """
         import time as _time
+        url = self._base + "/api/epc-structure-jobs/pending"
         for attempt in range(1, retries + 1):
             try:
-                self._get("/api/epc-structure-jobs/pending", timeout=15)
-                return True
-            except _AuthError:
-                self._logger.error(
-                    "[StructClient] Authentication failed — check node_id and node_token"
-                )
-                return False
+                r = requests.get(url, headers=self._headers, timeout=15)
+                if r.status_code == 200:
+                    return True
+                if r.status_code == 401:
+                    self._logger.error(
+                        "[StructClient] Authentication failed (401) — "
+                        "check node_id and node_token"
+                    )
+                    return False
+                raise ValueError(f"Unexpected HTTP {r.status_code}")
             except Exception as e:
                 if attempt < retries:
                     self._logger.warning(
