@@ -346,35 +346,38 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
             # ── Activate document before SaveAs3 ─────────────────────────────
             # SolidWorks SaveAs3 returns 0 if the document is not the active doc.
-            # Try both approaches in order; log whatever activates it.
+            #
+            # IMPORTANT: In pywin32 late-binding, COM properties are accessed WITHOUT
+            # parentheses.  swModel.GetTitle is a PROPERTY → returns str directly.
+            # Calling swModel.GetTitle() tries to invoke that str → 'str' not callable.
+            # Same applies to swApp.ActiveDoc.GetTitle, etc.
+
+            # Step 1: get the document title (property, no parens)
             _doc_title = ""
             try:
-                _doc_title = swModel.GetTitle()
+                _doc_title = str(swModel.GetTitle)
                 logger.info(f"[Structurer] Document title: {_doc_title!r}")
-            except Exception:
-                logger.warning("[Structurer] GetTitle() failed — title unknown")
+            except Exception as _te:
+                logger.warning(f"[Structurer] GetTitle property failed: {_te}")
 
-            # Approach 1: set ActiveDoc property directly (no ByRef params)
-            _activated = False
-            try:
-                swApp.ActiveDoc = swModel
-                _activated = True
-                logger.info("[Structurer] ActiveDoc set via property assignment")
-            except Exception as _ae1:
-                logger.warning(f"[Structurer] ActiveDoc property set failed: {_ae1}")
-
-            # Approach 2: ActivateDoc3 (fallback; plain-int 4th param)
-            if not _activated and _doc_title:
+            # Step 2: activate via ActivateDoc2(name, loadLightweight, errors)
+            # ActiveDoc is read-only; ActivateDoc2 is the correct API.
+            # The 3rd param (errors) is ByRef Long but plain int 0 is tolerated
+            # by SolidWorks dispatch for this call.
+            if _doc_title:
                 try:
-                    swApp.ActivateDoc3(_doc_title, False, 0, 0)
-                    logger.info(f"[Structurer] ActivateDoc3({_doc_title!r}) called")
-                except Exception as _ae2:
-                    logger.warning(f"[Structurer] ActivateDoc3 failed: {_ae2}")
+                    swApp.ActivateDoc2(_doc_title, False, 0)
+                    logger.info(f"[Structurer] ActivateDoc2({_doc_title!r}) called")
+                except Exception as _ae:
+                    logger.warning(f"[Structurer] ActivateDoc2 failed: {_ae}")
 
-            # Confirm active doc
+            # Step 3: confirm active doc (property access, no parens)
             try:
                 _active = swApp.ActiveDoc
-                _active_title = _active.GetTitle() if _active is not None else "None"
+                if _active is not None:
+                    _active_title = str(_active.GetTitle)
+                else:
+                    _active_title = "None"
                 logger.info(f"[Structurer] Active doc confirmed: {_active_title!r}")
             except Exception as _ce:
                 logger.warning(f"[Structurer] Could not confirm active doc: {_ce}")
@@ -444,9 +447,10 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
         if mode == "create_new":
             # ── Log active doc immediately before save ────────────────────────
+            # GetTitle is a COM PROPERTY — access without parentheses.
             try:
                 _pre_save_active = swApp.ActiveDoc
-                _pre_save_title  = _pre_save_active.GetTitle() if _pre_save_active else "None"
+                _pre_save_title  = str(_pre_save_active.GetTitle) if _pre_save_active else "None"
             except Exception:
                 _pre_save_title = "unknown"
             logger.info(f"[Structurer] Active doc before SaveAs3: {_pre_save_title!r}")
@@ -476,16 +480,34 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
             logger.info(f"[Structurer] SaveAs3 result: ret={ret} path={staging_path!r}")
 
             if not ret:
-                # ── Retry after explicit ActivateDoc3 ────────────────────────
+                # ── Retry: ActivateDoc2 + Visible=True ───────────────────────
                 logger.warning(
-                    "[Structurer] SaveAs3 returned False — activating doc and retrying"
+                    "[Structurer] SaveAs3 returned False — "
+                    "calling ActivateDoc2 + Visible=True and retrying"
                 )
+
+                # Resolve title safely (GetTitle is a property, not a method)
+                _retry_title = _doc_title
+                if not _retry_title:
+                    try:
+                        _retry_title = str(swModel.GetTitle)
+                    except Exception:
+                        _retry_title = ""
+
+                # ActivateDoc2(name, loadLightweight, errors) — 3 params
+                if _retry_title:
+                    try:
+                        swApp.ActivateDoc2(_retry_title, False, 0)
+                        logger.info(f"[Structurer] ActivateDoc2({_retry_title!r}) retry OK")
+                    except Exception as _ra:
+                        logger.warning(f"[Structurer] ActivateDoc2 retry failed: {_ra}")
+
+                # Make app visible — some SolidWorks builds need this for SaveAs3
                 try:
-                    _retry_title = _doc_title or swModel.GetTitle()
-                    swApp.ActivateDoc3(_retry_title, False, 0, 0)
-                    logger.info(f"[Structurer] ActivateDoc3({_retry_title!r}) retry call OK")
-                except Exception as _ra:
-                    logger.warning(f"[Structurer] ActivateDoc3 retry call failed: {_ra}")
+                    swApp.Visible = True
+                    logger.info("[Structurer] swApp.Visible = True for retry")
+                except Exception as _ve:
+                    logger.warning(f"[Structurer] Could not set Visible=True: {_ve}")
 
                 ret, exc_info = _do_save_as3()
                 if exc_info:
@@ -494,9 +516,10 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
                 if not ret:
                     raise RuntimeError(
-                        f"SaveAs3 returned False after ActivateDoc3 retry "
+                        f"SaveAs3 returned False after ActivateDoc2 + Visible=True retry "
                         f"| path={staging_path!r} "
-                        f"| active_doc_before_save={_pre_save_title!r}"
+                        f"| active_doc_before_save={_pre_save_title!r} "
+                        f"| doc_title={_retry_title!r}"
                     )
         else:
             logger.info("[Structurer] Save2 (update existing)")
