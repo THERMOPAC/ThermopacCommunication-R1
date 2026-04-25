@@ -336,6 +336,41 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                 )
             logger.info("[Structurer] New drawing document created")
 
+            # ── Activate document before SaveAs3 ─────────────────────────────
+            # SolidWorks SaveAs3 returns 0 if the document is not the active doc.
+            # Try both approaches in order; log whatever activates it.
+            _doc_title = ""
+            try:
+                _doc_title = swModel.GetTitle()
+                logger.info(f"[Structurer] Document title: {_doc_title!r}")
+            except Exception:
+                logger.warning("[Structurer] GetTitle() failed — title unknown")
+
+            # Approach 1: set ActiveDoc property directly (no ByRef params)
+            _activated = False
+            try:
+                swApp.ActiveDoc = swModel
+                _activated = True
+                logger.info("[Structurer] ActiveDoc set via property assignment")
+            except Exception as _ae1:
+                logger.warning(f"[Structurer] ActiveDoc property set failed: {_ae1}")
+
+            # Approach 2: ActivateDoc3 (fallback; plain-int 4th param)
+            if not _activated and _doc_title:
+                try:
+                    swApp.ActivateDoc3(_doc_title, False, 0, 0)
+                    logger.info(f"[Structurer] ActivateDoc3({_doc_title!r}) called")
+                except Exception as _ae2:
+                    logger.warning(f"[Structurer] ActivateDoc3 failed: {_ae2}")
+
+            # Confirm active doc
+            try:
+                _active = swApp.ActiveDoc
+                _active_title = _active.GetTitle() if _active is not None else "None"
+                logger.info(f"[Structurer] Active doc confirmed: {_active_title!r}")
+            except Exception as _ce:
+                logger.warning(f"[Structurer] Could not confirm active doc: {_ce}")
+
         elif mode == "update_existing":
             logger.info(f"[Structurer] Opening existing file: {staging_path}")
 
@@ -400,27 +435,61 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
         # pywin32 late-binding when VARIANT(VT_BYREF) is marshalled.
 
         if mode == "create_new":
-            logger.info(f"[Structurer] SaveAs3 → {staging_path}")
+            # ── Log active doc immediately before save ────────────────────────
             try:
-                # IModelDoc2.SaveAs3(FileName, Version, Options) — no ByRef params
-                ret = swModel.SaveAs3(staging_path, _SW_SAVE_CURRENT_VERSION, 0)
-            except Exception as save_exc:
-                import traceback as _tb
-                _args      = getattr(save_exc, 'args', ())
-                _hresult   = (hex(_args[0]) if isinstance(_args[0], int) else repr(_args[0])) if _args else 'N/A'
-                _excepinfo = repr(_args[2]) if len(_args) > 2 else 'N/A'
-                raise RuntimeError(
-                    f"SaveAs3 COM exception: {type(save_exc).__name__}: {save_exc} "
-                    f"| HRESULT={_hresult} "
-                    f"| excepinfo={_excepinfo} "
-                    f"| path={staging_path!r} "
-                    f"| traceback: {_tb.format_exc()}"
-                ) from save_exc
+                _pre_save_active = swApp.ActiveDoc
+                _pre_save_title  = _pre_save_active.GetTitle() if _pre_save_active else "None"
+            except Exception:
+                _pre_save_title = "unknown"
+            logger.info(f"[Structurer] Active doc before SaveAs3: {_pre_save_title!r}")
+
+            logger.info(f"[Structurer] SaveAs3 → {staging_path}")
+
+            def _do_save_as3():
+                """Attempt IModelDoc2.SaveAs3 and return (ret, exc_info_str)."""
+                try:
+                    r = swModel.SaveAs3(staging_path, _SW_SAVE_CURRENT_VERSION, 0)
+                    return r, None
+                except Exception as _se:
+                    import traceback as _tb2
+                    _a  = getattr(_se, 'args', ())
+                    _hr = (hex(_a[0]) if isinstance(_a[0], int) else repr(_a[0])) if _a else 'N/A'
+                    _ei = repr(_a[2]) if len(_a) > 2 else 'N/A'
+                    return None, (
+                        f"SaveAs3 COM exception: {type(_se).__name__}: {_se} "
+                        f"| HRESULT={_hr} | excepinfo={_ei} "
+                        f"| path={staging_path!r} "
+                        f"| traceback: {_tb2.format_exc()}"
+                    )
+
+            ret, exc_info = _do_save_as3()
+            if exc_info:
+                raise RuntimeError(exc_info)
             logger.info(f"[Structurer] SaveAs3 result: ret={ret} path={staging_path!r}")
+
             if not ret:
-                raise RuntimeError(
-                    f"SaveAs3 returned False — check write permissions on {staging_path!r}"
+                # ── Retry after explicit ActivateDoc3 ────────────────────────
+                logger.warning(
+                    "[Structurer] SaveAs3 returned False — activating doc and retrying"
                 )
+                try:
+                    _retry_title = _doc_title or swModel.GetTitle()
+                    swApp.ActivateDoc3(_retry_title, False, 0, 0)
+                    logger.info(f"[Structurer] ActivateDoc3({_retry_title!r}) retry call OK")
+                except Exception as _ra:
+                    logger.warning(f"[Structurer] ActivateDoc3 retry call failed: {_ra}")
+
+                ret, exc_info = _do_save_as3()
+                if exc_info:
+                    raise RuntimeError(exc_info)
+                logger.info(f"[Structurer] SaveAs3 retry result: ret={ret}")
+
+                if not ret:
+                    raise RuntimeError(
+                        f"SaveAs3 returned False after ActivateDoc3 retry "
+                        f"| path={staging_path!r} "
+                        f"| active_doc_before_save={_pre_save_title!r}"
+                    )
         else:
             logger.info("[Structurer] Save2 (update existing)")
             try:
