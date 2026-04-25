@@ -418,8 +418,16 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                 )
             except Exception as save_exc:
                 import traceback as _tb
+                _args     = getattr(save_exc, 'args', ())
+                _hresult  = hex(_args[0]) if _args else 'N/A'
+                _excepinfo = _args[2] if len(_args) > 2 else 'N/A'
+                _err_val  = err_v.value  if err_v.value  is not None else 'N/A'
+                _warn_val = warn_v.value if warn_v.value is not None else 'N/A'
                 raise RuntimeError(
                     f"SaveAs3 COM exception: {type(save_exc).__name__}: {save_exc} "
+                    f"| HRESULT={_hresult} "
+                    f"| excepinfo={_excepinfo} "
+                    f"| save_errors={_err_val} save_warnings={_warn_val} "
                     f"| path={staging_path!r} "
                     f"| traceback: {_tb.format_exc()}"
                 ) from save_exc

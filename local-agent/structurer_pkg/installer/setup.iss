@@ -14,7 +14,7 @@
 ; ============================================================
 
 #define AppName             "ThermopacStructuringAgent"
-#define AppVersion          "1.0.10"
+#define AppVersion          "1.0.11"
 #define AppPublisher        "Thermopac"
 #define DesktopShortcutName "SolidWorks Structuring Agent"
 #define AppURL              "https://thermopac-communication-thermopacllp.replit.app"
