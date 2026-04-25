@@ -1,50 +1,43 @@
 @echo off
 REM ============================================================
-REM  set_dev_url.bat — Override api_url to point at the Replit
-REM  DEVELOPMENT server (where structure-job routes are active).
-REM
-REM  Run this once.  No administrator rights required.
-REM  Writes to: %APPDATA%\ThermopacStructuringAgent\config.ini
-REM
-REM  To revert to production, run set_prod_url.bat or delete
-REM  the [cloud] api_url line from the APPDATA config.ini.
+REM  set_dev_url.bat
+REM  Points the Structuring Agent at the Replit DEV server.
+REM  No administrator rights required.
+REM  Writes api_url to: %APPDATA%\ThermopacStructuringAgent\config.ini
 REM ============================================================
-
 setlocal
 
 set "APPDATA_DIR=%APPDATA%\ThermopacStructuringAgent"
 set "APPDATA_CFG=%APPDATA_DIR%\config.ini"
 set "DEV_URL=https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev"
-
-echo.
-echo  Setting api_url to DEVELOPMENT server (no admin rights needed)...
-echo.
+set "PS1=%TEMP%\thermopac_set_dev.ps1"
 
 if not exist "%APPDATA_DIR%" mkdir "%APPDATA_DIR%"
 
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$cfg = '%APPDATA_CFG%';" ^
-  "$url = '%DEV_URL%';" ^
-  "$lines = @();" ^
-  "if (Test-Path $cfg) { $lines = [System.IO.File]::ReadAllLines($cfg) };" ^
-  "$hasCloud = $false;" ^
-  "$hasUrl = $false;" ^
-  "$out = [System.Collections.Generic.List[string]]::new();" ^
-  "foreach ($line in $lines) {" ^
-  "  if ($line -match '^\[cloud\]') { $hasCloud = $true; $out.Add($line); continue };" ^
-  "  if ($hasCloud -and $line -match '^api_url\s*=') { $out.Add('api_url = ' + $url); $hasUrl = $true; continue };" ^
-  "  $out.Add($line)" ^
-  "};" ^
-  "if (-not $hasCloud) { $out.Add('[cloud]'); $out.Add('api_url = ' + $url) };" ^
-  "elseif (-not $hasUrl) { $idx = ($out | Select-String -Pattern '^\[cloud\]' | Select-Object -First 1).LineNumber; $out.Insert($idx, 'api_url = ' + $url) };" ^
-  "[System.IO.File]::WriteAllLines($cfg, $out, [System.Text.UTF8Encoding]::new($false))"
+REM Write the PowerShell script to a temp file (avoids batch ^ quoting hell)
+> "%PS1%" echo $cfg = $env:APPDATA + '\ThermopacStructuringAgent\config.ini'
+>> "%PS1%" echo $url = 'https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev'
+>> "%PS1%" echo if (-not (Test-Path $cfg)) { New-Item -ItemType File -Path $cfg -Force | Out-Null }
+>> "%PS1%" echo $txt = [IO.File]::ReadAllText($cfg)
+>> "%PS1%" echo $newLine = 'api_url = ' + $url
+>> "%PS1%" echo if ($txt -match '(?m)^api_url\s*=') {
+>> "%PS1%" echo     $txt = [regex]::Replace($txt, '(?m)^api_url\s*=.*', $newLine)
+>> "%PS1%" echo } elseif ($txt -match '(?m)^\[cloud\]') {
+>> "%PS1%" echo     $txt = [regex]::Replace($txt, '(?m)^\[cloud\]', "[cloud]`r`n" + $newLine)
+>> "%PS1%" echo } else {
+>> "%PS1%" echo     $txt = $txt.TrimEnd() + "`r`n`r`n[cloud]`r`n" + $newLine + "`r`n"
+>> "%PS1%" echo }
+>> "%PS1%" echo [IO.File]::WriteAllText($cfg, $txt, [Text.UTF8Encoding]::new($false))
+>> "%PS1%" echo Write-Host " Done. api_url set to: $url"
 
-echo  Done.
 echo.
-echo  api_url is now: %DEV_URL%
+echo  Writing dev URL to APPDATA config...
+PowerShell -NoProfile -ExecutionPolicy Bypass -File "%PS1%"
+del /q "%PS1%" 2>nul
+
 echo.
-echo  APPDATA config: %APPDATA_CFG%
+echo  Config: %APPDATA_CFG%
 echo.
-echo  Restart the Structuring Agent to apply.
+echo  *** Close this window and RESTART the Structuring Agent ***
 echo.
 pause
