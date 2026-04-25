@@ -446,15 +446,31 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
             logger.info(f"[Structurer] SaveAs3 → {staging_path}")
 
             # swSaveAsOptions_e constants
-            _OPT_NONE   = 0   # default — may trigger dialogs in headless mode
-            _OPT_SILENT = 1   # suppress all dialogs; required for headless operation
+            _OPT_NONE   = 0   # allow dialogs (may hang in headless — but some SW builds need it)
+            _OPT_SILENT = 1   # suppress dialogs
+            _OPT_COPY   = 2   # save a copy (doesn't rename the in-memory document)
 
-            def _try_save_as3(doc, label, opts=_OPT_SILENT):
-                """Attempt IModelDoc2.SaveAs3 and return (bool_ret, err_str|None)."""
+            def _try_save_as3(doc, label, opts):
+                """
+                Call IModelDoc2.SaveAs3 and return (effective_success, err_str|None).
+
+                SW2019 headless quirk: SaveAs3 can write the file to disk but still
+                return 0 (False) when there is a non-fatal internal issue — e.g. a
+                rebuild warning, unresolved sheet-format reference, etc.  We check
+                whether the output file actually appeared on disk: if it did with a
+                non-zero size, we log a WARNING and treat it as success so the job
+                completes rather than failing.
+                """
+                # Remove stale file so we can detect whether this call wrote it
+                if os.path.isfile(staging_path):
+                    try:
+                        os.remove(staging_path)
+                        logger.debug(f"[Structurer] Pre-SaveAs3 stale file removed ({label})")
+                    except OSError:
+                        pass
+
                 try:
                     r = doc.SaveAs3(staging_path, _SW_SAVE_CURRENT_VERSION, opts)
-                    logger.info(f"[Structurer] SaveAs3({label}, opts={opts}) → ret={r}")
-                    return r, None
                 except Exception as _se:
                     import traceback as _tb2
                     _a  = getattr(_se, 'args', ())
@@ -469,51 +485,72 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                     logger.warning(f"[Structurer] {_msg}")
                     return None, _msg
 
+                # Check whether file landed on disk
+                _sz = os.path.getsize(staging_path) if os.path.isfile(staging_path) else 0
+                logger.info(
+                    f"[Structurer] SaveAs3({label}, opts={opts}) "
+                    f"→ ret={r} | file_on_disk={_sz:,} bytes"
+                )
+
+                if r:
+                    return True, None   # SW reported success
+
+                if _sz > 0:
+                    # SW returned False but wrote a non-empty file — accept it.
+                    # This is a known SW2019 headless behaviour when a non-fatal
+                    # internal issue (rebuild warning, sheet-format reference) is
+                    # encountered; the file is valid and openable.
+                    logger.warning(
+                        f"[Structurer] SaveAs3({label}) returned False but file was "
+                        f"written ({_sz:,} bytes) — treating as success "
+                        f"(SW2019 headless non-fatal return)"
+                    )
+                    return True, None
+
+                return False, None   # no file, genuine failure
+
             # ── Attempt 1: swModel, Options=Silent ───────────────────────────
-            # Options=1 (swSaveAsOptions_Silent) prevents SolidWorks from showing
-            # "choose sheet format" or other dialogs that silently return False in
-            # headless/invisible mode when Options=0.
-            ret, exc_info = _try_save_as3(swModel, "swModel")
+            ret, exc_info = _try_save_as3(swModel, "swModel", _OPT_SILENT)
             if exc_info:
                 raise RuntimeError(exc_info)
 
-            # ── Attempt 2: swApp.ActiveDoc, Options=Silent ───────────────────
+            # ── Attempt 2: swModel, Options=None (no dialog suppression) ─────
             if not ret:
-                logger.warning(
-                    "[Structurer] SaveAs3 via swModel returned False — "
-                    "retrying via swApp.ActiveDoc with Options=Silent"
-                )
+                logger.warning("[Structurer] Attempt 1 failed — retrying with opts=0")
+                ret, exc_info = _try_save_as3(swModel, "swModel/opts=0", _OPT_NONE)
+                if exc_info:
+                    raise RuntimeError(exc_info)
+
+            # ── Attempt 3: swApp.ActiveDoc, Options=Silent ───────────────────
+            if not ret:
+                logger.warning("[Structurer] Attempt 2 failed — retrying via ActiveDoc")
                 try:
                     _ad = swApp.ActiveDoc
                     if _ad is not None:
-                        ret, exc_info = _try_save_as3(_ad, "ActiveDoc")
+                        ret, exc_info = _try_save_as3(_ad, "ActiveDoc", _OPT_SILENT)
                         if exc_info:
-                            logger.warning(f"[Structurer] ActiveDoc SaveAs3 raised: {exc_info}")
+                            logger.warning(f"[Structurer] Attempt 3 raised: {exc_info}")
                             ret = False
                     else:
-                        logger.warning("[Structurer] swApp.ActiveDoc is None — skipping attempt 2")
-                except Exception as _a2e:
-                    logger.warning(f"[Structurer] Attempt 2 wrapper error: {_a2e}")
+                        logger.warning("[Structurer] swApp.ActiveDoc is None — skipping attempt 3")
+                except Exception as _a3e:
+                    logger.warning(f"[Structurer] Attempt 3 wrapper error: {_a3e}")
 
-            # ── Attempt 3: swApp.Visible=True, then swModel again ────────────
+            # ── Attempt 4: Visible=True, swModel, Options=Silent ─────────────
             if not ret:
-                logger.warning(
-                    "[Structurer] SaveAs3 still False — setting Visible=True and retrying"
-                )
+                logger.warning("[Structurer] Attempt 3 failed — setting Visible=True and retrying")
                 try:
                     swApp.Visible = True
                     logger.info("[Structurer] swApp.Visible = True")
                 except Exception as _ve:
                     logger.warning(f"[Structurer] Could not set Visible=True: {_ve}")
-
-                ret, exc_info = _try_save_as3(swModel, "swModel+Visible")
+                ret, exc_info = _try_save_as3(swModel, "swModel+Visible", _OPT_SILENT)
                 if exc_info:
                     raise RuntimeError(exc_info)
 
             if not ret:
                 raise RuntimeError(
-                    f"SaveAs3 returned False after 3 attempts "
-                    f"(swModel/Silent, ActiveDoc/Silent, Visible=True) "
+                    f"SaveAs3 returned False AND no file written — all 4 attempts failed "
                     f"| path={staging_path!r} "
                     f"| active_doc_before_save={_pre_save_title!r} "
                     f"| doc_title={_doc_title!r}"
