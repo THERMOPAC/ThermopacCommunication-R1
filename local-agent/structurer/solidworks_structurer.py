@@ -131,21 +131,57 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
 
 def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
     """
-    Write Drawing_Number + Revision (always) plus every key present in job['dds'].
+    Write the 10 DDS-sourced custom properties using the exact names that exist
+    in the SolidWorks template (as defined by the extraction agent's verification
+    layer).  Only properties that have a non-empty value are written.
+
+    Template properties NOT available from the DDS payload (filled by engineer):
+        HYDRO_TEST_POSITION, SHELL_IDP, SHELL_MOT, TUBE_IDP, TUBE_MOT,
+        JACKET_IDP, JACKET_MOT, DrawnBy, DrawnDate, CheckedBy, CheckedDate,
+        EngineeringApproval, EngAppDate
+
     Returns (properties_written, warnings).
     """
     cpm = swModel.Extension.CustomPropertyManager("")
     written  = []
     warnings = []
 
+    dds = job.get("dds") or {}
+
+    def _dds(*keys: str) -> str:
+        """Return first non-blank value found among the given DDS keys."""
+        for k in keys:
+            v = str(dds.get(k) or "").strip()
+            if v:
+                return v
+        return ""
+
     to_write = {
-        "Drawing_Number": job["drawing_number"],
-        "Revision":       job["revision"],
+        # ── Always present ─────────────────────────────────────────────────
+        "Drawing_Number":        job.get("drawing_number", ""),
+        "Revision":              job.get("revision", ""),
+        # ── Mapped from DDS payload using template-exact property names ────
+        "Tag_No":                _dds("tag_no", "tagNo"),
+        "Serial_No":             _dds("manufacture_serial_no", "manufactureSerialNo"),
+        "Description":           _dds("equipment_description", "equipmentDescription"),
+        "Equipment_Type":        _dds("equipment_type"),
+        "Equipment_Configuration": _dds("equipment_config"),
+        "Design_Code":           _dds("design_code"),
+        "Material_Code":         _dds("material_code"),
+        "Inspection_By":         _dds("inspection_by"),
     }
-    to_write.update(job.get("dds", {}))
+
+    non_blank = {k: v for k, v in to_write.items() if v}
+    logger.info(
+        f"[Structurer] Writing {len(non_blank)} template properties "
+        f"(of 10 mapped; {10 - len(non_blank)} skipped — blank in DDS payload)"
+    )
 
     for name, value in to_write.items():
         str_val = str(value) if value is not None else ""
+        if not str_val:
+            logger.debug(f"[Structurer] Property skipped (blank): {name}")
+            continue
         try:
             ret = cpm.Add3(name, _SW_CUSTOM_INFO_TEXT, str_val, _SW_CUSTOM_PROP_REPLACE)
             if ret == 0:
