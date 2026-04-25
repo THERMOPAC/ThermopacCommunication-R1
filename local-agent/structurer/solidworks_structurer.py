@@ -344,15 +344,19 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                 )
             logger.info("[Structurer] New drawing document created")
 
-            # ── Activate document before SaveAs3 ─────────────────────────────
-            # SolidWorks SaveAs3 returns 0 if the document is not the active doc.
+            # ── Confirm document is active ────────────────────────────────────
+            # NewDocument automatically makes the new doc the active document.
+            # We confirmed this empirically: swApp.ActiveDoc.GetTitle returns the
+            # correct title immediately after NewDocument returns.
             #
-            # IMPORTANT: In pywin32 late-binding, COM properties are accessed WITHOUT
-            # parentheses.  swModel.GetTitle is a PROPERTY → returns str directly.
-            # Calling swModel.GetTitle() tries to invoke that str → 'str' not callable.
-            # Same applies to swApp.ActiveDoc.GetTitle, etc.
+            # NOTE: ActivateDoc2 is NOT called here because its 3rd param (Errors)
+            # is ByRef Long — pywin32 late-binding raises DISP_E_TYPEMISMATCH when
+            # a plain Python int is passed, and the call is unnecessary anyway since
+            # the document is already active.
+            #
+            # NOTE: GetTitle is a COM PROPERTY in pywin32 — access WITHOUT parens.
+            # Calling swModel.GetTitle() raises "str object is not callable".
 
-            # Step 1: get the document title (property, no parens)
             _doc_title = ""
             try:
                 _doc_title = str(swModel.GetTitle)
@@ -360,24 +364,9 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
             except Exception as _te:
                 logger.warning(f"[Structurer] GetTitle property failed: {_te}")
 
-            # Step 2: activate via ActivateDoc2(name, loadLightweight, errors)
-            # ActiveDoc is read-only; ActivateDoc2 is the correct API.
-            # The 3rd param (errors) is ByRef Long but plain int 0 is tolerated
-            # by SolidWorks dispatch for this call.
-            if _doc_title:
-                try:
-                    swApp.ActivateDoc2(_doc_title, False, 0)
-                    logger.info(f"[Structurer] ActivateDoc2({_doc_title!r}) called")
-                except Exception as _ae:
-                    logger.warning(f"[Structurer] ActivateDoc2 failed: {_ae}")
-
-            # Step 3: confirm active doc (property access, no parens)
             try:
                 _active = swApp.ActiveDoc
-                if _active is not None:
-                    _active_title = str(_active.GetTitle)
-                else:
-                    _active_title = "None"
+                _active_title = str(_active.GetTitle) if _active is not None else "None"
                 logger.info(f"[Structurer] Active doc confirmed: {_active_title!r}")
             except Exception as _ce:
                 logger.warning(f"[Structurer] Could not confirm active doc: {_ce}")
@@ -447,7 +436,6 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
         if mode == "create_new":
             # ── Log active doc immediately before save ────────────────────────
-            # GetTitle is a COM PROPERTY — access without parentheses.
             try:
                 _pre_save_active = swApp.ActiveDoc
                 _pre_save_title  = str(_pre_save_active.GetTitle) if _pre_save_active else "None"
@@ -457,70 +445,79 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
             logger.info(f"[Structurer] SaveAs3 → {staging_path}")
 
-            def _do_save_as3():
-                """Attempt IModelDoc2.SaveAs3 and return (ret, exc_info_str)."""
+            # swSaveAsOptions_e constants
+            _OPT_NONE   = 0   # default — may trigger dialogs in headless mode
+            _OPT_SILENT = 1   # suppress all dialogs; required for headless operation
+
+            def _try_save_as3(doc, label, opts=_OPT_SILENT):
+                """Attempt IModelDoc2.SaveAs3 and return (bool_ret, err_str|None)."""
                 try:
-                    r = swModel.SaveAs3(staging_path, _SW_SAVE_CURRENT_VERSION, 0)
+                    r = doc.SaveAs3(staging_path, _SW_SAVE_CURRENT_VERSION, opts)
+                    logger.info(f"[Structurer] SaveAs3({label}, opts={opts}) → ret={r}")
                     return r, None
                 except Exception as _se:
                     import traceback as _tb2
                     _a  = getattr(_se, 'args', ())
                     _hr = (hex(_a[0]) if isinstance(_a[0], int) else repr(_a[0])) if _a else 'N/A'
                     _ei = repr(_a[2]) if len(_a) > 2 else 'N/A'
-                    return None, (
-                        f"SaveAs3 COM exception: {type(_se).__name__}: {_se} "
+                    _msg = (
+                        f"SaveAs3({label}) COM exception: {type(_se).__name__}: {_se} "
                         f"| HRESULT={_hr} | excepinfo={_ei} "
                         f"| path={staging_path!r} "
                         f"| traceback: {_tb2.format_exc()}"
                     )
+                    logger.warning(f"[Structurer] {_msg}")
+                    return None, _msg
 
-            ret, exc_info = _do_save_as3()
+            # ── Attempt 1: swModel, Options=Silent ───────────────────────────
+            # Options=1 (swSaveAsOptions_Silent) prevents SolidWorks from showing
+            # "choose sheet format" or other dialogs that silently return False in
+            # headless/invisible mode when Options=0.
+            ret, exc_info = _try_save_as3(swModel, "swModel")
             if exc_info:
                 raise RuntimeError(exc_info)
-            logger.info(f"[Structurer] SaveAs3 result: ret={ret} path={staging_path!r}")
 
+            # ── Attempt 2: swApp.ActiveDoc, Options=Silent ───────────────────
             if not ret:
-                # ── Retry: ActivateDoc2 + Visible=True ───────────────────────
                 logger.warning(
-                    "[Structurer] SaveAs3 returned False — "
-                    "calling ActivateDoc2 + Visible=True and retrying"
+                    "[Structurer] SaveAs3 via swModel returned False — "
+                    "retrying via swApp.ActiveDoc with Options=Silent"
                 )
+                try:
+                    _ad = swApp.ActiveDoc
+                    if _ad is not None:
+                        ret, exc_info = _try_save_as3(_ad, "ActiveDoc")
+                        if exc_info:
+                            logger.warning(f"[Structurer] ActiveDoc SaveAs3 raised: {exc_info}")
+                            ret = False
+                    else:
+                        logger.warning("[Structurer] swApp.ActiveDoc is None — skipping attempt 2")
+                except Exception as _a2e:
+                    logger.warning(f"[Structurer] Attempt 2 wrapper error: {_a2e}")
 
-                # Resolve title safely (GetTitle is a property, not a method)
-                _retry_title = _doc_title
-                if not _retry_title:
-                    try:
-                        _retry_title = str(swModel.GetTitle)
-                    except Exception:
-                        _retry_title = ""
-
-                # ActivateDoc2(name, loadLightweight, errors) — 3 params
-                if _retry_title:
-                    try:
-                        swApp.ActivateDoc2(_retry_title, False, 0)
-                        logger.info(f"[Structurer] ActivateDoc2({_retry_title!r}) retry OK")
-                    except Exception as _ra:
-                        logger.warning(f"[Structurer] ActivateDoc2 retry failed: {_ra}")
-
-                # Make app visible — some SolidWorks builds need this for SaveAs3
+            # ── Attempt 3: swApp.Visible=True, then swModel again ────────────
+            if not ret:
+                logger.warning(
+                    "[Structurer] SaveAs3 still False — setting Visible=True and retrying"
+                )
                 try:
                     swApp.Visible = True
-                    logger.info("[Structurer] swApp.Visible = True for retry")
+                    logger.info("[Structurer] swApp.Visible = True")
                 except Exception as _ve:
                     logger.warning(f"[Structurer] Could not set Visible=True: {_ve}")
 
-                ret, exc_info = _do_save_as3()
+                ret, exc_info = _try_save_as3(swModel, "swModel+Visible")
                 if exc_info:
                     raise RuntimeError(exc_info)
-                logger.info(f"[Structurer] SaveAs3 retry result: ret={ret}")
 
-                if not ret:
-                    raise RuntimeError(
-                        f"SaveAs3 returned False after ActivateDoc2 + Visible=True retry "
-                        f"| path={staging_path!r} "
-                        f"| active_doc_before_save={_pre_save_title!r} "
-                        f"| doc_title={_retry_title!r}"
-                    )
+            if not ret:
+                raise RuntimeError(
+                    f"SaveAs3 returned False after 3 attempts "
+                    f"(swModel/Silent, ActiveDoc/Silent, Visible=True) "
+                    f"| path={staging_path!r} "
+                    f"| active_doc_before_save={_pre_save_title!r} "
+                    f"| doc_title={_doc_title!r}"
+                )
         else:
             logger.info("[Structurer] Save2 (update existing)")
             try:
