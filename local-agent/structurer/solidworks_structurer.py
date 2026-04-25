@@ -90,14 +90,21 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
 
     if not template_path:
         raise PreflightError(
-            "template_path not configured — set [structurer] template_path in config.ini"
+            "template_path not set — configure it in ERP System Settings "
+            "(Admin → System Settings → SolidWorks Structuring Agent → Template Path). "
+            "Fallback: set [structurer] template_path in the agent's config.ini."
         )
     if not os.path.isfile(template_path):
-        raise PreflightError(f"template_path not found or not readable: {template_path}")
+        raise PreflightError(
+            f"template_path not found or not accessible: {template_path!r} — "
+            "verify the path exists and the agent machine has network access to it."
+        )
 
     if not staging_root:
         raise PreflightError(
-            "staging_root not configured — set [structurer] staging_root in config.ini"
+            "staging_root not set — configure it in ERP System Settings "
+            "(Admin → System Settings → SolidWorks Structuring Agent → Staging Root). "
+            "Fallback: set [structurer] staging_root in the agent's config.ini."
         )
     try:
         staging_dir = os.path.join(staging_root, drawing_ctrl_id)
@@ -239,12 +246,24 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
     drawing_number = job["drawing_number"]
     revision       = job["revision"]
     mode           = (job.get("mode") or "create_new").strip()
-    template_path  = config.structurer_template_path
-    staging_root   = config.structurer_staging_root
+
+    # Prefer template_path / staging_root embedded in the job payload
+    # (set via ERP System Settings, baked into every job at creation time).
+    # Fall back to local config.ini values for backward compatibility.
+    template_path = (
+        (job.get("template_path") or job.get("templatePath") or "").strip()
+        or config.structurer_template_path
+    )
+    staging_root = (
+        (job.get("staging_root") or job.get("stagingRoot") or "").strip()
+        or config.structurer_staging_root
+    )
 
     logger.info(
         f"[Structurer] Job start — drawing={drawing_number} rev={revision} mode={mode}"
     )
+    logger.info(f"[Structurer] template_path (resolved): {template_path or 'NOT SET'}")
+    logger.info(f"[Structurer] staging_root  (resolved): {staging_root  or 'NOT SET'}")
 
     # ── Pre-flight (before any SolidWorks involvement) ────────────────────────
     staging_path = _preflight(job, template_path, staging_root)
