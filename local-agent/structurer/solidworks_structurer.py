@@ -129,17 +129,118 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
 
 # ── Custom property helpers ───────────────────────────────────────────────────
 
+def _extract_mot(op_temp: Optional[str]) -> str:
+    """
+    Extract the maximum operating temperature from a 'min / max' formatted string.
+
+    Examples:
+        "100 / 120"  → "120"
+        "-10 / 80"   → "80"
+        "120"        → "120"   (single value — treated as max)
+        None / ""    → ""      (skipped — do not write property)
+
+    The result is validated as a finite float before returning so that malformed
+    strings (e.g. "N.A." or "—") do not get written as SHELL_MOT.
+    """
+    if not op_temp:
+        return ""
+    parts = op_temp.split("/")
+    raw = parts[-1].strip()
+    try:
+        float(raw)
+        return raw
+    except ValueError:
+        return ""
+
+
+def _mech_col_props(prefix: str, col: dict) -> dict:
+    """
+    Build {SW_property_name: value_string} for one mechanical column.
+
+    Approved mapping (Option C — 24 SW properties per column):
+        <PREFIX>_IDP       ← internalDesignPressureMawp   (Number)
+        <PREFIX>_EDP       ← externalDesignPressureMawp   (Number)
+        <PREFIX>_WP        ← workingPressure               (Number)
+        <PREFIX>_HTP       ← hydroTestPressure             (Number)
+        <PREFIX>_MDMT      ← mdmt                          (Number)
+        <PREFIX>_HT_TEMP   ← hydroTestTempMinMax           (Text)
+        <PREFIX>_OP_TEMP   ← operatingTempMinMax           (Text — full string)
+        <PREFIX>_MOT       ← operatingTempMinMax max part  (Number — existing template field)
+        <PREFIX>_DES_TEMP  ← designTempMinMax              (Text)
+        <PREFIX>_STATE     ← physicalState                 (Text)
+        <PREFIX>_VOL       ← grossVolumeLiters             (Number)
+        <PREFIX>_FLUID     ← serviceFluid                  (Text)
+        <PREFIX>_HZ        ← hazardLevel                   (Text)
+        <PREFIX>_SG        ← specificGravity               (Text)
+        <PREFIX>_ICA       ← internalCorrosionAllowanceMm  (Number)
+        <PREFIX>_ECA       ← externalCorrosionAllowanceMm  (Number)
+        <PREFIX>_RT        ← radiography                   (Text)
+        <PREFIX>_JE        ← jointEfficiency               (Text)
+        <PREFIX>_TG        ← testingGroup                  (Text)
+        <PREFIX>_FTC       ← fabricationToleranceClass     (Text)
+        <PREFIX>_PWHT      ← postWeldHeatTreatment         (Text)
+        <PREFIX>_HEAD      ← typeOfHeads                   (Text)
+        <PREFIX>_INS       ← insulation                    (Text)
+        <PREFIX>_INS_SPEC  ← insulationTypeThkDensity      (Text)
+
+    Blank/None values produce empty strings and are subsequently skipped by
+    the write loop — no property is written for them.
+    """
+    def g(key: str) -> str:
+        v = col.get(key)
+        return str(v).strip() if v is not None else ""
+
+    op_temp = g("operatingTempMinMax")
+    mot     = _extract_mot(op_temp)
+
+    return {
+        f"{prefix}_IDP":      g("internalDesignPressureMawp"),
+        f"{prefix}_EDP":      g("externalDesignPressureMawp"),
+        f"{prefix}_WP":       g("workingPressure"),
+        f"{prefix}_HTP":      g("hydroTestPressure"),
+        f"{prefix}_MDMT":     g("mdmt"),
+        f"{prefix}_HT_TEMP":  g("hydroTestTempMinMax"),
+        f"{prefix}_OP_TEMP":  op_temp,
+        f"{prefix}_MOT":      mot,
+        f"{prefix}_DES_TEMP": g("designTempMinMax"),
+        f"{prefix}_STATE":    g("physicalState"),
+        f"{prefix}_VOL":      g("grossVolumeLiters"),
+        f"{prefix}_FLUID":    g("serviceFluid"),
+        f"{prefix}_HZ":       g("hazardLevel"),
+        f"{prefix}_SG":       g("specificGravity"),
+        f"{prefix}_ICA":      g("internalCorrosionAllowanceMm"),
+        f"{prefix}_ECA":      g("externalCorrosionAllowanceMm"),
+        f"{prefix}_RT":       g("radiography"),
+        f"{prefix}_JE":       g("jointEfficiency"),
+        f"{prefix}_TG":       g("testingGroup"),
+        f"{prefix}_FTC":      g("fabricationToleranceClass"),
+        f"{prefix}_PWHT":     g("postWeldHeatTreatment"),
+        f"{prefix}_HEAD":     g("typeOfHeads"),
+        f"{prefix}_INS":      g("insulation"),
+        f"{prefix}_INS_SPEC": g("insulationTypeThkDensity"),
+    }
+
+
 def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
     """
-    Write the 10 DDS-sourced custom properties using the exact names that exist
-    in the SolidWorks template (as defined by the extraction agent's verification
-    layer).  Only properties that have a non-empty value are written.
+    Write all DDS-sourced custom properties.
 
-    Template properties NOT available from the DDS payload (filled by engineer):
-        HYDRO_TEST_POSITION, SHELL_IDP, SHELL_MOT, TUBE_IDP, TUBE_MOT,
-        JACKET_IDP, JACKET_MOT, DrawnBy, DrawnDate, CheckedBy, CheckedDate,
-        EngineeringApproval, EngAppDate
+    Phase 1 — 10 header properties (template-exact names, always written):
+        Drawing_Number, Revision, Tag_No, Serial_No, Description,
+        Equipment_Type, Equipment_Configuration, Design_Code,
+        Material_Code, Inspection_By
 
+    Phase 2 — Mechanical Design Data (Option C — approved mapping):
+        SHELL_*   : 24 properties always (shell column always present)
+        TUBE_*    : 24 properties if mechanical_data.tube is non-null
+        JACKET_*  : 24 properties if mechanical_data.jacket is non-null
+        Total written: up to 72 mechanical props (24 × active columns)
+
+        operatingTempMinMax generates TWO properties per column:
+            <PREFIX>_OP_TEMP  — full text string  e.g. "100 / 120"
+            <PREFIX>_MOT      — max value only     e.g. "120"  (existing template field)
+
+    Only non-blank values are written (blank fields are silently skipped).
     Returns (properties_written, warnings).
     """
     cpm = swModel.Extension.CustomPropertyManager("")
@@ -156,25 +257,53 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
                 return v
         return ""
 
-    to_write = {
-        # ── Always present ─────────────────────────────────────────────────
-        "Drawing_Number":        job.get("drawing_number", ""),
-        "Revision":              job.get("revision", ""),
-        # ── Mapped from DDS payload using template-exact property names ────
-        "Tag_No":                _dds("tag_no", "tagNo"),
-        "Serial_No":             _dds("manufacture_serial_no", "manufactureSerialNo"),
-        "Description":           _dds("equipment_description", "equipmentDescription"),
-        "Equipment_Type":        _dds("equipment_type"),
+    # ── Phase 1: 10 header properties ────────────────────────────────────────
+    to_write: dict = {
+        "Drawing_Number":          job.get("drawing_number", ""),
+        "Revision":                job.get("revision", ""),
+        "Tag_No":                  _dds("tag_no", "tagNo"),
+        "Serial_No":               _dds("manufacture_serial_no", "manufactureSerialNo"),
+        "Description":             _dds("equipment_description", "equipmentDescription"),
+        "Equipment_Type":          _dds("equipment_type"),
         "Equipment_Configuration": _dds("equipment_config"),
-        "Design_Code":           _dds("design_code"),
-        "Material_Code":         _dds("material_code"),
-        "Inspection_By":         _dds("inspection_by"),
+        "Design_Code":             _dds("design_code"),
+        "Material_Code":           _dds("material_code"),
+        "Inspection_By":           _dds("inspection_by"),
     }
 
+    # ── Phase 2: Mechanical Design Data — 72 properties (up to) ──────────────
+    mech = dds.get("mechanical_data")
+    if isinstance(mech, dict):
+        shell_col  = mech.get("shell")
+        tube_col   = mech.get("tube")
+        jacket_col = mech.get("jacket")
+
+        if isinstance(shell_col, dict):
+            to_write.update(_mech_col_props("SHELL", shell_col))
+            logger.info("[Structurer] Mechanical SHELL column: 24 properties queued")
+        else:
+            logger.warning("[Structurer] mechanical_data.shell missing or not a dict — skipped")
+
+        if isinstance(tube_col, dict):
+            to_write.update(_mech_col_props("TUBE", tube_col))
+            logger.info("[Structurer] Mechanical TUBE column: 24 properties queued")
+        else:
+            logger.info("[Structurer] mechanical_data.tube is null/absent — TUBE_* skipped")
+
+        if isinstance(jacket_col, dict):
+            to_write.update(_mech_col_props("JACKET", jacket_col))
+            logger.info("[Structurer] Mechanical JACKET column: 24 properties queued")
+        else:
+            logger.info("[Structurer] mechanical_data.jacket is null/absent — JACKET_* skipped")
+    else:
+        logger.warning("[Structurer] mechanical_data missing from DDS payload — Phase 2 skipped")
+
+    # ── Write loop ────────────────────────────────────────────────────────────
     non_blank = {k: v for k, v in to_write.items() if v}
+    skipped   = len(to_write) - len(non_blank)
     logger.info(
-        f"[Structurer] Writing {len(non_blank)} template properties "
-        f"(of 10 mapped; {10 - len(non_blank)} skipped — blank in DDS payload)"
+        f"[Structurer] Writing {len(non_blank)} properties "
+        f"({skipped} skipped — blank in DDS payload)"
     )
 
     for name, value in to_write.items():
