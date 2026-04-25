@@ -62,8 +62,8 @@ if /i "!CI!"=="true" (
     echo [CI] The installer will still package Python + agent sources.
     echo [CI] SolidWorks COM cache will be generated at first agent startup.
     echo.
-    set SW_PROGID=SldWorks.Application.32
-    set SW_VERSION=2024
+    set SW_PROGID=SldWorks.Application.27
+    set SW_VERSION=2019
     goto :sw_done
 )
 

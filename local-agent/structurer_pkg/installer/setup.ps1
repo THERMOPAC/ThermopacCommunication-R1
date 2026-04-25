@@ -320,9 +320,11 @@ temp_dir = $DataDir\temp
 log_dir  = $DataDir\logs
 
 [solidworks]
-solidworks_version = $sw_version
-visible            = false
-model_search_path  =
+; Explicit ProgID — takes priority over solidworks_version.
+; SolidWorks 2019=.27  2020=.28  2021=.29  2022=.30  2023=.31  2024=.32
+solidworks_progid = $sw_progid
+visible           = false
+model_search_path =
 
 [structurer]
 ; REQUIRED: absolute path to the approved SolidWorks drawing template (.drwdot)
