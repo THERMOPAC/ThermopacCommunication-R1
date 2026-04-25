@@ -339,19 +339,20 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
         elif mode == "update_existing":
             logger.info(f"[Structurer] Opening existing file: {staging_path}")
 
-            open_errors   = 0
-            open_warnings = 0
-            swModel       = None
+            swModel = None
 
             for open_attempt in range(1, 3):
                 try:
+                    _VT_BYREF_I4 = pythoncom.VT_BYREF | pythoncom.VT_I4
+                    oe_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
+                    ow_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
                     swModel = swApp.OpenDoc7(
                         staging_path,
                         _SW_DOC_DRAWING,
                         _SW_OPEN_SILENT,
                         "",
-                        open_errors,
-                        open_warnings,
+                        oe_v,
+                        ow_v,
                     )
                 except Exception as e:
                     logger.warning(
@@ -397,31 +398,55 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
         )
 
         # ── Save ─────────────────────────────────────────────────────────────
-        save_errors   = 0
-        save_warnings = 0
+        # pywin32 late-binding requires explicit VARIANT(VT_BYREF|VT_I4) for
+        # SolidWorks ByRef Long parameters — plain Python ints cause com_error.
+        _VT_BYREF_I4 = pythoncom.VT_BYREF | pythoncom.VT_I4
 
         if mode == "create_new":
             logger.info(f"[Structurer] SaveAs3 → {staging_path}")
-            ret = swModel.Extension.SaveAs3(
-                staging_path,
-                _SW_SAVE_CURRENT_VERSION,
-                0,
-                None,
-                None,
-                save_errors,
-                save_warnings,
-            )
+            err_v  = win32com.client.VARIANT(_VT_BYREF_I4, 0)
+            warn_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
+            try:
+                ret = swModel.Extension.SaveAs3(
+                    staging_path,
+                    _SW_SAVE_CURRENT_VERSION,
+                    0,       # options
+                    None,    # pdfExportData
+                    None,    # coordSysName
+                    err_v,
+                    warn_v,
+                )
+            except Exception as save_exc:
+                import traceback as _tb
+                raise RuntimeError(
+                    f"SaveAs3 COM exception: {type(save_exc).__name__}: {save_exc} "
+                    f"| path={staging_path!r} "
+                    f"| traceback: {_tb.format_exc()}"
+                ) from save_exc
+            save_errors   = err_v.value  or 0
+            save_warnings = warn_v.value or 0
             if not ret:
                 raise RuntimeError(
-                    f"SaveAs3 failed (errors={save_errors} warnings={save_warnings}) "
-                    f"— check path permissions and available disk space"
+                    f"SaveAs3 returned False — errors={save_errors} warnings={save_warnings} "
+                    f"| check write permissions on {staging_path!r}"
                 )
         else:
             logger.info("[Structurer] Save3 (update existing)")
-            ret = swModel.Save3(_SW_SAVE_CURRENT_VERSION, save_errors, save_warnings)
+            err_v  = win32com.client.VARIANT(_VT_BYREF_I4, 0)
+            warn_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
+            try:
+                ret = swModel.Save3(_SW_SAVE_CURRENT_VERSION, err_v, warn_v)
+            except Exception as save_exc:
+                import traceback as _tb
+                raise RuntimeError(
+                    f"Save3 COM exception: {type(save_exc).__name__}: {save_exc} "
+                    f"| traceback: {_tb.format_exc()}"
+                ) from save_exc
+            save_errors   = err_v.value  or 0
+            save_warnings = warn_v.value or 0
             if not ret:
                 raise RuntimeError(
-                    f"Save3 failed (errors={save_errors} warnings={save_warnings})"
+                    f"Save3 returned False — errors={save_errors} warnings={save_warnings}"
                 )
 
         logger.info("[Structurer] Save successful")
