@@ -110,6 +110,12 @@ class AgentConfig:
 
         # ── Cloud ─────────────────────────────────────────────────────────────
         self.api_url = cfg.get("cloud", "api_url", fallback="").strip().rstrip("/")
+        # APPDATA overlay may override api_url (useful in dev/testing to avoid
+        # editing the read-only Program Files config.ini as administrator)
+        appdata_api_url = appdata_cfg.get("cloud", "api_url", fallback="").strip().rstrip("/")
+        if appdata_api_url:
+            self.api_url = appdata_api_url
+            print(f"[CONFIG] api_url override from APPDATA: {self.api_url}")
         if not self.api_url:
             print("[CONFIG] ERROR: [cloud] api_url is required in config.ini")
             sys.exit(1)

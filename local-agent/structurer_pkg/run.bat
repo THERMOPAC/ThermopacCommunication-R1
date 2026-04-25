@@ -1,12 +1,12 @@
 @echo off
 REM ============================================================
-REM  Thermopac Drawing Structuring Agent v1.0.8
+REM  Thermopac Drawing Structuring Agent v1.0.9
 REM  THERMOPAC ERP | SolidWorks WRITE Agent | Phase 1
 REM  --
 REM  Uses bundled venv Python if available, falls back to system Python.
 REM  The Inno Setup installer places the bundled python\ folder here.
 REM ============================================================
-title ThermopacStructurer v1.0.8
+title ThermopacStructurer v1.0.9
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 
@@ -27,7 +27,7 @@ if not exist "%PYEXE%" set "PYEXE=python"
 
 echo.
 echo  ThermopacStructurer -- SolidWorks Drawing Structuring Agent
-echo  THERMOPAC ERP Integration  ^|  Phase 1  ^|  v1.0.8
+echo  THERMOPAC ERP Integration  ^|  Phase 1  ^|  v1.0.9
 echo.
 
 "%PYEXE%" "%AGENT_DIR%\agent\main_structurer.py" "%AGENT_DIR%\config.ini" %*
