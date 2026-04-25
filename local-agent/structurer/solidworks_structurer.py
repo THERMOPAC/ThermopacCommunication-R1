@@ -6,7 +6,7 @@ Creates or updates a SolidWorks .slddrw file from DDS job data:
   2. Launch dedicated hidden SolidWorks instance via DispatchEx()
   3. Mode branch:
        create_new      → NewDocument(template_path) → SaveAs3(staging_path)
-       update_existing → OpenDoc7(staging_path)     → Save3()
+       update_existing → OpenDoc(staging_path)      → Save2()
   4. Write custom properties (only fields present in dds payload)
   5. Post-write read-back verification
   6. Return structured result JSON
@@ -57,7 +57,7 @@ _SW_CUSTOM_INFO_TEXT       = 30
 _SW_CUSTOM_PROP_REPLACE    = 1
 _SW_SAVE_CURRENT_VERSION   = 0
 
-# Error codes returned by OpenDoc7 errors/warnings ByRef params (common subset)
+# Error codes from ISldWorks.OpenDoc / OpenDoc6 return values (common subset)
 _SW_FILE_NOT_FOUND         = 2
 _SW_FILE_LOCK_ERROR        = 3
 
@@ -343,20 +343,11 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
             for open_attempt in range(1, 3):
                 try:
-                    _VT_BYREF_I4 = pythoncom.VT_BYREF | pythoncom.VT_I4
-                    oe_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
-                    ow_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
-                    swModel = swApp.OpenDoc7(
-                        staging_path,
-                        _SW_DOC_DRAWING,
-                        _SW_OPEN_SILENT,
-                        "",
-                        oe_v,
-                        ow_v,
-                    )
+                    # ISldWorks.OpenDoc(FileName, Type) — no ByRef params, late-bind safe
+                    swModel = swApp.OpenDoc(staging_path, _SW_DOC_DRAWING)
                 except Exception as e:
                     logger.warning(
-                        f"[Structurer] OpenDoc7 attempt {open_attempt} raised: "
+                        f"[Structurer] OpenDoc attempt {open_attempt} raised: "
                         f"{type(e).__name__}: {e}"
                     )
                     swModel = None
@@ -366,14 +357,14 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
                 if open_attempt < 2:
                     logger.warning(
-                        "[Structurer] OpenDoc7 returned None — "
+                        "[Structurer] OpenDoc returned None — "
                         "file may be locked. Retrying in 15s…"
                     )
                     time.sleep(15)
 
             if swModel is None:
                 raise RuntimeError(
-                    f"OpenDoc7 failed for '{staging_path}' after 1 retry — "
+                    f"OpenDoc failed for '{staging_path}' after 1 retry — "
                     "file may be missing, locked, or corrupt"
                 )
 
@@ -398,64 +389,57 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
         )
 
         # ── Save ─────────────────────────────────────────────────────────────
-        # pywin32 late-binding requires explicit VARIANT(VT_BYREF|VT_I4) for
-        # SolidWorks ByRef Long parameters — plain Python ints cause com_error.
-        _VT_BYREF_I4 = pythoncom.VT_BYREF | pythoncom.VT_I4
+        # Use the IModelDoc2 interface methods — they have NO ByRef parameters
+        # so they work correctly with pywin32 late-binding (DispatchEx).
+        #
+        # create_new:       IModelDoc2.SaveAs3(path, version, options)  → 3 plain args
+        # update_existing:  IModelDoc2.Save2(SaveOnlyIfModified)        → 1 plain arg
+        #
+        # Avoided: IModelDocExtension::SaveAs3 (7 params, 2 ByRef) and Save3 —
+        # both crash with 'str object cannot be interpreted as integer' under
+        # pywin32 late-binding when VARIANT(VT_BYREF) is marshalled.
 
         if mode == "create_new":
             logger.info(f"[Structurer] SaveAs3 → {staging_path}")
-            err_v  = win32com.client.VARIANT(_VT_BYREF_I4, 0)
-            warn_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
             try:
-                ret = swModel.Extension.SaveAs3(
-                    staging_path,
-                    _SW_SAVE_CURRENT_VERSION,
-                    0,       # options
-                    None,    # pdfExportData
-                    None,    # coordSysName
-                    err_v,
-                    warn_v,
-                )
+                # IModelDoc2.SaveAs3(FileName, Version, Options) — no ByRef params
+                ret = swModel.SaveAs3(staging_path, _SW_SAVE_CURRENT_VERSION, 0)
             except Exception as save_exc:
                 import traceback as _tb
-                _args     = getattr(save_exc, 'args', ())
-                _hresult  = hex(_args[0]) if _args else 'N/A'
-                _excepinfo = _args[2] if len(_args) > 2 else 'N/A'
-                _err_val  = err_v.value  if err_v.value  is not None else 'N/A'
-                _warn_val = warn_v.value if warn_v.value is not None else 'N/A'
+                _args      = getattr(save_exc, 'args', ())
+                _hresult   = (hex(_args[0]) if isinstance(_args[0], int) else repr(_args[0])) if _args else 'N/A'
+                _excepinfo = repr(_args[2]) if len(_args) > 2 else 'N/A'
                 raise RuntimeError(
                     f"SaveAs3 COM exception: {type(save_exc).__name__}: {save_exc} "
                     f"| HRESULT={_hresult} "
                     f"| excepinfo={_excepinfo} "
-                    f"| save_errors={_err_val} save_warnings={_warn_val} "
                     f"| path={staging_path!r} "
                     f"| traceback: {_tb.format_exc()}"
                 ) from save_exc
-            save_errors   = err_v.value  or 0
-            save_warnings = warn_v.value or 0
+            logger.info(f"[Structurer] SaveAs3 result: ret={ret} path={staging_path!r}")
             if not ret:
                 raise RuntimeError(
-                    f"SaveAs3 returned False — errors={save_errors} warnings={save_warnings} "
-                    f"| check write permissions on {staging_path!r}"
+                    f"SaveAs3 returned False — check write permissions on {staging_path!r}"
                 )
         else:
-            logger.info("[Structurer] Save3 (update existing)")
-            err_v  = win32com.client.VARIANT(_VT_BYREF_I4, 0)
-            warn_v = win32com.client.VARIANT(_VT_BYREF_I4, 0)
+            logger.info("[Structurer] Save2 (update existing)")
             try:
-                ret = swModel.Save3(_SW_SAVE_CURRENT_VERSION, err_v, warn_v)
+                # IModelDoc2.Save2(SaveOnlyIfModified) — no ByRef params
+                ret = swModel.Save2(0)
             except Exception as save_exc:
                 import traceback as _tb
+                _args      = getattr(save_exc, 'args', ())
+                _hresult   = (hex(_args[0]) if isinstance(_args[0], int) else repr(_args[0])) if _args else 'N/A'
+                _excepinfo = repr(_args[2]) if len(_args) > 2 else 'N/A'
                 raise RuntimeError(
-                    f"Save3 COM exception: {type(save_exc).__name__}: {save_exc} "
+                    f"Save2 COM exception: {type(save_exc).__name__}: {save_exc} "
+                    f"| HRESULT={_hresult} "
+                    f"| excepinfo={_excepinfo} "
                     f"| traceback: {_tb.format_exc()}"
                 ) from save_exc
-            save_errors   = err_v.value  or 0
-            save_warnings = warn_v.value or 0
+            logger.info(f"[Structurer] Save2 result: ret={ret}")
             if not ret:
-                raise RuntimeError(
-                    f"Save3 returned False — errors={save_errors} warnings={save_warnings}"
-                )
+                raise RuntimeError("Save2 returned False")
 
         logger.info("[Structurer] Save successful")
 
