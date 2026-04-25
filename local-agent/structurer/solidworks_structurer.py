@@ -270,10 +270,18 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
     logger.info(f"[Structurer] Pre-flight passed — staging_path={staging_path}")
 
     if mode == "create_new" and os.path.isfile(staging_path):
-        raise ValueError(
-            f"mode=create_new but file already exists: {staging_path}. "
-            "Use mode=update_existing or remove the file first."
+        _existing_bytes = os.path.getsize(staging_path)
+        logger.warning(
+            f"[Structurer] create_new: staging file already exists "
+            f"({_existing_bytes:,} bytes) — removing before fresh create: {staging_path}"
         )
+        try:
+            os.remove(staging_path)
+            logger.info("[Structurer] Existing staging file removed OK")
+        except OSError as _oe:
+            raise ValueError(
+                f"create_new: cannot remove existing staging file: {staging_path} — {_oe}"
+            )
 
     t_start = time.monotonic()
 
@@ -511,6 +519,12 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                 raise RuntimeError("Save2 returned False")
 
         logger.info("[Structurer] Save successful")
+
+        # ── Flush pause — let SolidWorks finish writing before ExitApp() ──────
+        # Without this, ExitApp() can interrupt the file write, leaving a file
+        # that Windows Explorer can see but SolidWorks cannot open.
+        time.sleep(2)
+        logger.info("[Structurer] Flush pause complete — proceeding to verify")
 
         # ── Post-write read-back ──────────────────────────────────────────────
         properties_verified, verify_warnings = _verify_properties(

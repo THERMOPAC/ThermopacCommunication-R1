@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Thermopac Drawing Structuring Agent v1.0.13
+REM  Thermopac Drawing Structuring Agent v1.0.14
 REM  INSTALL UPDATE SCRIPT
 REM  --
 REM  Run as Administrator from the extracted ZIP folder.
@@ -8,7 +8,7 @@ REM  Copies all Python source files to the installed location,
 REM  overwriting old versions. Preserves config.ini (your settings).
 REM ============================================================
 
-title ThermopacStructurer Updater v1.0.13
+title ThermopacStructurer Updater v1.0.14
 
 REM ── Require Administrator ────────────────────────────────────────────────────
 net session >nul 2>&1
@@ -41,7 +41,7 @@ set "SRC=%~dp0"
 if "%SRC:~-1%"=="\" set "SRC=%SRC:~0,-1%"
 
 echo.
-echo  Thermopac Drawing Structuring Agent — Update to v1.0.13
+echo  Thermopac Drawing Structuring Agent — Update to v1.0.14
 echo  --------------------------------------------------------
 echo  Source : %SRC%
 echo  Target : %INSTALL_DIR%
@@ -78,7 +78,7 @@ echo  config.ini preserved (your settings were not changed).
 echo.
 
 echo  ============================================================
-echo   Update complete!  ThermopacStructuringAgent is now v1.0.13
+echo   Update complete!  ThermopacStructuringAgent is now v1.0.14
 echo  ============================================================
 echo.
 echo  You can now close this window and restart the agent.

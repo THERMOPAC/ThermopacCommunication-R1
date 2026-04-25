@@ -657,14 +657,14 @@ export default function WorkerAgentsPage() {
                     </Badge>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="text-xs font-mono text-muted-foreground">v1.0.13</span>
+                    <span className="text-xs font-mono text-muted-foreground">v1.0.14</span>
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1.5">
-                      <a href="/ThermopacStructuringAgentInstaller-v1.0.13.zip" download="ThermopacStructuringAgentInstaller-v1.0.13.zip">
+                      <a href="/ThermopacStructuringAgentInstaller-v1.0.14.zip" download="ThermopacStructuringAgentInstaller-v1.0.14.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white">
                           <Download className="h-3 w-3 mr-1" />
-                          Installer v1.0.13
+                          Installer v1.0.14
                         </Button>
                       </a>
                     </div>
