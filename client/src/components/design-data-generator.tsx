@@ -2131,7 +2131,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const createStructureMutation = useMutation({
     mutationFn: () => apiRequest('POST', `/api/epc-drawing-controls/${drawingControlId}/structure-jobs`, {
       drawing_number:  autoFields.drawingNumber ?? `DWG-${drawingControlId}`,
-      revision:        (sheet as any)?.revision ?? undefined,
+      revision:        (sheet as any)?.revision || 'A',
       mode:            structureMode,
       dds:             sheet ?? {},
       project_context: {

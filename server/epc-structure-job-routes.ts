@@ -263,7 +263,7 @@ router.post('/epc-structure-jobs/:id/fail', requireNodeAuth, async (req: Request
 
 const createJobSchema = z.object({
   drawing_number:  z.string().min(1),
-  revision:        z.string().optional(),
+  revision:        z.string().min(1).optional(),   // must be non-empty if supplied
   mode:            z.enum(['create_new', 'update_existing']),
   dds:             z.record(z.unknown()),
   project_context: z.record(z.unknown()).optional(),
@@ -282,7 +282,15 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
     return res.status(422).json({ error: 'Invalid request body', issues: parse.error.issues });
   }
 
-  const { drawing_number, revision, mode, dds, project_context } = parse.data;
+  const { drawing_number, mode, dds, project_context } = parse.data;
+
+  // Default revision to "A" for create_new if not supplied; require it for update_existing
+  const revision = parse.data.revision ?? (mode === 'create_new' ? 'A' : null);
+  if (!revision) {
+    return res.status(422).json({
+      error: 'revision is required for update_existing jobs — supply the current drawing revision (e.g. "A", "B")',
+    });
+  }
 
   // Verify drawing control exists
   const [dc] = await db
@@ -308,7 +316,7 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
     .values({
       drawingControlId,
       drawingNumber:  drawing_number,
-      revision:       revision ?? null,
+      revision,
       mode,
       ddsPayload:     dds as any,
       projectContext: (project_context ?? null) as any,
