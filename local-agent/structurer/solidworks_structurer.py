@@ -221,6 +221,48 @@ def _mech_col_props(prefix: str, col: dict) -> dict:
     }
 
 
+def _general_data_props(gen: dict) -> dict:
+    """
+    Build {SW_property_name: value_string} for the General Data section.
+
+    Approved mapping (Phase 3 — 12 SW properties):
+        HYDRO_TEST_POSITION    ← hydroTestPosition       (Text — existing template field)
+        GENERAL_ORIENT         ← vesselOrientation        (Text)
+        GENERAL_SERVICE_LIFE   ← designServiceLife        (Text)
+        GENERAL_WIND_CODE      ← windData                 (Text)
+        GENERAL_WIND_VEL       ← windDesignVelocity       (Text)
+        GENERAL_SEISMIC_CODE   ← seismicDesignCode        (Text)
+        GENERAL_SEISMIC_Z      ← hazardFactorZ            (Number — text)
+        GENERAL_SEISMIC_H      ← seismicCoefficientHorizontal (Number — text)
+        GENERAL_SEISMIC_V      ← seismicCoefficientVertical   (Number — text)
+        GENERAL_WEIGHT         ← weightEmptyOperatingHydro    (Text — composite)
+        GENERAL_LOCATION       ← location                 (Text)
+        GENERAL_QTY            ← qty                      (Number — text)
+
+    DDS general_data keys are camelCase (TypeScript GeneralData type serialised
+    directly to JSON).  Blank / None values produce empty strings and are
+    subsequently skipped by the write loop.
+    """
+    def g(key: str) -> str:
+        v = gen.get(key)
+        return str(v).strip() if v is not None else ""
+
+    return {
+        "HYDRO_TEST_POSITION":  g("hydroTestPosition"),
+        "GENERAL_ORIENT":       g("vesselOrientation"),
+        "GENERAL_SERVICE_LIFE": g("designServiceLife"),
+        "GENERAL_WIND_CODE":    g("windData"),
+        "GENERAL_WIND_VEL":     g("windDesignVelocity"),
+        "GENERAL_SEISMIC_CODE": g("seismicDesignCode"),
+        "GENERAL_SEISMIC_Z":    g("hazardFactorZ"),
+        "GENERAL_SEISMIC_H":    g("seismicCoefficientHorizontal"),
+        "GENERAL_SEISMIC_V":    g("seismicCoefficientVertical"),
+        "GENERAL_WEIGHT":       g("weightEmptyOperatingHydro"),
+        "GENERAL_LOCATION":     g("location"),
+        "GENERAL_QTY":          g("qty"),
+    }
+
+
 def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
     """
     Write all DDS-sourced custom properties.
@@ -239,6 +281,20 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
         operatingTempMinMax generates TWO properties per column:
             <PREFIX>_OP_TEMP  — full text string  e.g. "100 / 120"
             <PREFIX>_MOT      — max value only     e.g. "120"  (existing template field)
+
+    Phase 3 — General Data (12 properties):
+        HYDRO_TEST_POSITION    ← hydroTestPosition         (existing template field)
+        GENERAL_ORIENT         ← vesselOrientation
+        GENERAL_SERVICE_LIFE   ← designServiceLife
+        GENERAL_WIND_CODE      ← windData
+        GENERAL_WIND_VEL       ← windDesignVelocity
+        GENERAL_SEISMIC_CODE   ← seismicDesignCode
+        GENERAL_SEISMIC_Z      ← hazardFactorZ
+        GENERAL_SEISMIC_H      ← seismicCoefficientHorizontal
+        GENERAL_SEISMIC_V      ← seismicCoefficientVertical
+        GENERAL_WEIGHT         ← weightEmptyOperatingHydro
+        GENERAL_LOCATION       ← location
+        GENERAL_QTY            ← qty
 
     Only non-blank values are written (blank fields are silently skipped).
     Returns (properties_written, warnings).
@@ -297,6 +353,14 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
             logger.info("[Structurer] mechanical_data.jacket is null/absent — JACKET_* skipped")
     else:
         logger.warning("[Structurer] mechanical_data missing from DDS payload — Phase 2 skipped")
+
+    # ── Phase 3: General Data ─────────────────────────────────────────────────
+    gen_data: dict = (dds.get("general_data") or {}) if isinstance(dds.get("general_data"), dict) else {}
+    if gen_data:
+        to_write.update(_general_data_props(gen_data))
+        logger.info("[Structurer] Phase 3 — general_data present, merging 12 GENERAL_* properties")
+    else:
+        logger.warning("[Structurer] general_data missing or empty in DDS payload — Phase 3 skipped")
 
     # ── Write loop ────────────────────────────────────────────────────────────
     non_blank = {k: v for k, v in to_write.items() if v}

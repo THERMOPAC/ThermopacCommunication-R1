@@ -11,6 +11,8 @@ Sections:
   D  — Engineer-filled fields with date / sequence rules (7 fields)
   E  — Mechanical column properties: SHELL / TUBE / JACKET × 22 fields each
        (up to 66 fields; column applicability mirrors structuring agent logic)
+  F  — General Data properties: orientation, service life, wind/seismic codes,
+       weights, location, quantity (12 fields; sourced from dds.general_data)
 
 Input:
     cp_extraction — dict returned by _extract_custom_properties():
@@ -552,6 +554,18 @@ def _verify_mech_column(prefix: str, resolved: dict,
     return fields
 
 
+# ─── Section F: General Data constants ───────────────────────────────────────
+
+_HYDRO_TEST_POSITION_VALUES = frozenset(["vertical", "horizontal"])
+
+_GENERAL_ORIENT_VALUES = frozenset(["vertical", "horizontal"])
+
+_GENERAL_SERVICE_LIFE_VALUES = frozenset([
+    "5 years", "10 years", "15 years", "20 years", "25 years", "30 years",
+    "5", "10", "15", "20", "25", "30",
+])
+
+
 # ─── Main entry point ─────────────────────────────────────────────────────────
 
 def verify_custom_properties(cp_extraction: dict, logger=None) -> dict:
@@ -626,7 +640,6 @@ def verify_custom_properties(cp_extraction: dict, logger=None) -> dict:
 
     # ── Section C: Always required fields (excluding Equipment_Configuration) ──
     always_required = [
-        "HYDRO_TEST_POSITION",
         "Drawing_Number",
         "Tag_No",
         "Serial_No",
@@ -644,6 +657,22 @@ def verify_custom_properties(cp_extraction: dict, logger=None) -> dict:
             fields.append(_missing(prop))
         else:
             fields.append(_required_pass(prop, s, v))
+
+    # ── HYDRO_TEST_POSITION — required, enum: VERTICAL / HORIZONTAL ───────────
+    _htp_raw = _val("HYDRO_TEST_POSITION")
+    _htp_src = _src("HYDRO_TEST_POSITION")
+    if _is_blank(_htp_raw):
+        fields.append(_missing("HYDRO_TEST_POSITION"))
+    elif _norm_text(_htp_raw) not in _HYDRO_TEST_POSITION_VALUES:
+        fields.append(_required_fail(
+            "HYDRO_TEST_POSITION", _htp_src, _htp_raw,
+            f"Invalid value {_htp_raw!r}. Allowed: VERTICAL, HORIZONTAL",
+        ))
+    else:
+        fields.append(_required_pass(
+            "HYDRO_TEST_POSITION", _htp_src, _htp_raw,
+            _norm_text(_htp_raw).upper(),
+        ))
 
     # ── Section B: Conditional IDP/MOT fields ─────────────────────────────────
     # Shell — always required when equipment config is valid
@@ -783,6 +812,119 @@ def verify_custom_properties(cp_extraction: dict, logger=None) -> dict:
         f"TUBE={'active' if tube_active else 'not_applicable'} "
         f"JACKET={'active' if jacket_active else 'not_applicable'}"
     )
+
+    # ── Section F: General Data properties ───────────────────────────────────
+    _log("[CPVerify] Section F — general data property verification starting")
+
+    # ── GENERAL_ORIENT — required enum: VERTICAL / HORIZONTAL ────────────────
+    _go_raw = _val("GENERAL_ORIENT")
+    _go_src = _src("GENERAL_ORIENT")
+    if _is_blank(_go_raw):
+        fields.append(_missing("GENERAL_ORIENT"))
+    elif _norm_text(_go_raw) not in _GENERAL_ORIENT_VALUES:
+        fields.append(_required_fail(
+            "GENERAL_ORIENT", _go_src, _go_raw,
+            f"Invalid value {_go_raw!r}. Allowed: VERTICAL, HORIZONTAL",
+        ))
+    else:
+        fields.append(_required_pass(
+            "GENERAL_ORIENT", _go_src, _go_raw,
+            _norm_text(_go_raw).upper(),
+        ))
+
+    # ── GENERAL_SERVICE_LIFE — optional, enum dropdown ────────────────────────
+    _gsl_raw = _val("GENERAL_SERVICE_LIFE")
+    _gsl_src = _src("GENERAL_SERVICE_LIFE")
+    if _is_blank(_gsl_raw):
+        fields.append(_opt_blank("GENERAL_SERVICE_LIFE"))
+    elif _norm_text(_gsl_raw) not in _GENERAL_SERVICE_LIFE_VALUES:
+        fields.append(_opt_hold(
+            "GENERAL_SERVICE_LIFE", _gsl_src, _gsl_raw,
+            f"Unrecognised service life {_gsl_raw!r}. "
+            "Expected one of: 5 years, 10 years, 15 years, 20 years, 25 years, 30 years",
+        ))
+    else:
+        fields.append(_opt_pass("GENERAL_SERVICE_LIFE", _gsl_src, _gsl_raw))
+
+    # ── GENERAL_WIND_CODE — optional, INFO free text ──────────────────────────
+    for _gf_prop in ("GENERAL_WIND_CODE", "GENERAL_WIND_VEL", "GENERAL_SEISMIC_CODE",
+                     "GENERAL_LOCATION"):
+        _gf_raw = _val(_gf_prop)
+        _gf_src = _src(_gf_prop)
+        if _is_blank(_gf_raw):
+            fields.append(_opt_blank(_gf_prop))
+        else:
+            fields.append(_opt_pass(_gf_prop, _gf_src, _gf_raw))
+
+    # ── GENERAL_SEISMIC_Z / _H / _V — optional, WARNING if non-numeric ───────
+    for _gs_prop in ("GENERAL_SEISMIC_Z", "GENERAL_SEISMIC_H", "GENERAL_SEISMIC_V"):
+        _gs_raw = _val(_gs_prop)
+        _gs_src = _src(_gs_prop)
+        if _is_blank(_gs_raw):
+            fields.append(_opt_blank(_gs_prop))
+        elif not _norm_numeric(_gs_raw):
+            fields.append(_opt_hold(
+                _gs_prop, _gs_src, _gs_raw,
+                f"{_gs_prop} must be numeric — {_gs_raw!r} is not a valid number",
+            ))
+        else:
+            fields.append(_opt_pass(_gs_prop, _gs_src, _gs_raw,
+                                    norm=_norm_numeric(_gs_raw)))
+
+    # ── GENERAL_WEIGHT — optional, WARNING if W1/W2/W3 format invalid
+    #    or W1 > W2 (empty heavier than operating) or W2 > W3 (operating > test)
+    _gw_raw = _val("GENERAL_WEIGHT")
+    _gw_src = _src("GENERAL_WEIGHT")
+    if _is_blank(_gw_raw):
+        fields.append(_opt_blank("GENERAL_WEIGHT"))
+    else:
+        _gw_parts = _parse_three_slash(_gw_raw)
+        if _gw_parts is None:
+            fields.append(_opt_hold(
+                "GENERAL_WEIGHT", _gw_src, _gw_raw,
+                f"Expected 'W1 / W2 / W3' (empty / operating / test) format — "
+                f"cannot parse {_gw_raw!r}",
+            ))
+        else:
+            _gw1, _gw2, _gw3 = _gw_parts
+            if _gw1 > _gw2:
+                fields.append(_opt_hold(
+                    "GENERAL_WEIGHT", _gw_src, _gw_raw,
+                    f"Empty weight ({_gw1}) must not exceed operating weight ({_gw2})",
+                ))
+            elif _gw2 > _gw3:
+                fields.append(_opt_hold(
+                    "GENERAL_WEIGHT", _gw_src, _gw_raw,
+                    f"Operating weight ({_gw2}) must not exceed test/hydro weight ({_gw3})",
+                ))
+            else:
+                fields.append(_opt_pass("GENERAL_WEIGHT", _gw_src, _gw_raw))
+
+    # ── GENERAL_QTY — optional, WARNING if non-numeric or < 1 ───────────────
+    _gq_raw = _val("GENERAL_QTY")
+    _gq_src = _src("GENERAL_QTY")
+    if _is_blank(_gq_raw):
+        fields.append(_opt_blank("GENERAL_QTY"))
+    elif not _norm_numeric(_gq_raw):
+        fields.append(_opt_hold(
+            "GENERAL_QTY", _gq_src, _gq_raw,
+            f"GENERAL_QTY must be numeric — {_gq_raw!r} is not a valid number",
+        ))
+    else:
+        try:
+            _gq_num = float(_gq_raw)
+        except ValueError:
+            _gq_num = 0.0
+        if _gq_num < 1:
+            fields.append(_opt_hold(
+                "GENERAL_QTY", _gq_src, _gq_raw,
+                f"GENERAL_QTY must be ≥ 1 — got {_gq_raw!r}",
+            ))
+        else:
+            fields.append(_opt_pass("GENERAL_QTY", _gq_src, _gq_raw,
+                                    norm=_norm_numeric(_gq_raw)))
+
+    _log("[CPVerify] Section F complete — 11 GENERAL_* fields evaluated")
 
     # ── Overall status ────────────────────────────────────────────────────────
     # not_applicable fields do not count toward hold/fail/pass
