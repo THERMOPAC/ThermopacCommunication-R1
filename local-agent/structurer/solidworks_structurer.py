@@ -267,10 +267,15 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
     """
     Write all DDS-sourced custom properties.
 
-    Phase 1 — 10 header properties (template-exact names, always written):
+    Phase 1 — 16 header properties (template-exact names, always written):
         Drawing_Number, Revision, Tag_No, Serial_No, Description,
         Equipment_Type, Equipment_Configuration, Design_Code,
         Material_Code, Inspection_By
+
+        Agent-filled title-block fields (system-generated, always written):
+        DrawnBy, CheckedBy, EngineeringApproval  — value: "Agent"
+        DrawnDate, CheckedDate, EngAppDate        — value: today dd/mm/YYYY
+        (Format matches Extraction Agent primary date format %d/%m/%Y)
 
     Phase 2 — Mechanical Design Data (Option C — approved mapping):
         SHELL_*   : 24 properties always (shell column always present)
@@ -313,8 +318,10 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
                 return v
         return ""
 
-    # ── Phase 1: 10 header properties ────────────────────────────────────────
+    # ── Phase 1: 16 header properties ────────────────────────────────────────
+    today_str = datetime.now().strftime("%d/%m/%Y")
     to_write: dict = {
+        # DDS-sourced fields
         "Drawing_Number":          job.get("drawing_number", ""),
         "Revision":                job.get("revision", ""),
         "Tag_No":                  _dds("tag_no", "tagNo"),
@@ -325,7 +332,20 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
         "Design_Code":             _dds("design_code"),
         "Material_Code":           _dds("material_code"),
         "Inspection_By":           _dds("inspection_by"),
+        # Agent-filled title-block fields (Phase 1 automated workflow)
+        "DrawnBy":                 "Agent",
+        "DrawnDate":               today_str,
+        "CheckedBy":               "Agent",
+        "CheckedDate":             today_str,
+        "EngineeringApproval":     "Agent",
+        "EngAppDate":              today_str,
     }
+    logger.info(
+        f"[Structurer] Phase 1 agent-filled fields: "
+        f"DrawnBy=Agent DrawnDate={today_str} "
+        f"CheckedBy=Agent CheckedDate={today_str} "
+        f"EngineeringApproval=Agent EngAppDate={today_str}"
+    )
 
     # ── Phase 2: Mechanical Design Data — 72 properties (up to) ──────────────
     mech = dds.get("mechanical_data")
