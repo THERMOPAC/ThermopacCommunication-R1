@@ -44,6 +44,8 @@ except ImportError:
     pythoncom = None
     PYWIN32_AVAILABLE = False
 
+from drawing_core.properties import set_custom_properties, clear_custom_properties
+
 from extractor.sw_instance import (
     _get_sldworks_pids,
     _kill_orphan_sw_process,
@@ -352,10 +354,6 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
     Only non-blank values are written (blank fields are silently skipped).
     Returns (properties_written, warnings).
     """
-    cpm = swModel.Extension.CustomPropertyManager("")
-    written  = []
-    warnings = []
-
     dds = job.get("dds") or {}
 
     def _dds(*keys: str) -> str:
@@ -444,61 +442,31 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
     else:
         logger.warning("[Structurer] general_data missing or empty in DDS payload — Phase 3 skipped")
 
-    # ── Write loop ────────────────────────────────────────────────────────────
+    # ── Write loop (delegated to drawing_core) ────────────────────────────────
     non_blank = {k: v for k, v in to_write.items() if v}
     skipped   = len(to_write) - len(non_blank)
     logger.info(
         f"[Structurer] Writing {len(non_blank)} properties "
         f"({skipped} skipped — blank in DDS payload)"
     )
-
-    for name, value in to_write.items():
-        str_val = str(value) if value is not None else ""
-        if not str_val:
-            logger.debug(f"[Structurer] Property skipped (blank): {name}")
-            continue
-        try:
-            ret = cpm.Add3(name, _SW_CUSTOM_INFO_TEXT, str_val, _SW_CUSTOM_PROP_REPLACE)
-            if ret == 0:
-                logger.info(f"[Structurer] Property written: {name} = {str_val!r}")
-                written.append(name)
-            else:
-                msg = f"Property '{name}' Add3 returned code {ret}"
-                logger.warning(f"[Structurer] {msg}")
-                warnings.append(msg)
-        except Exception as e:
-            msg = f"Property '{name}' write failed: {type(e).__name__}: {e}"
-            logger.warning(f"[Structurer] {msg}")
-            warnings.append(msg)
+    write_result = set_custom_properties(swModel, non_blank, logger)
+    written      = write_result.written
+    warnings     = list(write_result.warnings)
 
     # ── Clear loop — explicitly blank non-applicable columns ──────────────────
-    # Prefer Delete() to remove the property entirely (title block shows blank).
-    # Fall back to Add3("") if Delete is unavailable (older COM binding).
-    cleared_count = 0
+    # Delegated to drawing_core.clear_custom_properties().
+    # Distinction: deleted → property removed entirely (→ missing);
+    #              blanked → property set to "" (→ present with blank).
     if to_clear:
         logger.info(f"[Structurer] Clearing {len(to_clear)} non-applicable column properties")
-    for name in to_clear:
-        deleted = False
-        try:
-            cpm.Delete(name)
-            deleted = True
-        except Exception:
-            pass
-        if deleted:
-            logger.info(f"[Structurer] Property cleared (deleted): {name}")
-            cleared_count += 1
-        else:
-            # Fallback: overwrite with empty string
-            try:
-                cpm.Add3(name, _SW_CUSTOM_INFO_TEXT, "", _SW_CUSTOM_PROP_REPLACE)
-                logger.info(f"[Structurer] Property cleared (set empty): {name}")
-                cleared_count += 1
-            except Exception as e:
-                msg = f"Property '{name}' clear failed: {type(e).__name__}: {e}"
-                logger.warning(f"[Structurer] {msg}")
-                warnings.append(msg)
+    clear_result  = clear_custom_properties(swModel, to_clear, logger)
     if to_clear:
-        logger.info(f"[Structurer] {cleared_count}/{len(to_clear)} non-applicable properties cleared")
+        total_cleared = len(clear_result.deleted) + len(clear_result.blanked)
+        logger.info(
+            f"[Structurer] {total_cleared}/{len(to_clear)} non-applicable properties cleared"
+        )
+    for name in clear_result.failed:
+        warnings.append(f"Property '{name}' clear failed")
 
     return written, warnings
 
