@@ -89,8 +89,9 @@ def _run(drawing_path: str) -> int:
     logging.basicConfig(level=logging.WARNING)
     logger = logging.getLogger("parity_test")
 
-    sw_app     = None
-    sw_pid     = None
+    sw_app      = None
+    sw_pid      = None
+    model       = None          # must be initialised before the outer try/finally
     pids_before = _get_sldworks_pids()
 
     try:
