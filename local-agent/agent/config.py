@@ -8,7 +8,7 @@ DESIGN RULES
 3. No auto-migration of URLs, no overwriting of any field.
 4. The ONLY write this module performs is persisting an auto-generated
    node_token (testing mode only) to the user-writable APPDATA path:
-     %APPDATA%\\ThermopacStructuringAgent\\config.ini
+     %APPDATA%\\ThermopacAgentDev\\config.ini
    This write never touches the primary config path.
 
 MODES
@@ -41,7 +41,7 @@ _TOKEN_PLACEHOLDER = "REPLACE_WITH_YOUR_TOKEN"
 # This is the ONLY path this module ever writes to.
 _APPDATA_CONFIG = os.path.join(
     os.environ.get("APPDATA", os.path.expanduser("~")),
-    "ThermopacStructuringAgent",
+    "ThermopacAgentDev",
     "config.ini",
 )
 
@@ -220,8 +220,8 @@ class AgentConfig:
         Default config path: same folder as the script / executable.
 
         Frozen (Inno Setup install):
-          sys.executable = C:\\Program Files\\ThermopacStructuringAgent\\python\\python.exe
-          → C:\\Program Files\\ThermopacStructuringAgent\\config.ini
+          sys.executable = C:\\Program Files\\ThermopacAgentDev\\python\\python.exe
+          → C:\\Program Files\\ThermopacAgentDev\\config.ini
 
         Source / ZIP extract:
           __file__ = <extract>\\agent\\config.py
