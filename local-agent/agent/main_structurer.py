@@ -102,6 +102,7 @@ def _print_startup_config(config) -> None:
     print("-" * 62)
     print(f"  api_url       : {config.api_url}")
     print(f"  node_id       : {config.node_id}")
+    print(f"  agent_role    : {config.agent_role}")
     print(f"  solidworks    : {config.sw_progid or 'NOT DETECTED'}")
     print(f"  template_path : {config.structurer_template_path or 'NOT SET'}")
     print(f"  staging_root  : {config.structurer_staging_root or 'NOT SET'}")
@@ -116,6 +117,25 @@ def main():
     print(BANNER.format(version=STRUCTURER_VERSION))
 
     config = AgentConfig(args.config)
+
+    # ── Combined-mode guard — Thermopac Drawing Control Agent (L2) ────────────
+    # The L2 agent is design-locked (Baseline v4 + File Integrity Control).
+    # Its execution logic is NOT YET IMPLEMENTED.  This entry point only runs
+    # the L1 Structuring Agent.  Refuse combined mode with a clear message.
+    if config.agent_role == "combined":
+        print()
+        print("=" * 62)
+        print("  Thermopac Drawing Control Agent")
+        print("  design-locked — NOT active in this build")
+        print("=" * 62)
+        print()
+        print("  agent_role = combined is reserved for the L2 Drawing Control")
+        print("  Agent, which has not yet been implemented.")
+        print()
+        print("  To run the Structuring Agent: set agent_role = structure")
+        print("  To run the Extraction Agent:  set agent_role = extract")
+        print()
+        sys.exit(0)
 
     if args.api_url:
         config.api_url    = args.api_url.rstrip("/")

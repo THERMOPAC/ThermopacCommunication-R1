@@ -688,6 +688,42 @@ export default function WorkerAgentsPage() {
                     </div>
                   </td>
                 </tr>
+
+                {/* Row 3: drawing_core Test Package */}
+                <tr className="border-b last:border-b-0 hover:bg-accent/30 transition-colors bg-violet-50/40 dark:bg-violet-950/10">
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="h-4 w-4 text-violet-500 shrink-0" />
+                      <div>
+                        <p className="font-medium">drawing_core Validation Package</p>
+                        <p className="text-xs text-muted-foreground">
+                          Regression test build — validates drawing_core shared module before L2 agent enablement. Not for production.
+                        </p>
+                        <p className="text-xs text-violet-600 dark:text-violet-400 font-medium mt-0.5">
+                          Thermopac Drawing Control Agent: design-locked, not active in this build
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-3">
+                    <Badge variant="outline" className="text-xs border-violet-300 text-violet-700 dark:text-violet-300">
+                      VALIDATION
+                    </Badge>
+                  </td>
+                  <td className="py-3 px-3">
+                    <span className="text-xs font-mono text-muted-foreground">v1.0.0-test-core</span>
+                  </td>
+                  <td className="py-3 px-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      <a href="/ThermopacAgent_v1.0.0-test-core.zip" download="ThermopacAgent_v1.0.0-test-core.zip">
+                        <Button variant="default" size="sm" className="h-7 text-xs bg-violet-600 hover:bg-violet-700 text-white">
+                          <Download className="h-3 w-3 mr-1" />
+                          Test Package
+                        </Button>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </CardContent>

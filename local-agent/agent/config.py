@@ -148,6 +148,20 @@ class AgentConfig:
         self.job_timeout_sec   = cfg.getint("agent", "job_timeout_sec",   fallback=600)
         self.max_retries       = cfg.getint("agent", "max_retries",       fallback=3)
 
+        # agent_role — controls which L1 agent this process runs as.
+        #   extract   → Thermopac Extraction Agent (READ only)
+        #   structure → Thermopac Structuring Agent (WRITE only)  [default]
+        #   combined  → Thermopac Drawing Control Agent (L2) — design-locked,
+        #               NOT YET IMPLEMENTED.  Safe exit with clear message.
+        raw_role = cfg.get("agent", "agent_role", fallback="structure").strip().lower()
+        if raw_role not in ("extract", "structure", "combined"):
+            print(
+                f"[CONFIG] WARNING: unknown agent_role={raw_role!r} — "
+                f"defaulting to 'structure'"
+            )
+            raw_role = "structure"
+        self.agent_role = raw_role
+
         # ── Paths ─────────────────────────────────────────────────────────────
         self.temp_dir = cfg.get("paths", "temp_dir", fallback=r"C:\ThermopacAgent\temp")
         self.log_dir  = cfg.get("paths", "log_dir",  fallback=r"C:\ThermopacAgent\logs")
@@ -198,6 +212,7 @@ class AgentConfig:
         print(f"[CONFIG] api_url:      {self.api_url}")
         print(f"[CONFIG] node_id:      {self.node_id}")
         print(f"[CONFIG] mode:         {self.mode}")
+        print(f"[CONFIG] agent_role:   {self.agent_role}")
         sw = self.sw_progid or "NOT DETECTED"
         if self.sw_autodetected and self.sw_progid:
             sw += " [auto-detected]"
