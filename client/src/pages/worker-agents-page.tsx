@@ -715,7 +715,7 @@ export default function WorkerAgentsPage() {
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1.5">
-                      <a href="/ThermopacAgent_v1.0.0-test-core.zip" download="ThermopacAgent_v1.0.0-test-core.zip">
+                      <a href="/api/agent-dl/test-core-zip" download="ThermopacAgent_v1.0.0-test-core.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-violet-600 hover:bg-violet-700 text-white">
                           <Download className="h-3 w-3 mr-1" />
                           Test Package
