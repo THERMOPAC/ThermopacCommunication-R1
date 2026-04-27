@@ -1,0 +1,257 @@
+name: Build Thermopac Drawing Control Agent Test Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (leave blank for 1.0.0-test-core)'
+        required: false
+        default: ''
+  push:
+    paths:
+      - 'local-agent/drawing_core/**'
+      - 'local-agent/structurer/solidworks_structurer.py'
+      - 'local-agent/agent/config.py'
+      - 'local-agent/agent/main_structurer.py'
+      - 'local-agent/config.ini'
+      - '.github/workflows/build-test-core.yml'
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    name: Build Drawing Control Agent Test Package
+    runs-on: windows-latest
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Resolve version ───────────────────────────────────────────────────
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $ver = "${{ github.event.inputs.version }}".Trim()
+          if ($ver -eq '') { $ver = "1.0.0-test-core" }
+          Write-Host "Package version: $ver"
+          echo "ver=$ver" >> $env:GITHUB_OUTPUT
+
+      # ── Set up Python (only needed for ZIP creation) ──────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+
+      # ── Ensure Inno Setup is available (used by other workflows on this
+      #    runner — not needed here, but keeps runner state consistent) ──────
+      - name: Ensure Inno Setup is available
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $iscc) {
+            Write-Host "Inno Setup available: $iscc"
+          } else {
+            Write-Host "Inno Setup not present — not required for this package"
+          }
+
+      # ── Build test package ZIP ─────────────────────────────────────────────
+      # No installer, no PyInstaller, no bundled Python.
+      # The test-core package is a plain source ZIP for regression testing.
+      # The Thermopac Drawing Control Agent (L2) is design-locked and NOT
+      # included or active in this build.
+      - name: Build dist package
+        shell: pwsh
+        run: |
+          $PKG   = "ThermopacAgent_v${{ steps.version.outputs.ver }}"
+          $OUT   = "build_output"
+          $AGENT_VERSION = "${{ steps.version.outputs.ver }}"
+          New-Item -ItemType Directory -Force $OUT | Out-Null
+
+          Write-Host "Building $PKG ..."
+
+          python - <<'PYEOF'
+          import zipfile, os, sys
+
+          pkg  = os.environ.get('PKG_NAME', 'ThermopacAgent_v1.0.0-test-core')
+          out  = os.path.join('build_output', f'{pkg}.zip')
+          root = 'local-agent'
+
+          root_files = ['config.ini', 'README_TEST.md', 'requirements.txt']
+          dirs       = ['agent', 'extractor', 'structurer', 'drawing_core']
+
+          ok = True
+          with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+              for f in root_files:
+                  src = os.path.join(root, f)
+                  if os.path.isfile(src):
+                      zf.write(src, f'{pkg}/{f}')
+                      print(f'  + {f}')
+                  else:
+                      print(f'  MISSING root file: {f}', file=sys.stderr)
+                      ok = False
+
+              for d in dirs:
+                  src_dir = os.path.join(root, d)
+                  if os.path.isdir(src_dir):
+                      for dp, dns, fns in os.walk(src_dir):
+                          dns[:] = [x for x in dns if x != '__pycache__']
+                          for fn in fns:
+                              if fn.endswith('.pyc'):
+                                  continue
+                              full    = os.path.join(dp, fn)
+                              relpath = os.path.relpath(full, src_dir).replace(os.sep, '/')
+                              zf.write(full, f'{pkg}/{d}/{relpath}')
+                      count = sum(1 for n in zf.namelist() if f'/{d}/' in n)
+                      print(f'  + {d}/ ({count} files)')
+                  else:
+                      print(f'  MISSING directory: {d}', file=sys.stderr)
+                      ok = False
+
+              total = len(zf.namelist())
+              print(f'  Total entries: {total}')
+
+          if not ok:
+              sys.exit(1)
+
+          size = os.path.getsize(out)
+          print(f'Written: {out}  ({size//1024} KB)')
+          PYEOF
+        env:
+          PKG_NAME: ThermopacAgent_v${{ steps.version.outputs.ver }}
+
+      # ── Verify dist structure ──────────────────────────────────────────────
+      - name: Verify dist structure
+        shell: pwsh
+        run: |
+          $PKG     = "ThermopacAgent_v${{ steps.version.outputs.ver }}"
+          $ZIP     = "build_output\${PKG}.zip"
+          $EXPAND  = "build_verify"
+
+          Expand-Archive -Path $ZIP -DestinationPath $EXPAND -Force
+
+          $required = @(
+            "config.ini",
+            "README_TEST.md",
+            "requirements.txt",
+            "drawing_core\__init__.py",
+            "drawing_core\schema.py",
+            "drawing_core\results.py",
+            "drawing_core\properties.py",
+            "drawing_core\save.py",
+            "drawing_core\sw_document.py",
+            "drawing_core\tests\test_extraction_parity.py",
+            "structurer\solidworks_structurer.py",
+            "agent\config.py",
+            "agent\main_structurer.py",
+            "extractor\solidworks_extractor.py"
+          )
+
+          $ok = $true
+          foreach ($rel in $required) {
+            $f = "$EXPAND\$PKG\$rel"
+            if (Test-Path $f) {
+              Write-Host "[OK]      $rel"
+            } else {
+              Write-Error "[MISSING] $rel"
+              $ok = $false
+            }
+          }
+
+          # Content checks
+          $structurer = Get-Content "$EXPAND\$PKG\structurer\solidworks_structurer.py" -Raw
+          if ($structurer -match 'from drawing_core.properties import') {
+            Write-Host "[OK]      drawing_core import in solidworks_structurer.py"
+          } else {
+            Write-Error "[FAIL]    drawing_core import NOT found in solidworks_structurer.py"
+            $ok = $false
+          }
+
+          $ms = Get-Content "$EXPAND\$PKG\agent\main_structurer.py" -Raw
+          if ($ms -match 'design-locked') {
+            Write-Host "[OK]      combined-mode guard in main_structurer.py"
+          } else {
+            Write-Error "[FAIL]    combined-mode guard NOT found in main_structurer.py"
+            $ok = $false
+          }
+
+          $ini = Get-Content "$EXPAND\$PKG\config.ini" -Raw
+          if ($ini -match 'agent_role\s*=\s*structure') {
+            Write-Host "[OK]      agent_role = structure in config.ini"
+          } else {
+            Write-Error "[FAIL]    agent_role not set to structure in config.ini"
+            $ok = $false
+          }
+
+          $schema = Get-Content "$EXPAND\$PKG\drawing_core\schema.py" -Raw
+          if ($schema -match 'assert len\(ALL_PROPS\)\s*==\s*101') {
+            Write-Host "[OK]      ALL_PROPS count assertion (101) in schema.py"
+          } else {
+            Write-Error "[FAIL]    101-property assertion not found in schema.py"
+            $ok = $false
+          }
+
+          if (-not $ok) { exit 1 }
+          Write-Host ""
+          Write-Host "All $($required.Length) required files and 4 content checks passed."
+
+      # ── Compile installer EXE (skipped — test package uses plain ZIP) ─────
+      # Intentionally omitted: no Inno Setup, no PyInstaller, no bundled Python.
+      # The test-core package is a plain source ZIP only.
+
+      # ── Verify installer output (skipped for test package) ───────────────
+      # Not applicable.
+
+      # ── Upload test package artifact ──────────────────────────────────────
+      - name: Upload test package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThermopacAgent_v${{ steps.version.outputs.ver }}
+          path: build_output/ThermopacAgent_v${{ steps.version.outputs.ver }}.zip
+          retention-days: 90
+          if-no-files-found: error
+
+      # ── Write build summary ───────────────────────────────────────────────
+      - name: Write build summary
+        shell: pwsh
+        if: always()
+        run: |
+          $PKG    = "ThermopacAgent_v${{ steps.version.outputs.ver }}"
+          $ZIP    = "build_output\${PKG}.zip"
+          $exists = Test-Path $ZIP
+          $size   = if ($exists) { "$([math]::Round((Get-Item $ZIP).Length / 1KB, 1)) KB" } else { "N/A" }
+
+          @"
+          ## $PKG — drawing_core Validation Package
+
+          | Item | Value |
+          |---|---|
+          | Version | v${{ steps.version.outputs.ver }} |
+          | ZIP produced | $exists |
+          | ZIP file | ${PKG}.zip |
+          | ZIP size | $size |
+          | Runner | windows-latest |
+          | Purpose | Regression validation before L2 agent enablement |
+
+          ### Baseline v4 + File Integrity Control — component status
+
+          | Component | Change vs production |
+          |---|---|
+          | \`extractor/\` | **UNCHANGED** (v1.0.70) |
+          | \`structurer/solidworks_structurer.py\` | Write + clear loops delegate to \`drawing_core\` |
+          | \`drawing_core/\` | **NEW** — 101-property schema, read/write/clear, SHA-256 |
+          | \`agent/config.py\` | \`agent_role\` field; \`combined\` exits safely |
+
+          ### Regression test command
+          \`\`\`cmd
+          python drawing_core\tests\test_extraction_parity.py "C:\path\to\drawing.slddrw"
+          \`\`\`
+
+          > **Thermopac Drawing Control Agent: design-locked — NOT active in this build**
+          > \`agent_role = combined\` will produce a clean exit with no SolidWorks session.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
