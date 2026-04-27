@@ -371,8 +371,9 @@ if not "!ISCC!"=="" (
 
     if /i "!CI!"=="true" (
         REM ── CI: compile the .exe immediately ────────────────────────────────────
+        REM Note: !ISCC! already contains quotes around the path from the FOR loop
         echo [CI] Compiling installer EXE...
-        "!ISCC!" /Q "%~dp0setup.iss"
+        !ISCC! /Q "%~dp0setup.iss"
         if errorlevel 1 (
             echo [ERROR] ISCC compile failed.
             exit /b 1
