@@ -14,7 +14,7 @@ on:
       - 'local-agent/agent/config.py'
       - 'local-agent/agent/main_structurer.py'
       - 'local-agent/config.ini'
-      - '.github/workflows/build-test-core.yml'
+      - '.github/workflows/build-drawing-control-agent.yml'
     branches:
       - main
 
@@ -60,70 +60,74 @@ jobs:
             Write-Host "Inno Setup not present — not required for this package"
           }
 
-      # ── Build test package ZIP ─────────────────────────────────────────────
+      # ── Build dist package ────────────────────────────────────────────────
       # No installer, no PyInstaller, no bundled Python.
-      # The test-core package is a plain source ZIP for regression testing.
-      # The Thermopac Drawing Control Agent (L2) is design-locked and NOT
-      # included or active in this build.
+      # Creates a plain source ZIP for regression testing.
+      # The Thermopac Drawing Control Agent (L2) is design-locked — NOT active.
       - name: Build dist package
         shell: pwsh
-        run: |
-          $PKG   = "ThermopacAgent_v${{ steps.version.outputs.ver }}"
-          $OUT   = "build_output"
-          $AGENT_VERSION = "${{ steps.version.outputs.ver }}"
-          New-Item -ItemType Directory -Force $OUT | Out-Null
-
-          Write-Host "Building $PKG ..."
-
-          python - <<'PYEOF'
-          import zipfile, os, sys
-
-          pkg  = os.environ.get('PKG_NAME', 'ThermopacAgent_v1.0.0-test-core')
-          out  = os.path.join('build_output', f'{pkg}.zip')
-          root = 'local-agent'
-
-          root_files = ['config.ini', 'README_TEST.md', 'requirements.txt']
-          dirs       = ['agent', 'extractor', 'structurer', 'drawing_core']
-
-          ok = True
-          with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-              for f in root_files:
-                  src = os.path.join(root, f)
-                  if os.path.isfile(src):
-                      zf.write(src, f'{pkg}/{f}')
-                      print(f'  + {f}')
-                  else:
-                      print(f'  MISSING root file: {f}', file=sys.stderr)
-                      ok = False
-
-              for d in dirs:
-                  src_dir = os.path.join(root, d)
-                  if os.path.isdir(src_dir):
-                      for dp, dns, fns in os.walk(src_dir):
-                          dns[:] = [x for x in dns if x != '__pycache__']
-                          for fn in fns:
-                              if fn.endswith('.pyc'):
-                                  continue
-                              full    = os.path.join(dp, fn)
-                              relpath = os.path.relpath(full, src_dir).replace(os.sep, '/')
-                              zf.write(full, f'{pkg}/{d}/{relpath}')
-                      count = sum(1 for n in zf.namelist() if f'/{d}/' in n)
-                      print(f'  + {d}/ ({count} files)')
-                  else:
-                      print(f'  MISSING directory: {d}', file=sys.stderr)
-                      ok = False
-
-              total = len(zf.namelist())
-              print(f'  Total entries: {total}')
-
-          if not ok:
-              sys.exit(1)
-
-          size = os.path.getsize(out)
-          print(f'Written: {out}  ({size//1024} KB)')
-          PYEOF
         env:
           PKG_NAME: ThermopacAgent_v${{ steps.version.outputs.ver }}
+        run: |
+          $PKG = $env:PKG_NAME
+          New-Item -ItemType Directory -Force build_output | Out-Null
+          Write-Host "Building $PKG ..."
+
+          # Write Python script to a temp file — PowerShell does not support
+          # bash heredoc syntax (<<'PYEOF') on Windows.
+          $pyScript = @'
+import zipfile, os, sys
+
+pkg  = os.environ["PKG_NAME"]
+out  = os.path.join("build_output", f"{pkg}.zip")
+root = "local-agent"
+
+root_files = ["config.ini", "README_TEST.md", "requirements.txt"]
+dirs       = ["agent", "extractor", "structurer", "drawing_core"]
+
+ok = True
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+    for f in root_files:
+        src = os.path.join(root, f)
+        if os.path.isfile(src):
+            zf.write(src, f"{pkg}/{f}")
+            print(f"  + {f}")
+        else:
+            print(f"  MISSING root file: {f}", file=sys.stderr)
+            ok = False
+
+    for d in dirs:
+        src_dir = os.path.join(root, d)
+        if os.path.isdir(src_dir):
+            for dp, dns, fns in os.walk(src_dir):
+                dns[:] = [x for x in dns if x != "__pycache__"]
+                for fn in fns:
+                    if fn.endswith(".pyc"):
+                        continue
+                    full    = os.path.join(dp, fn)
+                    relpath = os.path.relpath(full, src_dir).replace(os.sep, "/")
+                    zf.write(full, f"{pkg}/{d}/{relpath}")
+            count = sum(1 for n in zf.namelist() if f"/{d}/" in n)
+            print(f"  + {d}/ ({count} files)")
+        else:
+            print(f"  MISSING directory: {d}", file=sys.stderr)
+            ok = False
+
+    total = len(zf.namelist())
+    print(f"  Total entries: {total}")
+
+if not ok:
+    sys.exit(1)
+
+size = os.path.getsize(out)
+print(f"Written: {out}  ({size // 1024} KB)")
+'@
+          $tmp = [System.IO.Path]::GetTempFileName() + ".py"
+          $pyScript | Set-Content -Path $tmp -Encoding UTF8
+          python $tmp
+          $rc = $LASTEXITCODE
+          Remove-Item $tmp -ErrorAction SilentlyContinue
+          if ($rc -ne 0) { exit $rc }
 
       # ── Verify dist structure ──────────────────────────────────────────────
       - name: Verify dist structure
