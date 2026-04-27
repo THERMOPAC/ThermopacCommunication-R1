@@ -79,9 +79,28 @@ class PreflightError(Exception):
     """Raised when a pre-flight check fails. Job is failed immediately, no SW launched."""
 
 
+def _safe_name(s: str) -> str:
+    """
+    Sanitise a string for use as a Windows path component.
+    Replaces characters illegal in Windows filenames ( \\ / : * ? " < > | )
+    and leading/trailing spaces with underscores.
+    Drawing numbers are typically alphanumeric+hyphens so this is defensive only.
+    """
+    import re
+    safe = re.sub(r'[\\/:*?"<>|]', "_", s).strip()
+    return safe or "_"
+
+
 def _preflight(job: dict, template_path: str, staging_root: str) -> str:
     """
     Run all pre-flight checks before launching SolidWorks.
+
+    Save path layout:
+        {staging_root}/{Drawing_No}/{Drawing_No}_rev-{Revision}.slddrw
+
+    Example:
+        C:\\ThermopacStaging\\drawings\\C103082627013003\\C103082627013003_rev-A.slddrw
+
     Returns the fully-qualified staging_path on success.
     Raises PreflightError with a descriptive message on any failure.
     """
@@ -91,6 +110,7 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
     mode             = (job.get("mode") or "create_new").strip()
     drawing_ctrl_id  = str(job.get("drawing_control_id") or "").strip()
 
+    # Drawing_No and Revision are mandatory — fail immediately if absent
     if not drawing_number:
         raise PreflightError("drawing_number missing or empty in job payload")
     if not revision:
@@ -118,8 +138,14 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
             "(Admin → System Settings → SolidWorks Structuring Agent → Staging Root). "
             "Fallback: set [structurer] staging_root in the agent's config.ini."
         )
+
+    # ── Build save path: {staging_root}/{Drawing_No}/{Drawing_No}_rev-{Revision}.slddrw
+    safe_dn   = _safe_name(drawing_number)
+    safe_rev  = _safe_name(revision)
+    filename  = f"{safe_dn}_rev-{safe_rev}.slddrw"
+
     try:
-        staging_dir = os.path.join(staging_root, drawing_ctrl_id)
+        staging_dir = os.path.join(staging_root, safe_dn)
         os.makedirs(staging_dir, exist_ok=True)
         probe = os.path.join(staging_dir, ".write_probe")
         with open(probe, "w") as f:
@@ -128,8 +154,7 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
     except Exception as e:
         raise PreflightError(f"staging_root not writable ({staging_root}): {e}")
 
-    filename      = f"{drawing_number}_rev-{revision}.slddrw"
-    staging_path  = os.path.normpath(os.path.join(staging_dir, filename))
+    staging_path = os.path.normpath(os.path.join(staging_dir, filename))
 
     if mode == "update_existing" and not os.path.isfile(staging_path):
         raise PreflightError(
@@ -614,7 +639,8 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
     # ── Pre-flight (before any SolidWorks involvement) ────────────────────────
     staging_path = _preflight(job, template_path, staging_root)
-    logger.info(f"[Structurer] Pre-flight passed — staging_path={staging_path}")
+    logger.info(f"[Structurer] Pre-flight passed")
+    logger.info(f"[Structurer] Save path: {staging_path}")
 
     if mode == "create_new" and os.path.isfile(staging_path):
         _existing_bytes = os.path.getsize(staging_path)
