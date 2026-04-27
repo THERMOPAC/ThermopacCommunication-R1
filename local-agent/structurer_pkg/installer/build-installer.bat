@@ -368,14 +368,35 @@ for %%p in (
 
 if not "!ISCC!"=="" (
     echo [OK] Inno Setup found: !ISCC!
-    echo.
-    echo      To compile the installer .exe, run:
-    echo        !ISCC! "%~dp0setup.iss"
-    echo      Output: %OUT_DIR%\ThermopacStructuringAgent-Setup-v%STRUCTURER_VERSION%.exe
+
+    if /i "!CI!"=="true" (
+        REM ── CI: compile the .exe immediately ────────────────────────────────────
+        echo [CI] Compiling installer EXE...
+        "!ISCC!" /Q "%~dp0setup.iss"
+        if errorlevel 1 (
+            echo [ERROR] ISCC compile failed.
+            exit /b 1
+        )
+        echo [CI] ISCC compile complete.
+        echo.
+        echo [CI] Contents of installer_output\ ^(post-compile debug^):
+        powershell -Command "Get-ChildItem installer_output | Format-Table Name,Length,LastWriteTime -AutoSize"
+        echo.
+        echo [CI] Expected: ThermopacStructuringAgent-Setup-v%STRUCTURER_VERSION%.exe
+    ) else (
+        echo.
+        echo      To compile the installer .exe, run:
+        echo        !ISCC! "%~dp0setup.iss"
+        echo      Output: installer_output\ThermopacStructuringAgent-Setup-v%STRUCTURER_VERSION%.exe
+    )
 ) else (
     echo [WARN] Inno Setup 6 not found.
     echo        Download from: https://jrsoftware.org/isinfo.php
     echo        Then compile with: iscc installer\setup.iss
+    if /i "!CI!"=="true" (
+        echo [CI] Cannot compile without Inno Setup -- ensure CI runner has Inno Setup installed.
+        exit /b 1
+    )
 )
 
 echo.
@@ -386,7 +407,7 @@ echo.
 echo  Agent files  : %AGENT_DIST%\
 echo  Python       : %PY_DIR%\
 echo  Installer src: %~dp0setup.iss
-echo  Output dir   : %OUT_DIR%\  (after iscc compile)
+echo  Output dir   : installer_output\  (at repo root)
 echo.
 echo  To compile the .exe installer (Inno Setup required):
 echo    iscc installer\setup.iss
@@ -396,16 +417,6 @@ echo    ZIP contents of: %DIST_DIR%\  plus  installer\setup.ps1
 echo    Users run: powershell -ExecutionPolicy Bypass -File setup.ps1
 echo.
 if /i "!CI!"=="true" (
-    echo [CI] Build complete.
-    echo.
-    echo [CI] Contents of installer_output\ ^(pre-compile debug^):
-    if exist "%OUT_DIR%" (
-        powershell -Command "Get-ChildItem '%OUT_DIR%' | Format-Table Name,Length,LastWriteTime -AutoSize"
-    ) else (
-        echo [CI] installer_output\ does not yet exist -- will be created by iscc compile step.
-    )
-    echo.
-    echo [CI] Expected output after iscc: ThermopacStructuringAgent-Setup-v%STRUCTURER_VERSION%.exe
     echo [CI] Exiting for CI runner.
     exit /b 0
 )

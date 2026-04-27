@@ -26,11 +26,11 @@
 #define AppURL              "https://thermopac-communication-thermopacllp.replit.app"
 #define AppExeName          "run.bat"
 
-; SourcePath = directory containing this .iss file (structurer_pkg\installer\)
-; AgentRoot  = structurer_pkg\ (one level up)
-; SourceDir  = structurer_pkg\dist\ThermopacStructuringAgent\  (built by build-installer.bat)
-; PythonDir  = structurer_pkg\dist\python\
-#define AgentRoot  SourcePath + "\.."
+; SourcePath = directory containing this .iss file (installer\)
+; AgentRoot  = repo root (one level up from installer\)
+; SourceDir  = dist\ThermopacStructuringAgent\  (built by build-installer.bat)
+; PythonDir  = dist\python\
+#define AgentRoot  SourcePath + ".."
 #define SourceDir  AgentRoot + "\dist\ThermopacStructuringAgent"
 #define PythonDir  AgentRoot + "\dist\python"
 
@@ -45,7 +45,9 @@ AppPublisherURL={#AppURL}
 DefaultDirName={autopf}\ThermopacStructuringAgent
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
-OutputDir={#AgentRoot}\installer_output
+; OutputDir is relative to this .iss file location (installer\)
+; ..\installer_output resolves to installer_output\ at repo root
+OutputDir=..\installer_output
 OutputBaseFilename=ThermopacStructuringAgent-Setup-v{#MyAppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
