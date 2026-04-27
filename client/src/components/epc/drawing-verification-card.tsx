@@ -168,12 +168,16 @@ export function DrawingVerificationCard({
       return;
     }
     // Client-side filename gate — instant feedback before upload
+    // Accepted: {drawingNumber}.slddrw  OR  {drawingNumber}_rev-{X}.slddrw
     if (drawingNumber) {
-      const basename = file.name.slice(0, file.name.length - '.slddrw'.length);
-      if (basename.toLowerCase() !== drawingNumber.toLowerCase()) {
+      const basename  = file.name.slice(0, file.name.length - '.slddrw'.length);
+      const dnLower   = drawingNumber.toLowerCase();
+      const bnLower   = basename.toLowerCase();
+      const nameOk    = bnLower === dnLower || bnLower.startsWith(dnLower + '_rev-');
+      if (!nameOk) {
         toast({
           title: 'Filename mismatch',
-          description: `Filename must match system Drawing Number. Expected: ${drawingNumber}.slddrw`,
+          description: `Filename must match Drawing Number. Expected: ${drawingNumber}.slddrw or ${drawingNumber}_rev-{X}.slddrw`,
           variant: 'destructive',
         });
         if (fileInputRef.current) fileInputRef.current.value = '';
