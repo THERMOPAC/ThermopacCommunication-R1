@@ -1,11 +1,13 @@
 ; ============================================================
 ; Thermopac Drawing Structuring Agent — Inno Setup 6 script
-; Version: 1.0.5  |  Phase 1  |  WRITE agent
+; Version: read from STRUCTURER_VERSION env var at compile time
 ;
 ; Compile with:
-;   iscc installer\setup.iss         (from structurer_pkg\ directory)
+;   iscc installer\setup.iss                (from structurer_pkg\ directory)
 ;   OR
-;   installer\build-installer.bat    (full pipeline — builds dist first)
+;   installer\build-installer.bat           (full pipeline — builds dist first)
+;   OR (CI)
+;   set STRUCTURER_VERSION=1.0.24 && iscc installer\setup.iss
 ;
 ; Prerequisites:
 ;   - Inno Setup 6.x  https://jrsoftware.org/isinfo.php
@@ -13,8 +15,12 @@
 ;   - dist\python\                     bundled Python (built by build-installer.bat)
 ; ============================================================
 
+#define MyAppVersion        GetEnv("STRUCTURER_VERSION")
+#if MyAppVersion == ""
+  #define MyAppVersion      "1.0.24"
+#endif
+
 #define AppName             "ThermopacStructuringAgent"
-#define AppVersion          "1.0.21"
 #define AppPublisher        "Thermopac"
 #define DesktopShortcutName "SolidWorks Structuring Agent"
 #define AppURL              "https://thermopac-communication-thermopacllp.replit.app"
@@ -32,7 +38,7 @@
 ; New GUID — must differ from the Extraction Agent's GUID
 AppId={{A7C4D2F1-9B3E-4E8A-B5F2-31D6C08EF450}
 AppName={#AppName}
-AppVersion={#AppVersion}
+AppVersion={#MyAppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 ; Install alongside (not replacing) the Extraction Agent
@@ -40,14 +46,14 @@ DefaultDirName={autopf}\ThermopacStructuringAgent
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
 OutputDir={#AgentRoot}\installer_output
-OutputBaseFilename=ThermopacStructuringAgent-Setup-v{#AppVersion}
+OutputBaseFilename=ThermopacStructuringAgent-Setup-v{#MyAppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
 UninstallDisplayIcon={app}\run.bat
-UninstallDisplayName={#AppName} v{#AppVersion}
+UninstallDisplayName={#AppName} v{#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

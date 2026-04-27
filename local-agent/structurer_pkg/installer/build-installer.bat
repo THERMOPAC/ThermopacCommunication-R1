@@ -396,7 +396,17 @@ echo    ZIP contents of: %DIST_DIR%\  plus  installer\setup.ps1
 echo    Users run: powershell -ExecutionPolicy Bypass -File setup.ps1
 echo.
 if /i "!CI!"=="true" (
-    echo [CI] Build complete. Exiting for CI runner.
+    echo [CI] Build complete.
+    echo.
+    echo [CI] Contents of installer_output\ ^(pre-compile debug^):
+    if exist "%OUT_DIR%" (
+        powershell -Command "Get-ChildItem '%OUT_DIR%' | Format-Table Name,Length,LastWriteTime -AutoSize"
+    ) else (
+        echo [CI] installer_output\ does not yet exist -- will be created by iscc compile step.
+    )
+    echo.
+    echo [CI] Expected output after iscc: ThermopacStructuringAgent-Setup-v%STRUCTURER_VERSION%.exe
+    echo [CI] Exiting for CI runner.
     exit /b 0
 )
 pause
