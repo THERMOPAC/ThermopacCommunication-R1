@@ -57,6 +57,18 @@ _SW_CUSTOM_INFO_TEXT       = 30
 _SW_CUSTOM_PROP_REPLACE    = 1
 _SW_SAVE_CURRENT_VERSION   = 0
 
+# ── Mechanical column property suffixes (24 per prefix) ───────────────────────
+# Order matches _mech_col_props() exactly — used to build clear lists for
+# null/absent columns so stale template values are removed from the drawing.
+_MECH_PROP_SHORTS: tuple = (
+    "IDP", "EDP", "WP", "HTP", "MDMT",
+    "HT_TEMP", "OP_TEMP", "MOT", "DES_TEMP",
+    "STATE", "VOL", "FLUID", "HZ", "SG",
+    "ICA", "ECA",
+    "RT", "JE", "TG", "FTC", "PWHT",
+    "HEAD", "INS", "INS_SPEC",
+)
+
 # Error codes from ISldWorks.OpenDoc / OpenDoc6 return values (common subset)
 _SW_FILE_NOT_FOUND         = 2
 _SW_FILE_LOCK_ERROR        = 3
@@ -221,6 +233,11 @@ def _mech_col_props(prefix: str, col: dict) -> dict:
     }
 
 
+def _mech_col_prop_names(prefix: str) -> list:
+    """Return the 24 full SW property names for one mechanical column prefix."""
+    return [f"{prefix}_{s}" for s in _MECH_PROP_SHORTS]
+
+
 def _general_data_props(gen: dict) -> dict:
     """
     Build {SW_property_name: value_string} for the General Data section.
@@ -279,13 +296,24 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
 
     Phase 2 — Mechanical Design Data (Option C — approved mapping):
         SHELL_*   : 24 properties always (shell column always present)
-        TUBE_*    : 24 properties if mechanical_data.tube is non-null
-        JACKET_*  : 24 properties if mechanical_data.jacket is non-null
-        Total written: up to 72 mechanical props (24 × active columns)
+        TUBE_*    : 24 properties written if mechanical_data.tube is non-null
+                    24 properties CLEARED  if mechanical_data.tube is null
+        JACKET_*  : 24 properties written if mechanical_data.jacket is non-null
+                    24 properties CLEARED  if mechanical_data.jacket is null
+
+        Equipment-type clearing rules:
+          Vessel                  → write SHELL_*, clear TUBE_* + JACKET_*
+          Heat Exchanger          → write SHELL_* + TUBE_*, clear JACKET_*
+          Jacketed Vessel         → write SHELL_* + JACKET_*, clear TUBE_*
+          Jacketed HX             → write all three — nothing cleared
 
         operatingTempMinMax generates TWO properties per column:
             <PREFIX>_OP_TEMP  — full text string  e.g. "100 / 120"
             <PREFIX>_MOT      — max value only     e.g. "120"  (existing template field)
+
+        Clearing uses ICustomPropertyManager.Delete() (primary) so the property
+        is fully removed and the drawing title block shows blank.
+        Falls back to Add3("") if Delete() is unavailable on the COM binding.
 
     Phase 3 — General Data (12 properties):
         HYDRO_TEST_POSITION    ← hydroTestPosition         (existing template field)
@@ -348,7 +376,19 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
     )
 
     # ── Phase 2: Mechanical Design Data — 72 properties (up to) ──────────────
-    mech = dds.get("mechanical_data")
+    #
+    # Columns with data  → queued for writing  (to_write)
+    # Columns that are null/absent → queued for explicit clearing (to_clear)
+    #   so stale template / memory values are removed from the drawing.
+    #
+    # Clearing strategy:
+    #   Primary  : ICustomPropertyManager.Delete(name)  — removes the property
+    #              entirely; linked title-block annotation shows blank.
+    #   Fallback : Add3(name, swCustomInfoText, "", swCustomPropertyReplaceValue)
+    #              — sets value to "" if Delete() is unavailable on this COM build.
+    mech    = dds.get("mechanical_data")
+    to_clear: list = []          # property names to explicitly blank/delete
+
     if isinstance(mech, dict):
         shell_col  = mech.get("shell")
         tube_col   = mech.get("tube")
@@ -364,13 +404,15 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
             to_write.update(_mech_col_props("TUBE", tube_col))
             logger.info("[Structurer] Mechanical TUBE column: 24 properties queued")
         else:
-            logger.info("[Structurer] mechanical_data.tube is null/absent — TUBE_* skipped")
+            to_clear.extend(_mech_col_prop_names("TUBE"))
+            logger.info("[Structurer] mechanical_data.tube is null — TUBE_* queued for clear")
 
         if isinstance(jacket_col, dict):
             to_write.update(_mech_col_props("JACKET", jacket_col))
             logger.info("[Structurer] Mechanical JACKET column: 24 properties queued")
         else:
-            logger.info("[Structurer] mechanical_data.jacket is null/absent — JACKET_* skipped")
+            to_clear.extend(_mech_col_prop_names("JACKET"))
+            logger.info("[Structurer] mechanical_data.jacket is null — JACKET_* queued for clear")
     else:
         logger.warning("[Structurer] mechanical_data missing from DDS payload — Phase 2 skipped")
 
@@ -408,6 +450,35 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
             msg = f"Property '{name}' write failed: {type(e).__name__}: {e}"
             logger.warning(f"[Structurer] {msg}")
             warnings.append(msg)
+
+    # ── Clear loop — explicitly blank non-applicable columns ──────────────────
+    # Prefer Delete() to remove the property entirely (title block shows blank).
+    # Fall back to Add3("") if Delete is unavailable (older COM binding).
+    cleared_count = 0
+    if to_clear:
+        logger.info(f"[Structurer] Clearing {len(to_clear)} non-applicable column properties")
+    for name in to_clear:
+        deleted = False
+        try:
+            cpm.Delete(name)
+            deleted = True
+        except Exception:
+            pass
+        if deleted:
+            logger.info(f"[Structurer] Property cleared (deleted): {name}")
+            cleared_count += 1
+        else:
+            # Fallback: overwrite with empty string
+            try:
+                cpm.Add3(name, _SW_CUSTOM_INFO_TEXT, "", _SW_CUSTOM_PROP_REPLACE)
+                logger.info(f"[Structurer] Property cleared (set empty): {name}")
+                cleared_count += 1
+            except Exception as e:
+                msg = f"Property '{name}' clear failed: {type(e).__name__}: {e}"
+                logger.warning(f"[Structurer] {msg}")
+                warnings.append(msg)
+    if to_clear:
+        logger.info(f"[Structurer] {cleared_count}/{len(to_clear)} non-applicable properties cleared")
 
     return written, warnings
 
