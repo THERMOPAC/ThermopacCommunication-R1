@@ -657,23 +657,23 @@ export default function WorkerAgentsPage() {
                     </Badge>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="text-xs font-mono text-muted-foreground">v1.0.24</span>
+                    <span className="text-xs font-mono text-muted-foreground">v1.0.25</span>
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1.5">
-                      <a href="/ThermopacStructuringAgentInstaller-v1.0.24.zip" download="ThermopacStructuringAgentInstaller-v1.0.24.zip">
+                      <a href="/ThermopacStructuringAgentInstaller-v1.0.25.zip" download="ThermopacStructuringAgentInstaller-v1.0.25.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white">
                           <Download className="h-3 w-3 mr-1" />
                           Installer
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.24-full.zip" download="ThermopacStructuringAgent-v1.0.24-full.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.25-full.zip" download="ThermopacStructuringAgent-v1.0.25-full.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-800 hover:bg-amber-900 text-white">
                           <Download className="h-3 w-3 mr-1" />
                           Full Package
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.24.zip" download="ThermopacStructuringAgent-v1.0.24.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.25.zip" download="ThermopacStructuringAgent-v1.0.25.zip">
                         <Button variant="outline" size="sm" className="h-7 text-xs">
                           <Download className="h-3 w-3 mr-1" />
                           Source ZIP

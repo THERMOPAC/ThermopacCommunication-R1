@@ -7,7 +7,7 @@
 ;   OR
 ;   installer\build-installer.bat           (full pipeline — builds dist first)
 ;   OR (CI)
-;   set STRUCTURER_VERSION=1.0.24 && iscc installer\setup.iss
+;   set STRUCTURER_VERSION=1.0.25 && iscc installer\setup.iss
 ;
 ; Prerequisites:
 ;   - Inno Setup 6.x  https://jrsoftware.org/isinfo.php
@@ -17,7 +17,7 @@
 
 #define MyAppVersion        GetEnv("STRUCTURER_VERSION")
 #if MyAppVersion == ""
-  #define MyAppVersion      "1.0.24"
+  #define MyAppVersion      "1.0.25"
 #endif
 
 #define AppName             "ThermopacStructuringAgent"
