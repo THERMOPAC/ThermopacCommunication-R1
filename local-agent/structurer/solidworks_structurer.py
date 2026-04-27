@@ -156,11 +156,6 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
 
     staging_path = os.path.normpath(os.path.join(staging_dir, filename))
 
-    if mode == "update_existing" and not os.path.isfile(staging_path):
-        raise PreflightError(
-            f"mode=update_existing but staging file not found: {staging_path}"
-        )
-
     return staging_path
 
 
@@ -641,6 +636,17 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
     staging_path = _preflight(job, template_path, staging_root)
     logger.info(f"[Structurer] Pre-flight passed")
     logger.info(f"[Structurer] Save path: {staging_path}")
+
+    # If the job says update_existing but no staging file is present, demote to
+    # create_new automatically.  This handles:
+    #   • Path scheme migration (old drawingControlId subfolder → drawingNumber subfolder)
+    #   • First-time jobs incorrectly dispatched as update_existing
+    if mode == "update_existing" and not os.path.isfile(staging_path):
+        logger.warning(
+            f"[Structurer] mode=update_existing but staging file not found at: {staging_path} "
+            f"— automatically demoting to create_new"
+        )
+        mode = "create_new"
 
     if mode == "create_new" and os.path.isfile(staging_path):
         _existing_bytes = os.path.getsize(staging_path)
