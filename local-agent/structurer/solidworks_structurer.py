@@ -658,6 +658,11 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
     # ── Pre-flight (before any SolidWorks involvement) ────────────────────────
     staging_path = _preflight(job, template_path, staging_root)
     logger.info(f"[Structurer] Pre-flight passed")
+    if job.get("_legacy_migrated"):
+        logger.info(
+            f"[Structurer] Legacy file migrated: "
+            f"{job['_legacy_migrated']!r} → {staging_path!r}"
+        )
     logger.info(f"[Structurer] Save path: {staging_path}")
 
     if mode == "create_new" and os.path.isfile(staging_path):
