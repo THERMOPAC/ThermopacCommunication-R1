@@ -1404,8 +1404,8 @@ export default function ProductsPage() {
         </Dialog>
 
         <Dialog open={isAttributeDialogOpen} onOpenChange={(open) => { if (!open) { setIsAttributeDialogOpen(false); setEditingAttribute(null); } }}>
-          <DialogContent>
-            <DialogHeader>
+          <DialogContent className="flex flex-col max-h-[90vh]">
+            <DialogHeader className="shrink-0">
               <DialogTitle>{editingAttribute ? "Edit Attribute Option" : "Add Attribute Option"}</DialogTitle>
               <DialogDescription>
                 {editingAttribute ? "Update the attribute option details" : "Add a new dropdown option for product attributes"}
@@ -1413,7 +1413,8 @@ export default function ProductsPage() {
             </DialogHeader>
 
             <Form {...attributeForm}>
-              <form onSubmit={attributeForm.handleSubmit(onAttributeSubmit)} className="space-y-4">
+              <form onSubmit={attributeForm.handleSubmit(onAttributeSubmit)} className="flex flex-col flex-1 overflow-hidden">
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1">
                 <FormField
                   control={attributeForm.control}
                   name="attributeType"
@@ -1480,7 +1481,7 @@ export default function ProductsPage() {
                             <SelectValue placeholder="All Families" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="max-h-60 overflow-y-auto">
                           <SelectItem value="all">All Families</SelectItem>
                           {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
                             <SelectItem key={opt.id} value={opt.id.toString()}>
@@ -1505,7 +1506,7 @@ export default function ProductsPage() {
                                 <SelectValue placeholder="Select Property 1" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="max-h-60 overflow-y-auto">
                               {allProperty1Options
                                 .filter((o) => attrFamilyFilter === "all" || o.parentId?.toString() === attrFamilyFilter)
                                 .sort((a, b) => {
@@ -1575,7 +1576,8 @@ export default function ProductsPage() {
                   )}
                 />
 
-                <DialogFooter>
+                </div>
+                <DialogFooter className="shrink-0 border-t pt-3 mt-1">
                   <Button type="button" variant="outline" onClick={() => { setIsAttributeDialogOpen(false); setEditingAttribute(null); }}>
                     Cancel
                   </Button>
