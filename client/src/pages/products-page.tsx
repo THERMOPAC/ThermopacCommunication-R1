@@ -739,6 +739,7 @@ export default function ProductsPage() {
                       <TableRow>
                         <TableHead className="w-[40px]"></TableHead>
                         <TableHead>Product Code</TableHead>
+                        <TableHead>Tag No</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Make/Buy</TableHead>
@@ -772,6 +773,11 @@ export default function ProductsPage() {
                                 {hasChildren && (
                                   <Badge variant="outline" className="ml-2 text-xs">{children.length} sub</Badge>
                                 )}
+                              </TableCell>
+                              <TableCell>
+                                {(product as any).tagNo
+                                  ? <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{(product as any).tagNo}</span>
+                                  : <span className="text-muted-foreground text-xs">—</span>}
                               </TableCell>
                               <TableCell>{product.description}</TableCell>
                               <TableCell>{product.category || "-"}</TableCell>
