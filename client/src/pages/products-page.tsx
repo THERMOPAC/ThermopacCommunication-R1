@@ -922,9 +922,9 @@ export default function ProductsPage() {
               <CardContent>
                 <Tabs value={activeAttributeTab} onValueChange={(val) => { setActiveAttributeTab(val); setTableFamilyFilter("all"); setTableProp1Filter("all"); }}>
                   <TabsList className="mb-4">
-                    <TabsTrigger value="item_family">Item Family</TabsTrigger>
-                    <TabsTrigger value="property_1">Property 1</TabsTrigger>
-                    <TabsTrigger value="property_2">Property 2</TabsTrigger>
+                    <TabsTrigger value="item_family" className="data-[state=active]:text-blue-600 data-[state=active]:font-bold">Item Family</TabsTrigger>
+                    <TabsTrigger value="property_1" className="data-[state=active]:text-blue-600 data-[state=active]:font-bold">Property 1</TabsTrigger>
+                    <TabsTrigger value="property_2" className="data-[state=active]:text-blue-600 data-[state=active]:font-bold">Property 2</TabsTrigger>
                   </TabsList>
 
                   {(activeAttributeTab === "property_1" || activeAttributeTab === "property_2") && (
