@@ -26,7 +26,6 @@ import { createHash } from 'crypto';
 import { db } from './db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { epcAgentNodes, epcSlddrwExtractionJobs, epcDrawingControls } from '@shared/schema';
-import { runDdsComparison } from './utils/dds-comparison-engine';
 import { RELEASE_GATE_CONFIG } from './utils/release-gate-config';
 import gcsClient, { bucketName } from './utils/storage-config';
 import { buildDrawingGcsPath, resolveProjectGeoCodes } from './epc-coding';
@@ -266,18 +265,6 @@ router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Reques
     })
     .where(eq(epcSlddrwExtractionJobs.id, jobId));
 
-  // ── Trigger DDS comparison (async, non-blocking) ──────────────────────────
-  // Always run — even in Section-D-only mode a DDS record may exist.
-  // If no DDS record is found AND the extraction was Section-D-only, the
-  // comparison engine returns 'blocked'; _runDdsComparison converts that to
-  // 'skipped' so the approval gate is not unnecessarily blocked.
-  const isSectionDOnly =
-    (extraction as any)?.customPropertyVerification?.equipmentConfig === 'n/a (Section D only)';
-
-  _runDdsComparison(jobId, job.drawingControlId, extraction, isSectionDOnly).catch(e =>
-    console.error(`[DDS] Comparison failed for job ${jobId}:`, e),
-  );
-
   return res.json({
     ok: true,
     extraction_warnings: extraction.extraction_warnings ?? [],
@@ -336,8 +323,6 @@ router.get('/epc-drawing-controls/:id/slddrw-jobs', async (req: Request, res: Re
       completedAt:          epcSlddrwExtractionJobs.completedAt,
       failedReason:         epcSlddrwExtractionJobs.failedReason,
       retryCount:           epcSlddrwExtractionJobs.retryCount,
-      ddsComparisonStatus:  epcSlddrwExtractionJobs.ddsComparisonStatus,
-      ddsComparisonResult:  epcSlddrwExtractionJobs.ddsComparisonResult,
       extractionResult:     epcSlddrwExtractionJobs.extractionResult,
       createdAt:            epcSlddrwExtractionJobs.createdAt,
     })
@@ -553,7 +538,7 @@ router.post('/epc-slddrw-jobs', async (req: Request, res: Response) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/epc-drawing-controls/:id/approve
 //
-// Approval gate — enforces DDS comparison result before allowing approval.
+// Approval gate — requires Section D verification to pass before approving.
 // Requires authenticated session with superuser or admin role.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -576,9 +561,8 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
   // Find the latest completed extraction job for this drawing control
   const [latestJob] = await db
     .select({
-      id:                  epcSlddrwExtractionJobs.id,
-      ddsComparisonStatus: epcSlddrwExtractionJobs.ddsComparisonStatus,
-      extractionResult:    epcSlddrwExtractionJobs.extractionResult,
+      id:               epcSlddrwExtractionJobs.id,
+      extractionResult: epcSlddrwExtractionJobs.extractionResult,
     })
     .from(epcSlddrwExtractionJobs)
     .where(and(
@@ -613,39 +597,6 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
     });
   }
 
-  const ddsStatus = latestJob.ddsComparisonStatus;
-
-  if (!ddsStatus) {
-    return res.status(422).json({ error: 'DDS comparison not yet complete — please wait and try again' });
-  }
-
-  // 'skipped' means the extraction ran in Section-D-only mode — DDS gate does not apply.
-  if (ddsStatus !== 'skipped') {
-    if (ddsStatus === 'fail') {
-      return res.status(422).json({
-        error: 'DDS comparison failed — critical parameter mismatch blocks approval',
-        dds_status: 'fail',
-      });
-    }
-
-    if (ddsStatus === 'blocked') {
-      return res.status(422).json({
-        error: 'DDS comparison blocked — no DDS record found, resolve before approving',
-        dds_status: 'blocked',
-      });
-    }
-  }
-
-  if (ddsStatus === 'warn') {
-    const ack = req.body?.acknowledge_warnings === true;
-    if (!ack) {
-      return res.status(422).json({
-        error: 'DDS comparison has warnings — set acknowledge_warnings: true to confirm you have reviewed them',
-        dds_status: 'warn',
-      });
-    }
-  }
-
   // Gate passed — approve the drawing control
   await db
     .update(epcDrawingControls)
@@ -656,7 +607,7 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
     })
     .where(eq(epcDrawingControls.id, drawingControlId));
 
-  console.log(`[Approve] drawing_control ${drawingControlId} approved by user ${user?.id ?? user?.username} (dds_status=${ddsStatus})`);
+  console.log(`[Approve] drawing_control ${drawingControlId} approved by user ${user?.id ?? user?.username}`);
   return res.json({ ok: true, status: 'approved' });
 });
 
@@ -722,26 +673,6 @@ router.post('/epc-drawing-controls/:id/release/manufacturing', async (req: Reque
 
   if (dc.releasedForManufacturing) {
     return res.status(409).json({ error: 'Drawing has already been released for manufacturing' });
-  }
-
-  // Optional config gate: require clean 'pass', not just 'warn'
-  if (RELEASE_GATE_CONFIG.requirePassForManufacturing) {
-    const [latestJob] = await db
-      .select({ ddsComparisonStatus: epcSlddrwExtractionJobs.ddsComparisonStatus })
-      .from(epcSlddrwExtractionJobs)
-      .where(and(
-        eq(epcSlddrwExtractionJobs.drawingControlId, drawingControlId),
-        eq(epcSlddrwExtractionJobs.status, 'completed'),
-      ))
-      .orderBy(desc(epcSlddrwExtractionJobs.createdAt))
-      .limit(1);
-
-    if (latestJob?.ddsComparisonStatus !== 'pass') {
-      return res.status(422).json({
-        error: 'Manufacturing release requires a clean DDS pass — current status has warnings',
-        dds_status: latestJob?.ddsComparisonStatus ?? null,
-      });
-    }
   }
 
   const now = new Date();
@@ -926,34 +857,6 @@ router.post('/epc-agent-nodes/auto-register', async (req: Request, res: Response
 
   return res.json({ ok: true, node_id, mode: 'testing' });
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function _runDdsComparison(
-  jobId: number,
-  drawingControlId: number,
-  extraction: any,
-  isSectionDOnly = false,
-): Promise<void> {
-  console.log(`[DDS] Running comparison for job ${jobId}, drawing_control ${drawingControlId}${isSectionDOnly ? ' (Section D only mode)' : ''}`);
-  const output = await runDdsComparison(drawingControlId, extraction);
-
-  // If no DDS record exists and the extraction only covered Section D fields,
-  // treat as 'skipped' rather than 'blocked' — the approval gate stays clear.
-  const finalStatus =
-    output.status === 'blocked' && isSectionDOnly ? 'skipped' : output.status;
-
-  await db
-    .update(epcSlddrwExtractionJobs)
-    .set({
-      ddsComparisonStatus: finalStatus,
-      ddsComparisonResult: output.result as any,
-    })
-    .where(eq(epcSlddrwExtractionJobs.id, jobId));
-  console.log(`[DDS] Comparison complete for job ${jobId}: engine=${output.status} saved=${finalStatus}`);
-}
 
 async function _resetStaleJobs(): Promise<void> {
   // 1. Stale claimed jobs (agent grabbed the job but never started extraction)

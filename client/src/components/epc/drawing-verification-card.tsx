@@ -16,9 +16,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  ShieldCheck, ShieldX, ShieldAlert, Shield, RotateCcw, ChevronDown,
-  CheckCircle2, XCircle, AlertTriangle, HelpCircle, Clock, Loader2,
-  Server, Cpu, FileCheck2, Info, Upload, RefreshCw, Factory, Braces, Minus,
+  ShieldCheck, ShieldAlert, Shield, RotateCcw, ChevronDown,
+  AlertTriangle, Clock, Loader2,
+  Server, Cpu, FileCheck2, Upload, RefreshCw, Factory, Braces,
 } from 'lucide-react';
 import { useRef, useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -36,19 +36,8 @@ interface Job {
   completedAt: string | null;
   failedReason: string | null;
   retryCount: number;
-  ddsComparisonStatus: string | null;
-  ddsComparisonResult: ParameterResult[] | null;
   extractionResult: any;
   createdAt: string;
-}
-
-interface ParameterResult {
-  parameter: string;
-  dds_value: string | null;
-  dwg_value: string | null;
-  status: 'match' | 'mismatch' | 'missing_dds' | 'missing_drawing' | 'low_confidence';
-  severity: 'critical' | 'warning';
-  note?: string;
 }
 
 // Roles allowed to approve or release (mirrors RELEASE_GATE_CONFIG)
@@ -79,8 +68,6 @@ export function DrawingVerificationCard({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [showAllParams, setShowAllParams] = useState(false);
-  const [warnAcknowledged, setWarnAcknowledged] = useState(false);
   const [jsonJobId, setJsonJobId] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -92,7 +79,6 @@ export function DrawingVerificationCard({
       const rows: Job[] = Array.isArray(data) ? data : (data?.state?.data ?? []);
       const latest = rows[0];
       if (latest && ['pending', 'processing'].includes(latest.status)) return 3000;
-      if (latest && latest.status === 'completed' && !latest.ddsComparisonStatus) return 5000;
       return false;
     },
   });
@@ -245,7 +231,7 @@ export function DrawingVerificationCard({
   }
 
   return (
-    <_CardShell status={latest.status} ddsStatus={latest.ddsComparisonStatus}>
+    <_CardShell status={latest.status}>
       {/* ── Header row ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-1.5">
@@ -329,21 +315,6 @@ export function DrawingVerificationCard({
         </div>
       )}
 
-      {/* ── DDS comparison (completed jobs) ─────────────────────────── */}
-      {latest.status === 'completed' && !latest.ddsComparisonStatus && (
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Analysing drawing against DDS…
-        </div>
-      )}
-      {latest.status === 'completed' && latest.ddsComparisonStatus && latest.ddsComparisonResult && (
-        <_DdsComparisonBanner
-          status={latest.ddsComparisonStatus}
-          results={latest.ddsComparisonResult}
-          showAll={showAllParams}
-          onToggleAll={() => setShowAllParams(s => !s)}
-        />
-      )}
       {latest.status === 'completed' && extractionWarnings.length > 0 && (
         <div className="mt-1 text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-1">
           <div className="flex items-center gap-1 font-medium">
@@ -359,7 +330,6 @@ export function DrawingVerificationCard({
 
       {/* ── Approve gate (only when not yet approved) ────────────────── */}
       {latest.status === 'completed' &&
-       latest.ddsComparisonStatus &&
        drawingControlStatus !== 'approved' &&
        drawingControlStatus !== 'released' &&
        canApproveOrRelease && (
@@ -407,36 +377,12 @@ export function DrawingVerificationCard({
               )}
             </div>
           )}
-          {latest.ddsComparisonStatus === 'warn' && (
-            <label className="flex items-center gap-1.5 text-[10px] text-amber-700 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="h-3 w-3 accent-amber-600"
-                checked={warnAcknowledged}
-                onChange={e => setWarnAcknowledged(e.target.checked)}
-              />
-              I have reviewed and acknowledge these warnings
-            </label>
-          )}
           <Button
             size="sm"
             className="h-6 text-[10px] px-2 w-full gap-1.5"
-            variant={
-              (!sectionDBlocked &&
-               (latest.ddsComparisonStatus === 'pass' ||
-                latest.ddsComparisonStatus === 'skipped' ||
-                (latest.ddsComparisonStatus === 'warn' && warnAcknowledged)))
-                ? 'default'
-                : 'outline'
-            }
-            disabled={
-              approveMutation.isPending ||
-              sectionDBlocked ||
-              latest.ddsComparisonStatus === 'fail' ||
-              latest.ddsComparisonStatus === 'blocked' ||
-              (latest.ddsComparisonStatus === 'warn' && !warnAcknowledged)
-            }
-            onClick={() => approveMutation.mutate({ acknowledgeWarnings: warnAcknowledged })}
+            variant={sectionDBlocked ? 'outline' : 'default'}
+            disabled={approveMutation.isPending || sectionDBlocked}
+            onClick={() => approveMutation.mutate({})}
           >
             {approveMutation.isPending
               ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
@@ -445,10 +391,6 @@ export function DrawingVerificationCard({
               ? sectionDStatus === 'fail'
                 ? 'Cannot Approve — Section D Failed'
                 : 'Cannot Approve — Section D on Hold'
-              : latest.ddsComparisonStatus === 'fail'
-              ? 'Cannot Approve — Critical DDS Mismatch'
-              : latest.ddsComparisonStatus === 'blocked'
-              ? 'Cannot Approve — DDS Not Found'
               : 'Approve Drawing'}
           </Button>
         </div>
@@ -615,36 +557,17 @@ function _UploadButton({
 
 function _CardShell({
   status,
-  ddsStatus,
   children,
 }: {
   status: string;
-  ddsStatus?: string | null;
   children: React.ReactNode;
 }) {
-  const border =
-    ddsStatus === 'fail' || ddsStatus === 'blocked' ? 'border-red-300 bg-red-50/30' :
-    ddsStatus === 'warn'  ? 'border-amber-300 bg-amber-50/20' :
-    ddsStatus === 'pass'  ? 'border-green-300 bg-green-50/20' :
-    status === 'failed'   ? 'border-red-200 bg-red-50/20' :
-    'border-dashed border-blue-200 bg-blue-50/30';
-
-  const icon =
-    ddsStatus === 'fail' || ddsStatus === 'blocked' ? <ShieldX className="h-3.5 w-3.5 text-red-600" /> :
-    ddsStatus === 'warn'  ? <ShieldAlert className="h-3.5 w-3.5 text-amber-600" /> :
-    ddsStatus === 'pass'  ? <ShieldCheck className="h-3.5 w-3.5 text-green-600" /> :
-    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />;
-
-  const titleColour =
-    ddsStatus === 'fail' || ddsStatus === 'blocked' ? 'text-red-700' :
-    ddsStatus === 'warn'  ? 'text-amber-700' :
-    ddsStatus === 'pass'  ? 'text-green-700' :
-    'text-blue-700';
+  const border = status === 'failed' ? 'border-red-200 bg-red-50/20' : 'border-dashed border-blue-200 bg-blue-50/30';
 
   return (
     <div className={cn("rounded-lg border shadow-sm", border)}>
-      <div className={cn("flex items-center gap-1.5 px-3 py-2 font-medium text-[11px]", titleColour)}>
-        {icon}
+      <div className="flex items-center gap-1.5 px-3 py-2 font-medium text-[11px] text-blue-700">
+        <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
         Drawing Verification
       </div>
       <div className="px-3 pb-3 space-y-1">
@@ -666,155 +589,6 @@ function _JobStatusBadge({ status }: { status: string }) {
     <span className={cn("text-[9px] font-medium border rounded px-1.5 py-0.5", cfg.variant)}>
       {cfg.label}
     </span>
-  );
-}
-
-function _DdsComparisonBanner({
-  status, results, showAll, onToggleAll,
-}: {
-  status: string;
-  results: ParameterResult[];
-  showAll: boolean;
-  onToggleAll: () => void;
-}) {
-  // Detect the sentinel-only case: drawing has no Design Data table at all.
-  // In this case the only result is a single __design_data__ entry — not a real
-  // parameter discrepancy — so we use a distinct label and suppress the count badge.
-  const isSentinelOnly =
-    results.length === 1 && results[0].parameter === '__design_data__';
-
-  const cfg = {
-    pass:    { bg: 'bg-green-50 border-green-200',  text: 'text-green-700', label: 'DDS Match — All critical parameters verified',        Icon: CheckCircle2 },
-    warn:    { bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700',
-               label: isSentinelOnly
-                 ? 'DDS — No Design Data table found in drawing'
-                 : 'DDS Warning — Discrepancies found',                                                                                    Icon: AlertTriangle },
-    fail:    { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS FAIL — Critical mismatch blocks approval',        Icon: XCircle },
-    blocked: { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS BLOCKED — No DDS record found',                  Icon: ShieldX },
-    skipped: { bg: 'bg-slate-50 border-slate-200',  text: 'text-slate-500', label: 'DDS — No design data sheet on record',               Icon: HelpCircle },
-  }[status] ?? {
-    bg: 'bg-muted', text: 'text-muted-foreground', label: status, Icon: HelpCircle,
-  };
-
-  // Real discrepancies only — exclude the sentinel entry from the badge counts
-  const realResults = results.filter(r => r.parameter !== '__design_data__');
-  const criticalIssues = realResults.filter(r =>
-    r.severity === 'critical' && ['mismatch', 'missing_drawing'].includes(r.status)
-  );
-  const warnIssues = realResults.filter(r =>
-    r.severity === 'warning' && ['mismatch', 'missing_drawing', 'low_confidence'].includes(r.status)
-  );
-  const displayed = showAll ? results : results.slice(0, 6);
-
-  return (
-    <div className={cn("rounded border mt-1 p-2 space-y-1.5", cfg.bg)}>
-      <div className={cn("flex items-center gap-1.5 text-[10px] font-medium", cfg.text)}>
-        <cfg.Icon className="h-3 w-3" />
-        {cfg.label}
-        {!isSentinelOnly && (criticalIssues.length > 0 || warnIssues.length > 0) && (
-          <span className="ml-auto text-[9px] font-normal">
-            {criticalIssues.length > 0 && `${criticalIssues.length} critical`}
-            {criticalIssues.length > 0 && warnIssues.length > 0 && ', '}
-            {warnIssues.length > 0 && `${warnIssues.length} warning`}
-          </span>
-        )}
-      </div>
-      {results.length > 0 && (
-        <>
-          <div className="grid grid-cols-1 gap-px">
-            {displayed.map((r, i) => (
-              <_ParamRow key={i} result={r} />
-            ))}
-          </div>
-          {results.length > 6 && (
-            <button
-              onClick={onToggleAll}
-              className={cn("text-[9px] underline underline-offset-2 mt-0.5", cfg.text)}
-            >
-              {showAll ? `Show less` : `Show all ${results.length} parameters`}
-            </button>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function _ParamRow({ result }: { result: ParameterResult }) {
-  const { status, severity, parameter, dds_value, dwg_value, note } = result;
-
-  // Sentinel entry — drawing has no Design Data table. Show only the explanation
-  // note; do not render a DDS vs Dwg comparison grid (both would show "—").
-  if (parameter === '__design_data__') {
-    return (
-      <div className="rounded px-1.5 py-1.5 text-[9px] bg-amber-100/60 flex items-start gap-1.5">
-        <Info className="h-2.5 w-2.5 text-amber-600 shrink-0 mt-px" />
-        <p className="text-amber-800 italic leading-relaxed">{note}</p>
-      </div>
-    );
-  }
-
-  // missing_dds with no drawing value either — both sides blank, show a quiet greyed row
-  if (status === 'missing_dds' && !dds_value && !dwg_value) {
-    return (
-      <div className="flex items-center gap-1 text-[9px] text-muted-foreground/60 py-0.5 pl-0.5">
-        <Minus className="h-2 w-2 shrink-0" />
-        <span className="capitalize">{parameter}</span>
-        <span className="ml-auto text-[8px]">not in DDS</span>
-      </div>
-    );
-  }
-
-  const icon =
-    status === 'match'            ? <CheckCircle2 className="h-2.5 w-2.5 text-green-600 shrink-0" /> :
-    status === 'mismatch'         ? <XCircle className="h-2.5 w-2.5 text-red-500 shrink-0" /> :
-    status === 'missing_drawing'  ? <AlertTriangle className="h-2.5 w-2.5 text-amber-500 shrink-0" /> :
-    status === 'missing_dds'      ? <Info className="h-2.5 w-2.5 text-muted-foreground shrink-0" /> :
-    <HelpCircle className="h-2.5 w-2.5 text-muted-foreground shrink-0" />;
-
-  if (status === 'match') {
-    return (
-      <div className="flex items-center gap-1 text-[9px] text-green-700 py-0.5">
-        {icon}
-        <span className="font-medium capitalize">{parameter}</span>
-        <span className="text-muted-foreground ml-auto">{dds_value}</span>
-      </div>
-    );
-  }
-
-  const isMissingFromDrawing = status === 'missing_drawing';
-
-  return (
-    <div className={cn(
-      "rounded px-1.5 py-1 text-[9px] space-y-0.5",
-      severity === 'critical'
-        ? isMissingFromDrawing ? 'bg-red-100 border border-red-200' : 'bg-red-100/60'
-        : isMissingFromDrawing ? 'bg-amber-100 border border-amber-200' : 'bg-amber-100/60',
-    )}>
-      <div className="flex items-center gap-1">
-        {icon}
-        <span className="font-medium capitalize">{parameter}</span>
-        {severity === 'critical' && (
-          <span className="ml-auto text-[8px] bg-red-200/80 text-red-700 px-1 rounded font-semibold">CRITICAL</span>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-1 pl-3.5">
-        <div>
-          <span className="text-muted-foreground">DDS: </span>
-          <span className="font-semibold">{dds_value ?? '—'}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Dwg: </span>
-          {isMissingFromDrawing
-            ? <span className="font-semibold text-red-600">MISSING</span>
-            : <span className="font-medium">{dwg_value ?? '—'}</span>
-          }
-        </div>
-      </div>
-      {note && !isMissingFromDrawing && (
-        <p className="text-[8px] text-muted-foreground pl-3.5 italic">{note}</p>
-      )}
-    </div>
   );
 }
 
