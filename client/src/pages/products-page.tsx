@@ -1416,25 +1416,29 @@ export default function ProductsPage() {
         <Dialog open={isAttributeDialogOpen} onOpenChange={(open) => { if (!open) { setIsAttributeDialogOpen(false); setEditingAttribute(null); } }}>
           <DialogContent className="flex flex-col max-h-[90vh]">
             <DialogHeader className="shrink-0">
-              <DialogTitle>{editingAttribute ? "Edit Attribute Option" : "Add Attribute Option"}</DialogTitle>
+              <DialogTitle>
+                {(() => {
+                  const typeLabel = attributeForm.watch("attributeType") === "item_family" ? "Item Family"
+                    : attributeForm.watch("attributeType") === "property_1" ? "Property 1"
+                    : "Property 2";
+                  return editingAttribute ? `Edit ${typeLabel} Option` : `Add ${typeLabel} Option`;
+                })()}
+              </DialogTitle>
               <DialogDescription>
-                {editingAttribute ? "Update the attribute option details" : "Add a new dropdown option for product attributes"}
+                {(() => {
+                  const typeLabel = attributeForm.watch("attributeType") === "item_family" ? "Item Family"
+                    : attributeForm.watch("attributeType") === "property_1" ? "Property 1"
+                    : "Property 2";
+                  return editingAttribute
+                    ? `Update this ${typeLabel} option`
+                    : `Add a new ${typeLabel} option to the product attribute list`;
+                })()}
               </DialogDescription>
             </DialogHeader>
 
             <Form {...attributeForm}>
               <form onSubmit={attributeForm.handleSubmit(onAttributeSubmit)} className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1">
-
-                {/* Read-only Attribute Type display */}
-                <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">{editingAttribute ? "Editing option under:" : "Adding option under:"}</span>
-                  <Badge variant="secondary" className="font-semibold">
-                    {attributeForm.watch("attributeType") === "item_family" ? "Item Family"
-                      : attributeForm.watch("attributeType") === "property_1" ? "Property 1"
-                      : "Property 2"}
-                  </Badge>
-                </div>
 
                 {/* Property 1: must select parent Item Family */}
                 {attributeForm.watch("attributeType") === "property_1" && (
