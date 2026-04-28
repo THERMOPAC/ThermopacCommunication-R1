@@ -874,9 +874,29 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                     time.sleep(15)
 
             if swModel is None:
+                # ── Fallback: file may already be open in this SW instance ─────
+                # DispatchEx sometimes reuses an existing SW process.  When it
+                # does, OpenDoc returns None for any file already open in that
+                # process.  GetOpenDocumentByName retrieves the existing handle.
+                try:
+                    swModel = swApp.GetOpenDocumentByName(base_path)
+                    if swModel is not None:
+                        logger.info(
+                            f"[Structurer] OpenDoc returned None but document is "
+                            f"already open in this SW instance — using existing handle "
+                            f"(DispatchEx reused process)"
+                        )
+                except Exception as _gdbn_e:
+                    logger.warning(
+                        f"[Structurer] GetOpenDocumentByName fallback failed: {_gdbn_e}"
+                    )
+                    swModel = None
+
+            if swModel is None:
                 raise RuntimeError(
                     f"OpenDoc failed for '{base_path}' after 1 retry — "
-                    "file may be missing, locked, or corrupt"
+                    "file may be missing, locked, or corrupt. "
+                    "If the file is open in another SolidWorks window, close it and retry."
                 )
 
             logger.info("[Structurer] Existing drawing opened")
