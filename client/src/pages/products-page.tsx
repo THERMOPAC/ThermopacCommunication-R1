@@ -1416,7 +1416,7 @@ export default function ProductsPage() {
         <Dialog open={isAttributeDialogOpen} onOpenChange={(open) => { if (!open) { setIsAttributeDialogOpen(false); setEditingAttribute(null); } }}>
           <DialogContent className="flex flex-col max-h-[90vh]">
             <DialogHeader className="shrink-0">
-              <DialogTitle>
+              <DialogTitle className="text-blue-600 font-bold">
                 {(() => {
                   const typeLabel = attributeForm.watch("attributeType") === "item_family" ? "Item Family"
                     : attributeForm.watch("attributeType") === "property_1" ? "Property 1"
