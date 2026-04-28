@@ -79,7 +79,7 @@ const FIELD_DEFS: FieldDef[] = [
   {
     drawingProp:    'Description',
     displayLabel:   'Equipment Description',
-    severity:       'critical',
+    severity:       'warning',          // warning: not all drawing templates include this property
     numericCompare: false,
     // Base-equipment identity: strip system-level and quantity qualifiers then compare.
     // "Continuous Polishing System – Regenerative Column Skid" and
@@ -88,10 +88,15 @@ const FIELD_DEFS: FieldDef[] = [
     getDdsValue:    dds => dds.equipmentDescription ?? null,
   },
   {
-    drawingProp:    'Equipment_Type',
+    // Equipment_Configuration holds the category-level type (e.g. "Heat Exchanger")
+    // which is what DDS equipmentConfig stores.
+    // Equipment_Type holds the specific subtype (e.g. "SHELL & TUBE HEAT EXCHANGER")
+    // and is NOT compared against the DDS directly.
+    drawingProp:    'Equipment_Configuration',
     displayLabel:   'Equipment Type',
     severity:       'critical',
     numericCompare: false,
+    matchMode:      'contains',         // "Shell & Tube Heat Exchanger" contains "Heat Exchanger"
     getDdsValue:    dds => dds.equipmentConfig ?? null,
   },
   {
