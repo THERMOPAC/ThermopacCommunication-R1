@@ -1453,7 +1453,7 @@ export default function ProductsPage() {
                               <SelectValue placeholder="Select Item Family" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="max-h-60 overflow-y-auto">
                             {familyOptions.sort((a, b) => a.label.localeCompare(b.label)).map((opt) => (
                               <SelectItem key={opt.id} value={opt.id.toString()}>
                                 {opt.code} - {opt.label}
