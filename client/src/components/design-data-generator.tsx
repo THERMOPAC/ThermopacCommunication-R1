@@ -2639,22 +2639,23 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 </div>
               </div>
 
-              {/* Revision history — compact table */}
-              {structureJobs.length > 0 && (
-                <div className="rounded border border-slate-100 overflow-hidden">
-                  <table className="w-full text-[9px]">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Rev</th>
-                        <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Type</th>
-                        <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                        <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">By</th>
-                        <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {structureJobs.slice(0, 6).map((j: any) => (
-                        <tr key={j.id} className="border-b border-slate-50 last:border-0">
+              {/* Latest revision — single row showing only the most recent job */}
+              {structureJobs.length > 0 && (() => {
+                const j = structureJobs[0];
+                return (
+                  <div className="rounded border border-slate-100 overflow-hidden">
+                    <table className="w-full text-[9px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Rev</th>
+                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">By</th>
+                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
                           <td className="px-2 py-1 font-mono font-bold text-slate-700">{j.revision ?? '—'}</td>
                           <td className="px-2 py-1">
                             {j.mode === 'create_new'
@@ -2672,11 +2673,11 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                             {j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }) : '—'}
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </CardContent>
