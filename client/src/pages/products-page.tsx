@@ -78,6 +78,7 @@ export default function ProductsPage() {
   const [prop1Filter, setProp1Filter] = useState<string>("all");
   const [prop2Filter, setProp2Filter] = useState<string>("all");
   const [prop3Filter, setProp3Filter] = useState<string>("all");
+  const [hierarchyFilter, setHierarchyFilter] = useState<string>("all");
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isAttributeDialogOpen, setIsAttributeDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -138,9 +139,20 @@ export default function ProductsPage() {
     return map;
   }, [products, productChildLinks]);
 
+  const childProductIdSet = useMemo(() => {
+    const ids = new Set<number>();
+    productChildLinks.forEach((link: any) => ids.add(link.childProductId));
+    return ids;
+  }, [productChildLinks]);
+
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const children = childProductsMap.get(p.id) || [];
+      const isParent = children.length > 0;
+      const isChild = childProductIdSet.has(p.id);
+      const matchesHierarchy = hierarchyFilter === "all" ||
+        (hierarchyFilter === "parent" && isParent) ||
+        (hierarchyFilter === "child" && isChild);
       const matchesSearch = !searchQuery ||
         p.productCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -155,7 +167,7 @@ export default function ProductsPage() {
       const matchesProp1 = prop1Filter === "all" || p.itemProperty1 === prop1Filter;
       const matchesProp2 = prop2Filter === "all" || p.itemProperty2 === prop2Filter;
       const matchesProp3 = prop3Filter === "all" || p.itemProperty3 === prop3Filter;
-      return matchesSearch && matchesCode && matchesDescription && matchesCategory && matchesStatus && matchesFamily && matchesProp1 && matchesProp2 && matchesProp3;
+      return matchesHierarchy && matchesSearch && matchesCode && matchesDescription && matchesCategory && matchesStatus && matchesFamily && matchesProp1 && matchesProp2 && matchesProp3;
     }).sort((a, b) => {
       const familyCompare = a.itemFamily.localeCompare(b.itemFamily);
       if (familyCompare !== 0) return familyCompare;
@@ -165,7 +177,7 @@ export default function ProductsPage() {
       if (prop2Compare !== 0) return prop2Compare;
       return a.itemProperty3.localeCompare(b.itemProperty3);
     });
-  }, [products, childProductsMap, searchQuery, codeFilter, descriptionFilter, categoryFilter, statusFilter, familyFilter, prop1Filter, prop2Filter, prop3Filter]);
+  }, [products, childProductsMap, childProductIdSet, hierarchyFilter, searchQuery, codeFilter, descriptionFilter, categoryFilter, statusFilter, familyFilter, prop1Filter, prop2Filter, prop3Filter]);
 
   const toggleExpand = (productId: number) => {
     setExpandedProducts((prev) => {
@@ -569,6 +581,21 @@ export default function ProductsPage() {
           </div>
 
           <TabsContent value="products" className="space-y-4">
+            <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+              {(["all", "parent", "child"] as const).map((val) => (
+                <button
+                  key={val}
+                  onClick={() => setHierarchyFilter(val)}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
+                    hierarchyFilter === val
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {val === "all" ? "All" : val === "parent" ? "Parent" : "Child"}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
                 <div className="flex flex-1 gap-2 flex-wrap items-center">
@@ -701,7 +728,7 @@ export default function ProductsPage() {
                     <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p className="text-lg font-medium">No products found</p>
                     <p className="text-sm">
-                      {codeFilter || descriptionFilter || categoryFilter !== "all" || statusFilter !== "all" || familyFilter !== "all" || prop1Filter !== "all" || prop2Filter !== "all" || prop3Filter !== "all"
+                      {codeFilter || descriptionFilter || categoryFilter !== "all" || statusFilter !== "all" || familyFilter !== "all" || prop1Filter !== "all" || prop2Filter !== "all" || prop3Filter !== "all" || hierarchyFilter !== "all"
                         ? "Try adjusting your search or filters"
                         : "Get started by adding your first product"}
                     </p>
