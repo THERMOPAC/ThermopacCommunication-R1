@@ -11759,6 +11759,7 @@ export const epcDrawingControls = pgTable('epc_drawing_controls', {
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  structuredAt: timestamp("structured_at"),
 });
 
 export const insertEpcDrawingControlSchema = createInsertSchema(epcDrawingControls).omit({ id: true, createdAt: true, updatedAt: true });

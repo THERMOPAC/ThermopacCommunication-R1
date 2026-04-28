@@ -228,6 +228,20 @@ router.post('/epc-structure-jobs/:id/complete', requireNodeAuth, async (req: Req
     })
     .where(eq(epcStructureJobs.id, jobId));
 
+  // Revision sync: only on create_new — update drawing control's revision_code + structured_at
+  if (job.mode === 'create_new' && job.revision && job.drawingControlId) {
+    await db
+      .update(epcDrawingControls)
+      .set({
+        revisionCode: job.revision,
+        structuredAt: new Date(),
+      } as any)
+      .where(eq(epcDrawingControls.id, job.drawingControlId));
+    console.log(
+      `[StructureJobs] Job ${jobId} — revision synced → drawing_control=${job.drawingControlId} rev=${job.revision}`
+    );
+  }
+
   console.log(`[StructureJobs] Job ${jobId} completed by node ${nodeId} → ${result.file_path}`);
   return res.json({ ok: true });
 });
@@ -258,15 +272,37 @@ router.post('/epc-structure-jobs/:id/fail', requireNodeAuth, async (req: Request
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Revision helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Increment a revision string using engineering sequence:
+ *   A→B … Z→AA → AB … AZ → BA … ZZ → AAA
+ */
+function nextRevision(rev: string): string {
+  const s = (rev || 'A').toUpperCase().split('');
+  let i = s.length - 1;
+  while (i >= 0) {
+    if (s[i] < 'Z') {
+      s[i] = String.fromCharCode(s[i].charCodeAt(0) + 1);
+      return s.join('');
+    }
+    s[i] = 'A';
+    i--;
+  }
+  return 'A' + s.join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/epc-drawing-controls/:id/structure-jobs  — UI: create job
 // ─────────────────────────────────────────────────────────────────────────────
 
 const createJobSchema = z.object({
   drawing_number:  z.string().min(1),
-  revision:        z.string().min(1).optional(),   // must be non-empty if supplied
   mode:            z.enum(['create_new', 'update_existing']),
   dds:             z.record(z.unknown()),
   project_context: z.record(z.unknown()).optional(),
+  // revision is intentionally NOT accepted — server owns revision computation
 });
 
 router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res: Response) => {
@@ -284,26 +320,63 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
 
   const { drawing_number, mode, dds, project_context } = parse.data;
 
-  // Default revision to "A" for create_new if not supplied; require it for update_existing
-  const revision = parse.data.revision ?? (mode === 'create_new' ? 'A' : null);
-  if (!revision) {
-    return res.status(422).json({
-      error: 'revision is required for update_existing jobs — supply the current drawing revision (e.g. "A", "B")',
-    });
-  }
-
-  // Verify drawing control exists
+  // Verify drawing control exists and read its current revision_code
   const [dc] = await db
-    .select({ id: epcDrawingControls.id })
+    .select({ id: epcDrawingControls.id, revisionCode: epcDrawingControls.revisionCode })
     .from(epcDrawingControls)
     .where(eq(epcDrawingControls.id, drawingControlId))
     .limit(1);
 
   if (!dc) return res.status(404).json({ error: 'Drawing control not found' });
 
+  const currentRevision = dc.revisionCode ?? 'A';
+
+  // ── Check for existing completed create_new jobs ──────────────────────────
+  const completedCreateNewJobs = await db
+    .select({ id: epcStructureJobs.id, revision: epcStructureJobs.revision })
+    .from(epcStructureJobs)
+    .where(and(
+      eq(epcStructureJobs.drawingControlId, drawingControlId),
+      eq(epcStructureJobs.mode, 'create_new'),
+      eq(epcStructureJobs.status, 'completed'),
+    ));
+
+  const hasAnyCompletedCreateNew = completedCreateNewJobs.length > 0;
+
+  // ── Determine revision for this job ──────────────────────────────────────
+  let revision: string;
+
+  if (mode === 'create_new') {
+    // First creation: use current revision_code as-is
+    // Subsequent: increment from current revision_code
+    revision = hasAnyCompletedCreateNew ? nextRevision(currentRevision) : currentRevision;
+
+    // Overwrite protection: block if completed create_new already exists for this revision
+    const alreadyExists = completedCreateNewJobs.some(j => j.revision === revision);
+    if (alreadyExists) {
+      const next = nextRevision(revision);
+      return res.status(409).json({
+        error: `Revision ${revision} has already been structured. Use "New Revision" to create revision ${next}.`,
+        currentRevision: revision,
+        nextRevision: next,
+      });
+    }
+
+  } else {
+    // update_existing: always uses current revision_code
+    revision = currentRevision;
+
+    // Guard: require a completed create_new for this revision before allowing update
+    const baseExists = completedCreateNewJobs.some(j => j.revision === revision);
+    if (!baseExists) {
+      return res.status(422).json({
+        error: `No completed drawing found for revision ${revision}. Create the drawing first using "New Revision".`,
+        currentRevision: revision,
+      });
+    }
+  }
+
   // ── Hazard level pre-flight warnings ─────────────────────────────────────
-  // Check each active mechanical column — if hazardLevel is null the agent
-  // will skip writing SHELL_HZ / TUBE_HZ / JACKET_HZ entirely.
   const dispatchWarnings: string[] = [];
   const mechData = (dds as any)?.mechanical_data;
   if (mechData && typeof mechData === 'object') {
@@ -350,10 +423,10 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
     .returning({ id: epcStructureJobs.id, status: epcStructureJobs.status });
 
   console.log(
-    `[StructureJobs] Job ${job.id} created — drawing_control=${drawingControlId} mode=${mode}` +
+    `[StructureJobs] Job ${job.id} created — drawing_control=${drawingControlId} rev=${revision} mode=${mode}` +
     (dispatchWarnings.length ? ` — ${dispatchWarnings.length} warning(s)` : '')
   );
-  return res.status(201).json({ ok: true, jobId: job.id, warnings: dispatchWarnings });
+  return res.status(201).json({ ok: true, jobId: job.id, revision, warnings: dispatchWarnings });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

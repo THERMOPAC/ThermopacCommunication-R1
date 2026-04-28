@@ -729,15 +729,10 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
         _existing_bytes = os.path.getsize(staging_path)
         logger.warning(
             f"[Structurer] create_new: staging file already exists "
-            f"({_existing_bytes:,} bytes) — removing before fresh create: {staging_path}"
+            f"({_existing_bytes:,} bytes) at {staging_path} — "
+            f"overwrite protection: the ERP server should have blocked this job. "
+            f"Proceeding without deletion — SolidWorks SaveAs3 will overwrite in-place."
         )
-        try:
-            os.remove(staging_path)
-            logger.info("[Structurer] Existing staging file removed OK")
-        except OSError as _oe:
-            raise ValueError(
-                f"create_new: cannot remove existing staging file: {staging_path} — {_oe}"
-            )
 
     t_start = time.monotonic()
 
