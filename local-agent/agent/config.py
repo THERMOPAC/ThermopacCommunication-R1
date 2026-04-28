@@ -8,7 +8,7 @@ DESIGN RULES
 3. No auto-migration of URLs, no overwriting of any field.
 4. The ONLY write this module performs is persisting an auto-generated
    node_token (testing mode only) to the user-writable APPDATA path:
-     %APPDATA%\\ThermopacAgentDev\\config.ini
+     %APPDATA%\\ThermopacStructuringAgent\\config.ini
    This write never touches the primary config path.
 
 MODES
@@ -41,7 +41,7 @@ _TOKEN_PLACEHOLDER = "REPLACE_WITH_YOUR_TOKEN"
 # This is the ONLY path this module ever writes to.
 _APPDATA_CONFIG = os.path.join(
     os.environ.get("APPDATA", os.path.expanduser("~")),
-    "ThermopacAgentDev",
+    "ThermopacStructuringAgent",
     "config.ini",
 )
 
@@ -148,20 +148,6 @@ class AgentConfig:
         self.job_timeout_sec   = cfg.getint("agent", "job_timeout_sec",   fallback=600)
         self.max_retries       = cfg.getint("agent", "max_retries",       fallback=3)
 
-        # agent_role — controls which L1 agent this process runs as.
-        #   extract   → Thermopac Extraction Agent (READ only)
-        #   structure → Thermopac Structuring Agent (WRITE only)  [default]
-        #   combined  → Thermopac Drawing Control Agent (L2) — design-locked,
-        #               NOT YET IMPLEMENTED.  Safe exit with clear message.
-        raw_role = cfg.get("agent", "agent_role", fallback="structure").strip().lower()
-        if raw_role not in ("extract", "structure", "combined"):
-            print(
-                f"[CONFIG] WARNING: unknown agent_role={raw_role!r} — "
-                f"defaulting to 'structure'"
-            )
-            raw_role = "structure"
-        self.agent_role = raw_role
-
         # ── Paths ─────────────────────────────────────────────────────────────
         self.temp_dir = cfg.get("paths", "temp_dir", fallback=r"C:\ThermopacAgent\temp")
         self.log_dir  = cfg.get("paths", "log_dir",  fallback=r"C:\ThermopacAgent\logs")
@@ -212,7 +198,6 @@ class AgentConfig:
         print(f"[CONFIG] api_url:      {self.api_url}")
         print(f"[CONFIG] node_id:      {self.node_id}")
         print(f"[CONFIG] mode:         {self.mode}")
-        print(f"[CONFIG] agent_role:   {self.agent_role}")
         sw = self.sw_progid or "NOT DETECTED"
         if self.sw_autodetected and self.sw_progid:
             sw += " [auto-detected]"
@@ -235,8 +220,8 @@ class AgentConfig:
         Default config path: same folder as the script / executable.
 
         Frozen (Inno Setup install):
-          sys.executable = C:\\Program Files\\ThermopacAgentDev\\python\\python.exe
-          → C:\\Program Files\\ThermopacAgentDev\\config.ini
+          sys.executable = C:\\Program Files\\ThermopacStructuringAgent\\python\\python.exe
+          → C:\\Program Files\\ThermopacStructuringAgent\\config.ini
 
         Source / ZIP extract:
           __file__ = <extract>\\agent\\config.py

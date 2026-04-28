@@ -623,15 +623,9 @@ export default function WorkerAgentsPage() {
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1.5">
                       <a href="/ThermopacAgentInstaller-v1.0.70.zip" download="ThermopacAgentInstaller-v1.0.70.zip">
-                        <Button variant="default" size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button variant="default" size="sm" className="h-7 text-xs">
                           <Download className="h-3 w-3 mr-1" />
                           Installer
-                        </Button>
-                      </a>
-                      <a href="/ThermopacAgent-v1.0.70-full.zip" download="ThermopacAgent-v1.0.70-full.zip">
-                        <Button variant="default" size="sm" className="h-7 text-xs bg-blue-800 hover:bg-blue-900 text-white">
-                          <Download className="h-3 w-3 mr-1" />
-                          Full Package
                         </Button>
                       </a>
                       <a href="/ThermopacAgent-v1.0.70.zip" download="ThermopacAgent-v1.0.70.zip">
@@ -663,62 +657,26 @@ export default function WorkerAgentsPage() {
                     </Badge>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="text-xs font-mono text-muted-foreground">v1.0.25</span>
+                    <span className="text-xs font-mono text-muted-foreground">v1.0.24</span>
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1.5">
-                      <a href="/ThermopacStructuringAgentInstaller-v1.0.25.zip" download="ThermopacStructuringAgentInstaller-v1.0.25.zip">
+                      <a href="/ThermopacStructuringAgentInstaller-v1.0.24.zip" download="ThermopacStructuringAgentInstaller-v1.0.24.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white">
                           <Download className="h-3 w-3 mr-1" />
                           Installer
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.25-full.zip" download="ThermopacStructuringAgent-v1.0.25-full.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.24-full.zip" download="ThermopacStructuringAgent-v1.0.24-full.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-800 hover:bg-amber-900 text-white">
                           <Download className="h-3 w-3 mr-1" />
                           Full Package
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.25.zip" download="ThermopacStructuringAgent-v1.0.25.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.24.zip" download="ThermopacStructuringAgent-v1.0.24.zip">
                         <Button variant="outline" size="sm" className="h-7 text-xs">
                           <Download className="h-3 w-3 mr-1" />
                           Source ZIP
-                        </Button>
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-
-                {/* Row 3: drawing_core Test Package */}
-                <tr className="border-b last:border-b-0 hover:bg-accent/30 transition-colors bg-violet-50/40 dark:bg-violet-950/10">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2.5">
-                      <ShieldCheck className="h-4 w-4 text-violet-500 shrink-0" />
-                      <div>
-                        <p className="font-medium">drawing_core Validation Package</p>
-                        <p className="text-xs text-muted-foreground">
-                          Regression test build — validates drawing_core shared module before L2 agent enablement. Not for production.
-                        </p>
-                        <p className="text-xs text-violet-600 dark:text-violet-400 font-medium mt-0.5">
-                          Thermopac Drawing Control Agent: design-locked, not active in this build
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-3">
-                    <Badge variant="outline" className="text-xs border-violet-300 text-violet-700 dark:text-violet-300">
-                      VALIDATION
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-3">
-                    <span className="text-xs font-mono text-muted-foreground">v1.0.0-test-core</span>
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      <a href="/api/agent-dl/test-core-zip" download="ThermopacAgent_v1.0.0-test-core.zip">
-                        <Button variant="default" size="sm" className="h-7 text-xs bg-violet-600 hover:bg-violet-700 text-white">
-                          <Download className="h-3 w-3 mr-1" />
-                          Test Package
                         </Button>
                       </a>
                     </div>

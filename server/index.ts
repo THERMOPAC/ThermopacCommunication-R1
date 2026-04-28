@@ -21,12 +21,6 @@ app.get('/api/agent-dl/main.py', (_req, res) => {
 app.get('/api/agent-dl/build-windows-agent.yml', (_req, res) => {
   res.download(path.join(process.cwd(), '.github/workflows/build-windows-agent.yml'), 'build-windows-agent.yml');
 });
-app.get('/api/agent-dl/test-core-zip', (_req, res) => {
-  res.download(
-    path.join(process.cwd(), 'server/public/ThermopacAgent_v1.0.0-test-core.zip'),
-    'ThermopacAgent_v1.0.0-test-core.zip'
-  );
-});
 
 // NOTE: All priority endpoints have been moved to registerRoutes() where they execute AFTER setupAuth.
 // This eliminates the authentication bypass vulnerability (B-02).

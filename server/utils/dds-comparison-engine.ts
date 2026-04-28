@@ -88,10 +88,7 @@ const FIELD_DEFS: FieldDef[] = [
     getDdsValue:    dds => dds.equipmentDescription ?? null,
   },
   {
-    // Equipment_Configuration holds the short config token ('Vessel', 'Heat Exchanger', etc.)
-    // which is what DDS equipmentConfig stores.  Equipment_Type holds the regulatory
-    // classification ('PRESSURE VESSEL', 'FIRED HEATER', etc.) — a different field.
-    drawingProp:    'Equipment_Configuration',
+    drawingProp:    'Equipment_Type',
     displayLabel:   'Equipment Type',
     severity:       'critical',
     numericCompare: false,
@@ -102,9 +99,9 @@ const FIELD_DEFS: FieldDef[] = [
     displayLabel:   'Design Code',
     severity:       'critical',
     numericCompare: false,
-    // dds.designCode is the regulatory umbrella code written onto the drawing
-    // (e.g. "PED 2014/68/EU", "ASME SEC VIII DIV-1").
-    getDdsValue:    dds => dds.designCode ?? null,
+    // dds.designCode is the regulatory umbrella code (e.g. PED applied code).
+    // The actual design standard applied per-column lives in hazardData.shell.appliedCode.
+    getDdsValue:    dds => (dds.hazardData as ColumnHazardData)?.shell?.appliedCode ?? null,
   },
   {
     drawingProp:    'Material_Code',
@@ -132,13 +129,12 @@ const FIELD_DEFS: FieldDef[] = [
   },
   // ── Per-side mechanical fields ───────────────────────────────────────────
   {
-    // SHELL_WP = Working Pressure (matches DDS workingPressure)
-    // SHELL_IDP = Internal Design Pressure (higher safety factor value — different field)
-    drawingProp:    'SHELL_WP',
+    drawingProp:    'SHELL_IDP',
     displayLabel:   'Shell — Working Pressure',
     severity:       'critical',
     numericCompare: true,
     side:           'shell',
+    // _IDP custom property stores the working/design pressure (not MAWP)
     getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.shell?.workingPressure ?? null,
   },
   {
@@ -150,7 +146,7 @@ const FIELD_DEFS: FieldDef[] = [
     getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.shell?.operatingTempMinMax ?? null,
   },
   {
-    drawingProp:    'TUBE_WP',
+    drawingProp:    'TUBE_IDP',
     displayLabel:   'Tube — Working Pressure',
     severity:       'critical',
     numericCompare: true,
@@ -166,7 +162,7 @@ const FIELD_DEFS: FieldDef[] = [
     getDdsValue:    dds => (dds.mechanicalData as MechanicalData)?.tube?.operatingTempMinMax ?? null,
   },
   {
-    drawingProp:    'JACKET_WP',
+    drawingProp:    'JACKET_IDP',
     displayLabel:   'Jacket — Working Pressure',
     severity:       'critical',
     numericCompare: true,
@@ -202,8 +198,7 @@ export async function runDdsComparison(
   // ── Fetch DDS + drawing control (for revision) ────────────────────────────
   const [[dds], [dwgCtrl]] = await Promise.all([
     db.select().from(designDataSheets).where(eq(designDataSheets.dwgControlId, drawingControlId)).limit(1),
-    db.select({ revisionCode: epcDrawingControls.revisionCode, approvedAt: epcDrawingControls.approvedAt })
-      .from(epcDrawingControls).where(eq(epcDrawingControls.id, drawingControlId)).limit(1),
+    db.select({ revisionCode: epcDrawingControls.revisionCode }).from(epcDrawingControls).where(eq(epcDrawingControls.id, drawingControlId)).limit(1),
   ]);
 
   if (!dds) {
@@ -340,49 +335,39 @@ export async function runDdsComparison(
   }
 
   // ── Revision comparison ────────────────────────────────────────────────────
-  // Two behaviours based on whether this drawing control has ever been approved:
-  //
-  //   Never approved (approvedAt is null):
-  //     The drawing's Revision must equal revisionCode (the target revision).
-  //     e.g. revisionCode='A', first drawing should also be rev 'A'.
-  //
-  //   Previously approved (approvedAt is set):
-  //     The drawing must be exactly one step ahead of the last approved revision.
-  //     e.g. revisionCode='A' (last approved), next submission must be 'B'.
+  // The control record holds the LAST APPROVED revision (e.g. "A").
+  // A new drawing submission must be exactly ONE step ahead ("B").
+  // Compare drawing's Revision property against nextRevision(revisionCode).
   {
-    const dwgRevision   = dwgMap.get('Revision') ?? null;
-    const currentRev    = dwgCtrl?.revisionCode?.trim() || null;
-    const wasApproved   = !!dwgCtrl?.approvedAt;
-    const expectedRev   = wasApproved && currentRev ? nextRevision(currentRev) : currentRev;
+    const dwgRevision  = dwgMap.get('Revision') ?? null;
+    const currentRev   = dwgCtrl?.revisionCode?.trim() || null;
+    const expectedNext = currentRev ? nextRevision(currentRev) : null;
 
     let revStatus: ParameterStatus;
     let revNote: string | undefined;
 
     if (!currentRev) {
+      // No approved revision yet — drawing can be any initial revision
       revStatus = 'missing_dds';
-      revNote   = 'No revision code set in drawing control record';
+      revNote   = 'No approved revision in drawing control record';
     } else if (!dwgRevision) {
       revStatus = 'missing_drawing';
       revNote   = 'Revision property not found or empty in drawing';
       hasCriticalMismatch = true;
     } else {
-      const matched = compareString(expectedRev!, dwgRevision);
+      const matched = compareString(expectedNext!, dwgRevision);
       if (matched === true) {
         revStatus = 'match';
       } else {
         revStatus = 'mismatch';
-        if (wasApproved) {
-          revNote = `Expected next revision "${expectedRev}" (after approved "${currentRev}"), drawing shows "${dwgRevision}"`;
-        } else {
-          revNote = `Expected revision "${expectedRev}" (current target), drawing shows "${dwgRevision}"`;
-        }
+        revNote   = `Expected next revision "${expectedNext}" (after approved "${currentRev}"), drawing shows "${dwgRevision}"`;
         hasCriticalMismatch = true;
       }
     }
 
     results.push({
       parameter: 'Revision',
-      dds_value: expectedRev ?? currentRev,
+      dds_value: expectedNext ?? currentRev,  // show expected next as the "required" value
       dwg_value: dwgRevision,
       status:    revStatus,
       severity:  'critical',

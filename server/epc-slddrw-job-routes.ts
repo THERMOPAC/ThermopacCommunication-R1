@@ -442,11 +442,9 @@ router.post(
       return res.status(400).json({ error: 'Only .slddrw files are accepted' });
     }
 
-    // ── Filename gate — must start with system Drawing Number ──────────────────
+    // ── Filename gate — must match system Drawing Number exactly ───────────────
     // Check BEFORE any GCS write or job creation.
-    // Accepted formats (case-insensitive):
-    //   {drawingNumber}.slddrw             (legacy / manual upload)
-    //   {drawingNumber}_rev-{X}.slddrw     (agent save-path format from v1.0.25)
+    // Rule: filename without extension must equal drawingNumber (case-insensitive).
     const uploadedBasename = file.originalname.slice(0, file.originalname.length - '.slddrw'.length);
     const [dcRecord] = await db
       .select({ drawingNumber: epcDrawingControls.drawingNumber })
@@ -464,13 +462,10 @@ router.post(
       });
     }
 
-    const dnLower  = dcRecord.drawingNumber.toLowerCase();
-    const bnLower  = uploadedBasename.toLowerCase();
-    const nameOk   = bnLower === dnLower || bnLower.startsWith(dnLower + '_rev-');
-    if (!nameOk) {
+    if (uploadedBasename.toLowerCase() !== dcRecord.drawingNumber.toLowerCase()) {
       return res.status(400).json({
         error: 'Filename must match system Drawing Number',
-        expected_filename: `${dcRecord.drawingNumber}.slddrw  or  ${dcRecord.drawingNumber}_rev-{X}.slddrw`,
+        expected_filename: `${dcRecord.drawingNumber}.slddrw`,
         uploaded_filename: file.originalname,
       });
     }

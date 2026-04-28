@@ -36,7 +36,7 @@ REM ============================================================
 setlocal enabledelayedexpansion
 
 REM Allow CI to inject STRUCTURER_VERSION via env var; fall back to local default
-if "%STRUCTURER_VERSION%"=="" set STRUCTURER_VERSION=1.0.25
+if "%STRUCTURER_VERSION%"=="" set STRUCTURER_VERSION=1.0.24
 set PY_VERSION=3.11.9
 set PY_ZIP=python-%PY_VERSION%-embed-amd64.zip
 set PY_URL=https://www.python.org/ftp/python/%PY_VERSION%/%PY_ZIP%

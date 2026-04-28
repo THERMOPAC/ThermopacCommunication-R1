@@ -234,9 +234,3 @@ id = "E9Et2LfvwPKCRJpM0EbUP"
 uri = "file://local-agent/installer_output/ThermopacAgent-v1.0.69-dev-source.zip"
 type = "unspecified"
 title = "ThermopacAgent v1.0.69 Dev — Installer Source Package"
-
-[[outputs]]
-id = "WW1sjnFOhrHsLByEYcgE7"
-uri = "file://.github/workflows/build-drawing-control-agent.yml"
-type = "unspecified"
-title = "build-drawing-control-agent.yml (corrected — Windows-compatible)"
