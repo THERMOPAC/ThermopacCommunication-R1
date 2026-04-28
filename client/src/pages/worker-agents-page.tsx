@@ -657,7 +657,7 @@ export default function WorkerAgentsPage() {
                     </Badge>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="text-xs font-mono text-muted-foreground">v1.0.25</span>
+                    <span className="text-xs font-mono text-muted-foreground">v1.0.26</span>
                   </td>
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1.5">
@@ -667,13 +667,13 @@ export default function WorkerAgentsPage() {
                           Installer
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.25-full.zip" download="ThermopacStructuringAgent-v1.0.25-full.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.26-full.zip" download="ThermopacStructuringAgent-v1.0.26-full.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-800 hover:bg-amber-900 text-white">
                           <Download className="h-3 w-3 mr-1" />
-                          Full Package v1.0.25
+                          Full Package v1.0.26
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.25.zip" download="ThermopacStructuringAgent-v1.0.25.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.26.zip" download="ThermopacStructuringAgent-v1.0.26.zip">
                         <Button variant="outline" size="sm" className="h-7 text-xs">
                           <Download className="h-3 w-3 mr-1" />
                           Source ZIP

@@ -53,9 +53,27 @@ from extractor.sw_instance import (
 # ── SolidWorks API constants ──────────────────────────────────────────────────
 _SW_DOC_DRAWING            = 3
 _SW_OPEN_SILENT            = 32
-_SW_CUSTOM_INFO_TEXT       = 30
+_SW_CUSTOM_INFO_TEXT       = 30   # swCustomInfoText   — stored as string
+_SW_CUSTOM_INFO_DOUBLE     = 3    # swCustomInfoDouble — stored as float64
 _SW_CUSTOM_PROP_REPLACE    = 1
 _SW_SAVE_CURRENT_VERSION   = 0
+
+
+def _prop_info_type(value_str: str) -> int:
+    """Return swCustomInfoDouble (3) when *value_str* is a plain number,
+    swCustomInfoText (30) otherwise.
+
+    Property Tab Builder "Number" controls in SolidWorks store and read values
+    as swCustomInfoDouble.  If the agent writes swCustomInfoText for the same
+    property name the control shows 0.  Pure-numeric values (int or float with
+    no extra characters) are safe to write as Double; everything else (fractions
+    like "17 / 48", values with units like "50 m/s", N.A., etc.) must stay Text.
+    """
+    try:
+        float(value_str)
+        return _SW_CUSTOM_INFO_DOUBLE
+    except (ValueError, TypeError):
+        return _SW_CUSTOM_INFO_TEXT
 
 # ── Mechanical column property suffixes (24 per prefix) ───────────────────────
 # Order matches _mech_col_props() exactly — used to build clear lists for
@@ -480,13 +498,17 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
         if not str_val:
             logger.debug(f"[Structurer] Property skipped (blank): {name}")
             continue
+        prop_type = _prop_info_type(str_val)
+        type_tag  = "Double" if prop_type == _SW_CUSTOM_INFO_DOUBLE else "Text"
         try:
-            ret = cpm.Add3(name, _SW_CUSTOM_INFO_TEXT, str_val, _SW_CUSTOM_PROP_REPLACE)
+            ret = cpm.Add3(name, prop_type, str_val, _SW_CUSTOM_PROP_REPLACE)
             if ret == 0:
-                logger.info(f"[Structurer] Property written: {name} = {str_val!r}")
+                logger.info(
+                    f"[Structurer] Property written [{type_tag}]: {name} = {str_val!r}"
+                )
                 written.append(name)
             else:
-                msg = f"Property '{name}' Add3 returned code {ret}"
+                msg = f"Property '{name}' Add3({type_tag}) returned code {ret}"
                 logger.warning(f"[Structurer] {msg}")
                 warnings.append(msg)
         except Exception as e:
@@ -800,6 +822,24 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                 )
 
             logger.info("[Structurer] Existing drawing opened")
+
+            # ── Diagnostic: dump all existing custom property names ────────────
+            # This reveals what names are already in the file (e.g. written
+            # previously by the PTB template) and helps diagnose PTB binding
+            # mismatches (Root Cause 2 — properties showing blank in PTB).
+            try:
+                _diag_cpm = swModel.Extension.CustomPropertyManager("")
+                _diag_count = _diag_cpm.Count
+                if _diag_count > 0:
+                    _diag_names = _diag_cpm.GetNames()
+                    logger.info(
+                        f"[Structurer] Existing custom properties ({_diag_count}): "
+                        + ", ".join(_diag_names or [])
+                    )
+                else:
+                    logger.info("[Structurer] Existing custom properties: none")
+            except Exception as _diag_e:
+                logger.debug(f"[Structurer] Could not read existing properties: {_diag_e}")
 
             # Safety: check Drawing_Number + Revision consistency
             _check_existing_drawing_consistency(swModel, job, logger)
