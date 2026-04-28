@@ -44,7 +44,7 @@ const productFormSchema = z.object({
   makeOrBuy: z.string().default('Make'),
   preferredVendor: z.string().optional(),
   isActive: z.boolean().default(true),
-  tagNo: z.string().optional(),
+  tagNo: z.string().min(1, "Tag No is required"),
   equipmentConfiguration: z.string().default('Vessel'),
 });
 
@@ -1307,7 +1307,7 @@ export default function ProductsPage() {
                     name="tagNo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tag No <span className="text-muted-foreground text-xs">(e.g. RF/FE/E1)</span></FormLabel>
+                        <FormLabel>Tag No <span className="text-destructive">*</span> <span className="text-muted-foreground text-xs">(e.g. RF/FE/E1)</span></FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="e.g. RF/FE/E1" />
                         </FormControl>
