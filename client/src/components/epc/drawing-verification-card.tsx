@@ -198,6 +198,14 @@ export function DrawingVerificationCard({
     ? latest.extractionResult.extraction_warnings.filter((warning: any) => typeof warning === 'string')
     : [];
 
+  // Section D verification status from extraction result
+  const cpVerif = latest?.extractionResult?.customPropertyVerification;
+  const sectionDStatus: string | null = cpVerif?.status ?? null;
+  const sectionDHoldFields: string[] = Array.isArray(cpVerif?.fields)
+    ? cpVerif.fields.filter((f: any) => f.status === 'hold').map((f: any) => f.field ?? f.property)
+    : [];
+  const sectionDBlocked = sectionDStatus === 'hold' || sectionDStatus === 'fail';
+
   if (isLoading) {
     return (
       <_CardShell status="idle">
@@ -327,6 +335,18 @@ export function DrawingVerificationCard({
        drawingControlStatus !== 'released' &&
        canApproveOrRelease && (
         <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
+          {/* Section D hold warning */}
+          {sectionDBlocked && (
+            <div className="flex items-start gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+              <ShieldAlert className="h-3 w-3 mt-0.5 shrink-0 text-amber-600" />
+              <span>
+                <span className="font-semibold">Section D on hold</span>
+                {sectionDHoldFields.length > 0
+                  ? ` — ${sectionDHoldFields.join(', ')} require human validation`
+                  : ' — DrawnBy / CheckedBy / EngineeringApproval require human validation'}
+              </span>
+            </div>
+          )}
           {latest.ddsComparisonStatus === 'warn' && (
             <label className="flex items-center gap-1.5 text-[10px] text-amber-700 cursor-pointer select-none">
               <input
@@ -342,14 +362,16 @@ export function DrawingVerificationCard({
             size="sm"
             className="h-6 text-[10px] px-2 w-full gap-1.5"
             variant={
-              (latest.ddsComparisonStatus === 'pass' ||
-               latest.ddsComparisonStatus === 'skipped' ||
-               (latest.ddsComparisonStatus === 'warn' && warnAcknowledged))
+              (!sectionDBlocked &&
+               (latest.ddsComparisonStatus === 'pass' ||
+                latest.ddsComparisonStatus === 'skipped' ||
+                (latest.ddsComparisonStatus === 'warn' && warnAcknowledged)))
                 ? 'default'
                 : 'outline'
             }
             disabled={
               approveMutation.isPending ||
+              sectionDBlocked ||
               latest.ddsComparisonStatus === 'fail' ||
               latest.ddsComparisonStatus === 'blocked' ||
               (latest.ddsComparisonStatus === 'warn' && !warnAcknowledged)
@@ -359,7 +381,9 @@ export function DrawingVerificationCard({
             {approveMutation.isPending
               ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
               : <ShieldCheck className="h-2.5 w-2.5" />}
-            {latest.ddsComparisonStatus === 'fail'
+            {sectionDBlocked
+              ? 'Cannot Approve — Section D on Hold'
+              : latest.ddsComparisonStatus === 'fail'
               ? 'Cannot Approve — Critical DDS Mismatch'
               : latest.ddsComparisonStatus === 'blocked'
               ? 'Cannot Approve — DDS Not Found'

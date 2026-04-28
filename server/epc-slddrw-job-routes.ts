@@ -583,6 +583,7 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
     .select({
       id:                  epcSlddrwExtractionJobs.id,
       ddsComparisonStatus: epcSlddrwExtractionJobs.ddsComparisonStatus,
+      extractionResult:    epcSlddrwExtractionJobs.extractionResult,
     })
     .from(epcSlddrwExtractionJobs)
     .where(and(
@@ -594,6 +595,27 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
 
   if (!latestJob) {
     return res.status(422).json({ error: 'No completed extraction job found for this drawing control' });
+  }
+
+  // ── Section D gate — block approval if verification is on hold or failed ──
+  const cpVerif = (latestJob.extractionResult as any)?.customPropertyVerification;
+  const sectionDStatus = cpVerif?.status as string | undefined;
+  if (sectionDStatus === 'hold') {
+    const holdFields = (cpVerif?.fields ?? [])
+      .filter((f: any) => f.status === 'hold')
+      .map((f: any) => f.field ?? f.property)
+      .join(', ');
+    return res.status(422).json({
+      error: 'Section D verification is on hold — human review required before approval',
+      section_d_status: 'hold',
+      hold_fields: holdFields || 'DrawnBy / CheckedBy / EngineeringApproval',
+    });
+  }
+  if (sectionDStatus === 'fail') {
+    return res.status(422).json({
+      error: 'Section D verification failed — fix drawing properties before approval',
+      section_d_status: 'fail',
+    });
   }
 
   const ddsStatus = latestJob.ddsComparisonStatus;
