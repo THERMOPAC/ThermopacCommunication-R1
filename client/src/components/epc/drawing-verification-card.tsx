@@ -364,23 +364,47 @@ export function DrawingVerificationCard({
        drawingControlStatus !== 'released' &&
        canApproveOrRelease && (
         <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
-          {/* Section D hold / fail warning */}
+          {/* Section D hold / fail warning — with per-field breakdown */}
           {sectionDBlocked && (
             <div className={cn(
-              "flex items-start gap-1.5 text-[10px] rounded px-2 py-1.5 border",
+              "text-[10px] rounded px-2 py-1.5 border space-y-1",
               sectionDStatus === 'fail'
                 ? "text-red-700 bg-red-50 border-red-200"
                 : "text-amber-700 bg-amber-50 border-amber-200",
             )}>
-              <ShieldAlert className={cn("h-3 w-3 mt-0.5 shrink-0", sectionDStatus === 'fail' ? "text-red-600" : "text-amber-600")} />
-              <span>
+              <div className="flex items-center gap-1.5">
+                <ShieldAlert className={cn("h-3 w-3 shrink-0", sectionDStatus === 'fail' ? "text-red-600" : "text-amber-600")} />
                 <span className="font-semibold">
-                  {sectionDStatus === 'fail' ? 'Section D failed' : 'Section D on hold'}
+                  {sectionDStatus === 'fail' ? 'Section D failed — approval blocked' : 'Section D on hold — approval blocked'}
                 </span>
-                {sectionDBlockedFields.length > 0
-                  ? ` — ${sectionDBlockedFields.join(', ')} must be corrected before approval`
-                  : ' — Section D fields require review before approval'}
-              </span>
+              </div>
+              {/* Per-field breakdown */}
+              {Array.isArray(cpVerif?.fields) && cpVerif.fields.some((f: any) => f.result !== 'pass') && (
+                <table className="w-full text-[9.5px] border-collapse mt-0.5">
+                  <thead>
+                    <tr className={cn("border-b", sectionDStatus === 'fail' ? "border-red-200" : "border-amber-200")}>
+                      <th className="text-left py-0.5 pr-2 font-semibold w-[110px]">Field</th>
+                      <th className="text-left py-0.5 pr-2 font-semibold w-[90px]">Value</th>
+                      <th className="text-left py-0.5 font-semibold">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(cpVerif.fields as any[])
+                      .filter((f: any) => f.result !== 'pass')
+                      .map((f: any) => (
+                        <tr key={f.property} className="align-top">
+                          <td className="py-0.5 pr-2 font-medium">{f.property}</td>
+                          <td className="py-0.5 pr-2 font-mono">{f.value || <span className="italic opacity-60">empty</span>}</td>
+                          <td className="py-0.5 opacity-80">
+                            {f.result === 'hold'
+                              ? 'Requires human sign-off (value set to "Agent")'
+                              : f.reason || 'Does not meet requirements'}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
           {latest.ddsComparisonStatus === 'warn' && (
@@ -667,7 +691,7 @@ function _DdsComparisonBanner({
                  : 'DDS Warning — Discrepancies found',                                                                                    Icon: AlertTriangle },
     fail:    { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS FAIL — Critical mismatch blocks approval',        Icon: XCircle },
     blocked: { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS BLOCKED — No DDS record found',                  Icon: ShieldX },
-    skipped: { bg: 'bg-slate-50 border-slate-200',  text: 'text-slate-500', label: 'DDS — Not applicable (Section D only mode)',          Icon: HelpCircle },
+    skipped: { bg: 'bg-slate-50 border-slate-200',  text: 'text-slate-500', label: 'DDS — No design data sheet on record',               Icon: HelpCircle },
   }[status] ?? {
     bg: 'bg-muted', text: 'text-muted-foreground', label: status, Icon: HelpCircle,
   };

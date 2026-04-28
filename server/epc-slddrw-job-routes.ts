@@ -267,21 +267,16 @@ router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Reques
     .where(eq(epcSlddrwExtractionJobs.id, jobId));
 
   // ── Trigger DDS comparison (async, non-blocking) ──────────────────────────
-  // Skip when the agent ran in Section-D-only mode — DDS parameters were not verified.
+  // Always run — even in Section-D-only mode a DDS record may exist.
+  // If no DDS record is found AND the extraction was Section-D-only, the
+  // comparison engine returns 'blocked'; _runDdsComparison converts that to
+  // 'skipped' so the approval gate is not unnecessarily blocked.
   const isSectionDOnly =
     (extraction as any)?.customPropertyVerification?.equipmentConfig === 'n/a (Section D only)';
 
-  if (isSectionDOnly) {
-    // Mark as skipped so the approval gate and UI are not blocked.
-    await db.update(epcSlddrwExtractionJobs)
-      .set({ ddsComparisonStatus: 'skipped', ddsComparisonResult: [] as any })
-      .where(eq(epcSlddrwExtractionJobs.id, jobId));
-    console.log(`[DDS] Job ${jobId}: Section D only mode — DDS comparison skipped`);
-  } else {
-    _runDdsComparison(jobId, job.drawingControlId, extraction).catch(e =>
-      console.error(`[DDS] Comparison failed for job ${jobId}:`, e),
-    );
-  }
+  _runDdsComparison(jobId, job.drawingControlId, extraction, isSectionDOnly).catch(e =>
+    console.error(`[DDS] Comparison failed for job ${jobId}:`, e),
+  );
 
   return res.json({
     ok: true,
@@ -940,17 +935,24 @@ async function _runDdsComparison(
   jobId: number,
   drawingControlId: number,
   extraction: any,
+  isSectionDOnly = false,
 ): Promise<void> {
-  console.log(`[DDS] Running comparison for job ${jobId}, drawing_control ${drawingControlId}`);
+  console.log(`[DDS] Running comparison for job ${jobId}, drawing_control ${drawingControlId}${isSectionDOnly ? ' (Section D only mode)' : ''}`);
   const output = await runDdsComparison(drawingControlId, extraction);
+
+  // If no DDS record exists and the extraction only covered Section D fields,
+  // treat as 'skipped' rather than 'blocked' — the approval gate stays clear.
+  const finalStatus =
+    output.status === 'blocked' && isSectionDOnly ? 'skipped' : output.status;
+
   await db
     .update(epcSlddrwExtractionJobs)
     .set({
-      ddsComparisonStatus: output.status,
+      ddsComparisonStatus: finalStatus,
       ddsComparisonResult: output.result as any,
     })
     .where(eq(epcSlddrwExtractionJobs.id, jobId));
-  console.log(`[DDS] Comparison complete for job ${jobId}: status=${output.status}`);
+  console.log(`[DDS] Comparison complete for job ${jobId}: engine=${output.status} saved=${finalStatus}`);
 }
 
 async function _resetStaleJobs(): Promise<void> {
