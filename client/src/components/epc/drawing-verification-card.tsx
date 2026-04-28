@@ -343,6 +343,7 @@ export function DrawingVerificationCard({
             className="h-6 text-[10px] px-2 w-full gap-1.5"
             variant={
               (latest.ddsComparisonStatus === 'pass' ||
+               latest.ddsComparisonStatus === 'skipped' ||
                (latest.ddsComparisonStatus === 'warn' && warnAcknowledged))
                 ? 'default'
                 : 'outline'
@@ -604,6 +605,7 @@ function _DdsComparisonBanner({
                  : 'DDS Warning — Discrepancies found',                                                                                    Icon: AlertTriangle },
     fail:    { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS FAIL — Critical mismatch blocks approval',        Icon: XCircle },
     blocked: { bg: 'bg-red-50 border-red-200',      text: 'text-red-700',   label: 'DDS BLOCKED — No DDS record found',                  Icon: ShieldX },
+    skipped: { bg: 'bg-slate-50 border-slate-200',  text: 'text-slate-500', label: 'DDS — Not applicable (Section D only mode)',          Icon: HelpCircle },
   }[status] ?? {
     bg: 'bg-muted', text: 'text-muted-foreground', label: status, Icon: HelpCircle,
   };

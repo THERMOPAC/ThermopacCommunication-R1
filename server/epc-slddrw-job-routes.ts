@@ -267,9 +267,21 @@ router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Reques
     .where(eq(epcSlddrwExtractionJobs.id, jobId));
 
   // ── Trigger DDS comparison (async, non-blocking) ──────────────────────────
-  _runDdsComparison(jobId, job.drawingControlId, extraction).catch(e =>
-    console.error(`[DDS] Comparison failed for job ${jobId}:`, e),
-  );
+  // Skip when the agent ran in Section-D-only mode — DDS parameters were not verified.
+  const isSectionDOnly =
+    (extraction as any)?.customPropertyVerification?.equipmentConfig === 'n/a (Section D only)';
+
+  if (isSectionDOnly) {
+    // Mark as skipped so the approval gate and UI are not blocked.
+    await db.update(epcSlddrwExtractionJobs)
+      .set({ ddsComparisonStatus: 'skipped', ddsComparisonResult: [] as any })
+      .where(eq(epcSlddrwExtractionJobs.id, jobId));
+    console.log(`[DDS] Job ${jobId}: Section D only mode — DDS comparison skipped`);
+  } else {
+    _runDdsComparison(jobId, job.drawingControlId, extraction).catch(e =>
+      console.error(`[DDS] Comparison failed for job ${jobId}:`, e),
+    );
+  }
 
   return res.json({
     ok: true,
@@ -590,18 +602,21 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
     return res.status(422).json({ error: 'DDS comparison not yet complete — please wait and try again' });
   }
 
-  if (ddsStatus === 'fail') {
-    return res.status(422).json({
-      error: 'DDS comparison failed — critical parameter mismatch blocks approval',
-      dds_status: 'fail',
-    });
-  }
+  // 'skipped' means the extraction ran in Section-D-only mode — DDS gate does not apply.
+  if (ddsStatus !== 'skipped') {
+    if (ddsStatus === 'fail') {
+      return res.status(422).json({
+        error: 'DDS comparison failed — critical parameter mismatch blocks approval',
+        dds_status: 'fail',
+      });
+    }
 
-  if (ddsStatus === 'blocked') {
-    return res.status(422).json({
-      error: 'DDS comparison blocked — no DDS record found, resolve before approving',
-      dds_status: 'blocked',
-    });
+    if (ddsStatus === 'blocked') {
+      return res.status(422).json({
+        error: 'DDS comparison blocked — no DDS record found, resolve before approving',
+        dds_status: 'blocked',
+      });
+    }
   }
 
   if (ddsStatus === 'warn') {
