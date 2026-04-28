@@ -20,7 +20,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, HelpCircle, Clock, Loader2,
   Server, Cpu, FileCheck2, Info, Upload, RefreshCw, Factory, Braces, Minus,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -82,6 +82,7 @@ export function DrawingVerificationCard({
   const [showAllParams, setShowAllParams] = useState(false);
   const [warnAcknowledged, setWarnAcknowledged] = useState(false);
   const [jsonJobId, setJsonJobId] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const { data: jobs = [], isLoading } = useQuery<Job[]>({
     queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'],
@@ -90,7 +91,7 @@ export function DrawingVerificationCard({
     refetchInterval: (data: any) => {
       const rows: Job[] = Array.isArray(data) ? data : (data?.state?.data ?? []);
       const latest = rows[0];
-      if (latest && ['pending', 'processing'].includes(latest.status)) return 10000;
+      if (latest && ['pending', 'processing'].includes(latest.status)) return 3000;
       if (latest && latest.status === 'completed' && !latest.ddsComparisonStatus) return 5000;
       return false;
     },
@@ -103,6 +104,14 @@ export function DrawingVerificationCard({
       qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'] });
     },
   });
+
+  // Live elapsed timer — ticks every second while a job is active
+  useEffect(() => {
+    const latest = jobs[0];
+    if (!latest || !['pending', 'processing'].includes(latest.status)) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [jobs]);
 
   const approveMutation = useMutation({
     mutationFn: ({ acknowledgeWarnings }: { acknowledgeWarnings: boolean }) =>
@@ -279,14 +288,30 @@ export function DrawingVerificationCard({
       </div>
 
       {/* ── Pending / processing state ──────────────────────────────── */}
-      {['pending', 'processing'].includes(latest.status) && (
-        <div className="flex items-center gap-1.5 text-[10px] text-blue-600 mt-1">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {latest.status === 'pending'
-            ? 'Waiting for Windows agent to pick up job…'
-            : `Processing on ${latest.machineName ?? latest.nodeId ?? 'agent'} — auto-refreshing`}
-        </div>
-      )}
+      {['pending', 'processing'].includes(latest.status) && (() => {
+        const startMs = latest.claimedAt
+          ? new Date(latest.claimedAt).getTime()
+          : new Date(latest.createdAt).getTime();
+        const elapsed = Math.floor((now - startMs) / 1000);
+        const elapsedStr = elapsed >= 60
+          ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
+          : `${elapsed}s`;
+        return (
+          <div className="mt-1 space-y-0.5">
+            <div className="flex items-center gap-1.5 text-[10px] text-blue-600">
+              <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+              {latest.status === 'pending'
+                ? 'Waiting for Windows agent to pick up job…'
+                : `Extracting on ${latest.machineName ?? latest.nodeId ?? 'agent'} — ${elapsedStr} elapsed`}
+            </div>
+            {latest.status === 'processing' && elapsed > 30 && (
+              <div className="text-[9px] text-muted-foreground pl-4">
+                SolidWorks startup typically takes 60–120s on first open
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Failed state ────────────────────────────────────────────── */}
       {latest.status === 'failed' && latest.failedReason && (
