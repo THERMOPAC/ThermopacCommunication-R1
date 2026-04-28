@@ -157,9 +157,27 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
     staging_path = os.path.normpath(os.path.join(staging_dir, filename))
 
     if mode == "update_existing" and not os.path.isfile(staging_path):
-        raise PreflightError(
-            f"mode=update_existing but staging file not found: {staging_path}"
-        )
+        # ── Legacy path migration ─────────────────────────────────────────────
+        # Before v1.0.24 the subfolder was {drawingControlId} (e.g. "101").
+        # If the file exists there, move it to the new Drawing_No subfolder
+        # automatically so the job can proceed without manual intervention.
+        legacy_dir  = os.path.join(staging_root, drawing_ctrl_id)
+        legacy_path = os.path.normpath(os.path.join(legacy_dir, filename))
+        if os.path.isfile(legacy_path):
+            import shutil
+            try:
+                shutil.move(legacy_path, staging_path)
+                # Log happens outside preflight; store on job dict for caller
+                job["_legacy_migrated"] = legacy_path
+            except Exception as e:
+                raise PreflightError(
+                    f"Legacy file found at {legacy_path!r} but move to "
+                    f"{staging_path!r} failed: {e}"
+                )
+        else:
+            raise PreflightError(
+                f"mode=update_existing but staging file not found: {staging_path}"
+            )
 
     return staging_path
 
