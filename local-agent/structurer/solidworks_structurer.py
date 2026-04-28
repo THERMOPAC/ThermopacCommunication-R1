@@ -507,6 +507,20 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
                     f"[Structurer] Property written [{type_tag}]: {name} = {str_val!r}"
                 )
                 written.append(name)
+            elif ret == 1 and prop_type == _SW_CUSTOM_INFO_DOUBLE:
+                # The template already defines this property as Text — SolidWorks
+                # refuses to change property type even with replace=1.
+                # Fall back to Text so the value is not silently lost.
+                ret2 = cpm.Add3(name, _SW_CUSTOM_INFO_TEXT, str_val, _SW_CUSTOM_PROP_REPLACE)
+                if ret2 == 0:
+                    logger.info(
+                        f"[Structurer] Property written [Text/fallback]: {name} = {str_val!r}"
+                    )
+                    written.append(name)
+                else:
+                    msg = f"Property '{name}' Add3(Double→Text fallback) returned code {ret2}"
+                    logger.warning(f"[Structurer] {msg}")
+                    warnings.append(msg)
             else:
                 msg = f"Property '{name}' Add3({type_tag}) returned code {ret}"
                 logger.warning(f"[Structurer] {msg}")
