@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,52 @@ function formatCurrency(val: number | string) {
 function formatCurrencyPdf(val: number | string) {
   const n = typeof val === 'string' ? parseFloat(val) : val;
   return `Rs. ${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function DateInputDMY({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+}) {
+  function toDisplay(iso: string) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return (y && m && d) ? `${d}/${m}/${y}` : iso;
+  }
+  function toIso(dmy: string) {
+    const p = dmy.trim().split('/');
+    if (p.length === 3 && p[2].length === 4) {
+      return `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+    }
+    return '';
+  }
+  const [display, setDisplay] = useState(() => toDisplay(value));
+  useEffect(() => {
+    if (value !== toIso(display)) setDisplay(toDisplay(value));
+  }, [value]);
+  return (
+    <Input
+      type="text"
+      placeholder="DD/MM/YYYY"
+      value={display}
+      className={className}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDisplay(raw);
+        const iso = toIso(raw);
+        if (iso) onChange(iso);
+        else if (!raw) onChange('');
+      }}
+      onBlur={() => {
+        const iso = toIso(display);
+        if (iso) setDisplay(toDisplay(iso));
+      }}
+    />
+  );
 }
 
 function statusBadge(status: string) {
@@ -753,11 +799,11 @@ export default function LoansAdvancesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Disbursement Date</Label>
-                <Input type="date" value={loanForm.disbursementDate} onChange={(e) => setLoanForm({ ...loanForm, disbursementDate: e.target.value })} />
+                <DateInputDMY value={loanForm.disbursementDate} onChange={(v) => setLoanForm({ ...loanForm, disbursementDate: v })} />
               </div>
               <div>
                 <Label>Start Deduction Date</Label>
-                <Input type="date" value={loanForm.startDeductionDate} onChange={(e) => setLoanForm({ ...loanForm, startDeductionDate: e.target.value })} />
+                <DateInputDMY value={loanForm.startDeductionDate} onChange={(v) => setLoanForm({ ...loanForm, startDeductionDate: v })} />
               </div>
             </div>
             <div>
@@ -846,11 +892,11 @@ export default function LoansAdvancesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Advance Date</Label>
-                <Input type="date" value={advanceForm.advanceDate} onChange={(e) => setAdvanceForm({ ...advanceForm, advanceDate: e.target.value })} />
+                <DateInputDMY value={advanceForm.advanceDate} onChange={(v) => setAdvanceForm({ ...advanceForm, advanceDate: v })} />
               </div>
               <div>
                 <Label>Start Recovery Date</Label>
-                <Input type="date" value={advanceForm.startRecoveryDate} onChange={(e) => setAdvanceForm({ ...advanceForm, startRecoveryDate: e.target.value })} />
+                <DateInputDMY value={advanceForm.startRecoveryDate} onChange={(v) => setAdvanceForm({ ...advanceForm, startRecoveryDate: v })} />
               </div>
             </div>
             <div>
