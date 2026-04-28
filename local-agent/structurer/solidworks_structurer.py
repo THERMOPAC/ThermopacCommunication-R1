@@ -49,31 +49,19 @@ from extractor.sw_instance import (
     _kill_orphan_sw_process,
     _launch_sw_dedicated_instance,
 )
+from structurer.property_registry import (
+    get_prop_type,
+    type_label,
+    registry_summary,
+    TYPE_TEXT  as _SW_CUSTOM_INFO_TEXT,
+    TYPE_DOUBLE as _SW_CUSTOM_INFO_DOUBLE,
+)
 
 # ── SolidWorks API constants ──────────────────────────────────────────────────
 _SW_DOC_DRAWING            = 3
 _SW_OPEN_SILENT            = 32
-_SW_CUSTOM_INFO_TEXT       = 30   # swCustomInfoText   — stored as string
-_SW_CUSTOM_INFO_DOUBLE     = 3    # swCustomInfoDouble — stored as float64
 _SW_CUSTOM_PROP_REPLACE    = 1
 _SW_SAVE_CURRENT_VERSION   = 0
-
-
-def _prop_info_type(value_str: str) -> int:
-    """Return swCustomInfoDouble (3) when *value_str* is a plain number,
-    swCustomInfoText (30) otherwise.
-
-    Property Tab Builder "Number" controls in SolidWorks store and read values
-    as swCustomInfoDouble.  If the agent writes swCustomInfoText for the same
-    property name the control shows 0.  Pure-numeric values (int or float with
-    no extra characters) are safe to write as Double; everything else (fractions
-    like "17 / 48", values with units like "50 m/s", N.A., etc.) must stay Text.
-    """
-    try:
-        float(value_str)
-        return _SW_CUSTOM_INFO_DOUBLE
-    except (ValueError, TypeError):
-        return _SW_CUSTOM_INFO_TEXT
 
 # ── Mechanical column property suffixes (24 per prefix) ───────────────────────
 # Order matches _mech_col_props() exactly — used to build clear lists for
@@ -498,31 +486,22 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
         if not str_val:
             logger.debug(f"[Structurer] Property skipped (blank): {name}")
             continue
-        prop_type = _prop_info_type(str_val)
-        type_tag  = "Double" if prop_type == _SW_CUSTOM_INFO_DOUBLE else "Text"
+        # Registry is the single source of truth for property type.
+        # Never guess type from the runtime value.
+        prop_type = get_prop_type(name)
+        tag       = type_label(prop_type)
         try:
             ret = cpm.Add3(name, prop_type, str_val, _SW_CUSTOM_PROP_REPLACE)
             if ret == 0:
                 logger.info(
-                    f"[Structurer] Property written [{type_tag}]: {name} = {str_val!r}"
+                    f"[Structurer] Property written [{tag}]: {name} = {str_val!r}"
                 )
                 written.append(name)
-            elif ret == 1 and prop_type == _SW_CUSTOM_INFO_DOUBLE:
-                # The template already defines this property as Text — SolidWorks
-                # refuses to change property type even with replace=1.
-                # Fall back to Text so the value is not silently lost.
-                ret2 = cpm.Add3(name, _SW_CUSTOM_INFO_TEXT, str_val, _SW_CUSTOM_PROP_REPLACE)
-                if ret2 == 0:
-                    logger.info(
-                        f"[Structurer] Property written [Text/fallback]: {name} = {str_val!r}"
-                    )
-                    written.append(name)
-                else:
-                    msg = f"Property '{name}' Add3(Double→Text fallback) returned code {ret2}"
-                    logger.warning(f"[Structurer] {msg}")
-                    warnings.append(msg)
             else:
-                msg = f"Property '{name}' Add3({type_tag}) returned code {ret}"
+                msg = (
+                    f"Property '{name}' Add3({tag}) returned code {ret} "
+                    f"(registry type={prop_type})"
+                )
                 logger.warning(f"[Structurer] {msg}")
                 warnings.append(msg)
         except Exception as e:
@@ -564,7 +543,7 @@ def _write_properties(swModel, job: dict, logger) -> tuple[list, list]:
 
 def _verify_properties(swModel, properties_written: list, logger) -> tuple[list, list]:
     """
-    Read back each written property to confirm it round-trips correctly.
+    Read back each written property and validate value + registry type.
 
     SW2019 COM quirk: ICustomPropertyManager.Get5/Get4 require explicit ByRef
     VARIANT objects for their output parameters — calling with only (name, cached)
@@ -572,10 +551,19 @@ def _verify_properties(swModel, properties_written: list, logger) -> tuple[list,
     VARIANTs as placeholders so win32com satisfies the ByRef contract, then read
     .value after the call.  Mirrors the extraction agent's proven strategy.
 
+    Registry type validation (best-effort):
+      1. Attempt GetType2(name) — available on SW2020+; may raise on SW2019.
+      2. If unavailable, infer: a Double property reading as "" or "0" when the
+         written value was non-zero indicates a type conflict.
+      3. Mismatches are logged as warnings — they do NOT cause job failure.
+
     Returns (verified, mismatch_warnings).
     """
     import pythoncom
     from win32com.client import VARIANT as _VARIANT
+    from structurer.property_registry import (
+        get_prop_type, type_label, TYPE_DOUBLE as _RDOUBLE,
+    )
     _VT_BS_REF = pythoncom.VT_BSTR | pythoncom.VT_BYREF
     _VT_BL_REF = pythoncom.VT_BOOL | pythoncom.VT_BYREF
 
@@ -611,7 +599,43 @@ def _verify_properties(swModel, properties_written: list, logger) -> tuple[list,
 
         if read_val is not None:
             verified.append(name)
-            logger.info(f"[Structurer] Verified: {name} = {read_val!r}")
+            expected_type = get_prop_type(name)
+            exp_tag       = type_label(expected_type)
+
+            # ── Registry type check (best-effort via GetType2) ────────────────
+            actual_sw_type = None
+            try:
+                actual_sw_type = cpm.GetType2(name)
+            except Exception:
+                pass  # GetType2 not available on SW2019 — skip COM type check
+
+            if actual_sw_type is not None:
+                if actual_sw_type != expected_type:
+                    act_tag = type_label(actual_sw_type)
+                    msg = (
+                        f"Type mismatch '{name}': registry={exp_tag} ({expected_type}), "
+                        f"stored={act_tag} ({actual_sw_type}) — "
+                        f"update template or registry to align"
+                    )
+                    logger.warning(f"[Structurer] REGISTRY TYPE MISMATCH: {msg}")
+                    mismatches.append(msg)
+                else:
+                    logger.info(
+                        f"[Structurer] Verified [{exp_tag}]: {name} = {read_val!r}"
+                    )
+            else:
+                # GetType2 unavailable — value-based type inference for Double fields
+                if expected_type == _RDOUBLE and read_val in ("", "0"):
+                    msg = (
+                        f"Possible type conflict '{name}': expected {exp_tag} "
+                        f"but read_val={read_val!r} (may indicate Text/Double conflict)"
+                    )
+                    logger.warning(f"[Structurer] {msg}")
+                    mismatches.append(msg)
+                else:
+                    logger.info(
+                        f"[Structurer] Verified [{exp_tag}]: {name} = {read_val!r}"
+                    )
         else:
             msg = f"Read-back of '{name}' returned None/unreadable"
             mismatches.append(msg)
