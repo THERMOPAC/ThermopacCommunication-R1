@@ -255,19 +255,37 @@ router.post('/epc-slddrw-jobs/:id/complete', requireNodeAuth, async (req: Reques
     });
   }
 
+  // ── Revision check: compare extracted Revision property against DB revisionCode ──
+  let finalExtraction = extraction;
+  try {
+    const [dc] = await db
+      .select({ revisionCode: epcDrawingControls.revisionCode })
+      .from(epcDrawingControls)
+      .where(eq(epcDrawingControls.id, job.drawingControlId))
+      .limit(1);
+    if (dc?.revisionCode) {
+      finalExtraction = _injectRevisionField(extraction, dc.revisionCode);
+      const revResult = finalExtraction.customPropertyVerification?.fields
+        ?.find((f: any) => f.property === 'Revision')?.result ?? 'skipped';
+      console.log(`[Jobs] Revision check job ${jobId}: expected="${dc.revisionCode}" extracted="${extraction?.properties?.Revision ?? ''}" → ${revResult}`);
+    }
+  } catch (e: any) {
+    console.warn(`[Jobs] Revision check lookup failed for job ${jobId}: ${e?.message} — proceeding without revision check`);
+  }
+
   // ── Mark completed + store result ─────────────────────────────────────────
   await db
     .update(epcSlddrwExtractionJobs)
     .set({
-      status:          'completed',
-      completedAt:     new Date(),
-      extractionResult: extraction as any,
+      status:           'completed',
+      completedAt:      new Date(),
+      extractionResult: finalExtraction as any,
     })
     .where(eq(epcSlddrwExtractionJobs.id, jobId));
 
   return res.json({
     ok: true,
-    extraction_warnings: extraction.extraction_warnings ?? [],
+    extraction_warnings: finalExtraction.extraction_warnings ?? [],
   });
 });
 
@@ -301,6 +319,77 @@ function _normaliseExtractionResult(extraction: any) {
     ? extraction.extraction_warnings.filter((w: any) => typeof w === 'string')
     : [];
   return { ...extraction, extraction_warnings: warnings };
+}
+
+// ─── Revision helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Strip any "Rev-", "Rev ", "REV-" prefix and uppercase.
+ * "Rev-B" → "B", "rev b" → "B", "B" → "B"
+ */
+function _normaliseRevision(raw: string | null | undefined): string {
+  if (!raw) return '';
+  return String(raw).trim().toUpperCase().replace(/^REV[-\s]*/i, '').trim();
+}
+
+/**
+ * Inject a Revision field into customPropertyVerification.fields and recompute
+ * the overall status. Called server-side after job completion so that the
+ * Section D panel in the UI shows a proper pass / hold / fail row for Revision.
+ *
+ * Skipped silently if:
+ *   - expectedRevCode is null/empty (drawing control has no revision set)
+ *   - customPropertyVerification is absent (extraction failed before Section D)
+ */
+function _injectRevisionField(extraction: any, expectedRevCode: string | null | undefined): any {
+  if (!expectedRevCode) return extraction;
+
+  const cpv = extraction?.customPropertyVerification;
+  if (!cpv || !Array.isArray(cpv.fields)) return extraction;
+
+  const extractedRaw: string = String(extraction?.properties?.Revision ?? '').trim();
+  const normExpected  = _normaliseRevision(expectedRevCode);
+  const normExtracted = _normaliseRevision(extractedRaw);
+
+  let result: string;
+  let reason: string;
+
+  if (!normExtracted) {
+    result = 'hold';
+    reason = `Revision property missing or blank — drawing control expects Rev-${normExpected}`;
+  } else if (normExtracted === normExpected) {
+    result = 'pass';
+    reason = '';
+  } else {
+    result = 'fail';
+    reason = `Revision mismatch — drawing has Rev-${normExtracted}, drawing control expects Rev-${normExpected}`;
+  }
+
+  const revisionField = {
+    property:        'Revision',
+    source:          'custom_property',
+    applicability:   'required',
+    value:           extractedRaw,
+    normalizedValue: normExtracted,
+    result,
+    reason,
+  };
+
+  // Remove any pre-existing Revision entry, append the new one
+  const otherFields = cpv.fields.filter((f: any) => f.property !== 'Revision');
+  const newFields   = [...otherFields, revisionField];
+
+  // Recompute overall Section D status from all fields
+  let newStatus = 'pass';
+  for (const f of newFields) {
+    if (f.result === 'fail') { newStatus = 'fail'; break; }
+    if (f.result === 'hold' && newStatus !== 'fail') newStatus = 'hold';
+  }
+
+  return {
+    ...extraction,
+    customPropertyVerification: { ...cpv, fields: newFields, status: newStatus },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
