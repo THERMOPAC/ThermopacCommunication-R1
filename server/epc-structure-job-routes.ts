@@ -235,7 +235,7 @@ router.post('/epc-structure-jobs/:id/complete', requireNodeAuth, async (req: Req
       .set({
         revisionCode: job.revision,
         structuredAt: new Date(),
-      } as any)
+      })
       .where(eq(epcDrawingControls.id, job.drawingControlId));
     console.log(
       `[StructureJobs] Job ${jobId} — revision synced → drawing_control=${job.drawingControlId} rev=${job.revision}`
