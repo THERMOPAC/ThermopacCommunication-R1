@@ -162,28 +162,44 @@ def _preflight(job: dict, template_path: str, staging_root: str) -> str:
 
     staging_path = os.path.normpath(os.path.join(staging_dir, filename))
 
-    if mode == "update_existing" and not os.path.isfile(staging_path):
-        # ── Legacy path migration ─────────────────────────────────────────────
-        # Before v1.0.24 the subfolder was {drawingControlId} (e.g. "101").
-        # If the file exists there, move it to the new Drawing_No subfolder
-        # automatically so the job can proceed without manual intervention.
-        legacy_dir  = os.path.join(staging_root, drawing_ctrl_id)
-        legacy_path = os.path.normpath(os.path.join(legacy_dir, filename))
-        if os.path.isfile(legacy_path):
-            import shutil
-            try:
-                shutil.move(legacy_path, staging_path)
-                # Log happens outside preflight; store on job dict for caller
-                job["_legacy_migrated"] = legacy_path
-            except Exception as e:
-                raise PreflightError(
-                    f"Legacy file found at {legacy_path!r} but move to "
-                    f"{staging_path!r} failed: {e}"
-                )
-        else:
+    if mode == "update_existing":
+        # ── Resolve base file (the revision to open) ─────────────────────────
+        # base_revision = the revision already on disk (e.g. 'A').
+        # staging_path  = the NEW target revision (e.g. _rev-B.slddrw).
+        # The agent opens base_path with OpenDoc6, then SaveAs3 to staging_path.
+        base_revision = (job.get("base_revision") or "").strip()
+        if not base_revision:
             raise PreflightError(
-                f"mode=update_existing but staging file not found: {staging_path}"
+                "mode=update_existing but base_revision missing from job payload — "
+                "server must provide base_revision (the current revision to open)"
             )
+        safe_base_rev = _safe_name(base_revision)
+        base_filename = f"{safe_dn}_rev-{safe_base_rev}.slddrw"
+        base_path     = os.path.normpath(os.path.join(staging_dir, base_filename))
+
+        if not os.path.isfile(base_path):
+            # ── Legacy path migration ─────────────────────────────────────────
+            # Before v1.0.24 the subfolder was {drawingControlId} (e.g. "101").
+            legacy_dir       = os.path.join(staging_root, drawing_ctrl_id)
+            legacy_base_path = os.path.normpath(os.path.join(legacy_dir, base_filename))
+            if os.path.isfile(legacy_base_path):
+                import shutil
+                try:
+                    shutil.move(legacy_base_path, base_path)
+                    job["_legacy_migrated"] = legacy_base_path
+                except Exception as e:
+                    raise PreflightError(
+                        f"Legacy base file found at {legacy_base_path!r} but move to "
+                        f"{base_path!r} failed: {e}"
+                    )
+            else:
+                raise PreflightError(
+                    f"mode=update_existing: base file not found: {base_path!r} "
+                    f"(base_revision={base_revision!r}) — "
+                    f"ensure 'Create Drawing' completed before 'Update Drawing'"
+                )
+
+        job["_base_path"] = base_path
 
     return staging_path
 
@@ -648,13 +664,18 @@ def _verify_properties(swModel, properties_written: list, logger) -> tuple[list,
 
 def _check_existing_drawing_consistency(swModel, job: dict, logger):
     """
-    For update_existing mode: read Drawing_Number and Revision from the opened
+    For update_existing mode: read Drawing_Number and Revision from the BASE
     file and compare against job payload. Raises ValueError on mismatch.
+
+    Revision check uses base_revision (the revision of the file being opened),
+    NOT job['revision'] (which is the new/target revision being saved).
     """
     cpm = swModel.Extension.CustomPropertyManager("")
+    # The base file's Revision property should match base_revision, not job['revision']
+    base_rev_expected = (job.get("base_revision") or job.get("revision") or "").strip()
     checks = {
         "Drawing_Number": job["drawing_number"],
-        "Revision":       job["revision"],
+        "Revision":       base_rev_expected,
     }
     for prop_name, expected in checks.items():
         try:
@@ -823,14 +844,18 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                 logger.warning(f"[Structurer] Could not confirm active doc: {_ce}")
 
         elif mode == "update_existing":
-            logger.info(f"[Structurer] Opening existing file: {staging_path}")
+            base_path = job.get("_base_path") or staging_path
+            logger.info(
+                f"[Structurer] Opening BASE file: {base_path} "
+                f"(target new revision: {staging_path})"
+            )
 
             swModel = None
 
             for open_attempt in range(1, 3):
                 try:
                     # ISldWorks.OpenDoc(FileName, Type) — no ByRef params, late-bind safe
-                    swModel = swApp.OpenDoc(staging_path, _SW_DOC_DRAWING)
+                    swModel = swApp.OpenDoc(base_path, _SW_DOC_DRAWING)
                 except Exception as e:
                     logger.warning(
                         f"[Structurer] OpenDoc attempt {open_attempt} raised: "
@@ -850,7 +875,7 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
 
             if swModel is None:
                 raise RuntimeError(
-                    f"OpenDoc failed for '{staging_path}' after 1 retry — "
+                    f"OpenDoc failed for '{base_path}' after 1 retry — "
                     "file may be missing, locked, or corrupt"
                 )
 
@@ -1081,8 +1106,74 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
             _save2("create_new/props")
 
         else:
-            # ── update_existing: write props then Save2 ───────────────────────
-            logger.info("[Structurer] Writing custom properties…")
+            # ── update_existing: SaveAs3 (base→new rev) → write props → Save2 ─
+            # Pattern mirrors create_new: SaveAs3 first establishes the new file
+            # path, then write properties, then Save2 to flush.
+            # Base file at base_path is untouched — SaveAs3 creates a new file
+            # at staging_path and the in-memory document switches to that path.
+            _base_path_ue = job.get("_base_path") or staging_path
+
+            try:
+                _pre_save_active = swApp.ActiveDoc
+                _pre_save_title  = str(_pre_save_active.GetTitle) if _pre_save_active else "None"
+            except Exception:
+                _pre_save_title = "unknown"
+            logger.info(f"[Structurer] Active doc before SaveAs3: {_pre_save_title!r}")
+            logger.info(f"[Structurer] SaveAs3 (base→new rev) → {staging_path}")
+
+            _ue_saved = False
+            _ue_attempts = [(1, "opts=Silent"), (0, "opts=None")]
+            for _ue_attempt, (_opts_val, _opts_label) in enumerate(_ue_attempts, start=1):
+                # Remove stale target file so we can detect if this call wrote it
+                if os.path.isfile(staging_path):
+                    try:
+                        os.remove(staging_path)
+                    except OSError:
+                        pass
+                try:
+                    _ue_r = swModel.SaveAs3(staging_path, _SW_SAVE_CURRENT_VERSION, _opts_val)
+                except Exception as _ue_se:
+                    import traceback as _ue_tb
+                    _ue_a  = getattr(_ue_se, 'args', ())
+                    _ue_hr = (hex(_ue_a[0]) if isinstance(_ue_a[0], int) else repr(_ue_a[0])) if _ue_a else 'N/A'
+                    if _ue_attempt < 2:
+                        logger.warning(
+                            f"[Structurer] SaveAs3 attempt {_ue_attempt} COM exception "
+                            f"({_opts_label}): {type(_ue_se).__name__}: {_ue_se} "
+                            f"| HRESULT={_ue_hr} — retrying"
+                        )
+                        continue
+                    raise RuntimeError(
+                        f"SaveAs3 update_existing COM exception: {type(_ue_se).__name__}: {_ue_se} "
+                        f"| HRESULT={_ue_hr}"
+                    )
+                _ue_sz = os.path.getsize(staging_path) if os.path.isfile(staging_path) else 0
+                logger.info(
+                    f"[Structurer] SaveAs3({_opts_label}) → ret={_ue_r} "
+                    f"| file_on_disk={_ue_sz:,} bytes"
+                )
+                if _ue_r or _ue_sz > 0:
+                    if not _ue_r and _ue_sz > 0:
+                        logger.warning(
+                            f"[Structurer] SaveAs3({_opts_label}) returned False but file was "
+                            f"written ({_ue_sz:,} bytes) — treating as success "
+                            f"(SW2019 headless non-fatal return)"
+                        )
+                    _ue_saved = True
+                    break
+                logger.warning(
+                    f"[Structurer] SaveAs3 attempt {_ue_attempt} ({_opts_label}) returned False "
+                    f"and no file written — retrying"
+                )
+
+            if not _ue_saved:
+                raise RuntimeError(
+                    f"SaveAs3 returned False AND no file written — both attempts failed "
+                    f"| base={_base_path_ue!r} | target={staging_path!r}"
+                )
+
+            # ── Write custom properties (post-SaveAs3) ───────────────────────
+            logger.info("[Structurer] Writing custom properties (post-SaveAs3)…")
             properties_written, write_warnings = _write_properties(swModel, job, logger)
             logger.info(
                 f"[Structurer] {len(properties_written)} properties written, "
@@ -1140,7 +1231,16 @@ def run_structuring(job: dict, config, cancel_event: threading.Event, logger) ->
                 swApp.CloseDoc(staging_path)
                 logger.info("[COM] Document closed")
             except Exception as e:
-                logger.warning(f"[COM] CloseDoc error: {e}")
+                logger.warning(f"[COM] CloseDoc(staging_path) error: {e}")
+                # Fallback for update_existing: if SaveAs3 did not execute,
+                # the document is still at base_path
+                _bp = job.get("_base_path")
+                if _bp and _bp != staging_path:
+                    try:
+                        swApp.CloseDoc(_bp)
+                        logger.info("[COM] Document closed via base_path fallback")
+                    except Exception as e2:
+                        logger.warning(f"[COM] CloseDoc(base_path) error: {e2}")
 
         # ── Step 2: Exit dedicated instance (always) ──────────────────────────
         if swApp is not None:

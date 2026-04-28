@@ -12850,6 +12850,7 @@ export const epcStructureJobs = pgTable('epc_structure_jobs', {
                       .references(() => epcDrawingControls.id, { onDelete: 'cascade' }),
   drawingNumber:    varchar('drawing_number', { length: 500 }),
   revision:         varchar('revision', { length: 50 }),
+  baseRevision:     varchar('base_revision', { length: 50 }),
   // create_new | update_existing
   mode:             varchar('mode', { length: 50 }).notNull().default('create_new'),
   // Snapshot of DDS data at job creation time

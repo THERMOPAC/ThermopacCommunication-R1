@@ -114,6 +114,7 @@ router.get('/epc-structure-jobs/pending', requireNodeAuth, async (req: Request, 
         drawingControlId: epcStructureJobs.drawingControlId,
         drawingNumber:    epcStructureJobs.drawingNumber,
         revision:         epcStructureJobs.revision,
+        baseRevision:     epcStructureJobs.baseRevision,
         mode:             epcStructureJobs.mode,
         ddsPayload:       epcStructureJobs.ddsPayload,
         projectContext:   epcStructureJobs.projectContext,
@@ -166,6 +167,7 @@ router.post('/epc-structure-jobs/:id/claim', requireNodeAuth, async (req: Reques
     drawing_control_id: claimed.drawingControlId,
     drawing_number:     claimed.drawingNumber,
     revision:           claimed.revision,
+    base_revision:      claimed.baseRevision ?? null,
     mode:               claimed.mode,
     dds:                claimed.ddsPayload,
     project_context:    claimed.projectContext,
@@ -228,17 +230,32 @@ router.post('/epc-structure-jobs/:id/complete', requireNodeAuth, async (req: Req
     })
     .where(eq(epcStructureJobs.id, jobId));
 
-  // Revision sync: only on create_new — update drawing control's revision_code + structured_at
-  if (job.mode === 'create_new' && job.revision && job.drawingControlId) {
+  // Revision sync: both modes — update drawing control's revision_code + structured_at
+  // ONLY when a file was successfully created on disk.
+  const _filePath    = ((result as any).file_path ?? '').trim();
+  const _fileCreated = _filePath.length > 0 &&
+                       (result.status === 'success' || result.status === 'partial');
+
+  if (_fileCreated && job.drawingControlId && job.revision) {
+    // create_new  → revision_code = 'A'  (always first)
+    // update_existing → revision_code = job.revision  (next letter)
+    const newRevCode = job.mode === 'create_new' ? 'A' : job.revision;
     await db
       .update(epcDrawingControls)
       .set({
-        revisionCode: job.revision,
+        revisionCode: newRevCode,
         structuredAt: new Date(),
       })
       .where(eq(epcDrawingControls.id, job.drawingControlId));
     console.log(
-      `[StructureJobs] Job ${jobId} — revision synced → drawing_control=${job.drawingControlId} rev=${job.revision}`
+      `[StructureJobs] Job ${jobId} — revision synced → ` +
+      `drawing_control=${job.drawingControlId} rev=${newRevCode} ` +
+      `(mode=${job.mode} file=${_filePath})`
+    );
+  } else {
+    console.log(
+      `[StructureJobs] Job ${jobId} — revision NOT synced: ` +
+      `file_created=${_fileCreated} file_path="${_filePath}" mode=${job.mode}`
     );
   }
 
@@ -331,47 +348,50 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
 
   const currentRevision = dc.revisionCode ?? 'A';
 
-  // ── Check for existing completed create_new jobs ──────────────────────────
-  const completedCreateNewJobs = await db
-    .select({ id: epcStructureJobs.id, revision: epcStructureJobs.revision })
+  // ── Check for any completed jobs (any mode) ───────────────────────────────
+  const completedJobs = await db
+    .select({ id: epcStructureJobs.id, revision: epcStructureJobs.revision, mode: epcStructureJobs.mode })
     .from(epcStructureJobs)
     .where(and(
       eq(epcStructureJobs.drawingControlId, drawingControlId),
-      eq(epcStructureJobs.mode, 'create_new'),
       eq(epcStructureJobs.status, 'completed'),
     ));
 
-  const hasAnyCompletedCreateNew = completedCreateNewJobs.length > 0;
+  const hasAnyCompleted = completedJobs.length > 0;
 
-  // ── Determine revision for this job ──────────────────────────────────────
+  // ── Determine revision and base_revision for this job ─────────────────────
   let revision: string;
+  let baseRevision: string | null = null;
 
   if (mode === 'create_new') {
-    // First creation: use current revision_code as-is
-    // Subsequent: increment from current revision_code
-    revision = hasAnyCompletedCreateNew ? nextRevision(currentRevision) : currentRevision;
-
-    // Overwrite protection: block if completed create_new already exists for this revision
-    const alreadyExists = completedCreateNewJobs.some(j => j.revision === revision);
-    if (alreadyExists) {
-      const next = nextRevision(revision);
+    // create_new is always Rev A — block if any completed job already exists
+    if (hasAnyCompleted) {
       return res.status(409).json({
-        error: `Revision ${revision} has already been structured. Use "New Revision" to create revision ${next}.`,
-        currentRevision: revision,
-        nextRevision: next,
+        error: 'Drawing already created. Use "Update Drawing" to create a new revision.',
+        currentRevision,
       });
     }
+    revision     = 'A';
+    baseRevision = null;
 
   } else {
-    // update_existing: always uses current revision_code
-    revision = currentRevision;
-
-    // Guard: require a completed create_new for this revision before allowing update
-    const baseExists = completedCreateNewJobs.some(j => j.revision === revision);
-    if (!baseExists) {
+    // update_existing: open base (current rev), save as next rev
+    if (!hasAnyCompleted) {
       return res.status(422).json({
-        error: `No completed drawing found for revision ${revision}. Create the drawing first using "New Revision".`,
-        currentRevision: revision,
+        error: 'No completed drawing found. Use "Create Drawing" first.',
+        currentRevision,
+      });
+    }
+    baseRevision = currentRevision;
+    revision     = nextRevision(currentRevision);
+
+    // Overwrite protection: block if a completed job at nextRevision already exists
+    const alreadyExists = completedJobs.some(j => j.revision === revision);
+    if (alreadyExists) {
+      return res.status(409).json({
+        error: `Revision ${revision} has already been structured.`,
+        currentRevision,
+        nextRevision: nextRevision(revision),
       });
     }
   }
@@ -412,6 +432,7 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
       drawingControlId,
       drawingNumber:  drawing_number,
       revision,
+      baseRevision,
       mode,
       ddsPayload:     dds as any,
       projectContext: (project_context ?? null) as any,
@@ -442,6 +463,7 @@ router.get('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res:
       id:            epcStructureJobs.id,
       drawingNumber: epcStructureJobs.drawingNumber,
       revision:      epcStructureJobs.revision,
+      baseRevision:  epcStructureJobs.baseRevision,
       mode:          epcStructureJobs.mode,
       status:        epcStructureJobs.status,
       nodeId:        epcStructureJobs.nodeId,

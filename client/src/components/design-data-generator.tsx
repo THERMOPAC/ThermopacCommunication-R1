@@ -2127,9 +2127,19 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const structureJobPending  = latestStructureJob?.status === 'pending' || latestStructureJob?.status === 'processing';
 
   // Derived revision state from job history — server is source of truth
-  const completedCreateNew   = structureJobs.find((j: any) => j.mode === 'create_new' && j.status === 'completed');
-  const hasCompletedCreateNew = !!completedCreateNew;
-  const currentRevision       = completedCreateNew?.revision ?? 'A';
+  const latestCompleted      = structureJobs.find((j: any) => j.status === 'completed');
+  const hasAnyCompletedJob   = !!latestCompleted;
+  const currentRevision      = latestCompleted?.revision ?? 'A';
+
+  function nextRevCode(rev: string): string {
+    const s = (rev || 'A').toUpperCase().split('');
+    let i = s.length - 1;
+    while (i >= 0) {
+      if (s[i] < 'Z') { s[i] = String.fromCharCode(s[i].charCodeAt(0) + 1); return s.join(''); }
+      s[i] = 'A'; i--;
+    }
+    return 'A' + s.join('');
+  }
 
   const createStructureMutation = useMutation({
     mutationFn: (mode: 'create_new' | 'update_existing') =>
@@ -2599,32 +2609,32 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   <span className="font-mono text-slate-600 font-bold">{currentRevision}</span>
                 </div>
                 <div className="flex gap-1.5">
-                  {/* Update Drawing — update_existing, requires completed create_new */}
+                  {/* Create Drawing — create_new, Rev A, disabled once any completed job exists */}
+                  <Button
+                    size="sm"
+                    className="h-7 text-[10px] px-2.5 bg-amber-600 hover:bg-amber-700 text-white"
+                    disabled={hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
+                    onClick={() => createStructureMutation.mutate('create_new')}
+                    title={hasAnyCompletedJob ? 'Drawing already created — use Update Drawing' : 'Create first drawing at Rev A'}
+                  >
+                    {(createStructureMutation.isPending || structureJobPending)
+                      ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      : <FilePen className="h-3 w-3 mr-1" />}
+                    Create Drawing
+                  </Button>
+                  {/* Update Drawing — update_existing, opens current rev, saves as next rev */}
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] px-2.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950 disabled:opacity-40"
-                    disabled={!hasCompletedCreateNew || createStructureMutation.isPending || structureJobPending}
+                    disabled={!hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
                     onClick={() => createStructureMutation.mutate('update_existing')}
-                    title={hasCompletedCreateNew ? `Update Rev ${currentRevision} in-place` : 'Create the drawing first using New Revision'}
+                    title={hasAnyCompletedJob ? `Create Rev ${nextRevCode(currentRevision)} from Rev ${currentRevision}` : 'Create the drawing first'}
                   >
                     {(createStructureMutation.isPending || structureJobPending)
                       ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
                       : <FilePen className="h-3 w-3 mr-1" />}
-                    Update Drawing
-                  </Button>
-                  {/* New Revision — create_new, server computes next revision */}
-                  <Button
-                    size="sm"
-                    className="h-7 text-[10px] px-2.5 bg-amber-600 hover:bg-amber-700 text-white"
-                    disabled={createStructureMutation.isPending || structureJobPending}
-                    onClick={() => createStructureMutation.mutate('create_new')}
-                    title={hasCompletedCreateNew ? `Create new revision after ${currentRevision}` : `Create first drawing at revision ${currentRevision}`}
-                  >
-                    {(createStructureMutation.isPending || structureJobPending)
-                      ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                      : <FilePen className="h-3 w-3 mr-1" />}
-                    {hasCompletedCreateNew ? 'New Revision' : 'Create Drawing'}
+                    Update Drawing{hasAnyCompletedJob ? ` → ${nextRevCode(currentRevision)}` : ''}
                   </Button>
                 </div>
               </div>
@@ -2648,8 +2658,8 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                           <td className="px-2 py-1 font-mono font-bold text-slate-700">{j.revision ?? '—'}</td>
                           <td className="px-2 py-1">
                             {j.mode === 'create_new'
-                              ? <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded px-1 py-0.5 font-medium">Revision Event</span>
-                              : <span className="bg-slate-50 text-slate-500 border border-slate-200 rounded px-1 py-0.5">Working Update</span>}
+                              ? <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded px-1 py-0.5 font-medium">Create Rev A</span>
+                              : <span className="bg-amber-50 text-amber-700 border border-amber-200 rounded px-1 py-0.5 font-medium">Update → Rev {j.revision ?? '?'}</span>}
                           </td>
                           <td className="px-2 py-1">
                             {j.status === 'completed' && <span className="text-emerald-600 font-medium">Completed</span>}
@@ -3031,30 +3041,32 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
                   Rev <span className="font-mono font-bold text-slate-600">{currentRevision}</span>
                 </span>
+                {/* Create Drawing — create_new, Rev A, disabled once any completed job exists */}
+                <Button
+                  size="sm"
+                  className="h-8 text-[11px] px-3 bg-amber-600 hover:bg-amber-700 text-white"
+                  disabled={hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
+                  onClick={() => createStructureMutation.mutate('create_new')}
+                  title={hasAnyCompletedJob ? 'Drawing already created — use Update Drawing' : 'Create first drawing at Rev A'}
+                >
+                  {(createStructureMutation.isPending || structureJobPending)
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
+                  Create Drawing
+                </Button>
+                {/* Update Drawing — update_existing, opens current rev, saves as next rev */}
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-8 text-[11px] px-3 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950 disabled:opacity-40"
-                  disabled={!hasCompletedCreateNew || createStructureMutation.isPending || structureJobPending}
+                  disabled={!hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
                   onClick={() => createStructureMutation.mutate('update_existing')}
-                  title={hasCompletedCreateNew ? `Update Rev ${currentRevision} in-place` : 'Create the drawing first'}
+                  title={hasAnyCompletedJob ? `Create Rev ${nextRevCode(currentRevision)} from Rev ${currentRevision}` : 'Create the drawing first'}
                 >
                   {(createStructureMutation.isPending || structureJobPending)
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                     : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
-                  Update Drawing
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-8 text-[11px] px-3 bg-amber-600 hover:bg-amber-700 text-white"
-                  disabled={createStructureMutation.isPending || structureJobPending}
-                  onClick={() => createStructureMutation.mutate('create_new')}
-                  title={hasCompletedCreateNew ? `Create new revision after ${currentRevision}` : `Create first drawing at revision ${currentRevision}`}
-                >
-                  {(createStructureMutation.isPending || structureJobPending)
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
-                  {hasCompletedCreateNew ? 'New Revision' : 'Create Drawing'}
+                  Update Drawing{hasAnyCompletedJob ? ` → ${nextRevCode(currentRevision)}` : ''}
                 </Button>
               </div>
             )}
