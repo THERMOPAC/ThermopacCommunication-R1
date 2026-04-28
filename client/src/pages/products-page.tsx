@@ -1060,7 +1060,7 @@ export default function ProductsPage() {
         </Tabs>
 
         <Dialog open={isProductDialogOpen} onOpenChange={(open) => { if (!open) { setIsProductDialogOpen(false); setEditingProduct(null); } }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl flex flex-col max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Product" : "Create Product"}</DialogTitle>
               <DialogDescription>
@@ -1069,7 +1069,8 @@ export default function ProductsPage() {
             </DialogHeader>
 
             <Form {...productForm}>
-              <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-3">
+              <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-1">
                 <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={productForm.control}
@@ -1371,7 +1372,8 @@ export default function ProductsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t mt-1">
                   <FormField
                     control={productForm.control}
                     name="isActive"
