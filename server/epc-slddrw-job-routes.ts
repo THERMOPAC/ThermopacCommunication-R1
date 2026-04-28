@@ -442,9 +442,10 @@ router.post(
       return res.status(400).json({ error: 'Only .slddrw files are accepted' });
     }
 
-    // ── Filename gate — must match system Drawing Number exactly ───────────────
+    // ── Filename gate — must start with system Drawing Number (revision suffix allowed) ──
     // Check BEFORE any GCS write or job creation.
-    // Rule: filename without extension must equal drawingNumber (case-insensitive).
+    // Rule: filename without extension must equal drawingNumber OR start with drawingNumber
+    //       followed by a separator character (- _ or space) to allow revision suffixes.
     const uploadedBasename = file.originalname.slice(0, file.originalname.length - '.slddrw'.length);
     const [dcRecord] = await db
       .select({ drawingNumber: epcDrawingControls.drawingNumber })
@@ -462,14 +463,22 @@ router.post(
       });
     }
 
-    if (uploadedBasename.toLowerCase() !== dcRecord.drawingNumber.toLowerCase()) {
+    const baseLower = uploadedBasename.toLowerCase();
+    const dnLower   = dcRecord.drawingNumber.toLowerCase();
+    const exactMatch  = baseLower === dnLower;
+    const prefixMatch = baseLower.startsWith(dnLower) &&
+                        baseLower.length > dnLower.length &&
+                        /^[-_ ]/.test(baseLower.slice(dnLower.length));
+
+    if (!exactMatch && !prefixMatch) {
       return res.status(400).json({
         error: 'Filename must match system Drawing Number',
         expected_filename: `${dcRecord.drawingNumber}.slddrw`,
         uploaded_filename: file.originalname,
+        hint: 'Revision suffix (e.g. -RevA, _Rev B) is allowed after the Drawing Number',
       });
     }
-    // ────────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────────
 
     const sha256 = createHash('sha256').update(file.buffer).digest('hex');
     const timestamp = Date.now();
