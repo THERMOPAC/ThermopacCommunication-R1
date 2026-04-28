@@ -210,8 +210,12 @@ export function DrawingVerificationCard({
   // Section D verification status from extraction result
   const cpVerif = latest?.extractionResult?.customPropertyVerification;
   const sectionDStatus: string | null = cpVerif?.status ?? null;
-  const sectionDHoldFields: string[] = Array.isArray(cpVerif?.fields)
-    ? cpVerif.fields.filter((f: any) => f.status === 'hold').map((f: any) => f.field ?? f.property)
+  // Fields use `result` key (not `status`) — collect any that are hold or fail
+  const sectionDBlockedFields: string[] = Array.isArray(cpVerif?.fields)
+    ? cpVerif.fields
+        .filter((f: any) => f.result === 'hold' || f.result === 'fail')
+        .map((f: any) => f.property ?? f.field)
+        .filter(Boolean)
     : [];
   const sectionDBlocked = sectionDStatus === 'hold' || sectionDStatus === 'fail';
 
@@ -360,15 +364,22 @@ export function DrawingVerificationCard({
        drawingControlStatus !== 'released' &&
        canApproveOrRelease && (
         <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
-          {/* Section D hold warning */}
+          {/* Section D hold / fail warning */}
           {sectionDBlocked && (
-            <div className="flex items-start gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-              <ShieldAlert className="h-3 w-3 mt-0.5 shrink-0 text-amber-600" />
+            <div className={cn(
+              "flex items-start gap-1.5 text-[10px] rounded px-2 py-1.5 border",
+              sectionDStatus === 'fail'
+                ? "text-red-700 bg-red-50 border-red-200"
+                : "text-amber-700 bg-amber-50 border-amber-200",
+            )}>
+              <ShieldAlert className={cn("h-3 w-3 mt-0.5 shrink-0", sectionDStatus === 'fail' ? "text-red-600" : "text-amber-600")} />
               <span>
-                <span className="font-semibold">Section D on hold</span>
-                {sectionDHoldFields.length > 0
-                  ? ` — ${sectionDHoldFields.join(', ')} require human validation`
-                  : ' — DrawnBy / CheckedBy / EngineeringApproval require human validation'}
+                <span className="font-semibold">
+                  {sectionDStatus === 'fail' ? 'Section D failed' : 'Section D on hold'}
+                </span>
+                {sectionDBlockedFields.length > 0
+                  ? ` — ${sectionDBlockedFields.join(', ')} must be corrected before approval`
+                  : ' — Section D fields require review before approval'}
               </span>
             </div>
           )}
@@ -407,7 +418,9 @@ export function DrawingVerificationCard({
               ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
               : <ShieldCheck className="h-2.5 w-2.5" />}
             {sectionDBlocked
-              ? 'Cannot Approve — Section D on Hold'
+              ? sectionDStatus === 'fail'
+                ? 'Cannot Approve — Section D Failed'
+                : 'Cannot Approve — Section D on Hold'
               : latest.ddsComparisonStatus === 'fail'
               ? 'Cannot Approve — Critical DDS Mismatch'
               : latest.ddsComparisonStatus === 'blocked'
