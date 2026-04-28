@@ -979,7 +979,7 @@ export default function LoansAdvancesPage() {
 
 function LoanDetailDialog({ loan, onClose, onStatusChange }: { loan: any; onClose: () => void; onStatusChange: (id: number, status: string) => void }) {
   const { data: detail } = useQuery<any>({
-    queryKey: ['/api/loan-advance/loans', loan?.id],
+    queryKey: [`/api/loan-advance/loans/${loan?.id}`],
     enabled: !!loan?.id,
   });
 
@@ -1062,7 +1062,7 @@ function LoanDetailDialog({ loan, onClose, onStatusChange }: { loan: any; onClos
 
 function AdvanceDetailDialog({ advance, onClose, onStatusChange }: { advance: any; onClose: () => void; onStatusChange: (id: number, status: string) => void }) {
   const { data: detail } = useQuery<any>({
-    queryKey: ['/api/loan-advance/advances', advance?.id],
+    queryKey: [`/api/loan-advance/advances/${advance?.id}`],
     enabled: !!advance?.id,
   });
 
