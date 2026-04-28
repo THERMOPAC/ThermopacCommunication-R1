@@ -479,8 +479,18 @@ export default function ProductsPage() {
 
   const handleOpenCreateAttribute = () => {
     setEditingAttribute(null);
-    attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", sortOrder: 0, isActive: true });
-    setAttrFamilyFilter("all");
+    let parentId: number | null = null;
+    let familyFilter = "all";
+    if (activeAttributeTab === "property_1" && tableFamilyFilter !== "all") {
+      parentId = parseInt(tableFamilyFilter);
+    } else if (activeAttributeTab === "property_2") {
+      if (tableProp1Filter !== "all") {
+        parentId = parseInt(tableProp1Filter);
+      }
+      familyFilter = tableFamilyFilter !== "all" ? tableFamilyFilter : "all";
+    }
+    attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", sortOrder: 0, isActive: true, parentId });
+    setAttrFamilyFilter(familyFilter);
     setIsAttributeDialogOpen(true);
   };
 
@@ -1415,36 +1425,25 @@ export default function ProductsPage() {
             <Form {...attributeForm}>
               <form onSubmit={attributeForm.handleSubmit(onAttributeSubmit)} className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1">
-                <FormField
-                  control={attributeForm.control}
-                  name="attributeType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Attribute Type</FormLabel>
-                      <Select value={field.value} onValueChange={(val) => { field.onChange(val); attributeForm.setValue('parentId', null); setAttrFamilyFilter("all"); }} disabled={!!editingAttribute}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="item_family">Item Family</SelectItem>
-                          <SelectItem value="property_1">Property 1</SelectItem>
-                          <SelectItem value="property_2">Property 2</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
+                {/* Read-only Attribute Type display */}
+                <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <span className="text-sm text-muted-foreground">{editingAttribute ? "Editing option under:" : "Adding option under:"}</span>
+                  <Badge variant="secondary" className="font-semibold">
+                    {attributeForm.watch("attributeType") === "item_family" ? "Item Family"
+                      : attributeForm.watch("attributeType") === "property_1" ? "Property 1"
+                      : "Property 2"}
+                  </Badge>
+                </div>
+
+                {/* Property 1: must select parent Item Family */}
                 {attributeForm.watch("attributeType") === "property_1" && (
                   <FormField
                     control={attributeForm.control}
                     name="parentId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Family <span className="text-destructive">*</span></FormLabel>
+                        <FormLabel>Parent Item Family <span className="text-destructive">*</span></FormLabel>
                         <Select
                           value={field.value?.toString() ?? ""}
                           onValueChange={(val) => field.onChange(parseInt(val))}
@@ -1468,10 +1467,11 @@ export default function ProductsPage() {
                   />
                 )}
 
+                {/* Property 2: filter helper + must select parent Property 1 */}
                 {attributeForm.watch("attributeType") === "property_2" && (
                   <>
                     <FormItem>
-                      <FormLabel>Filter by Item Family</FormLabel>
+                      <FormLabel>Filter by Item Family <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
                       <Select
                         value={attrFamilyFilter}
                         onValueChange={(val) => { setAttrFamilyFilter(val); attributeForm.setValue('parentId', null); }}
@@ -1496,7 +1496,7 @@ export default function ProductsPage() {
                       name="parentId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Property 1 <span className="text-destructive">*</span></FormLabel>
+                          <FormLabel>Parent Property 1 <span className="text-destructive">*</span></FormLabel>
                           <Select
                             value={field.value?.toString() ?? ""}
                             onValueChange={(val) => field.onChange(parseInt(val))}
@@ -1537,7 +1537,7 @@ export default function ProductsPage() {
                   name="label"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Label</FormLabel>
+                      <FormLabel>Label <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -1562,7 +1562,7 @@ export default function ProductsPage() {
                   name="code"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Code (3 characters, auto-generated)</FormLabel>
+                      <FormLabel>Code <span className="text-destructive">*</span> <span className="text-muted-foreground text-xs">(3 characters, auto-generated from label)</span></FormLabel>
                       <FormControl>
                         <Input
                           {...field}
