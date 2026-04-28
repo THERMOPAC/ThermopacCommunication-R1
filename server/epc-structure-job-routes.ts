@@ -301,6 +301,28 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
 
   if (!dc) return res.status(404).json({ error: 'Drawing control not found' });
 
+  // ── Hazard level pre-flight warnings ─────────────────────────────────────
+  // Check each active mechanical column — if hazardLevel is null the agent
+  // will skip writing SHELL_HZ / TUBE_HZ / JACKET_HZ entirely.
+  const dispatchWarnings: string[] = [];
+  const mechData = (dds as any)?.mechanical_data;
+  if (mechData && typeof mechData === 'object') {
+    const columns: Array<{ key: string; label: string }> = [
+      { key: 'shell',  label: 'Shell'  },
+      { key: 'tube',   label: 'Tube'   },
+      { key: 'jacket', label: 'Jacket' },
+    ];
+    for (const { key, label } of columns) {
+      const col = mechData[key];
+      if (col && typeof col === 'object' && (col.hazardLevel === null || col.hazardLevel === undefined || col.hazardLevel === '')) {
+        dispatchWarnings.push(
+          `${label} column: hazardLevel is not set — ${label.toUpperCase()}_HZ will be blank in the drawing. ` +
+          'Complete the Hazard Classification in the ERP and re-dispatch.'
+        );
+      }
+    }
+  }
+
   // Pull current settings (template + staging paths)
   const [settings] = await db
     .select()
@@ -327,8 +349,11 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
     })
     .returning({ id: epcStructureJobs.id, status: epcStructureJobs.status });
 
-  console.log(`[StructureJobs] Job ${job.id} created — drawing_control=${drawingControlId} mode=${mode}`);
-  return res.status(201).json({ ok: true, jobId: job.id });
+  console.log(
+    `[StructureJobs] Job ${job.id} created — drawing_control=${drawingControlId} mode=${mode}` +
+    (dispatchWarnings.length ? ` — ${dispatchWarnings.length} warning(s)` : '')
+  );
+  return res.status(201).json({ ok: true, jobId: job.id, warnings: dispatchWarnings });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

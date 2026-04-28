@@ -2141,12 +2141,22 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
         equipmentDescription: autoFields.equipmentDescription,
       },
     }),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'structure-jobs'] });
       toast({
         title: structureMode === 'create_new' ? 'Drawing creation queued' : 'Drawing update queued',
         description: 'The Structuring Agent will process this job shortly.',
       });
+      if (Array.isArray(data?.warnings) && data.warnings.length > 0) {
+        for (const w of data.warnings) {
+          toast({
+            title: 'Hazard Level Missing',
+            description: w,
+            variant: 'destructive',
+            duration: 12000,
+          });
+        }
+      }
     },
     onError: (err: any) => {
       toast({ title: 'Error', description: err?.message ?? 'Failed to create structuring job', variant: 'destructive' });
