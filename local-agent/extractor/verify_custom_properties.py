@@ -731,6 +731,10 @@ def verify_custom_properties(cp_extraction: dict, logger=None) -> dict:
     drawn_by = _val("DrawnBy")
     if _is_blank(drawn_by):
         fields.append(_missing("DrawnBy"))
+    elif drawn_by.strip().lower() == "agent":
+        fields.append(_required_hold("DrawnBy", _src("DrawnBy"), drawn_by,
+                                     "Auto-filled by Agent — is coming from Thermopac Drawing "
+                                     "Structuring Agent and requires human validation"))
     else:
         fields.append(_required_pass("DrawnBy", _src("DrawnBy"), drawn_by))
 
@@ -753,6 +757,10 @@ def verify_custom_properties(cp_extraction: dict, logger=None) -> dict:
     checked_by = _val("CheckedBy")
     if _is_blank(checked_by):
         fields.append(_missing("CheckedBy"))
+    elif checked_by.strip().lower() == "agent":
+        fields.append(_required_hold("CheckedBy", _src("CheckedBy"), checked_by,
+                                     "Auto-filled by Agent — is coming from Thermopac Drawing "
+                                     "Structuring Agent and requires human validation"))
     else:
         fields.append(_required_pass("CheckedBy", _src("CheckedBy"), checked_by))
 
@@ -778,6 +786,10 @@ def verify_custom_properties(cp_extraction: dict, logger=None) -> dict:
     eng_approval = _val("EngineeringApproval")
     if _is_blank(eng_approval):
         fields.append(_missing("EngineeringApproval"))
+    elif eng_approval.strip().lower() == "agent":
+        fields.append(_required_hold("EngineeringApproval", _src("EngineeringApproval"), eng_approval,
+                                     "Auto-filled by Agent — is coming from Thermopac Drawing "
+                                     "Structuring Agent and requires human validation"))
     else:
         fields.append(_required_pass("EngineeringApproval", _src("EngineeringApproval"), eng_approval))
 
