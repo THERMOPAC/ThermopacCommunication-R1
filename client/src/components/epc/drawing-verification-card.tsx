@@ -167,13 +167,20 @@ export function DrawingVerificationCard({
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-    // Client-side filename gate — instant feedback before upload
+    // Client-side filename gate — allow exact match OR drawing number as prefix (revision suffix OK)
     if (drawingNumber) {
-      const basename = file.name.slice(0, file.name.length - '.slddrw'.length);
-      if (basename.toLowerCase() !== drawingNumber.toLowerCase()) {
+      const basename = file.name.slice(0, file.name.length - '.slddrw'.length).toLowerCase();
+      const dn = drawingNumber.toLowerCase();
+      // Accept: exact match OR basename starts with drawing number followed by space/dash/underscore/Rev
+      const exactMatch = basename === dn;
+      const prefixMatch = basename.startsWith(dn) && (
+        basename.length === dn.length ||
+        /^[-_ ]/.test(basename.slice(dn.length))
+      );
+      if (!exactMatch && !prefixMatch) {
         toast({
           title: 'Filename mismatch',
-          description: `Filename must match system Drawing Number. Expected: ${drawingNumber}.slddrw`,
+          description: `Filename must start with Drawing Number. Expected: ${drawingNumber}.slddrw (revision suffix like -RevA or _RevB is allowed)`,
           variant: 'destructive',
         });
         if (fileInputRef.current) fileInputRef.current.value = '';
