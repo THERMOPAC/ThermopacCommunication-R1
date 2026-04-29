@@ -1640,6 +1640,24 @@ export default function ProductsPage() {
                         <FormDescription className="text-xs text-muted-foreground">
                           2–3 uppercase letters. Auto-generated from label initials. Represents this option's own tag segment.
                         </FormDescription>
+                        {editingAttribute && watchedType === "item_family" && (
+                          <div className="mt-1 flex items-start gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            <span className="mt-0.5 shrink-0">⚠</span>
+                            <span>Changing this tag will update the full tag display for all child Property 1 and Property 2 options. Product codes, item codes, and existing records will not change.</span>
+                          </div>
+                        )}
+                        {editingAttribute && watchedType === "property_1" && (
+                          <div className="mt-1 flex items-start gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            <span className="mt-0.5 shrink-0">⚠</span>
+                            <span>Changing this tag will update the full tag display for all child Property 2 options. Product codes, item codes, and existing records will not change.</span>
+                          </div>
+                        )}
+                        {editingAttribute && watchedType === "property_2" && (
+                          <div className="mt-1 flex items-start gap-2 rounded border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                            <span className="mt-0.5 shrink-0">ℹ</span>
+                            <span>Product codes, item codes, and existing records will not change.</span>
+                          </div>
+                        )}
                         {watchedType !== "item_family" && (
                           <div className="mt-1 px-2 py-1 rounded bg-muted text-xs font-mono text-muted-foreground">
                             Full tag: <span className="text-foreground font-semibold">{fullTagPreview}</span>
