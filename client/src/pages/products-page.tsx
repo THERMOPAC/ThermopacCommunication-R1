@@ -251,6 +251,17 @@ export default function ProductsPage() {
     return parts.length > 0 ? parts.join(" ") : "";
   }, [watchFamilyLabel, watchProp1Label, watchProp2Label, watchProp3]);
 
+  useEffect(() => {
+    if (editingProduct) return;
+    const familyTag = (familyOptions.find((o) => o.code === watchFamily) as any)?.tag;
+    const prop1Tag = (allProperty1Options.find((o) => o.code === watchProp1 && o.parentId === selectedFamilyId) as any)?.tag;
+    const prop2Tag = (allProperty2Options.find((o) => o.code === watchProp2 && o.parentId === selectedProp1Id) as any)?.tag;
+    const parts = [familyTag, prop1Tag, prop2Tag].filter(Boolean);
+    if (parts.length > 0) {
+      productForm.setValue("tagNo", parts.join("/"), { shouldValidate: true });
+    }
+  }, [watchFamily, watchProp1, watchProp2, editingProduct, familyOptions, allProperty1Options, allProperty2Options, selectedFamilyId, selectedProp1Id]);
+
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
       const payload = {
@@ -1397,9 +1408,14 @@ export default function ProductsPage() {
                     name="tagNo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tag No <span className="text-destructive">*</span> <span className="text-muted-foreground text-xs">(e.g. RF/FE/E1)</span></FormLabel>
+                        <FormLabel>
+                          Tag No <span className="text-destructive">*</span>{" "}
+                          {!editingProduct && (
+                            <span className="text-muted-foreground text-xs">(auto-generated from attribute tags — editable)</span>
+                          )}
+                        </FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="e.g. RF/FE/E1" />
+                          <Input {...field} placeholder="e.g. UOR/DOC/AFU" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
