@@ -54,6 +54,10 @@ const attributeFormSchema = z.object({
   attributeType: z.string().min(1),
   code: z.string().length(3, "Code must be exactly 3 characters"),
   label: z.string().min(1, "Label is required"),
+  tag: z.string()
+    .min(2, "Tag must be 2–3 uppercase letters")
+    .max(3, "Tag must be 2–3 uppercase letters")
+    .regex(/^[A-Z]{2,3}$/, "Tag must be uppercase letters only"),
   parentId: z.number().nullable().optional(),
 }).refine((data) => {
   if (data.attributeType === "property_1" || data.attributeType === "property_2") {
@@ -204,7 +208,7 @@ export default function ProductsPage() {
   const attributeForm = useForm<AttributeFormValues>({
     resolver: zodResolver(attributeFormSchema),
     defaultValues: {
-      attributeType: "item_family", code: "", label: "", parentId: null,
+      attributeType: "item_family", code: "", label: "", tag: "", parentId: null,
     },
   });
 
@@ -489,7 +493,7 @@ export default function ProductsPage() {
       }
       familyFilter = tableFamilyFilter !== "all" ? tableFamilyFilter : "all";
     }
-    attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", sortOrder: 0, isActive: true, parentId });
+    attributeForm.reset({ attributeType: activeAttributeTab, code: "", label: "", tag: "", sortOrder: 0, isActive: true, parentId });
     setAttrFamilyFilter(familyFilter);
     setIsAttributeDialogOpen(true);
   };
@@ -500,6 +504,7 @@ export default function ProductsPage() {
       attributeType: attr.attributeType,
       code: attr.code,
       label: attr.label,
+      tag: (attr as any).tag ?? "",
       parentId: attr.parentId ?? null,
     });
     setIsAttributeDialogOpen(true);
@@ -995,6 +1000,7 @@ export default function ProductsPage() {
                               )}
                               <TableHead>Code</TableHead>
                               <TableHead>Label</TableHead>
+                              <TableHead>Full Tag</TableHead>
                               <TableHead className="w-[90px] text-center">Used In</TableHead>
                               <TableHead className="w-[90px]"></TableHead>
                             </TableRow>
@@ -1046,6 +1052,21 @@ export default function ProductsPage() {
                                 )}
                                 <TableCell className="font-mono font-medium">{attr.code}</TableCell>
                                 <TableCell>{attr.label}</TableCell>
+                                <TableCell className="font-mono text-sm">
+                                  {(() => {
+                                    const ownTag = (attr as any).tag;
+                                    if (!ownTag) return <span className="text-amber-500 text-xs">— no tag</span>;
+                                    if (attr.attributeType === "item_family") return ownTag;
+                                    if (attr.attributeType === "property_1") {
+                                      const parentTag = (parentOption as any)?.tag;
+                                      return `${parentTag ?? "?"} / ${ownTag}`;
+                                    }
+                                    const grandParent = parentOption?.parentId
+                                      ? attributeOptions.find((o) => o.id === parentOption!.parentId)
+                                      : null;
+                                    return `${(grandParent as any)?.tag ?? "?"} / ${(parentOption as any)?.tag ?? "?"} / ${ownTag}`;
+                                  })()}
+                                </TableCell>
                                 <TableCell className="text-center">
                                   {usedInCount > 0 ? (
                                     <Badge variant="secondary" className="text-xs">{usedInCount}</Badge>
@@ -1575,8 +1596,11 @@ export default function ProductsPage() {
                             field.onChange(e.target.value);
                             if (!editingAttribute) {
                               const words = e.target.value.trim().split(/\s+/).filter(Boolean);
-                              const autoCode = words.map(w => w[0]).join('').toUpperCase().slice(0, 3);
-                              if (autoCode) attributeForm.setValue('code', autoCode);
+                              const initials = words.map((w: string) => w[0]).join('').toUpperCase().slice(0, 3);
+                              if (initials) {
+                                attributeForm.setValue('code', initials);
+                                attributeForm.setValue('tag', initials);
+                              }
                             }
                           }}
                         />
@@ -1584,6 +1608,47 @@ export default function ProductsPage() {
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+
+                <FormField
+                  control={attributeForm.control}
+                  name="tag"
+                  render={({ field }) => {
+                    const watchedTag = field.value ?? "";
+                    const watchedParentId = attributeForm.watch("parentId");
+                    const watchedType = attributeForm.watch("attributeType");
+                    const parentOption = watchedParentId ? attributeOptions.find((o) => o.id === watchedParentId) : null;
+                    const grandParentOption = parentOption?.parentId ? attributeOptions.find((o) => o.id === parentOption.parentId) : null;
+                    const ownSegment = watchedTag.toUpperCase();
+                    const fullTagPreview =
+                      watchedType === "item_family" ? (ownSegment || "—")
+                      : watchedType === "property_1"
+                        ? `${(parentOption as any)?.tag ?? "?"} / ${ownSegment || "—"}`
+                        : `${(grandParentOption as any)?.tag ?? "?"} / ${(parentOption as any)?.tag ?? "?"} / ${ownSegment || "—"}`;
+                    return (
+                      <FormItem>
+                        <FormLabel>Tag Segment <span className="text-destructive">*</span></FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g. RF"
+                            maxLength={3}
+                            className="uppercase"
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs text-muted-foreground">
+                          2–3 uppercase letters. Auto-generated from label initials. Represents this option's own tag segment.
+                        </FormDescription>
+                        {watchedType !== "item_family" && (
+                          <div className="mt-1 px-2 py-1 rounded bg-muted text-xs font-mono text-muted-foreground">
+                            Full tag: <span className="text-foreground font-semibold">{fullTagPreview}</span>
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <FormField

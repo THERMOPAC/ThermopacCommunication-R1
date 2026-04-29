@@ -9763,6 +9763,7 @@ export const productAttributeOptions = pgTable('product_attribute_options', {
   attributeType: text('attribute_type').notNull(),
   code: text('code').notNull(),
   label: text('label').notNull(),
+  tag: text('tag').notNull(),
   parentId: integer('parent_id'),
   sortOrder: integer('sort_order').default(0),
   isActive: boolean('is_active').default(true),
@@ -9802,6 +9803,8 @@ export const attributeOptionAuditLog = pgTable('attribute_option_audit_log', {
   optionId: integer('option_id').notNull().references(() => productAttributeOptions.id, { onDelete: 'restrict' }),
   oldLabel: text('old_label').notNull(),
   newLabel: text('new_label').notNull(),
+  oldTag: text('old_tag'),
+  newTag: text('new_tag'),
   changedBy: integer('changed_by').references(() => users.id),
   changedAt: timestamp('changed_at').defaultNow(),
 });

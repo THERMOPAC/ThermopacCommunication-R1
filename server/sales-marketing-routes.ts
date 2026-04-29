@@ -623,6 +623,15 @@ router.post('/product-attributes', ensureAuthenticated, async (req: Request, res
       return res.status(400).json({ error: 'Code must be exactly 3 characters.' });
     }
 
+    // Tag: required, auto-uppercase, 2–3 letters
+    if (!validated.tag) {
+      return res.status(400).json({ error: 'Tag is required.' });
+    }
+    (validated as any).tag = (validated.tag as string).toUpperCase();
+    if (!/^[A-Z]{2,3}$/.test((validated as any).tag)) {
+      return res.status(400).json({ error: 'Tag must be 2–3 uppercase letters only (e.g. RF, SPL).' });
+    }
+
     // Hierarchy validation
     if (validated.attributeType === 'item_family') {
       if (validated.parentId !== null && validated.parentId !== undefined) {
@@ -704,18 +713,28 @@ router.patch('/product-attributes/:id', ensureAuthenticated, async (req: Request
 
     // Strip immutable fields from body; always refresh updated_at
     const { code: _code, attributeType: _type, parentId: _pid, createdAt: _ca, ...allowedFields } = req.body;
-    const updateData = { ...allowedFields, updatedAt: new Date() };
 
+    // Tag: auto-uppercase and validate format if provided
+    if (allowedFields.tag !== undefined) {
+      allowedFields.tag = String(allowedFields.tag).toUpperCase();
+      if (!/^[A-Z]{2,3}$/.test(allowedFields.tag)) {
+        return res.status(400).json({ error: 'Tag must be 2–3 uppercase letters only (e.g. RF, SPL).' });
+      }
+    }
+
+    const updateData = { ...allowedFields, updatedAt: new Date() };
     const option = await storage.updateAttributeOption(id, updateData);
 
-    // AUDIT: log label change
+    // AUDIT: log label and/or tag changes in a single row
     const labelChanged = req.body.label !== undefined && req.body.label !== current.label;
-    if (labelChanged) {
+    const tagChanged = allowedFields.tag !== undefined && allowedFields.tag !== current.tag;
+    if (labelChanged || tagChanged) {
       const userId = (req as any).user?.id ?? null;
       await db.insert(attributeOptionAuditLogTable).values({
         optionId: id,
         oldLabel: current.label,
-        newLabel: req.body.label,
+        newLabel: req.body.label ?? current.label,
+        ...(tagChanged ? { oldTag: current.tag, newTag: allowedFields.tag } : {}),
         changedBy: userId,
       });
     }
