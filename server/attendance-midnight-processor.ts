@@ -305,6 +305,9 @@ export class AttendanceMidnightProcessor {
           incompleteReason: description,
           flaggedAt: new Date(),
           requiresApproval: true,
+          minimumDailyHoursUsed: statusResult.minimumDailyHoursUsed != null ? statusResult.minimumDailyHoursUsed.toFixed(2) : null,
+          halfDayMinimumHoursUsed: statusResult.halfDayMinimumHoursUsed != null ? statusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
+          workTimePolicyUsed: statusResult.workTimePolicyUsed ?? null,
           updatedAt: new Date()
         })
         .where(eq(attendanceRecords.id, record.id));

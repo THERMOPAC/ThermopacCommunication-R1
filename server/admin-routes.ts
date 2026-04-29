@@ -1056,12 +1056,30 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
       const weeklyOffDays = Array.isArray(record.weeklyOffDays) ? record.weeklyOffDays : [0, 6];
       const isWeeklyOff = weeklyOffDays.includes(dayOfWeek);
       
+      // DB status is authoritative for enforced dates (>= 2026-05-01); map directly.
+      const isEnforcedRecord = typeof record.date === 'string'
+        ? record.date >= '2026-05-01'
+        : new Date(record.date) >= new Date('2026-05-01');
+
+      const DB_STATUS_MAP: Record<string, string> = {
+        on_leave: 'On Leave',
+        half_day: 'Half Day',
+        holiday: 'Holiday',
+        weekly_off: 'Weekly Off',
+        absent: 'Absent',
+        late: 'Late',
+        present: 'Present',
+      };
+
       if (dbStatus === 'on_leave') {
         displayStatus = 'On Leave';
       } else if (dbStatus === 'holiday') {
         displayStatus = 'Holiday';
-      } else if (isWeeklyOff) {
+      } else if (isWeeklyOff || dbStatus === 'weekly_off') {
         displayStatus = 'Weekly Off';
+      } else if (isEnforcedRecord) {
+        // For May 2026+ records, trust DB status — thresholds were already applied on write
+        displayStatus = DB_STATUS_MAP[dbStatus] ?? (record.checkInTime ? 'Present' : 'Absent');
       } else if (dbStatus === 'absent') {
         displayStatus = 'Absent';
       } else if (dbStatus === 'late') {

@@ -2,6 +2,13 @@ import { db } from './db';
 import { leaveRequests, companyHolidays, attendanceSettings } from '@shared/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
 
+/**
+ * Threshold enforcement cutover date.
+ * For attendance dates >= this value, per-user settings are MANDATORY —
+ * there is no silent fallback to system defaults.
+ */
+export const THRESHOLD_ENFORCEMENT_DATE = '2026-05-01';
+
 export interface StatusInput {
   userId: number;
   date: string;
@@ -30,6 +37,10 @@ export interface StatusResult {
   isLateArrival: boolean;
   isEarlyDeparture: boolean;
   leaveId?: number;
+  // Audit — populated for dates >= THRESHOLD_ENFORCEMENT_DATE
+  minimumDailyHoursUsed?: number;
+  halfDayMinimumHoursUsed?: number;
+  workTimePolicyUsed?: string;
 }
 
 const DEFAULTS = {
@@ -53,11 +64,13 @@ const DEFAULTS = {
  *   3. Approved Leave
  *   4. Hours-based (present / half_day / absent)
  *
- * Status is determined using NET hours (gross minus break deduction).
- * If no break deduction is configured, net hours = gross hours.
+ * For dates >= THRESHOLD_ENFORCEMENT_DATE (2026-05-01):
+ *   - minimumDailyHours and halfDayMinimumHours MUST be set in userConfig.
+ *   - Missing values throw a configuration error — no silent defaulting.
+ *   - Audit fields (thresholds used) are always returned.
  *
- * Late arrival / early departure flags are set when workTimePolicy = 'Fixed'.
- * When workTimePolicy = 'Flexible', flags are not set.
+ * For dates < THRESHOLD_ENFORCEMENT_DATE:
+ *   - Legacy defaults (8h / 4h) are used if config is missing.
  */
 export async function determineAttendanceStatus(input: StatusInput): Promise<StatusResult> {
   const {
@@ -69,6 +82,40 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
     userConfig,
     workLocationId,
   } = input;
+
+  const isEnforced = date >= THRESHOLD_ENFORCEMENT_DATE;
+
+  // Resolve per-user thresholds — strict for enforced dates
+  let fullDayMin: number;
+  let halfDayMin: number;
+
+  if (isEnforced) {
+    if (userConfig.minimumDailyHours == null) {
+      throw new Error(
+        `[ThresholdEnforcement] userId=${userId} date=${date}: ` +
+        `minimumDailyHours not configured. Attendance status cannot be determined. ` +
+        `Update employee settings before processing.`
+      );
+    }
+    if (userConfig.halfDayMinimumHours == null) {
+      throw new Error(
+        `[ThresholdEnforcement] userId=${userId} date=${date}: ` +
+        `halfDayMinimumHours not configured. Attendance status cannot be determined. ` +
+        `Update employee settings before processing.`
+      );
+    }
+    fullDayMin = Number(userConfig.minimumDailyHours);
+    halfDayMin = Number(userConfig.halfDayMinimumHours);
+  } else {
+    fullDayMin = userConfig.minimumDailyHours != null
+      ? Number(userConfig.minimumDailyHours)
+      : DEFAULTS.FULL_DAY_MINIMUM_HOURS;
+    halfDayMin = userConfig.halfDayMinimumHours != null
+      ? Number(userConfig.halfDayMinimumHours)
+      : DEFAULTS.HALF_DAY_MINIMUM_HOURS;
+  }
+
+  const policy = userConfig.workTimePolicy || 'Fixed';
 
   let grossHours = 0;
   if (workingHoursOverride != null) {
@@ -102,7 +149,6 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
   let isLateArrival = false;
   let isEarlyDeparture = false;
 
-  const policy = userConfig.workTimePolicy || 'Fixed';
   if (policy === 'Fixed' && checkInTime && checkOutTime) {
     const dutyIn = userConfig.dutyTimeIn || DEFAULTS.DUTY_TIME_IN;
     const dutyOut = userConfig.dutyTimeOut || DEFAULTS.DUTY_TIME_OUT;
@@ -121,14 +167,15 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
     const earlyThreshold = new Date(date + 'T00:00:00');
     earlyThreshold.setHours(outH, outM - earlyExit, 0, 0);
 
-    if (checkIn.getTime() > lateThreshold.getTime()) {
-      isLateArrival = true;
-    }
-    if (checkOut.getTime() < earlyThreshold.getTime()) {
-      isEarlyDeparture = true;
-    }
+    if (checkIn.getTime() > lateThreshold.getTime()) isLateArrival = true;
+    if (checkOut.getTime() < earlyThreshold.getTime()) isEarlyDeparture = true;
   }
 
+  const audit = isEnforced
+    ? { minimumDailyHoursUsed: fullDayMin, halfDayMinimumHoursUsed: halfDayMin, workTimePolicyUsed: policy }
+    : {};
+
+  // — Priority 1: Holiday —
   const [holiday] = await db
     .select({ id: companyHolidays.id })
     .from(companyHolidays)
@@ -136,15 +183,17 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
     .limit(1);
 
   if (holiday) {
-    return buildResult('holiday', grossHours, netHours, overtimeHours, 'holiday', isLateArrival, isEarlyDeparture);
+    return buildResult('holiday', grossHours, netHours, overtimeHours, 'holiday', isLateArrival, isEarlyDeparture, audit);
   }
 
+  // — Priority 2: Weekly Off —
   const weeklyOffDays = userConfig.weeklyOffDays ?? DEFAULTS.WEEKLY_OFF_DAYS;
   const dayOfWeek = new Date(date + 'T00:00:00').getDay();
   if (weeklyOffDays.includes(dayOfWeek)) {
-    return buildResult('weekly off', grossHours, netHours, overtimeHours, 'weekly_off', isLateArrival, isEarlyDeparture);
+    return buildResult('weekly_off', grossHours, netHours, overtimeHours, 'weekly_off', isLateArrival, isEarlyDeparture, audit);
   }
 
+  // — Priority 3: Approved Leave —
   const [approvedLeave] = await db
     .select({ id: leaveRequests.id, isHalfDay: leaveRequests.isHalfDay })
     .from(leaveRequests)
@@ -158,27 +207,23 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
 
   if (approvedLeave) {
     const leaveStatus = approvedLeave.isHalfDay ? 'half_day' : 'on_leave';
-    const result = buildResult(leaveStatus, grossHours, netHours, overtimeHours, 'leave', isLateArrival, isEarlyDeparture);
+    const result = buildResult(leaveStatus, grossHours, netHours, overtimeHours, 'leave', isLateArrival, isEarlyDeparture, audit);
     result.leaveId = approvedLeave.id;
     return result;
   }
 
+  // — Priority 4: Hours-based —
   if (!checkInTime && workingHoursOverride == null) {
-    return buildResult('absent', 0, 0, 0, 'no_data', false, false);
+    return buildResult('absent', 0, 0, 0, 'no_data', false, false, audit);
   }
 
-  // Hard validation: no worked status should ever be assigned without a check-in.
-  // If we somehow reach this point without a check-in, log and force absent.
   if (!checkInTime) {
     console.error(
       `[AttendanceStatusEngine] RULE VIOLATION: userId=${userId} date=${date} ` +
       `reached hours-based calculation without a check-in time. Forcing absent.`
     );
-    return buildResult('absent', 0, 0, 0, 'no_data', false, false);
+    return buildResult('absent', 0, 0, 0, 'no_data', false, false, audit);
   }
-
-  const fullDayMin = userConfig.minimumDailyHours ?? DEFAULTS.FULL_DAY_MINIMUM_HOURS;
-  const halfDayMin = userConfig.halfDayMinimumHours ?? DEFAULTS.HALF_DAY_MINIMUM_HOURS;
 
   let status: string;
   if (netHours >= fullDayMin) {
@@ -189,7 +234,7 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
     status = 'absent';
   }
 
-  return buildResult(status, grossHours, netHours, overtimeHours, 'hours', isLateArrival, isEarlyDeparture);
+  return buildResult(status, grossHours, netHours, overtimeHours, 'hours', isLateArrival, isEarlyDeparture, audit);
 }
 
 function buildResult(
@@ -200,6 +245,7 @@ function buildResult(
   source: string,
   isLateArrival: boolean,
   isEarlyDeparture: boolean,
+  audit: { minimumDailyHoursUsed?: number; halfDayMinimumHoursUsed?: number; workTimePolicyUsed?: string } = {},
 ): StatusResult {
   return {
     status,
@@ -209,5 +255,6 @@ function buildResult(
     statusSource: source,
     isLateArrival,
     isEarlyDeparture,
+    ...audit,
   };
 }

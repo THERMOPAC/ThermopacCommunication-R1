@@ -209,6 +209,11 @@ export const attendanceRecords = pgTable('attendance_records', {
   isIpVerified: boolean('is_ip_verified').default(false),
   isLateArrival: boolean('is_late_arrival').default(false),
   isEarlyDeparture: boolean('is_early_departure').default(false),
+
+  // Per-user threshold audit (populated for dates >= 2026-05-01)
+  minimumDailyHoursUsed: decimal('minimum_daily_hours_used', { precision: 4, scale: 2 }),
+  halfDayMinimumHoursUsed: decimal('half_day_minimum_hours_used', { precision: 4, scale: 2 }),
+  workTimePolicyUsed: varchar('work_time_policy_used', { length: 20 }),
   
   // Incomplete attendance tracking
   isIncomplete: boolean('is_incomplete').default(false),

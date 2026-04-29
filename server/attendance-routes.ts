@@ -306,6 +306,9 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
         statusSource: statusResult.statusSource,
         isLateArrival: statusResult.isLateArrival,
         isEarlyDeparture: statusResult.isEarlyDeparture,
+        minimumDailyHoursUsed: statusResult.minimumDailyHoursUsed != null ? statusResult.minimumDailyHoursUsed.toFixed(2) : null,
+        halfDayMinimumHoursUsed: statusResult.halfDayMinimumHoursUsed != null ? statusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
+        workTimePolicyUsed: statusResult.workTimePolicyUsed ?? null,
         updatedAt: now
       })
       .where(eq(attendanceRecords.id, existingRecord.id))
@@ -1351,6 +1354,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           adjustedBy: user.id,
           adjustmentReason: `Outdoor duty regularization approved`,
           adjustmentDate: new Date(),
+          minimumDailyHoursUsed: odStatusResult.minimumDailyHoursUsed != null ? odStatusResult.minimumDailyHoursUsed.toFixed(2) : null,
+          halfDayMinimumHoursUsed: odStatusResult.halfDayMinimumHoursUsed != null ? odStatusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
+          workTimePolicyUsed: odStatusResult.workTimePolicyUsed ?? null,
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
       } else {
@@ -1368,6 +1374,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           adjustedBy: user.id,
           adjustmentReason: `Outdoor duty regularization approved`,
           adjustmentDate: new Date(),
+          minimumDailyHoursUsed: odStatusResult.minimumDailyHoursUsed != null ? odStatusResult.minimumDailyHoursUsed.toFixed(2) : null,
+          halfDayMinimumHoursUsed: odStatusResult.halfDayMinimumHoursUsed != null ? odStatusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
+          workTimePolicyUsed: odStatusResult.workTimePolicyUsed ?? null,
         });
       }
       appliedToAttendance = true;
@@ -1403,6 +1412,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
             ? `Missed check-out regularization approved - corrected check-out time used`
             : `Missed check-out regularization approved - duty end time used as fallback`,
           adjustmentDate: new Date(),
+          minimumDailyHoursUsed: regStatusResult.minimumDailyHoursUsed != null ? regStatusResult.minimumDailyHoursUsed.toFixed(2) : null,
+          halfDayMinimumHoursUsed: regStatusResult.halfDayMinimumHoursUsed != null ? regStatusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
+          workTimePolicyUsed: regStatusResult.workTimePolicyUsed ?? null,
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
         appliedToAttendance = true;
@@ -1429,6 +1441,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           adjustedBy: user.id,
           adjustmentReason: `Missed check-out regularization approved - no existing record, full day from duty schedule`,
           adjustmentDate: new Date(),
+          minimumDailyHoursUsed: mcFallbackResult.minimumDailyHoursUsed != null ? mcFallbackResult.minimumDailyHoursUsed.toFixed(2) : null,
+          halfDayMinimumHoursUsed: mcFallbackResult.halfDayMinimumHoursUsed != null ? mcFallbackResult.halfDayMinimumHoursUsed.toFixed(2) : null,
+          workTimePolicyUsed: mcFallbackResult.workTimePolicyUsed ?? null,
         });
         appliedToAttendance = true;
       }

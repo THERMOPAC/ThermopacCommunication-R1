@@ -1752,6 +1752,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isLateArrival: statusResult.isLateArrival,
               isEarlyDeparture: statusResult.isEarlyDeparture,
               employeeNotes: 'Auto-checkout on logout',
+              minimumDailyHoursUsed: statusResult.minimumDailyHoursUsed != null ? statusResult.minimumDailyHoursUsed.toFixed(2) : null,
+              halfDayMinimumHoursUsed: statusResult.halfDayMinimumHoursUsed != null ? statusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
+              workTimePolicyUsed: statusResult.workTimePolicyUsed ?? null,
               updatedAt: now,
             }).where(eq(attendanceRecords.id, openRecord.id));
             console.log(`Auto-checkout on logout for user ${userId}: ${statusResult.workingHours.toFixed(2)}h, status: ${statusResult.status}`);
