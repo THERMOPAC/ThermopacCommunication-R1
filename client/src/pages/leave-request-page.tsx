@@ -49,6 +49,15 @@ interface LeaveType {
   isPaid: boolean;
   requiresApproval: boolean;
   canBeHalfDay: boolean;
+  sandwichApplicable: boolean;
+}
+
+interface SandwichCalc {
+  baseDays: number;
+  offDaysInside: number;
+  totalDays: number;
+  sandwichApplicable: boolean;
+  offDates: { date: string; reason: 'weekend' | 'holiday' }[];
 }
 
 interface LeaveBalance {
@@ -296,11 +305,28 @@ export default function LeaveRequestPage() {
   const selectedLeaveType = formData.leaveTypeId
     ? leaveTypes.find(t => t.id === parseInt(formData.leaveTypeId))
     : null;
+
+  // Sandwich leave preview — fire when leaveType + startDate are set
+  const sandwichEnabled = !!(selectedLeaveType?.sandwichApplicable && formData.leaveTypeId && formData.startDate && !formData.isHalfDay);
+  const sandwichParams = new URLSearchParams({
+    leaveTypeId: formData.leaveTypeId,
+    startDate: formData.startDate,
+    endDate: formData.isHalfDay ? formData.startDate : (formData.endDate || formData.startDate),
+    isHalfDay: String(formData.isHalfDay),
+  });
+  const { data: sandwichCalc } = useQuery<SandwichCalc>({
+    queryKey: ['/api/leave/calculate-days', formData.leaveTypeId, formData.startDate, formData.endDate, formData.isHalfDay],
+    enabled: !!(formData.leaveTypeId && formData.startDate),
+    queryFn: () => fetch(`/api/leave/calculate-days?${sandwichParams.toString()}`, { credentials: 'include' }).then(r => r.json()),
+  });
+
+  const effectiveTotalDays = sandwichCalc ? sandwichCalc.totalDays : calculateDays();
+
   const selectedBalance = formData.leaveTypeId
     ? leaveBalances.find(b => b.leaveTypeId === parseInt(formData.leaveTypeId))
     : null;
   const availableDays = selectedBalance ? selectedBalance.availableDays : 0;
-  const requestedDays = calculateDays();
+  const requestedDays = effectiveTotalDays;
   const isPaidLeave = selectedLeaveType?.isPaid ?? false;
   const hasZeroBalance = isPaidLeave && selectedLeaveType !== null && availableDays === 0;
   const hasInsufficientBalance = isPaidLeave && requestedDays > 0 && requestedDays > availableDays;
@@ -329,12 +355,11 @@ export default function LeaveRequestPage() {
       return;
     }
 
-    const totalDays = calculateDays();
     createRequestMutation.mutate({
       ...formData,
       leaveTypeId: parseInt(formData.leaveTypeId),
       endDate: formData.isHalfDay ? formData.startDate : formData.endDate,
-      totalDays
+      totalDays: effectiveTotalDays
     });
   };
 
@@ -897,10 +922,18 @@ export default function LeaveRequestPage() {
               </div>
 
               {(formData.startDate && (formData.isHalfDay || formData.endDate)) && (
-                <div className="bg-blue-50 p-3 rounded-md">
-                  <p className="text-sm text-blue-800">
-                    <strong>Total Days:</strong> {calculateDays()} day{calculateDays() !== 1 ? 's' : ''}
+                <div className={`p-3 rounded-md ${sandwichCalc?.sandwichApplicable && sandwichCalc.offDaysInside > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50'}`}>
+                  <p className="text-sm font-medium text-blue-800">
+                    <strong>Total Days:</strong> {effectiveTotalDays} day{effectiveTotalDays !== 1 ? 's' : ''}
                   </p>
+                  {sandwichCalc?.sandwichApplicable && sandwichCalc.offDaysInside > 0 && (
+                    <div className="mt-1 text-xs text-amber-800">
+                      <p>Sandwich rule applies: {sandwichCalc.baseDays} working day{sandwichCalc.baseDays !== 1 ? 's' : ''} + {sandwichCalc.offDaysInside} sandwiched off-day{sandwichCalc.offDaysInside !== 1 ? 's' : ''}</p>
+                      <p className="mt-0.5 text-amber-700">
+                        {sandwichCalc.offDates.map(d => `${d.date} (${d.reason})`).join(', ')}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

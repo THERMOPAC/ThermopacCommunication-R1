@@ -423,6 +423,7 @@ export const leaveTypes = pgTable('leave_types', {
   requiresApproval: boolean('requires_approval').default(true),
   noticeDaysRequired: integer('notice_days_required').default(1),
   canBeHalfDay: boolean('can_be_half_day').default(true),
+  sandwichApplicable: boolean('sandwich_applicable').default(false),
   colorCode: varchar('color_code', { length: 7 }).default('#3B82F6'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),

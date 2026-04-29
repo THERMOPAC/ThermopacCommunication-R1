@@ -87,6 +87,7 @@ const leaveTypeSchema = z.object({
   requiresApproval: z.boolean().default(true),
   noticeDaysRequired: z.number().default(1),
   canBeHalfDay: z.boolean().default(true),
+  sandwichApplicable: z.boolean().default(false),
   colorCode: z.string().default('#3B82F6')
 });
 
@@ -412,6 +413,7 @@ export default function LeaveManagementPage() {
       isPaid: true,
       requiresApproval: true,
       canBeHalfDay: true,
+      sandwichApplicable: false,
       noticeDaysRequired: 1,
       colorCode: '#3B82F6'
     }
@@ -1809,6 +1811,18 @@ export default function LeaveManagementPage() {
                     onCheckedChange={(checked) => typeForm.setValue('canBeHalfDay', !!checked)}
                   />
                   <Label htmlFor="canBeHalfDay">Can be Half Day</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="sandwichApplicable"
+                    checked={typeForm.watch('sandwichApplicable')}
+                    onCheckedChange={(checked) => typeForm.setValue('sandwichApplicable', !!checked)}
+                  />
+                  <Label htmlFor="sandwichApplicable">
+                    Sandwich Rule
+                    <span className="ml-1 text-xs text-muted-foreground">(weekends/holidays inside leave range count as leave days)</span>
+                  </Label>
                 </div>
 
                 <div className="flex items-center space-x-2">

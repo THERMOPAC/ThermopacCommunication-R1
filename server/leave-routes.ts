@@ -7,6 +7,7 @@ import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import { checkModulePermission } from "./utils/permission-utils";
 import { checkPayrollLock } from './payroll-lock-service';
 import { createNotification } from './notification-routes';
+import { computeSandwichLeave } from './sandwich-leave-utils';
 
 const router = Router();
 
@@ -293,6 +294,46 @@ router.get('/company-holidays', ensureAuthenticated, async (req: Request, res: R
   }
 });
 
+/**
+ * GET /api/leave/calculate-days
+ * Returns base days, sandwich off-days, and final totalDays for a date range.
+ * Used by the frontend to show the sandwich leave preview before submission.
+ */
+router.get('/calculate-days', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const { leaveTypeId, startDate, endDate, isHalfDay } = req.query as Record<string, string>;
+
+    if (!leaveTypeId || !startDate) {
+      return res.status(400).json({ error: 'leaveTypeId and startDate are required' });
+    }
+
+    if (isHalfDay === 'true') {
+      return res.json({ baseDays: 0.5, offDaysInside: 0, totalDays: 0.5, sandwichApplicable: false, offDates: [] });
+    }
+
+    const effectiveEnd = endDate || startDate;
+
+    const [leaveType] = await db.select().from(leaveTypes).where(and(eq(leaveTypes.id, parseInt(leaveTypeId)), eq(leaveTypes.isActive, true)));
+    if (!leaveType) return res.status(404).json({ error: 'Leave type not found' });
+
+    const [userRow] = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, userId));
+    const weeklyOffDays: number[] = (userRow?.weeklyOffDays as number[] | null) ?? [0, 6];
+
+    const startYear = new Date(startDate).getFullYear();
+    const endYear   = new Date(effectiveEnd).getFullYear();
+    const holidayRows = await db.select({ date: companyHolidays.date })
+      .from(companyHolidays)
+      .where(and(gte(companyHolidays.date, `${startYear}-01-01`), lte(companyHolidays.date, `${endYear}-12-31`)));
+    const holidayDates = new Set(holidayRows.map((h: any) => new Date(h.date).toISOString().split('T')[0]));
+
+    const result = computeSandwichLeave(startDate, effectiveEnd, weeklyOffDays, holidayDates, !!leaveType.sandwichApplicable);
+    return res.json({ ...result, sandwichApplicable: !!leaveType.sandwichApplicable });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.post('/request', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
@@ -323,6 +364,22 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
 
     if (isHalfDay && !leaveType.canBeHalfDay) {
       return res.status(400).json({ error: `${leaveType.name} does not allow half-day requests` });
+    }
+
+    // Sandwich leave enforcement — recompute totalDays server-side
+    let enforcedTotalDays: number = isHalfDay ? 0.5 : parseFloat(totalDays);
+    if (!isHalfDay && leaveType.sandwichApplicable) {
+      const [userRow] = await db.select({ weeklyOffDays: users.weeklyOffDays, reportingManagerId: users.reportingManagerId })
+        .from(users).where(eq(users.id, userId));
+      const weeklyOffDays: number[] = (userRow?.weeklyOffDays as number[] | null) ?? [0, 6];
+      const startYear = new Date(startDate).getFullYear();
+      const endYear   = new Date(effectiveEndDate).getFullYear();
+      const holidayRows = await db.select({ date: companyHolidays.date })
+        .from(companyHolidays)
+        .where(and(gte(companyHolidays.date, `${startYear}-01-01`), lte(companyHolidays.date, `${endYear}-12-31`)));
+      const holidayDates = new Set(holidayRows.map((h: any) => new Date(h.date).toISOString().split('T')[0]));
+      const sandwich = computeSandwichLeave(startDate, effectiveEndDate, weeklyOffDays, holidayDates, true);
+      enforcedTotalDays = sandwich.totalDays;
     }
 
     const [currentUser] = await db
@@ -359,14 +416,13 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       const used = parseFloat(balance?.usedDays || '0');
       const pending = parseFloat(balance?.pendingDays || '0');
       const available = allocated + carryover - used - pending;
-      const requestedDays = parseFloat(totalDays);
 
-      if (requestedDays > available) {
+      if (enforcedTotalDays > available) {
         return res.status(400).json({
-          error: `Insufficient ${leaveType.name} balance. Available: ${available} day${available !== 1 ? 's' : ''}, Requested: ${requestedDays} day${requestedDays !== 1 ? 's' : ''}. You may apply for Unpaid Leave instead.`,
+          error: `Insufficient ${leaveType.name} balance. Available: ${available} day${available !== 1 ? 's' : ''}, Requested: ${enforcedTotalDays} day${enforcedTotalDays !== 1 ? 's' : ''}${leaveType.sandwichApplicable ? ' (includes sandwiched weekends/holidays)' : ''}. You may apply for Unpaid Leave instead.`,
           code: 'INSUFFICIENT_BALANCE',
           available,
-          requested: requestedDays,
+          requested: enforcedTotalDays,
           leaveTypeName: leaveType.name,
         });
       }
@@ -379,7 +435,7 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
         leaveTypeId,
         startDate,
         endDate: effectiveEndDate,
-        totalDays: totalDays.toString(),
+        totalDays: enforcedTotalDays.toString(),
         isHalfDay: isHalfDay || false,
         halfDayPeriod: isHalfDay ? halfDayPeriod : null,
         reason,
@@ -403,7 +459,7 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
         year: balanceYear,
         allocatedDays: '0.00',
         usedDays: '0.00',
-        pendingDays: totalDays.toString(),
+        pendingDays: enforcedTotalDays.toString(),
         carryoverDays: '0.00',
         lastUpdated: new Date()
       });
@@ -411,7 +467,7 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       await db
         .update(leaveBalances)
         .set({
-          pendingDays: sql`pending_days + ${totalDays}`,
+          pendingDays: sql`pending_days + ${enforcedTotalDays}`,
           lastUpdated: new Date()
         })
         .where(eq(leaveBalances.id, existingBalance.id));
@@ -423,7 +479,7 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       userId: managerId,
       type: 'approval_request',
       title: `Leave Request: ${user.fullName || user.username}`,
-      message: `${user.fullName || user.username} has applied for ${leaveTypeName} from ${startDate} to ${effectiveEndDate} (${totalDays} day${parseFloat(totalDays) > 1 ? 's' : ''}). Reason: ${reason}`,
+      message: `${user.fullName || user.username} has applied for ${leaveTypeName} from ${startDate} to ${effectiveEndDate} (${enforcedTotalDays} day${enforcedTotalDays !== 1 ? 's' : ''}${leaveType.sandwichApplicable ? ' incl. weekends/holidays' : ''}). Reason: ${reason}`,
       link: '/leave-request',
       sourceType: 'leave_request',
       sourceId: newRequest.id,
