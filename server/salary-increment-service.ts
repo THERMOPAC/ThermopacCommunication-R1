@@ -1,6 +1,6 @@
 import { db } from './db';
 import { employeeSalaries, salaryIncrementProposals, salaryIncrementAuditLog } from '../shared/schema';
-import { eq, and, lte } from 'drizzle-orm';
+import { eq, and, lte, ne } from 'drizzle-orm';
 
 /**
  * Recalculate all salary components from the proposed basicSalary and persist
@@ -15,13 +15,39 @@ export async function applySalaryIncrement(proposalId: number, appliedByUserId: 
     .from(salaryIncrementProposals)
     .where(eq(salaryIncrementProposals.id, proposalId));
 
-  if (!proposal || proposal.status !== 'approved') {
-    throw new Error(`Proposal ${proposalId} is not in approved status`);
+  if (!proposal) throw new Error(`Proposal ${proposalId} not found`);
+
+  // Idempotency: already applied by a concurrent call — skip silently
+  if (proposal.status === 'applied') {
+    console.log(`[IncrementService] Proposal ${proposalId} already applied — skipping`);
+    return;
+  }
+
+  if (proposal.status !== 'approved') {
+    throw new Error(`Proposal ${proposalId} cannot be applied — current status: ${proposal.status}`);
   }
 
   const today = new Date().toISOString().split('T')[0];
   if ((proposal.effectiveDate as string) > today) {
     throw new Error(`Effective date ${proposal.effectiveDate} is in the future`);
+  }
+
+  // ── Atomic status transition ─────────────────────────────────────────────
+  // Use a conditional UPDATE (WHERE status='approved') so concurrent calls
+  // (API + midnight cron) cannot both apply the same proposal.
+  const transitioned = await db
+    .update(salaryIncrementProposals)
+    .set({ status: 'applied', appliedAt: new Date(), appliedBy: appliedByUserId })
+    .where(and(
+      eq(salaryIncrementProposals.id, proposalId),
+      eq(salaryIncrementProposals.status, 'approved'),
+    ))
+    .returning({ id: salaryIncrementProposals.id });
+
+  if (transitioned.length === 0) {
+    // Another concurrent call already transitioned the row — skip safely
+    console.log(`[IncrementService] Proposal ${proposalId} transition lost to concurrent call — skipping`);
+    return;
   }
 
   const [salaryConfig] = await db
@@ -84,6 +110,8 @@ export async function applySalaryIncrement(proposalId: number, appliedByUserId: 
     ctcYearly: salaryConfig.ctcYearly,
   };
 
+  // Proposal row is already transitioned to 'applied' by the atomic update above.
+  // Now update the actual salary figures in employee_salaries.
   await db.update(employeeSalaries).set({
     basicSalary: newBasic.toFixed(2),
     baseSalary: newBasic.toFixed(2),
@@ -105,12 +133,6 @@ export async function applySalaryIncrement(proposalId: number, appliedByUserId: 
     ctcYearly: ctcYearly.toFixed(2),
     updatedAt: new Date(),
   }).where(eq(employeeSalaries.id, proposal.employeeSalaryId));
-
-  await db.update(salaryIncrementProposals).set({
-    status: 'applied',
-    appliedAt: new Date(),
-    appliedBy: appliedByUserId,
-  }).where(eq(salaryIncrementProposals.id, proposalId));
 
   await db.insert(salaryIncrementAuditLog).values({
     proposalId,

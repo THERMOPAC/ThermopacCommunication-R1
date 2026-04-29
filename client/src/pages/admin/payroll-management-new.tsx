@@ -4192,7 +4192,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                             </td>
                             <td className="p-2.5">
                               {row.status === 'pending' && <Badge className="bg-amber-100 text-amber-800 text-xs">Pending</Badge>}
-                              {row.status === 'approved' && <Badge className="bg-blue-100 text-blue-800 text-xs">Approved</Badge>}
+                              {row.status === 'approved' && <Badge className="bg-blue-100 text-blue-800 text-xs">Approved · Awaiting Eff. Date</Badge>}
                               {row.status === 'applied' && (
                                 <div>
                                   <Badge className="bg-green-100 text-green-800 text-xs">Applied</Badge>

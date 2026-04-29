@@ -804,6 +804,23 @@ router.post('/payroll/increment-proposals/:id/approve', ensureAuthenticated, asy
       return res.status(409).json({ error: `Cannot approve a proposal with status: ${proposal.status}` });
     }
 
+    // Safeguard: reject if another approved-but-not-yet-applied proposal already
+    // exists for this salary config (prevents two pending→approved paths racing).
+    const [otherApproved] = await db
+      .select({ id: salaryIncrementProposals.id })
+      .from(salaryIncrementProposals)
+      .where(and(
+        eq(salaryIncrementProposals.employeeSalaryId, proposal.employeeSalaryId),
+        eq(salaryIncrementProposals.status, 'approved'),
+        ne(salaryIncrementProposals.id, proposalId),
+      ));
+
+    if (otherApproved) {
+      return res.status(409).json({
+        error: `Another approved proposal (ID ${otherApproved.id}) for this employee is already awaiting application. Resolve it first.`,
+      });
+    }
+
     await db.update(salaryIncrementProposals).set({
       status: 'approved',
       approvedBy: user.id,
