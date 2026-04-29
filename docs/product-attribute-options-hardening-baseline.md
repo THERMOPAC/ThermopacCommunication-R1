@@ -261,7 +261,49 @@ Applied via `npm run db:push` after schema changes in `shared/schema.ts`:
 | Phase | Status |
 |---|---|
 | Plan v2 | APPROVED BASELINE — 2026-04-28 |
-| Phase 1 — Data Audit | COMPLETE — All checks passed |
-| Phase 2 — DB Schema | Awaiting approval to proceed |
-| Phase 3 — API Guards | Awaiting Phase 2 completion |
+| Phase 1 — Data Audit | COMPLETE — All checks passed — 2026-04-28 |
+| Phase 2 — DB Schema | COMPLETE — All constraints applied — 2026-04-28 |
+| Phase 3 — API Guards | Awaiting approval to proceed |
 | Phase 4 — UI Changes | Awaiting Phase 3 completion |
+
+---
+
+## Phase 2 — Applied Changes (2026-04-28)
+
+### shared/schema.ts
+
+- Added `check` to imports from `drizzle-orm/pg-core`
+- Added `sql` to imports from `drizzle-orm`
+- Updated `productAttributeOptions` table:
+  - Added `updatedAt: timestamp('updated_at').defaultNow()`
+  - Added self-referencing FK `fk_attr_option_parent` with `ON DELETE RESTRICT`
+  - Added partial unique index `uq_attr_type_null_parent_code` on `(attribute_type, code)` WHERE `parent_id IS NULL`
+  - Added partial unique index `uq_attr_type_parent_code` on `(attribute_type, parent_id, code)` WHERE `parent_id IS NOT NULL`
+  - Added CHECK constraint `chk_attr_option_type` enforcing `attribute_type IN ('item_family','property_1','property_2')`
+  - Updated `insertProductAttributeOptionSchema` to omit `updatedAt`
+- Added new table `attributeOptionAuditLog` with schema and types
+
+### Database Constraints Confirmed
+
+**product_attribute_options:**
+
+| Constraint | Type | Definition |
+|---|---|---|
+| `product_attribute_options_pkey` | PRIMARY KEY | `PRIMARY KEY (id)` |
+| `fk_attr_option_parent` | FOREIGN KEY | `FOREIGN KEY (parent_id) REFERENCES product_attribute_options(id) ON DELETE RESTRICT` |
+| `chk_attr_option_type` | CHECK | `attribute_type IN ('item_family', 'property_1', 'property_2')` |
+| `uq_attr_type_null_parent_code` | UNIQUE INDEX | `(attribute_type, code) WHERE parent_id IS NULL` |
+| `uq_attr_type_parent_code` | UNIQUE INDEX | `(attribute_type, parent_id, code) WHERE parent_id IS NOT NULL` |
+| `updated_at` column | COLUMN | `TIMESTAMP DEFAULT NOW()` |
+
+**attribute_option_audit_log (new table):**
+
+| Constraint | Definition |
+|---|---|
+| `attribute_option_audit_log_pkey` | `PRIMARY KEY (id)` |
+| `attribute_option_audit_log_option_id_fkey` | `FOREIGN KEY (option_id) REFERENCES product_attribute_options(id) ON DELETE RESTRICT` |
+| `attribute_option_audit_log_changed_by_fkey` | `FOREIGN KEY (changed_by) REFERENCES users(id)` |
+
+### Note on db:push
+
+`drizzle-kit push` timed out on this schema (12,880 lines — too large for the tool to diff in time). All Phase 2 changes were applied directly as additive SQL statements (`ADD COLUMN IF NOT EXISTS`, `ADD CONSTRAINT`, `CREATE UNIQUE INDEX IF NOT EXISTS`, `CREATE TABLE IF NOT EXISTS`). These are safe additive operations confirmed clean by Phase 1 audit.

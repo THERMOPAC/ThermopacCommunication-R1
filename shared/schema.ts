@@ -1,8 +1,8 @@
-import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // Available system modules
 export const modules = [
@@ -9767,15 +9767,52 @@ export const productAttributeOptions = pgTable('product_attribute_options', {
   sortOrder: integer('sort_order').default(0),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
-});
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ([
+  // FK: parent_id → id in same table, RESTRICT prevents deleting a parent that has children
+  foreignKey({
+    columns: [table.parentId],
+    foreignColumns: [table.id],
+    name: 'fk_attr_option_parent',
+  }).onDelete('restrict'),
+  // UNIQUE scoped to hierarchy: item_family rows (parent_id IS NULL)
+  uniqueIndex('uq_attr_type_null_parent_code')
+    .on(table.attributeType, table.code)
+    .where(sql`parent_id IS NULL`),
+  // UNIQUE scoped to hierarchy: property_1 / property_2 rows (parent_id IS NOT NULL)
+  uniqueIndex('uq_attr_type_parent_code')
+    .on(table.attributeType, table.parentId, table.code)
+    .where(sql`parent_id IS NOT NULL`),
+  // CHECK: only allowed attribute types
+  check('chk_attr_option_type', sql`attribute_type IN ('item_family', 'property_1', 'property_2')`),
+]));
 
 export const insertProductAttributeOptionSchema = createInsertSchema(productAttributeOptions).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type ProductAttributeOption = typeof productAttributeOptions.$inferSelect;
 export type InsertProductAttributeOption = z.infer<typeof insertProductAttributeOptionSchema>;
+
+// Audit log for label changes on attribute options
+export const attributeOptionAuditLog = pgTable('attribute_option_audit_log', {
+  id: serial('id').primaryKey(),
+  optionId: integer('option_id').notNull().references(() => productAttributeOptions.id, { onDelete: 'restrict' }),
+  oldLabel: text('old_label').notNull(),
+  newLabel: text('new_label').notNull(),
+  changedBy: integer('changed_by').references(() => users.id),
+  changedAt: timestamp('changed_at').defaultNow(),
+});
+
+export const insertAttributeOptionAuditLogSchema = createInsertSchema(attributeOptionAuditLog).omit({
+  id: true,
+  changedAt: true,
+});
+
+export type AttributeOptionAuditLog = typeof attributeOptionAuditLog.$inferSelect;
+export type InsertAttributeOptionAuditLog = z.infer<typeof insertAttributeOptionAuditLogSchema>;
 
 export const products = pgTable('products', {
   id: serial('id').primaryKey(),
