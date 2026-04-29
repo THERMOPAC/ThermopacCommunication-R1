@@ -995,7 +995,8 @@ export default function ProductsPage() {
                               )}
                               <TableHead>Code</TableHead>
                               <TableHead>Label</TableHead>
-                              <TableHead className="w-[100px]"></TableHead>
+                              <TableHead className="w-[90px] text-center">Used In</TableHead>
+                              <TableHead className="w-[90px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1018,6 +1019,13 @@ export default function ProductsPage() {
                               })
                               .map((attr) => {
                               const parentOption = attr.parentId ? attributeOptions.find(f => f.id === attr.parentId) : null;
+                              const usedInCount = products.filter((p) =>
+                                attr.attributeType === "item_family" ? p.itemFamily === attr.code
+                                : attr.attributeType === "property_1" ? p.itemProperty1 === attr.code
+                                : p.itemProperty2 === attr.code
+                              ).length;
+                              const childCount = attributeOptions.filter((o) => o.parentId === attr.id).length;
+                              const canDelete = usedInCount === 0 && childCount === 0;
                               return (
                               <TableRow key={attr.id}>
                                 {activeAttributeTab === "property_1" && (
@@ -1038,6 +1046,15 @@ export default function ProductsPage() {
                                 )}
                                 <TableCell className="font-mono font-medium">{attr.code}</TableCell>
                                 <TableCell>{attr.label}</TableCell>
+                                <TableCell className="text-center">
+                                  {usedInCount > 0 ? (
+                                    <Badge variant="secondary" className="text-xs">{usedInCount}</Badge>
+                                  ) : childCount > 0 ? (
+                                    <Badge variant="outline" className="text-xs text-muted-foreground">{childCount} child{childCount !== 1 ? "ren" : ""}</Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">—</span>
+                                  )}
+                                </TableCell>
                                 <TableCell>
                                   <div className="flex gap-1">
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEditAttribute(attr)}>
@@ -1045,6 +1062,14 @@ export default function ProductsPage() {
                                     </Button>
                                     <Button
                                       variant="ghost" size="icon" className="h-8 w-8 text-destructive"
+                                      disabled={!canDelete || deleteAttributeMutation.isPending}
+                                      title={
+                                        usedInCount > 0
+                                          ? `Used in ${usedInCount} product(s) — mark inactive instead`
+                                          : childCount > 0
+                                          ? `Has ${childCount} child option(s) — delete children first`
+                                          : "Delete option"
+                                      }
                                       onClick={() => {
                                         if (confirm(`Delete attribute "${attr.code} - ${attr.label}"?`)) {
                                           deleteAttributeMutation.mutate(attr.id);
@@ -1548,10 +1573,10 @@ export default function ProductsPage() {
                           placeholder="e.g. Used Oil Refinery"
                           onChange={(e) => {
                             field.onChange(e.target.value);
-                            const words = e.target.value.trim().split(/\s+/).filter(Boolean);
-                            const autoCode = words.map(w => w[0]).join('').toUpperCase().slice(0, 3);
-                            if (autoCode) {
-                              attributeForm.setValue('code', autoCode);
+                            if (!editingAttribute) {
+                              const words = e.target.value.trim().split(/\s+/).filter(Boolean);
+                              const autoCode = words.map(w => w[0]).join('').toUpperCase().slice(0, 3);
+                              if (autoCode) attributeForm.setValue('code', autoCode);
                             }
                           }}
                         />
@@ -1566,15 +1591,27 @@ export default function ProductsPage() {
                   name="code"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Code <span className="text-destructive">*</span> <span className="text-muted-foreground text-xs">(3 characters, auto-generated from label)</span></FormLabel>
+                      <FormLabel>
+                        Code{!editingAttribute && <span className="text-destructive"> *</span>}{" "}
+                        <span className="text-muted-foreground text-xs">
+                          {editingAttribute ? "(locked — cannot be changed)" : "(3 characters, auto-generated from label)"}
+                        </span>
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           placeholder="e.g. UOR"
                           maxLength={3}
+                          disabled={!!editingAttribute}
+                          className={editingAttribute ? "bg-muted font-mono font-semibold text-muted-foreground cursor-not-allowed" : ""}
                           onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                         />
                       </FormControl>
+                      {editingAttribute && (
+                        <FormDescription className="text-xs text-amber-700">
+                          Code is locked because it is used for product/item code generation. Label can be updated for display correction.
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
