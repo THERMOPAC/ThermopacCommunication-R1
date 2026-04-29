@@ -253,17 +253,8 @@ export default function AttendanceManagementPage() {
     }
   };
 
-  // Generate PDF report for selected user
+  // Generate PDF report for selected user (or all employees)
   const generateUserPdfReport = async () => {
-    if (selectedEmployee === 'all' || !selectedUserDetails) {
-      toast({
-        title: 'Select an Employee',
-        description: 'Please select a specific employee to generate their attendance report.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
       toast({
         title: 'No Records',
@@ -276,151 +267,198 @@ export default function AttendanceManagementPage() {
     setIsGeneratingPdf(true);
 
     try {
-      console.log('Starting PDF generation...');
-      console.log('Selected user details:', selectedUserDetails);
-      console.log('Attendance records count:', attendanceRecords?.length);
-      
+      const isAllEmployees = selectedEmployee === 'all' || !selectedUserDetails;
       const doc = new jsPDF();
-      console.log('jsPDF instance created');
-      
       const pageWidth = doc.internal.pageSize.getWidth();
-      console.log('Page width:', pageWidth);
-      
-      // Header
+
+      // Header banner
       doc.setFillColor(0, 51, 102);
       doc.rect(0, 0, pageWidth, 35, 'F');
-      
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
       doc.text('THERMOPAC', 14, 15);
-      
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
       doc.text('Attendance Report', 14, 25);
-      
-      // Report date
       doc.setFontSize(10);
       doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy HH:mm')}`, pageWidth - 14, 15, { align: 'right' });
-      
-      // Employee Details Section
+
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Employee Information', 14, 50);
-      
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      const userName = selectedUserDetails.firstName && selectedUserDetails.lastName 
-        ? `${selectedUserDetails.firstName} ${selectedUserDetails.lastName}` 
-        : selectedUserDetails.username;
-      
-      doc.text(`Name: ${userName}`, 14, 60);
-      doc.text(`Username: ${selectedUserDetails.username}`, 14, 68);
-      doc.text(`Role: ${selectedUserDetails.role || 'Employee'}`, 14, 76);
-      doc.text(`Department: ${selectedUserDetails.department || 'N/A'}`, pageWidth / 2, 60);
-      doc.text(`Email: ${selectedUserDetails.email || 'N/A'}`, pageWidth / 2, 68);
-      doc.text(`Report Period: ${getDateRangeLabel()}`, pageWidth / 2, 76);
-      
-      // Summary Statistics
-      doc.setFillColor(240, 240, 240);
-      doc.rect(14, 85, pageWidth - 28, 25, 'F');
-      
-      const presentCount = attendanceRecords.filter(r => r.status === 'Present').length;
-      const lateCount = attendanceRecords.filter(r => r.status === 'Late').length;
-      const absentCount = attendanceRecords.filter(r => r.status === 'Absent').length;
-      const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
-      const totalHours = attendanceRecords.reduce((sum, r) => sum + (r.workHours || 0), 0);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Summary:', 18, 95);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Present: ${presentCount}`, 18, 103);
-      doc.text(`Late: ${lateCount}`, 55, 103);
-      doc.text(`Absent: ${absentCount}`, 85, 103);
-      doc.text(`Half Day: ${halfDayCount}`, 120, 103);
-      doc.text(`Total Hours: ${totalHours.toFixed(1)}h`, 160, 103);
-      
-      // Attendance Records Table
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Attendance Records', 14, 125);
-      
-      console.log('Creating table data...');
-      const tableData = attendanceRecords.map((record, index) => {
-        try {
-          return [
-            safeFormatDate(record.date),
-            safeFormatTime(record.timeIn),
-            safeFormatTime(record.timeOut),
-            record.workHours ? `${Number(record.workHours).toFixed(1)}h` : '-',
-            record.status || '-',
-            record.location || '-'
-          ];
-        } catch (e) {
-          console.error(`Error processing record ${index}:`, record, e);
-          return ['-', '-', '-', '-', '-', '-'];
+
+      if (isAllEmployees) {
+        // ── All-employees mode ──
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Report Summary', 14, 50);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Period: ${getDateRangeLabel()}`, 14, 59);
+        doc.text(`Department: ${selectedDepartment === 'all' ? 'All Departments' : selectedDepartment}`, 14, 67);
+        doc.text(`Total Records: ${attendanceRecords.length}`, pageWidth / 2, 59);
+
+        // Summary box
+        const presentCount = attendanceRecords.filter(r => r.status === 'Present').length;
+        const lateCount = attendanceRecords.filter(r => r.status === 'Late').length;
+        const absentCount = attendanceRecords.filter(r => r.status === 'Absent').length;
+        const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
+        const onLeaveCount = attendanceRecords.filter(r => r.status === 'On Leave').length;
+        const totalHours = attendanceRecords.reduce((sum, r) => sum + (r.workHours || 0), 0);
+
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, 73, pageWidth - 28, 18, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Summary:', 18, 82);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Present: ${presentCount}`, 45, 82);
+        doc.text(`Late: ${lateCount}`, 75, 82);
+        doc.text(`Absent: ${absentCount}`, 100, 82);
+        doc.text(`Half Day: ${halfDayCount}`, 128, 82);
+        doc.text(`On Leave: ${onLeaveCount}`, 158, 82);
+        doc.text(`Total Hours: ${totalHours.toFixed(1)}h`, 18, 88);
+
+        // Table with Employee column
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Attendance Records', 14, 103);
+
+        const tableData = attendanceRecords.map((record) => {
+          try {
+            return [
+              record.userName || '-',
+              record.department || '-',
+              safeFormatDate(record.date),
+              safeFormatTime(record.timeIn),
+              safeFormatTime(record.timeOut),
+              record.workHours ? `${Number(record.workHours).toFixed(1)}h` : '-',
+              record.status || '-',
+            ];
+          } catch {
+            return ['-', '-', '-', '-', '-', '-', '-'];
+          }
+        });
+
+        autoTable(doc, {
+          startY: 107,
+          head: [['Employee', 'Department', 'Date', 'Time In', 'Time Out', 'Hours', 'Status']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: 32 },
+            1: { cellWidth: 26 },
+            2: { cellWidth: 24 },
+            3: { cellWidth: 18 },
+            4: { cellWidth: 18 },
+            5: { cellWidth: 14 },
+            6: { cellWidth: 'auto' },
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+        });
+
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setTextColor(128, 128, 128);
+          doc.text(`Page ${i} of ${pageCount} | THERMOPAC - Confidential`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
         }
-      });
-      console.log('Table data created:', tableData.length, 'rows');
-      
-      console.log('autoTable available:', typeof autoTable);
-      
-      autoTable(doc, {
-        startY: 130,
-        head: [['Date', 'Time In', 'Time Out', 'Hours', 'Status', 'Location']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: {
-          fillColor: [0, 51, 102],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 9
-        },
-        bodyStyles: {
-          fontSize: 9
-        },
-        columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 25 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 20 },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 'auto' }
-        },
-        alternateRowStyles: {
-          fillColor: [245, 245, 245]
+
+        const dept = selectedDepartment === 'all' ? 'All' : selectedDepartment.replace(/\s+/g, '_');
+        doc.save(`Attendance_Report_${dept}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+        toast({ title: 'PDF Generated', description: `Attendance report downloaded (${attendanceRecords.length} records).` });
+
+      } else {
+        // ── Single-employee mode ──
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Employee Information', 14, 50);
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        const userName = selectedUserDetails.firstName && selectedUserDetails.lastName
+          ? `${selectedUserDetails.firstName} ${selectedUserDetails.lastName}`
+          : selectedUserDetails.username;
+
+        doc.text(`Name: ${userName}`, 14, 60);
+        doc.text(`Username: ${selectedUserDetails.username}`, 14, 68);
+        doc.text(`Role: ${selectedUserDetails.role || 'Employee'}`, 14, 76);
+        doc.text(`Department: ${selectedUserDetails.department || 'N/A'}`, pageWidth / 2, 60);
+        doc.text(`Email: ${selectedUserDetails.email || 'N/A'}`, pageWidth / 2, 68);
+        doc.text(`Report Period: ${getDateRangeLabel()}`, pageWidth / 2, 76);
+
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, 85, pageWidth - 28, 25, 'F');
+
+        const presentCount = attendanceRecords.filter(r => r.status === 'Present').length;
+        const lateCount = attendanceRecords.filter(r => r.status === 'Late').length;
+        const absentCount = attendanceRecords.filter(r => r.status === 'Absent').length;
+        const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
+        const totalHours = attendanceRecords.reduce((sum, r) => sum + (r.workHours || 0), 0);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Summary:', 18, 95);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Present: ${presentCount}`, 18, 103);
+        doc.text(`Late: ${lateCount}`, 55, 103);
+        doc.text(`Absent: ${absentCount}`, 85, 103);
+        doc.text(`Half Day: ${halfDayCount}`, 120, 103);
+        doc.text(`Total Hours: ${totalHours.toFixed(1)}h`, 160, 103);
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Attendance Records', 14, 125);
+
+        const tableData = attendanceRecords.map((record) => {
+          try {
+            return [
+              safeFormatDate(record.date),
+              safeFormatTime(record.timeIn),
+              safeFormatTime(record.timeOut),
+              record.workHours ? `${Number(record.workHours).toFixed(1)}h` : '-',
+              record.status || '-',
+              record.location || '-',
+            ];
+          } catch {
+            return ['-', '-', '-', '-', '-', '-'];
+          }
+        });
+
+        autoTable(doc, {
+          startY: 130,
+          head: [['Date', 'Time In', 'Time Out', 'Hours', 'Status', 'Location']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+          bodyStyles: { fontSize: 9 },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 25 },
+            3: { cellWidth: 20 },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 'auto' },
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+        });
+
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setTextColor(128, 128, 128);
+          doc.text(`Page ${i} of ${pageCount} | THERMOPAC - Confidential`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
         }
-      });
-      
-      // Footer
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(128, 128, 128);
-        doc.text(
-          `Page ${i} of ${pageCount} | THERMOPAC - Confidential`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: 'center' }
-        );
+
+        doc.save(`Attendance_Report_${userName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+        toast({ title: 'PDF Generated', description: `Attendance report for ${userName} has been downloaded.` });
       }
-      
-      // Save the PDF
-      const fileName = `Attendance_Report_${userName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-      doc.save(fileName);
-      
-      toast({
-        title: 'PDF Generated',
-        description: `Attendance report for ${userName} has been downloaded.`,
-      });
     } catch (error: any) {
       console.error('Error generating PDF:', error);
-      console.error('Error name:', error?.name);
-      console.error('Error message:', error?.message);
-      console.error('Error stack:', error?.stack);
       toast({
         title: 'Error',
         description: `Failed to generate PDF report: ${error?.message || 'Unknown error'}`,
