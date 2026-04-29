@@ -31,13 +31,16 @@ import {
   employeeAdvances,
   tdsMonthlyRecords,
   payrollAttendanceSnapshot,
-  attendanceOverrideLog
+  attendanceOverrideLog,
+  salaryIncrementProposals,
+  salaryIncrementAuditLog
 } from '../shared/schema';
-import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray } from 'drizzle-orm';
+import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { salaryCalculationEngine } from './salary-calculation-engine';
 import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
+import { applySalaryIncrement, autoApplyDueIncrements } from './salary-increment-service';
 import { verifyPayslipRelease } from './payroll-calculation-verifier';
 import { glAccountMappings } from '../shared/schema';
 import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
@@ -650,6 +653,235 @@ router.put('/payroll/salary-setup/:id', ensureAuthenticated, async (req: Request
     res.json(updated);
   } catch (error) {
     console.error('Error updating salary configuration:', error);
+    sendError(res, error);
+  }
+});
+
+// ── Salary Increment routes ─────────────────────────────────────────────────
+
+// ── POST /payroll/salary-setup/:id/increment — Propose increment ─────────────
+router.post('/payroll/salary-setup/:id/increment', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const salaryConfigId = parseInt(req.params.id);
+    if (isNaN(salaryConfigId)) return res.status(400).json({ error: 'Invalid salary config ID' });
+
+    const user = (req as any).user;
+    const { incrementPercentage, effectiveDate, remarks } = req.body;
+
+    const pct = parseFloat(incrementPercentage);
+    if (!pct || pct <= 0 || pct > 100) {
+      return res.status(400).json({ error: 'Increment percentage must be between 0.01 and 100' });
+    }
+    if (!effectiveDate) {
+      return res.status(400).json({ error: 'effectiveDate is required' });
+    }
+
+    const [salaryConfig] = await db
+      .select()
+      .from(employeeSalaries)
+      .where(and(eq(employeeSalaries.id, salaryConfigId), eq(employeeSalaries.isActive, true)));
+
+    if (!salaryConfig) return res.status(404).json({ error: 'Salary configuration not found' });
+
+    // Only one active proposal allowed
+    const [activeProposal] = await db
+      .select({ id: salaryIncrementProposals.id, status: salaryIncrementProposals.status })
+      .from(salaryIncrementProposals)
+      .where(and(
+        eq(salaryIncrementProposals.employeeSalaryId, salaryConfigId),
+        or(
+          eq(salaryIncrementProposals.status, 'pending'),
+          eq(salaryIncrementProposals.status, 'approved')
+        )
+      ));
+
+    if (activeProposal) {
+      return res.status(409).json({
+        error: `An active proposal (status: ${activeProposal.status}) already exists for this salary configuration. Approve, reject, or wait for it to be applied before creating a new one.`
+      });
+    }
+
+    const oldBasic = parseFloat(salaryConfig.basicSalary as string);
+    const proposedBasic = parseFloat((oldBasic * (1 + pct / 100)).toFixed(2));
+    const oldCtc = parseFloat(salaryConfig.ctcMonthly as string || '0');
+    // Rough CTC projection (precise recalc happens on apply)
+    const proposedCtc = parseFloat((oldCtc * (1 + pct / 100)).toFixed(2));
+
+    const [proposal] = await db.insert(salaryIncrementProposals).values({
+      employeeSalaryId: salaryConfigId,
+      employeeId: salaryConfig.userId,
+      incrementPercentage: pct.toFixed(2),
+      oldBasicSalary: oldBasic.toFixed(2),
+      proposedBasicSalary: proposedBasic.toFixed(2),
+      oldCtc: oldCtc.toFixed(2),
+      proposedCtc: proposedCtc.toFixed(2),
+      effectiveDate,
+      status: 'pending',
+      remarks: remarks || 'Yearly Increment',
+      proposedBy: user.id,
+    }).returning();
+
+    await db.insert(salaryIncrementAuditLog).values({
+      proposalId: proposal.id,
+      employeeSalaryId: salaryConfigId,
+      employeeId: salaryConfig.userId,
+      action: 'proposed',
+      actorId: user.id,
+      oldValues: { basicSalary: oldBasic, ctcMonthly: oldCtc },
+      newValues: { proposedBasicSalary: proposedBasic, proposedCtc, incrementPercentage: pct, effectiveDate },
+      remarks: remarks || 'Yearly Increment',
+    });
+
+    res.status(201).json(proposal);
+  } catch (error) {
+    console.error('Error creating salary increment proposal:', error);
+    sendError(res, error);
+  }
+});
+
+// ── GET /payroll/salary-setup/:id/increment-history ─────────────────────────
+router.get('/payroll/salary-setup/:id/increment-history', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const salaryConfigId = parseInt(req.params.id);
+    if (isNaN(salaryConfigId)) return res.status(400).json({ error: 'Invalid salary config ID' });
+
+    // Auto-apply any approved proposals due today
+    await autoApplyDueIncrements();
+
+    const proposedByAlias = db.select({ id: users.id, name: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})` }).from(users).as('proposed_by_user');
+    const approvedByAlias = db.select({ id: users.id, name: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})` }).from(users).as('approved_by_user');
+
+    const history = await db
+      .select({
+        id: salaryIncrementProposals.id,
+        employeeSalaryId: salaryIncrementProposals.employeeSalaryId,
+        incrementPercentage: salaryIncrementProposals.incrementPercentage,
+        oldBasicSalary: salaryIncrementProposals.oldBasicSalary,
+        proposedBasicSalary: salaryIncrementProposals.proposedBasicSalary,
+        oldCtc: salaryIncrementProposals.oldCtc,
+        proposedCtc: salaryIncrementProposals.proposedCtc,
+        effectiveDate: salaryIncrementProposals.effectiveDate,
+        status: salaryIncrementProposals.status,
+        remarks: salaryIncrementProposals.remarks,
+        proposedAt: salaryIncrementProposals.proposedAt,
+        approvedAt: salaryIncrementProposals.approvedAt,
+        rejectedAt: salaryIncrementProposals.rejectedAt,
+        rejectionReason: salaryIncrementProposals.rejectionReason,
+        appliedAt: salaryIncrementProposals.appliedAt,
+        proposedByName: sql<string>`(SELECT concat(u.first_name, ' ', u.last_name) FROM users u WHERE u.id = ${salaryIncrementProposals.proposedBy})`,
+        approvedByName: sql<string>`(SELECT concat(u.first_name, ' ', u.last_name) FROM users u WHERE u.id = ${salaryIncrementProposals.approvedBy})`,
+        appliedByName: sql<string>`(SELECT concat(u.first_name, ' ', u.last_name) FROM users u WHERE u.id = ${salaryIncrementProposals.appliedBy})`,
+      })
+      .from(salaryIncrementProposals)
+      .where(eq(salaryIncrementProposals.employeeSalaryId, salaryConfigId))
+      .orderBy(desc(salaryIncrementProposals.proposedAt));
+
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching increment history:', error);
+    sendError(res, error);
+  }
+});
+
+// ── POST /payroll/increment-proposals/:id/approve — Superuser only ───────────
+router.post('/payroll/increment-proposals/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (user.role !== 'Superuser') {
+      return sendPermissionError(res, 'Only Superuser can approve salary increment proposals');
+    }
+
+    const proposalId = parseInt(req.params.id);
+    if (isNaN(proposalId)) return res.status(400).json({ error: 'Invalid proposal ID' });
+
+    const [proposal] = await db
+      .select()
+      .from(salaryIncrementProposals)
+      .where(eq(salaryIncrementProposals.id, proposalId));
+
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    if (proposal.status !== 'pending') {
+      return res.status(409).json({ error: `Cannot approve a proposal with status: ${proposal.status}` });
+    }
+
+    await db.update(salaryIncrementProposals).set({
+      status: 'approved',
+      approvedBy: user.id,
+      approvedAt: new Date(),
+    }).where(eq(salaryIncrementProposals.id, proposalId));
+
+    await db.insert(salaryIncrementAuditLog).values({
+      proposalId,
+      employeeSalaryId: proposal.employeeSalaryId,
+      employeeId: proposal.employeeId,
+      action: 'approved',
+      actorId: user.id,
+      oldValues: { status: 'pending' },
+      newValues: { status: 'approved' },
+      remarks: `Approved by ${user.username}`,
+    });
+
+    // If effective_date <= today, apply immediately
+    const today = new Date().toISOString().split('T')[0];
+    if (proposal.effectiveDate <= today) {
+      await applySalaryIncrement(proposalId, user.id);
+      return res.json({ success: true, message: 'Proposal approved and salary applied immediately (effective date has passed).' });
+    }
+
+    res.json({ success: true, message: `Proposal approved. Salary will be applied on ${proposal.effectiveDate}.` });
+  } catch (error) {
+    console.error('Error approving increment proposal:', error);
+    sendError(res, error);
+  }
+});
+
+// ── POST /payroll/increment-proposals/:id/reject — Superuser only ────────────
+router.post('/payroll/increment-proposals/:id/reject', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (user.role !== 'Superuser') {
+      return sendPermissionError(res, 'Only Superuser can reject salary increment proposals');
+    }
+
+    const proposalId = parseInt(req.params.id);
+    if (isNaN(proposalId)) return res.status(400).json({ error: 'Invalid proposal ID' });
+
+    const { rejectionReason } = req.body;
+    if (!rejectionReason || String(rejectionReason).trim().length < 5) {
+      return res.status(400).json({ error: 'Rejection reason is required (min 5 characters)' });
+    }
+
+    const [proposal] = await db
+      .select()
+      .from(salaryIncrementProposals)
+      .where(eq(salaryIncrementProposals.id, proposalId));
+
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+    if (proposal.status !== 'pending') {
+      return res.status(409).json({ error: `Cannot reject a proposal with status: ${proposal.status}` });
+    }
+
+    await db.update(salaryIncrementProposals).set({
+      status: 'rejected',
+      rejectedBy: user.id,
+      rejectedAt: new Date(),
+      rejectionReason: rejectionReason.trim(),
+    }).where(eq(salaryIncrementProposals.id, proposalId));
+
+    await db.insert(salaryIncrementAuditLog).values({
+      proposalId,
+      employeeSalaryId: proposal.employeeSalaryId,
+      employeeId: proposal.employeeId,
+      action: 'rejected',
+      actorId: user.id,
+      oldValues: { status: 'pending' },
+      newValues: { status: 'rejected', rejectionReason: rejectionReason.trim() },
+      remarks: rejectionReason.trim(),
+    });
+
+    res.json({ success: true, message: 'Proposal rejected.' });
+  } catch (error) {
+    console.error('Error rejecting increment proposal:', error);
     sendError(res, error);
   }
 });

@@ -5235,6 +5235,49 @@ export const employeeSalaries = pgTable('employee_salaries', {
   createdBy: integer('created_by').references(() => users.id),
 });
 
+// Salary increment proposals
+export const salaryIncrementProposals = pgTable('salary_increment_proposals', {
+  id: serial('id').primaryKey(),
+  employeeSalaryId: integer('employee_salary_id').notNull().references(() => employeeSalaries.id, { onDelete: 'cascade' }),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  incrementPercentage: decimal('increment_percentage', { precision: 5, scale: 2 }).notNull(),
+  oldBasicSalary: decimal('old_basic_salary', { precision: 15, scale: 2 }).notNull(),
+  proposedBasicSalary: decimal('proposed_basic_salary', { precision: 15, scale: 2 }).notNull(),
+  oldCtc: decimal('old_ctc', { precision: 15, scale: 2 }),
+  proposedCtc: decimal('proposed_ctc', { precision: 15, scale: 2 }),
+  effectiveDate: date('effective_date').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  remarks: text('remarks').default('Yearly Increment'),
+  proposedBy: integer('proposed_by').notNull().references(() => users.id),
+  proposedAt: timestamp('proposed_at').notNull().defaultNow(),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedAt: timestamp('rejected_at'),
+  rejectionReason: text('rejection_reason'),
+  appliedAt: timestamp('applied_at'),
+  appliedBy: integer('applied_by').references(() => users.id),
+});
+
+export type SalaryIncrementProposal = typeof salaryIncrementProposals.$inferSelect;
+export type InsertSalaryIncrementProposal = typeof salaryIncrementProposals.$inferInsert;
+
+// Salary increment audit log
+export const salaryIncrementAuditLog = pgTable('salary_increment_audit_log', {
+  id: serial('id').primaryKey(),
+  proposalId: integer('proposal_id').notNull().references(() => salaryIncrementProposals.id, { onDelete: 'cascade' }),
+  employeeSalaryId: integer('employee_salary_id').notNull(),
+  employeeId: integer('employee_id').notNull(),
+  action: varchar('action', { length: 20 }).notNull(),
+  actorId: integer('actor_id').notNull(),
+  oldValues: jsonb('old_values'),
+  newValues: jsonb('new_values'),
+  remarks: text('remarks'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type SalaryIncrementAuditLog = typeof salaryIncrementAuditLog.$inferSelect;
+
 // Payroll periods
 export const payrollPeriods = pgTable('payroll_periods', {
   id: serial('id').primaryKey(),

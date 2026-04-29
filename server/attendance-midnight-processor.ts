@@ -4,6 +4,7 @@ import { eq, and, isNull, gte, lte, not, inArray, sql } from 'drizzle-orm';
 import { determineAttendanceStatus } from './attendance-status-engine';
 import { schedule } from 'node-cron';
 import { APP_TIMEZONE, getISTDateString, getISTYesterdayString, buildISTDateTime } from './utils/date-ist';
+import { autoApplyDueIncrements } from './salary-increment-service';
 
 /**
  * Midnight Attendance Processor
@@ -387,6 +388,7 @@ export class AttendanceMidnightProcessor {
     schedule('0 0 * * *', () => {
       console.log(`[${new Date().toISOString()}] IST midnight cron triggered`);
       this.processIncompleteAttendance();
+      autoApplyDueIncrements().catch(err => console.error('[IncrementCron] Error:', err));
     }, { timezone: APP_TIMEZONE });
 
     console.log(`Attendance midnight processor scheduled at IST midnight (${APP_TIMEZONE})`);

@@ -11,11 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck, Calendar } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck, Calendar, TrendingUp, Check, ChevronDown } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, getErrorMessage } from '@/lib/queryClient';
 import { ExcelJS } from '@/lib/excel-client-utils';
@@ -3170,8 +3172,113 @@ interface SalaryFormProps {
 }
 
 function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkweekPolicy, initialData, onSubmit, isLoading }: SalaryFormProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(initialData?.userId || null);
   const [employeeWorkweekInfo, setEmployeeWorkweekInfo] = useState<any>(null);
+
+  // ── Increment tab state ────────────────────────────────────────────────────
+  const [incrPct, setIncrPct] = useState('');
+  const [incrEffDate, setIncrEffDate] = useState('');
+  const [incrRemarks, setIncrRemarks] = useState('Yearly Increment');
+  const [approveTarget, setApproveTarget] = useState<any>(null);
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  // Session user (for Superuser check)
+  const { data: sessionUser } = useQuery<any>({ queryKey: ['/api/user'] });
+  const isSuperuser = sessionUser?.role === 'Superuser';
+
+  // Fetch increment history (also triggers auto-apply on backend)
+  const { data: incrHistory = [], isLoading: incrLoading, refetch: refetchHistory } = useQuery<any[]>({
+    queryKey: ['/api/admin/payroll/salary-setup', initialData?.id, 'increment-history'],
+    queryFn: async () => {
+      if (!initialData?.id) return [];
+      const res = await fetch(`/api/admin/payroll/salary-setup/${initialData.id}/increment-history`);
+      if (!res.ok) throw new Error('Failed to fetch increment history');
+      return res.json();
+    },
+    enabled: !!initialData?.id,
+  });
+
+  const activeProposal = incrHistory.find((p: any) => p.status === 'pending' || p.status === 'approved');
+  const hasActive = !!activeProposal;
+
+  // Live preview of new salary using existing hook logic
+  const previewBasic = incrPct ? (parseFloat(initialData?.basicSalary || '0') * (1 + parseFloat(incrPct) / 100)).toFixed(2) : '';
+  const previewCalc = useSalaryCalculations(
+    previewBasic
+      ? { ...{}, basicSalary: previewBasic, salaryType: (initialData?.salaryType || 'monthly') as any,
+          actualDays: String(initialData?.actualDays || 30), paidDays: String(initialData?.paidDays || 30),
+          workingHoursPerDay: String(initialData?.workingHoursPerDay || 8),
+          kpiPercent: String(initialData?.kpiPercent || 0), groupInsurance: String(initialData?.groupInsurance || 1500),
+          overtimeHours: String(initialData?.overtimeHours || 0), otRate: String(initialData?.otRate || '1.0') }
+      : {},
+    users.find((u) => u.id === initialData?.userId)?.role
+  );
+  const currentCalc = useSalaryCalculations(
+    initialData
+      ? { basicSalary: initialData.basicSalary, salaryType: (initialData.salaryType || 'monthly') as any,
+          actualDays: String(initialData.actualDays || 30), paidDays: String(initialData.paidDays || 30),
+          workingHoursPerDay: String(initialData.workingHoursPerDay || 8),
+          kpiPercent: String(initialData.kpiPercent || 0), groupInsurance: String(initialData.groupInsurance || 1500),
+          overtimeHours: String(initialData.overtimeHours || 0), otRate: String(initialData.otRate || '1.0') }
+      : {},
+    users.find((u) => u.id === initialData?.userId)?.role
+  );
+
+  // Propose mutation
+  const proposeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/admin/payroll/salary-setup/${initialData!.id}/increment`, {
+        incrementPercentage: parseFloat(incrPct),
+        effectiveDate: incrEffDate,
+        remarks: incrRemarks,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to submit proposal');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Proposal Submitted', description: 'Increment proposal submitted and awaiting Superuser approval.' });
+      setIncrPct(''); setIncrEffDate(''); setIncrRemarks('Yearly Increment');
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/salary-setup', initialData?.id, 'increment-history'] });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  // Approve mutation
+  const approveMutation = useMutation({
+    mutationFn: async (proposalId: number) => {
+      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/approve`, {});
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: 'Approved', description: data.message });
+      setApproveTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/salary-setup'] });
+      refetchHistory();
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  // Reject mutation
+  const rejectMutation = useMutation({
+    mutationFn: async ({ proposalId, reason }: { proposalId: number; reason: string }) => {
+      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/reject`, { rejectionReason: reason });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Rejected', description: 'Proposal rejected.' });
+      setRejectTarget(null); setRejectReason('');
+      refetchHistory();
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
 
   const form = useForm<SalaryFormValues>({
     resolver: zodResolver(salaryFormSchema),
@@ -3323,10 +3430,11 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Tabs defaultValue="basic-info" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={`grid w-full ${initialData ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <TabsTrigger value="basic-info">Basic Information</TabsTrigger>
             <TabsTrigger value="allowances">Allowances</TabsTrigger>
             <TabsTrigger value="calculations">Calculations</TabsTrigger>
+            {initialData && <TabsTrigger value="increment" className="flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" />Increment</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="basic-info" className="space-y-4">
@@ -3915,6 +4023,310 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
               </Card>
             </div>
           </TabsContent>
+
+          {/* ── Increment Tab ──────────────────────────────────────────────── */}
+          {initialData && (
+            <TabsContent value="increment" className="space-y-4">
+              <TooltipProvider>
+
+              {/* Active proposal banner */}
+              {hasActive && (
+                <div className={`rounded-lg border p-4 ${activeProposal.status === 'pending' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-amber-600" />
+                        <span className="font-medium text-sm">
+                          {activeProposal.status === 'pending' ? 'Pending Approval' : 'Approved — Awaiting Effective Date'}
+                        </span>
+                        <Badge className={activeProposal.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}>
+                          {activeProposal.status === 'pending' ? 'Pending' : 'Approved'}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">{activeProposal.incrementPercentage}%</span> increment ·
+                        ₹{Math.round(parseFloat(activeProposal.oldBasicSalary)).toLocaleString('en-IN')} → ₹{Math.round(parseFloat(activeProposal.proposedBasicSalary)).toLocaleString('en-IN')} Basic ·
+                        Effective <span className="font-medium">{activeProposal.effectiveDate}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Proposed by {activeProposal.proposedByName} on {activeProposal.proposedAt ? new Date(activeProposal.proposedAt).toLocaleDateString('en-IN') : '—'}
+                        {activeProposal.status === 'approved' && activeProposal.approvedByName && ` · Approved by ${activeProposal.approvedByName}`}
+                      </p>
+                      {activeProposal.remarks && <p className="text-xs text-gray-500 italic">"{activeProposal.remarks}"</p>}
+                    </div>
+                    {isSuperuser && activeProposal.status === 'pending' && (
+                      <div className="flex gap-2 shrink-0">
+                        <Button size="sm" variant="outline" className="text-green-700 border-green-300 hover:bg-green-50 gap-1"
+                          onClick={() => setApproveTarget(activeProposal)}>
+                          <Check className="h-3.5 w-3.5" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-red-600 border-red-300 hover:bg-red-50 gap-1"
+                          onClick={() => { setRejectTarget(activeProposal); setRejectReason(''); }}>
+                          <X className="h-3.5 w-3.5" /> Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Propose new increment */}
+              <div className={`rounded-lg border p-4 space-y-4 ${hasActive ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-blue-600" />Propose New Increment</h3>
+                  {hasActive && <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">One active proposal exists — resolve it first</Badge>}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Increment % <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max="100"
+                        placeholder="e.g. 10"
+                        value={incrPct}
+                        onChange={e => setIncrPct(e.target.value)}
+                        className="pr-8"
+                      />
+                      <span className="absolute right-2.5 top-2.5 text-gray-400 text-sm">%</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Effective Date <span className="text-red-500">*</span></Label>
+                    <Input
+                      type="date"
+                      value={incrEffDate}
+                      onChange={e => setIncrEffDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Remarks</Label>
+                    <Input
+                      value={incrRemarks}
+                      onChange={e => setIncrRemarks(e.target.value)}
+                      placeholder="Yearly Increment"
+                    />
+                  </div>
+                </div>
+
+                {/* Live preview */}
+                {incrPct && parseFloat(incrPct) > 0 && previewBasic && (
+                  <div className="rounded-md bg-gray-50 border p-3 grid grid-cols-3 gap-4 text-sm">
+                    {[
+                      { label: 'Basic Salary', cur: currentCalc.grossBasic, nw: previewCalc.grossBasic, raw: true, curRaw: parseFloat(initialData.basicSalary), nwRaw: parseFloat(previewBasic) },
+                      { label: 'Take-Home', cur: currentCalc.takeHome, nw: previewCalc.takeHome },
+                      { label: 'CTC Monthly', cur: currentCalc.ctcMonthly, nw: previewCalc.ctcMonthly },
+                    ].map(({ label, cur, nw, raw, curRaw, nwRaw }) => {
+                      const curVal = raw ? curRaw! : cur;
+                      const nwVal = raw ? nwRaw! : nw;
+                      const delta = nwVal - curVal;
+                      return (
+                        <div key={label} className="space-y-0.5">
+                          <p className="text-xs text-gray-500">{label}</p>
+                          <p className="font-medium">₹{Math.round(nwVal).toLocaleString('en-IN')}</p>
+                          <p className="text-xs text-gray-400 line-through">₹{Math.round(curVal).toLocaleString('en-IN')}</p>
+                          <p className="text-xs text-green-600 font-medium">+₹{Math.round(delta).toLocaleString('en-IN')}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    disabled={!incrPct || parseFloat(incrPct) <= 0 || !incrEffDate || hasActive || proposeMutation.isPending}
+                    onClick={() => proposeMutation.mutate()}
+                    className="gap-1"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    {proposeMutation.isPending ? 'Submitting…' : 'Submit Proposal'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* History table */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm flex items-center gap-2"><History className="h-4 w-4" />Increment History</h3>
+                {incrLoading ? (
+                  <div className="flex items-center justify-center p-6 text-gray-400"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…</div>
+                ) : incrHistory.length === 0 ? (
+                  <div className="text-center p-6 text-gray-400 text-sm border rounded-lg">No increment history yet.</div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr className="border-b">
+                          <th className="text-left p-2.5 font-medium text-xs text-gray-500">Proposed</th>
+                          <th className="text-left p-2.5 font-medium text-xs text-gray-500">Eff. Date</th>
+                          <th className="text-right p-2.5 font-medium text-xs text-gray-500">%</th>
+                          <th className="text-right p-2.5 font-medium text-xs text-gray-500">Old Basic</th>
+                          <th className="text-right p-2.5 font-medium text-xs text-gray-500">New Basic</th>
+                          <th className="text-right p-2.5 font-medium text-xs text-gray-500">Old CTC</th>
+                          <th className="text-right p-2.5 font-medium text-xs text-gray-500">New CTC</th>
+                          <th className="text-left p-2.5 font-medium text-xs text-gray-500">Remarks</th>
+                          <th className="text-left p-2.5 font-medium text-xs text-gray-500">Status</th>
+                          <th className="text-left p-2.5 font-medium text-xs text-gray-500">By</th>
+                          {isSuperuser && <th className="p-2.5"></th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {incrHistory.map((row: any) => (
+                          <tr key={row.id} className="border-b hover:bg-gray-50">
+                            <td className="p-2.5 text-xs text-gray-500">{row.proposedAt ? new Date(row.proposedAt).toLocaleDateString('en-IN') : '—'}</td>
+                            <td className="p-2.5 font-medium">{row.effectiveDate}</td>
+                            <td className="p-2.5 text-right font-medium text-green-700">{row.incrementPercentage}%</td>
+                            <td className="p-2.5 text-right">₹{Math.round(parseFloat(row.oldBasicSalary)).toLocaleString('en-IN')}</td>
+                            <td className="p-2.5 text-right font-medium">₹{Math.round(parseFloat(row.proposedBasicSalary)).toLocaleString('en-IN')}</td>
+                            <td className="p-2.5 text-right text-xs text-gray-500">{row.oldCtc ? `₹${Math.round(parseFloat(row.oldCtc)).toLocaleString('en-IN')}` : '—'}</td>
+                            <td className="p-2.5 text-right text-xs text-gray-500">{row.proposedCtc ? `₹${Math.round(parseFloat(row.proposedCtc)).toLocaleString('en-IN')}` : '—'}</td>
+                            <td className="p-2.5 text-xs text-gray-600 max-w-[120px] truncate">
+                              <Tooltip>
+                                <TooltipTrigger asChild><span className="cursor-default">{row.remarks || '—'}</span></TooltipTrigger>
+                                <TooltipContent>{row.remarks}</TooltipContent>
+                              </Tooltip>
+                            </td>
+                            <td className="p-2.5">
+                              {row.status === 'pending' && <Badge className="bg-amber-100 text-amber-800 text-xs">Pending</Badge>}
+                              {row.status === 'approved' && <Badge className="bg-blue-100 text-blue-800 text-xs">Approved</Badge>}
+                              {row.status === 'applied' && (
+                                <div>
+                                  <Badge className="bg-green-100 text-green-800 text-xs">Applied</Badge>
+                                  {row.appliedAt && <p className="text-xs text-gray-400 mt-0.5">{new Date(row.appliedAt).toLocaleDateString('en-IN')}</p>}
+                                </div>
+                              )}
+                              {row.status === 'rejected' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge className="bg-red-100 text-red-800 text-xs cursor-default">Rejected</Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="font-medium">Reason:</p>
+                                    <p>{row.rejectionReason}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-xs text-gray-500">{row.proposedByName || '—'}</td>
+                            {isSuperuser && (
+                              <td className="p-2.5">
+                                {row.status === 'pending' && (
+                                  <div className="flex gap-1">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:bg-green-50"
+                                          onClick={() => setApproveTarget(row)}>
+                                          <Check className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Approve</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-600 hover:bg-red-50"
+                                          onClick={() => { setRejectTarget(row); setRejectReason(''); }}>
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Reject</TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Approve confirmation dialog */}
+              <Dialog open={!!approveTarget} onOpenChange={open => { if (!open) setApproveTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Check className="h-5 w-5 text-green-600" /> Approve Increment
+                    </DialogTitle>
+                  </DialogHeader>
+                  {approveTarget && (
+                    <div className="space-y-3 text-sm">
+                      <div className="rounded-md bg-gray-50 p-3 space-y-1">
+                        <p><span className="font-medium">Employee:</span> {users.find(u => u.id === initialData.userId)?.firstName} {users.find(u => u.id === initialData.userId)?.lastName}</p>
+                        <p><span className="font-medium">Increment:</span> {approveTarget.incrementPercentage}%</p>
+                        <p><span className="font-medium">Basic:</span> ₹{Math.round(parseFloat(approveTarget.oldBasicSalary)).toLocaleString('en-IN')} → ₹{Math.round(parseFloat(approveTarget.proposedBasicSalary)).toLocaleString('en-IN')}</p>
+                        <p><span className="font-medium">Effective Date:</span> {approveTarget.effectiveDate}</p>
+                        <p><span className="font-medium">Remarks:</span> {approveTarget.remarks}</p>
+                      </div>
+                      {approveTarget.effectiveDate <= new Date().toISOString().split('T')[0] && (
+                        <div className="rounded-md bg-green-50 border border-green-200 p-2 text-xs text-green-800 flex gap-2">
+                          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                          Effective date is today or past — salary will be applied immediately on approval.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setApproveTarget(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => approveMutation.mutate(approveTarget.id)}
+                      disabled={approveMutation.isPending}
+                      className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                    >
+                      <Check className="h-4 w-4" />
+                      {approveMutation.isPending ? 'Approving…' : 'Confirm Approve'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Reject dialog */}
+              <Dialog open={!!rejectTarget} onOpenChange={open => { if (!open) setRejectTarget(null); }}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <X className="h-5 w-5 text-red-600" /> Reject Increment Proposal
+                    </DialogTitle>
+                  </DialogHeader>
+                  {rejectTarget && (
+                    <div className="space-y-3">
+                      <div className="rounded-md bg-gray-50 p-3 text-sm space-y-1">
+                        <p><span className="font-medium">Increment:</span> {rejectTarget.incrementPercentage}% · Effective {rejectTarget.effectiveDate}</p>
+                        <p><span className="font-medium">Proposed by:</span> {rejectTarget.proposedByName}</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Rejection Reason <span className="text-red-500">*</span></Label>
+                        <Textarea
+                          rows={3}
+                          placeholder="Explain why this proposal is being rejected…"
+                          value={rejectReason}
+                          onChange={e => setRejectReason(e.target.value)}
+                        />
+                        <p className={`text-xs ${rejectReason.length < 5 ? 'text-gray-400' : 'text-green-600'}`}>{rejectReason.length} / 5 min characters</p>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setRejectTarget(null)}>Cancel</Button>
+                    <Button
+                      variant="destructive"
+                      disabled={rejectReason.length < 5 || rejectMutation.isPending}
+                      onClick={() => rejectMutation.mutate({ proposalId: rejectTarget.id, reason: rejectReason })}
+                    >
+                      {rejectMutation.isPending ? 'Rejecting…' : 'Confirm Reject'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              </TooltipProvider>
+            </TabsContent>
+          )}
         </Tabs>
 
         <div className="flex justify-end space-x-4">
