@@ -252,10 +252,17 @@ export class AttendanceMidnightProcessor {
   }
 
   /**
-   * Process attendance record with check-in but no check-out
+   * Process attendance record with check-in but no check-out.
+   * Only called for records where check_in_time IS NOT NULL.
    */
   private async processIncompleteCheckout(record: any, user: any): Promise<void> {
     try {
+      // Baseline rule: only estimate checkout if a real check-in exists.
+      // Records with no check-in must be handled by processIncompleteRecord, not here.
+      if (!record.checkInTime) {
+        return;
+      }
+
       if (record.isIncomplete) {
         return;
       }

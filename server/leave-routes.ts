@@ -615,7 +615,7 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
     const leaveEnd = new Date(existingRequest.endDate);
     for (let d = new Date(leaveStart); d <= leaveEnd; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
-      const leaveStatus = existingRequest.isHalfDay ? 'half_day' : 'on leave';
+      const leaveStatus = existingRequest.isHalfDay ? 'half_day' : 'on_leave';
       const [existingAtt] = await db.select({ id: attendanceRecords.id, status: attendanceRecords.status })
         .from(attendanceRecords)
         .where(and(

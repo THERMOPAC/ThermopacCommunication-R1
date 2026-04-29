@@ -157,13 +157,23 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
     .limit(1);
 
   if (approvedLeave) {
-    const leaveStatus = approvedLeave.isHalfDay ? 'half_day' : 'present';
+    const leaveStatus = approvedLeave.isHalfDay ? 'half_day' : 'on_leave';
     const result = buildResult(leaveStatus, grossHours, netHours, overtimeHours, 'leave', isLateArrival, isEarlyDeparture);
     result.leaveId = approvedLeave.id;
     return result;
   }
 
   if (!checkInTime && workingHoursOverride == null) {
+    return buildResult('absent', 0, 0, 0, 'no_data', false, false);
+  }
+
+  // Hard validation: no worked status should ever be assigned without a check-in.
+  // If we somehow reach this point without a check-in, log and force absent.
+  if (!checkInTime) {
+    console.error(
+      `[AttendanceStatusEngine] RULE VIOLATION: userId=${userId} date=${date} ` +
+      `reached hours-based calculation without a check-in time. Forcing absent.`
+    );
     return buildResult('absent', 0, 0, 0, 'no_data', false, false);
   }
 
