@@ -1,9 +1,9 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, productChildren as productChildrenTable } from '@shared/schema';
+import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, productChildren as productChildrenTable, productAttributeOptions as productAttributeOptionsTable, attributeOptionAuditLog as attributeOptionAuditLogTable, products as productsTable } from '@shared/schema';
 import { db } from './db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, or } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
 import multer from 'multer';
 import * as fs from 'fs';
@@ -599,7 +599,9 @@ router.get('/dashboard/orders-in-hand', ensureAuthenticated, async (req: Request
   }
 });
 
-// Product Attribute Options Routes
+// ==================== PRODUCT ATTRIBUTE OPTIONS ROUTES (Phase 3 Hardened) ====================
+
+// GET — fetch all or by type
 router.get('/product-attributes', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const type = req.query.type as string | undefined;
@@ -611,47 +613,113 @@ router.get('/product-attributes', ensureAuthenticated, async (req: Request, res:
   }
 });
 
+// POST — create with hierarchy validation
 router.post('/product-attributes', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const validated = insertProductAttributeOptionSchema.parse(req.body);
-    if (validated.code && validated.attributeType !== 'property_3' && validated.code.length !== 3) {
-      return res.status(400).json({ error: 'Code must be exactly 3 characters' });
+
+    // Code length
+    if (validated.code && validated.code.length !== 3) {
+      return res.status(400).json({ error: 'Code must be exactly 3 characters.' });
     }
-    const allOptions = await storage.getAttributeOptions(validated.attributeType);
-    const duplicate = allOptions.find((o: any) =>
-      o.code === validated.code &&
-      (o.parentId ?? null) === (validated.parentId ?? null)
-    );
-    if (duplicate) {
-      return res.status(400).json({ error: `Code "${validated.code}" already exists under this parent. Each code must be unique within its parent scope.` });
+
+    // Hierarchy validation
+    if (validated.attributeType === 'item_family') {
+      if (validated.parentId !== null && validated.parentId !== undefined) {
+        return res.status(400).json({ error: 'Item Family options must not have a parent (parent_id must be null).' });
+      }
+    } else if (validated.attributeType === 'property_1') {
+      if (!validated.parentId) {
+        return res.status(400).json({ error: 'Property 1 options must specify a parent Item Family.' });
+      }
+      const [parent] = await db.select().from(productAttributeOptionsTable)
+        .where(eq(productAttributeOptionsTable.id, validated.parentId));
+      if (!parent) {
+        return res.status(400).json({ error: 'Parent option not found.' });
+      }
+      if (parent.attributeType !== 'item_family') {
+        return res.status(400).json({ error: 'Property 1 parent must be an Item Family option.' });
+      }
+    } else if (validated.attributeType === 'property_2') {
+      if (!validated.parentId) {
+        return res.status(400).json({ error: 'Property 2 options must specify a parent Property 1.' });
+      }
+      const [parent] = await db.select().from(productAttributeOptionsTable)
+        .where(eq(productAttributeOptionsTable.id, validated.parentId));
+      if (!parent) {
+        return res.status(400).json({ error: 'Parent option not found.' });
+      }
+      if (parent.attributeType !== 'property_1') {
+        return res.status(400).json({ error: 'Property 2 parent must be a Property 1 option.' });
+      }
     }
+
     const option = await storage.createAttributeOption(validated);
     res.status(201).json(option);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid data', details: error.errors });
     }
+    const pgError = error as any;
+    if (pgError.code === '23505') {
+      return res.status(400).json({ error: 'A duplicate code already exists under this parent. Each code must be unique within its parent scope.' });
+    }
     console.error('Error creating product attribute option:', error);
     res.status(500).json({ error: 'Failed to create product attribute option' });
   }
 });
 
+// PATCH — update with code-lock, label audit, deactivate guard
 router.patch('/product-attributes/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    if (req.body.code) {
-      const allOptions = await storage.getAttributeOptions(req.body.attributeType);
-      const duplicate = allOptions.find((o: any) =>
-        o.id !== id &&
-        o.code === req.body.code &&
-        (o.parentId ?? null) === (req.body.parentId ?? null)
-      );
-      if (duplicate) {
-        return res.status(400).json({ error: `Code "${req.body.code}" already exists under this parent. Each code must be unique within its parent scope.` });
+
+    // Fetch current record
+    const [current] = await db.select().from(productAttributeOptionsTable)
+      .where(eq(productAttributeOptionsTable.id, id));
+    if (!current) return res.status(404).json({ error: 'Attribute option not found.' });
+
+    // GUARD 1: Code is permanently locked — reject any attempt to change it
+    if (req.body.code !== undefined && req.body.code !== current.code) {
+      return res.status(400).json({
+        error: `Code "${current.code}" is permanently locked and cannot be changed. To use a different code, create a new option and mark this one inactive.`,
+      });
+    }
+
+    // GUARD 2: Deactivate check — block if active child options exist
+    if (req.body.isActive === false && current.isActive !== false) {
+      const activeChildren = await db.select({ id: productAttributeOptionsTable.id })
+        .from(productAttributeOptionsTable)
+        .where(and(
+          eq(productAttributeOptionsTable.parentId, id),
+          eq(productAttributeOptionsTable.isActive, true),
+        ));
+      if (activeChildren.length > 0) {
+        return res.status(400).json({
+          error: `Cannot deactivate — ${activeChildren.length} active child option(s) depend on this. Deactivate all child options first.`,
+        });
       }
     }
-    const option = await storage.updateAttributeOption(id, req.body);
+
+    // Strip immutable fields from body; always refresh updated_at
+    const { code: _code, attributeType: _type, parentId: _pid, createdAt: _ca, ...allowedFields } = req.body;
+    const updateData = { ...allowedFields, updatedAt: new Date() };
+
+    const option = await storage.updateAttributeOption(id, updateData);
+
+    // AUDIT: log label change
+    const labelChanged = req.body.label !== undefined && req.body.label !== current.label;
+    if (labelChanged) {
+      const userId = (req as any).user?.id ?? null;
+      await db.insert(attributeOptionAuditLogTable).values({
+        optionId: id,
+        oldLabel: current.label,
+        newLabel: req.body.label,
+        changedBy: userId,
+      });
+    }
+
     res.json(option);
   } catch (error) {
     console.error('Error updating product attribute option:', error);
@@ -659,13 +727,50 @@ router.patch('/product-attributes/:id', ensureAuthenticated, async (req: Request
   }
 });
 
+// DELETE — blocked if used in products or has child options
 router.delete('/product-attributes/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+    // Fetch current record
+    const [current] = await db.select().from(productAttributeOptionsTable)
+      .where(eq(productAttributeOptionsTable.id, id));
+    if (!current) return res.status(404).json({ error: 'Attribute option not found.' });
+
+    // GUARD 1: Block if has any child options (active or inactive)
+    const children = await db.select({ id: productAttributeOptionsTable.id })
+      .from(productAttributeOptionsTable)
+      .where(eq(productAttributeOptionsTable.parentId, id));
+    if (children.length > 0) {
+      return res.status(400).json({
+        error: `Cannot delete — this option has ${children.length} child option(s) that depend on it. Delete or reassign all child options first.`,
+      });
+    }
+
+    // GUARD 2: Block if code is used in any product record
+    const usedInProducts = await db.select({ id: productsTable.id })
+      .from(productsTable)
+      .where(or(
+        eq(productsTable.itemFamily, current.code),
+        eq(productsTable.itemProperty1, current.code),
+        eq(productsTable.itemProperty2, current.code),
+        eq(productsTable.itemProperty3, current.code),
+      ));
+    if (usedInProducts.length > 0) {
+      return res.status(400).json({
+        error: `Cannot delete — this option's code "${current.code}" is referenced in ${usedInProducts.length} product(s). Mark it inactive instead.`,
+      });
+    }
+
     await storage.deleteAttributeOption(id);
     res.status(204).send();
   } catch (error) {
+    // DB-level RESTRICT FK will also block delete if children exist
+    const pgError = error as any;
+    if (pgError.code === '23503') {
+      return res.status(400).json({ error: 'Cannot delete — this option is still referenced by other records.' });
+    }
     console.error('Error deleting product attribute option:', error);
     res.status(500).json({ error: 'Failed to delete product attribute option' });
   }
