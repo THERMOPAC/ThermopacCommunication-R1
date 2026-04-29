@@ -214,6 +214,8 @@ export const attendanceRecords = pgTable('attendance_records', {
   minimumDailyHoursUsed: decimal('minimum_daily_hours_used', { precision: 4, scale: 2 }),
   halfDayMinimumHoursUsed: decimal('half_day_minimum_hours_used', { precision: 4, scale: 2 }),
   workTimePolicyUsed: varchar('work_time_policy_used', { length: 20 }),
+  netWorkingSecondsUsed: integer('net_working_seconds_used'),
+  toleranceApplied: boolean('tolerance_applied').default(false),
   
   // Incomplete attendance tracking
   isIncomplete: boolean('is_incomplete').default(false),

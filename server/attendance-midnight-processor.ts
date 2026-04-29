@@ -202,6 +202,7 @@ export class AttendanceMidnightProcessor {
           allowedLateMinutes: user?.allowedLateMinutes,
           earlyExitMinutes: user?.earlyExitMinutes,
           workTimePolicy: user?.workTimePolicy,
+          userType: user?.userType,
         },
         workLocationId: record.workLocationId,
       });
@@ -284,6 +285,7 @@ export class AttendanceMidnightProcessor {
           allowedLateMinutes: user?.allowedLateMinutes,
           earlyExitMinutes: user?.earlyExitMinutes,
           workTimePolicy: user?.workTimePolicy,
+          userType: user?.userType,
         },
         workLocationId: record.workLocationId,
       });
@@ -306,6 +308,8 @@ export class AttendanceMidnightProcessor {
           minimumDailyHoursUsed: statusResult.minimumDailyHoursUsed != null ? statusResult.minimumDailyHoursUsed.toFixed(2) : null,
           halfDayMinimumHoursUsed: statusResult.halfDayMinimumHoursUsed != null ? statusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
           workTimePolicyUsed: statusResult.workTimePolicyUsed ?? null,
+          netWorkingSecondsUsed: statusResult.netWorkingSecondsUsed ?? null,
+          toleranceApplied: statusResult.toleranceApplied ?? false,
           updatedAt: new Date()
         })
         .where(eq(attendanceRecords.id, record.id));

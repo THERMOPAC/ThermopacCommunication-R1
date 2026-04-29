@@ -282,6 +282,7 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
         allowedLateMinutes: employeeUser.allowedLateMinutes,
         earlyExitMinutes: employeeUser.earlyExitMinutes,
         workTimePolicy: employeeUser.workTimePolicy,
+        userType: employeeUser.userType,
       },
       workLocationId: existingRecord.workLocationId,
     });
@@ -310,6 +311,8 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
         minimumDailyHoursUsed: statusResult.minimumDailyHoursUsed != null ? statusResult.minimumDailyHoursUsed.toFixed(2) : null,
         halfDayMinimumHoursUsed: statusResult.halfDayMinimumHoursUsed != null ? statusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
         workTimePolicyUsed: statusResult.workTimePolicyUsed ?? null,
+        netWorkingSecondsUsed: statusResult.netWorkingSecondsUsed ?? null,
+        toleranceApplied: statusResult.toleranceApplied ?? false,
         updatedAt: now
       })
       .where(eq(attendanceRecords.id, existingRecord.id))
@@ -1321,6 +1324,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       allowedLateMinutes: employee?.allowedLateMinutes,
       earlyExitMinutes: employee?.earlyExitMinutes,
       workTimePolicy: employee?.workTimePolicy,
+      userType: employee?.userType,
     };
 
     if (reg.requestType === 'outdoor_duty') {
@@ -1350,6 +1354,8 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           minimumDailyHoursUsed: odStatusResult.minimumDailyHoursUsed != null ? odStatusResult.minimumDailyHoursUsed.toFixed(2) : null,
           halfDayMinimumHoursUsed: odStatusResult.halfDayMinimumHoursUsed != null ? odStatusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
           workTimePolicyUsed: odStatusResult.workTimePolicyUsed ?? null,
+          netWorkingSecondsUsed: odStatusResult.netWorkingSecondsUsed ?? null,
+          toleranceApplied: odStatusResult.toleranceApplied ?? false,
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
       } else {
@@ -1370,6 +1376,8 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           minimumDailyHoursUsed: odStatusResult.minimumDailyHoursUsed != null ? odStatusResult.minimumDailyHoursUsed.toFixed(2) : null,
           halfDayMinimumHoursUsed: odStatusResult.halfDayMinimumHoursUsed != null ? odStatusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
           workTimePolicyUsed: odStatusResult.workTimePolicyUsed ?? null,
+          netWorkingSecondsUsed: odStatusResult.netWorkingSecondsUsed ?? null,
+          toleranceApplied: odStatusResult.toleranceApplied ?? false,
         });
       }
       appliedToAttendance = true;
@@ -1408,6 +1416,8 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           minimumDailyHoursUsed: regStatusResult.minimumDailyHoursUsed != null ? regStatusResult.minimumDailyHoursUsed.toFixed(2) : null,
           halfDayMinimumHoursUsed: regStatusResult.halfDayMinimumHoursUsed != null ? regStatusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
           workTimePolicyUsed: regStatusResult.workTimePolicyUsed ?? null,
+          netWorkingSecondsUsed: regStatusResult.netWorkingSecondsUsed ?? null,
+          toleranceApplied: regStatusResult.toleranceApplied ?? false,
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
         appliedToAttendance = true;
@@ -1437,6 +1447,8 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           minimumDailyHoursUsed: mcFallbackResult.minimumDailyHoursUsed != null ? mcFallbackResult.minimumDailyHoursUsed.toFixed(2) : null,
           halfDayMinimumHoursUsed: mcFallbackResult.halfDayMinimumHoursUsed != null ? mcFallbackResult.halfDayMinimumHoursUsed.toFixed(2) : null,
           workTimePolicyUsed: mcFallbackResult.workTimePolicyUsed ?? null,
+          netWorkingSecondsUsed: mcFallbackResult.netWorkingSecondsUsed ?? null,
+          toleranceApplied: mcFallbackResult.toleranceApplied ?? false,
         });
         appliedToAttendance = true;
       }

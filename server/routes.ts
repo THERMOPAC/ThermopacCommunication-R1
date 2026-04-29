@@ -1722,6 +1722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               allowedLateMinutes: usersTable.allowedLateMinutes,
               earlyExitMinutes: usersTable.earlyExitMinutes,
               workTimePolicy: usersTable.workTimePolicy,
+              userType: usersTable.userType,
             }).from(usersTable).where(eq(usersTable.id, userId));
 
             const statusResult = await determineAttendanceStatus({
@@ -1738,6 +1739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 allowedLateMinutes: userConfig?.allowedLateMinutes,
                 earlyExitMinutes: userConfig?.earlyExitMinutes,
                 workTimePolicy: userConfig?.workTimePolicy,
+                userType: userConfig?.userType,
               },
               workLocationId: openRecord.workLocationId,
             });
@@ -1755,6 +1757,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               minimumDailyHoursUsed: statusResult.minimumDailyHoursUsed != null ? statusResult.minimumDailyHoursUsed.toFixed(2) : null,
               halfDayMinimumHoursUsed: statusResult.halfDayMinimumHoursUsed != null ? statusResult.halfDayMinimumHoursUsed.toFixed(2) : null,
               workTimePolicyUsed: statusResult.workTimePolicyUsed ?? null,
+              netWorkingSecondsUsed: statusResult.netWorkingSecondsUsed ?? null,
+              toleranceApplied: statusResult.toleranceApplied ?? false,
               updatedAt: now,
             }).where(eq(attendanceRecords.id, openRecord.id));
             console.log(`Auto-checkout on logout for user ${userId}: ${statusResult.workingHours.toFixed(2)}h, status: ${statusResult.status}`);

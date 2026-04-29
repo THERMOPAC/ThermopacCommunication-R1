@@ -9,6 +9,20 @@ import { eq, and, gte, lte } from 'drizzle-orm';
  */
 export const THRESHOLD_ENFORCEMENT_DATE = '2026-05-01';
 
+/**
+ * Tolerance window for biometric (system_user) employees.
+ * If net_seconds falls within this many seconds below the full-day or half-day
+ * minimum, the employee is still credited for that tier.
+ *
+ * Rationale: biometric clocks record to-the-second; sub-minute shortfalls caused
+ * by rounding or gate delays should not trigger a tier drop.
+ *
+ * Applied ONLY to:
+ *   - system_user employees (biometric)
+ *   - working-day records (leave / weekly_off / holiday bypass this block)
+ */
+export const ATTENDANCE_TOLERANCE_MINUTES = 2;
+
 export interface StatusInput {
   userId: number;
   date: string;
@@ -24,6 +38,7 @@ export interface StatusInput {
     allowedLateMinutes?: number | null;
     earlyExitMinutes?: number | null;
     workTimePolicy?: string | null;
+    userType?: string | null;
   };
   workLocationId?: number | null;
 }
@@ -41,6 +56,9 @@ export interface StatusResult {
   minimumDailyHoursUsed?: number;
   halfDayMinimumHoursUsed?: number;
   workTimePolicyUsed?: string;
+  // Seconds-precision audit — always populated when hours-based classification runs
+  netWorkingSecondsUsed?: number;
+  toleranceApplied?: boolean;
 }
 
 const DEFAULTS = {
@@ -71,6 +89,13 @@ const DEFAULTS = {
  *
  * For dates < THRESHOLD_ENFORCEMENT_DATE:
  *   - Legacy defaults (8h / 4h) are used if config is missing.
+ *
+ * Tolerance (system_user / biometric employees only):
+ *   - Classification uses raw net seconds, not the rounded 2-decimal-place hours.
+ *   - If net_seconds >= (fullDayMinSeconds - toleranceSeconds) → present
+ *   - If net_seconds >= halfDayMinSeconds                      → half_day
+ *   - Prevents sub-minute biometric rounding from causing tier drops.
+ *   - toleranceApplied=true is set when tolerance was the deciding factor.
  */
 export async function determineAttendanceStatus(input: StatusInput): Promise<StatusResult> {
   const {
@@ -116,8 +141,13 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
   }
 
   const policy = userConfig.workTimePolicy || 'Fixed';
+  const isBiometric = userConfig.userType === 'system_user';
 
+  // --- Gross / net hours (backward-compat float path) ---
   let grossHours = 0;
+  // Net seconds path — raw milliseconds, no rounding
+  let netSeconds = 0;
+
   if (workingHoursOverride != null) {
     grossHours = workingHoursOverride;
   } else if (checkInTime && checkOutTime) {
@@ -145,6 +175,17 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
 
   const netHours = Math.max(0, grossHours - breakHours);
   const overtimeHours = Math.max(0, netHours - standardHours);
+
+  // Raw seconds for classification (more precise than rounded hours)
+  if (workingHoursOverride != null) {
+    netSeconds = Math.round(Math.max(0, workingHoursOverride - breakHours) * 3600);
+  } else if (checkInTime && checkOutTime) {
+    const inMs = new Date(checkInTime).getTime();
+    const outMs = new Date(checkOutTime).getTime();
+    const grossMs = Math.max(0, outMs - inMs);
+    const breakMs = breakHours * 3600 * 1000;
+    netSeconds = Math.floor(Math.max(0, grossMs - breakMs) / 1000);
+  }
 
   let isLateArrival = false;
   let isEarlyDeparture = false;
@@ -212,7 +253,7 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
     return result;
   }
 
-  // — Priority 4: Hours-based —
+  // — Priority 4: Hours-based — uses raw seconds + tolerance for biometric users —
   if (!checkInTime && workingHoursOverride == null) {
     return buildResult('absent', 0, 0, 0, 'no_data', false, false, audit);
   }
@@ -225,16 +266,32 @@ export async function determineAttendanceStatus(input: StatusInput): Promise<Sta
     return buildResult('absent', 0, 0, 0, 'no_data', false, false, audit);
   }
 
+  const toleranceSecs = ATTENDANCE_TOLERANCE_MINUTES * 60;
+  const fullDayMinSecs = Math.round(fullDayMin * 3600);
+  const halfDayMinSecs = Math.round(halfDayMin * 3600);
+
   let status: string;
-  if (netHours >= fullDayMin) {
+  let toleranceApplied = false;
+
+  if (netSeconds >= fullDayMinSecs) {
     status = 'present';
-  } else if (netHours >= halfDayMin) {
+  } else if (isBiometric && netSeconds >= (fullDayMinSecs - toleranceSecs)) {
+    // Within tolerance window of full day — credit as present
+    status = 'present';
+    toleranceApplied = true;
+  } else if (netSeconds >= halfDayMinSecs) {
     status = 'half_day';
   } else {
     status = 'absent';
   }
 
-  return buildResult(status, grossHours, netHours, overtimeHours, 'hours', isLateArrival, isEarlyDeparture, audit);
+  return buildResult(
+    status, grossHours, netHours, overtimeHours, 'hours',
+    isLateArrival, isEarlyDeparture,
+    audit,
+    netSeconds,
+    toleranceApplied,
+  );
 }
 
 function buildResult(
@@ -246,6 +303,8 @@ function buildResult(
   isLateArrival: boolean,
   isEarlyDeparture: boolean,
   audit: { minimumDailyHoursUsed?: number; halfDayMinimumHoursUsed?: number; workTimePolicyUsed?: string } = {},
+  netWorkingSecondsUsed?: number,
+  toleranceApplied?: boolean,
 ): StatusResult {
   return {
     status,
@@ -256,5 +315,7 @@ function buildResult(
     isLateArrival,
     isEarlyDeparture,
     ...audit,
+    ...(netWorkingSecondsUsed !== undefined ? { netWorkingSecondsUsed } : {}),
+    ...(toleranceApplied !== undefined ? { toleranceApplied } : {}),
   };
 }
