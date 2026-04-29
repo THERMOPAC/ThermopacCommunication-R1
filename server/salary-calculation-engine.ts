@@ -357,12 +357,19 @@ export class SalaryCalculationEngine {
     let overtimeHours = 0;
     
     attendance.forEach(record => {
-      if (record.status === 'present' || record.status === 'late' || record.checkInTime) {
-        presentDays++;
+      // half_day must be checked BEFORE the checkInTime fallback, otherwise a half_day record
+      // that has a checkInTime would be misclassified as a full present day.
+      // on_leave / weekly_off / holiday records are explicitly excluded (no hours contribution).
+      if (record.status === 'half_day') {
+        halfDays++;
         totalWorkingHours += parseFloat(record.workingHours || '0');
         overtimeHours += parseFloat(record.overtimeHours || '0');
-      } else if (record.status === 'half_day') {
-        halfDays++;
+      } else if (
+        record.status === 'present' ||
+        record.status === 'late' ||
+        (record.checkInTime && record.status !== 'on_leave' && record.status !== 'weekly_off' && record.status !== 'holiday')
+      ) {
+        presentDays++;
         totalWorkingHours += parseFloat(record.workingHours || '0');
         overtimeHours += parseFloat(record.overtimeHours || '0');
       }

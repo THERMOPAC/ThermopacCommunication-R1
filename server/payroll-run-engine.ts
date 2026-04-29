@@ -319,6 +319,12 @@ async function stepAttendanceSnapshot(
         cur.setDate(cur.getDate() + 1);
       }
 
+      // Dual-string safety note:
+      // 'on_leave', 'weekly_off', 'holiday' records are intentionally NOT filtered here —
+      // they are neutral in the snapshot (dates present in attendanceDateSet → prevent missingCount,
+      // but contribute nothing to LOP or presentDays). The leave overlay step below handles
+      // on_leave days by reading leave_requests directly. This design means status string
+      // variants ('on leave' / 'on_leave') do not affect snapshot math.
       const presentFull = records.filter(r => r.status === 'present').length;
       const halfDays = records.filter(r => r.status === 'half_day').length;
       const lateDays = records.filter(r => r.status === 'late').length;
@@ -968,7 +974,14 @@ async function stepKpiAdjustment(
         );
 
       const totalWorkingDays = attendanceData.length || 1;
-      const paidAttendanceDays = attendanceData.filter(r => r.status === 'present' || r.status === 'half_day' || r.status === 'late');
+      // on_leave days are non-penalising for KPI: employee was entitled to that leave.
+      // weekly_off and holiday are excluded from totalWorkingDays implicitly (no records generated).
+      const paidAttendanceDays = attendanceData.filter(r =>
+        r.status === 'present' ||
+        r.status === 'half_day' ||
+        r.status === 'late' ||
+        r.status === 'on_leave'
+      );
       const presentCount = paidAttendanceDays.length;
       const attendancePercentage = Math.min((presentCount / totalWorkingDays) * 100, 100);
 
