@@ -190,22 +190,85 @@ export default function AttendanceManagementPage() {
     );
   };
 
+  // Inject synthetic Weekly Off rows for dates not covered by actual records
+  const enrichWithWeeklyOff = (records: AttendanceRecord[]): AttendanceRecord[] => {
+    if (!records.length) return records;
+    const { start: rangeStart, end: rangeEnd } = getDateRangeBounds();
+
+    // Group by userId
+    const byEmployee: Record<number, AttendanceRecord[]> = {};
+    records.forEach(r => {
+      if (!byEmployee[r.userId]) byEmployee[r.userId] = [];
+      byEmployee[r.userId].push(r);
+    });
+
+    const enriched: AttendanceRecord[] = [];
+    Object.values(byEmployee).forEach(empRecords => {
+      const empWeeklyOff: number[] = (empRecords[0]?.weeklyOffDays as number[]) ?? [0, 6];
+      const covered = new Set(empRecords.map(r =>
+        typeof r.date === 'string' ? r.date.substring(0, 10) : format(new Date(r.date), 'yyyy-MM-dd')
+      ));
+
+      const cursor = new Date(rangeStart);
+      cursor.setHours(0, 0, 0, 0);
+      const rangeEndDay = new Date(rangeEnd);
+      rangeEndDay.setHours(23, 59, 59, 999);
+
+      while (cursor <= rangeEndDay) {
+        const dateStr = format(cursor, 'yyyy-MM-dd');
+        if (!covered.has(dateStr) && empWeeklyOff.includes(cursor.getDay())) {
+          empRecords.push({
+            id: -1,
+            userId: empRecords[0].userId,
+            userName: empRecords[0].userName,
+            department: empRecords[0].department,
+            date: dateStr,
+            timeIn: null,
+            timeOut: null,
+            workHours: 0,
+            status: 'Weekly Off',
+            weeklyOffDays: empWeeklyOff,
+          } as unknown as AttendanceRecord);
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      // Sort by date ascending
+      empRecords.sort((a, b) => {
+        const da = typeof a.date === 'string' ? a.date.substring(0, 10) : format(new Date(a.date), 'yyyy-MM-dd');
+        const db2 = typeof b.date === 'string' ? b.date.substring(0, 10) : format(new Date(b.date), 'yyyy-MM-dd');
+        return da.localeCompare(db2);
+      });
+
+      enriched.push(...empRecords);
+    });
+
+    return enriched;
+  };
+
   const exportAttendance = () => {
     if (!attendanceRecords || attendanceRecords.length === 0) {
       toast({ title: "No Data", description: "No attendance records to export for the selected filters.", variant: "destructive" });
       return;
     }
 
-    const headers = ["Employee", "Department", "Date", "Time In", "Time Out", "Work Hours", "Status"];
-    const rows = attendanceRecords.map((r: AttendanceRecord) => [
-      r.userName,
-      r.department || "",
-      r.date ? format(new Date(r.date), 'yyyy-MM-dd') : "",
-      r.timeIn || "",
-      r.timeOut || "",
-      r.workHours != null ? String(r.workHours) : "",
-      r.status || "",
-    ]);
+    const fullRecords = enrichWithWeeklyOff([...attendanceRecords]);
+
+    const headers = ["Employee", "Department", "Date", "Day", "Time In", "Time Out", "Work Hours", "Status"];
+    const rows = fullRecords.map((r: AttendanceRecord) => {
+      const dateStr = typeof r.date === 'string' ? r.date.substring(0, 10) : format(new Date(r.date), 'yyyy-MM-dd');
+      const dayName = format(new Date(dateStr), 'EEEE');
+      return [
+        r.userName,
+        r.department || "",
+        dateStr,
+        dayName,
+        r.timeIn || "",
+        r.timeOut || "",
+        r.workHours != null && r.workHours !== 0 ? String(r.workHours) : "",
+        r.status || "",
+      ];
+    });
 
     const csvContent = [headers, ...rows]
       .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
@@ -219,7 +282,7 @@ export default function AttendanceManagementPage() {
     link.click();
     URL.revokeObjectURL(url);
 
-    toast({ title: "Export Complete", description: `Exported ${attendanceRecords.length} attendance records.` });
+    toast({ title: "Export Complete", description: `Exported ${fullRecords.length} records (incl. weekly offs).` });
   };
 
   // Get selected user details
@@ -406,49 +469,9 @@ export default function AttendanceManagementPage() {
         });
 
         // One section per employee with their daily records
-        const { start: rangeStart, end: rangeEnd } = getDateRangeBounds();
-
         employees.forEach(emp => {
-          // Determine this employee's weekly off days (default Sun+Sat)
-          const empWeeklyOff: number[] = (emp.records[0]?.weeklyOffDays as number[]) ?? [0, 6];
-
-          // Build a set of dates already covered by actual DB records
-          const coveredDates = new Set(emp.records.map(r =>
-            typeof r.date === 'string' ? r.date.substring(0, 10) : format(new Date(r.date), 'yyyy-MM-dd')
-          ));
-
-          // Synthetic weekly-off rows for uncovered dates in range
-          const syntheticRows: AttendanceRecord[] = [];
-          const cursor = new Date(rangeStart);
-          cursor.setHours(0, 0, 0, 0);
-          const rangeEndDay = new Date(rangeEnd);
-          rangeEndDay.setHours(23, 59, 59, 999);
-
-          while (cursor <= rangeEndDay) {
-            const dateStr = format(cursor, 'yyyy-MM-dd');
-            if (!coveredDates.has(dateStr) && empWeeklyOff.includes(cursor.getDay())) {
-              syntheticRows.push({
-                id: -1,
-                userId: emp.records[0]?.userId ?? 0,
-                userName: emp.name,
-                department: emp.dept,
-                date: dateStr,
-                timeIn: null,
-                timeOut: null,
-                workHours: 0,
-                status: 'Weekly Off',
-                weeklyOffDays: empWeeklyOff,
-              } as unknown as AttendanceRecord);
-            }
-            cursor.setDate(cursor.getDate() + 1);
-          }
-
-          // Merge and sort by date ascending
-          const allEmpRecords = [...emp.records, ...syntheticRows].sort((a, b) => {
-            const da = typeof a.date === 'string' ? a.date.substring(0, 10) : format(new Date(a.date), 'yyyy-MM-dd');
-            const db2 = typeof b.date === 'string' ? b.date.substring(0, 10) : format(new Date(b.date), 'yyyy-MM-dd');
-            return da.localeCompare(db2);
-          });
+          // Reuse shared enrichWithWeeklyOff to add synthetic Weekly Off rows
+          const allEmpRecords = enrichWithWeeklyOff([...emp.records]);
 
           doc.addPage();
           // Employee header bar
