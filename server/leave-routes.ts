@@ -9,6 +9,9 @@ import { checkPayrollLock } from './payroll-lock-service';
 import { createNotification } from './notification-routes';
 import { computeSandwichLeave } from './sandwich-leave-utils';
 
+// Sandwich leave applies FORWARD only — no retro-deduction for pre-cutover requests.
+const SANDWICH_EFFECTIVE_DATE = '2026-05-01';
+
 const router = Router();
 
 router.get('/types', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -327,8 +330,10 @@ router.get('/calculate-days', ensureAuthenticated, async (req: Request, res: Res
       .where(and(gte(companyHolidays.date, `${startYear}-01-01`), lte(companyHolidays.date, `${endYear}-12-31`)));
     const holidayDates = new Set(holidayRows.map((h: any) => new Date(h.date).toISOString().split('T')[0]));
 
-    const result = computeSandwichLeave(startDate, effectiveEnd, weeklyOffDays, holidayDates, !!leaveType.sandwichApplicable);
-    return res.json({ ...result, sandwichApplicable: !!leaveType.sandwichApplicable });
+    // Forward-only: suppress sandwich for pre-cutover dates
+    const sandwichActive = !!leaveType.sandwichApplicable && startDate >= SANDWICH_EFFECTIVE_DATE;
+    const result = computeSandwichLeave(startDate, effectiveEnd, weeklyOffDays, holidayDates, sandwichActive);
+    return res.json({ ...result, sandwichApplicable: sandwichActive });
   } catch (error) {
     sendError(res, error);
   }
@@ -366,9 +371,9 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       return res.status(400).json({ error: `${leaveType.name} does not allow half-day requests` });
     }
 
-    // Sandwich leave enforcement — recompute totalDays server-side
+    // Sandwich leave enforcement — recompute totalDays server-side (forward-only, >= cutover date)
     let enforcedTotalDays: number = isHalfDay ? 0.5 : parseFloat(totalDays);
-    if (!isHalfDay && leaveType.sandwichApplicable) {
+    if (!isHalfDay && leaveType.sandwichApplicable && startDate >= SANDWICH_EFFECTIVE_DATE) {
       const [userRow] = await db.select({ weeklyOffDays: users.weeklyOffDays, reportingManagerId: users.reportingManagerId })
         .from(users).where(eq(users.id, userId));
       const weeklyOffDays: number[] = (userRow?.weeklyOffDays as number[] | null) ?? [0, 6];
