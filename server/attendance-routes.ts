@@ -8,6 +8,7 @@ import { ensureAuthenticated } from './auth-middleware';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 import { checkPayrollLock } from './payroll-lock-service';
 import { determineAttendanceStatus } from './attendance-status-engine';
+import { getISTDateString, buildISTDateTime } from './utils/date-ist';
 
 const router = Router();
 
@@ -74,7 +75,7 @@ export async function checkDwarCompletionStatus(userId: number, date: string): P
 router.get('/status', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getISTDateString();
 
     const [todayRecord] = await db
       .select()
@@ -108,7 +109,7 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
       deviceInfo
     } = req.body;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getISTDateString();
     const now = new Date();
     const ipAddress = req.ip || req.connection.remoteAddress;
 
@@ -235,7 +236,7 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
       employeeNotes
     } = req.body;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getISTDateString();
     const now = new Date();
     const ipAddress = req.ip || req.connection.remoteAddress;
 
@@ -478,7 +479,7 @@ router.get('/my-records', ensureAuthenticated, async (req: Request, res: Respons
       recordMap.set(r.date, r);
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getISTDateString();
     const allRecords: any[] = [];
     const start = new Date(startDate as string);
     const end = new Date(endDate as string);
@@ -954,10 +955,9 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       return res.status(403).json({ error: 'Payroll is locked for this period. Regularization cannot be submitted.' });
     }
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getISTDateString();
     const reqDate = new Date(requestDate);
-    if (reqDate > today) {
+    if (requestDate > todayStr) {
       return res.status(400).json({ error: 'Cannot submit regularization for a future date' });
     }
     if (effectiveRequestType === 'missed_checkout' && requestDate === todayStr) {
@@ -1289,15 +1289,8 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
     const dutyIn = employee?.dutyTimeIn || '09:00';
     const dutyOut = employee?.dutyTimeOut || '18:00';
 
-    function buildDutyDateTime(dateStr: string, timeStr: string): Date {
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      const dt = new Date(dateStr + 'T00:00:00');
-      dt.setHours(hours, minutes, 0, 0);
-      return dt;
-    }
-
-    const dutyCheckIn = buildDutyDateTime(reg.requestDate, dutyIn);
-    const dutyCheckOut = buildDutyDateTime(reg.requestDate, dutyOut);
+    const dutyCheckIn = buildISTDateTime(reg.requestDate, dutyIn);
+    const dutyCheckOut = buildISTDateTime(reg.requestDate, dutyOut);
 
     const [existingAttendance] = await db.select().from(attendanceRecords)
       .where(and(

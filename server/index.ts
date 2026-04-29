@@ -295,15 +295,14 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Start the attendance midnight processor
-    try {
-      import('./attendance-midnight-processor').then(({ attendanceMidnightProcessor }) => {
-        attendanceMidnightProcessor.startScheduler();
-        console.log('✅ Attendance midnight processor started successfully');
-      });
-    } catch (error) {
-      console.error('❌ Failed to start attendance midnight processor:', error);
-    }
+    // Start the attendance midnight processor (IST midnight cron + startup catch-up)
+    import('./attendance-midnight-processor').then(({ attendanceMidnightProcessor }) => {
+      attendanceMidnightProcessor.startSchedulerWithCatchup()
+        .then(() => console.log('✅ Attendance midnight processor started (IST midnight cron, catch-up checked)'))
+        .catch((err: unknown) => console.error('❌ Attendance midnight processor catch-up error:', err));
+    }).catch((err: unknown) => {
+      console.error('❌ Failed to load attendance midnight processor:', err);
+    });
   });
   } catch (error) {
     console.error('🚨 FATAL: Server startup failed:', error);

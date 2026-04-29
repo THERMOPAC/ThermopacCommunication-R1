@@ -2,6 +2,8 @@ import { db } from './db';
 import { attendanceRecords, attendanceIssues, dailyWorkReports, users, leaveRequests, companyHolidays } from '@shared/schema';
 import { eq, and, isNull, gte, lte, not, inArray, sql } from 'drizzle-orm';
 import { determineAttendanceStatus } from './attendance-status-engine';
+import { schedule } from 'node-cron';
+import { APP_TIMEZONE, getISTDateString, getISTYesterdayString, buildISTDateTime } from './utils/date-ist';
 
 /**
  * Midnight Attendance Processor
@@ -31,9 +33,7 @@ export class AttendanceMidnightProcessor {
     console.log(`[${new Date().toISOString()}] Starting midnight attendance processing...`);
 
     try {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const yesterdayStr = getISTYesterdayString();
 
       const userSelect = {
         id: users.id,
@@ -268,9 +268,7 @@ export class AttendanceMidnightProcessor {
       }
 
       const dutyEndStr = user?.dutyTimeOut || '18:00';
-      const [h, m] = dutyEndStr.split(':').map(Number);
-      const assumedCheckout = new Date(record.date + 'T00:00:00');
-      assumedCheckout.setHours(h, m, 0, 0);
+      const assumedCheckout = buildISTDateTime(record.date, dutyEndStr);
 
       const statusResult = await determineAttendanceStatus({
         userId: record.userId,
@@ -376,29 +374,41 @@ export class AttendanceMidnightProcessor {
   }
 
   /**
-   * Start the midnight scheduler
+   * Start the IST-midnight cron scheduler.
+   * Cron expression '0 0 * * *' fires at 00:00:00 in Asia/Kolkata timezone.
    */
   startScheduler(): void {
-    // Calculate milliseconds until next midnight
-    const now = new Date();
-    const nextMidnight = new Date();
-    nextMidnight.setDate(now.getDate() + 1);
-    nextMidnight.setHours(0, 0, 0, 0);
-    
-    const msUntilMidnight = nextMidnight.getTime() - now.getTime();
-
-    console.log(`Attendance midnight processor scheduled to run in ${Math.round(msUntilMidnight / 1000 / 60)} minutes`);
-
-    // Set timeout for first run at midnight
-    setTimeout(() => {
+    schedule('0 0 * * *', () => {
+      console.log(`[${new Date().toISOString()}] IST midnight cron triggered`);
       this.processIncompleteAttendance();
-      
-      // Then set up daily interval (24 hours)
-      setInterval(() => {
-        this.processIncompleteAttendance();
-      }, 24 * 60 * 60 * 1000);
-      
-    }, msUntilMidnight);
+    }, { timezone: APP_TIMEZONE });
+
+    console.log(`Attendance midnight processor scheduled at IST midnight (${APP_TIMEZONE})`);
+  }
+
+  /**
+   * Start the scheduler and run a catch-up pass on startup if yesterday was not yet processed.
+   * "Not yet processed" = zero attendance records exist for yesterday in IST.
+   * This handles server restarts that missed the midnight window.
+   */
+  async startSchedulerWithCatchup(): Promise<void> {
+    const yesterday = getISTYesterdayString();
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.date, yesterday));
+
+    const count = Number(countResult?.count ?? 0);
+
+    if (count === 0) {
+      console.log(`[Startup] No attendance records found for ${yesterday} (IST) — running catch-up processor`);
+      await this.processIncompleteAttendance();
+    } else {
+      console.log(`[Startup] ${count} records already exist for ${yesterday} (IST) — no catch-up needed`);
+    }
+
+    this.startScheduler();
   }
 
   /**
@@ -439,10 +449,10 @@ export class AttendanceMidnightProcessor {
 
     try {
       // Exclude today's date - users may not have submitted DWAR yet since day is ongoing
-      const today = new Date().toISOString().split('T')[0];
+      const today = getISTDateString();
       let effectiveEndDate = endDate;
       if (endDate >= today) {
-        effectiveEndDate = new Date(new Date(today).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        effectiveEndDate = getISTYesterdayString();
         console.log(`Excluding today (${today}) from processing. Adjusted end date: ${effectiveEndDate}`);
       }
       
