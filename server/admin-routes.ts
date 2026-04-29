@@ -1040,8 +1040,8 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
     }
 
     const records = await baseQuery
-      .orderBy(desc(attendanceRecords.date), desc(attendanceRecords.checkInTime))
-      .limit(100);
+      .orderBy(asc(attendanceRecords.date), asc(users.firstName), asc(users.lastName))
+      .limit(10000);
 
     // Transform records with calculated fields
     const transformedRecords = Array.isArray(records) ? records.map((record: any) => {

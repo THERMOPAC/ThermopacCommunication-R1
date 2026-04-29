@@ -287,78 +287,143 @@ export default function AttendanceManagementPage() {
       doc.setTextColor(0, 0, 0);
 
       if (isAllEmployees) {
-        // ── All-employees mode ──
+        // ── All-employees mode — employee-wise sections ──
+
+        // Overall org summary on page 1
         doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
-        doc.text('Report Summary', 14, 50);
+        doc.text('Organisation Summary', 14, 50);
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text(`Period: ${getDateRangeLabel()}`, 14, 59);
         doc.text(`Department: ${selectedDepartment === 'all' ? 'All Departments' : selectedDepartment}`, 14, 67);
-        doc.text(`Total Records: ${attendanceRecords.length}`, pageWidth / 2, 59);
 
-        // Summary box
-        const presentCount = attendanceRecords.filter(r => r.status === 'Present').length;
-        const lateCount = attendanceRecords.filter(r => r.status === 'Late').length;
-        const absentCount = attendanceRecords.filter(r => r.status === 'Absent').length;
-        const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
-        const onLeaveCount = attendanceRecords.filter(r => r.status === 'On Leave').length;
-        const totalHours = attendanceRecords.reduce((sum, r) => sum + (r.workHours || 0), 0);
+        const totalPresent = attendanceRecords.filter(r => r.status === 'Present').length;
+        const totalLate    = attendanceRecords.filter(r => r.status === 'Late').length;
+        const totalAbsent  = attendanceRecords.filter(r => r.status === 'Absent').length;
+        const totalHalfDay = attendanceRecords.filter(r => r.status === 'Half Day').length;
+        const totalLeave   = attendanceRecords.filter(r => r.status === 'On Leave').length;
+        const totalHours   = attendanceRecords.reduce((sum, r) => sum + (r.workHours || 0), 0);
 
         doc.setFillColor(240, 240, 240);
-        doc.rect(14, 73, pageWidth - 28, 18, 'F');
+        doc.rect(14, 72, pageWidth - 28, 18, 'F');
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
-        doc.text('Summary:', 18, 82);
+        doc.text('Totals:', 18, 81);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Present: ${presentCount}`, 45, 82);
-        doc.text(`Late: ${lateCount}`, 75, 82);
-        doc.text(`Absent: ${absentCount}`, 100, 82);
-        doc.text(`Half Day: ${halfDayCount}`, 128, 82);
-        doc.text(`On Leave: ${onLeaveCount}`, 158, 82);
-        doc.text(`Total Hours: ${totalHours.toFixed(1)}h`, 18, 88);
+        doc.text(`Present: ${totalPresent}`, 45, 81);
+        doc.text(`Late: ${totalLate}`, 80, 81);
+        doc.text(`Absent: ${totalAbsent}`, 110, 81);
+        doc.text(`Half Day: ${totalHalfDay}`, 140, 81);
+        doc.text(`On Leave: ${totalLeave}`, 18, 87);
+        doc.text(`Total Hours: ${totalHours.toFixed(1)}h`, 65, 87);
 
-        // Table with Employee column
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Attendance Records', 14, 103);
-
-        const tableData = attendanceRecords.map((record) => {
-          try {
-            return [
-              record.userName || '-',
-              record.department || '-',
-              safeFormatDate(record.date),
-              safeFormatTime(record.timeIn),
-              safeFormatTime(record.timeOut),
-              record.workHours ? `${Number(record.workHours).toFixed(1)}h` : '-',
-              record.status || '-',
-            ];
-          } catch {
-            return ['-', '-', '-', '-', '-', '-', '-'];
+        // Build per-employee summary table
+        const employeeMap: Record<number, { name: string; dept: string; records: AttendanceRecord[] }> = {};
+        attendanceRecords.forEach(r => {
+          if (!employeeMap[r.userId]) {
+            employeeMap[r.userId] = { name: r.userName || '-', dept: r.department || '-', records: [] };
           }
+          employeeMap[r.userId].records.push(r);
+        });
+        const employees = Object.values(employeeMap).sort((a, b) => a.name.localeCompare(b.name));
+
+        const summaryRows = employees.map(emp => {
+          const p  = emp.records.filter(r => r.status === 'Present').length;
+          const l  = emp.records.filter(r => r.status === 'Late').length;
+          const a  = emp.records.filter(r => r.status === 'Absent').length;
+          const hd = emp.records.filter(r => r.status === 'Half Day').length;
+          const ol = emp.records.filter(r => r.status === 'On Leave').length;
+          const hrs = emp.records.reduce((s, r) => s + (r.workHours || 0), 0);
+          return [emp.name, emp.dept, p, l, a, hd, ol, `${hrs.toFixed(1)}h`];
         });
 
         autoTable(doc, {
-          startY: 107,
-          head: [['Employee', 'Department', 'Date', 'Time In', 'Time Out', 'Hours', 'Status']],
-          body: tableData,
+          startY: 98,
+          head: [['Employee', 'Department', 'Present', 'Late', 'Absent', 'Half Day', 'On Leave', 'Total Hrs']],
+          body: summaryRows,
           theme: 'striped',
           headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
           bodyStyles: { fontSize: 8 },
           columnStyles: {
-            0: { cellWidth: 32 },
-            1: { cellWidth: 26 },
-            2: { cellWidth: 24 },
-            3: { cellWidth: 18 },
-            4: { cellWidth: 18 },
-            5: { cellWidth: 14 },
-            6: { cellWidth: 'auto' },
+            0: { cellWidth: 35 },
+            1: { cellWidth: 28 },
+            2: { cellWidth: 17 },
+            3: { cellWidth: 13 },
+            4: { cellWidth: 17 },
+            5: { cellWidth: 18 },
+            6: { cellWidth: 18 },
+            7: { cellWidth: 'auto' },
           },
           alternateRowStyles: { fillColor: [245, 245, 245] },
         });
 
+        // One section per employee with their daily records
+        employees.forEach(emp => {
+          doc.addPage();
+          // Employee header bar
+          doc.setFillColor(0, 51, 102);
+          doc.rect(0, 0, pageWidth, 22, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(13);
+          doc.setFont('helvetica', 'bold');
+          doc.text(emp.name, 14, 10);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${emp.dept}  |  Period: ${getDateRangeLabel()}`, 14, 18);
+
+          // Per-employee mini-summary
+          const ep  = emp.records.filter(r => r.status === 'Present').length;
+          const el  = emp.records.filter(r => r.status === 'Late').length;
+          const ea  = emp.records.filter(r => r.status === 'Absent').length;
+          const ehd = emp.records.filter(r => r.status === 'Half Day').length;
+          const eol = emp.records.filter(r => r.status === 'On Leave').length;
+          const eHrs = emp.records.reduce((s, r) => s + (r.workHours || 0), 0);
+
+          doc.setTextColor(0, 0, 0);
+          doc.setFillColor(240, 240, 240);
+          doc.rect(14, 27, pageWidth - 28, 14, 'F');
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Present: ${ep}`, 18, 35);
+          doc.text(`Late: ${el}`, 48, 35);
+          doc.text(`Absent: ${ea}`, 72, 35);
+          doc.text(`Half Day: ${ehd}`, 100, 35);
+          doc.text(`On Leave: ${eol}`, 130, 35);
+          doc.text(`Total Hours: ${eHrs.toFixed(1)}h`, 160, 35);
+
+          const empRows = emp.records.map(r => {
+            try {
+              return [
+                safeFormatDate(r.date),
+                safeFormatTime(r.timeIn),
+                safeFormatTime(r.timeOut),
+                r.workHours ? `${Number(r.workHours).toFixed(1)}h` : '-',
+                r.status || '-',
+              ];
+            } catch { return ['-', '-', '-', '-', '-']; }
+          });
+
+          autoTable(doc, {
+            startY: 45,
+            head: [['Date', 'Time In', 'Time Out', 'Hours', 'Status']],
+            body: empRows,
+            theme: 'striped',
+            headStyles: { fillColor: [30, 80, 140], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+            bodyStyles: { fontSize: 9 },
+            columnStyles: {
+              0: { cellWidth: 40 },
+              1: { cellWidth: 30 },
+              2: { cellWidth: 30 },
+              3: { cellWidth: 25 },
+              4: { cellWidth: 'auto' },
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+          });
+        });
+
+        // Page footers
         const pageCount = doc.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
           doc.setPage(i);
@@ -369,7 +434,7 @@ export default function AttendanceManagementPage() {
 
         const dept = selectedDepartment === 'all' ? 'All' : selectedDepartment.replace(/\s+/g, '_');
         doc.save(`Attendance_Report_${dept}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-        toast({ title: 'PDF Generated', description: `Attendance report downloaded (${attendanceRecords.length} records).` });
+        toast({ title: 'PDF Generated', description: `Employee-wise report for ${employees.length} employees (${attendanceRecords.length} records) downloaded.` });
 
       } else {
         // ── Single-employee mode ──
