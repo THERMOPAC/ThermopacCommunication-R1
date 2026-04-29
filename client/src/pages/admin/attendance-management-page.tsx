@@ -228,6 +228,52 @@ export default function AttendanceManagementPage() {
     return users.find((u: any) => u.id.toString() === selectedEmployee);
   }, [selectedEmployee, users]);
 
+  // Compute actual start/end Date objects for the selected range
+  const getDateRangeBounds = (): { start: Date; end: Date } => {
+    const now = new Date();
+    let start: Date;
+    let end: Date = new Date(now);
+    switch (selectedDateRange) {
+      case 'yesterday': {
+        start = new Date(now);
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(start);
+        end.setHours(23, 59, 59, 999);
+        break;
+      }
+      case 'thisWeek': {
+        start = startOfWeek(now);
+        end = new Date(now);
+        break;
+      }
+      case 'lastWeek': {
+        const lw = new Date(now);
+        lw.setDate(lw.getDate() - 7);
+        start = startOfWeek(lw);
+        end = endOfWeek(lw);
+        break;
+      }
+      case 'thisMonth': {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now);
+        break;
+      }
+      case 'lastMonth': {
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
+      }
+      default: { // today
+        start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+      }
+    }
+    return { start, end };
+  };
+
   // Get date range label for report
   const getDateRangeLabel = () => {
     const now = new Date();
@@ -360,7 +406,50 @@ export default function AttendanceManagementPage() {
         });
 
         // One section per employee with their daily records
+        const { start: rangeStart, end: rangeEnd } = getDateRangeBounds();
+
         employees.forEach(emp => {
+          // Determine this employee's weekly off days (default Sun+Sat)
+          const empWeeklyOff: number[] = (emp.records[0]?.weeklyOffDays as number[]) ?? [0, 6];
+
+          // Build a set of dates already covered by actual DB records
+          const coveredDates = new Set(emp.records.map(r =>
+            typeof r.date === 'string' ? r.date.substring(0, 10) : format(new Date(r.date), 'yyyy-MM-dd')
+          ));
+
+          // Synthetic weekly-off rows for uncovered dates in range
+          const syntheticRows: AttendanceRecord[] = [];
+          const cursor = new Date(rangeStart);
+          cursor.setHours(0, 0, 0, 0);
+          const rangeEndDay = new Date(rangeEnd);
+          rangeEndDay.setHours(23, 59, 59, 999);
+
+          while (cursor <= rangeEndDay) {
+            const dateStr = format(cursor, 'yyyy-MM-dd');
+            if (!coveredDates.has(dateStr) && empWeeklyOff.includes(cursor.getDay())) {
+              syntheticRows.push({
+                id: -1,
+                userId: emp.records[0]?.userId ?? 0,
+                userName: emp.name,
+                department: emp.dept,
+                date: dateStr,
+                timeIn: null,
+                timeOut: null,
+                workHours: 0,
+                status: 'Weekly Off',
+                weeklyOffDays: empWeeklyOff,
+              } as unknown as AttendanceRecord);
+            }
+            cursor.setDate(cursor.getDate() + 1);
+          }
+
+          // Merge and sort by date ascending
+          const allEmpRecords = [...emp.records, ...syntheticRows].sort((a, b) => {
+            const da = typeof a.date === 'string' ? a.date.substring(0, 10) : format(new Date(a.date), 'yyyy-MM-dd');
+            const db2 = typeof b.date === 'string' ? b.date.substring(0, 10) : format(new Date(b.date), 'yyyy-MM-dd');
+            return da.localeCompare(db2);
+          });
+
           doc.addPage();
           // Employee header bar
           doc.setFillColor(0, 51, 102);
@@ -373,13 +462,14 @@ export default function AttendanceManagementPage() {
           doc.setFont('helvetica', 'normal');
           doc.text(`${emp.dept}  |  Period: ${getDateRangeLabel()}`, 14, 18);
 
-          // Per-employee mini-summary
-          const ep  = emp.records.filter(r => r.status === 'Present').length;
-          const el  = emp.records.filter(r => r.status === 'Late').length;
-          const ea  = emp.records.filter(r => r.status === 'Absent').length;
-          const ehd = emp.records.filter(r => r.status === 'Half Day').length;
-          const eol = emp.records.filter(r => r.status === 'On Leave').length;
-          const eHrs = emp.records.reduce((s, r) => s + (r.workHours || 0), 0);
+          // Per-employee mini-summary (include synthetic weekly offs)
+          const ep   = allEmpRecords.filter(r => r.status === 'Present').length;
+          const el   = allEmpRecords.filter(r => r.status === 'Late').length;
+          const ea   = allEmpRecords.filter(r => r.status === 'Absent').length;
+          const ehd  = allEmpRecords.filter(r => r.status === 'Half Day').length;
+          const eol  = allEmpRecords.filter(r => r.status === 'On Leave').length;
+          const ewo  = allEmpRecords.filter(r => r.status === 'Weekly Off').length;
+          const eHrs = allEmpRecords.reduce((s, r) => s + (r.workHours || 0), 0);
 
           doc.setTextColor(0, 0, 0);
           doc.setFillColor(240, 240, 240);
@@ -387,13 +477,14 @@ export default function AttendanceManagementPage() {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'normal');
           doc.text(`Present: ${ep}`, 18, 35);
-          doc.text(`Late: ${el}`, 48, 35);
-          doc.text(`Absent: ${ea}`, 72, 35);
-          doc.text(`Half Day: ${ehd}`, 100, 35);
-          doc.text(`On Leave: ${eol}`, 130, 35);
-          doc.text(`Total Hours: ${eHrs.toFixed(1)}h`, 160, 35);
+          doc.text(`Late: ${el}`, 46, 35);
+          doc.text(`Absent: ${ea}`, 70, 35);
+          doc.text(`Half Day: ${ehd}`, 96, 35);
+          doc.text(`On Leave: ${eol}`, 124, 35);
+          doc.text(`Weekly Off: ${ewo}`, 152, 35);
+          doc.text(`Total Hrs: ${eHrs.toFixed(1)}h`, 18, 39);
 
-          const empRows = emp.records.map(r => {
+          const empRows = allEmpRecords.map(r => {
             try {
               return [
                 safeFormatDate(r.date),
