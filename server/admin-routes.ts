@@ -1056,7 +1056,11 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
       const weeklyOffDays = Array.isArray(record.weeklyOffDays) ? record.weeklyOffDays : [0, 6];
       const isWeeklyOff = weeklyOffDays.includes(dayOfWeek);
       
-      if (isWeeklyOff) {
+      if (dbStatus === 'on_leave') {
+        displayStatus = 'On Leave';
+      } else if (dbStatus === 'holiday') {
+        displayStatus = 'Holiday';
+      } else if (isWeeklyOff) {
         displayStatus = 'Weekly Off';
       } else if (dbStatus === 'absent') {
         displayStatus = 'Absent';
