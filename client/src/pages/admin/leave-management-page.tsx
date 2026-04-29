@@ -747,7 +747,7 @@ export default function LeaveManagementPage() {
                       <SelectContent>
                         <SelectItem value="all">All Employees</SelectItem>
                         {React.useMemo(() => {
-                          const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+                          const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Senior Executive', 'Manager', 'Employee'];
                           const groups: Record<string, any[]> = {};
                           
                           users?.forEach((user: any) => {
@@ -767,7 +767,13 @@ export default function LeaveManagementPage() {
                             });
                           });
                           
-                          return roleOrder.filter(role => groups[role]).map(role => (
+                          // Roles in defined order first, then any remaining unlisted roles
+                          const orderedRoles = [
+                            ...roleOrder.filter(role => groups[role]),
+                            ...Object.keys(groups).filter(role => !roleOrder.includes(role)).sort(),
+                          ];
+                          
+                          return orderedRoles.map(role => (
                             <SelectGroup key={role}>
                               <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">{role}</SelectLabel>
                               {groups[role].map((user: any) => (
@@ -880,7 +886,7 @@ export default function LeaveManagementPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {React.useMemo(() => {
-                                  const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+                                  const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Senior Executive', 'Manager', 'Employee'];
                                   const groups: Record<string, any[]> = {};
                                   
                                   users?.forEach((user: any) => {
@@ -900,7 +906,12 @@ export default function LeaveManagementPage() {
                                     });
                                   });
                                   
-                                  return roleOrder.filter(role => groups[role]).map(role => (
+                                  const orderedRoles = [
+                                    ...roleOrder.filter(role => groups[role]),
+                                    ...Object.keys(groups).filter(role => !roleOrder.includes(role)).sort(),
+                                  ];
+                                  
+                                  return orderedRoles.map(role => (
                                     <SelectGroup key={role}>
                                       <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">{role}</SelectLabel>
                                       {groups[role].map((user: any) => (
