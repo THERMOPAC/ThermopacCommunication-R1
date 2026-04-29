@@ -57,7 +57,8 @@ export class AttendanceMidnightProcessor {
         .leftJoin(users, eq(attendanceRecords.userId, users.id))
         .where(and(
           eq(attendanceRecords.date, yesterdayStr),
-          isNull(attendanceRecords.checkInTime)
+          isNull(attendanceRecords.checkInTime),
+          not(eq(attendanceRecords.statusSource, 'admin_override'))
         ));
 
       console.log(`Found ${incompleteRecords.length} incomplete attendance records for ${yesterdayStr}`);
@@ -72,7 +73,8 @@ export class AttendanceMidnightProcessor {
         .leftJoin(users, eq(attendanceRecords.userId, users.id))
         .where(and(
           eq(attendanceRecords.date, yesterdayStr),
-          isNull(attendanceRecords.checkOutTime)
+          isNull(attendanceRecords.checkOutTime),
+          not(eq(attendanceRecords.statusSource, 'admin_override'))
         ));
 
       console.log(`Found ${checkedInButNotOut.length} records with check-in but no check-out for ${yesterdayStr}`);

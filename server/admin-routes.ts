@@ -30,7 +30,8 @@ import {
   employeeLoans,
   employeeAdvances,
   tdsMonthlyRecords,
-  payrollAttendanceSnapshot
+  payrollAttendanceSnapshot,
+  attendanceOverrideLog
 } from '../shared/schema';
 import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
@@ -997,6 +998,13 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         checkInTime: attendanceRecords.checkInTime,
         checkOutTime: attendanceRecords.checkOutTime,
         status: attendanceRecords.status,
+        statusSource: attendanceRecords.statusSource,
+        adjustedBy: attendanceRecords.adjustedBy,
+        adjustmentReason: attendanceRecords.adjustmentReason,
+        adjustmentDate: attendanceRecords.adjustmentDate,
+        originalPunchData: attendanceRecords.originalPunchData,
+        workingHours: attendanceRecords.workingHours,
+        netWorkingHours: attendanceRecords.netWorkingHours,
         userName: users.username,
         firstName: users.firstName,
         lastName: users.lastName,
@@ -1105,7 +1113,13 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         workHours,
         status: displayStatus,
         location: 'Office',
-        weeklyOffDays
+        weeklyOffDays,
+        // Override metadata
+        statusSource: record.statusSource,
+        adjustedBy: record.adjustedBy,
+        adjustmentReason: record.adjustmentReason,
+        adjustmentDate: record.adjustmentDate,
+        originalPunchData: record.originalPunchData,
       };
     }) : [];
 
@@ -1225,6 +1239,296 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
     res.json(allRecords);
   } catch (error) {
     console.error('Error fetching attendance records:', error);
+    sendError(res, error);
+  }
+});
+
+// ── Admin Override helpers ──────────────────────────────────────────────────
+
+const OVERRIDE_ALLOWED_STATUSES = ['present', 'half_day', 'absent', 'on_leave', 'weekly_off', 'holiday'] as const;
+
+async function canAdminOverride(user: any): Promise<boolean> {
+  if (!user) return false;
+  if (user.role === 'Superuser') return true;
+  if (user.role === 'Manager' && user.department === 'Administration') return true;
+  return false;
+}
+
+async function getLockedPayrollPeriod(dateStr: string) {
+  const [locked] = await db
+    .select({ id: payrollPeriods.id, periodName: payrollPeriods.periodName })
+    .from(payrollPeriods)
+    .where(and(
+      lte(payrollPeriods.startDate, dateStr),
+      gte(payrollPeriods.endDate, dateStr),
+      eq(payrollPeriods.isLocked, true)
+    ))
+    .limit(1);
+  return locked ?? null;
+}
+
+// ── PATCH /attendance/records/:id/override — Apply override ─────────────────
+router.patch('/attendance/records/:id/override', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!await canAdminOverride(user)) {
+      return sendPermissionError(res, 'Only Superuser or Administration Manager can apply attendance overrides');
+    }
+
+    const recordId = parseInt(req.params.id);
+    if (isNaN(recordId)) return res.status(400).json({ error: 'Invalid record ID' });
+
+    const { status, checkInTime, checkOutTime, workingHours, netWorkingHours, reason } = req.body;
+
+    if (!reason || String(reason).trim().length < 10) {
+      return res.status(400).json({ error: 'Reason is required and must be at least 10 characters' });
+    }
+
+    if (status && !OVERRIDE_ALLOWED_STATUSES.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Allowed values: ${OVERRIDE_ALLOWED_STATUSES.join(', ')}`
+      });
+    }
+
+    // Fetch current record
+    const [record] = await db
+      .select()
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.id, recordId));
+
+    if (!record) return res.status(404).json({ error: 'Attendance record not found' });
+
+    // Check payroll period lock
+    const recordDateStr = typeof record.date === 'string' ? record.date.substring(0, 10) : String(record.date);
+    const lockedPeriod = await getLockedPayrollPeriod(recordDateStr);
+
+    let payrollPeriodWasLocked = false;
+    let requiresPayrollRecalculation = false;
+
+    if (lockedPeriod) {
+      if (user.role !== 'Superuser') {
+        return res.status(403).json({
+          error: `Payroll period "${lockedPeriod.periodName}" is locked. Only Superuser can override locked periods.`
+        });
+      }
+      payrollPeriodWasLocked = true;
+      requiresPayrollRecalculation = true;
+    }
+
+    // Snapshot before values
+    const beforeValues = {
+      status: record.status,
+      checkInTime: record.checkInTime,
+      checkOutTime: record.checkOutTime,
+      workingHours: record.workingHours,
+      netWorkingHours: record.netWorkingHours,
+    };
+
+    // Preserve original_punch_data — write ONLY on first override
+    let originalPunchData = record.originalPunchData as any;
+    if (!originalPunchData) {
+      originalPunchData = {
+        systemStatus: record.status,
+        checkInTime: record.checkInTime,
+        checkOutTime: record.checkOutTime,
+        workingHours: record.workingHours,
+        netWorkingHours: record.netWorkingHours,
+        capturedAt: new Date().toISOString(),
+      };
+    }
+
+    // Build update payload
+    const updatePayload: any = {
+      statusSource: 'admin_override',
+      adjustedBy: user.id,
+      adjustmentReason: reason.trim(),
+      adjustmentDate: new Date(),
+      originalPunchData,
+      updatedAt: new Date(),
+    };
+
+    if (status) updatePayload.status = status;
+    if (checkInTime !== undefined) updatePayload.checkInTime = checkInTime ? new Date(checkInTime) : null;
+    if (checkOutTime !== undefined) updatePayload.checkOutTime = checkOutTime ? new Date(checkOutTime) : null;
+    if (workingHours !== undefined) updatePayload.workingHours = workingHours;
+    if (netWorkingHours !== undefined) updatePayload.netWorkingHours = netWorkingHours;
+
+    const [updated] = await db
+      .update(attendanceRecords)
+      .set(updatePayload)
+      .where(eq(attendanceRecords.id, recordId))
+      .returning();
+
+    // After values
+    const afterValues = {
+      status: updated.status,
+      checkInTime: updated.checkInTime,
+      checkOutTime: updated.checkOutTime,
+      workingHours: updated.workingHours,
+      netWorkingHours: updated.netWorkingHours,
+    };
+
+    // Insert immutable audit log
+    await db.insert(attendanceOverrideLog).values({
+      recordId,
+      employeeId: record.userId,
+      date: recordDateStr,
+      action: 'apply',
+      beforeValues,
+      afterValues,
+      reason: reason.trim(),
+      changedBy: user.id,
+      payrollPeriodWasLocked,
+      requiresPayrollRecalculation,
+    });
+
+    res.json({ success: true, record: updated, payrollPeriodWasLocked, requiresPayrollRecalculation });
+  } catch (error) {
+    console.error('Error applying attendance override:', error);
+    sendError(res, error);
+  }
+});
+
+// ── DELETE /attendance/records/:id/override — Revert override ───────────────
+router.delete('/attendance/records/:id/override', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!await canAdminOverride(user)) {
+      return sendPermissionError(res, 'Only Superuser or Administration Manager can revert attendance overrides');
+    }
+
+    const recordId = parseInt(req.params.id);
+    if (isNaN(recordId)) return res.status(400).json({ error: 'Invalid record ID' });
+
+    const { reason } = req.body;
+    if (!reason || String(reason).trim().length < 10) {
+      return res.status(400).json({ error: 'Reason is required and must be at least 10 characters' });
+    }
+
+    const [record] = await db
+      .select()
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.id, recordId));
+
+    if (!record) return res.status(404).json({ error: 'Attendance record not found' });
+
+    if (record.statusSource !== 'admin_override') {
+      return res.status(409).json({ error: 'This record has no active admin override to revert' });
+    }
+
+    const originalData = record.originalPunchData as any;
+    if (!originalData) {
+      return res.status(409).json({ error: 'No original punch data found — cannot revert' });
+    }
+
+    // Check payroll period lock
+    const recordDateStr = typeof record.date === 'string' ? record.date.substring(0, 10) : String(record.date);
+    const lockedPeriod = await getLockedPayrollPeriod(recordDateStr);
+    let payrollPeriodWasLocked = false;
+    let requiresPayrollRecalculation = false;
+
+    if (lockedPeriod) {
+      if (user.role !== 'Superuser') {
+        return res.status(403).json({
+          error: `Payroll period "${lockedPeriod.periodName}" is locked. Only Superuser can revert overrides in locked periods.`
+        });
+      }
+      payrollPeriodWasLocked = true;
+      requiresPayrollRecalculation = true;
+    }
+
+    // Snapshot before values (current override state)
+    const beforeValues = {
+      status: record.status,
+      checkInTime: record.checkInTime,
+      checkOutTime: record.checkOutTime,
+      workingHours: record.workingHours,
+      netWorkingHours: record.netWorkingHours,
+    };
+
+    // Restore from original_punch_data
+    const [updated] = await db
+      .update(attendanceRecords)
+      .set({
+        status: originalData.systemStatus ?? record.status,
+        checkInTime: originalData.checkInTime ? new Date(originalData.checkInTime) : null,
+        checkOutTime: originalData.checkOutTime ? new Date(originalData.checkOutTime) : null,
+        workingHours: originalData.workingHours ?? null,
+        netWorkingHours: originalData.netWorkingHours ?? null,
+        statusSource: 'system',
+        adjustedBy: null,
+        adjustmentReason: null,
+        adjustmentDate: null,
+        // originalPunchData intentionally NOT cleared — permanent record
+        updatedAt: new Date(),
+      })
+      .where(eq(attendanceRecords.id, recordId))
+      .returning();
+
+    const afterValues = {
+      status: updated.status,
+      checkInTime: updated.checkInTime,
+      checkOutTime: updated.checkOutTime,
+      workingHours: updated.workingHours,
+      netWorkingHours: updated.netWorkingHours,
+    };
+
+    // Immutable audit log
+    await db.insert(attendanceOverrideLog).values({
+      recordId,
+      employeeId: record.userId,
+      date: recordDateStr,
+      action: 'revert',
+      beforeValues,
+      afterValues,
+      reason: reason.trim(),
+      changedBy: user.id,
+      payrollPeriodWasLocked,
+      requiresPayrollRecalculation,
+    });
+
+    res.json({ success: true, record: updated, payrollPeriodWasLocked });
+  } catch (error) {
+    console.error('Error reverting attendance override:', error);
+    sendError(res, error);
+  }
+});
+
+// ── GET /attendance/records/:id/override-log — View audit history ───────────
+router.get('/attendance/records/:id/override-log', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!await canAdminOverride(user)) {
+      return sendPermissionError(res, 'Only Superuser or Administration Manager can view override logs');
+    }
+
+    const recordId = parseInt(req.params.id);
+    if (isNaN(recordId)) return res.status(400).json({ error: 'Invalid record ID' });
+
+    const logs = await db
+      .select({
+        id: attendanceOverrideLog.id,
+        recordId: attendanceOverrideLog.recordId,
+        employeeId: attendanceOverrideLog.employeeId,
+        date: attendanceOverrideLog.date,
+        action: attendanceOverrideLog.action,
+        beforeValues: attendanceOverrideLog.beforeValues,
+        afterValues: attendanceOverrideLog.afterValues,
+        reason: attendanceOverrideLog.reason,
+        changedAt: attendanceOverrideLog.changedAt,
+        payrollPeriodWasLocked: attendanceOverrideLog.payrollPeriodWasLocked,
+        requiresPayrollRecalculation: attendanceOverrideLog.requiresPayrollRecalculation,
+        changedByName: users.username,
+        changedByFirstName: users.firstName,
+      })
+      .from(attendanceOverrideLog)
+      .leftJoin(users, eq(attendanceOverrideLog.changedBy, users.id))
+      .where(eq(attendanceOverrideLog.recordId, recordId))
+      .orderBy(desc(attendanceOverrideLog.changedAt));
+
+    res.json(logs);
+  } catch (error) {
+    console.error('Error fetching override log:', error);
     sendError(res, error);
   }
 });

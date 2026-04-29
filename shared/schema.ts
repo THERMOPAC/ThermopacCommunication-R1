@@ -247,6 +247,25 @@ export const attendanceRecords = pgTable('attendance_records', {
   uniqueIndex('uq_attendance_user_date').on(table.userId, table.date),
 ]);
 
+// Attendance Override Log — immutable audit trail for admin overrides
+export const attendanceOverrideLog = pgTable('attendance_override_log', {
+  id: serial('id').primaryKey(),
+  recordId: integer('record_id').notNull().references(() => attendanceRecords.id, { onDelete: 'cascade' }),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  date: text('date').notNull(),
+  action: varchar('action', { length: 20 }).notNull(), // 'apply' | 'revert'
+  beforeValues: jsonb('before_values').notNull(),
+  afterValues: jsonb('after_values').notNull(),
+  reason: text('reason').notNull(),
+  changedBy: integer('changed_by').notNull().references(() => users.id),
+  changedAt: timestamp('changed_at').notNull().defaultNow(),
+  payrollPeriodWasLocked: boolean('payroll_period_was_locked').default(false),
+  requiresPayrollRecalculation: boolean('requires_payroll_recalculation').default(false),
+});
+
+export type AttendanceOverrideLog = typeof attendanceOverrideLog.$inferSelect;
+export type InsertAttendanceOverrideLog = typeof attendanceOverrideLog.$inferInsert;
+
 // Attendance Settings table
 export const attendanceSettings = pgTable('attendance_settings', {
   id: serial('id').primaryKey(),

@@ -1,12 +1,16 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
-import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle, FileText, RefreshCw } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle, FileText, RefreshCw, Pencil, RotateCcw, ShieldAlert } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { jsPDF } from 'jspdf';
@@ -19,13 +23,35 @@ interface AttendanceRecord {
   userName: string;
   department: string;
   date: string;
-  timeIn: string;
+  timeIn: string | null;
   timeOut: string | null;
   workHours: number | null;
-  status: 'Present' | 'Absent' | 'Late' | 'Half Day' | 'Weekly Off' | 'Holiday' | 'On Leave';
+  status: string;
   location: string;
   weeklyOffDays?: number[];
+  // Override metadata
+  statusSource?: string | null;
+  adjustedBy?: number | null;
+  adjustmentReason?: string | null;
+  adjustmentDate?: string | null;
+  originalPunchData?: {
+    systemStatus?: string;
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    workingHours?: string | null;
+    netWorkingHours?: string | null;
+    capturedAt?: string;
+  } | null;
 }
+
+const OVERRIDE_STATUSES = [
+  { value: 'present', label: 'Present' },
+  { value: 'half_day', label: 'Half Day' },
+  { value: 'absent', label: 'Absent' },
+  { value: 'on_leave', label: 'On Leave' },
+  { value: 'weekly_off', label: 'Weekly Off' },
+  { value: 'holiday', label: 'Holiday' },
+];
 
 export default function AttendanceManagementPage() {
   const { toast } = useToast();
@@ -34,6 +60,103 @@ export default function AttendanceManagementPage() {
   const [selectedEmployee, setSelectedEmployee] = useState('all');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isProcessingDwar, setIsProcessingDwar] = useState(false);
+
+  // Override dialog state
+  const [overrideTarget, setOverrideTarget] = useState<AttendanceRecord | null>(null);
+  const [overrideStatus, setOverrideStatus] = useState('');
+  const [overrideTimeIn, setOverrideTimeIn] = useState('');
+  const [overrideTimeOut, setOverrideTimeOut] = useState('');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [overrideLockedAck, setOverrideLockedAck] = useState(false);
+
+  // Revert dialog state
+  const [revertTarget, setRevertTarget] = useState<AttendanceRecord | null>(null);
+  const [revertReason, setRevertReason] = useState('');
+
+  // Current session user
+  const { data: sessionUser } = useQuery<any>({
+    queryKey: ['/api/user'],
+  });
+
+  const canOverride = useMemo(() => {
+    if (!sessionUser) return false;
+    if (sessionUser.role === 'Superuser') return true;
+    if (sessionUser.role === 'Manager' && sessionUser.department === 'Administration') return true;
+    return false;
+  }, [sessionUser]);
+
+  // Apply override mutation
+  const applyOverrideMutation = useMutation({
+    mutationFn: async ({ recordId, payload }: { recordId: number; payload: any }) =>
+      apiRequest('PATCH', `/api/admin/attendance/records/${recordId}/override`, payload),
+    onSuccess: async (data: any) => {
+      const json = await data.json();
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/attendance/records'] });
+      setOverrideTarget(null);
+      setOverrideStatus('');
+      setOverrideTimeIn('');
+      setOverrideTimeOut('');
+      setOverrideReason('');
+      setOverrideLockedAck(false);
+      toast({
+        title: 'Override Applied',
+        description: json.payrollPeriodWasLocked
+          ? '⚠ Override saved. Payroll recalculation required for this period.'
+          : 'Attendance record overridden successfully.',
+      });
+    },
+    onError: async (error: any) => {
+      const msg = error?.message || 'Failed to apply override';
+      toast({ title: 'Override Failed', description: msg, variant: 'destructive' });
+    },
+  });
+
+  // Revert override mutation
+  const revertOverrideMutation = useMutation({
+    mutationFn: async ({ recordId, reason }: { recordId: number; reason: string }) =>
+      apiRequest('DELETE', `/api/admin/attendance/records/${recordId}/override`, { reason }),
+    onSuccess: async (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/attendance/records'] });
+      setRevertTarget(null);
+      setRevertReason('');
+      toast({ title: 'Override Reverted', description: 'Record restored to system-calculated status.' });
+    },
+    onError: async (error: any) => {
+      const msg = error?.message || 'Failed to revert override';
+      toast({ title: 'Revert Failed', description: msg, variant: 'destructive' });
+    },
+  });
+
+  // Open override dialog pre-populated from the record
+  const openOverrideDialog = (record: AttendanceRecord) => {
+    setOverrideTarget(record);
+    setOverrideStatus('');
+    setOverrideTimeIn(record.timeIn ? format(new Date(record.timeIn), 'HH:mm') : '');
+    setOverrideTimeOut(record.timeOut ? format(new Date(record.timeOut), 'HH:mm') : '');
+    setOverrideReason('');
+    setOverrideLockedAck(false);
+  };
+
+  const submitOverride = () => {
+    if (!overrideTarget) return;
+    const dateStr = overrideTarget.date.substring(0, 10);
+    const toISO = (dateStr: string, timeStr: string) =>
+      timeStr ? new Date(`${dateStr}T${timeStr}:00`).toISOString() : null;
+    applyOverrideMutation.mutate({
+      recordId: overrideTarget.id,
+      payload: {
+        ...(overrideStatus && { status: overrideStatus }),
+        ...(overrideTimeIn && { checkInTime: toISO(dateStr, overrideTimeIn) }),
+        ...(overrideTimeOut && { checkOutTime: toISO(dateStr, overrideTimeOut) }),
+        reason: overrideReason,
+      },
+    });
+  };
+
+  const submitRevert = () => {
+    if (!revertTarget) return;
+    revertOverrideMutation.mutate({ recordId: revertTarget.id, reason: revertReason });
+  };
 
   // Query for attendance summary stats
   const { data: attendanceStats } = useQuery({
@@ -914,9 +1037,10 @@ export default function AttendanceManagementPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <TooltipProvider>
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b">
+                <tr className="border-b bg-gray-50">
                   <th className="text-left p-3 font-medium">Employee</th>
                   <th className="text-left p-3 font-medium">Department</th>
                   <th className="text-left p-3 font-medium">Date</th>
@@ -924,45 +1048,267 @@ export default function AttendanceManagementPage() {
                   <th className="text-left p-3 font-medium">Time Out</th>
                   <th className="text-left p-3 font-medium">Work Hours</th>
                   <th className="text-left p-3 font-medium">Status</th>
-                  <th className="text-left p-3 font-medium">Location</th>
+                  {canOverride && (
+                    <th className="text-left p-3 font-medium">Payroll Impact</th>
+                  )}
+                  {canOverride && (
+                    <th className="text-left p-3 font-medium">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {!Array.isArray(attendanceRecords) || attendanceRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center p-8 text-gray-500">
+                    <td colSpan={canOverride ? 9 : 7} className="text-center p-8 text-gray-500">
                       No attendance records found for the selected criteria
                     </td>
                   </tr>
                 ) : (
-                  attendanceRecords.map((record) => (
-                    <tr key={record.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 text-blue-600" />
+                  attendanceRecords.map((record) => {
+                    const isOverridden = record.statusSource === 'admin_override';
+                    const origStatus = record.originalPunchData?.systemStatus;
+                    const payrollImpact = isOverridden && origStatus && origStatus !== record.status.toLowerCase().replace(' ', '_');
+                    return (
+                      <tr key={record.id} className={`border-b hover:bg-gray-50 ${isOverridden ? 'bg-amber-50/40' : ''}`}>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <span className="font-medium">{record.userName}</span>
                           </div>
-                          <span className="font-medium">{record.userName}</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-gray-600">{record.department || '-'}</td>
-                      <td className="p-3">{format(new Date(record.date), 'MMM dd, yyyy')}</td>
-                      <td className="p-3">{formatTime(record.timeIn)}</td>
-                      <td className="p-3">{record.timeOut ? formatTime(record.timeOut) : '-'}</td>
-                      <td className="p-3">
-                        {record.workHours ? `${record.workHours.toFixed(1)}h` : '-'}
-                      </td>
-                      <td className="p-3">{getStatusBadge(record.status, { checkInTime: record.timeIn, checkOutTime: record.timeOut })}</td>
-                      <td className="p-3 text-gray-600">{record.location || '-'}</td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="p-3 text-gray-600">{record.department || '-'}</td>
+                        <td className="p-3">{format(new Date(record.date), 'MMM dd, yyyy')}</td>
+                        <td className="p-3">{formatTime(record.timeIn)}</td>
+                        <td className="p-3">{record.timeOut ? formatTime(record.timeOut) : '-'}</td>
+                        <td className="p-3">
+                          {record.workHours ? `${record.workHours.toFixed(1)}h` : '-'}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex flex-col gap-1">
+                            {getStatusBadge(record.status, { checkInTime: record.timeIn, checkOutTime: record.timeOut })}
+                            {isOverridden && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge className="w-fit bg-amber-100 text-amber-800 border border-amber-300 gap-1 cursor-default text-xs">
+                                    <ShieldAlert className="h-3 w-3" />
+                                    Admin Override
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="font-medium">Override applied</p>
+                                  {origStatus && <p className="text-xs text-gray-500 mt-1">System status: {origStatus.replace('_', ' ')}</p>}
+                                  {record.adjustmentReason && <p className="text-xs mt-1">Reason: {record.adjustmentReason}</p>}
+                                  {record.adjustmentDate && <p className="text-xs text-gray-400">{format(new Date(record.adjustmentDate), 'dd MMM yyyy')}</p>}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </td>
+                        {canOverride && (
+                          <td className="p-3">
+                            {isOverridden ? (
+                              <Badge className="bg-orange-100 text-orange-700 border border-orange-200 text-xs">
+                                Recalc. needed
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </td>
+                        )}
+                        {canOverride && (
+                          <td className="p-3">
+                            <div className="flex items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-blue-600 hover:bg-blue-50"
+                                    onClick={() => openOverrideDialog(record)}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Apply Override</TooltipContent>
+                              </Tooltip>
+                              {isOverridden && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-red-600 hover:bg-red-50"
+                                      onClick={() => { setRevertTarget(record); setRevertReason(''); }}
+                                    >
+                                      <RotateCcw className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Revert Override</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
+            </TooltipProvider>
           </div>
         </CardContent>
       </Card>
       </div>
+
+      {/* ── Apply Override Dialog ─────────────────────────────────── */}
+      <Dialog open={!!overrideTarget} onOpenChange={(open) => { if (!open) setOverrideTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              Apply Admin Override
+            </DialogTitle>
+          </DialogHeader>
+
+          {overrideTarget && (
+            <div className="space-y-4">
+              <div className="rounded-md bg-gray-50 p-3 text-sm">
+                <p><span className="font-medium">Employee:</span> {overrideTarget.userName}</p>
+                <p><span className="font-medium">Date:</span> {format(new Date(overrideTarget.date), 'dd MMM yyyy')}</p>
+                <p><span className="font-medium">Current Status:</span> {overrideTarget.status}
+                  {overrideTarget.statusSource === 'admin_override' && (
+                    <Badge className="ml-2 text-xs bg-amber-100 text-amber-800">Already overridden</Badge>
+                  )}
+                </p>
+                {overrideTarget.originalPunchData?.systemStatus && (
+                  <p className="text-gray-500 text-xs mt-1">System status: {overrideTarget.originalPunchData.systemStatus.replace('_', ' ')}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>New Status <span className="text-gray-400 text-xs">(optional — leave blank to keep current)</span></Label>
+                <Select value={overrideStatus} onValueChange={setOverrideStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OVERRIDE_STATUSES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Time In <span className="text-gray-400 text-xs">(optional)</span></Label>
+                  <Input
+                    type="time"
+                    value={overrideTimeIn}
+                    onChange={(e) => setOverrideTimeIn(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Time Out <span className="text-gray-400 text-xs">(optional)</span></Label>
+                  <Input
+                    type="time"
+                    value={overrideTimeOut}
+                    onChange={(e) => setOverrideTimeOut(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Reason <span className="text-red-500">*</span> <span className="text-gray-400 text-xs">(min 10 characters)</span></Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Explain why this override is necessary…"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                />
+                <p className={`text-xs ${overrideReason.length < 10 ? 'text-gray-400' : 'text-green-600'}`}>
+                  {overrideReason.length} / 10 min characters
+                </p>
+              </div>
+
+              {sessionUser?.role !== 'Superuser' ? null : (
+                <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>If this date falls within a locked payroll period, the override will be applied and the period will be flagged for recalculation.</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setOverrideTarget(null)}>Cancel</Button>
+            <Button
+              onClick={submitOverride}
+              disabled={overrideReason.length < 10 || applyOverrideMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {applyOverrideMutation.isPending ? 'Applying…' : 'Apply Override'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Revert Override Dialog ─────────────────────────────────── */}
+      <Dialog open={!!revertTarget} onOpenChange={(open) => { if (!open) setRevertTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-red-600" />
+              Revert Admin Override
+            </DialogTitle>
+          </DialogHeader>
+
+          {revertTarget && (
+            <div className="space-y-4">
+              <div className="rounded-md bg-gray-50 p-3 text-sm">
+                <p><span className="font-medium">Employee:</span> {revertTarget.userName}</p>
+                <p><span className="font-medium">Date:</span> {format(new Date(revertTarget.date), 'dd MMM yyyy')}</p>
+                <p><span className="font-medium">Current (Override) Status:</span> {revertTarget.status}</p>
+                {revertTarget.originalPunchData?.systemStatus && (
+                  <p className="text-gray-500 text-xs mt-1">Will restore to: <strong>{revertTarget.originalPunchData.systemStatus.replace('_', ' ')}</strong></p>
+                )}
+              </div>
+
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>This will restore the record to the original system-calculated values. This action is logged in the audit trail.</span>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Reason for Revert <span className="text-red-500">*</span></Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Explain why you are reverting this override…"
+                  value={revertReason}
+                  onChange={(e) => setRevertReason(e.target.value)}
+                />
+                <p className={`text-xs ${revertReason.length < 10 ? 'text-gray-400' : 'text-green-600'}`}>
+                  {revertReason.length} / 10 min characters
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRevertTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={submitRevert}
+              disabled={revertReason.length < 10 || revertOverrideMutation.isPending}
+            >
+              {revertOverrideMutation.isPending ? 'Reverting…' : 'Revert Override'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
