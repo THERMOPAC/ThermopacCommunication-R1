@@ -138,8 +138,8 @@ export default function LeaveManagementPage() {
   });
 
   const { data: leaveRequests = [] } = useQuery({
-    queryKey: ['/api/admin/leave-requests'],
-    queryFn: () => apiRequest('GET', '/api/admin/leave-requests')
+    queryKey: ['/api/admin/leave-requests', selectedYear],
+    queryFn: () => apiRequest('GET', `/api/admin/leave-requests?fromDate=${selectedYear}-01-01&toDate=${selectedYear}-12-31&limit=2000`)
   });
 
   const { data: dashboardData } = useQuery({
