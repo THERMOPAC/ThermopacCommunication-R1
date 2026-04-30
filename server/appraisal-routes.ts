@@ -6,6 +6,7 @@ import {
   appraisalComments, appraisalApprovals, appraisalAuditLog,
   appraisalKpiTemplates, appraisalKpiTemplateItems,
   appraisalIncrementPolicy, appraisalDesignationProgression,
+  salaryIncrementProposals, employeeSalaries,
   users, notifications, tasks,
   InsertAppraisalCycleTemplate, InsertAppraisalCycle, InsertEmployeeAppraisal,
   insertAppraisalCycleTemplateSchema, insertAppraisalCycleSchema, insertEmployeeAppraisalSchema
@@ -2057,11 +2058,38 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
     if (req.body.l3FinalRemarks) l3Decision.l3FinalRemarks = req.body.l3FinalRemarks;
     if (req.body.systemRecommendation) l3Decision.systemRecommendation = req.body.systemRecommendation;
 
+    // Compute system-suggested increment from policy bands
+    let systemSuggestedIncrementPct: string | null = null;
+    let minIncrementPct: string | null = null;
+    let maxIncrementPct: string | null = null;
+    try {
+      const policies = await db.select().from(appraisalIncrementPolicy)
+        .where(eq(appraisalIncrementPolicy.isActive, true));
+      const matchedBand = policies.find(p =>
+        effectiveScore >= parseFloat(p.minScoreRange) && effectiveScore <= parseFloat(p.maxScoreRange)
+      );
+      if (matchedBand) {
+        const minPct = parseFloat(matchedBand.incrementMinPercent);
+        const maxPct = parseFloat(matchedBand.incrementMaxPercent);
+        const midPct = Math.round(((minPct + maxPct) / 2) * 100) / 100;
+        systemSuggestedIncrementPct = midPct.toString();
+        minIncrementPct = minPct.toString();
+        maxIncrementPct = maxPct.toString();
+      }
+    } catch (policyErr: any) {
+      console.error('[Appraisal] Policy lookup failed (non-blocking):', policyErr.message);
+    }
+
     const [updated] = await db.update(employeeAppraisals).set({
       status: 'approved', l3ApprovedAt: new Date(), l3Comments: req.body.l3Comments || null,
       finalScore: (Math.round(effectiveScore * 100) / 100).toString(),
       finalRating, finalRecommendations,
       ...l3Decision,
+      ...(systemSuggestedIncrementPct !== null ? {
+        systemSuggestedIncrementPct,
+        minIncrementPct,
+        maxIncrementPct,
+      } : {}),
       isLocked: true, updatedAt: new Date(),
     }).where(eq(employeeAppraisals.id, appraisalId)).returning();
 
@@ -2102,6 +2130,111 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to approve' });
+  }
+});
+
+// ==========================================
+// GENERATE INCREMENT PROPOSAL — Superuser only
+// ==========================================
+router.post('/:id/generate-increment-proposal', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (user.role !== 'Superuser') return res.status(403).json({ error: 'Only Superuser can generate increment proposals' });
+
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
+    if (!['approved', 'closed'].includes(appraisal.status)) {
+      return res.status(400).json({ error: 'Appraisal must be approved or closed to generate an increment proposal' });
+    }
+    if (appraisal.incrementProposalId) {
+      return res.status(400).json({ error: 'An increment proposal already exists for this appraisal' });
+    }
+
+    // Determine the final proposed % (body override or system suggestion or 0)
+    const systemSuggested = appraisal.systemSuggestedIncrementPct ? parseFloat(appraisal.systemSuggestedIncrementPct) : 0;
+    const minPct = appraisal.minIncrementPct ? parseFloat(appraisal.minIncrementPct) : 0;
+    const maxPct = appraisal.maxIncrementPct ? parseFloat(appraisal.maxIncrementPct) : 100;
+
+    let finalProposedPct = systemSuggested;
+    if (req.body.finalProposedIncrementPct !== undefined) {
+      finalProposedPct = parseFloat(req.body.finalProposedIncrementPct);
+    }
+    // Clamp to min/max
+    finalProposedPct = Math.max(minPct, Math.min(maxPct, finalProposedPct));
+
+    // Fetch the employee's current salary config
+    const [salary] = await db.select().from(employeeSalaries)
+      .where(eq(employeeSalaries.userId, appraisal.employeeId));
+    if (!salary) return res.status(400).json({ error: 'Employee salary configuration not found' });
+
+    const oldBasic = parseFloat(salary.basicSalary || '0');
+    const proposedBasic = Math.round(oldBasic * (1 + finalProposedPct / 100) * 100) / 100;
+    const oldCtc = parseFloat((salary as any).ctcMonthly || (salary as any).ctcYearly || '0');
+    const ctcRatio = oldBasic > 0 && oldCtc > 0 ? (oldCtc / oldBasic) : 0;
+    const proposedCtc = ctcRatio > 0 ? Math.round(proposedBasic * ctcRatio * 100) / 100 : 0;
+
+    const effectiveDate = req.body.effectiveDate || new Date().toISOString().split('T')[0];
+
+    const [proposal] = await db.insert(salaryIncrementProposals).values({
+      employeeSalaryId: salary.id,
+      employeeId: appraisal.employeeId,
+      incrementPercentage: finalProposedPct.toString(),
+      oldBasicSalary: oldBasic.toString(),
+      proposedBasicSalary: proposedBasic.toString(),
+      oldCtc: oldCtc > 0 ? oldCtc.toString() : null,
+      proposedCtc: proposedCtc > 0 ? proposedCtc.toString() : null,
+      effectiveDate,
+      status: 'pending',
+      remarks: `Appraisal-driven increment — ${appraisal.finalRating || 'N/A'} (Score: ${appraisal.finalScore || 'N/A'})`,
+      proposedBy: user.id,
+      proposedAt: new Date(),
+      // Appraisal-driven fields
+      appraisalId,
+      appraisalFinalScore: appraisal.finalScore,
+      appraisalRating: appraisal.finalRating,
+      systemSuggestedIncrementPct: systemSuggested.toString(),
+      minIncrementPct: minPct.toString(),
+      maxIncrementPct: maxPct.toString(),
+      finalProposedIncrementPct: finalProposedPct.toString(),
+      editedBy: req.body.finalProposedIncrementPct !== undefined ? user.id : null,
+      editedAt: req.body.finalProposedIncrementPct !== undefined ? new Date() : null,
+    }).returning();
+
+    // Link proposal back to the appraisal
+    await db.update(employeeAppraisals).set({
+      incrementProposalId: proposal.id,
+      incrementProposalCreatedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(employeeAppraisals.id, appraisalId));
+
+    // Notify Superusers about the new proposal
+    try {
+      const superusers = await db.select().from(users)
+        .where(and(eq(users.role, 'Superuser'), eq(users.isActive, true)));
+      for (const su of superusers) {
+        if (su.id === user.id) continue; // skip self
+        await db.insert(notifications).values({
+          userId: su.id,
+          type: 'salary_increment',
+          title: 'Increment Proposal Created',
+          message: `Increment proposal for ${appraisal.employeeName} (${finalProposedPct}%) has been generated. Pending your approval.`,
+          link: '/admin/payroll/increment-approvals',
+          priority: 'high',
+          category: 'payroll',
+          sourceType: 'salary_increment_proposal',
+          sourceId: proposal.id,
+          createdBy: user.id,
+        } as any);
+      }
+    } catch (notifErr: any) {
+      console.error('[Appraisal] Proposal notification failed (non-blocking):', notifErr.message);
+    }
+
+    res.json({ proposal, message: 'Increment proposal generated successfully' });
+  } catch (error: any) {
+    console.error('[Appraisal] Generate increment proposal failed:', error);
+    res.status(400).json({ error: error.message || 'Failed to generate increment proposal' });
   }
 });
 

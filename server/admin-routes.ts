@@ -815,6 +815,16 @@ router.get('/payroll/increment-proposals/all', ensureAuthenticated, async (req: 
         createdAt: salaryIncrementProposals.createdAt,
         appliedAt: salaryIncrementProposals.appliedAt,
         employeeName: users.username,
+        // Appraisal-driven fields
+        appraisalId: salaryIncrementProposals.appraisalId,
+        appraisalFinalScore: salaryIncrementProposals.appraisalFinalScore,
+        appraisalRating: salaryIncrementProposals.appraisalRating,
+        systemSuggestedIncrementPct: salaryIncrementProposals.systemSuggestedIncrementPct,
+        minIncrementPct: salaryIncrementProposals.minIncrementPct,
+        maxIncrementPct: salaryIncrementProposals.maxIncrementPct,
+        finalProposedIncrementPct: salaryIncrementProposals.finalProposedIncrementPct,
+        editedBy: salaryIncrementProposals.editedBy,
+        editedAt: salaryIncrementProposals.editedAt,
       })
       .from(salaryIncrementProposals)
       .leftJoin(users, eq(salaryIncrementProposals.employeeId, users.id))

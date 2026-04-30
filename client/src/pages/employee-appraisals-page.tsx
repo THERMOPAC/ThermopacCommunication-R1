@@ -22,7 +22,7 @@ import {
   Plus, Edit, Trash2, Send, CheckCircle, AlertCircle, Eye, Play,
   Pause, RotateCcw, BarChart3, ChevronRight, Loader2, Shield,
   TrendingUp, UserCheck, AlertTriangle, ClipboardCheck, Library,
-  Archive, Power, GripVertical, Copy, Download
+  Archive, Power, GripVertical, Copy, Download, CheckCircle2, Zap
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -235,6 +235,24 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
     },
   });
 
+  const [generateTarget, setGenerateTarget] = useState<any | null>(null);
+  const [editedPct, setEditedPct] = useState<string>('');
+  const [generateDate, setGenerateDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  const generateProposalMutation = useMutation({
+    mutationFn: ({ id, finalProposedIncrementPct, effectiveDate }: { id: number; finalProposedIncrementPct?: number; effectiveDate?: string }) =>
+      apiRequest("POST", `/api/appraisals/${id}/generate-increment-proposal`, { finalProposedIncrementPct, effectiveDate }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/increment-proposals/pending-count'] });
+      setGenerateTarget(null);
+      toast({ title: "Proposal Generated", description: "Increment proposal has been created and is pending approval." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: getErrorMessage(err), variant: "destructive" });
+    },
+  });
+
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   if (selectedId) {
@@ -270,6 +288,7 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                 ) : view !== "my" && <TableHead>Score</TableHead>}
                 <TableHead>Rating</TableHead>
                 {view === "all" && <TableHead>Increment</TableHead>}
+                {view === "all" && user?.role === 'Superuser' && <TableHead className="text-center">Suggested %</TableHead>}
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -318,9 +337,45 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                         : <span className="text-muted-foreground text-xs">—</span>}
                     </TableCell>
                   )}
+                  {view === "all" && user?.role === 'Superuser' && (
+                    <TableCell className="text-center">
+                      {a.systemSuggestedIncrementPct != null ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
+                            {Number(a.systemSuggestedIncrementPct).toFixed(1)}%
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {Number(a.minIncrementPct).toFixed(0)}–{Number(a.maxIncrementPct).toFixed(0)}%
+                          </span>
+                        </div>
+                      ) : ['approved','closed'].includes(a.status) ? (
+                        <span className="text-xs text-amber-600">No policy</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-1" /> View</Button>
+                      {view === 'all' && user?.role === 'Superuser' && ['approved', 'closed'].includes(a.status) && (
+                        a.incrementProposalId
+                          ? <span className="inline-flex items-center gap-1 text-xs text-green-700 px-2 py-1 bg-green-50 rounded-md ring-1 ring-green-200"><CheckCircle2 className="h-3 w-3" /> Proposed</span>
+                          : <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 text-xs h-7 px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const suggested = a.systemSuggestedIncrementPct ? Number(a.systemSuggestedIncrementPct).toFixed(2) : '0';
+                                setEditedPct(suggested);
+                                setGenerateDate(new Date().toISOString().split('T')[0]);
+                                setGenerateTarget(a);
+                              }}
+                            >
+                              <Zap className="h-3 w-3 mr-1" /> Generate Proposal
+                            </Button>
+                      )}
                       {user?.role === 'Superuser' && a.status === 'open' && a.cycleStatus === 'paused' && (
                         <Button
                           variant="ghost"
@@ -376,6 +431,77 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
           </Table>
         )}
       </CardContent>
+
+      {/* Generate Proposal Dialog — Superuser only */}
+      {generateTarget && (
+        <Dialog open={true} onOpenChange={(open) => { if (!open) setGenerateTarget(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-indigo-600" /> Generate Increment Proposal
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+                <div className="font-medium">{generateTarget.employeeName}</div>
+                <div className="text-muted-foreground">{generateTarget.department} · {generateTarget.finalRating || 'N/A'}</div>
+                <div className="text-muted-foreground">Final Score: {generateTarget.finalScore ? Number(generateTarget.finalScore).toFixed(2) : '—'}</div>
+              </div>
+              {generateTarget.systemSuggestedIncrementPct != null && (
+                <div className="flex items-center justify-between text-sm bg-indigo-50 rounded-md px-3 py-2">
+                  <span className="text-indigo-700 font-medium">System Suggestion</span>
+                  <span className="font-bold text-indigo-800">{Number(generateTarget.systemSuggestedIncrementPct).toFixed(1)}%</span>
+                </div>
+              )}
+              {generateTarget.minIncrementPct != null && (
+                <div className="text-xs text-muted-foreground text-center">
+                  Allowed range: {Number(generateTarget.minIncrementPct).toFixed(0)}% – {Number(generateTarget.maxIncrementPct).toFixed(0)}%
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Final Proposed Increment %</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min={generateTarget.minIncrementPct ? Number(generateTarget.minIncrementPct) : 0}
+                  max={generateTarget.maxIncrementPct ? Number(generateTarget.maxIncrementPct) : 100}
+                  value={editedPct}
+                  onChange={(e) => setEditedPct(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                {generateTarget.minIncrementPct != null && (Number(editedPct) < Number(generateTarget.minIncrementPct) || Number(editedPct) > Number(generateTarget.maxIncrementPct)) && (
+                  <p className="text-xs text-amber-600">⚠ Value will be clamped to the allowed range on submission</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Effective Date</label>
+                <input
+                  type="date"
+                  value={generateDate}
+                  onChange={(e) => setGenerateDate(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setGenerateTarget(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                disabled={generateProposalMutation.isPending}
+                onClick={() => generateProposalMutation.mutate({
+                  id: generateTarget.id,
+                  finalProposedIncrementPct: Number(editedPct),
+                  effectiveDate: generateDate,
+                })}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {generateProposalMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Zap className="h-4 w-4 mr-1" />}
+                Generate Proposal
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }

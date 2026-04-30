@@ -5257,6 +5257,16 @@ export const salaryIncrementProposals = pgTable('salary_increment_proposals', {
   rejectionReason: text('rejection_reason'),
   appliedAt: timestamp('applied_at'),
   appliedBy: integer('applied_by').references(() => users.id),
+  // Appraisal-driven fields
+  appraisalId: integer('appraisal_id'),
+  appraisalFinalScore: decimal('appraisal_final_score', { precision: 5, scale: 2 }),
+  appraisalRating: varchar('appraisal_rating', { length: 30 }),
+  systemSuggestedIncrementPct: decimal('system_suggested_increment_pct', { precision: 5, scale: 2 }),
+  minIncrementPct: decimal('min_increment_pct', { precision: 5, scale: 2 }),
+  maxIncrementPct: decimal('max_increment_pct', { precision: 5, scale: 2 }),
+  finalProposedIncrementPct: decimal('final_proposed_increment_pct', { precision: 5, scale: 2 }),
+  editedBy: integer('edited_by').references(() => users.id),
+  editedAt: timestamp('edited_at'),
 });
 
 export type SalaryIncrementProposal = typeof salaryIncrementProposals.$inferSelect;
@@ -11011,6 +11021,13 @@ export const employeeAppraisals = pgTable('employee_appraisals', {
   lastReturnedAt: timestamp('last_returned_at'),
   lastReturnedBy: integer('last_returned_by'),
   lastReturnRemarks: text('last_return_remarks'),
+
+  // System-suggested increment (computed on L3 approval, Superuser-only visibility)
+  systemSuggestedIncrementPct: decimal('system_suggested_increment_pct', { precision: 5, scale: 2 }),
+  minIncrementPct: decimal('min_increment_pct', { precision: 5, scale: 2 }),
+  maxIncrementPct: decimal('max_increment_pct', { precision: 5, scale: 2 }),
+  incrementProposalId: integer('increment_proposal_id'),
+  incrementProposalCreatedAt: timestamp('increment_proposal_created_at'),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

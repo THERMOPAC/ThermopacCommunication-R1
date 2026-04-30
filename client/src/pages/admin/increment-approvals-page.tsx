@@ -31,6 +31,16 @@ type Proposal = {
   proposedByName: string;
   createdAt: string;
   appliedAt?: string;
+  // Appraisal-driven fields
+  appraisalId?: number;
+  appraisalFinalScore?: string;
+  appraisalRating?: string;
+  systemSuggestedIncrementPct?: string;
+  minIncrementPct?: string;
+  maxIncrementPct?: string;
+  finalProposedIncrementPct?: string;
+  editedByName?: string;
+  editedAt?: string;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -175,12 +185,12 @@ export default function IncrementApprovalsPage() {
                   <thead>
                     <tr className="border-b bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                       <th className="text-left p-3 pl-4">Employee</th>
+                      <th className="text-center p-3">Appraisal</th>
                       <th className="text-right p-3">Current Basic</th>
                       <th className="text-right p-3">Proposed Basic</th>
-                      <th className="text-right p-3">%</th>
+                      <th className="text-center p-3">Increment</th>
                       <th className="text-left p-3">Effective Date</th>
                       <th className="text-left p-3">Proposed By</th>
-                      <th className="text-left p-3">Remarks</th>
                       <th className="text-left p-3">Status</th>
                       <th className="text-left p-3">Actions</th>
                     </tr>
@@ -197,21 +207,46 @@ export default function IncrementApprovalsPage() {
                             {new Date(p.createdAt).toLocaleDateString('en-IN')}
                           </div>
                         </td>
+                        {/* Appraisal column */}
+                        <td className="p-3 text-center">
+                          {p.appraisalId ? (
+                            <div className="space-y-0.5">
+                              {p.appraisalFinalScore && (
+                                <div className="inline-flex items-center rounded bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">
+                                  {Number(p.appraisalFinalScore).toFixed(2)}
+                                </div>
+                              )}
+                              {p.appraisalRating && (
+                                <div className="text-xs text-gray-500">{p.appraisalRating}</div>
+                              )}
+                              {p.systemSuggestedIncrementPct && (
+                                <div className="text-xs text-indigo-600 font-medium">
+                                  Sys: {Number(p.systemSuggestedIncrementPct).toFixed(1)}%
+                                  {p.minIncrementPct && <span className="text-gray-400 ml-0.5">({Number(p.minIncrementPct).toFixed(0)}–{Number(p.maxIncrementPct).toFixed(0)}%)</span>}
+                                </div>
+                              )}
+                            </div>
+                          ) : <span className="text-xs text-gray-400">Manual</span>}
+                        </td>
                         <td className="p-3 text-right font-mono">{fmt(p.oldBasicSalary)}</td>
                         <td className="p-3 text-right font-mono text-green-700 font-semibold">{fmt(p.proposedBasicSalary)}</td>
-                        <td className="p-3 text-right">
-                          <span className="text-green-700 font-semibold">+{parseFloat(p.incrementPercentage).toFixed(1)}%</span>
+                        <td className="p-3 text-center">
+                          <div className="space-y-0.5">
+                            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20">
+                              +{parseFloat(p.incrementPercentage).toFixed(1)}%
+                            </span>
+                            {p.finalProposedIncrementPct && parseFloat(p.finalProposedIncrementPct) !== parseFloat(p.incrementPercentage) && (
+                              <div className="text-[10px] text-amber-600">Final: {Number(p.finalProposedIncrementPct).toFixed(1)}%</div>
+                            )}
+                            {p.rejectionReason && (
+                              <div className="text-xs text-red-500 mt-0.5 max-w-[120px] truncate" title={p.rejectionReason}>
+                                Reason: {p.rejectionReason}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3 text-gray-700">{p.effectiveDate}</td>
                         <td className="p-3 text-gray-600">{p.proposedByName}</td>
-                        <td className="p-3 text-gray-500 max-w-[180px]">
-                          <p className="truncate" title={p.remarks}>{p.remarks || '—'}</p>
-                          {p.rejectionReason && (
-                            <p className="text-red-500 text-xs mt-0.5 truncate" title={p.rejectionReason}>
-                              Reason: {p.rejectionReason}
-                            </p>
-                          )}
-                        </td>
                         <td className="p-3">
                           <Badge className={`${STATUS_CONFIG[p.status]?.className} text-xs border`}>
                             {STATUS_CONFIG[p.status]?.label}
