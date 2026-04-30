@@ -58,10 +58,21 @@ export default function IncrementApprovalsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const april1Iso = `${new Date().getFullYear()}-04-01`;
+  const april1Display = `01/04/${new Date().getFullYear()}`;
+
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [approveTarget, setApproveTarget] = useState<Proposal | null>(null);
+  const [approveDate, setApproveDate] = useState<string>(april1Display);
+  const [approveDateIso, setApproveDateIso] = useState<string>(april1Iso);
   const [rejectTarget, setRejectTarget]   = useState<Proposal | null>(null);
   const [rejectReason, setRejectReason]   = useState('');
+
+  const parseDDMMYYYY = (val: string): string => {
+    const p = val.split('/');
+    if (p.length === 3 && p[2].length === 4) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+    return approveDateIso;
+  };
 
   if (!user || user.role !== 'Superuser') {
     return <Redirect to="/admin/payroll" />;
@@ -78,8 +89,8 @@ export default function IncrementApprovalsPage() {
     : proposals.filter(p => p.status === statusFilter);
 
   const approveMutation = useMutation({
-    mutationFn: async (proposalId: number) => {
-      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/approve`, {});
+    mutationFn: async ({ proposalId, effectiveDate }: { proposalId: number; effectiveDate: string }) => {
+      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/approve`, { effectiveDate });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Approval failed'); }
       return res.json();
     },
@@ -263,7 +274,7 @@ export default function IncrementApprovalsPage() {
                               <Button
                                 size="sm"
                                 className="h-7 px-2 gap-1 bg-green-600 hover:bg-green-700 text-white text-xs"
-                                onClick={() => setApproveTarget(p)}
+                                onClick={() => { setApproveTarget(p); setApproveDate(april1Display); setApproveDateIso(april1Iso); }}
                               >
                                 <CheckCircle className="h-3.5 w-3.5" /> Approve
                               </Button>
@@ -317,7 +328,21 @@ export default function IncrementApprovalsPage() {
                 <p><span className="font-medium">Employee:</span> {approveTarget.employeeName}</p>
                 <p><span className="font-medium">Increment:</span> +{parseFloat(approveTarget.incrementPercentage).toFixed(1)}%</p>
                 <p><span className="font-medium">New Basic:</span> {fmt(approveTarget.proposedBasicSalary)}</p>
-                <p><span className="font-medium">Effective Date:</span> {approveTarget.effectiveDate}</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Effective Date</label>
+                <input
+                  type="text"
+                  placeholder="DD/MM/YYYY"
+                  value={approveDate}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setApproveDate(raw);
+                    const iso = parseDDMMYYYY(raw);
+                    if (iso) setApproveDateIso(iso);
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
               </div>
               <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -330,7 +355,7 @@ export default function IncrementApprovalsPage() {
             <Button
               className="bg-green-600 hover:bg-green-700 text-white gap-1"
               disabled={approveMutation.isPending}
-              onClick={() => approveTarget && approveMutation.mutate(approveTarget.id)}
+              onClick={() => approveTarget && approveMutation.mutate({ proposalId: approveTarget.id, effectiveDate: approveDateIso })}
             >
               {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
               Confirm Approve

@@ -904,10 +904,12 @@ router.post('/payroll/increment-proposals/:id/approve', ensureAuthenticated, asy
       });
     }
 
+    const effectiveDateOverride = req.body.effectiveDate || null;
     await db.update(salaryIncrementProposals).set({
       status: 'approved',
       approvedBy: user.id,
       approvedAt: new Date(),
+      ...(effectiveDateOverride ? { effectiveDate: effectiveDateOverride } : {}),
     }).where(eq(salaryIncrementProposals.id, proposalId));
 
     await db.insert(salaryIncrementAuditLog).values({
@@ -923,12 +925,13 @@ router.post('/payroll/increment-proposals/:id/approve', ensureAuthenticated, asy
 
     // If effective_date <= today, apply immediately
     const today = new Date().toISOString().split('T')[0];
-    if (proposal.effectiveDate <= today) {
+    const finalEffectiveDate = effectiveDateOverride || proposal.effectiveDate;
+    if (finalEffectiveDate <= today) {
       await applySalaryIncrement(proposalId, user.id);
       return res.json({ success: true, message: 'Proposal approved and salary applied immediately (effective date has passed).' });
     }
 
-    res.json({ success: true, message: `Proposal approved. Salary will be applied on ${proposal.effectiveDate}.` });
+    res.json({ success: true, message: `Proposal approved. Salary will be applied on ${finalEffectiveDate}.` });
   } catch (error) {
     console.error('Error approving increment proposal:', error);
     sendError(res, error);
