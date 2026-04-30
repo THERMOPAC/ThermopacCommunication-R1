@@ -798,48 +798,24 @@ router.get('/payroll/increment-proposals/all', ensureAuthenticated, async (req: 
       return sendPermissionError(res, 'Only Superuser can view all increment proposals');
     }
     const proposals = await db
-      .select({
-        id: salaryIncrementProposals.id,
-        employeeSalaryId: salaryIncrementProposals.employeeSalaryId,
-        employeeId: salaryIncrementProposals.employeeId,
-        incrementPercentage: salaryIncrementProposals.incrementPercentage,
-        oldBasicSalary: salaryIncrementProposals.oldBasicSalary,
-        proposedBasicSalary: salaryIncrementProposals.proposedBasicSalary,
-        oldCtc: salaryIncrementProposals.oldCtc,
-        proposedCtc: salaryIncrementProposals.proposedCtc,
-        effectiveDate: salaryIncrementProposals.effectiveDate,
-        status: salaryIncrementProposals.status,
-        remarks: salaryIncrementProposals.remarks,
-        rejectionReason: salaryIncrementProposals.rejectionReason,
-        proposedBy: salaryIncrementProposals.proposedBy,
-        proposedAt: salaryIncrementProposals.proposedAt,
-        appliedAt: salaryIncrementProposals.appliedAt,
-        employeeName: users.username,
-        // Appraisal-driven fields
-        appraisalId: salaryIncrementProposals.appraisalId,
-        appraisalFinalScore: salaryIncrementProposals.appraisalFinalScore,
-        appraisalRating: salaryIncrementProposals.appraisalRating,
-        systemSuggestedIncrementPct: salaryIncrementProposals.systemSuggestedIncrementPct,
-        minIncrementPct: salaryIncrementProposals.minIncrementPct,
-        maxIncrementPct: salaryIncrementProposals.maxIncrementPct,
-        finalProposedIncrementPct: salaryIncrementProposals.finalProposedIncrementPct,
-        editedBy: salaryIncrementProposals.editedBy,
-        editedAt: salaryIncrementProposals.editedAt,
-      })
+      .select()
       .from(salaryIncrementProposals)
-      .leftJoin(users, eq(salaryIncrementProposals.employeeId, users.id))
       .orderBy(desc(salaryIncrementProposals.proposedAt));
 
-    // Attach proposer name separately
-    const proposerIds = [...new Set(proposals.map(p => p.proposedBy).filter(Boolean))] as number[];
-    const proposers = proposerIds.length
-      ? await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.id, proposerIds))
+    // Attach employee name and proposer name
+    const allUserIds = [...new Set([
+      ...proposals.map(p => p.employeeId),
+      ...proposals.map(p => p.proposedBy),
+    ].filter(Boolean))] as number[];
+    const allUsers = allUserIds.length
+      ? await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.id, allUserIds))
       : [];
-    const proposerMap = Object.fromEntries(proposers.map(p => [p.id, p.username]));
+    const userMap = Object.fromEntries(allUsers.map(u => [u.id, u.username]));
 
     res.json(proposals.map(p => ({
       ...p,
-      proposedByName: p.proposedBy ? (proposerMap[p.proposedBy] || 'Unknown') : 'Unknown',
+      employeeName: p.employeeId ? (userMap[p.employeeId] || 'Unknown') : 'Unknown',
+      proposedByName: p.proposedBy ? (userMap[p.proposedBy] || 'Unknown') : 'Unknown',
     })));
   } catch (error) {
     sendError(res, error);
