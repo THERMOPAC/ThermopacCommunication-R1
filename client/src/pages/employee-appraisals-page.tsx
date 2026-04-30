@@ -261,7 +261,13 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                 <TableHead>Appraisal Cycle</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>L1 Reviewer</TableHead>
-                {view !== "my" && <TableHead>Score</TableHead>}
+                {view === "all" ? (
+                  <>
+                    <TableHead className="text-center">L1 Score</TableHead>
+                    <TableHead className="text-center">L2 Score</TableHead>
+                    <TableHead className="text-center">Final Score</TableHead>
+                  </>
+                ) : view !== "my" && <TableHead>Score</TableHead>}
                 <TableHead>Rating</TableHead>
                 {view === "all" && <TableHead>Increment</TableHead>}
                 <TableHead className="text-right">Action</TableHead>
@@ -279,7 +285,25 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                   </TableCell>
                   <TableCell><StatusBadge status={a.status} /></TableCell>
                   <TableCell>{a.l1ReviewerName}</TableCell>
-                  {view !== "my" && <TableCell>{a.finalScore || a.overallCalculatedScore || "-"}</TableCell>}
+                  {view === "all" ? (
+                    <>
+                      <TableCell className="text-center">
+                        {a.l1Score != null
+                          ? <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{Number(a.l1Score).toFixed(2)}</span>
+                          : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {a.l2Score != null
+                          ? <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">{Number(a.l2Score).toFixed(2)}</span>
+                          : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {(a.finalScore || a.overallCalculatedScore) != null
+                          ? <span className="inline-flex items-center rounded bg-purple-50 px-1.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-700/10">{Number(a.finalScore || a.overallCalculatedScore).toFixed(2)}</span>
+                          : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
+                    </>
+                  ) : view !== "my" && <TableCell>{a.finalScore || a.overallCalculatedScore || "-"}</TableCell>}
                   <TableCell>{a.finalRating ? <RatingBadge rating={a.finalRating} /> : "-"}</TableCell>
                   {view === "all" && (
                     <TableCell>
