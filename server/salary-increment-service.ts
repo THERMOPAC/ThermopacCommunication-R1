@@ -1,5 +1,5 @@
 import { db } from './db';
-import { employeeSalaries, salaryIncrementProposals, salaryIncrementAuditLog } from '../shared/schema';
+import { employeeSalaries, salaryIncrementProposals, salaryIncrementAuditLog, users } from '../shared/schema';
 import { eq, and, lte, ne } from 'drizzle-orm';
 
 /**
@@ -59,15 +59,31 @@ export async function applySalaryIncrement(proposalId: number, appliedByUserId: 
     throw new Error(`Salary config ${proposal.employeeSalaryId} not found or inactive`);
   }
 
+  // Fetch user duty schedule for accurate working hours
+  const [employeeUser] = await db
+    .select({ dutyTimeIn: users.dutyTimeIn, dutyTimeOut: users.dutyTimeOut, minimumDailyHours: users.minimumDailyHours })
+    .from(users)
+    .where(eq(users.id, salaryConfig.userId));
+
+  // Derive working hours from duty schedule (source of truth)
+  let workingHours = 8;
+  if (employeeUser?.dutyTimeIn && employeeUser?.dutyTimeOut) {
+    const [inH, inM] = employeeUser.dutyTimeIn.split(':').map(Number);
+    const [outH, outM] = employeeUser.dutyTimeOut.split(':').map(Number);
+    const h = (outH * 60 + outM - (inH * 60 + inM)) / 60;
+    if (h > 0) workingHours = h;
+  } else if (employeeUser?.minimumDailyHours) {
+    workingHours = employeeUser.minimumDailyHours;
+  }
+
+  const MONTHLY_DIVISOR = 30;
   const newBasic = parseFloat(proposal.proposedBasicSalary as string);
   const isDaily = salaryConfig.salaryType === 'daily';
-  const actualDays = Number(salaryConfig.actualDays) || 30;
   const paidDays = Number(salaryConfig.paidDays) || 30;
   const kpiPct = parseFloat((salaryConfig.kpiPercent as string) || '0');
   const groupIns = parseFloat((salaryConfig.groupInsurance as string) || '1500');
   const otHours = parseFloat((salaryConfig.overtimeHours as string) || '0');
   const otRate = parseFloat((salaryConfig.otRate as string) || '1.0');
-  const workingHours = Number(salaryConfig.workingHoursPerDay) || 8;
 
   let grossBasic: number;
   let houseRent = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0, kgp = 0, overtimePay = 0;
@@ -77,7 +93,7 @@ export async function applySalaryIncrement(proposalId: number, appliedByUserId: 
     const hourlyRate = newBasic / workingHours;
     overtimePay = hourlyRate * otHours * otRate;
   } else {
-    const proRated = (newBasic / actualDays) * paidDays;
+    const proRated = (newBasic / MONTHLY_DIVISOR) * paidDays;
     grossBasic = proRated;
     houseRent = grossBasic * 0.4;
     conveyance = grossBasic * 0.3;
@@ -131,6 +147,7 @@ export async function applySalaryIncrement(proposalId: number, appliedByUserId: 
     actualSalaryForMonth: takeHome.toFixed(2),
     ctcMonthly: ctcMonthly.toFixed(2),
     ctcYearly: ctcYearly.toFixed(2),
+    workingHoursPerDay: parseFloat(workingHours.toFixed(2)),
     updatedAt: new Date(),
   }).where(eq(employeeSalaries.id, proposal.employeeSalaryId));
 

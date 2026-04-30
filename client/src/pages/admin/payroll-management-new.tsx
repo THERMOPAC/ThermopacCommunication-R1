@@ -33,7 +33,6 @@ const salaryFormSchema = z.object({
   salaryType: z.enum(['monthly', 'daily']),
   basicSalary: z.string().min(1, 'Basic salary is required'),
   hourlyRate: z.string().optional(),
-  actualDays: z.string().default('30'),
   paidDays: z.string().default('30'),
   workingHoursPerDay: z.string().default('8'),
   overtimeHours: z.string().default('0'),
@@ -57,6 +56,14 @@ interface User {
   department?: string;
   employeeCode?: string;
   role?: string;
+  workLocationId?: number;
+  // Duty schedule fields
+  dutyTimeIn?: string;
+  dutyTimeOut?: string;
+  workTimePolicy?: string;
+  minimumDailyHours?: number;
+  halfDayMinimumHours?: number;
+  weeklyOffDays?: number[];
 }
 
 interface SalaryConfig {
@@ -245,7 +252,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
   return useMemo(() => {
     const basicAmount = parseFloat(formData.basicSalary || '0');
     const salaryType = formData.salaryType || 'monthly';
-    const actualDays = parseFloat(formData.actualDays || '30');
+    const MONTHLY_DIVISOR = 30; // Fixed — per business rule
     const paidDays = parseFloat(formData.paidDays || '30');
     const workingHours = parseFloat(formData.workingHoursPerDay || '8');
     const overtimeHours = parseFloat(formData.overtimeHours || '0');
@@ -292,8 +299,8 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
       overtimePay = hourlyRate * overtimeHours * otRate;
       grossEarnings = grossBasic + overtimePay;
     } else {
-      // Monthly worker calculations
-      const proRatedBasic = (basicAmount / actualDays) * paidDays;
+      // Monthly worker calculations — divisor always 30 (business rule)
+      const proRatedBasic = (basicAmount / MONTHLY_DIVISOR) * paidDays;
       grossBasic = proRatedBasic;
       overtimePay = 0; // Monthly workers don't have overtime
       
@@ -2573,7 +2580,7 @@ export default function PayrollManagementNew() {
                           {config.salaryType === 'daily' && <span className="text-xs text-gray-500"> /day</span>}
                         </td>
                         <td className="p-4">
-                          {config.paidDays}/{config.actualDays}
+                          {config.paidDays}/30
                         </td>
                         <td className="p-4">
                           {new Date(config.salaryStartDate).toLocaleDateString('en-IN')}
@@ -3211,9 +3218,9 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   const previewBasic = incrPct ? (parseFloat(initialData?.basicSalary || '0') * (1 + parseFloat(incrPct) / 100)).toFixed(2) : '';
   const previewCalc = useSalaryCalculations(
     previewBasic
-      ? { ...{}, basicSalary: previewBasic, salaryType: (initialData?.salaryType || 'monthly') as any,
-          actualDays: String(initialData?.actualDays || 30), paidDays: String(initialData?.paidDays || 30),
-          workingHoursPerDay: String(initialData?.workingHoursPerDay || 8),
+      ? { basicSalary: previewBasic, salaryType: (initialData?.salaryType || 'monthly') as any,
+          paidDays: String(initialData?.paidDays || 30),
+          workingHoursPerDay: computedWorkHours.toFixed(1),
           kpiPercent: String(initialData?.kpiPercent || 0), groupInsurance: String(initialData?.groupInsurance || 1500),
           overtimeHours: String(initialData?.overtimeHours || 0), otRate: String(initialData?.otRate || '1.0') }
       : {},
@@ -3222,8 +3229,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   const currentCalc = useSalaryCalculations(
     initialData
       ? { basicSalary: initialData.basicSalary, salaryType: (initialData.salaryType || 'monthly') as any,
-          actualDays: String(initialData.actualDays || 30), paidDays: String(initialData.paidDays || 30),
-          workingHoursPerDay: String(initialData.workingHoursPerDay || 8),
+          paidDays: String(initialData.paidDays || 30),
+          workingHoursPerDay: computedWorkHours.toFixed(1),
           kpiPercent: String(initialData.kpiPercent || 0), groupInsurance: String(initialData.groupInsurance || 1500),
           overtimeHours: String(initialData.overtimeHours || 0), otRate: String(initialData.otRate || '1.0') }
       : {},
@@ -3291,8 +3298,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       salaryType: initialData.salaryType as 'monthly' | 'daily',
       basicSalary: initialData.basicSalary,
       hourlyRate: initialData.hourlyRate || '',
-      actualDays: (initialData.actualDays || 30).toString(),
-      paidDays: (initialData.paidDays || initialData.actualDays || 30).toString(),
+      paidDays: (initialData.paidDays || 30).toString(),
       workingHoursPerDay: (initialData.workingHoursPerDay || 8).toString(),
       overtimeHours: (initialData.overtimeHours || '0').toString(),
       otRate: (initialData.otRate || '1.0').toString(),
@@ -3307,7 +3313,6 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       salaryType: 'monthly',
       basicSalary: '',
       hourlyRate: '',
-      actualDays: '30',
       paidDays: '30',
       workingHoursPerDay: '8',
       overtimeHours: '0',
@@ -3327,46 +3332,55 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   const selectedUser = users.find(u => u.id === watchedValues.userId);
   const selectedUserRole = selectedUser?.role;
 
-  // Auto-populate working hours based on workweek policy when employee is selected
+  // ── Derive working hours from duty schedule (source of truth) ───────────────
+  // Priority: dutyTimeOut − dutyTimeIn → minimumDailyHours → 8
+  const computedWorkHours = useMemo(() => {
+    if (!selectedUser) return 8;
+    if (selectedUser.dutyTimeIn && selectedUser.dutyTimeOut) {
+      const [inH, inM] = selectedUser.dutyTimeIn.split(':').map(Number);
+      const [outH, outM] = selectedUser.dutyTimeOut.split(':').map(Number);
+      const hours = (outH * 60 + outM - (inH * 60 + inM)) / 60;
+      if (hours > 0) return hours;
+    }
+    return selectedUser.minimumDailyHours || 8;
+  }, [selectedUser]);
+
+  // Formatted duty schedule values for the info panel
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dutyOffDays = selectedUser?.weeklyOffDays?.map((d: number) => DAY_NAMES[d]).join(', ') || 'Sun, Sat';
+  const dutyPolicy = selectedUser?.workTimePolicy || '—';
+  const dutyTimeRange = (selectedUser?.dutyTimeIn && selectedUser?.dutyTimeOut)
+    ? `${selectedUser.dutyTimeIn} – ${selectedUser.dutyTimeOut} (${computedWorkHours % 1 === 0 ? computedWorkHours : computedWorkHours.toFixed(1)}h)`
+    : '—';
+  const dutyMinPresent = selectedUser?.minimumDailyHours ?? '—';
+  const dutyMinHalfDay = selectedUser?.halfDayMinimumHours ?? '—';
+
+  // Mismatch: stored working hours differ from duty-derived hours
+  const storedWorkHours = parseFloat(initialData?.workingHoursPerDay || '8');
+  const workHoursMismatch = initialData && Math.abs(storedWorkHours - computedWorkHours) > 0.1;
+
+  // Always sync workingHoursPerDay to the duty-derived value whenever user or duty changes
+  useEffect(() => {
+    form.setValue('workingHoursPerDay', computedWorkHours.toFixed(1));
+  }, [computedWorkHours, form]);
+
+  // Auto-populate paidDays and otRate when employee is selected (create mode only)
   useEffect(() => {
     if (watchedValues.userId && getEmployeeWorkweekPolicy && !initialData) {
       const user = users.find(u => u.id === watchedValues.userId);
       if (user) {
         const workweekInfo = getEmployeeWorkweekPolicy(
-          user.id, 
-          user.workLocationId || undefined, 
+          user.id,
+          user.workLocationId || undefined,
           user.department || undefined
         );
-        
         setEmployeeWorkweekInfo(workweekInfo);
-        
+
         if (workweekInfo && workweekInfo.policy) {
-          // Calculate daily working hours from start/end times
-          const startTime = workweekInfo.startTime || '09:00:00';
-          const endTime = workweekInfo.endTime || '18:00:00';
-          
-          const [startHour, startMin] = startTime.split(':').map(Number);
-          const [endHour, endMin] = endTime.split(':').map(Number);
-          
-          const startMinutes = startHour * 60 + startMin;
-          const endMinutes = endHour * 60 + endMin;
-          const workingMinutes = endMinutes - startMinutes;
-          
-          // Subtract break duration (in minutes)
-          const breakMinutes = workweekInfo.policy.breakDurationMinutes || 60;
-          const netWorkingMinutes = workingMinutes - breakMinutes;
-          const dailyHours = (netWorkingMinutes / 60).toFixed(1);
-          
-          // Calculate monthly working days based on working days pattern
-          const workingDaysCount = workweekInfo.workingDays?.length || 5;
-          const monthlyWorkingDays = Math.round((workingDaysCount * 30) / 7); // Approximate
-          
-          // Auto-populate form fields
-          form.setValue('workingHoursPerDay', dailyHours);
-          form.setValue('actualDays', monthlyWorkingDays.toString());
-          form.setValue('paidDays', monthlyWorkingDays.toString());
-          
-          // Set overtime rate from policy
+          // paidDays default = 30 for monthly (engine overrides from attendance at run time)
+          if (!form.getValues('paidDays') || form.getValues('paidDays') === '30') {
+            form.setValue('paidDays', '30');
+          }
           if (workweekInfo.overtimeRateMultiplier) {
             form.setValue('otRate', workweekInfo.overtimeRateMultiplier);
           }
@@ -3378,23 +3392,13 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   useEffect(() => {
     const basic = parseFloat(watchedValues.basicSalary || '0');
     if (basic > 0) {
-      const user = users.find(u => u.id === watchedValues.userId);
-      let dutyHours = parseFloat(watchedValues.workingHoursPerDay || '8');
-      if (user?.dutyTimeIn && user?.dutyTimeOut) {
-        const [inH, inM] = user.dutyTimeIn.split(':').map(Number);
-        const [outH, outM] = user.dutyTimeOut.split(':').map(Number);
-        const rawHours = (outH * 60 + outM - inH * 60 - inM) / 60;
-        if (rawHours > 0) dutyHours = rawHours;
-      }
-      let rate: number;
-      if (watchedValues.salaryType === 'daily') {
-        rate = basic / dutyHours;
-      } else {
-        rate = (basic * 2.5) / 30 / dutyHours;
-      }
+      // computedWorkHours is derived from duty schedule (source of truth)
+      const rate = watchedValues.salaryType === 'daily'
+        ? basic / computedWorkHours
+        : (basic * 2.5) / 30 / computedWorkHours;
       form.setValue('hourlyRate', rate.toFixed(2));
     }
-  }, [watchedValues.salaryType, watchedValues.basicSalary, watchedValues.workingHoursPerDay, watchedValues.userId, form, users]);
+  }, [watchedValues.salaryType, watchedValues.basicSalary, computedWorkHours, form]);
   
   const calculations = useSalaryCalculations(watchedValues, selectedUserRole);
 
@@ -3573,26 +3577,47 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="actualDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Actual Days (in Month)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        key="actualDays"
-                        placeholder="30" 
-                        autoComplete="off"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+            {/* ── Duty Schedule info panel ── */}
+            {selectedUser && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Employee Duty Schedule</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Work Time Policy</span>
+                    <span className="font-medium">{dutyPolicy}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Weekly Off Days</span>
+                    <span className="font-medium">{dutyOffDays}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Duty Hours</span>
+                    <span className="font-medium">{dutyTimeRange}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Min. Hours (Present)</span>
+                    <span className="font-medium">{dutyMinPresent}h</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Min. Hours (Half Day)</span>
+                    <span className="font-medium">{dutyMinHalfDay}h</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Mismatch warning ── */}
+            {workHoursMismatch && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+                <span>
+                  Stored working hours ({storedWorkHours}h) differ from current duty schedule ({computedWorkHours % 1 === 0 ? computedWorkHours : computedWorkHours.toFixed(1)}h).
+                  Saving this form will update Working Hours/Day automatically.
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="paidDays"
@@ -3600,18 +3625,19 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                   <FormItem>
                     <FormLabel>Paid Days</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         key="paidDays"
-                        placeholder="30" 
+                        placeholder="30"
                         autoComplete="off"
                         {...field}
                       />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Overridden by attendance engine at payroll run time</p>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="workingHoursPerDay"
@@ -3619,13 +3645,15 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                   <FormItem>
                     <FormLabel>Working Hours/Day</FormLabel>
                     <FormControl>
-                      <Input 
+                      <Input
                         key="workingHoursPerDay"
-                        placeholder="8" 
+                        readOnly
+                        className="bg-gray-50 cursor-not-allowed"
                         autoComplete="off"
                         {...field}
                       />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">Auto-synced from duty schedule — used for OT rate only</p>
                     <FormMessage />
                   </FormItem>
                 )}

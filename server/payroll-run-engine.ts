@@ -223,7 +223,7 @@ async function getActiveEmployees(includeNonSystem: boolean = false): Promise<an
     conditions.push(sql`coalesce(${users.userType}, 'system_user') = 'system_user'`);
   }
   return db
-    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays, userType: users.userType, employeeType: users.employeeType, epfNo: users.epfNo })
+    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays, userType: users.userType, employeeType: users.employeeType, epfNo: users.epfNo, dutyTimeIn: users.dutyTimeIn, dutyTimeOut: users.dutyTimeOut, minimumDailyHours: users.minimumDailyHours })
     .from(users)
     .where(and(...conditions));
 }
@@ -681,7 +681,17 @@ async function stepSalaryCalculation(
 
       const basicSalary = parseFloat(sal.basicSalary || sal.baseSalary);
       const salaryType = sal.salaryType || 'monthly';
-      const workingHoursPerDay = sal.workingHoursPerDay || 8;
+
+      // Working hours — source of truth is user duty schedule, not salary config
+      let workingHoursPerDay: number = 8;
+      if (emp.dutyTimeIn && emp.dutyTimeOut) {
+        const [inH, inM] = emp.dutyTimeIn.split(':').map(Number);
+        const [outH, outM] = emp.dutyTimeOut.split(':').map(Number);
+        const h = (outH * 60 + outM - (inH * 60 + inM)) / 60;
+        if (h > 0) workingHoursPerDay = h;
+      } else if (emp.minimumDailyHours) {
+        workingHoursPerDay = emp.minimumDailyHours;
+      }
       const groupInsuranceAmount = parseFloat(sal.groupInsurance || '1500');
       const ptConfig = await getProfessionalTaxConfig();
 
