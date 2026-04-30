@@ -24,7 +24,7 @@ import {
   TrendingUp, UserCheck, AlertTriangle, ClipboardCheck, Library,
   Archive, Power, GripVertical, Copy, Download, CheckCircle2, Zap
 } from "lucide-react";
-import { fmtDate, fmtDateTime } from "@/lib/date-utils";
+import { fmtDate, fmtDateTime, toDisplayDate, toIsoDate } from "@/lib/date-utils";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -2075,7 +2075,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
 
                   <div>
                     <Label>Effective Date</Label>
-                    <Input type="date" value={actionForm.l3EffectiveDate} onChange={e => setActionForm({ ...actionForm, l3EffectiveDate: e.target.value })} />
+                    <Input type="text" placeholder="DD/MM/YYYY" value={toDisplayDate(actionForm.l3EffectiveDate)} onChange={e => setActionForm({ ...actionForm, l3EffectiveDate: toIsoDate(e.target.value) })} />
                   </div>
 
                   <div>
