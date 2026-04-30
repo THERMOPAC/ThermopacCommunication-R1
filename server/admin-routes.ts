@@ -666,6 +666,16 @@ router.post('/payroll/salary-setup/:id/increment', ensureAuthenticated, async (r
     if (isNaN(salaryConfigId)) return res.status(400).json({ error: 'Invalid salary config ID' });
 
     const user = (req as any).user;
+
+    // Permission: Superuser, Administration-dept Manager, or Vishal (named exception)
+    const canPropose =
+      user.role === 'Superuser' ||
+      (user.department === 'Administration' && user.role === 'Manager') ||
+      user.username === 'Vishal';
+    if (!canPropose) {
+      return res.status(403).json({ error: 'You do not have permission to submit salary increment proposals' });
+    }
+
     const { incrementPercentage, effectiveDate, remarks } = req.body;
 
     const pct = parseFloat(incrementPercentage);

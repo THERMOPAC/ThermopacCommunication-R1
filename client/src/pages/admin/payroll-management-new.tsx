@@ -3195,9 +3195,17 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   const [rejectTarget, setRejectTarget] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  // Session user (for Superuser check)
+  // Session user (for permission checks)
   const { data: sessionUser } = useQuery<any>({ queryKey: ['/api/user'] });
   const isSuperuser = sessionUser?.role === 'Superuser';
+  // Can see Increment tab and submit proposals:
+  //   • Superuser
+  //   • Administration dept Manager (Manjusha etc.)
+  //   • Vishal (Senior Executive, Accounts) — named exception
+  const canAccessIncrement =
+    isSuperuser ||
+    (sessionUser?.department === 'Administration' && sessionUser?.role === 'Manager') ||
+    sessionUser?.username === 'Vishal';
 
   // Fetch increment history (also triggers auto-apply on backend)
   const { data: incrHistory = [], isLoading: incrLoading, refetch: refetchHistory } = useQuery<any[]>({
@@ -3441,7 +3449,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
             <TabsTrigger value="basic-info">Basic Information</TabsTrigger>
             <TabsTrigger value="allowances">Allowances</TabsTrigger>
             <TabsTrigger value="calculations">Calculations</TabsTrigger>
-            {initialData && isSuperuser && <TabsTrigger value="increment" className="flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" />Increment</TabsTrigger>}
+            {initialData && canAccessIncrement && <TabsTrigger value="increment" className="flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" />Increment</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="basic-info" className="space-y-4">
@@ -4170,7 +4178,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 <div className="flex justify-end">
                   <Button
                     type="button"
-                    disabled={!incrPct || parseFloat(incrPct) <= 0 || !incrEffDate || hasActive || proposeMutation.isPending}
+                    disabled={!canAccessIncrement || !incrPct || parseFloat(incrPct) <= 0 || !incrEffDate || hasActive || proposeMutation.isPending}
                     onClick={() => proposeMutation.mutate()}
                     className="gap-1"
                   >
