@@ -214,7 +214,42 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
       cycleNameMap = Object.fromEntries(cycles.map(c => [c.id, c.name]));
     }
 
-    const result = appraisals.map(a => ({ ...a, cycleStatus: cycleStatusMap[a.cycleId] ?? null, cycleName: cycleNameMap[a.cycleId] ?? null }));
+    // On-the-fly suggestion computation for legacy appraisals (approved before feature was added)
+    const needsSuggestion = appraisals.filter(a =>
+      a.systemSuggestedIncrementPct == null && a.finalRating != null
+    );
+    let policyBandMap: Record<string, { min: number; max: number }> = {};
+    if (needsSuggestion.length > 0) {
+      const bands = await db.select().from(appraisalIncrementPolicy)
+        .where(eq(appraisalIncrementPolicy.isActive, true));
+      // Index both by original name and by snake_case so stored values match
+      const toSnake = (s: string) => s.toLowerCase().replace(/\s+/g, '_');
+      bands.forEach(b => {
+        const entry = { min: Number(b.incrementMinPercent), max: Number(b.incrementMaxPercent) };
+        policyBandMap[b.ratingBand] = entry;            // "Very Good"
+        policyBandMap[toSnake(b.ratingBand)] = entry;   // "very_good"
+      });
+    }
+
+    const result = appraisals.map(a => {
+      let systemSuggestedIncrementPct = a.systemSuggestedIncrementPct;
+      let minIncrementPct = a.minIncrementPct;
+      let maxIncrementPct = a.maxIncrementPct;
+      if (systemSuggestedIncrementPct == null && a.finalRating && policyBandMap[a.finalRating]) {
+        const band = policyBandMap[a.finalRating];
+        systemSuggestedIncrementPct = String(((band.min + band.max) / 2).toFixed(2));
+        minIncrementPct = String(band.min);
+        maxIncrementPct = String(band.max);
+      }
+      return {
+        ...a,
+        systemSuggestedIncrementPct,
+        minIncrementPct,
+        maxIncrementPct,
+        cycleStatus: cycleStatusMap[a.cycleId] ?? null,
+        cycleName: cycleNameMap[a.cycleId] ?? null,
+      };
+    });
     res.json(result);
   } catch (error: any) {
     console.error('Error fetching appraisals:', error);
