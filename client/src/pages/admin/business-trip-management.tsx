@@ -18,6 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { fmtDate } from '@/lib/date-utils';
 import { 
   BarChart, 
   Bar, 
@@ -493,7 +494,7 @@ const TripReports = () => {
                     <TableCell>{employee.tripCount}</TableCell>
                     <TableCell>₹{employee.totalCost?.toLocaleString()}</TableCell>
                     <TableCell>₹{employee.avgCost?.toLocaleString()}</TableCell>
-                    <TableCell>{employee.lastTripDate ? new Date(employee.lastTripDate).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{fmtDate(employee.lastTripDate)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -527,8 +528,8 @@ const TripReports = () => {
                     <TableCell className="font-medium">{trip.tripTitle}</TableCell>
                     <TableCell>{trip.employeeName}</TableCell>
                     <TableCell>{trip.destination}</TableCell>
-                    <TableCell>{new Date(trip.fromDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(trip.toDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{fmtDate(trip.fromDate)}</TableCell>
+                    <TableCell>{fmtDate(trip.toDate)}</TableCell>
                     <TableCell>
                       <Badge variant={
                         trip.status === 'final_approved' ? 'default' :
@@ -740,17 +741,9 @@ const countries = [
 
 // Safe date formatting function
 const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'Not specified';
-  
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return 'Invalid date';
-    }
-    return date.toLocaleDateString();
-  } catch (error) {
-    return 'Invalid date';
-  }
+  const result = fmtDate(dateString);
+  if (result === '—') return 'Not specified';
+  return result;
 };
 
 // Status badge component

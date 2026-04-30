@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
+import { fmtDate, fmtDateTime } from '@/lib/date-utils';
 import { Plus, Download, FileText, Eye, Edit, Trash2, Search, Filter, Globe, CreditCard, Clock, AlertTriangle, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -1011,7 +1012,7 @@ function VisaRecordsTab() {
                         <td className="p-4 font-mono text-sm">{record.visaNumber}</td>
                         <td className="p-4">
                           <div>
-                            <div>{format(new Date(record.expiryDate), 'MMM dd, yyyy')}</div>
+                            <div>{fmtDate(record.expiryDate)}</div>
                             <div className="text-sm text-muted-foreground">
                               {record.daysToExpiry < 0 ? 
                                 `Expired ${Math.abs(record.daysToExpiry)} days ago` :
@@ -1441,11 +1442,11 @@ function VisaRecordsTab() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Issue Date</label>
-                  <p className="font-medium">{format(new Date(selectedRecord.issueDate), 'PPP')}</p>
+                  <p className="font-medium">{fmtDate(selectedRecord.issueDate)}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Expiry Date</label>
-                  <p className="font-medium">{format(new Date(selectedRecord.expiryDate), 'PPP')}</p>
+                  <p className="font-medium">{fmtDate(selectedRecord.expiryDate)}</p>
                   <p className="text-sm text-muted-foreground">
                     {selectedRecord.daysToExpiry < 0 ? 
                       `Expired ${Math.abs(selectedRecord.daysToExpiry)} days ago` :
@@ -1475,7 +1476,7 @@ function VisaRecordsTab() {
               <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Created</label>
-                  <p className="text-sm">{format(new Date(selectedRecord.createdAt), 'PPP')}</p>
+                  <p className="text-sm">{fmtDate(selectedRecord.createdAt)}</p>
                   {selectedRecord.createdByName && (
                     <p className="text-sm text-muted-foreground">by {selectedRecord.createdByName}</p>
                   )}

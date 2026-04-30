@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { fmtDate } from "@/lib/date-utils";
 import {
   Clock,
   MapPin,
@@ -683,7 +684,7 @@ export default function AttendancePage() {
                   attendanceRecords.map((record) => (
                     <tr key={`${record.date}-${record.id}`} className="border-b hover:bg-gray-50">
                       <td className="p-3">
-                        {format(new Date(record.date), 'EEE, MMM dd, yyyy')}
+                        {fmtDate(record.date)}
                       </td>
                       <td className="p-3">{formatTime(record.checkInTime)}</td>
                       <td className="p-3">{formatTime(record.checkOutTime)}</td>

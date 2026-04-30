@@ -13,6 +13,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { CheckCircle, XCircle, TrendingUp, Clock, History, AlertTriangle, Loader2, User } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Redirect } from 'wouter';
+import { fmtDate, april1Display, april1Iso } from '@/lib/date-utils';
 
 type Proposal = {
   id: number;
@@ -58,13 +59,10 @@ export default function IncrementApprovalsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const april1Iso = `${new Date().getFullYear()}-04-01`;
-  const april1Display = `01/04/${new Date().getFullYear()}`;
-
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [approveTarget, setApproveTarget] = useState<Proposal | null>(null);
-  const [approveDate, setApproveDate] = useState<string>(april1Display);
-  const [approveDateIso, setApproveDateIso] = useState<string>(april1Iso);
+  const [approveDate, setApproveDate] = useState<string>(april1Display());
+  const [approveDateIso, setApproveDateIso] = useState<string>(april1Iso());
   const [rejectTarget, setRejectTarget]   = useState<Proposal | null>(null);
   const [rejectReason, setRejectReason]   = useState('');
 
@@ -215,7 +213,7 @@ export default function IncrementApprovalsPage() {
                             {p.employeeName}
                           </div>
                           <div className="text-xs text-gray-400 mt-0.5">
-                            {new Date(p.proposedAt).toLocaleDateString('en-IN')}
+                            {fmtDate(p.proposedAt)}
                           </div>
                         </td>
                         {/* Appraisal column */}
@@ -256,7 +254,7 @@ export default function IncrementApprovalsPage() {
                             )}
                           </div>
                         </td>
-                        <td className="p-3 text-gray-700">{p.effectiveDate}</td>
+                        <td className="p-3 text-gray-700">{fmtDate(p.effectiveDate)}</td>
                         <td className="p-3 text-gray-600">{p.proposedByName}</td>
                         <td className="p-3">
                           <Badge className={`${STATUS_CONFIG[p.status]?.className} text-xs border`}>
@@ -264,7 +262,7 @@ export default function IncrementApprovalsPage() {
                           </Badge>
                           {p.appliedAt && (
                             <div className="text-xs text-gray-400 mt-0.5">
-                              Applied {new Date(p.appliedAt).toLocaleDateString('en-IN')}
+                              Applied {fmtDate(p.appliedAt)}
                             </div>
                           )}
                         </td>
@@ -274,7 +272,7 @@ export default function IncrementApprovalsPage() {
                               <Button
                                 size="sm"
                                 className="h-7 px-2 gap-1 bg-green-600 hover:bg-green-700 text-white text-xs"
-                                onClick={() => { setApproveTarget(p); setApproveDate(april1Display); setApproveDateIso(april1Iso); }}
+                                onClick={() => { setApproveTarget(p); setApproveDate(april1Display()); setApproveDateIso(april1Iso()); }}
                               >
                                 <CheckCircle className="h-3.5 w-3.5" /> Approve
                               </Button>
@@ -290,7 +288,7 @@ export default function IncrementApprovalsPage() {
                           )}
                           {p.status === 'approved' && (
                             <span className="text-xs text-blue-600 flex items-center gap-1">
-                              <Clock className="h-3 w-3" /> Awaiting {p.effectiveDate}
+                              <Clock className="h-3 w-3" /> Awaiting {fmtDate(p.effectiveDate)}
                             </span>
                           )}
                           {p.status === 'applied' && (
@@ -376,7 +374,7 @@ export default function IncrementApprovalsPage() {
             <div className="space-y-3 text-sm">
               <div className="rounded-lg border bg-gray-50 p-3 space-y-1.5">
                 <p><span className="font-medium">Employee:</span> {rejectTarget.employeeName}</p>
-                <p><span className="font-medium">Increment:</span> +{parseFloat(rejectTarget.incrementPercentage).toFixed(1)}% · Effective {rejectTarget.effectiveDate}</p>
+                <p><span className="font-medium">Increment:</span> +{parseFloat(rejectTarget.incrementPercentage).toFixed(1)}% · Effective {fmtDate(rejectTarget.effectiveDate)}</p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-medium">Rejection Reason <span className="text-red-500">*</span></Label>

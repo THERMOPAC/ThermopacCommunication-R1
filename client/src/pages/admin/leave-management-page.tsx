@@ -62,6 +62,7 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { fmtDate } from '@/lib/date-utils';
 
 // Form schemas
 const leaveRequestSchema = z.object({
@@ -316,12 +317,7 @@ export default function LeaveManagementPage() {
     doc.text(`Company Holidays - ${selectedYear}`, 105, 30, { align: 'center' });
     
     doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })}`, 105, 38, { align: 'center' });
+    doc.text(`Generated on: ${fmtDate(new Date())}`, 105, 38, { align: 'center' });
     
     // Sort holidays by date
     const sortedHolidays = [...holidays].sort((a: any, b: any) => 
@@ -330,16 +326,10 @@ export default function LeaveManagementPage() {
     
     // Table data
     const tableData = sortedHolidays.map((holiday: any, index: number) => {
-      const holidayDate = new Date(holiday.date);
       return [
         (index + 1).toString(),
         holiday.name,
-        holidayDate.toLocaleDateString('en-IN', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        }),
+        fmtDate(holiday.date),
         holiday.isOptional ? 'Optional' : 'Mandatory',
         holiday.description || '-'
       ];
@@ -1072,7 +1062,7 @@ export default function LeaveManagementPage() {
                           )}
                         </TableCell>
                         <TableCell>{request.totalDays}</TableCell>
-                        <TableCell>{new Date(request.appliedDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{fmtDate(request.appliedDate)}</TableCell>
                         <TableCell>
                           <Badge variant={getStatusVariant(request.status)}>
                             {request.status}
@@ -1717,12 +1707,7 @@ export default function LeaveManagementPage() {
                           </div>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(holiday.date).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
+                          {fmtDate(holiday.date)}
                         </p>
                         {holiday.description && (
                           <p className="text-xs text-muted-foreground">
@@ -1934,7 +1919,7 @@ export default function LeaveManagementPage() {
                   </div>
                   <div>
                     <Label>Applied Date</Label>
-                    <p className="text-sm mt-1">{new Date(selectedRequest.appliedDate).toLocaleDateString()}</p>
+                    <p className="text-sm mt-1">{fmtDate(selectedRequest.appliedDate)}</p>
                   </div>
                 </div>
 

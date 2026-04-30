@@ -19,6 +19,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { apiRequest } from '@/lib/queryClient';
+import { fmtDate } from '@/lib/date-utils';
 
 // Validation schema for travel log
 const travelLogSchema = z.object({
@@ -128,7 +129,7 @@ export default function SchengenTracker() {
       'Days Remaining': item.daysRemaining,
       Status: item.status,
       'Total Trips': item.totalTrips,
-      'Last Trip Date': item.lastTripDate ? format(new Date(item.lastTripDate), 'yyyy-MM-dd') : 'N/A',
+      'Last Trip Date': fmtDate(item.lastTripDate),
     }));
 
     const headers = Object.keys(exportData[0] || {});
@@ -461,7 +462,7 @@ export default function SchengenTracker() {
                       </TableCell>
                       <TableCell>{item.totalTrips}</TableCell>
                       <TableCell>
-                        {item.lastTripDate ? format(new Date(item.lastTripDate), 'MMM dd, yyyy') : 'N/A'}
+                        {fmtDate(item.lastTripDate)}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -534,9 +535,9 @@ export default function SchengenTracker() {
                               {log.country}
                             </div>
                           </TableCell>
-                          <TableCell>{format(new Date(log.entryDate), 'MMM dd, yyyy')}</TableCell>
+                          <TableCell>{fmtDate(log.entryDate)}</TableCell>
                           <TableCell>
-                            {log.exitDate ? format(new Date(log.exitDate), 'MMM dd, yyyy') : (
+                            {log.exitDate ? fmtDate(log.exitDate) : (
                               <Badge variant="outline" className="text-blue-600">Ongoing</Badge>
                             )}
                           </TableCell>
@@ -622,11 +623,11 @@ export default function SchengenTracker() {
                               )}
                             </div>
                             <p className="text-sm text-gray-600">
-                              {alert.daysUsed} days used in Schengen area as of {format(new Date(alert.calculationDate), 'MMM dd, yyyy')}
+                              {alert.daysUsed} days used in Schengen area as of {fmtDate(alert.calculationDate)}
                             </p>
                             {alert.isAcknowledged && (
                               <p className="text-xs text-gray-500 mt-1">
-                                Acknowledged by {alert.acknowledgedBy} on {format(new Date(alert.acknowledgedAt), 'MMM dd, yyyy')}
+                                Acknowledged by {alert.acknowledgedBy} on {fmtDate(alert.acknowledgedAt)}
                               </p>
                             )}
                           </div>

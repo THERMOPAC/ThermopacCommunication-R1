@@ -24,6 +24,7 @@ import {
   TrendingUp, UserCheck, AlertTriangle, ClipboardCheck, Library,
   Archive, Power, GripVertical, Copy, Download, CheckCircle2, Zap
 } from "lucide-react";
+import { fmtDate, fmtDateTime } from "@/lib/date-utils";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -933,7 +934,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
                 </div>
               )}
               {appraisal.selfSubmittedAt && (
-                <p className="text-xs text-muted-foreground">Submitted on: {new Date(appraisal.selfSubmittedAt).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Submitted on: {fmtDateTime(appraisal.selfSubmittedAt)}</p>
               )}
             </div>
           )}
@@ -948,14 +949,14 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
               <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
                 <p className="text-xs font-medium text-orange-700 mb-1 flex items-center gap-1"><UserCheck className="h-3.5 w-3.5" /> L1 Manager Comments</p>
                 <p className="text-sm">{appraisal.l1Comments}</p>
-                {appraisal.l1ReviewedAt && <p className="text-xs text-orange-400 mt-1">Reviewed: {new Date(appraisal.l1ReviewedAt).toLocaleString()}</p>}
+                {appraisal.l1ReviewedAt && <p className="text-xs text-orange-400 mt-1">Reviewed: {fmtDateTime(appraisal.l1ReviewedAt)}</p>}
               </div>
             )}
             {appraisal.l2Comments && (
               <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
                 <p className="text-xs font-medium text-purple-700 mb-1 flex items-center gap-1"><Shield className="h-3.5 w-3.5" /> L2 Reviewer Comments</p>
                 <p className="text-sm">{appraisal.l2Comments}</p>
-                {appraisal.l2ReviewedAt && <p className="text-xs text-purple-400 mt-1">Reviewed: {new Date(appraisal.l2ReviewedAt).toLocaleString()}</p>}
+                {appraisal.l2ReviewedAt && <p className="text-xs text-purple-400 mt-1">Reviewed: {fmtDateTime(appraisal.l2ReviewedAt)}</p>}
               </div>
             )}
             {appraisal.l2Score && (
@@ -968,7 +969,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
               <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                 <p className="text-xs font-medium text-green-700 mb-1 flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> L3 Approver Comments</p>
                 <p className="text-sm">{appraisal.l3Comments}</p>
-                {appraisal.l3ApprovedAt && <p className="text-xs text-green-400 mt-1">Approved: {new Date(appraisal.l3ApprovedAt).toLocaleString()}</p>}
+                {appraisal.l3ApprovedAt && <p className="text-xs text-green-400 mt-1">Approved: {fmtDateTime(appraisal.l3ApprovedAt)}</p>}
               </div>
             )}
           </CardContent>
@@ -1001,7 +1002,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
               {appraisal.l3EffectiveDate && (
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Effective Date</p>
-                  <p className="font-medium text-sm">{new Date(appraisal.l3EffectiveDate).toLocaleDateString()}</p>
+                  <p className="font-medium text-sm">{fmtDate(appraisal.l3EffectiveDate)}</p>
                 </div>
               )}
               {appraisal.l3FinalRemarks && (
@@ -1731,7 +1732,7 @@ function CommentsSection({ appraisalId, comments, appraisal }: { appraisalId: nu
                   <span className="font-medium text-sm">{c.commentByName}</span>
                   <Badge variant="outline" className="text-xs">{c.commentByRole}</Badge>
                   <Badge variant="outline" className="text-xs">{c.section}</Badge>
-                  <span className="text-xs text-muted-foreground ml-auto">{new Date(c.createdAt).toLocaleDateString()}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{fmtDate(c.createdAt)}</span>
                 </div>
                 <p className="text-sm">{c.comment}</p>
               </div>
@@ -1786,7 +1787,7 @@ function HistorySection({ approvals }: { approvals: any[] }) {
                     {isReturn && <p className="text-sm font-medium text-orange-700 mt-1">Returned for resubmission</p>}
                     {isResubmit && <p className="text-sm font-medium text-blue-700 mt-1">Self-assessment resubmitted</p>}
                     {a.remarks && <p className="text-sm text-muted-foreground mt-1">{a.remarks}</p>}
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(a.createdAt).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{fmtDateTime(a.createdAt)}</p>
                   </div>
                 </div>
               );
@@ -2252,8 +2253,8 @@ function CyclesTab() {
                     <TableCell>{c.financialYear}</TableCell>
                     <TableCell><StatusBadge status={c.status} /></TableCell>
                     <TableCell>{c.completedAppraisals}/{c.totalAppraisals}</TableCell>
-                    <TableCell>{c.startDate}</TableCell>
-                    <TableCell>{c.closureDate}</TableCell>
+                    <TableCell>{fmtDate(c.startDate)}</TableCell>
+                    <TableCell>{fmtDate(c.closureDate)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" onClick={() => setSelectedCycleId(c.id === selectedCycleId ? null : c.id)}>
@@ -2529,7 +2530,7 @@ function JobsTab() {
                   <TableRow key={log.id}>
                     <TableCell>{log.action.replace(/_/g, " ")}</TableCell>
                     <TableCell>{log.performedByName || "System"}</TableCell>
-                    <TableCell className="text-xs">{new Date(log.createdAt).toLocaleString()}</TableCell>
+                    <TableCell className="text-xs">{fmtDateTime(log.createdAt)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -2762,7 +2763,7 @@ function KpiTemplateLibraryTab() {
                           <span className={tpl.totalWeight === 100 ? 'text-green-600 font-medium' : tpl.totalWeight > 100 ? 'text-red-600 font-medium' : 'text-amber-600'}>
                             Weight: {tpl.totalWeight?.toFixed(1)}%{tpl.totalWeight === 100 ? ' ✓' : ''}
                           </span>
-                          <span>Updated {new Date(tpl.updatedAt).toLocaleDateString()}</span>
+                          <span>Updated {fmtDate(tpl.updatedAt)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">

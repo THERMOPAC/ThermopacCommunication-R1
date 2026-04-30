@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { fmtDate } from '@/lib/date-utils';
 
 // Types for workweek policies
 interface WorkweekPolicy {
@@ -494,11 +495,11 @@ export default function WorkweekPolicyManagementPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                               <div>
                                 <span className="font-medium text-gray-700">Assigned Date:</span>
-                                <p className="text-gray-600">{new Date(assignment.assignedDate).toLocaleDateString()}</p>
+                                <p className="text-gray-600">{fmtDate(assignment.assignedDate)}</p>
                               </div>
                               <div>
                                 <span className="font-medium text-gray-700">Effective From:</span>
-                                <p className="text-gray-600">{new Date(assignment.effectiveFrom).toLocaleDateString()}</p>
+                                <p className="text-gray-600">{fmtDate(assignment.effectiveFrom)}</p>
                               </div>
                               <div>
                                 <span className="font-medium text-gray-700">Assigned By:</span>

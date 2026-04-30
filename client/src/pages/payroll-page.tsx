@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { fmtDate } from '@/lib/date-utils';
 import { Calendar, Users, DollarSign, Calculator, FileText, Settings, Plus, Play, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -517,7 +518,7 @@ export default function PayrollPage() {
                         {salary.currency} {parseFloat(salary.baseSalary).toLocaleString()}
                       </TableCell>
                       <TableCell className="capitalize">{salary.payFrequency}</TableCell>
-                      <TableCell>{format(new Date(salary.effectiveDate), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell>{fmtDate(salary.effectiveDate)}</TableCell>
                       <TableCell>{salary.department || '-'}</TableCell>
                       <TableCell>
                         <Badge variant={salary.isActive ? "default" : "secondary"}>
@@ -640,9 +641,9 @@ export default function PayrollPage() {
                   {periods.map((period: PayrollPeriod) => (
                     <TableRow key={period.id}>
                       <TableCell className="font-medium">{period.periodName}</TableCell>
-                      <TableCell>{format(new Date(period.startDate), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>{format(new Date(period.endDate), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>{format(new Date(period.payDate), 'MMM dd, yyyy')}</TableCell>
+                      <TableCell>{fmtDate(period.startDate)}</TableCell>
+                      <TableCell>{fmtDate(period.endDate)}</TableCell>
+                      <TableCell>{fmtDate(period.payDate)}</TableCell>
                       <TableCell>{period.totalEmployees}</TableCell>
                       <TableCell>
                         ₹{parseFloat(period.totalNetPay || '0').toLocaleString()}

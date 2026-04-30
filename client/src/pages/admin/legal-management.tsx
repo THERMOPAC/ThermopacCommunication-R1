@@ -38,6 +38,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import { fmtDate } from "@/lib/date-utils";
 
 interface DashboardData {
   contracts: Array<{ status: string; count: number; totalValue: number }>;
@@ -456,7 +457,7 @@ const LegalManagementPage: React.FC = () => {
                         {alert.priority}
                       </Badge>
                       <span className="text-sm text-gray-500">
-                        {format(new Date(alert.alertDate), 'MMM dd, yyyy')}
+                        {fmtDate(alert.alertDate)}
                       </span>
                     </div>
                   </div>
@@ -488,7 +489,7 @@ const LegalManagementPage: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-red-600">
-                          {format(new Date(contract.endDate), 'MMM dd, yyyy')}
+                          {fmtDate(contract.endDate)}
                         </p>
                         <Badge className={getStatusColor(contract.status)}>
                           {contract.status}
@@ -521,7 +522,7 @@ const LegalManagementPage: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-blue-600">
-                          {format(new Date(hearing.nextHearingDate), 'MMM dd, yyyy')}
+                          {fmtDate(hearing.nextHearingDate)}
                         </p>
                         <Badge className={getPriorityColor(hearing.priority)}>
                           {hearing.priority}
@@ -631,8 +632,8 @@ const LegalManagementPage: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>{formatCurrency(contract.contractValue, contract.currency)}</TableCell>
-                    <TableCell>{format(new Date(contract.startDate), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>{format(new Date(contract.endDate), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{fmtDate(contract.startDate)}</TableCell>
+                    <TableCell>{fmtDate(contract.endDate)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm">
@@ -753,7 +754,7 @@ const LegalManagementPage: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {legalCase.nextHearingDate ? format(new Date(legalCase.nextHearingDate), 'MMM dd, yyyy') : 'N/A'}
+                      {legalCase.nextHearingDate ? fmtDate(legalCase.nextHearingDate) : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -866,7 +867,7 @@ const LegalManagementPage: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>{item.frequency}</TableCell>
-                    <TableCell>{format(new Date(item.dueDate), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{fmtDate(item.dueDate)}</TableCell>
                     <TableCell>{item.responsiblePersonName}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -969,7 +970,7 @@ const LegalManagementPage: React.FC = () => {
                 {poshCases?.map((poshCase) => (
                   <TableRow key={poshCase.id}>
                     <TableCell className="font-medium">{poshCase.caseNumber}</TableCell>
-                    <TableCell>{format(new Date(poshCase.complaintDate), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{fmtDate(poshCase.complaintDate)}</TableCell>
                     <TableCell>{poshCase.complainantName}</TableCell>
                     <TableCell>{poshCase.respondentName}</TableCell>
                     <TableCell>{poshCase.caseType}</TableCell>
@@ -983,7 +984,7 @@ const LegalManagementPage: React.FC = () => {
                         {poshCase.priority}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(poshCase.incidentDate), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{fmtDate(poshCase.incidentDate)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm">
@@ -1101,7 +1102,7 @@ const LegalManagementPage: React.FC = () => {
                         {notice.priority}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(notice.responseDueDate), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{fmtDate(notice.responseDueDate)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm">
@@ -1332,8 +1333,8 @@ const LegalManagementPage: React.FC = () => {
                         {template.approvalStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(template.effectiveDate), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>{format(new Date(template.reviewDate), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{fmtDate(template.effectiveDate)}</TableCell>
+                    <TableCell>{fmtDate(template.reviewDate)}</TableCell>
                     <TableCell>
                       {template.mandatory ? (
                         <Badge className="bg-red-100 text-red-800">Mandatory</Badge>
@@ -1442,7 +1443,7 @@ const LegalManagementPage: React.FC = () => {
                   <TableRow key={alert.id}>
                     <TableCell className="font-medium">{alert.alertTitle}</TableCell>
                     <TableCell>{alert.alertType}</TableCell>
-                    <TableCell>{format(new Date(alert.alertDate), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{fmtDate(alert.alertDate)}</TableCell>
                     <TableCell>
                       <Badge className={getPriorityColor(alert.priority)}>
                         {alert.priority}

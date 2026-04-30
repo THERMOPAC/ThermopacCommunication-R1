@@ -38,6 +38,7 @@ import {
 import { apiRequest, queryClient, getErrorMessage } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { insertVisaRecordSchema, type InsertVisaRecord } from '@shared/schema';
+import { fmtDate } from '@/lib/date-utils';
 import {
   Plus,
   Edit,
@@ -894,8 +895,8 @@ export default function VisaManagement() {
                             <td className="p-2">{record.country}</td>
                             <td className="p-2">{record.visaType}</td>
                             <td className="p-2 font-mono text-sm">{record.visaNumber}</td>
-                            <td className="p-2">{format(new Date(record.issueDate), 'MMM dd, yyyy')}</td>
-                            <td className="p-2">{format(new Date(record.expiryDate), 'MMM dd, yyyy')}</td>
+                            <td className="p-2">{fmtDate(record.issueDate)}</td>
+                            <td className="p-2">{fmtDate(record.expiryDate)}</td>
                             <td className="p-2">
                               <Badge className={getStatusColor(record.status)}>
                                 {record.status}

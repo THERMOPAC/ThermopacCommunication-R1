@@ -48,6 +48,7 @@ import {
   TimerIcon
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, isAfter, isBefore, startOfDay, isEqual } from 'date-fns';
+import { fmtDate } from '@/lib/date-utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AIMeetingNotes from '@/components/ai-meeting-notes';
 import EnhancedAIMeetingAssistant from '@/components/enhanced-ai-meeting-assistant';
@@ -1468,7 +1469,7 @@ export default function MeetingsManagement() {
                   </div>
                 </div>
                 <Badge variant="outline" className="text-orange-600 border-orange-200">
-                  {format(new Date(), 'MMM dd, yyyy')}
+                  {fmtDate(new Date())}
                 </Badge>
               </div>
             </div>
@@ -1677,11 +1678,11 @@ export default function MeetingsManagement() {
                         <div className="text-sm text-gray-600">
                           {event.start.dateTime && event.end.dateTime ? (
                             <span>
-                              {format(new Date(event.start.dateTime), 'MMM dd, yyyy')} · {format(new Date(event.start.dateTime), 'h:mm')} – {format(new Date(event.end.dateTime), 'h:mm a')}
+                              {fmtDate(event.start.dateTime)} · {format(new Date(event.start.dateTime), 'h:mm')} – {format(new Date(event.end.dateTime), 'h:mm a')}
                             </span>
                           ) : event.start.date ? (
                             <span>
-                              {format(new Date(event.start.date), 'MMM dd, yyyy')} · All day
+                              {fmtDate(event.start.date)} · All day
                             </span>
                           ) : (
                             <span>No date available</span>
@@ -3777,7 +3778,7 @@ Suggested next steps
                         <div>
                           <span className="text-sm font-medium">{item.meeting.title}</span>
                           <div className="text-xs text-gray-500">
-                            {new Date(item.meeting.meetingDate).toLocaleDateString()} at {item.meeting.startTime}
+                            {fmtDate(item.meeting.meetingDate)} at {item.meeting.startTime}
                           </div>
                         </div>
                       </div>
@@ -3808,7 +3809,7 @@ Suggested next steps
                         <div>
                           <span className="text-sm font-medium">{item.commitment.title}</span>
                           <div className="text-xs text-gray-500">
-                            Due: {new Date(item.commitment.dueDate).toLocaleDateString()}
+                            Due: {fmtDate(item.commitment.dueDate)}
                           </div>
                         </div>
                       </div>

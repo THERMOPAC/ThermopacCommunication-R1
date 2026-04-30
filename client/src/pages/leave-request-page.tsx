@@ -39,6 +39,7 @@ import {
   Users
 } from "lucide-react";
 import { format, differenceInDays, parseISO, addDays } from "date-fns";
+import { fmtDate } from "@/lib/date-utils";
 
 interface LeaveType {
   id: number;
@@ -788,7 +789,7 @@ export default function LeaveRequestPage() {
                             )}
                           </div>
                           <p className="text-sm text-gray-600">
-                            {format(parseISO(holiday.date), 'EEEE, MMMM dd, yyyy')}
+                            {fmtDate(holiday.date)}
                           </p>
                           {holiday.description && (
                             <p className="text-xs text-gray-500">{holiday.description}</p>

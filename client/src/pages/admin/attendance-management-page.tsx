@@ -16,6 +16,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
+import { fmtDate, fmtDateTime } from '@/lib/date-utils';
 
 interface AttendanceRecord {
   id: number;
@@ -271,16 +272,7 @@ export default function AttendanceManagementPage() {
   };
 
   // Safe format date for PDF (returns string, never throws)
-  const safeFormatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return '-';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '-';
-      return format(date, 'MMM dd, yyyy');
-    } catch {
-      return '-';
-    }
-  };
+  const safeFormatDate = (dateString: string | null | undefined): string => fmtDate(dateString) === '—' ? '-' : fmtDate(dateString);
 
   const getStatusBadge = (status: string, record?: any) => {
     if (record && record.checkInTime && !record.checkOutTime) {
@@ -1079,7 +1071,7 @@ export default function AttendanceManagementPage() {
                           </div>
                         </td>
                         <td className="p-3 text-gray-600">{record.department || '-'}</td>
-                        <td className="p-3">{format(new Date(record.date), 'MMM dd, yyyy')}</td>
+                        <td className="p-3">{fmtDate(record.date)}</td>
                         <td className="p-3">{formatTime(record.timeIn)}</td>
                         <td className="p-3">{record.timeOut ? formatTime(record.timeOut) : '-'}</td>
                         <td className="p-3">

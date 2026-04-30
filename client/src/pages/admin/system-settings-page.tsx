@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Settings, FilePen, FolderOpen, Save, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { fmtDateTime } from '@/lib/date-utils';
 
 export default function SystemSettingsPage() {
   const { toast } = useToast();
@@ -141,7 +142,7 @@ export default function SystemSettingsPage() {
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                     Last saved by <strong>{agentSettings.updatedBy ?? '—'}</strong> on{' '}
-                    {new Date(agentSettings.updatedAt).toLocaleString()}
+                    {fmtDateTime(agentSettings.updatedAt)}
                   </div>
                 )}
 

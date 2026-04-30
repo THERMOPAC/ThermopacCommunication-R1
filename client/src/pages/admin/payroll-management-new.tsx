@@ -25,6 +25,7 @@ import { PayrollRunWizard } from '@/components/payroll-run-wizard';
 import { TdsManagementTab } from '@/components/tds-management';
 import { ManualSalaryTab } from '@/components/contract-worker-salary-tab';
 import { CalendarAttendanceTab } from '@/components/calendar-attendance';
+import { fmtDate, fmtDateTime, toDisplayDate, toIsoDate } from '@/lib/date-utils';
 
 // Schema for salary form
 const salaryFormSchema = z.object({
@@ -1142,7 +1143,7 @@ function GeneratedSalariesView() {
                       <WorkflowStatusBadge record={record} />
                       {record.verifiedAt && recStatus === 'verified' && (
                         <span className="text-[10px] text-emerald-600">
-                          {new Date(record.verifiedAt).toLocaleDateString('en-IN')}
+                          {fmtDate(record.verifiedAt)}
                         </span>
                       )}
                     </div>
@@ -1374,7 +1375,7 @@ function GeneratedSalariesView() {
                   <span className="capitalize">{entry.from}</span> → <span className="capitalize">{entry.to}</span>
                 </div>
                 {entry.reason && <p className="text-xs text-muted-foreground mt-0.5">Reason: {entry.reason}</p>}
-                <p className="text-xs text-muted-foreground mt-0.5">By {entry.by} on {new Date(entry.at).toLocaleString('en-IN')}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">By {entry.by} on {fmtDateTime(entry.at)}</p>
               </div>
             </div>
           ))}
@@ -1464,7 +1465,7 @@ function GeneratedSalariesView() {
               </div>
               {verificationDrilldown.record.verificationRunAt && (
                 <div className="text-xs text-muted-foreground">
-                  Verified: {new Date(verificationDrilldown.record.verificationRunAt).toLocaleString('en-IN')}
+                  Verified: {fmtDateTime(verificationDrilldown.record.verificationRunAt)}
                 </div>
               )}
             </div>
@@ -2603,7 +2604,7 @@ export default function PayrollManagementNew() {
                           {config.paidDays}/30
                         </td>
                         <td className="p-4">
-                          {new Date(config.salaryStartDate).toLocaleDateString('en-IN')}
+                          {fmtDate(config.salaryStartDate)}
                         </td>
                         <td className="p-4">
                           <div className="flex space-x-2">
@@ -3208,8 +3209,10 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   // Default effective date = 01 April of the current calendar year (financial year start).
   // Both "before 1 Apr" and "after 1 Apr" cases always resolve to 01/04/current year.
   const defaultIncrEffDate = `${new Date().getFullYear()}-04-01`;
+  const defaultIncrEffDateDisplay = `01/04/${new Date().getFullYear()}`;
   const [incrPct, setIncrPct] = useState('');
   const [incrEffDate, setIncrEffDate] = useState(defaultIncrEffDate);
+  const [incrEffDateDisplay, setIncrEffDateDisplay] = useState(defaultIncrEffDateDisplay);
   const [incrRemarks, setIncrRemarks] = useState('Yearly Increment');
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [rejectTarget, setRejectTarget] = useState<any>(null);
@@ -3258,7 +3261,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
     },
     onSuccess: () => {
       toast({ title: 'Proposal Submitted', description: 'Increment proposal submitted and awaiting Superuser approval.' });
-      setIncrPct(''); setIncrEffDate(defaultIncrEffDate); setIncrRemarks('Yearly Increment');
+      setIncrPct(''); setIncrEffDate(defaultIncrEffDate); setIncrEffDateDisplay(defaultIncrEffDateDisplay); setIncrRemarks('Yearly Increment');
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/salary-setup', initialData?.id, 'increment-history'] });
     },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -4105,10 +4108,10 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                       <p className="text-sm text-gray-600">
                         <span className="font-medium">{activeProposal.incrementPercentage}%</span> increment ·
                         ₹{Math.round(parseFloat(activeProposal.oldBasicSalary)).toLocaleString('en-IN')} → ₹{Math.round(parseFloat(activeProposal.proposedBasicSalary)).toLocaleString('en-IN')} Basic ·
-                        Effective <span className="font-medium">{activeProposal.effectiveDate}</span>
+                        Effective <span className="font-medium">{fmtDate(activeProposal.effectiveDate)}</span>
                       </p>
                       <p className="text-xs text-gray-500">
-                        Proposed by {activeProposal.proposedByName} on {activeProposal.proposedAt ? new Date(activeProposal.proposedAt).toLocaleDateString('en-IN') : '—'}
+                        Proposed by {activeProposal.proposedByName} on {fmtDate(activeProposal.proposedAt)}
                         {activeProposal.status === 'approved' && activeProposal.approvedByName && ` · Approved by ${activeProposal.approvedByName}`}
                       </p>
                       {activeProposal.remarks && <p className="text-xs text-gray-500 italic">"{activeProposal.remarks}"</p>}
@@ -4156,10 +4159,14 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Effective Date <span className="text-red-500">*</span></Label>
                     <Input
-                      type="date"
-                      value={incrEffDate}
-                      onChange={e => setIncrEffDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
+                      type="text"
+                      placeholder="DD/MM/YYYY"
+                      value={incrEffDateDisplay}
+                      onChange={e => {
+                        const raw = e.target.value;
+                        setIncrEffDateDisplay(raw);
+                        setIncrEffDate(toIsoDate(raw));
+                      }}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -4236,8 +4243,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                       <tbody>
                         {incrHistory.map((row: any) => (
                           <tr key={row.id} className="border-b hover:bg-gray-50">
-                            <td className="p-2.5 text-xs text-gray-500">{row.proposedAt ? new Date(row.proposedAt).toLocaleDateString('en-IN') : '—'}</td>
-                            <td className="p-2.5 font-medium">{row.effectiveDate}</td>
+                            <td className="p-2.5 text-xs text-gray-500">{fmtDate(row.proposedAt)}</td>
+                            <td className="p-2.5 font-medium">{fmtDate(row.effectiveDate)}</td>
                             <td className="p-2.5 text-right font-medium text-green-700">{row.incrementPercentage}%</td>
                             <td className="p-2.5 text-right">₹{Math.round(parseFloat(row.oldBasicSalary)).toLocaleString('en-IN')}</td>
                             <td className="p-2.5 text-right font-medium">₹{Math.round(parseFloat(row.proposedBasicSalary)).toLocaleString('en-IN')}</td>
@@ -4255,7 +4262,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                               {row.status === 'applied' && (
                                 <div>
                                   <Badge className="bg-green-100 text-green-800 text-xs">Applied</Badge>
-                                  {row.appliedAt && <p className="text-xs text-gray-400 mt-0.5">{new Date(row.appliedAt).toLocaleDateString('en-IN')}</p>}
+                                  {row.appliedAt && <p className="text-xs text-gray-400 mt-0.5">{fmtDate(row.appliedAt)}</p>}
                                 </div>
                               )}
                               {row.status === 'rejected' && (
@@ -4319,7 +4326,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                         <p><span className="font-medium">Employee:</span> {users.find(u => u.id === initialData.userId)?.firstName} {users.find(u => u.id === initialData.userId)?.lastName}</p>
                         <p><span className="font-medium">Increment:</span> {approveTarget.incrementPercentage}%</p>
                         <p><span className="font-medium">Basic:</span> ₹{Math.round(parseFloat(approveTarget.oldBasicSalary)).toLocaleString('en-IN')} → ₹{Math.round(parseFloat(approveTarget.proposedBasicSalary)).toLocaleString('en-IN')}</p>
-                        <p><span className="font-medium">Effective Date:</span> {approveTarget.effectiveDate}</p>
+                        <p><span className="font-medium">Effective Date:</span> {fmtDate(approveTarget.effectiveDate)}</p>
                         <p><span className="font-medium">Remarks:</span> {approveTarget.remarks}</p>
                       </div>
                       {approveTarget.effectiveDate <= new Date().toISOString().split('T')[0] && (
@@ -4355,7 +4362,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                   {rejectTarget && (
                     <div className="space-y-3">
                       <div className="rounded-md bg-gray-50 p-3 text-sm space-y-1">
-                        <p><span className="font-medium">Increment:</span> {rejectTarget.incrementPercentage}% · Effective {rejectTarget.effectiveDate}</p>
+                        <p><span className="font-medium">Increment:</span> {rejectTarget.incrementPercentage}% · Effective {fmtDate(rejectTarget.effectiveDate)}</p>
                         <p><span className="font-medium">Proposed by:</span> {rejectTarget.proposedByName}</p>
                       </div>
                       <div className="space-y-1.5">
