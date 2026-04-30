@@ -322,8 +322,8 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                           : <span className="text-muted-foreground text-xs">—</span>}
                       </TableCell>
                       <TableCell className="text-center">
-                        {(a.finalScore || a.overallCalculatedScore) != null
-                          ? <span className="inline-flex items-center rounded bg-purple-50 px-1.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-700/10">{Number(a.finalScore || a.overallCalculatedScore).toFixed(2)}</span>
+                        {a.finalScore != null
+                          ? <span className="inline-flex items-center rounded bg-purple-50 px-1.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-700/10">{Number(a.finalScore).toFixed(2)}</span>
                           : <span className="text-muted-foreground text-xs">—</span>}
                       </TableCell>
                     </>
