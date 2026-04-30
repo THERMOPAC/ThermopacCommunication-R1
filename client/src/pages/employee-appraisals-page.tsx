@@ -263,6 +263,7 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                 <TableHead>L1 Reviewer</TableHead>
                 {view !== "my" && <TableHead>Score</TableHead>}
                 <TableHead>Rating</TableHead>
+                {view === "all" && <TableHead>Increment</TableHead>}
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -280,6 +281,19 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                   <TableCell>{a.l1ReviewerName}</TableCell>
                   {view !== "my" && <TableCell>{a.finalScore || a.overallCalculatedScore || "-"}</TableCell>}
                   <TableCell>{a.finalRating ? <RatingBadge rating={a.finalRating} /> : "-"}</TableCell>
+                  {view === "all" && (
+                    <TableCell>
+                      {a.l3IncrementValue !== null && a.l3IncrementValue !== undefined
+                        ? <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${
+                            Number(a.l3IncrementValue) > 0
+                              ? 'bg-green-50 text-green-700 ring-green-600/20'
+                              : Number(a.l3IncrementValue) < 0
+                              ? 'bg-red-50 text-red-700 ring-red-600/20'
+                              : 'bg-gray-50 text-gray-600 ring-gray-500/20'
+                          }`}>{Number(a.l3IncrementValue) > 0 ? '+' : ''}{a.l3IncrementValue}%</span>
+                        : <span className="text-muted-foreground text-xs">—</span>}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-1" /> View</Button>
