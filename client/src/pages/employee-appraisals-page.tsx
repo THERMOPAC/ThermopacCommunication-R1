@@ -338,7 +338,11 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                               : Number(a.l3IncrementValue) < 0
                               ? 'bg-red-50 text-red-700 ring-red-600/20'
                               : 'bg-gray-50 text-gray-600 ring-gray-500/20'
-                          }`}>{Number(a.l3IncrementValue) > 0 ? '+' : ''}{a.l3IncrementValue}%</span>
+                          }`}>
+                            {a.l3IncrementType === 'fixed'
+                              ? `${Number(a.l3IncrementValue) > 0 ? '+' : ''}₹${Number(a.l3IncrementValue).toLocaleString('en-IN')}`
+                              : `${Number(a.l3IncrementValue) > 0 ? '+' : ''}${a.l3IncrementValue}%`}
+                          </span>
                         : <span className="text-muted-foreground text-xs">—</span>}
                     </TableCell>
                   )}
