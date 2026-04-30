@@ -3248,16 +3248,11 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   // Propose mutation
   const proposeMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('POST', `/api/admin/payroll/salary-setup/${initialData!.id}/increment`, {
+      return await apiRequest('POST', `/api/admin/payroll/salary-setup/${initialData!.id}/increment`, {
         incrementPercentage: parseFloat(incrPct),
         effectiveDate: incrEffDate,
         remarks: incrRemarks,
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to submit proposal');
-      }
-      return res.json();
     },
     onSuccess: () => {
       toast({ title: 'Proposal Submitted', description: 'Increment proposal submitted and awaiting Superuser approval.' });
@@ -3270,9 +3265,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   // Approve mutation
   const approveMutation = useMutation({
     mutationFn: async (proposalId: number) => {
-      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/approve`, {});
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
-      return res.json();
+      return await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/approve`, {});
     },
     onSuccess: (data: any) => {
       toast({ title: 'Approved', description: data.message });
@@ -3286,9 +3279,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   // Reject mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ proposalId, reason }: { proposalId: number; reason: string }) => {
-      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/reject`, { rejectionReason: reason });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed'); }
-      return res.json();
+      return await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/reject`, { rejectionReason: reason });
     },
     onSuccess: () => {
       toast({ title: 'Rejected', description: 'Proposal rejected.' });
