@@ -1205,6 +1205,37 @@ async function ensureCompetenciesForAppraisal(appraisalId: number): Promise<void
   }
 }
 
+// ── GET /increment-policy ─────────────────────────────────────────────────────
+router.get('/increment-policy', ensureAuthenticated, async (_req: Request, res: Response) => {
+  try {
+    const bands = await db.select().from(appraisalIncrementPolicy).orderBy(appraisalIncrementPolicy.minScoreRange);
+    res.json(bands);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ── PATCH /increment-policy/:id ───────────────────────────────────────────────
+router.patch('/increment-policy/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (user.role !== 'Superuser') return res.status(403).json({ error: 'Superuser only' });
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+    const { incrementMinPercent, incrementMaxPercent, promotionSuitability, isActive } = req.body;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (incrementMinPercent !== undefined) updates.incrementMinPercent = String(incrementMinPercent);
+    if (incrementMaxPercent !== undefined) updates.incrementMaxPercent = String(incrementMaxPercent);
+    if (promotionSuitability !== undefined) updates.promotionSuitability = promotionSuitability;
+    if (isActive !== undefined) updates.isActive = isActive;
+    const [updated] = await db.update(appraisalIncrementPolicy).set(updates).where(eq(appraisalIncrementPolicy.id, id)).returning();
+    if (!updated) return res.status(404).json({ error: 'Band not found' });
+    res.json(updated);
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
 router.get('/company-competencies', ensureAuthenticated, async (_req: Request, res: Response) => {
   res.json(COMPANY_COMPETENCIES.map((c, i) => ({
     name: c.name,

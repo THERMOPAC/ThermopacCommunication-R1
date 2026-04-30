@@ -91,6 +91,7 @@ export default function EmployeeAppraisalsPage() {
   });
 
   const isHrOrSuperuser = user?.role === "Superuser" || user?.role === "HR";
+  const isSuperuser = user?.role === "Superuser";
 
   const userPool: User[] = ["Superuser", "HR", "Admin"].includes(user?.role || "") ? allUsers : subordinates;
 
@@ -123,8 +124,11 @@ export default function EmployeeAppraisalsPage() {
       t.push({ id: "kpi-templates", label: "KPI Library", icon: Library });
       t.push({ id: "jobs", label: "Jobs & Status", icon: Play });
     }
+    if (isSuperuser) {
+      t.push({ id: "increment-policy", label: "Increment Policy", icon: TrendingUp });
+    }
     return t;
-  }, [roleCheck, isHrOrSuperuser]);
+  }, [roleCheck, isHrOrSuperuser, isSuperuser]);
 
   const showFilter = userPool.length > 0;
 
@@ -199,6 +203,7 @@ export default function EmployeeAppraisalsPage() {
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
         <TabsContent value="kpi-templates"><KpiTemplateLibraryTab /></TabsContent>
         <TabsContent value="jobs"><JobsTab /></TabsContent>
+        <TabsContent value="increment-policy"><IncrementPolicyTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -2909,6 +2914,208 @@ function KpiTemplateLibraryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ── Increment Policy Tab ──────────────────────────────────────────────────────
+type PolicyBand = {
+  id: number;
+  ratingBand: string;
+  minScoreRange: string;
+  maxScoreRange: string;
+  incrementMinPercent: string;
+  incrementMaxPercent: string;
+  promotionSuitability: string;
+  isActive: boolean;
+};
+
+const PROMOTION_OPTIONS = ['High', 'Medium', 'Low', 'None'];
+
+const BAND_COLORS: Record<string, string> = {
+  Excellent:   'bg-emerald-50 text-emerald-800 border-emerald-200',
+  'Very Good': 'bg-blue-50 text-blue-800 border-blue-200',
+  Good:        'bg-indigo-50 text-indigo-800 border-indigo-200',
+  Fair:        'bg-amber-50 text-amber-800 border-amber-200',
+  Poor:        'bg-red-50 text-red-800 border-red-200',
+};
+
+function IncrementPolicyTab() {
+  const { toast } = useToast();
+  const { data: bands = [], isLoading } = useQuery<PolicyBand[]>({
+    queryKey: ['/api/appraisals/increment-policy'],
+  });
+
+  const [edits, setEdits] = useState<Record<number, Partial<PolicyBand>>>({});
+  const [saving, setSaving] = useState<Record<number, boolean>>({});
+
+  const setField = (id: number, field: keyof PolicyBand, value: string | boolean) => {
+    setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  };
+
+  const getVal = (band: PolicyBand, field: keyof PolicyBand) =>
+    edits[band.id]?.[field] !== undefined ? edits[band.id][field] : band[field];
+
+  const isDirty = (band: PolicyBand) => !!edits[band.id] && Object.keys(edits[band.id]).length > 0;
+
+  const handleSave = async (band: PolicyBand) => {
+    const patch = edits[band.id];
+    if (!patch || Object.keys(patch).length === 0) return;
+    setSaving(prev => ({ ...prev, [band.id]: true }));
+    try {
+      await apiRequest('PATCH', `/api/appraisals/increment-policy/${band.id}`, patch);
+      queryClient.invalidateQueries({ queryKey: ['/api/appraisals/increment-policy'] });
+      setEdits(prev => { const n = { ...prev }; delete n[band.id]; return n; });
+      toast({ title: `"${band.ratingBand}" band updated`, description: 'Increment policy saved.' });
+    } catch (e) {
+      toast({ title: 'Save failed', description: getErrorMessage(e), variant: 'destructive' });
+    } finally {
+      setSaving(prev => ({ ...prev, [band.id]: false }));
+    }
+  };
+
+  const handleReset = (band: PolicyBand) => {
+    setEdits(prev => { const n = { ...prev }; delete n[band.id]; return n; });
+  };
+
+  return (
+    <div className="space-y-6 pt-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <TrendingUp className="h-5 w-5 text-indigo-600" />
+            Increment Policy Bands
+          </CardTitle>
+          <CardDescription>
+            Configure the minimum and maximum increment percentages for each appraisal rating band.
+            These values drive system-suggested increments when generating a proposal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                    <th className="text-left p-3 pl-5">Rating Band</th>
+                    <th className="text-center p-3">Score Range</th>
+                    <th className="text-center p-3 w-40">Minimum Increment %</th>
+                    <th className="text-center p-3 w-40">Maximum Increment %</th>
+                    <th className="text-center p-3 w-44">Promotion Suitability</th>
+                    <th className="text-center p-3 w-20">Active</th>
+                    <th className="text-center p-3 w-28">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bands.map((band) => {
+                    const dirty = isDirty(band);
+                    const isSav = saving[band.id];
+                    const active = getVal(band, 'isActive') as boolean;
+                    return (
+                      <tr key={band.id} className={`border-b hover:bg-gray-50/60 ${dirty ? 'bg-amber-50/40' : ''}`}>
+                        <td className="p-3 pl-5">
+                          <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${BAND_COLORS[band.ratingBand] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                            {band.ratingBand}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center text-gray-600 font-mono text-xs">
+                          {Number(band.minScoreRange).toFixed(1)} – {Number(band.maxScoreRange).toFixed(1)}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1 justify-center">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              className="h-8 w-20 text-center text-sm font-medium"
+                              value={String(getVal(band, 'incrementMinPercent'))}
+                              onChange={e => setField(band.id, 'incrementMinPercent', e.target.value)}
+                            />
+                            <span className="text-gray-400 text-xs">%</span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1 justify-center">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              className="h-8 w-20 text-center text-sm font-medium"
+                              value={String(getVal(band, 'incrementMaxPercent'))}
+                              onChange={e => setField(band.id, 'incrementMaxPercent', e.target.value)}
+                            />
+                            <span className="text-gray-400 text-xs">%</span>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <Select
+                            value={String(getVal(band, 'promotionSuitability'))}
+                            onValueChange={v => setField(band.id, 'promotionSuitability', v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PROMOTION_OPTIONS.map(o => (
+                                <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => setField(band.id, 'isActive', !active)}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${active ? 'bg-green-500' : 'bg-gray-300'}`}
+                          >
+                            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${active ? 'translate-x-4' : 'translate-x-1'}`} />
+                          </button>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1.5 justify-center">
+                            {dirty && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-gray-500"
+                                onClick={() => handleReset(band)}
+                                disabled={isSav}
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              className={`h-7 px-3 text-xs gap-1 ${dirty ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                              onClick={() => handleSave(band)}
+                              disabled={!dirty || isSav}
+                            >
+                              {isSav ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                              Save
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+        <div>
+          <strong>How system suggestions work:</strong> When an appraisal is L3-approved, the system matches the final score to the appropriate band and sets the suggested increment as the midpoint of that band's Min–Max range. The Superuser can then adjust the final % before generating a proposal.
+        </div>
+      </div>
     </div>
   );
 }
