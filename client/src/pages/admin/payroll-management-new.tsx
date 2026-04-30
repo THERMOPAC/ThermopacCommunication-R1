@@ -3178,8 +3178,11 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   const [employeeWorkweekInfo, setEmployeeWorkweekInfo] = useState<any>(null);
 
   // ── Increment tab state ────────────────────────────────────────────────────
+  // Default effective date = 01 April of the current calendar year (financial year start).
+  // Both "before 1 Apr" and "after 1 Apr" cases always resolve to 01/04/current year.
+  const defaultIncrEffDate = `${new Date().getFullYear()}-04-01`;
   const [incrPct, setIncrPct] = useState('');
-  const [incrEffDate, setIncrEffDate] = useState('');
+  const [incrEffDate, setIncrEffDate] = useState(defaultIncrEffDate);
   const [incrRemarks, setIncrRemarks] = useState('Yearly Increment');
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [rejectTarget, setRejectTarget] = useState<any>(null);
@@ -3243,7 +3246,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
     },
     onSuccess: () => {
       toast({ title: 'Proposal Submitted', description: 'Increment proposal submitted and awaiting Superuser approval.' });
-      setIncrPct(''); setIncrEffDate(''); setIncrRemarks('Yearly Increment');
+      setIncrPct(''); setIncrEffDate(defaultIncrEffDate); setIncrRemarks('Yearly Increment');
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/salary-setup', initialData?.id, 'increment-history'] });
     },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
