@@ -2226,8 +2226,6 @@ router.post('/:id/generate-increment-proposal', ensureAuthenticated, async (req:
     if (req.body.finalProposedIncrementPct !== undefined) {
       finalProposedPct = parseFloat(req.body.finalProposedIncrementPct);
     }
-    // Clamp to min/max
-    finalProposedPct = Math.max(minPct, Math.min(maxPct, finalProposedPct));
 
     // Fetch the employee's current salary config
     const [salary] = await db.select().from(employeeSalaries)

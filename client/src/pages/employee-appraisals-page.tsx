@@ -472,14 +472,12 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                 <input
                   type="number"
                   step="0.5"
-                  min={generateTarget.minIncrementPct ? Number(generateTarget.minIncrementPct) : 0}
-                  max={generateTarget.maxIncrementPct ? Number(generateTarget.maxIncrementPct) : 100}
                   value={editedPct}
                   onChange={(e) => setEditedPct(e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 {generateTarget.minIncrementPct != null && (Number(editedPct) < Number(generateTarget.minIncrementPct) || Number(editedPct) > Number(generateTarget.maxIncrementPct)) && (
-                  <p className="text-xs text-amber-600">⚠ Value will be clamped to the allowed range on submission</p>
+                  <p className="text-xs text-amber-600">⚠ Outside policy band ({Number(generateTarget.minIncrementPct).toFixed(0)}%–{Number(generateTarget.maxIncrementPct).toFixed(0)}%) — value will be saved as entered</p>
                 )}
               </div>
               <div className="space-y-1.5">
