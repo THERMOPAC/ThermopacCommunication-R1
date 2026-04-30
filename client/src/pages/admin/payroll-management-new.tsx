@@ -3441,7 +3441,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
             <TabsTrigger value="basic-info">Basic Information</TabsTrigger>
             <TabsTrigger value="allowances">Allowances</TabsTrigger>
             <TabsTrigger value="calculations">Calculations</TabsTrigger>
-            {initialData && <TabsTrigger value="increment" className="flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" />Increment</TabsTrigger>}
+            {initialData && isSuperuser && <TabsTrigger value="increment" className="flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" />Increment</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="basic-info" className="space-y-4">
