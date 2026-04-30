@@ -2946,174 +2946,191 @@ function IncrementPolicyTab() {
     queryKey: ['/api/appraisals/increment-policy'],
   });
 
-  const [edits, setEdits] = useState<Record<number, Partial<PolicyBand>>>({});
-  const [saving, setSaving] = useState<Record<number, boolean>>({});
+  // editing state: which band is currently open for editing
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState({ incrementMinPercent: '', incrementMaxPercent: '', promotionSuitability: '' });
+  const [saving, setSaving] = useState(false);
 
-  const setField = (id: number, field: keyof PolicyBand, value: string | boolean) => {
-    setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  const openEdit = (band: PolicyBand) => {
+    setEditingId(band.id);
+    setForm({
+      incrementMinPercent: Number(band.incrementMinPercent).toString(),
+      incrementMaxPercent: Number(band.incrementMaxPercent).toString(),
+      promotionSuitability: band.promotionSuitability,
+    });
   };
 
-  const getVal = (band: PolicyBand, field: keyof PolicyBand) =>
-    edits[band.id]?.[field] !== undefined ? edits[band.id][field] : band[field];
-
-  const isDirty = (band: PolicyBand) => !!edits[band.id] && Object.keys(edits[band.id]).length > 0;
-
   const handleSave = async (band: PolicyBand) => {
-    const patch = edits[band.id];
-    if (!patch || Object.keys(patch).length === 0) return;
-    setSaving(prev => ({ ...prev, [band.id]: true }));
+    const minVal = parseFloat(form.incrementMinPercent);
+    const maxVal = parseFloat(form.incrementMaxPercent);
+    if (isNaN(minVal) || isNaN(maxVal)) {
+      toast({ title: 'Invalid values', description: 'Please enter valid numbers.', variant: 'destructive' });
+      return;
+    }
+    if (minVal < 0 || maxVal > 100) {
+      toast({ title: 'Out of range', description: 'Values must be between 0 and 100.', variant: 'destructive' });
+      return;
+    }
+    if (minVal > maxVal) {
+      toast({ title: 'Invalid range', description: 'Minimum % cannot exceed Maximum %.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
     try {
-      await apiRequest('PATCH', `/api/appraisals/increment-policy/${band.id}`, patch);
+      await apiRequest('PATCH', `/api/appraisals/increment-policy/${band.id}`, {
+        incrementMinPercent: form.incrementMinPercent,
+        incrementMaxPercent: form.incrementMaxPercent,
+        promotionSuitability: form.promotionSuitability,
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/appraisals/increment-policy'] });
-      setEdits(prev => { const n = { ...prev }; delete n[band.id]; return n; });
-      toast({ title: `"${band.ratingBand}" band updated`, description: 'Increment policy saved.' });
+      setEditingId(null);
+      toast({ title: `"${band.ratingBand}" updated`, description: `Range set to ${minVal}% – ${maxVal}%` });
     } catch (e) {
       toast({ title: 'Save failed', description: getErrorMessage(e), variant: 'destructive' });
     } finally {
-      setSaving(prev => ({ ...prev, [band.id]: false }));
+      setSaving(false);
     }
   };
 
-  const handleReset = (band: PolicyBand) => {
-    setEdits(prev => { const n = { ...prev }; delete n[band.id]; return n; });
-  };
-
   return (
-    <div className="space-y-6 pt-2">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="h-5 w-5 text-indigo-600" />
-            Increment Policy Bands
-          </CardTitle>
-          <CardDescription>
-            Configure the minimum and maximum increment percentages for each appraisal rating band.
-            These values drive system-suggested increments when generating a proposal.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                    <th className="text-left p-3 pl-5">Rating Band</th>
-                    <th className="text-center p-3">Score Range</th>
-                    <th className="text-center p-3 w-40">Minimum Increment %</th>
-                    <th className="text-center p-3 w-40">Maximum Increment %</th>
-                    <th className="text-center p-3 w-44">Promotion Suitability</th>
-                    <th className="text-center p-3 w-20">Active</th>
-                    <th className="text-center p-3 w-28">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bands.map((band) => {
-                    const dirty = isDirty(band);
-                    const isSav = saving[band.id];
-                    const active = getVal(band, 'isActive') as boolean;
-                    return (
-                      <tr key={band.id} className={`border-b hover:bg-gray-50/60 ${dirty ? 'bg-amber-50/40' : ''}`}>
-                        <td className="p-3 pl-5">
-                          <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${BAND_COLORS[band.ratingBand] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>
-                            {band.ratingBand}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center text-gray-600 font-mono text-xs">
-                          {Number(band.minScoreRange).toFixed(1)} – {Number(band.maxScoreRange).toFixed(1)}
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 justify-center">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              className="h-8 w-20 text-center text-sm font-medium"
-                              value={String(getVal(band, 'incrementMinPercent'))}
-                              onChange={e => setField(band.id, 'incrementMinPercent', e.target.value)}
-                            />
-                            <span className="text-gray-400 text-xs">%</span>
+    <div className="space-y-5 pt-2">
+      <div>
+        <h2 className="text-base font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-indigo-600" /> Increment Policy Bands</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Set the <strong>Minimum</strong> and <strong>Maximum Increment %</strong> for each rating band. Click <strong>Edit</strong> on any band to change its range.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {bands.map((band) => {
+            const isEditing = editingId === band.id;
+            const midpoint = ((Number(band.incrementMinPercent) + Number(band.incrementMaxPercent)) / 2).toFixed(1);
+            return (
+              <Card key={band.id} className={`border-2 transition-all ${isEditing ? 'border-indigo-400 shadow-md' : 'border-gray-100'}`}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    {/* Left: band info */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-bold shrink-0 ${BAND_COLORS[band.ratingBand] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                        {band.ratingBand}
+                      </span>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Score range</div>
+                        <div className="font-mono text-sm font-medium">{Number(band.minScoreRange).toFixed(1)} – {Number(band.maxScoreRange).toFixed(1)}</div>
+                      </div>
+                    </div>
+
+                    {/* Right: values or edit form */}
+                    {isEditing ? (
+                      <div className="flex flex-col gap-4 flex-1 min-w-[280px]">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label className="text-sm font-semibold text-gray-700">Minimum Increment %</Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.5"
+                                className="h-11 text-lg font-bold pr-8 border-2 border-indigo-300 focus:border-indigo-500"
+                                value={form.incrementMinPercent}
+                                onChange={e => setForm(f => ({ ...f, incrementMinPercent: e.target.value }))}
+                                autoFocus
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">%</span>
+                            </div>
                           </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1 justify-center">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.5"
-                              className="h-8 w-20 text-center text-sm font-medium"
-                              value={String(getVal(band, 'incrementMaxPercent'))}
-                              onChange={e => setField(band.id, 'incrementMaxPercent', e.target.value)}
-                            />
-                            <span className="text-gray-400 text-xs">%</span>
+                          <div className="space-y-1.5">
+                            <Label className="text-sm font-semibold text-gray-700">Maximum Increment %</Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.5"
+                                className="h-11 text-lg font-bold pr-8 border-2 border-indigo-300 focus:border-indigo-500"
+                                value={form.incrementMaxPercent}
+                                onChange={e => setForm(f => ({ ...f, incrementMaxPercent: e.target.value }))}
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">%</span>
+                            </div>
                           </div>
-                        </td>
-                        <td className="p-3">
-                          <Select
-                            value={String(getVal(band, 'promotionSuitability'))}
-                            onValueChange={v => setField(band.id, 'promotionSuitability', v)}
-                          >
-                            <SelectTrigger className="h-8 text-xs w-full">
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-sm font-semibold text-gray-700">Promotion Suitability</Label>
+                          <Select value={form.promotionSuitability} onValueChange={v => setForm(f => ({ ...f, promotionSuitability: v }))}>
+                            <SelectTrigger className="h-10">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {PROMOTION_OPTIONS.map(o => (
-                                <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
-                              ))}
+                              {PROMOTION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                        </td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => setField(band.id, 'isActive', !active)}
-                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${active ? 'bg-green-500' : 'bg-gray-300'}`}
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button
+                            className="bg-green-600 hover:bg-green-700 text-white flex-1 h-10 gap-2"
+                            onClick={() => handleSave(band)}
+                            disabled={saving}
                           >
-                            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${active ? 'translate-x-4' : 'translate-x-1'}`} />
-                          </button>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1.5 justify-center">
-                            {dirty && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2 text-xs text-gray-500"
-                                onClick={() => handleReset(band)}
-                                disabled={isSav}
-                              >
-                                <RotateCcw className="h-3 w-3" />
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              className={`h-7 px-3 text-xs gap-1 ${dirty ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                              onClick={() => handleSave(band)}
-                              disabled={!dirty || isSav}
-                            >
-                              {isSav ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                              Save
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                            Save Changes
+                          </Button>
+                          <Button variant="outline" className="h-10 px-4" onClick={() => setEditingId(null)} disabled={saving}>
+                            Cancel
+                          </Button>
+                        </div>
+                        {form.incrementMinPercent && form.incrementMaxPercent && (
+                          <p className="text-xs text-indigo-600 bg-indigo-50 rounded px-3 py-1.5">
+                            System suggestion will be <strong>{((parseFloat(form.incrementMinPercent) + parseFloat(form.incrementMaxPercent)) / 2).toFixed(1)}%</strong> (midpoint of {form.incrementMinPercent}%–{form.incrementMaxPercent}%)
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-6 flex-wrap">
+                        <div className="text-center">
+                          <div className="text-xs text-muted-foreground mb-0.5">Minimum Increment %</div>
+                          <div className="text-2xl font-bold text-gray-800">{Number(band.incrementMinPercent).toFixed(0)}<span className="text-base font-medium text-gray-500">%</span></div>
+                        </div>
+                        <div className="text-gray-300 text-xl font-light">—</div>
+                        <div className="text-center">
+                          <div className="text-xs text-muted-foreground mb-0.5">Maximum Increment %</div>
+                          <div className="text-2xl font-bold text-gray-800">{Number(band.incrementMaxPercent).toFixed(0)}<span className="text-base font-medium text-gray-500">%</span></div>
+                        </div>
+                        <div className="border-l pl-6">
+                          <div className="text-xs text-muted-foreground mb-0.5">System Suggestion</div>
+                          <div className="text-lg font-semibold text-indigo-600">{midpoint}%</div>
+                          <div className="text-[10px] text-muted-foreground">midpoint</div>
+                        </div>
+                        <div className="border-l pl-6">
+                          <div className="text-xs text-muted-foreground mb-0.5">Promotion</div>
+                          <div className="text-sm font-medium">{band.promotionSuitability}</div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-4 gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                          onClick={() => openEdit(band)}
+                        >
+                          <Edit className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
-        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-blue-500" />
         <div>
-          <strong>How system suggestions work:</strong> When an appraisal is L3-approved, the system matches the final score to the appropriate band and sets the suggested increment as the midpoint of that band's Min–Max range. The Superuser can then adjust the final % before generating a proposal.
+          <strong>How system suggestions work:</strong> The system suggestion = midpoint of the band's Min–Max range. E.g. if you set Excellent to 15%–20%, the suggestion will be 17.5%. You can still adjust the final % before generating a proposal.
         </div>
       </div>
     </div>
