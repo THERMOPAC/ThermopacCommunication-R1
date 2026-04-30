@@ -1802,7 +1802,7 @@ function HistorySection({ approvals }: { approvals: any[] }) {
 function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, isAdmin, score }: any) {
   const { toast } = useToast();
   const [actionDialog, setActionDialog] = useState<string | null>(null);
-  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementValue: "0", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: "", l3FinalRemarks: "", returnRemarks: "" });
+  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementValue: "0", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: `${new Date().getFullYear()}-04-01`, l3FinalRemarks: "", returnRemarks: "" });
 
   const { data: sysRec } = useQuery<any>({
     queryKey: ["/api/appraisals", appraisalId, "system-recommendation"],
@@ -1895,7 +1895,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
           </Button>
         )}
         {isL3 && appraisal.status === "l2_reviewed" && (
-          <Button className="w-full justify-start bg-green-600 hover:bg-green-700" onClick={() => setActionDialog("l3-approve")}>
+          <Button className="w-full justify-start bg-green-600 hover:bg-green-700" onClick={() => { setActionForm(f => ({ ...f, l3EffectiveDate: `${new Date().getFullYear()}-04-01` })); setActionDialog("l3-approve"); }}>
             <CheckCircle className="h-4 w-4 mr-2" /> Final Approval (L3)
           </Button>
         )}
