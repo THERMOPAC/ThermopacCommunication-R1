@@ -41,7 +41,7 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft", open: "Open", active: "Active",
   self_submitted: "Self Submitted", l1_reviewed: "L1 Reviewed",
-  l2_reviewed: "L2 Reviewed", approved: "Approved",
+  l2_reviewed: "L3 Pending", approved: "Approved",
   closed: "Closed", paused: "Paused",
   resubmission_required: "Resubmission Required",
 };
@@ -288,7 +288,7 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                   <>
                     <TableHead className="text-center">L1 Score</TableHead>
                     <TableHead className="text-center">L2 Score</TableHead>
-                    <TableHead className="text-center">Final Score</TableHead>
+                    <TableHead className="text-center">L3 Score</TableHead>
                   </>
                 ) : view !== "my" && <TableHead>Score</TableHead>}
                 <TableHead>Rating</TableHead>
