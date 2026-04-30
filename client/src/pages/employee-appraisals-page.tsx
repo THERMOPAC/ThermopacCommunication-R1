@@ -1895,7 +1895,12 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
           </Button>
         )}
         {isL3 && appraisal.status === "l2_reviewed" && (
-          <Button className="w-full justify-start bg-green-600 hover:bg-green-700" onClick={() => { setActionForm(f => ({ ...f, l3EffectiveDate: `${new Date().getFullYear()}-04-01` })); setActionDialog("l3-approve"); }}>
+          <Button className="w-full justify-start bg-green-600 hover:bg-green-700" onClick={() => {
+            const mid = sysRec?.incrementRange ? Math.round((sysRec.incrementRange.min + sysRec.incrementRange.max) / 2) : 0;
+            const clamped = Math.min(30, Math.max(-10, mid));
+            setActionForm(f => ({ ...f, l3EffectiveDate: `${new Date().getFullYear()}-04-01`, l3IncrementValue: String(clamped) }));
+            setActionDialog("l3-approve");
+          }}>
             <CheckCircle className="h-4 w-4 mr-2" /> Final Approval (L3)
           </Button>
         )}
@@ -2041,17 +2046,16 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l3IncrementValue} onValueChange={v => setActionForm({ ...actionForm, l3IncrementValue: v })}>
                       <SelectTrigger><SelectValue placeholder="Select increment %" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="-10">-10%</SelectItem>
-                        <SelectItem value="-5">-5%</SelectItem>
-                        <SelectItem value="0">0%</SelectItem>
-                        <SelectItem value="5">5%</SelectItem>
-                        <SelectItem value="10">10%</SelectItem>
-                        <SelectItem value="15">15%</SelectItem>
-                        <SelectItem value="20">20%</SelectItem>
-                        <SelectItem value="25">25%</SelectItem>
-                        <SelectItem value="30">30%</SelectItem>
+                        {Array.from({ length: 41 }, (_, i) => i - 10).map(n => (
+                          <SelectItem key={n} value={String(n)}>{n > 0 ? `+${n}%` : `${n}%`}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {Number(actionForm.l3IncrementValue) < 0 && (
+                      <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Salary reduction — requires justification in remarks
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -2138,7 +2142,11 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
               <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>
               <Button
                 onClick={() => actionDialog && handleAction(actionDialog)}
-                disabled={actionMutation.isPending || (actionDialog === "return-for-resubmission" && actionForm.returnRemarks.trim().length < 10)}
+                disabled={
+                  actionMutation.isPending ||
+                  (actionDialog === "return-for-resubmission" && actionForm.returnRemarks.trim().length < 10) ||
+                  (actionDialog === "l3-approve" && Number(actionForm.l3IncrementValue) < 0 && actionForm.l3FinalRemarks.trim().length === 0)
+                }
               >
                 {actionMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                 {actionDialog === "return-for-resubmission" ? "Return to Employee" : actionDialog === "resubmit" ? "Resubmit" : "Confirm"}

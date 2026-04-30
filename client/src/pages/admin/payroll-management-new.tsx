@@ -4133,19 +4133,19 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Increment % <span className="text-red-500">*</span></Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        max="100"
-                        placeholder="e.g. 10"
-                        value={incrPct}
-                        onChange={e => setIncrPct(e.target.value)}
-                        className="pr-8"
-                      />
-                      <span className="absolute right-2.5 top-2.5 text-gray-400 text-sm">%</span>
-                    </div>
+                    <Select value={incrPct} onValueChange={setIncrPct}>
+                      <SelectTrigger><SelectValue placeholder="Select %" /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 41 }, (_, i) => i - 10).map(n => (
+                          <SelectItem key={n} value={String(n)}>{n > 0 ? `+${n}%` : `${n}%`}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {incrPct !== '' && parseFloat(incrPct) < 0 && (
+                      <p className="text-xs text-red-600 flex items-center gap-1 mt-0.5">
+                        <AlertTriangle className="h-3 w-3" /> Salary reduction — requires justification
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Effective Date <span className="text-red-500">*</span></Label>
@@ -4171,7 +4171,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 </div>
 
                 {/* Live preview */}
-                {incrPct && parseFloat(incrPct) > 0 && previewBasic && (
+                {incrPct !== '' && parseFloat(incrPct) !== 0 && previewBasic && (
                   <div className="rounded-md bg-gray-50 border p-3 grid grid-cols-3 gap-4 text-sm">
                     {[
                       { label: 'Basic Salary', cur: currentCalc.grossBasic, nw: previewCalc.grossBasic, raw: true, curRaw: parseFloat(initialData.basicSalary), nwRaw: parseFloat(previewBasic) },
@@ -4186,7 +4186,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                           <p className="text-xs text-gray-500">{label}</p>
                           <p className="font-medium">₹{Math.round(nwVal).toLocaleString('en-IN')}</p>
                           <p className="text-xs text-gray-400 line-through">₹{Math.round(curVal).toLocaleString('en-IN')}</p>
-                          <p className="text-xs text-green-600 font-medium">+₹{Math.round(delta).toLocaleString('en-IN')}</p>
+                          <p className={`text-xs font-medium ${delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>{delta >= 0 ? '+' : ''}₹{Math.round(delta).toLocaleString('en-IN')}</p>
                         </div>
                       );
                     })}
@@ -4196,7 +4196,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 <div className="flex justify-end">
                   <Button
                     type="button"
-                    disabled={!canAccessIncrement || !incrPct || parseFloat(incrPct) <= 0 || !incrEffDate || hasActive || proposeMutation.isPending}
+                    disabled={!canAccessIncrement || incrPct === '' || !incrEffDate || hasActive || proposeMutation.isPending || (parseFloat(incrPct) < 0 && incrRemarks.trim().length === 0)}
                     onClick={() => proposeMutation.mutate()}
                     className="gap-1"
                   >
