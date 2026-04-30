@@ -88,9 +88,7 @@ export default function IncrementApprovalsPage() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ proposalId, effectiveDate }: { proposalId: number; effectiveDate: string }) => {
-      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/approve`, { effectiveDate });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Approval failed'); }
-      return res.json();
+      return await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/approve`, { effectiveDate });
     },
     onSuccess: (data: any) => {
       toast({ title: 'Approved', description: data.message || 'Increment proposal approved.' });
@@ -104,9 +102,7 @@ export default function IncrementApprovalsPage() {
 
   const rejectMutation = useMutation({
     mutationFn: async ({ proposalId, reason }: { proposalId: number; reason: string }) => {
-      const res = await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/reject`, { rejectionReason: reason });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Rejection failed'); }
-      return res.json();
+      return await apiRequest('POST', `/api/admin/payroll/increment-proposals/${proposalId}/reject`, { rejectionReason: reason });
     },
     onSuccess: () => {
       toast({ title: 'Rejected', description: 'Increment proposal rejected.' });
