@@ -156,6 +156,7 @@ function Router() {
       <ProtectedRoute path="/admin/leave-management" component={() => <Layout><Admin.LeaveManagementPage /></Layout>} />
       <ProtectedRoute path="/admin/payroll" component={() => <Layout><Admin.PayrollManagementPage /></Layout>} />
       <ProtectedRoute path="/admin/payroll-management" component={() => <Layout><Admin.PayrollManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/payroll/increment-approvals" component={() => <Layout><Admin.IncrementApprovalsPage /></Layout>} />
       <ProtectedRoute path="/admin/workweek-policies" component={() => <Layout><Admin.WorkweekPolicyManagementPage /></Layout>} />
       <ProtectedRoute path="/admin/workweek-policy-management" component={() => <Layout><Admin.WorkweekPolicyManagementPage /></Layout>} />
       <ProtectedRoute path="/admin/business-trips" component={() => <Layout><Admin.BusinessTripManagementPage /></Layout>} />

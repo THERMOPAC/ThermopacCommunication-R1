@@ -33,7 +33,8 @@ import {
   payrollAttendanceSnapshot,
   attendanceOverrideLog,
   salaryIncrementProposals,
-  salaryIncrementAuditLog
+  salaryIncrementAuditLog,
+  notifications
 } from '../shared/schema';
 import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
@@ -742,9 +743,95 @@ router.post('/payroll/salary-setup/:id/increment', ensureAuthenticated, async (r
       remarks: remarks || 'Yearly Increment',
     });
 
+    // ── Notify all Superusers immediately ─────────────────────────────────────
+    const [employeeUser] = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, salaryConfig.userId));
+    const superusers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.role, 'Superuser'), eq(users.isActive, true)));
+
+    if (superusers.length > 0) {
+      await db.insert(notifications).values(
+        superusers.map(su => ({
+          userId: su.id,
+          type: 'salary_increment',
+          title: 'New Salary Increment Proposal',
+          message: `${employeeUser?.username || 'An employee'} — ${pct}% increment proposed, effective ${effectiveDate}. Submitted by ${user.username}.`,
+          link: '/admin/payroll/increment-approvals',
+          priority: 'high',
+          category: 'payroll',
+          sourceType: 'salary_increment_proposal',
+          sourceId: proposal.id,
+          createdBy: user.id,
+        }))
+      );
+    }
+
     res.status(201).json(proposal);
   } catch (error) {
     console.error('Error creating salary increment proposal:', error);
+    sendError(res, error);
+  }
+});
+
+// ── GET /payroll/increment-proposals/pending-count ───────────────────────────
+router.get('/payroll/increment-proposals/pending-count', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const [row] = await db
+      .select({ count: count() })
+      .from(salaryIncrementProposals)
+      .where(eq(salaryIncrementProposals.status, 'pending'));
+    res.json({ count: row?.count ?? 0 });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// ── GET /payroll/increment-proposals/all ─────────────────────────────────────
+router.get('/payroll/increment-proposals/all', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (user.role !== 'Superuser') {
+      return sendPermissionError(res, 'Only Superuser can view all increment proposals');
+    }
+    const proposals = await db
+      .select({
+        id: salaryIncrementProposals.id,
+        employeeSalaryId: salaryIncrementProposals.employeeSalaryId,
+        employeeId: salaryIncrementProposals.employeeId,
+        incrementPercentage: salaryIncrementProposals.incrementPercentage,
+        oldBasicSalary: salaryIncrementProposals.oldBasicSalary,
+        proposedBasicSalary: salaryIncrementProposals.proposedBasicSalary,
+        oldCtc: salaryIncrementProposals.oldCtc,
+        proposedCtc: salaryIncrementProposals.proposedCtc,
+        effectiveDate: salaryIncrementProposals.effectiveDate,
+        status: salaryIncrementProposals.status,
+        remarks: salaryIncrementProposals.remarks,
+        rejectionReason: salaryIncrementProposals.rejectionReason,
+        proposedBy: salaryIncrementProposals.proposedBy,
+        createdAt: salaryIncrementProposals.createdAt,
+        appliedAt: salaryIncrementProposals.appliedAt,
+        employeeName: users.username,
+      })
+      .from(salaryIncrementProposals)
+      .leftJoin(users, eq(salaryIncrementProposals.employeeId, users.id))
+      .orderBy(desc(salaryIncrementProposals.createdAt));
+
+    // Attach proposer name separately
+    const proposerIds = [...new Set(proposals.map(p => p.proposedBy).filter(Boolean))] as number[];
+    const proposers = proposerIds.length
+      ? await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.id, proposerIds))
+      : [];
+    const proposerMap = Object.fromEntries(proposers.map(p => [p.id, p.username]));
+
+    res.json(proposals.map(p => ({
+      ...p,
+      proposedByName: p.proposedBy ? (proposerMap[p.proposedBy] || 'Unknown') : 'Unknown',
+    })));
+  } catch (error) {
     sendError(res, error);
   }
 });

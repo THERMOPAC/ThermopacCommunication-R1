@@ -140,6 +140,14 @@ function Layout({ children }: LayoutProps) {
   // Send heartbeat for live user tracking across all pages
   useHeartbeat({ interval: 30000 }); // Send heartbeat every 30 seconds
 
+  // Pending increment proposals count — Superusers only, refreshes every 2 min
+  const { data: incrementPendingData } = useQuery<{ count: number }>({
+    queryKey: ['/api/admin/payroll/increment-proposals/pending-count'],
+    enabled: user?.role === 'Superuser',
+    refetchInterval: 120_000,
+  });
+  const pendingIncrementCount = incrementPendingData?.count ?? 0;
+
   const isOnDigitalMarketingPage = location === '/campaigns' ||
                                   location === '/radar' ||
                                   location === '/lead-generation';
@@ -329,6 +337,7 @@ function Layout({ children }: LayoutProps) {
         { icon: CalendarClock, label: "Attendance Management", href: "/admin/attendance" },
         { icon: Calendar, label: "Leave Management", href: "/admin/leave" },
         { icon: IndianRupee, label: "Payroll Management", href: "/admin/payroll" },
+        ...(user?.role === 'Superuser' ? [{ icon: TrendingUp, label: "Increment Approvals", href: "/admin/payroll/increment-approvals", badge: pendingIncrementCount }] : []),
         { icon: Plane, label: "Business Trip Management", href: "/admin/business-trips" },
         { icon: FileText, label: "Visa Management", href: "/admin/visa-management" },
         { icon: Gavel, label: "Legal Management", href: "/admin/legal-management" },
@@ -702,7 +711,12 @@ function Layout({ children }: LayoutProps) {
                                           }`}
                                       >
                                         <ChildIcon className={`h-4 w-4 ${isExactMatch || isChildActive ? 'text-[#EF4444]' : 'text-[#EF4444]'}`} />
-                                        <span>{child.label}</span>
+                                        <span className="flex-1 text-left">{child.label}</span>
+                                        {(child as any).badge > 0 && (
+                                          <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
+                                            {(child as any).badge}
+                                          </span>
+                                        )}
                                       </button>
                                     </Link>
                                   </li>

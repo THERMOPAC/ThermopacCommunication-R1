@@ -2133,6 +2133,15 @@ export default function PayrollManagementNew() {
     queryKey: ['/api/work-locations/active'],
   });
 
+  const { data: sessionUserData } = useQuery<any>({ queryKey: ['/api/user'] });
+  const isSuperuserPage = sessionUserData?.role === 'Superuser';
+  const { data: incrementPendingData } = useQuery<{ count: number }>({
+    queryKey: ['/api/admin/payroll/increment-proposals/pending-count'],
+    enabled: isSuperuserPage,
+    refetchInterval: 60_000,
+  });
+  const pendingIncrementCount = incrementPendingData?.count ?? 0;
+
   // Fetch workweek policies
   const { data: workweekPolicies = [] } = useQuery<WorkweekPolicy[]>({
     queryKey: ['/api/admin/workweek-policies'],
@@ -2449,6 +2458,17 @@ export default function PayrollManagementNew() {
       </Helmet>
 
       <div className="space-y-6">
+        {/* Pending increment proposals alert for Superusers */}
+        {isSuperuserPage && pendingIncrementCount > 0 && (
+          <a href="/admin/payroll/increment-approvals" className="block">
+            <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer">
+              <TrendingUp className="h-4 w-4 shrink-0 text-amber-600" />
+              <span className="font-medium">{pendingIncrementCount} salary increment proposal{pendingIncrementCount > 1 ? 's' : ''} pending your approval</span>
+              <span className="ml-auto text-xs underline">Review now →</span>
+            </div>
+          </a>
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>

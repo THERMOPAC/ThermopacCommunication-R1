@@ -5,6 +5,7 @@ export const UserManagementPage = lazyWithRetry(() => import("@/pages/admin/user
 export const AttendanceManagementPage = lazyWithRetry(() => import("@/pages/admin/attendance-management-page"));
 export const LeaveManagementPage = lazyWithRetry(() => import("@/pages/admin/leave-management-page"));
 export const PayrollManagementPage = lazyWithRetry(() => import("@/pages/admin/payroll-management-new"));
+export const IncrementApprovalsPage = lazyWithRetry(() => import("@/pages/admin/increment-approvals-page"));
 export const WorkweekPolicyManagementPage = lazyWithRetry(() => import("@/pages/admin/workweek-policy-management-page"));
 export const BusinessTripManagementPage = lazyWithRetry(() => import("@/pages/admin/business-trip-management"));
 export const VisaManagementPageNew = lazyWithRetry(() => import("@/pages/admin/visa-management-new"));
