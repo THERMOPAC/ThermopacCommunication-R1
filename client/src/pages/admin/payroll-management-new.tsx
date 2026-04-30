@@ -3210,7 +3210,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   // Both "before 1 Apr" and "after 1 Apr" cases always resolve to 01/04/current year.
   const defaultIncrEffDate = `${new Date().getFullYear()}-04-01`;
   const defaultIncrEffDateDisplay = `01/04/${new Date().getFullYear()}`;
-  const [incrPct, setIncrPct] = useState('');
+  const [incrPct, setIncrPct] = useState('0');
   const [incrEffDate, setIncrEffDate] = useState(defaultIncrEffDate);
   const [incrEffDateDisplay, setIncrEffDateDisplay] = useState(defaultIncrEffDateDisplay);
   const [incrRemarks, setIncrRemarks] = useState('Yearly Increment');
@@ -3256,7 +3256,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
     },
     onSuccess: () => {
       toast({ title: 'Proposal Submitted', description: 'Increment proposal submitted and awaiting Superuser approval.' });
-      setIncrPct(''); setIncrEffDate(defaultIncrEffDate); setIncrEffDateDisplay(defaultIncrEffDateDisplay); setIncrRemarks('Yearly Increment');
+      setIncrPct('0'); setIncrEffDate(defaultIncrEffDate); setIncrEffDateDisplay(defaultIncrEffDateDisplay); setIncrRemarks('Yearly Increment');
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/salary-setup', initialData?.id, 'increment-history'] });
     },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
