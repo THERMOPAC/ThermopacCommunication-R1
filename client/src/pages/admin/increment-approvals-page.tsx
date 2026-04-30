@@ -29,7 +29,7 @@ type Proposal = {
   remarks: string;
   rejectionReason?: string;
   proposedByName: string;
-  createdAt: string;
+  proposedAt: string;
   appliedAt?: string;
   // Appraisal-driven fields
   appraisalId?: number;
@@ -204,7 +204,7 @@ export default function IncrementApprovalsPage() {
                             {p.employeeName}
                           </div>
                           <div className="text-xs text-gray-400 mt-0.5">
-                            {new Date(p.createdAt).toLocaleDateString('en-IN')}
+                            {new Date(p.proposedAt).toLocaleDateString('en-IN')}
                           </div>
                         </td>
                         {/* Appraisal column */}

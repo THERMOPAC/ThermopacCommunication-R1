@@ -812,7 +812,7 @@ router.get('/payroll/increment-proposals/all', ensureAuthenticated, async (req: 
         remarks: salaryIncrementProposals.remarks,
         rejectionReason: salaryIncrementProposals.rejectionReason,
         proposedBy: salaryIncrementProposals.proposedBy,
-        createdAt: salaryIncrementProposals.createdAt,
+        proposedAt: salaryIncrementProposals.proposedAt,
         appliedAt: salaryIncrementProposals.appliedAt,
         employeeName: users.username,
         // Appraisal-driven fields
@@ -828,7 +828,7 @@ router.get('/payroll/increment-proposals/all', ensureAuthenticated, async (req: 
       })
       .from(salaryIncrementProposals)
       .leftJoin(users, eq(salaryIncrementProposals.employeeId, users.id))
-      .orderBy(desc(salaryIncrementProposals.createdAt));
+      .orderBy(desc(salaryIncrementProposals.proposedAt));
 
     // Attach proposer name separately
     const proposerIds = [...new Set(proposals.map(p => p.proposedBy).filter(Boolean))] as number[];
