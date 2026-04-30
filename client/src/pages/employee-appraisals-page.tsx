@@ -242,7 +242,16 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
 
   const [generateTarget, setGenerateTarget] = useState<any | null>(null);
   const [editedPct, setEditedPct] = useState<string>('');
-  const [generateDate, setGenerateDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const april1OfYear = `${new Date().getFullYear()}-04-01`;
+  const [generateDate, setGenerateDate] = useState<string>(april1OfYear);
+  const [generateDateDisplay, setGenerateDateDisplay] = useState<string>(`01/04/${new Date().getFullYear()}`);
+  const parseDateDisplay = (display: string): string => {
+    const parts = display.split('/');
+    if (parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    }
+    return generateDate;
+  };
 
   const generateProposalMutation = useMutation({
     mutationFn: ({ id, finalProposedIncrementPct, effectiveDate }: { id: number; finalProposedIncrementPct?: number; effectiveDate?: string }) =>
@@ -378,7 +387,8 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                                 e.stopPropagation();
                                 const suggested = a.systemSuggestedIncrementPct ? Number(a.systemSuggestedIncrementPct).toFixed(2) : '0';
                                 setEditedPct(suggested);
-                                setGenerateDate(new Date().toISOString().split('T')[0]);
+                                setGenerateDate(april1OfYear);
+                                setGenerateDateDisplay(`01/04/${new Date().getFullYear()}`);
                                 setGenerateTarget(a);
                               }}
                             >
@@ -483,9 +493,15 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Effective Date</label>
                 <input
-                  type="date"
-                  value={generateDate}
-                  onChange={(e) => setGenerateDate(e.target.value)}
+                  type="text"
+                  placeholder="DD/MM/YYYY"
+                  value={generateDateDisplay}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setGenerateDateDisplay(raw);
+                    const iso = parseDateDisplay(raw);
+                    if (iso) setGenerateDate(iso);
+                  }}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
