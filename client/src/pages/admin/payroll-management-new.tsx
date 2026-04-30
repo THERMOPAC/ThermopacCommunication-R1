@@ -3214,29 +3214,6 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   const activeProposal = incrHistory.find((p: any) => p.status === 'pending' || p.status === 'approved');
   const hasActive = !!activeProposal;
 
-  // Live preview of new salary using existing hook logic
-  const previewBasic = incrPct ? (parseFloat(initialData?.basicSalary || '0') * (1 + parseFloat(incrPct) / 100)).toFixed(2) : '';
-  const previewCalc = useSalaryCalculations(
-    previewBasic
-      ? { basicSalary: previewBasic, salaryType: (initialData?.salaryType || 'monthly') as any,
-          paidDays: String(initialData?.paidDays || 30),
-          workingHoursPerDay: computedWorkHours.toFixed(1),
-          kpiPercent: String(initialData?.kpiPercent || 0), groupInsurance: String(initialData?.groupInsurance || 1500),
-          overtimeHours: String(initialData?.overtimeHours || 0), otRate: String(initialData?.otRate || '1.0') }
-      : {},
-    users.find((u) => u.id === initialData?.userId)?.role
-  );
-  const currentCalc = useSalaryCalculations(
-    initialData
-      ? { basicSalary: initialData.basicSalary, salaryType: (initialData.salaryType || 'monthly') as any,
-          paidDays: String(initialData.paidDays || 30),
-          workingHoursPerDay: computedWorkHours.toFixed(1),
-          kpiPercent: String(initialData.kpiPercent || 0), groupInsurance: String(initialData.groupInsurance || 1500),
-          overtimeHours: String(initialData.overtimeHours || 0), otRate: String(initialData.otRate || '1.0') }
-      : {},
-    users.find((u) => u.id === initialData?.userId)?.role
-  );
-
   // Propose mutation
   const proposeMutation = useMutation({
     mutationFn: async () => {
@@ -3358,6 +3335,29 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   // Mismatch: stored working hours differ from duty-derived hours
   const storedWorkHours = parseFloat(initialData?.workingHoursPerDay || '8');
   const workHoursMismatch = initialData && Math.abs(storedWorkHours - computedWorkHours) > 0.1;
+
+  // Increment tab — live preview (must be AFTER computedWorkHours is available)
+  const previewBasic = incrPct ? (parseFloat(initialData?.basicSalary || '0') * (1 + parseFloat(incrPct) / 100)).toFixed(2) : '';
+  const previewCalc = useSalaryCalculations(
+    previewBasic
+      ? { basicSalary: previewBasic, salaryType: (initialData?.salaryType || 'monthly') as any,
+          paidDays: String(initialData?.paidDays || 30),
+          workingHoursPerDay: computedWorkHours.toFixed(1),
+          kpiPercent: String(initialData?.kpiPercent || 0), groupInsurance: String(initialData?.groupInsurance || 1500),
+          overtimeHours: String(initialData?.overtimeHours || 0), otRate: String(initialData?.otRate || '1.0') }
+      : {},
+    users.find((u) => u.id === initialData?.userId)?.role
+  );
+  const currentCalc = useSalaryCalculations(
+    initialData
+      ? { basicSalary: initialData.basicSalary, salaryType: (initialData.salaryType || 'monthly') as any,
+          paidDays: String(initialData.paidDays || 30),
+          workingHoursPerDay: computedWorkHours.toFixed(1),
+          kpiPercent: String(initialData.kpiPercent || 0), groupInsurance: String(initialData.groupInsurance || 1500),
+          overtimeHours: String(initialData.overtimeHours || 0), otRate: String(initialData.otRate || '1.0') }
+      : {},
+    users.find((u) => u.id === initialData?.userId)?.role
+  );
 
   // Always sync workingHoursPerDay to the duty-derived value whenever user or duty changes
   useEffect(() => {
