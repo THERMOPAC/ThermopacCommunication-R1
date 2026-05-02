@@ -98,6 +98,7 @@ export default function ProductsPage() {
   const [linkingParentProduct, setLinkingParentProduct] = useState<Product | null>(null);
   const [subProductSearch, setSubProductSearch] = useState("");
   const [subProductProp3Filter, setSubProductProp3Filter] = useState<string>("all");
+  const [subProductTagNoFilter, setSubProductTagNoFilter] = useState<string>("all");
   const [recentlyLinkedIds, setRecentlyLinkedIds] = useState<Set<number>>(new Set());
 
   const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
@@ -456,6 +457,7 @@ export default function ProductsPage() {
   const handleOpenAddSubProduct = (parent: Product) => {
     setLinkingParentProduct(parent);
     setSubProductSearch("");
+    setSubProductTagNoFilter("all");
     setIsSubProductPickerOpen(true);
     setExpandedProducts((prev) => new Set([...prev, parent.id]));
   };
@@ -1777,7 +1779,7 @@ export default function ProductsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); setSubProductProp3Filter("all"); setRecentlyLinkedIds(new Set()); } }}>
+        <Dialog open={isSubProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsSubProductPickerOpen(false); setLinkingParentProduct(null); setSubProductSearch(""); setSubProductProp3Filter("all"); setSubProductTagNoFilter("all"); setRecentlyLinkedIds(new Set()); } }}>
           <DialogContent className="max-w-5xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Link Sub-Product</DialogTitle>
@@ -1803,6 +1805,21 @@ export default function ProductsPage() {
                   <SelectContent>
                     <SelectItem value="all">All Property 3</SelectItem>
                     {[...new Set(products.map(p => p.itemProperty3))]
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(v => (
+                        <SelectItem key={v} value={v}>{v}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Select value={subProductTagNoFilter} onValueChange={setSubProductTagNoFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Tag No" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tag Nos</SelectItem>
+                    {[...new Set(products
+                      .filter(p => !!(p as any).tagNo)
+                      .map(p => (p as any).tagNo as string))]
                       .sort((a, b) => a.localeCompare(b))
                       .map(v => (
                         <SelectItem key={v} value={v}>{v}</SelectItem>
