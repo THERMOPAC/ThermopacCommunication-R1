@@ -82,6 +82,7 @@ export default function ProductsPage() {
   const [prop1Filter, setProp1Filter] = useState<string>("all");
   const [prop2Filter, setProp2Filter] = useState<string>("all");
   const [prop3Filter, setProp3Filter] = useState<string>("all");
+  const [tagNoFilter, setTagNoFilter] = useState<string>("all");
   const [hierarchyFilter, setHierarchyFilter] = useState<string>("all");
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isAttributeDialogOpen, setIsAttributeDialogOpen] = useState(false);
@@ -171,7 +172,8 @@ export default function ProductsPage() {
       const matchesProp1 = prop1Filter === "all" || p.itemProperty1 === prop1Filter;
       const matchesProp2 = prop2Filter === "all" || p.itemProperty2 === prop2Filter;
       const matchesProp3 = prop3Filter === "all" || p.itemProperty3 === prop3Filter;
-      return matchesHierarchy && matchesSearch && matchesCode && matchesDescription && matchesCategory && matchesStatus && matchesFamily && matchesProp1 && matchesProp2 && matchesProp3;
+      const matchesTagNo = tagNoFilter === "all" || (p as any).tagNo === tagNoFilter;
+      return matchesHierarchy && matchesSearch && matchesCode && matchesDescription && matchesCategory && matchesStatus && matchesFamily && matchesProp1 && matchesProp2 && matchesProp3 && matchesTagNo;
     }).sort((a, b) => {
       const familyCompare = a.itemFamily.localeCompare(b.itemFamily);
       if (familyCompare !== 0) return familyCompare;
@@ -738,6 +740,26 @@ export default function ProductsPage() {
                       ))}
                   </SelectContent>
                 </Select>
+                <Select value={tagNoFilter} onValueChange={setTagNoFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Tag No" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tag Nos</SelectItem>
+                    {[...new Set(products
+                      .filter((p) => {
+                        if (familyFilter !== "all" && p.itemFamily !== familyFilter) return false;
+                        if (prop1Filter !== "all" && p.itemProperty1 !== prop1Filter) return false;
+                        if (prop2Filter !== "all" && p.itemProperty2 !== prop2Filter) return false;
+                        return !!(p as any).tagNo;
+                      })
+                      .map(p => (p as any).tagNo as string))]
+                      .sort((a, b) => a.localeCompare(b))
+                      .map((val) => (
+                        <SelectItem key={val} value={val}>{val}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -754,7 +776,7 @@ export default function ProductsPage() {
                     <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p className="text-lg font-medium">No products found</p>
                     <p className="text-sm">
-                      {codeFilter || descriptionFilter || categoryFilter !== "all" || statusFilter !== "all" || familyFilter !== "all" || prop1Filter !== "all" || prop2Filter !== "all" || prop3Filter !== "all" || hierarchyFilter !== "all"
+                      {codeFilter || descriptionFilter || categoryFilter !== "all" || statusFilter !== "all" || familyFilter !== "all" || prop1Filter !== "all" || prop2Filter !== "all" || prop3Filter !== "all" || tagNoFilter !== "all" || hierarchyFilter !== "all"
                         ? "Try adjusting your search or filters"
                         : "Get started by adding your first product"}
                     </p>
