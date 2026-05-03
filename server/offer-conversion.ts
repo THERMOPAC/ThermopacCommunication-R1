@@ -108,6 +108,32 @@ export async function validatePreConversion(
   );
   if (itemsResult.rows.length === 0) {
     failures.push({ field: 'items', reason: 'Offer must have at least 1 line item' });
+  } else {
+    const items = itemsResult.rows;
+    const itemIdSet = new Set(items.map((i: any) => i.id));
+    for (const item of items) {
+      if (item.is_sub_item) {
+        if (!item.parent_item_id) {
+          failures.push({
+            field: 'itemHierarchy',
+            reason: `Sub-item "${item.description}" (id=${item.id}) is missing a parent reference.`,
+          });
+        } else if (!itemIdSet.has(item.parent_item_id)) {
+          failures.push({
+            field: 'itemHierarchy',
+            reason: `Sub-item "${item.description}" (id=${item.id}) references parent id=${item.parent_item_id} which does not exist in this offer.`,
+          });
+        } else {
+          const parent = items.find((p: any) => p.id === item.parent_item_id);
+          if (parent?.is_sub_item) {
+            failures.push({
+              field: 'itemHierarchy',
+              reason: `Sub-item "${item.description}" (id=${item.id}) references another sub-item as parent — offers support only one level of nesting.`,
+            });
+          }
+        }
+      }
+    }
   }
 
   const totalAmount = parseFloat(offer.total_amount || '0');
