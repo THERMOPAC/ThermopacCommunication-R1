@@ -1791,6 +1791,14 @@ export const projects = pgTable('projects', {
 
   // MDMT (Minimum Design Metal Temperature)
   mdmt: varchar('mdmt', { length: 20 }),
+
+  // Cost lock / approval workflow
+  costLockStatus: varchar('cost_lock_status', { length: 20 }).default('unlocked'),
+  costLockSubmittedBy: integer('cost_lock_submitted_by').references(() => users.id),
+  costLockSubmittedAt: timestamp('cost_lock_submitted_at'),
+  costLockReviewedBy: integer('cost_lock_reviewed_by').references(() => users.id),
+  costLockReviewedAt: timestamp('cost_lock_reviewed_at'),
+  costLockNote: text('cost_lock_note'),
 });
 
 // Project phases table (Design, Procurement, Manufacturing, Quality)

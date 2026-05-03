@@ -100,6 +100,12 @@ import {
   RefreshCw,
   Snowflake,
   TrendingUp,
+  Clock,
+  Lock,
+  LockOpen,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldOff,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -723,6 +729,77 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     onError: (error: any) => {
       toast({ title: 'Freeze failed', description: error.message, variant: 'destructive' });
     },
+  });
+
+  // Cost Lock workflow
+  const costLockQuery = useQuery({
+    queryKey: [`/api/projects/${projectId}/cost-lock/status`],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/cost-lock/status`);
+      if (!res.ok) throw new Error('Failed to fetch cost lock status');
+      return res.json() as Promise<{
+        status: string;
+        submittedAt: string | null;
+        submittedByName: string | null;
+        reviewedAt: string | null;
+        reviewedByName: string | null;
+        note: string | null;
+      }>;
+    },
+    enabled: !!projectId,
+  });
+
+  const [costLockNote, setCostLockNote] = useState('');
+  const [showCostLockNoteInput, setShowCostLockNoteInput] = useState<'reject' | 'unlock' | null>(null);
+
+  const invalidateLock = () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/cost-lock/status`] });
+  };
+
+  const submitCostLockMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/cost-lock/submit`, { method: 'POST' });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Submit failed'); }
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: 'Submitted for approval', description: 'Cost roll-up is now pending manager approval.' }); invalidateLock(); },
+    onError: (e: any) => toast({ title: 'Submit failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const approveCostLockMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const res = await fetch(`/api/projects/${projectId}/cost-lock/approve`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Approve failed'); }
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: 'Cost approved & locked', description: 'The cost roll-up has been approved. Further freezes are blocked.' }); invalidateLock(); },
+    onError: (e: any) => toast({ title: 'Approve failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const rejectCostLockMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const res = await fetch(`/api/projects/${projectId}/cost-lock/reject`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Reject failed'); }
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: 'Cost rejected', description: 'The cost submission has been rejected. Team can revise and re-submit.' }); invalidateLock(); setShowCostLockNoteInput(null); setCostLockNote(''); },
+    onError: (e: any) => toast({ title: 'Reject failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const unlockCostLockMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const res = await fetch(`/api/projects/${projectId}/cost-lock/unlock`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Unlock failed'); }
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: 'Cost unlocked', description: 'Cost approval has been revoked. Costs can be revised.' }); invalidateLock(); setShowCostLockNoteInput(null); setCostLockNote(''); },
+    onError: (e: any) => toast({ title: 'Unlock failed', description: e.message, variant: 'destructive' }),
   });
   // ────────────────────────────────────────────────────────────────────────────
 
@@ -2194,30 +2271,45 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
                   {/* BOM Cost Roll-up Panel */}
                   <div className="border rounded-md p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
+                    {/* Header row */}
+                    <div className="flex flex-wrap justify-between items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         <h3 className="text-sm font-medium">BOM Cost Roll-up</h3>
                         {costRollupQuery.data && (
                           <Badge variant="secondary" className="text-xs">
-                            Project Total: {new Intl.NumberFormat('en-US', { style: 'currency', currency: project?.currency || 'USD' }).format(costRollupQuery.data.projectTotal)}
+                            Total: {new Intl.NumberFormat('en-US', { style: 'currency', currency: project?.currency || 'USD' }).format(costRollupQuery.data.projectTotal)}
                           </Badge>
                         )}
+                        {/* Freshness badge */}
+                        {costRollupQuery.data && (() => {
+                          const fs = costRollupQuery.data.freshnessStatus as string;
+                          if (fs === 'never_frozen') return (
+                            <Badge variant="outline" className="text-xs gap-1 text-muted-foreground">
+                              <Clock className="h-3 w-3" /> Not frozen
+                            </Badge>
+                          );
+                          if (fs === 'stale') return (
+                            <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+                              <Clock className="h-3 w-3" /> Stale — changes since last freeze
+                            </Badge>
+                          );
+                          return (
+                            <Badge variant="outline" className="text-xs gap-1 text-green-600 border-green-300 bg-green-50 dark:bg-green-950/20">
+                              <ShieldCheck className="h-3 w-3" /> Fresh
+                            </Badge>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setShowCostRollup(true);
-                            costRollupQuery.refetch();
-                          }}
+                          onClick={() => { setShowCostRollup(true); costRollupQuery.refetch(); }}
                           disabled={costRollupQuery.isFetching}
                         >
-                          {costRollupQuery.isFetching
-                            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            : <RefreshCw className="h-4 w-4 mr-2" />}
+                          {costRollupQuery.isFetching ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                           Compute Roll-up
                         </Button>
                         <Button
@@ -2225,11 +2317,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           variant="default"
                           size="sm"
                           onClick={() => freezeCostMutation.mutate()}
-                          disabled={freezeCostMutation.isPending || !costRollupQuery.data}
+                          disabled={freezeCostMutation.isPending || !costRollupQuery.data || costLockQuery.data?.status === 'approved'}
+                          title={costLockQuery.data?.status === 'approved' ? 'Cost is approved-locked. Unlock first.' : undefined}
                         >
-                          {freezeCostMutation.isPending
-                            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            : <Snowflake className="h-4 w-4 mr-2" />}
+                          {freezeCostMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Snowflake className="h-4 w-4 mr-2" />}
                           Recalculate &amp; Freeze
                         </Button>
                       </div>
@@ -2249,6 +2340,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               <TableHead className="text-right">Own Cost</TableHead>
                               <TableHead className="text-right">Rolled-up Cost</TableHead>
                               <TableHead className="text-right">Frozen Cost</TableHead>
+                              <TableHead className="w-6" />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -2274,6 +2366,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                   <TableCell className="text-right text-xs font-mono text-muted-foreground">
                                     {frozenCost !== null ? fmt(frozenCost) : <span className="italic">—</span>}
                                   </TableCell>
+                                  <TableCell className="text-center px-1">
+                                    {ri.isStale
+                                      ? <Clock className="h-3 w-3 text-amber-500" title="Changed since last freeze" />
+                                      : ri.rolledUpAt
+                                        ? <ShieldCheck className="h-3 w-3 text-green-500" title="Up to date" />
+                                        : null}
+                                  </TableCell>
                                 </TableRow>
                               );
                             })}
@@ -2282,7 +2381,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               <TableCell className="text-right text-sm font-mono">
                                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: project?.currency || 'USD' }).format(costRollupQuery.data.projectTotal)}
                               </TableCell>
-                              <TableCell />
+                              <TableCell /><TableCell />
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -2295,6 +2394,107 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         Use "Recalculate &amp; Freeze" to persist the values for approvals and reporting.
                       </p>
                     )}
+
+                    {/* ── Cost Lock / Approval Workflow ── */}
+                    <div className="border-t pt-3 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Lock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Cost Approval</span>
+                          {/* Status badge */}
+                          {(() => {
+                            const s = costLockQuery.data?.status || 'unlocked';
+                            if (s === 'unlocked') return <Badge variant="outline" className="text-xs gap-1 text-muted-foreground"><LockOpen className="h-3 w-3" /> Unlocked</Badge>;
+                            if (s === 'pending_approval') return <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/20"><ShieldAlert className="h-3 w-3" /> Pending Approval</Badge>;
+                            if (s === 'approved') return <Badge variant="outline" className="text-xs gap-1 text-green-600 border-green-300 bg-green-50 dark:bg-green-950/20"><ShieldCheck className="h-3 w-3" /> Approved &amp; Locked</Badge>;
+                            if (s === 'rejected') return <Badge variant="outline" className="text-xs gap-1 text-destructive border-destructive/30 bg-destructive/5"><ShieldOff className="h-3 w-3" /> Rejected</Badge>;
+                            return null;
+                          })()}
+                        </div>
+
+                        {/* Action buttons based on state */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {(costLockQuery.data?.status === 'unlocked' || costLockQuery.data?.status === 'rejected') && (
+                            <Button
+                              type="button" variant="outline" size="sm"
+                              onClick={() => submitCostLockMutation.mutate()}
+                              disabled={submitCostLockMutation.isPending}
+                            >
+                              {submitCostLockMutation.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ShieldAlert className="h-3 w-3 mr-1" />}
+                              Submit for Approval
+                            </Button>
+                          )}
+                          {costLockQuery.data?.status === 'pending_approval' && (
+                            <>
+                              <Button
+                                type="button" variant="default" size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => approveCostLockMutation.mutate('')}
+                                disabled={approveCostLockMutation.isPending}
+                              >
+                                {approveCostLockMutation.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
+                                Approve
+                              </Button>
+                              <Button
+                                type="button" variant="outline" size="sm"
+                                className="border-destructive text-destructive hover:bg-destructive/10"
+                                onClick={() => { setShowCostLockNoteInput('reject'); setCostLockNote(''); }}
+                              >
+                                <ShieldOff className="h-3 w-3 mr-1" /> Reject
+                              </Button>
+                            </>
+                          )}
+                          {costLockQuery.data?.status === 'approved' && (
+                            <Button
+                              type="button" variant="outline" size="sm"
+                              onClick={() => { setShowCostLockNoteInput('unlock'); setCostLockNote(''); }}
+                            >
+                              <LockOpen className="h-3 w-3 mr-1" /> Unlock
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Note input for reject / unlock */}
+                      {showCostLockNoteInput && (
+                        <div className="flex gap-2 items-start mt-1">
+                          <input
+                            className="flex-1 border rounded px-2 py-1 text-xs"
+                            placeholder={showCostLockNoteInput === 'reject' ? 'Reason for rejection (required)' : 'Reason for unlocking (required)'}
+                            value={costLockNote}
+                            onChange={e => setCostLockNote(e.target.value)}
+                          />
+                          <Button
+                            type="button" size="sm" variant={showCostLockNoteInput === 'reject' ? 'destructive' : 'outline'}
+                            disabled={(rejectCostLockMutation.isPending || unlockCostLockMutation.isPending) || !costLockNote.trim()}
+                            onClick={() => {
+                              if (showCostLockNoteInput === 'reject') rejectCostLockMutation.mutate(costLockNote);
+                              else unlockCostLockMutation.mutate(costLockNote);
+                            }}
+                          >
+                            {(rejectCostLockMutation.isPending || unlockCostLockMutation.isPending)
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : showCostLockNoteInput === 'reject' ? 'Confirm Reject' : 'Confirm Unlock'}
+                          </Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => setShowCostLockNoteInput(null)}>Cancel</Button>
+                        </div>
+                      )}
+
+                      {/* Audit trail */}
+                      {costLockQuery.data && costLockQuery.data.status !== 'unlocked' && (
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          {costLockQuery.data.submittedByName && (
+                            <p>Submitted by <strong>{costLockQuery.data.submittedByName}</strong>{costLockQuery.data.submittedAt ? ` on ${new Date(costLockQuery.data.submittedAt).toLocaleString()}` : ''}</p>
+                          )}
+                          {costLockQuery.data.reviewedByName && (
+                            <p>Reviewed by <strong>{costLockQuery.data.reviewedByName}</strong>{costLockQuery.data.reviewedAt ? ` on ${new Date(costLockQuery.data.reviewedAt).toLocaleString()}` : ''}</p>
+                          )}
+                          {costLockQuery.data.note && (
+                            <p className="italic">Note: {costLockQuery.data.note}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Project Items Section */}

@@ -1988,7 +1988,7 @@ export function setupProjectRoutes(app: express.Express) {
     }>;
     projectTotal: number;
   }> {
-    // Load all project items with their approved BOM totals in one query
+    // Load all project items with approved BOM totals + freshness timestamps
     const result = await pool.query(`
       SELECT
         pi.id,
@@ -1998,9 +1998,17 @@ export function setupProjectRoutes(app: express.Express) {
         pi.estimated_cost,
         pi.parent_project_item_id,
         pi.source_bom_header_id,
-        bh.id            AS bom_header_id,
-        bh.status        AS bom_status,
-        bh.total_estimated_cost AS bom_total_cost
+        pi.updated_at            AS item_updated_at,
+        pi.rolled_up_at          AS item_rolled_up_at,
+        bh.id                    AS bom_header_id,
+        bh.status                AS bom_status,
+        bh.total_estimated_cost  AS bom_total_cost,
+        COALESCE(
+          (SELECT MAX(bh2.updated_at)
+           FROM epc_bom_headers bh2
+           WHERE bh2.project_item_id = pi.id AND bh2.is_current = TRUE),
+          pi.updated_at
+        ) AS last_bom_updated_at
       FROM project_items pi
       LEFT JOIN epc_bom_headers bh
         ON bh.project_item_id = pi.id
@@ -2018,9 +2026,12 @@ export function setupProjectRoutes(app: express.Express) {
       estimated_cost: string | null;
       parent_project_item_id: number | null;
       source_bom_header_id: number | null;
+      item_updated_at: Date | null;
+      item_rolled_up_at: Date | null;
       bom_header_id: number | null;
       bom_status: string | null;
       bom_total_cost: string | null;
+      last_bom_updated_at: Date | null;
     }>;
 
     // Build children map
@@ -2089,21 +2100,48 @@ export function setupProjectRoutes(app: express.Express) {
 
     for (const r of rows) rollup(r.id);
 
-    const output = rows.map(r => ({
-      id: r.id,
-      itemCode: r.item_code,
-      description: r.description,
-      ownCost: ownCostOf[r.id].cost,
-      rolledUpCost: rolledUpOf[r.id] ?? 0,
-      costBasis: ownCostOf[r.id].basis,
-      parentProjectItemId: r.parent_project_item_id,
-    }));
+    const output = rows.map(r => {
+      // Freshness: last relevant change is MAX(item.updated_at, latest BOM update)
+      const lastModifiedAt = r.last_bom_updated_at
+        ? (r.item_updated_at && r.item_updated_at > r.last_bom_updated_at
+            ? r.item_updated_at
+            : r.last_bom_updated_at)
+        : r.item_updated_at;
+      const rolledUpAt = r.item_rolled_up_at;
+      const isStale = !rolledUpAt || (lastModifiedAt != null && lastModifiedAt > rolledUpAt);
+
+      return {
+        id: r.id,
+        itemCode: r.item_code,
+        description: r.description,
+        ownCost: ownCostOf[r.id].cost,
+        rolledUpCost: rolledUpOf[r.id] ?? 0,
+        costBasis: ownCostOf[r.id].basis,
+        parentProjectItemId: r.parent_project_item_id,
+        lastModifiedAt: lastModifiedAt?.toISOString() ?? null,
+        rolledUpAt: rolledUpAt?.toISOString() ?? null,
+        isStale,
+      };
+    });
 
     const projectTotal = output
       .filter(i => !i.parentProjectItemId)
       .reduce((sum, i) => sum + i.rolledUpCost, 0);
 
-    return { items: output, projectTotal };
+    // Project-level freshness
+    const allNeverFrozen = output.every(i => !i.rolledUpAt);
+    const anyStale = output.some(i => i.isStale);
+    const freshnessStatus: 'never_frozen' | 'stale' | 'fresh' =
+      allNeverFrozen ? 'never_frozen' : anyStale ? 'stale' : 'fresh';
+    const projectFrozenAt = allNeverFrozen
+      ? null
+      : output.reduce((min: string | null, i) => {
+          if (!i.rolledUpAt) return min;
+          if (!min || i.rolledUpAt < min) return i.rolledUpAt;
+          return min;
+        }, null);
+
+    return { items: output, projectTotal, freshnessStatus, projectFrozenAt };
   }
 
   // GET /api/projects/:projectId/cost-rollup — compute on demand, no DB write
@@ -2125,8 +2163,14 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
-      const project = await pool.query(`SELECT id, status FROM projects WHERE id = $1`, [projectId]);
+      const project = await pool.query(`SELECT id, status, cost_lock_status FROM projects WHERE id = $1`, [projectId]);
       if (project.rows.length === 0) return sendNotFound(res, 'Project not found');
+
+      // Block freeze if cost is approved-locked
+      const lockStatus = (project.rows[0] as any).cost_lock_status || 'unlocked';
+      if (lockStatus === 'approved') {
+        return sendBusinessError(res, 'Cost is approved and locked. Unlock it first before recalculating.');
+      }
 
       const frozen = await guardProjectNotFrozen(projectId, res);
       if (!frozen) return;
@@ -2160,6 +2204,136 @@ export function setupProjectRoutes(app: express.Express) {
         itemCount: rollup.items.length,
         items: rollup.items,
       });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== COST LOCK / APPROVAL WORKFLOW ====================
+
+  // GET /api/projects/:projectId/cost-lock/status
+  app.get('/api/projects/:projectId/cost-lock/status', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const result = await pool.query(`
+        SELECT p.cost_lock_status, p.cost_lock_submitted_at, p.cost_lock_reviewed_at, p.cost_lock_note,
+               us.username AS submitted_by_name, ur.username AS reviewed_by_name
+        FROM projects p
+        LEFT JOIN users us ON us.id = p.cost_lock_submitted_by
+        LEFT JOIN users ur ON ur.id = p.cost_lock_reviewed_by
+        WHERE p.id = $1
+      `, [projectId]);
+      if (result.rows.length === 0) return sendNotFound(res, 'Project not found');
+      const r = result.rows[0] as any;
+      res.json({
+        status: r.cost_lock_status || 'unlocked',
+        submittedAt: r.cost_lock_submitted_at,
+        submittedByName: r.submitted_by_name,
+        reviewedAt: r.cost_lock_reviewed_at,
+        reviewedByName: r.reviewed_by_name,
+        note: r.cost_lock_note,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/cost-lock/submit — submit frozen cost for approval
+  app.post('/api/projects/:projectId/cost-lock/submit', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const project = await pool.query(`SELECT id, status, cost_lock_status FROM projects WHERE id = $1`, [projectId]);
+      if (project.rows.length === 0) return sendNotFound(res, 'Project not found');
+      const lockStatus = (project.rows[0] as any).cost_lock_status || 'unlocked';
+      if (lockStatus !== 'unlocked' && lockStatus !== 'rejected') {
+        return sendBusinessError(res, `Cannot submit: cost lock is currently '${lockStatus}'.`);
+      }
+      // Require at least one frozen item
+      const frozenCheck = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM project_items WHERE project_id = $1 AND rolled_up_cost IS NOT NULL`, [projectId]
+      );
+      if (parseInt((frozenCheck.rows[0] as any).cnt) === 0) {
+        return sendBusinessError(res, 'No frozen costs found. Run "Recalculate & Freeze" first before submitting for approval.');
+      }
+      await pool.query(
+        `UPDATE projects SET cost_lock_status = 'pending_approval', cost_lock_submitted_by = $1, cost_lock_submitted_at = NOW(),
+         cost_lock_reviewed_by = NULL, cost_lock_reviewed_at = NULL, cost_lock_note = NULL, updated_at = NOW()
+         WHERE id = $2`,
+        [userId, projectId]
+      );
+      res.json({ success: true, status: 'pending_approval' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/cost-lock/approve — approve (Manager+)
+  app.post('/api/projects/:projectId/cost-lock/approve', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (!requireMinRole(req, res, 'Manager')) return;
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const project = await pool.query(`SELECT id, cost_lock_status FROM projects WHERE id = $1`, [projectId]);
+      if (project.rows.length === 0) return sendNotFound(res, 'Project not found');
+      if ((project.rows[0] as any).cost_lock_status !== 'pending_approval') {
+        return sendBusinessError(res, 'Cost is not pending approval.');
+      }
+      const { note } = req.body;
+      await pool.query(
+        `UPDATE projects SET cost_lock_status = 'approved', cost_lock_reviewed_by = $1, cost_lock_reviewed_at = NOW(),
+         cost_lock_note = $2, updated_at = NOW() WHERE id = $3`,
+        [userId, note || null, projectId]
+      );
+      res.json({ success: true, status: 'approved' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/cost-lock/reject — reject with note (Manager+)
+  app.post('/api/projects/:projectId/cost-lock/reject', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      if (!requireMinRole(req, res, 'Manager')) return;
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const project = await pool.query(`SELECT id, cost_lock_status FROM projects WHERE id = $1`, [projectId]);
+      if (project.rows.length === 0) return sendNotFound(res, 'Project not found');
+      if ((project.rows[0] as any).cost_lock_status !== 'pending_approval') {
+        return sendBusinessError(res, 'Cost is not pending approval.');
+      }
+      const { note } = req.body;
+      if (!note?.trim()) return sendValidationError(res, 'Rejection note is required.');
+      await pool.query(
+        `UPDATE projects SET cost_lock_status = 'rejected', cost_lock_reviewed_by = $1, cost_lock_reviewed_at = NOW(),
+         cost_lock_note = $2, updated_at = NOW() WHERE id = $3`,
+        [userId, note, projectId]
+      );
+      res.json({ success: true, status: 'rejected' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/cost-lock/unlock — unlock approved cost (Manager+)
+  app.post('/api/projects/:projectId/cost-lock/unlock', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      if (!requireMinRole(req, res, 'Manager')) return;
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const { note } = req.body;
+      if (!note?.trim()) return sendValidationError(res, 'Unlock reason is required.');
+      await pool.query(
+        `UPDATE projects SET cost_lock_status = 'unlocked', cost_lock_note = $1, updated_at = NOW() WHERE id = $2`,
+        [note, projectId]
+      );
+      res.json({ success: true, status: 'unlocked' });
     } catch (error) {
       sendError(res, error);
     }
