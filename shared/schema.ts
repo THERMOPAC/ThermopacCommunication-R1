@@ -1792,6 +1792,18 @@ export const projects = pgTable('projects', {
   // MDMT (Minimum Design Metal Temperature)
   mdmt: varchar('mdmt', { length: 20 }),
 
+  // Commercial / pricing layer
+  sellingCurrency: varchar('selling_currency', { length: 10 }).default('USD'),
+  exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+  exchangeRateFrozenAt: timestamp('exchange_rate_frozen_at'),
+  totalSellingPriceInr: numeric('total_selling_price_inr', { precision: 15, scale: 2 }),
+  totalSellingPrice: numeric('total_selling_price', { precision: 15, scale: 2 }),
+  incoterms: varchar('incoterms', { length: 20 }),
+  paymentTerms: text('payment_terms'),
+  deliveryTerms: text('delivery_terms'),
+  offerValidityDays: integer('offer_validity_days').default(30),
+  defaultMarginPercent: numeric('default_margin_percent', { precision: 6, scale: 2 }),
+
   // Cost lock / approval workflow
   costLockStatus: varchar('cost_lock_status', { length: 20 }).default('unlocked'),
   costLockSubmittedBy: integer('cost_lock_submitted_by').references(() => users.id),
@@ -2043,6 +2055,10 @@ export const projectItems = pgTable('project_items', {
   actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
   rolledUpCost: decimal('rolled_up_cost', { precision: 14, scale: 2 }),
   rolledUpAt: timestamp('rolled_up_at'),
+  marginPercent: numeric('margin_percent', { precision: 6, scale: 2 }),
+  sellingPriceInr: numeric('selling_price_inr', { precision: 15, scale: 2 }),
+  sellingPrice: numeric('selling_price', { precision: 15, scale: 2 }),
+  pricingLockedAt: timestamp('pricing_locked_at'),
   notes: text('notes'),
   
   status: text('status').default('Not Started'),
@@ -10073,6 +10089,36 @@ export const insertOfferItemSchema = createInsertSchema(offerItems).omit({
 
 export type OfferItem = typeof offerItems.$inferSelect;
 export type InsertOfferItem = z.infer<typeof insertOfferItemSchema>;
+
+export const projectCommercialSnapshots = pgTable('project_commercial_snapshots', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  snapshotNumber: text('snapshot_number').notNull(),
+  revision: integer('revision').notNull().default(1),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  sellingCurrency: varchar('selling_currency', { length: 10 }).notNull().default('USD'),
+  exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }).notNull(),
+  totalCostInr: numeric('total_cost_inr', { precision: 15, scale: 2 }).notNull(),
+  totalSellingInr: numeric('total_selling_inr', { precision: 15, scale: 2 }).notNull(),
+  totalSellingForeign: numeric('total_selling_foreign', { precision: 15, scale: 2 }),
+  incoterms: varchar('incoterms', { length: 20 }),
+  paymentTerms: text('payment_terms'),
+  deliveryTerms: text('delivery_terms'),
+  offerValidityDays: integer('offer_validity_days').default(30),
+  notes: text('notes'),
+  itemsSnapshot: jsonb('items_snapshot').notNull().default([]),
+  createdBy: integer('created_by').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertProjectCommercialSnapshotSchema = createInsertSchema(projectCommercialSnapshots).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type ProjectCommercialSnapshot = typeof projectCommercialSnapshots.$inferSelect;
+export type InsertProjectCommercialSnapshot = z.infer<typeof insertProjectCommercialSnapshotSchema>;
 
 export const googleAdsTokens = pgTable('google_ads_tokens', {
   id: serial('id').primaryKey(),

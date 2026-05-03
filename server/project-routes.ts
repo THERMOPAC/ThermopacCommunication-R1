@@ -37,6 +37,7 @@ import {
   customers,
   bomGatingBypassLog,
   projectItems as projectItemsSchema,
+  projectCommercialSnapshots,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -2362,6 +2363,387 @@ export function setupProjectRoutes(app: express.Express) {
         [note, projectId]
       );
       res.json({ success: true, status: 'unlocked' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== COMMERCIAL PRICING LAYER ====================
+
+  // GET /api/projects/:projectId/pricing — get current pricing state (items + project terms)
+  app.get('/api/projects/:projectId/pricing', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const [projResult, itemsResult] = await Promise.all([
+        pool.query(`
+          SELECT id, selling_currency, exchange_rate, exchange_rate_frozen_at,
+                 total_selling_price_inr, total_selling_price,
+                 incoterms, payment_terms, delivery_terms,
+                 offer_validity_days, default_margin_percent, currency,
+                 cost_lock_status
+          FROM projects WHERE id = $1
+        `, [projectId]),
+        pool.query(`
+          SELECT id, item_code, description, quantity,
+                 rolled_up_cost, margin_percent, selling_price_inr, selling_price, pricing_locked_at,
+                 parent_project_item_id
+          FROM project_items WHERE project_id = $1 ORDER BY id
+        `, [projectId]),
+      ]);
+
+      if (projResult.rows.length === 0) return sendNotFound(res, 'Project not found');
+      const proj = projResult.rows[0] as any;
+      const items = itemsResult.rows as any[];
+
+      // Compute totals on the fly
+      const totalSellingInr = items
+        .filter(i => !i.parent_project_item_id)
+        .reduce((sum, i) => sum + parseFloat(i.selling_price_inr || '0'), 0);
+      const exchangeRate = parseFloat(proj.exchange_rate || '0');
+      const totalSellingForeign = exchangeRate > 0 ? totalSellingInr / exchangeRate : null;
+
+      res.json({
+        projectId,
+        sellingCurrency: proj.selling_currency || 'USD',
+        exchangeRate: proj.exchange_rate,
+        exchangeRateFrozenAt: proj.exchange_rate_frozen_at,
+        incoterms: proj.incoterms,
+        paymentTerms: proj.payment_terms,
+        deliveryTerms: proj.delivery_terms,
+        offerValidityDays: proj.offer_validity_days ?? 30,
+        defaultMarginPercent: proj.default_margin_percent,
+        costLockStatus: proj.cost_lock_status || 'unlocked',
+        baseCurrency: proj.currency || 'INR',
+        computedTotals: { totalSellingInr, totalSellingForeign },
+        items: items.map(i => ({
+          id: i.id,
+          itemCode: i.item_code,
+          description: i.description,
+          quantity: i.quantity,
+          rolledUpCost: i.rolled_up_cost,
+          marginPercent: i.margin_percent,
+          sellingPriceInr: i.selling_price_inr,
+          sellingPrice: i.selling_price,
+          pricingLockedAt: i.pricing_locked_at,
+          parentProjectItemId: i.parent_project_item_id,
+        })),
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // PATCH /api/projects/:projectId/pricing/terms — update project-level terms + exchange rate
+  app.patch('/api/projects/:projectId/pricing/terms', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      if (!(await guardCostNotLocked(projectId, res))) return;
+
+      const { sellingCurrency, exchangeRate, incoterms, paymentTerms, deliveryTerms, offerValidityDays, defaultMarginPercent } = req.body;
+
+      const updates: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+
+      if (sellingCurrency !== undefined) { updates.push(`selling_currency = $${idx++}`); params.push(sellingCurrency); }
+      if (exchangeRate !== undefined) {
+        if (isNaN(parseFloat(exchangeRate)) || parseFloat(exchangeRate) <= 0)
+          return sendValidationError(res, 'exchangeRate must be a positive number');
+        updates.push(`exchange_rate = $${idx++}`); params.push(parseFloat(exchangeRate));
+        updates.push(`exchange_rate_frozen_at = NULL`);
+      }
+      if (incoterms !== undefined) { updates.push(`incoterms = $${idx++}`); params.push(incoterms || null); }
+      if (paymentTerms !== undefined) { updates.push(`payment_terms = $${idx++}`); params.push(paymentTerms || null); }
+      if (deliveryTerms !== undefined) { updates.push(`delivery_terms = $${idx++}`); params.push(deliveryTerms || null); }
+      if (offerValidityDays !== undefined) { updates.push(`offer_validity_days = $${idx++}`); params.push(parseInt(offerValidityDays)); }
+      if (defaultMarginPercent !== undefined) { updates.push(`default_margin_percent = $${idx++}`); params.push(parseFloat(defaultMarginPercent) || null); }
+
+      if (updates.length === 0) return sendValidationError(res, 'No fields to update');
+      updates.push(`updated_at = NOW()`);
+      params.push(projectId);
+      await pool.query(`UPDATE projects SET ${updates.join(', ')} WHERE id = $${idx}`, params);
+      res.json({ success: true });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/pricing/exchange-rate/freeze — freeze exchange rate
+  app.post('/api/projects/:projectId/pricing/exchange-rate/freeze', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      if (!(await guardCostNotLocked(projectId, res))) return;
+
+      const check = await pool.query(`SELECT exchange_rate FROM projects WHERE id = $1`, [projectId]);
+      if (check.rows.length === 0) return sendNotFound(res, 'Project not found');
+      if (!check.rows[0].exchange_rate) return sendValidationError(res, 'Set an exchange rate before freezing.');
+
+      await pool.query(`UPDATE projects SET exchange_rate_frozen_at = NOW(), updated_at = NOW() WHERE id = $1`, [projectId]);
+      res.json({ success: true, frozenAt: new Date().toISOString() });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // PATCH /api/projects/:projectId/pricing/items — bulk-update item margins + selling prices
+  app.patch('/api/projects/:projectId/pricing/items', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      if (!(await guardCostNotLocked(projectId, res))) return;
+
+      const { items } = req.body as { items: Array<{ id: number; marginPercent?: number | null }> };
+      if (!Array.isArray(items) || items.length === 0) return sendValidationError(res, 'items array required');
+
+      // Fetch exchange rate
+      const projResult = await pool.query(`SELECT exchange_rate FROM projects WHERE id = $1`, [projectId]);
+      if (projResult.rows.length === 0) return sendNotFound(res, 'Project not found');
+      const exchangeRate = parseFloat(projResult.rows[0].exchange_rate || '0');
+
+      // Fetch rolled-up costs for these items
+      const itemIds = items.map(i => i.id);
+      const costResult = await pool.query(
+        `SELECT id, rolled_up_cost FROM project_items WHERE project_id = $1 AND id = ANY($2::int[])`,
+        [projectId, itemIds]
+      );
+      const costMap: Record<number, number> = {};
+      for (const r of costResult.rows as any[]) costMap[r.id] = parseFloat(r.rolled_up_cost || '0');
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const item of items) {
+          const costInr = costMap[item.id] ?? 0;
+          const margin = item.marginPercent !== null && item.marginPercent !== undefined ? parseFloat(String(item.marginPercent)) : null;
+          let sellingInr: number | null = null;
+          let sellingForeign: number | null = null;
+          if (margin !== null) {
+            sellingInr = costInr * (1 + margin / 100);
+            sellingForeign = exchangeRate > 0 ? sellingInr / exchangeRate : null;
+          }
+          await client.query(
+            `UPDATE project_items
+             SET margin_percent = $1, selling_price_inr = $2, selling_price = $3, updated_at = NOW()
+             WHERE id = $4 AND project_id = $5`,
+            [margin, sellingInr !== null ? sellingInr.toFixed(2) : null,
+             sellingForeign !== null ? sellingForeign.toFixed(2) : null, item.id, projectId]
+          );
+        }
+
+        // Recompute project totals (top-level items only)
+        const totalsResult = await client.query(
+          `SELECT COALESCE(SUM(selling_price_inr),0) AS total_inr FROM project_items WHERE project_id = $1 AND parent_project_item_id IS NULL`,
+          [projectId]
+        );
+        const totalInr = parseFloat((totalsResult.rows[0] as any).total_inr);
+        const totalForeign = exchangeRate > 0 ? totalInr / exchangeRate : null;
+        await client.query(
+          `UPDATE projects SET total_selling_price_inr = $1, total_selling_price = $2, updated_at = NOW() WHERE id = $3`,
+          [totalInr.toFixed(2), totalForeign !== null ? totalForeign.toFixed(2) : null, projectId]
+        );
+
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      res.json({ success: true, projectId });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/pricing/apply-default-margin — apply defaultMarginPercent to all items
+  app.post('/api/projects/:projectId/pricing/apply-default-margin', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      if (!(await guardCostNotLocked(projectId, res))) return;
+
+      const projResult = await pool.query(
+        `SELECT default_margin_percent, exchange_rate FROM projects WHERE id = $1`, [projectId]
+      );
+      if (projResult.rows.length === 0) return sendNotFound(res, 'Project not found');
+      const margin = parseFloat(projResult.rows[0].default_margin_percent || '0');
+      const exchangeRate = parseFloat(projResult.rows[0].exchange_rate || '0');
+      if (!margin) return sendValidationError(res, 'Set a default margin % on the project first.');
+
+      const itemsResult = await pool.query(
+        `SELECT id, rolled_up_cost FROM project_items WHERE project_id = $1`, [projectId]
+      );
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const r of itemsResult.rows as any[]) {
+          const cost = parseFloat(r.rolled_up_cost || '0');
+          const sellingInr = cost * (1 + margin / 100);
+          const sellingForeign = exchangeRate > 0 ? sellingInr / exchangeRate : null;
+          await client.query(
+            `UPDATE project_items SET margin_percent = $1, selling_price_inr = $2, selling_price = $3, updated_at = NOW() WHERE id = $4`,
+            [margin, sellingInr.toFixed(2), sellingForeign !== null ? sellingForeign.toFixed(2) : null, r.id]
+          );
+        }
+        // Recompute totals
+        const totalsResult = await client.query(
+          `SELECT COALESCE(SUM(selling_price_inr),0) AS total_inr FROM project_items WHERE project_id = $1 AND parent_project_item_id IS NULL`,
+          [projectId]
+        );
+        const totalInr = parseFloat((totalsResult.rows[0] as any).total_inr);
+        const totalForeign = exchangeRate > 0 ? totalInr / exchangeRate : null;
+        await client.query(
+          `UPDATE projects SET total_selling_price_inr = $1, total_selling_price = $2, updated_at = NOW() WHERE id = $3`,
+          [totalInr.toFixed(2), totalForeign !== null ? totalForeign.toFixed(2) : null, projectId]
+        );
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+      res.json({ success: true, appliedMargin: margin, itemCount: itemsResult.rows.length });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // GET /api/projects/:projectId/pricing/snapshots — list all commercial snapshots
+  app.get('/api/projects/:projectId/pricing/snapshots', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const result = await pool.query(`
+        SELECT s.*, u.username AS created_by_name, ua.username AS approved_by_name
+        FROM project_commercial_snapshots s
+        LEFT JOIN users u ON u.id = s.created_by
+        LEFT JOIN users ua ON ua.id = s.approved_by
+        WHERE s.project_id = $1
+        ORDER BY s.created_at DESC
+      `, [projectId]);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/pricing/snapshots — create versioned commercial snapshot
+  app.post('/api/projects/:projectId/pricing/snapshots', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      // Require cost to be approved/locked before taking a commercial snapshot
+      const lockCheck = await pool.query(`SELECT cost_lock_status, exchange_rate, selling_currency, incoterms, payment_terms, delivery_terms, offer_validity_days FROM projects WHERE id = $1`, [projectId]);
+      if (lockCheck.rows.length === 0) return sendNotFound(res, 'Project not found');
+      const proj = lockCheck.rows[0] as any;
+      if (proj.cost_lock_status !== 'approved') {
+        return sendBusinessError(res, 'Cost must be approved and locked before creating a commercial snapshot.');
+      }
+      if (!proj.exchange_rate) return sendValidationError(res, 'Set and freeze an exchange rate before creating a snapshot.');
+
+      const exchangeRate = parseFloat(proj.exchange_rate);
+      const sellingCurrency = proj.selling_currency || 'USD';
+
+      // Build items snapshot
+      const itemsResult = await pool.query(`
+        SELECT id, item_code, description, quantity, rolled_up_cost,
+               margin_percent, selling_price_inr, selling_price, parent_project_item_id
+        FROM project_items WHERE project_id = $1 ORDER BY id
+      `, [projectId]);
+      const itemsSnapshot = itemsResult.rows;
+
+      const totalCostInr = itemsSnapshot
+        .filter((i: any) => !i.parent_project_item_id)
+        .reduce((s: number, i: any) => s + parseFloat(i.rolled_up_cost || '0'), 0);
+      const totalSellingInr = itemsSnapshot
+        .filter((i: any) => !i.parent_project_item_id)
+        .reduce((s: number, i: any) => s + parseFloat(i.selling_price_inr || '0'), 0);
+      const totalSellingForeign = exchangeRate > 0 ? totalSellingInr / exchangeRate : null;
+
+      // Generate snapshot number
+      const countResult = await pool.query(`SELECT COUNT(*)+1 AS rev FROM project_commercial_snapshots WHERE project_id = $1`, [projectId]);
+      const revisionNum = parseInt((countResult.rows[0] as any).rev);
+      const snapshotNumber = `CS-${String(projectId).padStart(4,'0')}-R${String(revisionNum).padStart(2,'0')}`;
+
+      const inserted = await pool.query(`
+        INSERT INTO project_commercial_snapshots
+          (project_id, snapshot_number, revision, status, selling_currency, exchange_rate,
+           total_cost_inr, total_selling_inr, total_selling_foreign,
+           incoterms, payment_terms, delivery_terms, offer_validity_days,
+           notes, items_snapshot, created_by)
+        VALUES ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        RETURNING *
+      `, [
+        projectId, snapshotNumber, revisionNum, sellingCurrency, exchangeRate,
+        totalCostInr.toFixed(2), totalSellingInr.toFixed(2),
+        totalSellingForeign !== null ? totalSellingForeign.toFixed(2) : null,
+        proj.incoterms || null, proj.payment_terms || null, proj.delivery_terms || null,
+        proj.offer_validity_days || 30, req.body.notes || null,
+        JSON.stringify(itemsSnapshot), userId,
+      ]);
+
+      res.json(inserted.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // GET /api/projects/:projectId/pricing/snapshots/:snapshotId/price-sheet — price sheet export data
+  app.get('/api/projects/:projectId/pricing/snapshots/:snapshotId/price-sheet', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const snapshotId = parseInt(req.params.snapshotId);
+      if (isNaN(projectId) || isNaN(snapshotId)) return sendValidationError(res, 'Invalid IDs');
+
+      const result = await pool.query(`
+        SELECT s.*, p.name AS project_name, p.code AS project_code,
+               c.company_name AS customer_name,
+               u.username AS created_by_name, ua.username AS approved_by_name
+        FROM project_commercial_snapshots s
+        JOIN projects p ON p.id = s.project_id
+        LEFT JOIN customers c ON c.id = p.customer_id
+        LEFT JOIN users u ON u.id = s.created_by
+        LEFT JOIN users ua ON ua.id = s.approved_by
+        WHERE s.id = $1 AND s.project_id = $2
+      `, [snapshotId, projectId]);
+
+      if (result.rows.length === 0) return sendNotFound(res, 'Snapshot not found');
+      const snap = result.rows[0] as any;
+
+      // Build structured price sheet
+      const priceSheet = {
+        snapshotNumber: snap.snapshot_number,
+        revision: snap.revision,
+        status: snap.status,
+        projectName: snap.project_name,
+        projectCode: snap.project_code,
+        customerName: snap.customer_name,
+        createdByName: snap.created_by_name,
+        approvedByName: snap.approved_by_name,
+        approvedAt: snap.approved_at,
+        createdAt: snap.created_at,
+        sellingCurrency: snap.selling_currency,
+        exchangeRate: snap.exchange_rate,
+        totalCostInr: snap.total_cost_inr,
+        totalSellingInr: snap.total_selling_inr,
+        totalSellingForeign: snap.total_selling_foreign,
+        incoterms: snap.incoterms,
+        paymentTerms: snap.payment_terms,
+        deliveryTerms: snap.delivery_terms,
+        offerValidityDays: snap.offer_validity_days,
+        notes: snap.notes,
+        items: snap.items_snapshot,
+      };
+
+      res.json(priceSheet);
     } catch (error) {
       sendError(res, error);
     }

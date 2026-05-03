@@ -106,6 +106,11 @@ import {
   ShieldCheck,
   ShieldAlert,
   ShieldOff,
+  DollarSign,
+  Percent,
+  Camera,
+  Download,
+  Globe,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -802,6 +807,203 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     onError: (e: any) => toast({ title: 'Unlock failed', description: e.message, variant: 'destructive' }),
   });
   // ────────────────────────────────────────────────────────────────────────────
+
+  // ── PRICING / COMMERCIAL LAYER ──────────────────────────────────────────────
+  const pricingQuery = useQuery({
+    queryKey: [`/api/projects/${projectId}/pricing`],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/pricing`);
+      if (!res.ok) throw new Error('Failed to fetch pricing');
+      return res.json() as Promise<{
+        projectId: number;
+        sellingCurrency: string;
+        exchangeRate: string | null;
+        exchangeRateFrozenAt: string | null;
+        incoterms: string | null;
+        paymentTerms: string | null;
+        deliveryTerms: string | null;
+        offerValidityDays: number;
+        defaultMarginPercent: string | null;
+        costLockStatus: string;
+        baseCurrency: string;
+        computedTotals: { totalSellingInr: number; totalSellingForeign: number | null };
+        items: Array<{
+          id: number; itemCode: string; description: string; quantity: string;
+          rolledUpCost: string | null; marginPercent: string | null;
+          sellingPriceInr: string | null; sellingPrice: string | null;
+          pricingLockedAt: string | null; parentProjectItemId: number | null;
+        }>;
+      }>;
+    },
+    enabled: !!projectId,
+  });
+
+  const snapshotsQuery = useQuery({
+    queryKey: [`/api/projects/${projectId}/pricing/snapshots`],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/pricing/snapshots`);
+      if (!res.ok) throw new Error('Failed to fetch snapshots');
+      return res.json() as Promise<Array<{
+        id: number; snapshot_number: string; revision: number; status: string;
+        selling_currency: string; exchange_rate: string;
+        total_cost_inr: string; total_selling_inr: string; total_selling_foreign: string | null;
+        incoterms: string | null; payment_terms: string | null; delivery_terms: string | null;
+        offer_validity_days: number; notes: string | null;
+        created_by_name: string | null; approved_by_name: string | null;
+        created_at: string; approved_at: string | null;
+      }>>;
+    },
+    enabled: !!projectId,
+  });
+
+  const invalidatePricing = () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/pricing`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/pricing/snapshots`] });
+  };
+
+  // Pricing local state
+  const [pricingTermsForm, setPricingTermsForm] = useState({
+    sellingCurrency: 'USD', exchangeRate: '', incoterms: '',
+    paymentTerms: '', deliveryTerms: '', offerValidityDays: '30', defaultMarginPercent: '',
+  });
+  const [pricingTermsEditing, setPricingTermsEditing] = useState(false);
+  const [itemMargins, setItemMargins] = useState<Record<number, string>>({});
+  const [marginEditDirty, setMarginEditDirty] = useState(false);
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState<number | null>(null);
+  const [snapshotNotes, setSnapshotNotes] = useState('');
+
+  // Sync terms form from query data
+  useEffect(() => {
+    if (pricingQuery.data && !pricingTermsEditing) {
+      const d = pricingQuery.data;
+      setPricingTermsForm({
+        sellingCurrency: d.sellingCurrency || 'USD',
+        exchangeRate: d.exchangeRate || '',
+        incoterms: d.incoterms || '',
+        paymentTerms: d.paymentTerms || '',
+        deliveryTerms: d.deliveryTerms || '',
+        offerValidityDays: String(d.offerValidityDays ?? 30),
+        defaultMarginPercent: d.defaultMarginPercent || '',
+      });
+    }
+  }, [pricingQuery.data, pricingTermsEditing]);
+
+  // Sync item margins from query data
+  useEffect(() => {
+    if (pricingQuery.data && !marginEditDirty) {
+      const m: Record<number, string> = {};
+      for (const item of pricingQuery.data.items) m[item.id] = item.marginPercent || '';
+      setItemMargins(m);
+    }
+  }, [pricingQuery.data, marginEditDirty]);
+
+  const saveTermsMutation = useMutation({
+    mutationFn: async (data: typeof pricingTermsForm) => {
+      const res = await apiRequest('PATCH', `/api/projects/${projectId}/pricing/terms`, {
+        sellingCurrency: data.sellingCurrency,
+        exchangeRate: data.exchangeRate ? parseFloat(data.exchangeRate) : undefined,
+        incoterms: data.incoterms || null,
+        paymentTerms: data.paymentTerms || null,
+        deliveryTerms: data.deliveryTerms || null,
+        offerValidityDays: parseInt(data.offerValidityDays) || 30,
+        defaultMarginPercent: data.defaultMarginPercent ? parseFloat(data.defaultMarginPercent) : null,
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Save failed'); }
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: 'Terms saved' }); setPricingTermsEditing(false); invalidatePricing(); },
+    onError: (e: any) => toast({ title: 'Save failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const freezeExchangeRateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/projects/${projectId}/pricing/exchange-rate/freeze`, {});
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Freeze failed'); }
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: 'Exchange rate frozen' }); invalidatePricing(); },
+    onError: (e: any) => toast({ title: 'Freeze failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const saveItemMarginsMutation = useMutation({
+    mutationFn: async (margins: Record<number, string>) => {
+      const items = Object.entries(margins).map(([id, m]) => ({
+        id: parseInt(id),
+        marginPercent: m !== '' ? parseFloat(m) : null,
+      }));
+      const res = await apiRequest('PATCH', `/api/projects/${projectId}/pricing/items`, { items });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Save failed'); }
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: 'Pricing updated' }); setMarginEditDirty(false); invalidatePricing(); },
+    onError: (e: any) => toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const applyDefaultMarginMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/projects/${projectId}/pricing/apply-default-margin`, {});
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Apply failed'); }
+      return res.json();
+    },
+    onSuccess: (d: any) => {
+      toast({ title: 'Default margin applied', description: `${d.appliedMargin}% applied to ${d.itemCount} items` });
+      setMarginEditDirty(false); invalidatePricing();
+    },
+    onError: (e: any) => toast({ title: 'Apply failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const createSnapshotMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      const res = await apiRequest('POST', `/api/projects/${projectId}/pricing/snapshots`, { notes });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Snapshot failed'); }
+      return res.json();
+    },
+    onSuccess: (d: any) => {
+      toast({ title: 'Snapshot created', description: `${d.snapshot_number} saved successfully` });
+      setSnapshotNotes(''); invalidatePricing();
+    },
+    onError: (e: any) => toast({ title: 'Snapshot failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const downloadPriceSheet = async (snapshotId: number, snapshotNumber: string) => {
+    const res = await fetch(`/api/projects/${projectId}/pricing/snapshots/${snapshotId}/price-sheet`);
+    if (!res.ok) { toast({ title: 'Export failed', variant: 'destructive' }); return; }
+    const data = await res.json();
+    // Build CSV
+    const rows: string[] = [];
+    rows.push(`"THERMOPAC — COMMERCIAL PRICE SHEET"`);
+    rows.push(`"Snapshot","${data.snapshotNumber}","Revision","${data.revision}","Status","${data.status}"`);
+    rows.push(`"Project","${data.projectName}","Code","${data.projectCode}"`);
+    rows.push(`"Customer","${data.customerName || ''}","Date","${new Date(data.createdAt).toLocaleDateString()}"`);
+    rows.push(`"Currency","${data.sellingCurrency}","Exchange Rate","${data.exchangeRate}"`);
+    rows.push(`"Incoterms","${data.incoterms || ''}","Validity (days)","${data.offerValidityDays || ''}"`);
+    rows.push(`"Payment Terms","${data.paymentTerms || ''}"`);
+    rows.push(`"Delivery Terms","${data.deliveryTerms || ''}"`);
+    rows.push('');
+    rows.push('"#","Item Code","Description","Qty","Cost (INR)","Margin %","Selling Price (INR)","Selling Price (FC)"');
+    const items: any[] = data.items || [];
+    items.forEach((item: any, idx: number) => {
+      rows.push([
+        idx + 1,
+        `"${item.item_code || ''}"`,
+        `"${(item.description || '').replace(/"/g, '""')}"`,
+        item.quantity || '',
+        item.rolled_up_cost || '',
+        item.margin_percent || '',
+        item.selling_price_inr || '',
+        item.selling_price || '',
+      ].join(','));
+    });
+    rows.push('');
+    rows.push(`"Total Cost (INR)","${data.totalCostInr}","Total Selling (INR)","${data.totalSellingInr}","Total Selling (FC)","${data.totalSellingForeign || ''}"`);
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${snapshotNumber}-price-sheet.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  // ── END PRICING ─────────────────────────────────────────────────────────────
 
   // Mutation for updating a project item's parent (hierarchy)
   const setParentMutation = useMutation({
@@ -3045,6 +3247,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="document-control">Document Control</TabsTrigger>
             <TabsTrigger value="commercial">Commercial</TabsTrigger>
+            <TabsTrigger value="pricing" className="flex items-center gap-1">
+              <DollarSign className="h-3.5 w-3.5" />Pricing
+            </TabsTrigger>
             <TabsTrigger value="execution-drafts">Execution Drafts</TabsTrigger>
           </TabsList>
           
@@ -3588,6 +3793,388 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               <CommercialChangesTab projectId={parseInt(id)} />
             </Suspense>
           </TabsContent>
+
+          {/* ═══════════════════ PRICING TAB ═══════════════════ */}
+          <TabsContent value="pricing" className="space-y-4">
+            {pricingQuery.isLoading ? (
+              <Card><CardContent className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></CardContent></Card>
+            ) : pricingQuery.isError ? (
+              <Card><CardContent className="p-6 text-center text-destructive text-sm">Failed to load pricing data.</CardContent></Card>
+            ) : (() => {
+              const pd = pricingQuery.data!;
+              const isLocked = pd.costLockStatus === 'approved';
+              const fmtInr = (v: number | string | null | undefined) =>
+                v === null || v === undefined ? '—' :
+                new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(parseFloat(String(v)));
+              const fmtFc = (v: number | string | null | undefined) =>
+                v === null || v === undefined ? '—' :
+                new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(parseFloat(String(v)));
+
+              return (
+                <div className="space-y-5">
+                  {/* Cost Lock gate banner */}
+                  {!isLocked && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>Pricing is editable only after costs are <strong>approved &amp; locked</strong>. Margins can be entered now but selling prices will be computed once cost approval is in place.</span>
+                    </div>
+                  )}
+
+                  {/* ── SECTION 1: Commercial Terms ─────────────────── */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          Commercial Terms
+                        </CardTitle>
+                        {!pricingTermsEditing ? (
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPricingTermsEditing(true)}>
+                            <Edit className="h-3 w-3 mr-1" />Edit
+                          </Button>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setPricingTermsEditing(false); }}>Cancel</Button>
+                            <Button size="sm" className="h-7 text-xs" disabled={saveTermsMutation.isPending}
+                              onClick={() => saveTermsMutation.mutate(pricingTermsForm)}>
+                              {saveTermsMutation.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}Save
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {/* Selling Currency */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Selling Currency</label>
+                          {pricingTermsEditing ? (
+                            <select className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm"
+                              value={pricingTermsForm.sellingCurrency}
+                              onChange={e => setPricingTermsForm(f => ({ ...f, sellingCurrency: e.target.value }))}>
+                              {['USD','EUR','GBP','AED','SAR','QAR','KWD','OMR','SGD','JPY','INR'].map(c =>
+                                <option key={c} value={c}>{c}</option>
+                              )}
+                            </select>
+                          ) : (
+                            <p className="text-sm font-medium">{pd.sellingCurrency || 'USD'}</p>
+                          )}
+                        </div>
+
+                        {/* Exchange Rate */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Exchange Rate (INR per unit)</label>
+                          {pricingTermsEditing ? (
+                            <Input className="h-8 text-sm" type="number" step="0.0001" placeholder="e.g. 83.50"
+                              value={pricingTermsForm.exchangeRate}
+                              onChange={e => setPricingTermsForm(f => ({ ...f, exchangeRate: e.target.value }))} />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">{pd.exchangeRate ? `1 ${pd.sellingCurrency} = ₹${parseFloat(pd.exchangeRate).toFixed(4)}` : '—'}</p>
+                              {pd.exchangeRateFrozenAt ? (
+                                <Badge variant="outline" className="text-xs gap-1 text-green-600 border-green-300 bg-green-50">
+                                  <Snowflake className="h-3 w-3" />Frozen
+                                </Badge>
+                              ) : pd.exchangeRate ? (
+                                <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-300 bg-amber-50">
+                                  <Clock className="h-3 w-3" />Not frozen
+                                </Badge>
+                              ) : null}
+                            </div>
+                          )}
+                          {!pricingTermsEditing && pd.exchangeRate && !pd.exchangeRateFrozenAt && (
+                            <Button size="sm" variant="outline" className="h-6 text-xs mt-1" disabled={freezeExchangeRateMutation.isPending}
+                              onClick={() => freezeExchangeRateMutation.mutate()}>
+                              {freezeExchangeRateMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Snowflake className="h-3 w-3 mr-1" />}
+                              Freeze Rate
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Default Margin % */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Default Margin %</label>
+                          {pricingTermsEditing ? (
+                            <Input className="h-8 text-sm" type="number" step="0.01" placeholder="e.g. 15"
+                              value={pricingTermsForm.defaultMarginPercent}
+                              onChange={e => setPricingTermsForm(f => ({ ...f, defaultMarginPercent: e.target.value }))} />
+                          ) : (
+                            <p className="text-sm font-medium">{pd.defaultMarginPercent ? `${parseFloat(pd.defaultMarginPercent).toFixed(2)}%` : '—'}</p>
+                          )}
+                        </div>
+
+                        {/* Incoterms */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Incoterms</label>
+                          {pricingTermsEditing ? (
+                            <select className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm"
+                              value={pricingTermsForm.incoterms}
+                              onChange={e => setPricingTermsForm(f => ({ ...f, incoterms: e.target.value }))}>
+                              <option value="">— Select —</option>
+                              {['EXW','FCA','FAS','FOB','CFR','CIF','CPT','CIP','DAP','DPU','DDP'].map(t =>
+                                <option key={t} value={t}>{t}</option>
+                              )}
+                            </select>
+                          ) : (
+                            <p className="text-sm font-medium">{pd.incoterms || '—'}</p>
+                          )}
+                        </div>
+
+                        {/* Offer Validity */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Offer Validity (days)</label>
+                          {pricingTermsEditing ? (
+                            <Input className="h-8 text-sm" type="number" min={1}
+                              value={pricingTermsForm.offerValidityDays}
+                              onChange={e => setPricingTermsForm(f => ({ ...f, offerValidityDays: e.target.value }))} />
+                          ) : (
+                            <p className="text-sm font-medium">{pd.offerValidityDays} days</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Payment & Delivery Terms */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Payment Terms</label>
+                          {pricingTermsEditing ? (
+                            <Textarea className="text-sm min-h-[64px]" placeholder="e.g. 30% advance, 70% against delivery"
+                              value={pricingTermsForm.paymentTerms}
+                              onChange={e => setPricingTermsForm(f => ({ ...f, paymentTerms: e.target.value }))} />
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{pd.paymentTerms || <span className="text-muted-foreground italic">—</span>}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Delivery Terms</label>
+                          {pricingTermsEditing ? (
+                            <Textarea className="text-sm min-h-[64px]" placeholder="e.g. 12 weeks from order confirmation"
+                              value={pricingTermsForm.deliveryTerms}
+                              onChange={e => setPricingTermsForm(f => ({ ...f, deliveryTerms: e.target.value }))} />
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{pd.deliveryTerms || <span className="text-muted-foreground italic">—</span>}</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* ── SECTION 2: Item-Level Pricing Table ─────────── */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Percent className="h-4 w-4 text-muted-foreground" />
+                          Item Margins &amp; Selling Prices
+                        </CardTitle>
+                        <div className="flex gap-2 flex-wrap">
+                          {pd.defaultMarginPercent && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs"
+                              disabled={applyDefaultMarginMutation.isPending}
+                              onClick={() => applyDefaultMarginMutation.mutate()}>
+                              {applyDefaultMarginMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <TrendingUp className="h-3 w-3 mr-1" />}
+                              Apply {parseFloat(pd.defaultMarginPercent).toFixed(1)}% to All
+                            </Button>
+                          )}
+                          {marginEditDirty && (
+                            <Button size="sm" className="h-7 text-xs"
+                              disabled={saveItemMarginsMutation.isPending}
+                              onClick={() => saveItemMarginsMutation.mutate(itemMargins)}>
+                              {saveItemMarginsMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                              Save Margins
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="text-xs">
+                              <TableHead className="min-w-[140px]">Item Code</TableHead>
+                              <TableHead className="min-w-[220px]">Description</TableHead>
+                              <TableHead className="text-right">Qty</TableHead>
+                              <TableHead className="text-right">Cost (INR)</TableHead>
+                              <TableHead className="text-right w-[110px]">Margin %</TableHead>
+                              <TableHead className="text-right">Selling (INR)</TableHead>
+                              <TableHead className="text-right">Selling ({pd.sellingCurrency})</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {pd.items.map(item => {
+                              const indent = item.parentProjectItemId ? 'pl-6 text-muted-foreground' : '';
+                              const marginVal = itemMargins[item.id] ?? '';
+                              const cost = parseFloat(item.rolledUpCost || '0');
+                              const margin = marginVal !== '' ? parseFloat(marginVal) : null;
+                              const sellingInr = (margin !== null && !isNaN(margin)) ? cost * (1 + margin / 100) : null;
+                              const er = parseFloat(pd.exchangeRate || '0');
+                              const sellingFc = sellingInr !== null && er > 0 ? sellingInr / er : null;
+                              return (
+                                <TableRow key={item.id} className="text-xs">
+                                  <TableCell className={`font-mono ${indent}`}>{item.itemCode}</TableCell>
+                                  <TableCell className={`max-w-[220px] truncate ${indent}`} title={item.description}>{item.description}</TableCell>
+                                  <TableCell className="text-right">{parseFloat(item.quantity || '1').toFixed(2)}</TableCell>
+                                  <TableCell className="text-right font-mono">{fmtInr(item.rolledUpCost)}</TableCell>
+                                  <TableCell className="text-right">
+                                    <Input
+                                      type="number" step="0.01" min={0} max={999}
+                                      className="h-6 w-[80px] text-xs text-right p-1"
+                                      value={marginVal}
+                                      placeholder="0.00"
+                                      onChange={e => {
+                                        setItemMargins(m => ({ ...m, [item.id]: e.target.value }));
+                                        setMarginEditDirty(true);
+                                      }}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {sellingInr !== null ? fmtInr(sellingInr) : <span className="text-muted-foreground">—</span>}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {sellingFc !== null ? fmtFc(sellingFc) : <span className="text-muted-foreground">—</span>}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Project Totals Footer */}
+                      {pd.items.length > 0 && (() => {
+                        const topItems = pd.items.filter(i => !i.parentProjectItemId);
+                        const er = parseFloat(pd.exchangeRate || '0');
+                        const liveSellingInr = topItems.reduce((sum, item) => {
+                          const m = itemMargins[item.id];
+                          if (m === '' || m === undefined) return sum + parseFloat(item.sellingPriceInr || '0');
+                          const margin = parseFloat(m);
+                          if (isNaN(margin)) return sum;
+                          return sum + parseFloat(item.rolledUpCost || '0') * (1 + margin / 100);
+                        }, 0);
+                        const liveSellingFc = er > 0 ? liveSellingInr / er : null;
+                        const totalCostInr = topItems.reduce((s, i) => s + parseFloat(i.rolledUpCost || '0'), 0);
+                        const blendedMargin = totalCostInr > 0 ? ((liveSellingInr - totalCostInr) / totalCostInr) * 100 : null;
+                        return (
+                          <div className="border-t px-4 py-3 bg-muted/30 grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Cost (INR)</p>
+                              <p className="text-sm font-semibold font-mono">{fmtInr(totalCostInr)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Selling (INR)</p>
+                              <p className="text-sm font-semibold font-mono text-emerald-700 dark:text-emerald-400">{fmtInr(liveSellingInr)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Selling ({pd.sellingCurrency})</p>
+                              <p className="text-sm font-semibold font-mono">{liveSellingFc !== null ? fmtFc(liveSellingFc) : '—'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Blended Margin</p>
+                              <p className={`text-sm font-semibold ${blendedMargin !== null && blendedMargin < 0 ? 'text-destructive' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                                {blendedMargin !== null ? `${blendedMargin.toFixed(2)}%` : '—'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+
+                  {/* ── SECTION 3: Commercial Snapshots ─────────────── */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Camera className="h-4 w-4 text-muted-foreground" />
+                          Commercial Snapshots
+                          {snapshotsQuery.data && snapshotsQuery.data.length > 0 && (
+                            <Badge variant="secondary" className="text-xs">{snapshotsQuery.data.length}</Badge>
+                          )}
+                        </CardTitle>
+                        {isLocked && (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              className="h-7 text-xs w-56" placeholder="Optional notes for snapshot…"
+                              value={snapshotNotes}
+                              onChange={e => setSnapshotNotes(e.target.value)}
+                            />
+                            <Button size="sm" className="h-7 text-xs"
+                              disabled={createSnapshotMutation.isPending}
+                              onClick={() => createSnapshotMutation.mutate(snapshotNotes)}>
+                              {createSnapshotMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Camera className="h-3 w-3 mr-1" />}
+                              Take Snapshot
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      {!isLocked && (
+                        <p className="text-xs text-muted-foreground mt-1">Snapshots can only be created once costs are approved &amp; locked.</p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {snapshotsQuery.isLoading ? (
+                        <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></div>
+                      ) : !snapshotsQuery.data || snapshotsQuery.data.length === 0 ? (
+                        <div className="p-6 text-center text-sm text-muted-foreground italic">No snapshots yet.</div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="text-xs">
+                              <TableHead>Snapshot #</TableHead>
+                              <TableHead>Rev</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Currency</TableHead>
+                              <TableHead className="text-right">Total Cost (INR)</TableHead>
+                              <TableHead className="text-right">Total Selling (INR)</TableHead>
+                              <TableHead className="text-right">Total Selling (FC)</TableHead>
+                              <TableHead>Created By</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {snapshotsQuery.data.map(snap => (
+                              <TableRow key={snap.id} className="text-xs">
+                                <TableCell className="font-mono font-semibold">{snap.snapshot_number}</TableCell>
+                                <TableCell>R{snap.revision}</TableCell>
+                                <TableCell>
+                                  <Badge variant={snap.status === 'approved' ? 'default' : 'outline'}
+                                    className={`text-xs ${snap.status === 'approved' ? 'bg-green-100 text-green-700 border-green-300' : ''}`}>
+                                    {snap.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{snap.selling_currency}</TableCell>
+                                <TableCell className="text-right font-mono">{fmtInr(snap.total_cost_inr)}</TableCell>
+                                <TableCell className="text-right font-mono text-emerald-700 dark:text-emerald-400">{fmtInr(snap.total_selling_inr)}</TableCell>
+                                <TableCell className="text-right font-mono">{snap.total_selling_foreign ? fmtFc(snap.total_selling_foreign) : '—'}</TableCell>
+                                <TableCell>{snap.created_by_name || '—'}</TableCell>
+                                <TableCell>{snap.created_at ? format(new Date(snap.created_at), 'dd MMM yy') : '—'}</TableCell>
+                                <TableCell className="text-right">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                                          onClick={() => downloadPriceSheet(snap.id, snap.snapshot_number)}>
+                                          <Download className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Export Price Sheet (CSV)</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+          </TabsContent>
+          {/* ═══════════════════════════════════════════════════════════ */}
 
           <TabsContent value="execution-drafts" className="space-y-4">
             <Suspense fallback={<Card><CardContent className="p-8 text-center"><div className="animate-pulse text-sm text-muted-foreground">Loading...</div></CardContent></Card>}>
