@@ -1110,349 +1110,442 @@ export function OffersContent() {
 
         {/* CREATE/EDIT OFFER DIALOG */}
         <Dialog open={isFormOpen} onOpenChange={(open) => { if (!open) resetAndClose(); }}>
-          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingOffer ? `Edit Offer ${editingOffer.offerNumber}` : "Create New Offer"}</DialogTitle>
-              <DialogDescription>
-                {editingOffer ? "Update the offer details and line items" : "Fill in customer details and add products to create an offer"}
-              </DialogDescription>
-            </DialogHeader>
+          <DialogContent className="max-w-7xl h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
+
+            {/* ── Styled Header ── */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b bg-gradient-to-r from-slate-50 to-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <FileText className="h-4.5 w-4.5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold leading-tight">
+                    {editingOffer ? `Edit Offer — ${editingOffer.offerNumber}` : "Create New Offer"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {editingOffer ? "Update details and line items below" : "Fill in customer details and add line items"}
+                  </p>
+                </div>
+              </div>
+              {editingOffer && (
+                <Badge variant="outline" className="text-xs capitalize shrink-0">{editingOffer.status}</Badge>
+              )}
+            </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-                <div className="rounded-lg border p-2 px-3 space-y-1">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer Details</h3>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <Label className="text-xs">Select Customer</Label>
-                      <Select onValueChange={handleSelectCustomer}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Search customer..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((c: any) => (
-                            <SelectItem key={c.id} value={c.id.toString()}>
-                              {c.bpCode} - {c.bpName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+
+                {/* ── Scrollable Body ── */}
+                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
+                  {/* Customer Details Card */}
+                  <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-slate-50/70">
+                      <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                      <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Customer Details</h3>
                     </div>
-                    <FormField control={form.control} name="customerName" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer Name *</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="contactPerson" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="customerEmail" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl><Input {...field} type="email" /></FormControl>
-                      </FormItem>
-                    )} />
-                  </div>
-                  <FormField control={form.control} name="customerAddress" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl><Textarea {...field} rows={1} /></FormControl>
-                    </FormItem>
-                  )} />
-                </div>
-
-                <div className="rounded-lg border p-2 px-3 space-y-1">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Offer Details</h3>
-                  <div className="grid grid-cols-[2fr_1fr] gap-2">
-                    <FormField control={form.control} name="subject" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Subject *</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {(offerSubjects.length > 0 ? offerSubjects : [
-                              "Used Engine Oil Refinery Fully Automated PLC SCADA Control",
-                              "Continuous Polishing System By Regenerative Adsorption",
-                              "Spares for Refinery Equipment",
-                            ]).map(s => (
-                              <SelectItem key={s} value={s}>{s}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="language" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Language *</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="English">English</SelectItem>
-                            <SelectItem value="Spanish">Spanish</SelectItem>
-                            <SelectItem value="French">French</SelectItem>
-                            <SelectItem value="Arabic">Arabic</SelectItem>
-                            <SelectItem value="Portuguese">Portuguese</SelectItem>
-                            <SelectItem value="Russian">Russian</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  </div>
-                  <div className="grid grid-cols-[80px_130px_1fr_1fr] gap-2">
-                    <FormField control={form.control} name="currency" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Currency *</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                            <SelectItem value="GBP">GBP</SelectItem>
-                            <SelectItem value="INR">INR</SelectItem>
-                            <SelectItem value="AED">AED</SelectItem>
-                            <SelectItem value="SAR">SAR</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="validUntil" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valid Until</FormLabel>
-                        <FormControl><Input {...field} type="date" /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="paymentTerms" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Terms</FormLabel>
-                        <Select value={field.value || ""} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select terms" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="40% Advance with PO, 60% against readiness">40% Advance with PO, 60% against readiness</SelectItem>
-                            <SelectItem value="50% Advance with PO, 50% against readiness">50% Advance with PO, 50% against readiness</SelectItem>
-                            <SelectItem value="100% Advance with PO">100% Advance with PO</SelectItem>
-                            <SelectItem value="Net 30 days">Net 30 days</SelectItem>
-                            <SelectItem value="Net 60 days">Net 60 days</SelectItem>
-                            <SelectItem value="LC at Sight">LC at Sight</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Terms</FormLabel>
-                        <Select value={field.value || ""} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
-                            <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
-                            <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
-                            <SelectItem value="DDP Destination">DDP Destination</SelectItem>
-                            <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                  </div>
-                </div>
-
-                <div className="rounded-lg border p-1 px-0 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Line Items</h3>
-                    <div className="flex gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => { setProductPickerSearch(""); setIsProductPickerOpen(true); }}>
-                        <Package className="mr-1 h-3 w-3" /> Add from Products
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={handleAddBlankItem}>
-                        <Plus className="mr-1 h-3 w-3" /> Custom Item
-                      </Button>
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-4 gap-3">
+                        <div>
+                          <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Select Customer</Label>
+                          <Select onValueChange={handleSelectCustomer}>
+                            <SelectTrigger className="h-9 text-sm">
+                              <SelectValue placeholder="Search customer..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {customers.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id.toString()}>
+                                  {c.bpCode} - {c.bpName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <FormField control={form.control} name="customerName" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Customer Name *</FormLabel>
+                            <FormControl><Input {...field} className="h-9 text-sm" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="contactPerson" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Contact Person</FormLabel>
+                            <FormControl><Input {...field} className="h-9 text-sm" /></FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="customerEmail" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Email</FormLabel>
+                            <FormControl><Input {...field} type="email" className="h-9 text-sm" /></FormControl>
+                          </FormItem>
+                        )} />
+                      </div>
+                      <FormField control={form.control} name="customerAddress" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium text-slate-600">Address</FormLabel>
+                          <FormControl><Textarea {...field} rows={1} className="text-sm resize-none" /></FormControl>
+                        </FormItem>
+                      )} />
                     </div>
                   </div>
 
-                  {fields.length === 0 ? (
-                    <div className="border rounded-md p-3 text-center text-muted-foreground text-sm">
-                      <p>No items added yet. Add from Products or Custom Item.</p>
+                  {/* Offer Details Card */}
+                  <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-slate-50/70">
+                      <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" />
+                      <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Offer Details</h3>
                     </div>
-                  ) : (
-                    <div className="border rounded-md overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[30px] px-0 py-1 h-8">#</TableHead>
-                            <TableHead className="px-0 py-1 h-8">Description</TableHead>
-                            <TableHead className="w-[60px] px-1 py-1 h-8">Unit</TableHead>
-                            <TableHead className="w-[80px] px-1 py-1 h-8">Qty</TableHead>
-                            <TableHead className="w-[100px] px-1 py-1 h-8">Unit Price</TableHead>
-                            <TableHead className="w-[55px] px-1 py-1 h-8">Disc %</TableHead>
-                            <TableHead className="w-[100px] px-0 py-1 h-8 text-right">Line Total</TableHead>
-                            <TableHead className="w-[30px] px-0 py-1 h-8"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {fields.map((field, index) => {
-                            const item = watchItems?.[index];
-                            const isSubItem = item?.isSubItem || false;
-                            const qty = parseFloat(item?.quantity || "0");
-                            const price = parseFloat(item?.unitPrice || "0");
-                            const disc = parseFloat(item?.discountPercent || "0");
-                            const lineTotal = qty * price * (1 - disc / 100);
-                            const hasChildren = !isSubItem && (watchItems || []).some(wi => wi.isSubItem && wi.parentTempKey === item?.tempKey);
-                            return (
-                              <TableRow key={field.id} className={isSubItem ? "bg-muted/30" : ""}>
-                                <TableCell className="text-muted-foreground px-0 py-0.5">
-                                  {isSubItem ? (
-                                    <span className="text-muted-foreground ml-1">└</span>
-                                  ) : (
-                                    index + 1 - (watchItems || []).slice(0, index).filter(wi => wi.isSubItem).length
-                                  )}
-                                </TableCell>
-                                <TableCell className="px-0 py-0.5">
-                                  <Input
-                                    value={item?.description || ""}
-                                    onChange={(e) => form.setValue(`items.${index}.description`, e.target.value, { shouldDirty: true })}
-                                    className={`h-7 text-sm pl-0 ${isSubItem ? "!pl-6" : "text-blue-600 font-medium"}`}
-                                    placeholder="Item description"
-                                  />
-                                  <div className="flex items-center gap-1">
-                                    {item?.productCode && (
-                                      <span className="text-[10px] text-muted-foreground font-mono">{item.productCode}</span>
-                                    )}
-                                    {hasChildren && (
-                                      <Badge variant="outline" className="text-[10px] h-3.5 gap-0.5 px-1">
-                                        <GitBranch className="h-2 w-2" /> breakdown
-                                      </Badge>
-                                    )}
-                                    {isSubItem && (
-                                      <Badge variant="secondary" className="text-[10px] h-3.5 px-1">sub-item</Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="px-1 py-0.5">
-                                  <select
-                                    {...form.register(`items.${index}.unit`)}
-                                    className="h-7 w-full text-xs border rounded pl-0 px-0 py-0"
-                                  >
-                                    {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
-                                  </select>
-                                </TableCell>
-                                <TableCell className="px-1 py-0.5">
-                                  <Input
-                                    value={item?.quantity ? parseFloat(item.quantity).toFixed(2) : ""}
-                                    onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
-                                    onBlur={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) form.setValue(`items.${index}.quantity`, v.toFixed(2), { shouldDirty: true }); }}
-                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
-                                  />
-                                </TableCell>
-                                <TableCell className="px-1 py-0.5">
-                                  <Input
-                                    value={item?.unitPrice || ""}
-                                    onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
-                                  />
-                                </TableCell>
-                                <TableCell className="px-1 py-0.5">
-                                  <Input
-                                    value={item?.discountPercent || ""}
-                                    onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true })}
-                                    className="h-7 text-xs text-right pl-0 px-0 py-0" type="number" step="0.01"
-                                  />
-                                </TableCell>
-                                <TableCell className={`text-right font-medium text-xs px-0 py-0.5 ${isSubItem ? "text-muted-foreground" : ""}`}>
-                                  {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="px-0 py-0.5">
-                                  <div className="flex items-center gap-0.5">
-                                    {!isSubItem && (
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-muted-foreground hover:text-primary"
-                                        title="Add sub-item"
-                                        onClick={() => handleAddSubItem(index)}
-                                      >
-                                        <GitBranch className="h-3 w-3" />
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-[2fr_1fr] gap-3">
+                        <FormField control={form.control} name="subject" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Subject *</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                {(offerSubjects.length > 0 ? offerSubjects : [
+                                  "Used Engine Oil Refinery Fully Automated PLC SCADA Control",
+                                  "Continuous Polishing System By Regenerative Adsorption",
+                                  "Spares for Refinery Equipment",
+                                ]).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="language" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Language *</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select language" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value="English">English</SelectItem>
+                                <SelectItem value="Spanish">Spanish</SelectItem>
+                                <SelectItem value="French">French</SelectItem>
+                                <SelectItem value="Arabic">Arabic</SelectItem>
+                                <SelectItem value="Portuguese">Portuguese</SelectItem>
+                                <SelectItem value="Russian">Russian</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+                      <div className="grid grid-cols-[80px_140px_1fr_1fr] gap-3">
+                        <FormField control={form.control} name="currency" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Currency *</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                                <SelectItem value="GBP">GBP</SelectItem>
+                                <SelectItem value="INR">INR</SelectItem>
+                                <SelectItem value="AED">AED</SelectItem>
+                                <SelectItem value="SAR">SAR</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="validUntil" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Valid Until</FormLabel>
+                            <FormControl><Input {...field} type="date" className="h-9 text-sm" /></FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="paymentTerms" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Payment Terms</FormLabel>
+                            <Select value={field.value || ""} onValueChange={field.onChange}>
+                              <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select terms" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value="40% Advance with PO, 60% against readiness">40% Advance with PO, 60% against readiness</SelectItem>
+                                <SelectItem value="50% Advance with PO, 50% against readiness">50% Advance with PO, 50% against readiness</SelectItem>
+                                <SelectItem value="100% Advance with PO">100% Advance with PO</SelectItem>
+                                <SelectItem value="Net 30 days">Net 30 days</SelectItem>
+                                <SelectItem value="Net 60 days">Net 60 days</SelectItem>
+                                <SelectItem value="LC at Sight">LC at Sight</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Delivery Terms</FormLabel>
+                            <Select value={field.value || ""} onValueChange={field.onChange}>
+                              <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
+                                <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
+                                <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
+                                <SelectItem value="DDP Destination">DDP Destination</SelectItem>
+                                <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Line Items Card */}
+                  <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b bg-slate-50/70">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                        <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Line Items</h3>
+                        {fields.length > 0 && (
+                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-1">{fields.length}</Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5 px-2.5"
+                          onClick={() => { setProductPickerSearch(""); setIsProductPickerOpen(true); }}>
+                          <Package className="h-3 w-3" /> Add from Products
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5 px-2.5"
+                          onClick={handleAddBlankItem}>
+                          <Plus className="h-3 w-3" /> Custom Item
+                        </Button>
+                      </div>
+                    </div>
+
+                    {fields.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="h-11 w-11 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                          <Package className="h-5 w-5 text-slate-400" />
+                        </div>
+                        <p className="text-sm font-medium text-slate-500">No items added yet</p>
+                        <p className="text-xs text-muted-foreground mt-1">Use the buttons above to add from the product catalog or enter a custom item</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-slate-50 hover:bg-slate-50 border-b-2 border-slate-200">
+                              <TableHead className="w-[36px] px-3 py-2 h-9 text-[11px] font-semibold text-slate-500">#</TableHead>
+                              <TableHead className="px-3 py-2 h-9 text-[11px] font-semibold text-slate-500">Description</TableHead>
+                              <TableHead className="w-[74px] px-2 py-2 h-9 text-[11px] font-semibold text-slate-500">Unit</TableHead>
+                              <TableHead className="w-[90px] px-2 py-2 h-9 text-[11px] font-semibold text-slate-500 text-right">Qty</TableHead>
+                              <TableHead className="w-[114px] px-2 py-2 h-9 text-[11px] font-semibold text-slate-500 text-right">Unit Price</TableHead>
+                              <TableHead className="w-[66px] px-2 py-2 h-9 text-[11px] font-semibold text-slate-500 text-right">Disc %</TableHead>
+                              <TableHead className="w-[114px] px-3 py-2 h-9 text-[11px] font-semibold text-slate-500 text-right">Line Total</TableHead>
+                              <TableHead className="w-[54px] px-2 py-2 h-9"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {fields.map((field, index) => {
+                              const item = watchItems?.[index];
+                              const isSubItem = item?.isSubItem || false;
+                              const qty = parseFloat(item?.quantity || "0");
+                              const price = parseFloat(item?.unitPrice || "0");
+                              const disc = parseFloat(item?.discountPercent || "0");
+                              const lineTotal = qty * price * (1 - disc / 100);
+                              const hasChildren = !isSubItem && (watchItems || []).some(wi => wi.isSubItem && wi.parentTempKey === item?.tempKey);
+                              const isZeroPrice = !isSubItem && price === 0 && qty > 0;
+                              return (
+                                <TableRow
+                                  key={field.id}
+                                  className={[
+                                    "group transition-colors",
+                                    isSubItem
+                                      ? "bg-slate-50/80"
+                                      : index % 2 === 0 ? "bg-white" : "bg-slate-50/40",
+                                    isZeroPrice ? "!bg-amber-50/60" : "",
+                                    "hover:!bg-blue-50/50",
+                                  ].filter(Boolean).join(" ")}
+                                >
+                                  <TableCell className="px-3 py-1.5 text-xs text-slate-400 w-[36px] font-mono">
+                                    {isSubItem
+                                      ? <span className="text-base leading-none">└</span>
+                                      : <span className="font-semibold text-slate-600">
+                                          {index + 1 - (watchItems || []).slice(0, index).filter(wi => wi.isSubItem).length}
+                                        </span>
+                                    }
+                                  </TableCell>
+                                  <TableCell className="px-3 py-1.5">
+                                    <Input
+                                      value={item?.description || ""}
+                                      onChange={(e) => form.setValue(`items.${index}.description`, e.target.value, { shouldDirty: true })}
+                                      className={[
+                                        "h-7 text-sm border-transparent bg-transparent focus:border-input focus:bg-white px-1",
+                                        isSubItem ? "pl-4 text-slate-500" : "font-medium text-slate-800",
+                                      ].join(" ")}
+                                      placeholder="Item description"
+                                    />
+                                    <div className="flex items-center gap-1 mt-0.5 px-1">
+                                      {item?.productCode && (
+                                        <span className="text-[10px] text-slate-400 font-mono">{item.productCode}</span>
+                                      )}
+                                      {hasChildren && (
+                                        <Badge variant="outline" className="text-[10px] h-3.5 gap-0.5 px-1 border-violet-200 text-violet-600">
+                                          <GitBranch className="h-2 w-2" /> breakdown
+                                        </Badge>
+                                      )}
+                                      {isSubItem && (
+                                        <Badge variant="secondary" className="text-[10px] h-3.5 px-1">sub-item</Badge>
+                                      )}
+                                      {isZeroPrice && (
+                                        <Badge variant="outline" className="text-[10px] h-3.5 px-1 border-amber-300 text-amber-600 bg-amber-50">no price</Badge>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="px-2 py-1.5 w-[74px]">
+                                    <select
+                                      {...form.register(`items.${index}.unit`)}
+                                      className="h-7 w-full text-xs border border-input rounded-md bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
+                                    >
+                                      {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+                                    </select>
+                                  </TableCell>
+                                  <TableCell className="px-2 py-1.5 w-[90px]">
+                                    <Input
+                                      value={item?.quantity ? parseFloat(item.quantity).toFixed(2) : ""}
+                                      onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
+                                      onBlur={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) form.setValue(`items.${index}.quantity`, v.toFixed(2), { shouldDirty: true }); }}
+                                      className="h-7 text-xs text-right px-1 border-transparent bg-transparent focus:border-input focus:bg-white"
+                                      type="number" step="0.01"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="px-2 py-1.5 w-[114px]">
+                                    <Input
+                                      value={item?.unitPrice || ""}
+                                      onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true })}
+                                      className="h-7 text-xs text-right px-1 border-transparent bg-transparent focus:border-input focus:bg-white"
+                                      type="number" step="0.01"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="px-2 py-1.5 w-[66px]">
+                                    <Input
+                                      value={item?.discountPercent || ""}
+                                      onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true })}
+                                      className="h-7 text-xs text-right px-1 border-transparent bg-transparent focus:border-input focus:bg-white"
+                                      type="number" step="0.01"
+                                    />
+                                  </TableCell>
+                                  <TableCell className={`text-right font-semibold text-xs px-3 py-1.5 tabular-nums w-[114px] ${isSubItem ? "text-slate-400" : "text-slate-700"}`}>
+                                    {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </TableCell>
+                                  <TableCell className="px-2 py-1.5 w-[54px]">
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {!isSubItem && (
+                                        <Button type="button" variant="ghost" size="icon"
+                                          className="h-6 w-6 text-slate-400 hover:text-violet-600"
+                                          title="Add sub-item"
+                                          onClick={() => handleAddSubItem(index)}>
+                                          <GitBranch className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                      <Button type="button" variant="ghost" size="icon"
+                                        className="h-6 w-6 text-slate-400 hover:text-destructive"
+                                        onClick={() => handleRemoveItem(index)}>
+                                        {isSubItem ? <X className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
                                       </Button>
-                                    )}
-                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveItem(index)}>
-                                      {isSubItem ? <X className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    {form.formState.errors.items?.message && (
+                      <p className="px-4 py-2 text-xs text-destructive">{form.formState.errors.items.message}</p>
+                    )}
+                  </div>
+
+                  {/* Totals Panel */}
+                  {fields.length > 0 && (
+                    <div className="flex justify-end">
+                      <div className="w-80 rounded-xl border bg-slate-50/60 shadow-sm overflow-hidden">
+                        <div className="px-4 py-3 space-y-2.5">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">Subtotal</span>
+                            <span className="font-medium tabular-nums">
+                              {form.watch("currency")} {calculations.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-slate-500 whitespace-nowrap">Discount %</span>
+                            <div className="flex items-center gap-2">
+                              <Input {...form.register("discountPercent")} className="h-7 w-20 text-right text-sm" type="number" step="0.01" />
+                              <span className="text-sm text-red-500 tabular-nums w-28 text-right">
+                                −{calculations.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-slate-500 whitespace-nowrap">Tax %</span>
+                            <div className="flex items-center gap-2">
+                              <Input {...form.register("taxPercent")} className="h-7 w-20 text-right text-sm" type="number" step="0.01" />
+                              <span className="text-sm text-emerald-600 tabular-nums w-28 text-right">
+                                +{calculations.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center px-4 py-3 border-t bg-white font-bold text-base">
+                          <span className="text-slate-700">Total</span>
+                          <span className="tabular-nums text-primary">
+                            {form.watch("currency")} {calculations.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   )}
-                  {form.formState.errors.items?.message && (
-                    <p className="text-sm text-destructive">{form.formState.errors.items.message}</p>
-                  )}
-                </div>
 
-                {/* Totals */}
-                {fields.length > 0 && (
-                  <div className="flex justify-end">
-                    <div className="w-72 space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Subtotal:</span>
-                        <span className="font-medium">{form.watch("currency")} {calculations.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">Discount %:</span>
-                        <Input {...form.register("discountPercent")} className="h-8 w-20 text-right text-sm" type="number" step="0.01" />
-                        <span className="text-sm text-red-600">-{calculations.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">Tax %:</span>
-                        <Input {...form.register("taxPercent")} className="h-8 w-20 text-right text-sm" type="number" step="0.01" />
-                        <span className="text-sm">+{calculations.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex justify-between font-bold border-t pt-2">
-                        <span>Total:</span>
-                        <span>{form.watch("currency")} {calculations.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
+                  {/* Notes & Terms Card */}
+                  <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-slate-50/70">
+                      <span className="h-2 w-2 rounded-full bg-orange-400 shrink-0" />
+                      <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Notes & Terms</h3>
+                    </div>
+                    <div className="p-4 grid grid-cols-2 gap-3">
+                      <FormField control={form.control} name="notes" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium text-slate-600">Notes</FormLabel>
+                          <FormControl><Textarea {...field} rows={3} className="text-sm resize-none" placeholder="Internal notes or special instructions" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="termsAndConditions" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium text-slate-600">Terms & Conditions</FormLabel>
+                          <FormControl><Textarea {...field} rows={3} className="text-sm resize-none" placeholder="Standard terms and conditions" /></FormControl>
+                        </FormItem>
+                      )} />
                     </div>
                   </div>
-                )}
 
-                <div className="rounded-lg border p-2 px-3 space-y-1">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes & Terms</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <FormField control={form.control} name="notes" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes</FormLabel>
-                        <FormControl><Textarea {...field} rows={2} placeholder="Internal notes or special instructions" /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="termsAndConditions" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Terms & Conditions</FormLabel>
-                        <FormControl><Textarea {...field} rows={2} placeholder="Standard terms and conditions" /></FormControl>
-                      </FormItem>
-                    )} />
-                  </div>
                 </div>
 
-                <DialogFooter className="flex items-center gap-2">
-                  <Button type="button" variant="outline" onClick={resetAndClose}>Cancel</Button>
-                  {editingOffer && (
-                    <Button type="button" variant="secondary" onClick={() => setPdfDownloadOfferId(editingOffer.id)}>
-                      <Download className="mr-2 h-4 w-4" /> Download PDF
+                {/* ── Sticky Footer ── */}
+                <div className="flex items-center justify-between px-6 py-3 border-t bg-slate-50/90 backdrop-blur-sm shrink-0">
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {fields.length > 0
+                      ? `${fields.filter((_f, i) => !(watchItems?.[i]?.isSubItem)).length} item(s) · ${form.watch("currency")} ${calculations.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                      : "No items added yet"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="ghost" size="sm" className="h-8" onClick={resetAndClose}>Cancel</Button>
+                    {editingOffer && (
+                      <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5"
+                        onClick={() => setPdfDownloadOfferId(editingOffer.id)}>
+                        <Download className="h-3.5 w-3.5" /> Download PDF
+                      </Button>
+                    )}
+                    <Button type="submit" size="sm" className="h-8 min-w-[110px]"
+                      disabled={createMutation.isPending || updateMutation.isPending}>
+                      {(createMutation.isPending || updateMutation.isPending)
+                        ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving…</>
+                        : editingOffer ? "Update Offer" : "Save Offer"
+                      }
                     </Button>
-                  )}
-                  <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                    {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {editingOffer ? "Update Offer" : "Save Offer"}
-                  </Button>
-                </DialogFooter>
+                  </div>
+                </div>
+
               </form>
             </Form>
           </DialogContent>
