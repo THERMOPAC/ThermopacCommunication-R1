@@ -96,7 +96,10 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
-  CornerDownRight
+  CornerDownRight,
+  RefreshCw,
+  Snowflake,
+  TrendingUp,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -684,6 +687,44 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       });
     },
   });
+
+  // ── Cost Roll-up ────────────────────────────────────────────────────────────
+  const [showCostRollup, setShowCostRollup] = useState(false);
+
+  const costRollupQuery = useQuery({
+    queryKey: [`/api/projects/${projectId}/cost-rollup`],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/cost-rollup`);
+      if (!res.ok) throw new Error('Failed to compute cost roll-up');
+      return res.json();
+    },
+    enabled: showCostRollup && !!projectId,
+  });
+
+  const freezeCostMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/cost-rollup/freeze`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Freeze failed');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Costs frozen',
+        description: `Rolled-up costs saved for ${data.itemCount} items. Project total: ${
+          new Intl.NumberFormat('en-US', { style: 'currency', currency: project?.currency || 'USD' }).format(data.projectTotal)
+        }`,
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/cost-rollup`] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Freeze failed', description: error.message, variant: 'destructive' });
+    },
+  });
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Mutation for updating a project item's parent (hierarchy)
   const setParentMutation = useMutation({
@@ -2149,6 +2190,111 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         </FormItem>
                       )}
                     />
+                  </div>
+
+                  {/* BOM Cost Roll-up Panel */}
+                  <div className="border rounded-md p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-sm font-medium">BOM Cost Roll-up</h3>
+                        {costRollupQuery.data && (
+                          <Badge variant="secondary" className="text-xs">
+                            Project Total: {new Intl.NumberFormat('en-US', { style: 'currency', currency: project?.currency || 'USD' }).format(costRollupQuery.data.projectTotal)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowCostRollup(true);
+                            costRollupQuery.refetch();
+                          }}
+                          disabled={costRollupQuery.isFetching}
+                        >
+                          {costRollupQuery.isFetching
+                            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            : <RefreshCw className="h-4 w-4 mr-2" />}
+                          Compute Roll-up
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="sm"
+                          onClick={() => freezeCostMutation.mutate()}
+                          disabled={freezeCostMutation.isPending || !costRollupQuery.data}
+                        >
+                          {freezeCostMutation.isPending
+                            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            : <Snowflake className="h-4 w-4 mr-2" />}
+                          Recalculate &amp; Freeze
+                        </Button>
+                      </div>
+                    </div>
+
+                    {showCostRollup && costRollupQuery.isError && (
+                      <p className="text-xs text-destructive">Failed to compute roll-up. Please try again.</p>
+                    )}
+
+                    {showCostRollup && costRollupQuery.data && (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[220px]">Item</TableHead>
+                              <TableHead>Cost Basis</TableHead>
+                              <TableHead className="text-right">Own Cost</TableHead>
+                              <TableHead className="text-right">Rolled-up Cost</TableHead>
+                              <TableHead className="text-right">Frozen Cost</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(costRollupQuery.data.items as any[]).map((ri: any) => {
+                              const pi = (projectItems || []).find((p: any) => p.id === ri.id);
+                              const currency = project?.currency || 'USD';
+                              const fmt = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(v);
+                              const frozenCost = pi?.rolledUpCost ? parseFloat(pi.rolledUpCost) : null;
+                              return (
+                                <TableRow key={ri.id} className={ri.parentProjectItemId ? 'bg-muted/30' : ''}>
+                                  <TableCell className="text-xs">
+                                    {ri.parentProjectItemId && <CornerDownRight className="inline h-3 w-3 mr-1 text-muted-foreground" />}
+                                    <span className="font-mono">{ri.itemCode || `#${ri.id}`}</span>
+                                    {ri.description && <span className="ml-1 text-muted-foreground truncate max-w-[120px] inline-block align-bottom">{ri.description}</span>}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={ri.costBasis === 'bom_approved' ? 'default' : ri.costBasis === 'estimated' ? 'secondary' : 'outline'} className="text-xs">
+                                      {ri.costBasis === 'bom_approved' ? 'BOM (approved)' : ri.costBasis === 'estimated' ? 'Estimated' : 'No cost'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right text-xs font-mono">{fmt(ri.ownCost)}</TableCell>
+                                  <TableCell className="text-right text-xs font-mono font-semibold">{fmt(ri.rolledUpCost)}</TableCell>
+                                  <TableCell className="text-right text-xs font-mono text-muted-foreground">
+                                    {frozenCost !== null ? fmt(frozenCost) : <span className="italic">—</span>}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                            <TableRow className="border-t-2 font-semibold">
+                              <TableCell colSpan={3} className="text-sm">Project Total</TableCell>
+                              <TableCell className="text-right text-sm font-mono">
+                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: project?.currency || 'USD' }).format(costRollupQuery.data.projectTotal)}
+                              </TableCell>
+                              <TableCell />
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+
+                    {!showCostRollup && (
+                      <p className="text-xs text-muted-foreground">
+                        Click "Compute Roll-up" to see BOM-driven cost aggregation across all project items.
+                        Use "Recalculate &amp; Freeze" to persist the values for approvals and reporting.
+                      </p>
+                    )}
                   </div>
 
                   {/* Project Items Section */}

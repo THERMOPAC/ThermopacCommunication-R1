@@ -1963,6 +1963,208 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  // ==================== BOM COST ROLL-UP ====================
+
+  /*
+   * Roll-up algorithm:
+   *  1. For each project item, the "own cost" is:
+   *       - BOM totalEstimatedCost × item.quantity   (if an approved BOM exists)
+   *       - otherwise item.estimatedCost
+   *  2. A parent item whose approved BOM already lists its children as BOM lines
+   *     (source_bom_header_id is set on child items pointing at that BOM) should
+   *     NOT add the children's costs on top — the BOM already includes them.
+   *  3. For all other parents, rolledUpCost = ownCost + SUM(children rolledUpCost).
+   *  4. Hierarchy is unlimited depth; we process leaves first (post-order).
+   */
+  async function computeRollup(projectId: number): Promise<{
+    items: Array<{
+      id: number;
+      itemCode: string | null;
+      description: string | null;
+      ownCost: number;
+      rolledUpCost: number;
+      costBasis: 'bom_approved' | 'estimated' | 'zero';
+      parentProjectItemId: number | null;
+    }>;
+    projectTotal: number;
+  }> {
+    // Load all project items with their approved BOM totals in one query
+    const result = await pool.query(`
+      SELECT
+        pi.id,
+        pi.item_code,
+        pi.description,
+        pi.quantity,
+        pi.estimated_cost,
+        pi.parent_project_item_id,
+        pi.source_bom_header_id,
+        bh.id            AS bom_header_id,
+        bh.status        AS bom_status,
+        bh.total_estimated_cost AS bom_total_cost
+      FROM project_items pi
+      LEFT JOIN epc_bom_headers bh
+        ON bh.project_item_id = pi.id
+        AND bh.is_current = TRUE
+        AND bh.status = 'approved'
+      WHERE pi.project_id = $1
+      ORDER BY pi.id
+    `, [projectId]);
+
+    const rows = result.rows as Array<{
+      id: number;
+      item_code: string | null;
+      description: string | null;
+      quantity: string | null;
+      estimated_cost: string | null;
+      parent_project_item_id: number | null;
+      source_bom_header_id: number | null;
+      bom_header_id: number | null;
+      bom_status: string | null;
+      bom_total_cost: string | null;
+    }>;
+
+    // Build children map
+    const childrenOf: Record<number, number[]> = {};
+    for (const r of rows) {
+      if (r.parent_project_item_id) {
+        if (!childrenOf[r.parent_project_item_id]) childrenOf[r.parent_project_item_id] = [];
+        childrenOf[r.parent_project_item_id].push(r.id);
+      }
+    }
+
+    const byId: Record<number, typeof rows[0]> = {};
+    for (const r of rows) byId[r.id] = r;
+
+    // Compute own cost for each item
+    const ownCostOf: Record<number, { cost: number; basis: 'bom_approved' | 'estimated' | 'zero' }> = {};
+    for (const r of rows) {
+      const qty = parseFloat(r.quantity || '0') || 0;
+      if (r.bom_header_id && r.bom_status === 'approved' && r.bom_total_cost) {
+        ownCostOf[r.id] = { cost: parseFloat(r.bom_total_cost) * qty, basis: 'bom_approved' };
+      } else if (r.estimated_cost) {
+        ownCostOf[r.id] = { cost: parseFloat(r.estimated_cost), basis: 'estimated' };
+      } else {
+        ownCostOf[r.id] = { cost: 0, basis: 'zero' };
+      }
+    }
+
+    // Post-order DFS to compute rolled-up costs
+    const rolledUpOf: Record<number, number> = {};
+    const visited = new Set<number>();
+
+    function rollup(id: number): number {
+      if (visited.has(id)) return rolledUpOf[id] ?? 0;
+      visited.add(id);
+
+      const children = childrenOf[id] || [];
+      const row = byId[id];
+      const own = ownCostOf[id].cost;
+
+      if (children.length === 0) {
+        rolledUpOf[id] = own;
+        return own;
+      }
+
+      // If parent has an approved BOM AND children are BOM-sourced from that BOM,
+      // the BOM cost already includes the components — don't double-count.
+      if (row.bom_header_id && row.bom_status === 'approved') {
+        const childrenAreBomSourced = children.every(cid => {
+          const child = byId[cid];
+          return child && child.source_bom_header_id === row.bom_header_id;
+        });
+        if (childrenAreBomSourced) {
+          rolledUpOf[id] = own; // BOM total already includes all components
+          return own;
+        }
+      }
+
+      // Additive: own + sum of children
+      let childSum = 0;
+      for (const cid of children) {
+        childSum += rollup(cid);
+      }
+      rolledUpOf[id] = own + childSum;
+      return rolledUpOf[id];
+    }
+
+    for (const r of rows) rollup(r.id);
+
+    const output = rows.map(r => ({
+      id: r.id,
+      itemCode: r.item_code,
+      description: r.description,
+      ownCost: ownCostOf[r.id].cost,
+      rolledUpCost: rolledUpOf[r.id] ?? 0,
+      costBasis: ownCostOf[r.id].basis,
+      parentProjectItemId: r.parent_project_item_id,
+    }));
+
+    const projectTotal = output
+      .filter(i => !i.parentProjectItemId)
+      .reduce((sum, i) => sum + i.rolledUpCost, 0);
+
+    return { items: output, projectTotal };
+  }
+
+  // GET /api/projects/:projectId/cost-rollup — compute on demand, no DB write
+  app.get('/api/projects/:projectId/cost-rollup', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const project = await pool.query(`SELECT id FROM projects WHERE id = $1`, [projectId]);
+      if (project.rows.length === 0) return sendNotFound(res, 'Project not found');
+      const rollup = await computeRollup(projectId);
+      res.json({ success: true, projectId, ...rollup });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // POST /api/projects/:projectId/cost-rollup/freeze — compute + write back rolledUpCost
+  app.post('/api/projects/:projectId/cost-rollup/freeze', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+      const project = await pool.query(`SELECT id, status FROM projects WHERE id = $1`, [projectId]);
+      if (project.rows.length === 0) return sendNotFound(res, 'Project not found');
+
+      const frozen = await guardProjectNotFrozen(projectId, res);
+      if (!frozen) return;
+
+      const rollup = await computeRollup(projectId);
+      const now = new Date();
+
+      // Write back in a single transaction
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const item of rollup.items) {
+          await client.query(
+            `UPDATE project_items SET rolled_up_cost = $1, rolled_up_at = $2, updated_at = NOW() WHERE id = $3`,
+            [item.rolledUpCost.toFixed(2), now, item.id]
+          );
+        }
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      res.json({
+        success: true,
+        projectId,
+        frozenAt: now.toISOString(),
+        projectTotal: rollup.projectTotal,
+        itemCount: rollup.items.length,
+        items: rollup.items,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
   // Customer Management Routes
   app.get('/api/customers/next-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
     try {

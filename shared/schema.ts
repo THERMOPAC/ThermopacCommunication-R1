@@ -2033,6 +2033,8 @@ export const projectItems = pgTable('project_items', {
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
   estimatedCost: decimal('estimated_cost', { precision: 12, scale: 2 }),
   actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
+  rolledUpCost: decimal('rolled_up_cost', { precision: 14, scale: 2 }),
+  rolledUpAt: timestamp('rolled_up_at'),
   notes: text('notes'),
   
   status: text('status').default('Not Started'),
