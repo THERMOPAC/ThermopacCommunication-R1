@@ -1798,7 +1798,7 @@ export default function ProductsPage() {
                     className="pl-9"
                   />
                 </div>
-                <Select value={subProductProp3Filter} onValueChange={setSubProductProp3Filter}>
+                <Select value={subProductProp3Filter} onValueChange={(v) => { setSubProductProp3Filter(v); setSubProductTagNoFilter("all"); }}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Property 3" />
                   </SelectTrigger>
@@ -1818,7 +1818,7 @@ export default function ProductsPage() {
                   <SelectContent>
                     <SelectItem value="all">All Tag Nos</SelectItem>
                     {[...new Set(products
-                      .filter(p => !!(p as any).tagNo)
+                      .filter(p => !!(p as any).tagNo && (subProductProp3Filter === "all" || p.itemProperty3 === subProductProp3Filter))
                       .map(p => (p as any).tagNo as string))]
                       .sort((a, b) => a.localeCompare(b))
                       .map(v => (
