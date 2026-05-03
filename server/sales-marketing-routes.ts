@@ -1348,10 +1348,79 @@ export function setupSalesMarketingRoutes(app: Express) {
     }
   });
 
+  function validateOfferItemHierarchy(items: any[]): string | null {
+    const tempKeySet = new Set(items.map((i: any) => i.tempKey).filter(Boolean));
+    for (const item of items) {
+      if (item.isSubItem) {
+        if (!item.parentTempKey) {
+          return `Sub-item "${item.description}" is missing a parent reference.`;
+        }
+        if (!tempKeySet.has(item.parentTempKey)) {
+          return `Sub-item "${item.description}" references a parent that does not exist in this offer.`;
+        }
+        const parent = items.find((i: any) => i.tempKey === item.parentTempKey);
+        if (parent?.isSubItem) {
+          return `Sub-item "${item.description}" references another sub-item as parent. Offers support only one level of sub-items.`;
+        }
+      }
+    }
+    return null;
+  }
+
+  async function insertOfferItemsWithHierarchy(offerId: number, items: any[], storageRef: typeof storage) {
+    const tempKeyToId = new Map<string, number>();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.isSubItem) {
+        const created = await storageRef.createOfferItem({
+          offerId,
+          productId: item.productId || null,
+          productCode: item.productCode || null,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent || '0',
+          totalPrice: item.totalPrice,
+          hsnSacCode: item.hsnSacCode || null,
+          isSubItem: false,
+          parentItemId: null,
+          sortOrder: i,
+        });
+        if (item.tempKey) tempKeyToId.set(item.tempKey, created.id);
+      }
+    }
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.isSubItem) {
+        const parentId = item.parentTempKey ? (tempKeyToId.get(item.parentTempKey) || null) : null;
+        await storageRef.createOfferItem({
+          offerId,
+          productId: item.productId || null,
+          productCode: item.productCode || null,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent || '0',
+          totalPrice: item.totalPrice,
+          hsnSacCode: item.hsnSacCode || null,
+          isSubItem: true,
+          parentItemId: parentId,
+          sortOrder: i,
+        });
+      }
+    }
+  }
+
   router.post('/offers', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const { items, ...offerData } = req.body;
       const user = req.user as any;
+      if (items && Array.isArray(items)) {
+        const hierarchyError = validateOfferItemHierarchy(items);
+        if (hierarchyError) return res.status(400).json({ error: hierarchyError });
+      }
       const offerNumber = await storage.getNextOfferNumber();
       if (offerData.validUntil) {
         offerData.validUntil = new Date(offerData.validUntil);
@@ -1385,24 +1454,7 @@ export function setupSalesMarketingRoutes(app: Express) {
       });
 
       if (items && Array.isArray(items)) {
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          await storage.createOfferItem({
-            offerId: offer.id,
-            productId: item.productId || null,
-            productCode: item.productCode || null,
-            description: item.description,
-            unit: item.unit,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discountPercent: item.discountPercent || '0',
-            totalPrice: item.totalPrice,
-            hsnSacCode: item.hsnSacCode || null,
-            isSubItem: item.isSubItem || false,
-            parentItemId: item.parentItemId || null,
-            sortOrder: i,
-          });
-        }
+        await insertOfferItemsWithHierarchy(offer.id, items, storage);
       }
 
       const savedItems = await storage.getOfferItems(offer.id);
@@ -1443,28 +1495,13 @@ export function setupSalesMarketingRoutes(app: Express) {
       const offer = await storage.updateOffer(id, offerData);
 
       if (items && Array.isArray(items)) {
+        const hierarchyError = validateOfferItemHierarchy(items);
+        if (hierarchyError) return res.status(400).json({ error: hierarchyError });
         const existingItems = await storage.getOfferItems(id);
         for (const existing of existingItems) {
           await storage.deleteOfferItem(existing.id);
         }
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          await storage.createOfferItem({
-            offerId: id,
-            productId: item.productId || null,
-            productCode: item.productCode || null,
-            description: item.description,
-            unit: item.unit,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discountPercent: item.discountPercent || '0',
-            totalPrice: item.totalPrice,
-            hsnSacCode: item.hsnSacCode || null,
-            isSubItem: item.isSubItem || false,
-            parentItemId: item.parentItemId || null,
-            sortOrder: i,
-          });
-        }
+        await insertOfferItemsWithHierarchy(id, items, storage);
       }
 
       const savedItems = await storage.getOfferItems(id);

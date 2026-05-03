@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Product } from "@shared/schema";
 
 const offerItemSchema = z.object({
+  tempKey: z.string(),
   productId: z.number().nullable().optional(),
   productCode: z.string().optional(),
   description: z.string().min(1, "Description is required"),
@@ -36,7 +37,7 @@ const offerItemSchema = z.object({
   discountPercent: z.string().optional(),
   hsnSacCode: z.string().optional(),
   isSubItem: z.boolean().optional(),
-  parentItemIndex: z.number().nullable().optional(),
+  parentTempKey: z.string().nullable().optional(),
 });
 
 const offerFormSchema = z.object({
@@ -459,7 +460,8 @@ export function OffersContent() {
         deliveryTerms: data.deliveryTerms || "",
         notes: data.notes || "",
         termsAndConditions: data.termsAndConditions || "",
-        items: (data.items || []).map((item: any, idx: number) => ({
+        items: (data.items || []).map((item: any) => ({
+          tempKey: String(item.id),
           productId: item.productId,
           productCode: item.productCode || "",
           description: item.description || "",
@@ -469,12 +471,7 @@ export function OffersContent() {
           discountPercent: item.discountPercent || "0",
           hsnSacCode: item.hsnSacCode || "",
           isSubItem: item.isSubItem || false,
-          parentItemIndex: item.isSubItem ? idx - 1 >= 0 ? (() => {
-            for (let pi = idx - 1; pi >= 0; pi--) {
-              if (!(data.items[pi]?.isSubItem)) return pi;
-            }
-            return null;
-          })() : null : null,
+          parentTempKey: item.parentItemId ? String(item.parentItemId) : null,
         })),
       });
       setIsFormOpen(true);
@@ -507,8 +504,9 @@ export function OffersContent() {
 
   const handleAddProduct = (product: Product) => {
     const children = childProductsMap.get(product.id) || [];
-    const parentIndex = fields.length;
+    const parentTempKey = crypto.randomUUID();
     append({
+      tempKey: parentTempKey,
       productId: product.id,
       productCode: product.productCode,
       description: product.description,
@@ -518,11 +516,12 @@ export function OffersContent() {
       discountPercent: "0",
       hsnSacCode: product.hsnSacCode || "",
       isSubItem: false,
-      parentItemIndex: null,
+      parentTempKey: null,
     });
     if (children.length > 0) {
       for (const child of children) {
         append({
+          tempKey: crypto.randomUUID(),
           productId: child.id,
           productCode: child.productCode,
           description: child.description,
@@ -532,7 +531,7 @@ export function OffersContent() {
           discountPercent: "0",
           hsnSacCode: child.hsnSacCode || "",
           isSubItem: true,
-          parentItemIndex: parentIndex,
+          parentTempKey: parentTempKey,
         });
       }
     }
@@ -540,20 +539,10 @@ export function OffersContent() {
 
   const handleRemoveItem = (index: number) => {
     const item = watchItems?.[index];
-    if (item?.isSubItem && item?.parentItemIndex != null) {
-      const parentIdx = item.parentItemIndex;
-      const parentItem = watchItems?.[parentIdx];
-      if (parentItem) {
-        const childPrice = parseFloat(item.unitPrice || "0") * parseFloat(item.quantity || "1");
-        const currentParentPrice = parseFloat(parentItem.unitPrice || "0");
-        const newParentPrice = Math.max(0, currentParentPrice - childPrice);
-        form.setValue(`items.${parentIdx}.unitPrice`, newParentPrice.toFixed(2));
-      }
-    }
     if (!item?.isSubItem) {
       const indicesToRemove: number[] = [index];
       (watchItems || []).forEach((wi, i) => {
-        if (wi.isSubItem && wi.parentItemIndex === index) {
+        if (wi.isSubItem && wi.parentTempKey === item?.tempKey) {
           indicesToRemove.push(i);
         }
       });
@@ -561,21 +550,48 @@ export function OffersContent() {
       for (const idx of indicesToRemove) {
         remove(idx);
       }
-      const currentItems = form.getValues("items");
-      const updatedItems = currentItems.map((ci) => {
-        if (ci.parentItemIndex != null && ci.parentItemIndex > index) {
-          return { ...ci, parentItemIndex: ci.parentItemIndex - indicesToRemove.length };
-        }
-        return ci;
-      });
-      form.setValue("items", updatedItems);
       return;
+    }
+    if (item?.isSubItem && item?.parentTempKey) {
+      const parentIdx = (watchItems || []).findIndex(wi => wi.tempKey === item.parentTempKey);
+      if (parentIdx >= 0) {
+        const parentItem = watchItems?.[parentIdx];
+        if (parentItem) {
+          const childPrice = parseFloat(item.unitPrice || "0") * parseFloat(item.quantity || "1");
+          const currentParentPrice = parseFloat(parentItem.unitPrice || "0");
+          const newParentPrice = Math.max(0, currentParentPrice - childPrice);
+          form.setValue(`items.${parentIdx}.unitPrice`, newParentPrice.toFixed(2));
+        }
+      }
     }
     remove(index);
   };
 
+  const handleAddSubItem = (parentIndex: number) => {
+    const parentItem = watchItems?.[parentIndex];
+    if (!parentItem) return;
+    if (parentItem.isSubItem) {
+      toast({ title: "Depth limit reached", description: "Offers support only one level of sub-items.", variant: "destructive" });
+      return;
+    }
+    append({
+      tempKey: crypto.randomUUID(),
+      productId: null,
+      productCode: "",
+      description: "",
+      unit: parentItem.unit || "pcs",
+      quantity: "1",
+      unitPrice: "0",
+      discountPercent: "0",
+      hsnSacCode: "",
+      isSubItem: true,
+      parentTempKey: parentItem.tempKey,
+    });
+  };
+
   const handleAddBlankItem = () => {
     append({
+      tempKey: crypto.randomUUID(),
       productId: null,
       productCode: "",
       description: "",
@@ -585,7 +601,7 @@ export function OffersContent() {
       discountPercent: "0",
       hsnSacCode: "",
       isSubItem: false,
-      parentItemIndex: null,
+      parentTempKey: null,
     });
   };
 
@@ -602,11 +618,18 @@ export function OffersContent() {
         const price = parseFloat(item.unitPrice || "0");
         const disc = parseFloat(item.discountPercent || "0");
         const lineTotal = qty * price * (1 - disc / 100);
-        const { parentItemIndex, ...rest } = item;
         return {
-          ...rest,
+          tempKey: item.tempKey,
+          productId: item.productId ?? null,
+          productCode: item.productCode || null,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent || "0",
+          hsnSacCode: item.hsnSacCode || null,
           isSubItem: item.isSubItem || false,
-          parentItemId: null,
+          parentTempKey: item.parentTempKey || null,
           totalPrice: lineTotal.toFixed(2),
           sortOrder: idx,
         };
@@ -641,23 +664,24 @@ export function OffersContent() {
         deliveryTerms: data.deliveryTerms || "",
         notes: data.notes || "",
         termsAndConditions: data.termsAndConditions || "",
-        items: (data.items || []).map((item: any, idx: number) => ({
-          productId: item.productId,
-          productCode: item.productCode || "",
-          description: item.description || "",
-          unit: item.unit || "",
-          quantity: item.quantity || "0",
-          unitPrice: item.unitPrice || "0",
-          discountPercent: item.discountPercent || "0",
-          hsnSacCode: item.hsnSacCode || "",
-          isSubItem: item.isSubItem || false,
-          parentItemIndex: item.isSubItem ? (() => {
-            for (let pi = idx - 1; pi >= 0; pi--) {
-              if (!(data.items[pi]?.isSubItem)) return pi;
-            }
-            return null;
-          })() : null,
-        })),
+        items: (() => {
+          const idToNewTempKey = new Map<string, string>(
+            (data.items || []).map((item: any) => [String(item.id), crypto.randomUUID()])
+          );
+          return (data.items || []).map((item: any) => ({
+            tempKey: idToNewTempKey.get(String(item.id)) || crypto.randomUUID(),
+            productId: item.productId,
+            productCode: item.productCode || "",
+            description: item.description || "",
+            unit: item.unit || "",
+            quantity: item.quantity || "0",
+            unitPrice: item.unitPrice || "0",
+            discountPercent: item.discountPercent || "0",
+            hsnSacCode: item.hsnSacCode || "",
+            isSubItem: item.isSubItem || false,
+            parentTempKey: item.parentItemId ? (idToNewTempKey.get(String(item.parentItemId)) || null) : null,
+          }));
+        })(),
       });
       setIsFormOpen(true);
     } catch (error) {
@@ -1274,7 +1298,7 @@ export function OffersContent() {
                             const price = parseFloat(item?.unitPrice || "0");
                             const disc = parseFloat(item?.discountPercent || "0");
                             const lineTotal = qty * price * (1 - disc / 100);
-                            const hasChildren = !isSubItem && (watchItems || []).some(wi => wi.isSubItem && wi.parentItemIndex === index);
+                            const hasChildren = !isSubItem && (watchItems || []).some(wi => wi.isSubItem && wi.parentTempKey === item?.tempKey);
                             return (
                               <TableRow key={field.id} className={isSubItem ? "bg-muted/30" : ""}>
                                 <TableCell className="text-muted-foreground px-0 py-0.5">
@@ -1339,9 +1363,23 @@ export function OffersContent() {
                                   {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell className="px-0 py-0.5">
-                                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveItem(index)}>
-                                    {isSubItem ? <X className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
-                                  </Button>
+                                  <div className="flex items-center gap-0.5">
+                                    {!isSubItem && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                        title="Add sub-item"
+                                        onClick={() => handleAddSubItem(index)}
+                                      >
+                                        <GitBranch className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveItem(index)}>
+                                      {isSubItem ? <X className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             );
