@@ -1837,6 +1837,7 @@ export default function ProductsPage() {
                     if (existingChildIds.includes(p.id)) return false;
                     if (recentlyLinkedIds.has(p.id)) return false;
                     if (subProductProp3Filter !== "all" && p.itemProperty3 !== subProductProp3Filter) return false;
+                    if (subProductTagNoFilter !== "all" && (p as any).tagNo !== subProductTagNoFilter) return false;
                     if (!subProductSearch) return true;
                     return p.productCode.toLowerCase().includes(subProductSearch.toLowerCase()) ||
                       p.description.toLowerCase().includes(subProductSearch.toLowerCase());
