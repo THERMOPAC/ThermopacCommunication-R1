@@ -2269,6 +2269,21 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     />
                   </div>
 
+                  {/* Cost Lock Warning Banner */}
+                  {costLockQuery.data?.status === 'approved' && (
+                    <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3">
+                      <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Cost Approved &amp; Locked</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                          All project item and BOM modifications are blocked.
+                          {costLockQuery.data.reviewedByName && ` Approved by ${costLockQuery.data.reviewedByName}.`}
+                          {' '}A Manager must unlock before any changes can be made.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* BOM Cost Roll-up Panel */}
                   <div className="border rounded-md p-4 space-y-3">
                     {/* Header row */}

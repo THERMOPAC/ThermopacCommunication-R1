@@ -87,6 +87,23 @@ async function guardProjectNotFrozen(projectId: number, res: Response): Promise<
   return true;
 }
 
+async function guardCostNotLocked(projectId: number, res: Response): Promise<boolean> {
+  const result = await pool.query(`SELECT cost_lock_status FROM projects WHERE id = $1`, [projectId]);
+  if (result.rows.length === 0) return true;
+  const lockStatus = (result.rows[0] as any).cost_lock_status || 'unlocked';
+  if (lockStatus === 'approved') {
+    sendBusinessError(res, 'Cost is approved and locked — project items and BOMs cannot be modified. A Manager must unlock first.');
+    return false;
+  }
+  return true;
+}
+
+async function guardRecordCostNotLocked(table: string, recordId: number, res: Response): Promise<boolean> {
+  const projectId = await resolveProjectIdFromRecord(table, 'id', recordId);
+  if (!projectId) return true;
+  return guardCostNotLocked(projectId, res);
+}
+
 async function resolveProjectIdFromRecord(table: string, idColumn: string, recordId: number): Promise<number | null> {
   const projectIdLookups: Record<string, string> = {
     'item_planning_records': `SELECT pi.project_id FROM item_planning_records ipr JOIN project_items pi ON pi.id = ipr.project_item_id WHERE ipr.id = $1`,
@@ -103,6 +120,7 @@ async function resolveProjectIdFromRecord(table: string, idColumn: string, recor
     'epc_invoices': `SELECT project_id FROM epc_invoices WHERE id = $1`,
     'epc_drawing_controls': `SELECT project_id FROM epc_drawing_controls WHERE id = $1`,
     'epc_bom_headers': `SELECT pi.project_id FROM epc_bom_headers ebh JOIN project_items pi ON pi.id = ebh.project_item_id WHERE ebh.id = $1`,
+    'epc_bom_lines': `SELECT pi.project_id FROM epc_bom_lines ebl JOIN epc_bom_headers ebh ON ebh.id = ebl.bom_header_id JOIN project_items pi ON pi.id = ebh.project_item_id WHERE ebl.id = $1`,
   };
   const query = projectIdLookups[table];
   if (!query) return null;
@@ -1429,6 +1447,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
+
+      if (!(await guardCostNotLocked(projectId, res))) return;
       
       const projectMembers = await storage.getProjectMembers(projectId);
       const userMember = projectMembers.find(member => member.userId === userId);
@@ -1525,6 +1545,8 @@ export function setupProjectRoutes(app: express.Express) {
         console.log(`User ${userId} not authorized to update project item ${itemId}`);
         return res.status(403).json({ error: 'Not authorized to update this project item' });
       }
+
+      if (!(await guardCostNotLocked(item.projectId, res))) return;
 
       // Extract fields from request body, including camelCase and snake_case variations
       const { 
@@ -1800,6 +1822,8 @@ export function setupProjectRoutes(app: express.Express) {
       const item = await storage.getProjectItem(itemId);
       if (!item) return res.status(404).json({ error: 'Project item not found' });
 
+      if (!(await guardCostNotLocked(item.projectId, res))) return;
+
       if (parentProjectItemId !== null && parentProjectItemId !== undefined) {
         if (parentProjectItemId === itemId) {
           return res.status(400).json({ error: 'An item cannot be its own parent.' });
@@ -1855,6 +1879,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (!userMember) {
         return res.status(403).json({ error: 'Not authorized to delete this project item' });
       }
+
+      if (!(await guardCostNotLocked(item.projectId, res))) return;
 
       const poItems = await db.execute(
         sql`SELECT id FROM purchase_order_items WHERE project_item_id = ${itemId} LIMIT 5`
@@ -1943,6 +1969,8 @@ export function setupProjectRoutes(app: express.Express) {
       
       // Use the numeric ID from the project record
       const projectId = project.id;
+
+      if (!(await guardCostNotLocked(projectId, res))) return;
       
       // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(projectId);
@@ -10370,6 +10398,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
 
       if (!(await guardProjectNotFrozen(projectId, res))) return;
+      if (!(await guardCostNotLocked(projectId, res))) return;
 
       if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to create BOMs.');
@@ -10448,6 +10477,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
+      if (!(await guardRecordCostNotLocked('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
@@ -10488,6 +10518,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
+      if (!(await guardRecordCostNotLocked('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
@@ -10538,6 +10569,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
+      if (!(await guardRecordCostNotLocked('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { reviewNote, recommendation } = req.body;
@@ -10595,6 +10627,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
+      if (!(await guardRecordCostNotLocked('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { approvalNote } = req.body;
@@ -10699,6 +10732,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
+      if (!(await guardRecordCostNotLocked('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       if (!requireMinRole(req, res, 'Senior Manager')) return;
@@ -10772,6 +10806,7 @@ export function setupProjectRoutes(app: express.Express) {
       const { supersessionReason, newBomRevision } = req.body;
 
       if (!requireMinRole(req, res, 'Senior Manager')) return;
+      if (!(await guardRecordCostNotLocked('epc_bom_headers', id, res))) return;
 
       if (!supersessionReason) return sendValidationError(res, 'supersessionReason is required');
 
@@ -10941,7 +10976,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
       const rec = results.rows[0] as any;
 
-      await guardProjectNotFrozen(rec.project_id, res);
+      if (!(await guardProjectNotFrozen(rec.project_id, res))) return;
+      if (!(await guardCostNotLocked(rec.project_id, res))) return;
       if (rec.status !== 'under_review') {
         return sendBusinessError(res, `Cannot revert: current status is '${rec.status}'. Must be 'under_review'.`);
       }
@@ -11153,7 +11189,8 @@ export function setupProjectRoutes(app: express.Express) {
 
       const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
-      await guardProjectNotFrozen((headerResult.rows[0] as any).project_id, res);
+      if (!(await guardProjectNotFrozen((headerResult.rows[0] as any).project_id, res))) return;
+      if (!(await guardCostNotLocked((headerResult.rows[0] as any).project_id, res))) return;
       const header = headerResult.rows[0] as any;
 
       if (!['released', 'locked'].includes(header.status)) {
@@ -11471,7 +11508,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
       const header = headerResult.rows[0] as any;
 
-      await guardProjectNotFrozen(header.project_id, res);
+      if (!(await guardProjectNotFrozen(header.project_id, res))) return;
+      if (!(await guardCostNotLocked(header.project_id, res))) return;
       if (header.status !== 'draft') {
         return sendBusinessError(res, `Cannot add lines: BOM status is '${header.status}'. Only 'draft' BOMs can be modified.`);
       }
@@ -11535,10 +11573,11 @@ export function setupProjectRoutes(app: express.Express) {
         return sendPermissionError(res, 'Manager or above required to edit BOM lines.');
       }
 
-      const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id WHERE bl.id = ${id}`);
+      const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number, pi.project_id FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id JOIN project_items pi ON pi.id = bh.project_item_id WHERE bl.id = ${id}`);
       if (lineResult.rows.length === 0) return sendNotFound(res, 'BOM line not found');
       const line = lineResult.rows[0] as any;
 
+      if (!(await guardCostNotLocked(line.project_id, res))) return;
       if (line.header_status !== 'draft') {
         return sendBusinessError(res, `Cannot update line: BOM status is '${line.header_status}'. Only 'draft' BOMs can be modified.`);
       }
@@ -11583,10 +11622,11 @@ export function setupProjectRoutes(app: express.Express) {
         return sendPermissionError(res, 'Manager or above required to delete BOM lines.');
       }
 
-      const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number, bh.id as header_id FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id WHERE bl.id = ${id}`);
+      const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number, bh.id as header_id, pi.project_id FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id JOIN project_items pi ON pi.id = bh.project_item_id WHERE bl.id = ${id}`);
       if (lineResult.rows.length === 0) return sendNotFound(res, 'BOM line not found');
       const line = lineResult.rows[0] as any;
 
+      if (!(await guardCostNotLocked(line.project_id, res))) return;
       if (line.header_status !== 'draft') {
         return sendBusinessError(res, `Cannot delete line: BOM status is '${line.header_status}'. Only 'draft' BOMs can be modified.`);
       }
