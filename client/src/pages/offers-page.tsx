@@ -21,10 +21,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
-  Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw
+  Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw, FlaskConical, EyeOff
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Product } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
+import { useTestDataToggle } from "@/hooks/use-test-data-toggle";
 
 const offerItemSchema = z.object({
   tempKey: z.string(),
@@ -238,6 +240,9 @@ function PdfDownloadDialog({ offerId, onClose, onDownload }: {
 
 export function OffersContent() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isSuperuser = user?.role === 'Superuser';
+  const { showTestData, toggle: toggleTestData } = useTestDataToggle();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [fyFilter, setFyFilter] = useState("all");
@@ -261,7 +266,22 @@ export function OffersContent() {
   const [conversionErrors, setConversionErrors] = useState<any[]>([]);
 
   const { data: offers = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/sales-marketing/offers'],
+    queryKey: ['/api/sales-marketing/offers', { showTest: showTestData }],
+    queryFn: () => fetch(`/api/sales-marketing/offers?showTest=${showTestData}`, { credentials: 'include' }).then(r => r.json()),
+  });
+
+  const testFlagMutation = useMutation({
+    mutationFn: async ({ id, isTest }: { id: number; isTest: boolean }) => {
+      const res = await apiRequest('PATCH', `/api/sales-marketing/offers/${id}/test-flag`, { isTest });
+      return res.json();
+    },
+    onSuccess: (_data, { isTest }) => {
+      toast({ title: isTest ? 'Marked as test data' : 'Unmarked from test data' });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to update test flag', description: getErrorMessage(err), variant: 'destructive' });
+    },
   });
 
   const { data: offerSubjects = [] } = useQuery<string[]>({
@@ -703,10 +723,30 @@ export function OffersContent() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div />
-        <Button onClick={handleNewOffer}>
-          <Plus className="mr-2 h-4 w-4" /> New Offer
-        </Button>
+        <div className="flex items-center gap-2">
+          {isSuperuser && (
+            <Button
+              variant={showTestData ? "secondary" : "outline"}
+              size="sm"
+              onClick={toggleTestData}
+              title={showTestData ? "Hide test data" : "Show test data"}
+              className={showTestData ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200" : ""}
+            >
+              {showTestData ? <EyeOff className="mr-1.5 h-3.5 w-3.5" /> : <FlaskConical className="mr-1.5 h-3.5 w-3.5" />}
+              {showTestData ? "Hide Test Data" : "Show Test Data"}
+            </Button>
+          )}
+          <Button onClick={handleNewOffer}>
+            <Plus className="mr-2 h-4 w-4" /> New Offer
+          </Button>
+        </div>
       </div>
+      {isSuperuser && showTestData && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+          <FlaskConical className="h-3.5 w-3.5 flex-shrink-0" />
+          <span>Test data visible. Use the <strong>flask icon</strong> button on each row to mark/unmark records as test data.</span>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -775,11 +815,12 @@ export function OffersContent() {
                 </TableHeader>
                 <TableBody>
                   {filteredOffers.map((offer: any) => (
-                    <TableRow key={offer.id}>
+                    <TableRow key={offer.id} className={offer.isTest ? "bg-amber-50/40" : ""}>
                       <TableCell className="font-mono font-medium">
                         {offer.offerNumber}
                         {offer.revision > 0 && <Badge variant="outline" className="ml-1 text-xs">Rev.{offer.revision}</Badge>}
                         {offer.templatePdfName && <Paperclip className="inline h-3 w-3 ml-1 text-muted-foreground" title={`Template: ${offer.templatePdfName}`} />}
+                        {offer.isTest && <Badge className="ml-1.5 text-[10px] px-1 py-0 bg-amber-100 text-amber-800 border border-amber-300"><FlaskConical className="inline h-2.5 w-2.5 mr-0.5" />Test</Badge>}
                       </TableCell>
                       <TableCell>{offer.customerName}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{offer.subject}</TableCell>
@@ -869,6 +910,17 @@ export function OffersContent() {
                               title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isSuperuser && (
+                            <Button
+                              variant="ghost" size="icon"
+                              className={`h-8 w-8 ${offer.isTest ? "text-amber-600" : "text-muted-foreground opacity-30 hover:opacity-100"}`}
+                              onClick={() => testFlagMutation.mutate({ id: offer.id, isTest: !offer.isTest })}
+                              disabled={testFlagMutation.isPending}
+                              title={offer.isTest ? "Unmark as test data" : "Mark as test data"}
+                            >
+                              <FlaskConical className="h-4 w-4" />
                             </Button>
                           )}
                         </div>

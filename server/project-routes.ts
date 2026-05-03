@@ -140,10 +140,29 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      const projects = await storage.getUserProjects(userId);
+      const showTest = req.query.showTest === 'true';
+      const projects = await storage.getUserProjects(userId, showTest);
       res.json(projects);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/projects/:id/test-flag', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      if (user?.role !== 'Superuser') {
+        return res.status(403).json({ error: 'Only Superuser can change test flag' });
+      }
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const { isTest } = req.body;
+      if (typeof isTest !== 'boolean') return res.status(400).json({ error: 'isTest must be boolean' });
+      await storage.setProjectTestFlag(id, isTest);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error setting project test flag:', error);
       sendError(res, error);
     }
   });

@@ -2478,7 +2478,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUserProjects(userId: number): Promise<Project[]> {
+  async getUserProjects(userId: number, showTest: boolean = false): Promise<Project[]> {
     console.log(`Getting projects for user ${userId}`);
     
     // Get user info to check role
@@ -2497,6 +2497,7 @@ export class DatabaseStorage implements IStorage {
       const allProjects = await db
         .select()
         .from(projectsTable)
+        .where(showTest ? undefined : eq(projectsTable.isTest, false))
         .orderBy(desc(projectsTable.createdAt));
       
       console.log(`Found ${allProjects.length} total projects for user with role-based/module access`);
@@ -2518,10 +2519,11 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Get project details for all projects user is a member of
+    const baseCondition = inArray(projectsTable.id, projectIds);
     const projects = await db
       .select()
       .from(projectsTable)
-      .where(inArray(projectsTable.id, projectIds))
+      .where(showTest ? baseCondition : and(baseCondition, eq(projectsTable.isTest, false)))
       .orderBy(desc(projectsTable.createdAt));
     
     console.log(`Found ${projects.length} projects for user ${userId} based on membership`);
@@ -4176,8 +4178,20 @@ export class DatabaseStorage implements IStorage {
     await db.delete(productsTable).where(eq(productsTable.id, id));
   }
 
-  async getOffers(): Promise<any[]> {
-    return await db.select().from(offersTable).orderBy(desc(offersTable.createdAt));
+  async getOffers(showTest: boolean = false): Promise<any[]> {
+    return await db
+      .select()
+      .from(offersTable)
+      .where(showTest ? undefined : eq(offersTable.isTest, false))
+      .orderBy(desc(offersTable.createdAt));
+  }
+
+  async setOfferTestFlag(id: number, isTest: boolean): Promise<void> {
+    await db.execute(sql`UPDATE offers SET is_test = ${isTest} WHERE id = ${id}`);
+  }
+
+  async setProjectTestFlag(id: number, isTest: boolean): Promise<void> {
+    await db.execute(sql`UPDATE projects SET is_test = ${isTest} WHERE id = ${id}`);
   }
 
   async getOfferById(id: number): Promise<any | undefined> {

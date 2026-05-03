@@ -175,8 +175,10 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   getProject(id: number): Promise<Project | undefined>;
   updateProject(id: number, updateData: Partial<Project>): Promise<Project>;
-  getUserProjects(userId: number): Promise<Project[]>;
+  getUserProjects(userId: number, showTest?: boolean): Promise<Project[]>;
   getAllProjects(): Promise<Project[]>;
+  setProjectTestFlag(id: number, isTest: boolean): Promise<void>;
+  setOfferTestFlag(id: number, isTest: boolean): Promise<void>;
   
   // Project Phases
   createProjectPhase(phase: InsertProjectPhase): Promise<ProjectPhase>;

@@ -33,6 +33,8 @@ router.get("/dashboard/stats", async (req, res) => {
 // Get all projects with customer information for design management
 router.get("/projects", async (req, res) => {
   try {
+    const showTest = req.query.showTest === 'true';
+    const testFilter = showTest ? '' : 'AND p.is_test = false';
     // Use JOIN query to fetch customer names
     const result = await db.execute(`
       SELECT 
@@ -51,9 +53,11 @@ router.get("/projects", async (req, res) => {
         p.progress,
         p.priority,
         p.financial_year as "financialYear",
+        p.is_test as "isTest",
         c.bp_name as "customerName"
       FROM projects p
       LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE 1=1 ${testFilter}
       ORDER BY p.created_at DESC
     `);
 

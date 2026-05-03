@@ -1316,11 +1316,30 @@ export function setupSalesMarketingRoutes(app: Express) {
 
   router.get('/offers', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const offers = await storage.getOffers();
+      const showTest = req.query.showTest === 'true';
+      const offers = await storage.getOffers(showTest);
       res.json(offers);
     } catch (error) {
       console.error('Error fetching offers:', error);
       res.status(500).json({ error: 'Failed to fetch offers' });
+    }
+  });
+
+  router.patch('/offers/:id/test-flag', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      if (user?.role !== 'Superuser') {
+        return res.status(403).json({ error: 'Only Superuser can change test flag' });
+      }
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const { isTest } = req.body;
+      if (typeof isTest !== 'boolean') return res.status(400).json({ error: 'isTest must be boolean' });
+      await storage.setOfferTestFlag(id, isTest);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error setting offer test flag:', error);
+      res.status(500).json({ error: 'Failed to update test flag' });
     }
   });
 

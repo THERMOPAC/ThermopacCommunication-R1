@@ -1811,6 +1811,9 @@ export const projects = pgTable('projects', {
   costLockReviewedBy: integer('cost_lock_reviewed_by').references(() => users.id),
   costLockReviewedAt: timestamp('cost_lock_reviewed_at'),
   costLockNote: text('cost_lock_note'),
+
+  // Test data flag — hides from normal views; only visible to Superuser with toggle
+  isTest: boolean('is_test').default(false).notNull(),
 });
 
 // Project phases table (Design, Procurement, Manufacturing, Quality)
@@ -10053,6 +10056,9 @@ export const offers = pgTable('offers', {
   commercialChainId: uuid('commercial_chain_id').notNull().defaultRandom(),
   parentOfferId: integer('parent_offer_id'),
   rootOfferId: integer('root_offer_id'),
+
+  // Test data flag — hides from normal views; only visible to Superuser with toggle
+  isTest: boolean('is_test').default(false).notNull(),
 });
 
 export const insertOfferSchema = createInsertSchema(offers).omit({

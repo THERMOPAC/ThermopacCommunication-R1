@@ -16,11 +16,14 @@ import {
   ArrowRight, Plus, ChevronDown, ChevronRight, Briefcase,
   Clock, CheckCircle2, PauseCircle, XCircle, AlertTriangle,
   FolderKanban, Hash, Wrench, ShoppingCart, BarChart3, ExternalLink,
+  FlaskConical, EyeOff,
 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { useTestDataToggle } from "@/hooks/use-test-data-toggle";
 
 interface Project {
   id: number;
@@ -97,6 +100,9 @@ export default function ProjectsPage() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isSuperuser = user?.role === 'Superuser';
+  const { showTestData, toggle: toggleTestData } = useTestDataToggle();
 
   const getIndianFinancialYear = () => {
     const now = new Date();
@@ -140,7 +146,22 @@ export default function ProjectsPage() {
   }, [nextCodeData, newProjectDialogOpen, customers]);
 
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ["/api/design/projects"],
+    queryKey: ["/api/design/projects", { showTest: showTestData }],
+    queryFn: () => fetch(`/api/design/projects?showTest=${showTestData}`, { credentials: 'include' }).then(r => r.json()),
+  });
+
+  const testFlagMutation = useMutation({
+    mutationFn: async ({ id, isTest }: { id: number; isTest: boolean }) => {
+      const res = await apiRequest('PATCH', `/api/projects/${id}/test-flag`, { isTest });
+      return res.json();
+    },
+    onSuccess: (_data, { isTest }) => {
+      toast({ title: isTest ? 'Marked as test data' : 'Unmarked from test data' });
+      queryClient.invalidateQueries({ queryKey: ['/api/design/projects'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to update test flag', description: err?.message || 'Unknown error', variant: 'destructive' });
+    },
   });
 
   const createProjectMutation = useMutation({
@@ -275,10 +296,30 @@ export default function ProjectsPage() {
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">Manage projects, items, and assignments</p>
           </div>
-          <Button size="sm" onClick={() => setNewProjectDialogOpen(true)}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> New Project
-          </Button>
+          <div className="flex items-center gap-2">
+            {isSuperuser && (
+              <Button
+                variant={showTestData ? "secondary" : "outline"}
+                size="sm"
+                onClick={toggleTestData}
+                title={showTestData ? "Hide test data" : "Show test data"}
+                className={showTestData ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200 text-xs h-8" : "text-xs h-8"}
+              >
+                {showTestData ? <EyeOff className="mr-1 h-3 w-3" /> : <FlaskConical className="mr-1 h-3 w-3" />}
+                {showTestData ? "Hide Test" : "Show Test"}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setNewProjectDialogOpen(true)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> New Project
+            </Button>
+          </div>
         </div>
+        {isSuperuser && showTestData && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+            <FlaskConical className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>Test data is visible. Click the flask icon on any project row to toggle its test status.</span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {[
@@ -392,7 +433,14 @@ export default function ProjectsPage() {
                               <TableCell className="px-1">
                                 {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                               </TableCell>
-                              <TableCell className="text-[10px] font-mono font-medium text-primary">{project.projectCode}</TableCell>
+                              <TableCell className="text-[10px] font-mono font-medium text-primary">
+                                {project.projectCode}
+                                {(project as any).isTest && (
+                                  <Badge className="ml-1 text-[9px] px-1 py-0 bg-amber-100 text-amber-800 border border-amber-300">
+                                    <FlaskConical className="inline h-2 w-2 mr-0.5" />Test
+                                  </Badge>
+                                )}
+                              </TableCell>
                               <TableCell>
                                 <div className="text-[11px] font-medium truncate max-w-[250px]">{project.projectName}</div>
                                 {project.projectType && <div className="text-[9px] text-muted-foreground">{project.projectType}</div>}
@@ -446,6 +494,23 @@ export default function ProjectsPage() {
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-[10px]">View Details</TooltipContent>
                                   </Tooltip>
+                                  {isSuperuser && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost" size="icon"
+                                          className={`h-6 w-6 ${(project as any).isTest ? "text-amber-600" : "text-muted-foreground opacity-30 hover:opacity-100"}`}
+                                          onClick={() => testFlagMutation.mutate({ id: project.id, isTest: !(project as any).isTest })}
+                                          disabled={testFlagMutation.isPending}
+                                        >
+                                          <FlaskConical className="h-3 w-3" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-[10px]">
+                                        {(project as any).isTest ? "Unmark as test" : "Mark as test"}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
