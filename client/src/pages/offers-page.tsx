@@ -247,6 +247,10 @@ export function OffersContent() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
+  const [filterFamily, setFilterFamily] = useState("__all__");
+  const [filterProp1, setFilterProp1] = useState("__all__");
+  const [filterProp2, setFilterProp2] = useState("__all__");
+  const [filterProp3, setFilterProp3] = useState("__all__");
   const [pdfDownloadOfferId, setPdfDownloadOfferId] = useState<number | null>(null);
   const [confirmOrderOffer, setConfirmOrderOffer] = useState<any>(null);
   const [conversionResult, setConversionResult] = useState<any>(null);
@@ -1454,71 +1458,202 @@ export function OffersContent() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isProductPickerOpen} onOpenChange={(open) => { if (!open) { setIsProductPickerOpen(false); setProductPickerSearch(""); } }}>
-          <DialogContent className="max-w-4xl max-h-[80vh]">
+        <Dialog open={isProductPickerOpen} onOpenChange={(open) => {
+          if (!open) {
+            setIsProductPickerOpen(false);
+            setProductPickerSearch("");
+            setFilterFamily("__all__");
+            setFilterProp1("__all__");
+            setFilterProp2("__all__");
+            setFilterProp3("__all__");
+          }
+        }}>
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Select Product</DialogTitle>
               <DialogDescription>Search and select a product to add as a line item</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Filter by product code or description..."
-                  value={productPickerSearch}
-                  onChange={(e) => setProductPickerSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <div className="max-h-[400px] overflow-y-auto border rounded-md">
-                {(() => {
-                  const activeProducts = products
-                    .filter(p => p.isActive)
-                    .filter(p => {
-                      if (!productPickerSearch) return true;
-                      const q = productPickerSearch.toLowerCase();
-                      return p.productCode.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
-                    })
-                    .sort((a, b) => {
-                      const fc = a.itemFamily.localeCompare(b.itemFamily);
-                      if (fc !== 0) return fc;
-                      const p1 = a.itemProperty1.localeCompare(b.itemProperty1);
-                      if (p1 !== 0) return p1;
-                      const p2 = a.itemProperty2.localeCompare(b.itemProperty2);
-                      if (p2 !== 0) return p2;
-                      return a.itemProperty3.localeCompare(b.itemProperty3);
-                    });
-                  if (activeProducts.length === 0) {
-                    return (
-                      <div className="p-6 text-center text-muted-foreground">
-                        <p>No matching products found</p>
+            {(() => {
+              const activeBase = products.filter(p => p.isActive);
+
+              // Derive cascading option lists
+              const familyOptions = (() => {
+                const seen = new Map<string, string>();
+                for (const p of activeBase) seen.set(p.itemFamily, p.itemFamilyLabel || p.itemFamily);
+                return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+              })();
+
+              const afterFamily = filterFamily === "__all__" ? activeBase : activeBase.filter(p => p.itemFamily === filterFamily);
+
+              const prop1Options = (() => {
+                const seen = new Map<string, string>();
+                for (const p of afterFamily) seen.set(p.itemProperty1, p.itemProperty1Label || p.itemProperty1);
+                return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+              })();
+
+              const afterProp1 = filterProp1 === "__all__" ? afterFamily : afterFamily.filter(p => p.itemProperty1 === filterProp1);
+
+              const prop2Options = (() => {
+                const seen = new Map<string, string>();
+                for (const p of afterProp1) seen.set(p.itemProperty2, p.itemProperty2Label || p.itemProperty2);
+                return Array.from(seen.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+              })();
+
+              const afterProp2 = filterProp2 === "__all__" ? afterProp1 : afterProp1.filter(p => p.itemProperty2 === filterProp2);
+
+              const prop3Options = (() => {
+                const seen = new Set<string>();
+                for (const p of afterProp2) seen.add(p.itemProperty3);
+                return Array.from(seen).sort();
+              })();
+
+              const afterProp3 = filterProp3 === "__all__" ? afterProp2 : afterProp2.filter(p => p.itemProperty3 === filterProp3);
+
+              const filteredProducts = afterProp3
+                .filter(p => {
+                  if (!productPickerSearch) return true;
+                  const q = productPickerSearch.toLowerCase();
+                  return p.productCode.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+                })
+                .sort((a, b) => {
+                  const fc = a.itemFamily.localeCompare(b.itemFamily);
+                  if (fc !== 0) return fc;
+                  const p1 = a.itemProperty1.localeCompare(b.itemProperty1);
+                  if (p1 !== 0) return p1;
+                  const p2 = a.itemProperty2.localeCompare(b.itemProperty2);
+                  if (p2 !== 0) return p2;
+                  return a.itemProperty3.localeCompare(b.itemProperty3);
+                });
+
+              const hasFilters = filterFamily !== "__all__" || filterProp1 !== "__all__" || filterProp2 !== "__all__" || filterProp3 !== "__all__" || productPickerSearch;
+
+              const resetAll = () => {
+                setFilterFamily("__all__");
+                setFilterProp1("__all__");
+                setFilterProp2("__all__");
+                setFilterProp3("__all__");
+                setProductPickerSearch("");
+              };
+
+              return (
+                <div className="flex flex-col gap-3 min-h-0 flex-1">
+                  {/* Cascading filter row */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <Select value={filterFamily} onValueChange={(v) => { setFilterFamily(v); setFilterProp1("__all__"); setFilterProp2("__all__"); setFilterProp3("__all__"); }}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="All Families" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All Families</SelectItem>
+                        {familyOptions.map(([code, label]) => (
+                          <SelectItem key={code} value={code}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={filterProp1} onValueChange={(v) => { setFilterProp1(v); setFilterProp2("__all__"); setFilterProp3("__all__"); }} disabled={prop1Options.length === 0}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="All Property 1" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All Property 1</SelectItem>
+                        {prop1Options.map(([code, label]) => (
+                          <SelectItem key={code} value={code}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={filterProp2} onValueChange={(v) => { setFilterProp2(v); setFilterProp3("__all__"); }} disabled={prop2Options.length === 0}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="All Property 2" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All Property 2</SelectItem>
+                        {prop2Options.map(([code, label]) => (
+                          <SelectItem key={code} value={code}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={filterProp3} onValueChange={setFilterProp3} disabled={prop3Options.length === 0}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="All Property 3" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All Property 3</SelectItem>
+                        {prop3Options.map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Search + reset row */}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Filter by product code or description..."
+                        value={productPickerSearch}
+                        onChange={(e) => setProductPickerSearch(e.target.value)}
+                        className="pl-9 h-9"
+                      />
+                    </div>
+                    {hasFilters && (
+                      <Button variant="ghost" size="sm" className="h-9 px-3 text-xs shrink-0 gap-1" onClick={resetAll}>
+                        <X className="h-3.5 w-3.5" />Clear
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Result count badge */}
+                  <div className="flex items-center justify-between px-0.5">
+                    <span className="text-xs text-muted-foreground">{filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}</span>
+                  </div>
+
+                  {/* Product list */}
+                  <div className="flex-1 overflow-y-auto border rounded-md max-h-[380px]">
+                    {filteredProducts.length === 0 ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        <Package className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                        <p className="text-sm">No matching products found</p>
+                        {hasFilters && <Button variant="link" size="sm" className="text-xs mt-1" onClick={resetAll}>Clear all filters</Button>}
                       </div>
-                    );
-                  }
-                  return activeProducts.map(p => {
-                    const children = childProductsMap.get(p.id) || [];
-                    return (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer"
-                        onClick={() => { handleAddProduct(p); setIsProductPickerOpen(false); setProductPickerSearch(""); }}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-medium text-sm">{p.productCode}</span>
-                            {children.length > 0 && <Badge variant="outline" className="text-xs">{children.length} sub</Badge>}
+                    ) : (
+                      filteredProducts.map(p => {
+                        const children = childProductsMap.get(p.id) || [];
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                            onClick={() => {
+                              handleAddProduct(p);
+                              setIsProductPickerOpen(false);
+                              setProductPickerSearch("");
+                              setFilterFamily("__all__");
+                              setFilterProp1("__all__");
+                              setFilterProp2("__all__");
+                              setFilterProp3("__all__");
+                            }}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono font-medium text-sm">{p.productCode}</span>
+                                {children.length > 0 && <Badge variant="outline" className="text-xs">{children.length} sub</Badge>}
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">{p.description}</p>
+                            </div>
+                            <div className="text-right ml-3 shrink-0">
+                              <p className="text-sm font-medium">{p.currency || "USD"} {parseFloat(p.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">{p.description}</p>
-                        </div>
-                        <div className="text-right ml-3">
-                          <p className="text-sm font-medium">{p.currency || "USD"} {parseFloat(p.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </DialogContent>
         </Dialog>
         <PdfDownloadDialog
