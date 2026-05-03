@@ -36,6 +36,7 @@ import {
   projects,
   customers,
   bomGatingBypassLog,
+  projectItems as projectItemsSchema,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -1788,6 +1789,51 @@ export function setupProjectRoutes(app: express.Express) {
     } catch (error) {
       console.error(`Error updating project item ${req.params.id}:`, error);
       res.status(400).json({ error: 'Failed to update project item', details: error.message });
+    }
+  });
+
+  app.patch('/api/project-items/:id/parent', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      const { parentProjectItemId } = req.body as { parentProjectItemId: number | null };
+
+      const item = await storage.getProjectItem(itemId);
+      if (!item) return res.status(404).json({ error: 'Project item not found' });
+
+      if (parentProjectItemId !== null && parentProjectItemId !== undefined) {
+        if (parentProjectItemId === itemId) {
+          return res.status(400).json({ error: 'An item cannot be its own parent.' });
+        }
+        const parentItem = await storage.getProjectItem(parentProjectItemId);
+        if (!parentItem) return res.status(400).json({ error: 'Parent item not found.' });
+        if (parentItem.projectId !== item.projectId) {
+          return res.status(400).json({ error: 'Parent item must belong to the same project.' });
+        }
+
+        // Cycle detection: walk up the ancestry from the proposed parent
+        let current: number | null = parentProjectItemId;
+        const visited = new Set<number>();
+        while (current !== null) {
+          if (visited.has(current)) break; // safety against existing corrupt data
+          visited.add(current);
+          if (current === itemId) {
+            return res.status(400).json({ error: 'Setting this parent would create a circular hierarchy.' });
+          }
+          const rows = await db.select({ parent: projectItemsSchema.parentProjectItemId })
+            .from(projectItemsSchema)
+            .where(eq(projectItemsSchema.id, current));
+          current = rows[0]?.parent ?? null;
+        }
+      }
+
+      const updated = await storage.updateProjectItem(itemId, {
+        parentProjectItemId: parentProjectItemId ?? null,
+      } as any);
+
+      return res.json(updated);
+    } catch (error) {
+      console.error('Error updating project item parent:', error);
+      return res.status(500).json({ error: 'Failed to update parent', details: (error as Error).message });
     }
   });
 

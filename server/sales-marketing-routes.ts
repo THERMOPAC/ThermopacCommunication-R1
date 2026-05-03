@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, productChildren as productChildrenTable, productAttributeOptions as productAttributeOptionsTable, attributeOptionAuditLog as attributeOptionAuditLogTable, products as productsTable } from '@shared/schema';
+import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, productChildren as productChildrenTable, productAttributeOptions as productAttributeOptionsTable, attributeOptionAuditLog as attributeOptionAuditLogTable, products as productsTable, offerItems as offerItemsTable } from '@shared/schema';
 import { db } from './db';
 import { eq, and, sql, or } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
@@ -1355,6 +1355,9 @@ export function setupSalesMarketingRoutes(app: Express) {
         if (!item.parentTempKey) {
           return `Sub-item "${item.description}" is missing a parent reference.`;
         }
+        if (item.tempKey && item.parentTempKey === item.tempKey) {
+          return `Item "${item.description}" cannot reference itself as its own parent.`;
+        }
         if (!tempKeySet.has(item.parentTempKey)) {
           return `Sub-item "${item.description}" references a parent that does not exist in this offer.`;
         }
@@ -1367,50 +1370,52 @@ export function setupSalesMarketingRoutes(app: Express) {
     return null;
   }
 
-  async function insertOfferItemsWithHierarchy(offerId: number, items: any[], storageRef: typeof storage) {
-    const tempKeyToId = new Map<string, number>();
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!item.isSubItem) {
-        const created = await storageRef.createOfferItem({
-          offerId,
-          productId: item.productId || null,
-          productCode: item.productCode || null,
-          description: item.description,
-          unit: item.unit,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discountPercent: item.discountPercent || '0',
-          totalPrice: item.totalPrice,
-          hsnSacCode: item.hsnSacCode || null,
-          isSubItem: false,
-          parentItemId: null,
-          sortOrder: i,
-        });
-        if (item.tempKey) tempKeyToId.set(item.tempKey, created.id);
+  async function insertOfferItemsWithHierarchy(offerId: number, items: any[]) {
+    await db.transaction(async (tx) => {
+      const tempKeyToId = new Map<string, number>();
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (!item.isSubItem) {
+          const [created] = await tx.insert(offerItemsTable).values({
+            offerId,
+            productId: item.productId || null,
+            productCode: item.productCode || null,
+            description: item.description,
+            unit: item.unit,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountPercent: item.discountPercent || '0',
+            totalPrice: item.totalPrice,
+            hsnSacCode: item.hsnSacCode || null,
+            isSubItem: false,
+            parentItemId: null,
+            sortOrder: i,
+          }).returning();
+          if (item.tempKey) tempKeyToId.set(item.tempKey, created.id);
+        }
       }
-    }
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.isSubItem) {
-        const parentId = item.parentTempKey ? (tempKeyToId.get(item.parentTempKey) || null) : null;
-        await storageRef.createOfferItem({
-          offerId,
-          productId: item.productId || null,
-          productCode: item.productCode || null,
-          description: item.description,
-          unit: item.unit,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discountPercent: item.discountPercent || '0',
-          totalPrice: item.totalPrice,
-          hsnSacCode: item.hsnSacCode || null,
-          isSubItem: true,
-          parentItemId: parentId,
-          sortOrder: i,
-        });
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.isSubItem) {
+          const parentId = item.parentTempKey ? (tempKeyToId.get(item.parentTempKey) || null) : null;
+          await tx.insert(offerItemsTable).values({
+            offerId,
+            productId: item.productId || null,
+            productCode: item.productCode || null,
+            description: item.description,
+            unit: item.unit,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountPercent: item.discountPercent || '0',
+            totalPrice: item.totalPrice,
+            hsnSacCode: item.hsnSacCode || null,
+            isSubItem: true,
+            parentItemId: parentId,
+            sortOrder: i,
+          });
+        }
       }
-    }
+    });
   }
 
   router.post('/offers', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -1454,7 +1459,7 @@ export function setupSalesMarketingRoutes(app: Express) {
       });
 
       if (items && Array.isArray(items)) {
-        await insertOfferItemsWithHierarchy(offer.id, items, storage);
+        await insertOfferItemsWithHierarchy(offer.id, items);
       }
 
       const savedItems = await storage.getOfferItems(offer.id);
@@ -1501,7 +1506,7 @@ export function setupSalesMarketingRoutes(app: Express) {
         for (const existing of existingItems) {
           await storage.deleteOfferItem(existing.id);
         }
-        await insertOfferItemsWithHierarchy(id, items, storage);
+        await insertOfferItemsWithHierarchy(id, items);
       }
 
       const savedItems = await storage.getOfferItems(id);

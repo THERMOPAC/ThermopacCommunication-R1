@@ -223,7 +223,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isProjectItemDetailOpen, setIsProjectItemDetailOpen] = useState(false);
   const [detailProjectItem, setDetailProjectItem] = useState<any>(null);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
-  
+  const [isLinkParentOpen, setIsLinkParentOpen] = useState(false);
+  const [linkParentForItem, setLinkParentForItem] = useState<any>(null);
+  const [linkParentSelectedId, setLinkParentSelectedId] = useState<string>("");
+
   // State for status update confirmation
   const [isStatusUpdateConfirmOpen, setIsStatusUpdateConfirmOpen] = useState(false);
   const [statusUpdateDetails, setStatusUpdateDetails] = useState<{itemId: number, status: string, oldStatus: string, itemCode: string} | null>(null);
@@ -681,7 +684,33 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       });
     },
   });
-  
+
+  // Mutation for updating a project item's parent (hierarchy)
+  const setParentMutation = useMutation({
+    mutationFn: async ({ childId, parentId }: { childId: number; parentId: number | null }) => {
+      const res = await fetch(`/api/project-items/${childId}/parent`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentProjectItemId: parentId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Failed to update parent');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setIsLinkParentOpen(false);
+      setLinkParentForItem(null);
+      setLinkParentSelectedId("");
+      toast({ title: 'Hierarchy updated', description: 'Item parent has been updated successfully.' });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error updating hierarchy', description: error.message, variant: 'destructive' });
+    },
+  });
+
   // Update project item status
   const updateProjectItemStatusMutation = useMutation({
     mutationFn: async ({ itemId, status }: { itemId: number, status: string }) => {
@@ -1580,6 +1609,77 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </DialogContent>
       </Dialog>
       
+      {/* Link as Sub-item Dialog */}
+      <Dialog open={isLinkParentOpen} onOpenChange={(open) => {
+        if (!open) { setIsLinkParentOpen(false); setLinkParentForItem(null); setLinkParentSelectedId(""); }
+      }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Link as Sub-item</DialogTitle>
+            <DialogDescription>
+              Select a parent item for <strong>{linkParentForItem?.item?.itemCode || linkParentForItem?.item?.masterItem?.itemCode || "this item"}</strong>.
+              The item will be nested under the chosen parent.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Parent Item</label>
+              <Select value={linkParentSelectedId} onValueChange={setLinkParentSelectedId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a parent item…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— No parent (make root item) —</SelectItem>
+                  {(projectItems || [])
+                    .filter((pi: any) => {
+                      if (!linkParentForItem?.item) return true;
+                      const item = linkParentForItem.item;
+                      // Exclude self
+                      if (pi.id === item.id) return false;
+                      // Exclude descendants to prevent cycles
+                      const descendants = (() => {
+                        const result = new Set<number>();
+                        const stack = [item.id];
+                        while (stack.length) {
+                          const curr = stack.pop()!;
+                          for (const c of (childrenMap[curr] || [])) {
+                            result.add(c.id);
+                            stack.push(c.id);
+                          }
+                        }
+                        return result;
+                      })();
+                      return !descendants.has(pi.id);
+                    })
+                    .map((pi: any) => (
+                      <SelectItem key={pi.id} value={String(pi.id)}>
+                        {pi.itemCode || pi.masterItem?.itemCode || `Item #${pi.id}`}
+                        {pi.masterItem?.description ? ` — ${pi.masterItem.description}` : ""}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsLinkParentOpen(false); setLinkParentForItem(null); setLinkParentSelectedId(""); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!linkParentSelectedId || setParentMutation.isPending}
+              onClick={() => {
+                if (!linkParentForItem?.item) return;
+                const parentId = linkParentSelectedId === "__none__" ? null : parseInt(linkParentSelectedId);
+                setParentMutation.mutate({ childId: linkParentForItem.item.id, parentId });
+              }}
+            >
+              {setParentMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Project Cancellation Confirmation Dialog */}
       <Dialog open={isCancelConfirmOpen} onOpenChange={(open) => { if (!open) { setIsCancelConfirmOpen(false); setPendingCancelData(null); setCancelReason(''); setCancellationType(''); } }}>
         <DialogContent className="sm:max-w-[520px]">
@@ -2089,100 +2189,162 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredProjectItems && filteredProjectItems.length > 0 ? (
-                            filteredProjectItems.map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell className="w-6">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setDetailProjectItem(item);
-                                      setIsProjectItemDetailOpen(true);
-                                    }}
-                                    className="h-6 w-6 p-0"
-                                    title="View Project Item Details"
-                                  >
-                                    <ArrowRight className="h-4 w-4 text-amber-500" />
-                                  </Button>
-                                </TableCell>
-                                <TableCell>{item.itemCode || item.masterItem?.itemCode || "N/A"}</TableCell>
-                                <TableCell>{item.description || item.masterItem?.description || item.notes || "N/A"}</TableCell>
-                                <TableCell className="font-mono text-xs">{(item as any).codeBars || "-"}</TableCell>
-                                <TableCell>{item.quantity}</TableCell>
-                                <TableCell>{item.uom || item.masterItem?.uom || "N/A"}</TableCell>
-                                <TableCell>{item.makeOrBuy || item.masterItem?.makeOrBuy || "N/A"}</TableCell>
-                                <TableCell>
-                                  <Select 
-                                    value={item.status || "Not Started"}
-                                    onValueChange={(newStatus) => {
-                                      if (selectedItem?.id === item.id) {
-                                        updateProjectItemStatus(item.id, newStatus);
-                                      } else {
-                                        setSelectedItem(item);
-                                        updateProjectItemStatus(item.id, newStatus);
-                                      }
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-8 w-full">
-                                      <SelectValue placeholder="Select status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Not Started">Not Started</SelectItem>
-                                      <SelectItem value="Drawing Received">Drawing Received</SelectItem>
-                                      <SelectItem value="Material Received">Material Received</SelectItem>
-                                      <SelectItem value="Under Construction">Under Construction</SelectItem>
-                                      <SelectItem value="Completed">Completed</SelectItem>
-                                      <SelectItem value="On Hold">On Hold</SelectItem>
-                                      <SelectItem value="Cancelled">Cancelled</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="text-blue-600"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        console.log("Edit item clicked for item:", item);
-                                        setSelectedItem(item);
-                                        itemForm.reset({
-                                          itemCode: item.masterItem?.itemCode || "",
-                                          description: item.masterItem?.description || "",
-                                          quantity: item.quantity || 1,
-                                          uom: item.masterItem?.uom || "",
-                                          makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy" | "Service") || "Buy",
-                                          drawingNo: item.masterItem?.drawingNo || "",
-                                        });
-                                        setIsEditItemOpen(true);
-                                      }}
-                                    >
-                                      <Edit className="h-4 w-4 mr-1" /> Edit
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="text-red-600"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        console.log("Delete item clicked for item:", item);
-                                        setSelectedItem(item);
-                                        setIsDeleteConfirmOpen(true);
-                                      }}
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-1" /> Delete
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
+                          {(() => {
+                            if (!filteredProjectItems || filteredProjectItems.length === 0) return null;
+
+                            // Collect all descendant IDs to prevent circular selection
+                            function getDescendantIds(itemId: number, cMap: Record<number, any[]>): Set<number> {
+                              const result = new Set<number>();
+                              const stack = [itemId];
+                              while (stack.length) {
+                                const curr = stack.pop()!;
+                                for (const c of (cMap[curr] || [])) {
+                                  result.add(c.id);
+                                  stack.push(c.id);
+                                }
+                              }
+                              return result;
+                            }
+
+                            function renderItemRow(item: any, depth: number): React.ReactNode {
+                              const children = childrenMap[item.id] || [];
+                              const hasChildren = children.length > 0;
+                              const isExpanded = expandedItems.has(item.id);
+
+                              return (
+                                <React.Fragment key={item.id}>
+                                  <TableRow>
+                                    <TableCell className="w-6">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDetailProjectItem(item);
+                                          setIsProjectItemDetailOpen(true);
+                                        }}
+                                        className="h-6 w-6 p-0"
+                                        title="View Project Item Details"
+                                      >
+                                        <ArrowRight className="h-4 w-4 text-amber-500" />
+                                      </Button>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 20}px` }}>
+                                        {hasChildren ? (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-5 w-5 p-0 shrink-0"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleExpand(item.id); }}
+                                          >
+                                            {isExpanded
+                                              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                          </Button>
+                                        ) : depth > 0 ? (
+                                          <CornerDownRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                        ) : (
+                                          <span className="w-5 shrink-0" />
+                                        )}
+                                        <span className={depth > 0 ? "text-muted-foreground" : ""}>
+                                          {item.itemCode || item.masterItem?.itemCode || "N/A"}
+                                        </span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className={depth > 0 ? "text-muted-foreground text-sm" : ""}>{item.description || item.masterItem?.description || item.notes || "N/A"}</TableCell>
+                                    <TableCell className="font-mono text-xs">{(item as any).codeBars || "-"}</TableCell>
+                                    <TableCell>{item.quantity}</TableCell>
+                                    <TableCell>{item.uom || item.masterItem?.uom || "N/A"}</TableCell>
+                                    <TableCell>{item.makeOrBuy || item.masterItem?.makeOrBuy || "N/A"}</TableCell>
+                                    <TableCell>
+                                      <Select
+                                        value={item.status || "Not Started"}
+                                        onValueChange={(newStatus) => {
+                                          setSelectedItem(item);
+                                          updateProjectItemStatus(item.id, newStatus);
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8 w-full">
+                                          <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Not Started">Not Started</SelectItem>
+                                          <SelectItem value="Drawing Received">Drawing Received</SelectItem>
+                                          <SelectItem value="Material Received">Material Received</SelectItem>
+                                          <SelectItem value="Under Construction">Under Construction</SelectItem>
+                                          <SelectItem value="Completed">Completed</SelectItem>
+                                          <SelectItem value="On Hold">On Hold</SelectItem>
+                                          <SelectItem value="Cancelled">Cancelled</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <MoreVertical className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            onClick={() => {
+                                              setSelectedItem(item);
+                                              itemForm.reset({
+                                                itemCode: item.masterItem?.itemCode || "",
+                                                description: item.masterItem?.description || "",
+                                                quantity: item.quantity || 1,
+                                                uom: item.masterItem?.uom || "",
+                                                makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy" | "Service") || "Buy",
+                                                drawingNo: item.masterItem?.drawingNo || "",
+                                              });
+                                              setIsEditItemOpen(true);
+                                            }}
+                                          >
+                                            <Edit className="h-4 w-4 mr-2" /> Edit
+                                          </DropdownMenuItem>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            onClick={() => {
+                                              setLinkParentForItem({ item, mode: 'link-parent' });
+                                              setLinkParentSelectedId(item.parentProjectItemId?.toString() || "");
+                                              setIsLinkParentOpen(true);
+                                            }}
+                                          >
+                                            <CornerDownRight className="h-4 w-4 mr-2" /> Link as Sub-item
+                                          </DropdownMenuItem>
+                                          {item.parentProjectItemId && (
+                                            <DropdownMenuItem
+                                              onClick={() => setParentMutation.mutate({ childId: item.id, parentId: null })}
+                                            >
+                                              <ChevronLeft className="h-4 w-4 mr-2" /> Remove from Parent
+                                            </DropdownMenuItem>
+                                          )}
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            className="text-red-600 focus:text-red-600"
+                                            onClick={() => {
+                                              setSelectedItem(item);
+                                              setIsDeleteConfirmOpen(true);
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </TableCell>
+                                  </TableRow>
+                                  {isExpanded && hasChildren && children.map(child => renderItemRow(child, depth + 1))}
+                                </React.Fragment>
+                              );
+                            }
+
+                            return rootItems.map(item => renderItemRow(item, 0));
+                          })()}
+                          {(!filteredProjectItems || filteredProjectItems.length === 0) && (
                             <TableRow>
                               <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
                                 No project items found. Use the Import button to add items.
