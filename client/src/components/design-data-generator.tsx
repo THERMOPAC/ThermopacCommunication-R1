@@ -2731,14 +2731,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                       </span>
                     )}
                   </Label>
-                  <Select value={designCode} onValueChange={setDesignCode}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Select design code…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DESIGN_CODES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div className="h-8 text-xs flex items-center px-3 rounded-md border border-input bg-muted text-muted-foreground cursor-not-allowed select-none">
+                    {designCode || <span className="text-muted-foreground/50">—</span>}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
