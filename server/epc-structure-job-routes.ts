@@ -237,18 +237,26 @@ router.post('/epc-structure-jobs/:id/complete', requireNodeAuth, async (req: Req
                        (result.status === 'success' || result.status === 'partial');
 
   if (_fileCreated && job.drawingControlId) {
+    // create_new initializes the working drawing: set revisionCode='A' so that
+    // subsequent update_existing jobs can read a non-null dbRevision.
+    // update_existing does NOT change revisionCode — only Release Drawing does.
+    const setFields = job.mode === 'create_new'
+      ? { revisionCode: 'A', structuredAt: new Date() }
+      : { structuredAt: new Date() };
+
     await db
       .update(epcDrawingControls)
-      .set({ structuredAt: new Date() })
+      .set(setFields)
       .where(eq(epcDrawingControls.id, job.drawingControlId));
     console.log(
-      `[StructureJobs] Job ${jobId} — structuredAt updated ` +
+      `[StructureJobs] Job ${jobId} — drawing control updated ` +
       `(drawing_control=${job.drawingControlId} mode=${job.mode} ` +
-      `file=${_filePath} sha256=${_fileSha256 || 'n/a'})`
+      `${job.mode === 'create_new' ? 'revisionCode=A ' : ''}` +
+      `structuredAt=now file=${_filePath} sha256=${_fileSha256 || 'n/a'})`
     );
   } else {
     console.log(
-      `[StructureJobs] Job ${jobId} — structuredAt NOT updated: ` +
+      `[StructureJobs] Job ${jobId} — drawing control NOT updated: ` +
       `file_created=${_fileCreated} file_path="${_filePath}"`
     );
   }
