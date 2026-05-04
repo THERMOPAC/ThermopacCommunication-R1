@@ -339,30 +339,12 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
 
     const requestedDates = attendance.map((e: { date: string }) => e.date);
 
-    const conflictingRecords = await db.select({
-      id: attendanceRecords.id,
-      date: attendanceRecords.date,
-      source: attendanceRecords.source,
-    }).from(attendanceRecords)
-      .where(and(
-        eq(attendanceRecords.userId, userId),
-        inArray(attendanceRecords.date, requestedDates),
-        sql`${attendanceRecords.source} IS DISTINCT FROM 'manual_calendar'`,
-      ));
-
-    if (conflictingRecords.length > 0) {
-      const conflictDates = conflictingRecords.map(r => `${r.date} (source: ${r.source || 'system'})`).join(', ');
-      return res.status(409).json({ 
-        error: `Cannot overwrite existing non-calendar attendance records. Conflicts: ${conflictDates}`,
-        conflictDates: conflictingRecords.map(r => r.date),
-      });
-    }
-
+    // Delete all existing records for the requested dates (any source) so the
+    // admin calendar save acts as a full override for those dates.
     await db.delete(attendanceRecords).where(and(
       eq(attendanceRecords.userId, userId),
       gte(attendanceRecords.date, monthStart),
       lte(attendanceRecords.date, monthEnd),
-      eq(attendanceRecords.source, 'manual_calendar'),
     ));
 
     const adminUser = req.user as any;
