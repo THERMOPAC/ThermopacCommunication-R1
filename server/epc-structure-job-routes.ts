@@ -114,7 +114,6 @@ router.get('/epc-structure-jobs/pending', requireNodeAuth, async (req: Request, 
         drawingControlId: epcStructureJobs.drawingControlId,
         drawingNumber:    epcStructureJobs.drawingNumber,
         revision:         epcStructureJobs.revision,
-        baseRevision:     epcStructureJobs.baseRevision,
         mode:             epcStructureJobs.mode,
         ddsPayload:       epcStructureJobs.ddsPayload,
         projectContext:   epcStructureJobs.projectContext,
@@ -167,7 +166,6 @@ router.post('/epc-structure-jobs/:id/claim', requireNodeAuth, async (req: Reques
     drawing_control_id: claimed.drawingControlId,
     drawing_number:     claimed.drawingNumber,
     revision:           claimed.revision,
-    base_revision:      claimed.baseRevision ?? null,
     mode:               claimed.mode,
     dds:                claimed.ddsPayload,
     project_context:    claimed.projectContext,
@@ -184,6 +182,7 @@ const completeBodySchema = z.object({
   result: z.object({
     status:             z.enum(['success', 'partial']),
     file_path:          z.string().min(1),
+    file_sha256:        z.string().optional(),   // SHA-256 hex of .slddrw after Save2
     properties_written: z.array(z.string()).optional(),
     duration_sec:       z.number().optional(),
     agent: z.object({
@@ -230,32 +229,27 @@ router.post('/epc-structure-jobs/:id/complete', requireNodeAuth, async (req: Req
     })
     .where(eq(epcStructureJobs.id, jobId));
 
-  // Revision sync: both modes — update drawing control's revision_code + structured_at
-  // ONLY when a file was successfully created on disk.
+  // Record when the working file was last structured (structuredAt timestamp only).
+  // revisionCode is NOT touched — it advances only on formal Release Drawing.
   const _filePath    = ((result as any).file_path ?? '').trim();
+  const _fileSha256  = ((result as any).file_sha256 ?? '').trim();
   const _fileCreated = _filePath.length > 0 &&
                        (result.status === 'success' || result.status === 'partial');
 
-  if (_fileCreated && job.drawingControlId && job.revision) {
-    // create_new  → revision_code = 'A'  (always first)
-    // update_existing → revision_code = job.revision  (next letter)
-    const newRevCode = job.mode === 'create_new' ? 'A' : job.revision;
+  if (_fileCreated && job.drawingControlId) {
     await db
       .update(epcDrawingControls)
-      .set({
-        revisionCode: newRevCode,
-        structuredAt: new Date(),
-      })
+      .set({ structuredAt: new Date() })
       .where(eq(epcDrawingControls.id, job.drawingControlId));
     console.log(
-      `[StructureJobs] Job ${jobId} — revision synced → ` +
-      `drawing_control=${job.drawingControlId} rev=${newRevCode} ` +
-      `(mode=${job.mode} file=${_filePath})`
+      `[StructureJobs] Job ${jobId} — structuredAt updated ` +
+      `(drawing_control=${job.drawingControlId} mode=${job.mode} ` +
+      `file=${_filePath} sha256=${_fileSha256 || 'n/a'})`
     );
   } else {
     console.log(
-      `[StructureJobs] Job ${jobId} — revision NOT synced: ` +
-      `file_created=${_fileCreated} file_path="${_filePath}" mode=${job.mode}`
+      `[StructureJobs] Job ${jobId} — structuredAt NOT updated: ` +
+      `file_created=${_fileCreated} file_path="${_filePath}"`
     );
   }
 
@@ -337,7 +331,8 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
 
   const { drawing_number, mode, dds, project_context } = parse.data;
 
-  // Verify drawing control exists and read its current revision_code
+  // Verify drawing control exists and read its current revision_code.
+  // dbRevision may be null for a freshly created drawing control — do NOT default here.
   const [dc] = await db
     .select({ id: epcDrawingControls.id, revisionCode: epcDrawingControls.revisionCode })
     .from(epcDrawingControls)
@@ -346,7 +341,7 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
 
   if (!dc) return res.status(404).json({ error: 'Drawing control not found' });
 
-  const currentRevision = dc.revisionCode ?? 'A';
+  const dbRevision = dc.revisionCode;  // null | string — revision is server-controlled only
 
   // ── Check for any completed jobs (any mode) ───────────────────────────────
   const completedJobs = await db
@@ -359,41 +354,45 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
 
   const hasAnyCompleted = completedJobs.length > 0;
 
-  // ── Determine revision and base_revision for this job ─────────────────────
+  // ── Determine revision for this job ──────────────────────────────────────
+  // Revision is server-controlled. Never trust UI input for revision.
+  // The .slddrw is a single working file — 'revision' is the value written into
+  // the Revision title-block property, NOT a filename suffix.
+  // revisionCode on the drawing control is NOT advanced by structuring;
+  // it advances only on formal Release Drawing.
   let revision: string;
-  let baseRevision: string | null = null;
+  const baseRevision: string | null = null;  // unused; kept for DB column compat
 
   if (mode === 'create_new') {
-    // create_new is always Rev A — block if any completed job already exists
+    // create_new builds the working file from template — only allowed once.
     if (hasAnyCompleted) {
       return res.status(409).json({
-        error: 'Drawing already created. Use "Update Drawing" to create a new revision.',
-        currentRevision,
+        error: 'Working drawing already exists. Use "Update Drawing" to re-structure it.',
+        currentRevision: dbRevision ?? 'A',
       });
     }
-    revision     = 'A';
-    baseRevision = null;
+    // Initial revision is always 'A' — server decides, UI has no say.
+    revision = 'A';
 
   } else {
-    // update_existing: open base (current rev), save as next rev
+    // update_existing opens the working file in-place and rewrites properties.
+    // No new file is created; no next-revision computed.
     if (!hasAnyCompleted) {
       return res.status(422).json({
-        error: 'No completed drawing found. Use "Create Drawing" first.',
-        currentRevision,
+        error: 'No working drawing found. Use "Create Drawing" first.',
+        currentRevision: dbRevision ?? null,
       });
     }
-    baseRevision = currentRevision;
-    revision     = nextRevision(currentRevision);
-
-    // Overwrite protection: block if a completed job at nextRevision already exists
-    const alreadyExists = completedJobs.some(j => j.revision === revision);
-    if (alreadyExists) {
-      return res.status(409).json({
-        error: `Revision ${revision} has already been structured.`,
-        currentRevision,
-        nextRevision: nextRevision(revision),
+    // currentRevision must be known — fail if the DB has no revision code.
+    if (!dbRevision) {
+      return res.status(422).json({
+        error: 'Cannot update drawing: revision code is missing on the drawing control. ' +
+               'Run "Create Drawing" first or check the drawing control record.',
       });
     }
+    // The title-block Revision property stays as the current released revision
+    // until a formal Release Drawing package is generated.
+    revision = dbRevision;
   }
 
   // ── Hazard level pre-flight warnings ─────────────────────────────────────
