@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Agent version (e.g. 1.0.36)'
+        description: 'Agent version (e.g. 1.0.37)'
         required: true
-        default: '1.0.36'
+        default: '1.0.37'
   push:
     paths:
       - 'agent/**'
@@ -134,43 +134,62 @@ jobs:
       # This step verifies that the files actually bundled are also clean,
       # catching any case where the build pipeline accidentally picked up
       # old sources from a different directory.
-      - name: Verify dist — no _rev- in packaged Python files
+      - name: Verify dist — no _rev-, no __pycache__, no .pyc in package
         run: |
           $failed = $false
-          $distPy = Get-ChildItem -Path "dist\ThermopacStructuringAgent" -Recurse -Filter "*.py" -ErrorAction SilentlyContinue
+          $distRoot = "dist\ThermopacStructuringAgent"
 
-          if (-not $distPy) {
-            Write-Host "INFO: No .py files in dist (pure frozen build) — skipping packaged source scan"
+          # ── Check 1: no __pycache__ directories ──────────────────────────────
+          $cacheDirs = Get-ChildItem -Path $distRoot -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue
+          if ($cacheDirs) {
+            foreach ($d in $cacheDirs) {
+              Write-Error "FAIL: __pycache__ directory found in dist: $($d.FullName)"
+            }
+            $failed = $true
+          } else {
+            Write-Host "PASS: no __pycache__ directories in dist"
           }
 
+          # ── Check 2: no .pyc files ────────────────────────────────────────────
+          $pycFiles = Get-ChildItem -Path $distRoot -Recurse -Filter "*.pyc" -ErrorAction SilentlyContinue
+          if ($pycFiles) {
+            foreach ($f in $pycFiles) {
+              Write-Error "FAIL: .pyc file found in dist: $($f.FullName)"
+            }
+            $failed = $true
+          } else {
+            Write-Host "PASS: no .pyc files in dist"
+          }
+
+          # ── Check 3: no _rev- filename logic in any .py file ─────────────────
+          $distPy = Get-ChildItem -Path $distRoot -Recurse -Filter "*.py" -ErrorAction SilentlyContinue
           foreach ($f in $distPy) {
             $content = Get-Content $f.FullName -Raw -Encoding UTF8
-
-            # Check for filename assignment containing _rev-
             if ($content -match 'filename\s*=.*_rev-') {
-              Write-Error "FAIL: _rev- in packaged file $($f.FullName)"
+              Write-Error "FAIL: _rev- filename assignment in $($f.FullName)"
               $failed = $true
             }
-
-            # Check solidworks_structurer.py specifically for the exact buggy pattern
             if ($f.Name -eq "solidworks_structurer.py") {
               if ($content -match '_rev-\{[^}]+\}\.slddrw|_Rev-\{[^}]+\}\.slddrw') {
-                Write-Error "FAIL: old _rev- filename pattern in packaged solidworks_structurer.py"
+                Write-Error "FAIL: _rev- slddrw pattern in packaged solidworks_structurer.py"
+                $failed = $true
+              } elseif ($content -match 'safe_rev\s*=') {
+                Write-Error "FAIL: safe_rev variable found in packaged solidworks_structurer.py"
                 $failed = $true
               } else {
-                Write-Host "PASS: solidworks_structurer.py in dist is clean"
+                Write-Host "PASS: solidworks_structurer.py — no _rev- pattern, no safe_rev"
               }
-              # Verify the exact correct pattern IS present
               if ($content -notmatch 'filename\s*=\s*f"\{safe_dn\}\.slddrw"') {
-                Write-Warning "WARN: expected 'filename = f\"{safe_dn}.slddrw\"' not found in packaged file — verify manually"
+                Write-Error "FAIL: expected 'filename = f\"{safe_dn}.slddrw\"' not found"
+                $failed = $true
               } else {
-                Write-Host "PASS: correct filename pattern confirmed in packaged solidworks_structurer.py"
+                Write-Host "PASS: correct filename = f`"{safe_dn}.slddrw`" confirmed"
               }
             }
           }
 
           if ($failed) { exit 1 }
-          Write-Host "PASS: all packaged Python files clean — no _rev- filename patterns"
+          Write-Host "PASS: dist is clean — no _rev-, no __pycache__, no .pyc files"
 
       - name: Install Inno Setup 6
         run: |
@@ -181,7 +200,7 @@ jobs:
 
       - name: Patch version in setup.iss
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.36' }}"
+          $version = "${{ github.event.inputs.version || '1.0.37' }}"
           (Get-Content "installer\setup.iss") `
             -replace '#define AppVersion\s+"[^"]+"', "#define AppVersion      `"$version`"" |
             Set-Content "installer\setup.iss"
@@ -203,7 +222,7 @@ jobs:
 
       - name: Verify installer output
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.36' }}"
+          $version = "${{ github.event.inputs.version || '1.0.37' }}"
           $installer = "installer_output\ThermopacStructuringAgent-Setup-v$version.exe"
           if (!(Test-Path $installer)) {
             Write-Host "Contents of installer_output\:"
@@ -216,7 +235,7 @@ jobs:
 
       - name: Compute SHA-256 checksum
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.36' }}"
+          $version = "${{ github.event.inputs.version || '1.0.37' }}"
           $installer = "installer_output\ThermopacStructuringAgent-Setup-v$version.exe"
           $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLower()
           Write-Host "SHA-256: $hash"
@@ -226,7 +245,7 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacStructuringAgent-Setup-v${{ github.event.inputs.version || '1.0.36' }}
+          name: ThermopacStructuringAgent-Setup-v${{ github.event.inputs.version || '1.0.37' }}
           path: |
             installer_output/ThermopacStructuringAgent-Setup-v*.exe
             installer_output/SHA256SUMS.txt
@@ -235,6 +254,6 @@ jobs:
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacStructuringAgent-dist-v${{ github.event.inputs.version || '1.0.36' }}
+          name: ThermopacStructuringAgent-dist-v${{ github.event.inputs.version || '1.0.37' }}
           path: dist/ThermopacStructuringAgent/
           retention-days: 7

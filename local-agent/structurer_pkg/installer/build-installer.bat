@@ -36,7 +36,7 @@ REM ============================================================
 setlocal enabledelayedexpansion
 
 REM Allow CI to inject STRUCTURER_VERSION via env var; fall back to local default
-if "%STRUCTURER_VERSION%"=="" set STRUCTURER_VERSION=1.0.24
+if "%STRUCTURER_VERSION%"=="" set STRUCTURER_VERSION=1.0.37
 set PY_VERSION=3.11.9
 set PY_ZIP=python-%PY_VERSION%-embed-amd64.zip
 set PY_URL=https://www.python.org/ftp/python/%PY_VERSION%/%PY_ZIP%
@@ -273,26 +273,45 @@ if exist "%AGENT_DIST%\structurer" rmdir /s /q "%AGENT_DIST%\structurer"
 xcopy "%SRC%\agent"      "%AGENT_DIST%\agent\"      /e /i /q /y
 xcopy "%SRC%\structurer" "%AGENT_DIST%\structurer\"  /e /i /q /y
 
-REM Remove __pycache__
+REM ── Remove ALL __pycache__ and .pyc from dist (build must be clean) ──────────
 for /d /r "%AGENT_DIST%" %%d in (__pycache__) do (
     if exist "%%d" rmdir /s /q "%%d"
 )
-echo [OK] Agent sources copied (agent\ structurer\)
+del /S /Q "%AGENT_DIST%\*.pyc" >nul 2>&1
+echo [OK] Agent sources copied and cleaned (agent\ structurer\)
 
-REM ── Post-copy safeguard: verify the COPIED dist file is also clean ─────────────
-REM    Confirms xcopy did not silently skip the file or copy the wrong version.
+REM ── Build verification: FAIL if __pycache__ or .pyc remain in dist ────────────
+echo [STEP] Verifying dist has no __pycache__ or .pyc files...
+dir /s /b /ad "%AGENT_DIST%\__pycache__" >nul 2>&1
+if not errorlevel 1 (
+    echo [ERROR] __pycache__ found in dist after cleanup — build is dirty.
+    echo         Remove __pycache__ from source and retry.
+    pause & exit /b 1
+)
+dir /s /b "%AGENT_DIST%\*.pyc" >nul 2>&1
+if not errorlevel 1 (
+    echo [ERROR] .pyc files found in dist after cleanup — build is dirty.
+    pause & exit /b 1
+)
+echo [OK] Dist is clean: no __pycache__, no .pyc files.
+
+REM ── Post-copy safeguard: verify the COPIED dist file has no _rev- ─────────────
 set "SW_DIST=%AGENT_DIST%\structurer\solidworks_structurer.py"
 if not exist "%SW_DIST%" (
-    echo [ERROR] solidworks_structurer.py missing from dist after xcopy: %SW_DIST%
+    echo [ERROR] solidworks_structurer.py missing from dist: %SW_DIST%
     pause & exit /b 1
 )
-findstr /R "_rev-{" "%SW_DIST%" >nul 2>&1
+findstr /C:"_rev-{" "%SW_DIST%" >nul 2>&1
 if not errorlevel 1 (
-    echo [ERROR] _rev- filename pattern found in dist copy: %SW_DIST%
-    echo         xcopy may have copied the wrong file. Investigate before distributing.
+    echo [ERROR] _rev- filename pattern found in dist: %SW_DIST%
     pause & exit /b 1
 )
-echo [OK] Dist copy verified: no _rev- pattern in %SW_DIST%
+findstr /C:"safe_rev" "%SW_DIST%" >nul 2>&1
+if not errorlevel 1 (
+    echo [ERROR] safe_rev variable found in dist: %SW_DIST%
+    pause & exit /b 1
+)
+echo [OK] Dist verified: no _rev- pattern, no safe_rev in solidworks_structurer.py
 
 REM ── Write run.bat ──────────────────────────────────────────────────────────────
 echo [STEP] Writing run.bat...

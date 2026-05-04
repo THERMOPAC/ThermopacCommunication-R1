@@ -17,7 +17,7 @@
 
 #define MyAppVersion        GetEnv("STRUCTURER_VERSION")
 #if MyAppVersion == ""
-  #define MyAppVersion      "1.0.24"
+  #define MyAppVersion      "1.0.37"
 #endif
 
 #define AppName             "ThermopacStructuringAgent"
@@ -67,7 +67,7 @@ Name: "startupschedule"; Description: "Start agent automatically at &Windows log
 
 [Files]
 ; ── Agent Python source (agent/ extractor/ structurer/ from dist\ThermopacStructuringAgent\)
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "__pycache__\*,*.pyc,__pycache__"
 
 ; ── Bundled Python runtime (optional — skipped if dist\python\ not present)
 ; When present the installer is fully self-contained.

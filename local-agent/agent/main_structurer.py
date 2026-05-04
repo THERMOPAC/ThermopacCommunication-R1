@@ -37,35 +37,6 @@ else:
 
 sys.path.insert(0, _base)
 
-# ── Self-healing __pycache__ removal ─────────────────────────────────────────
-# MUST run BEFORE any structurer import.
-#
-# Root cause of the {DrawingNo}_rev-A.slddrw bug in installed agents:
-#   1. The installer updates solidworks_structurer.py on disk (correct source).
-#   2. Robocopy's default /COPY:DAT preserves the file's original mtime.
-#   3. The old __pycache__\solidworks_structurer.cpython-3xx.pyc stores that
-#      same mtime as its source-match key.
-#   4. Python compares: stored_mtime == current .py mtime → match → loads the
-#      OLD bytecode, never reading the updated .py source.
-#   5. The old bytecode executes:  filename = f"{safe_dn}_rev-{safe_rev}.slddrw"
-#      The new .py source has:     filename = f"{safe_dn}.slddrw"
-#
-# By deleting __pycache__ here, before structure_job_runner (which imports
-# solidworks_structurer at module level) is loaded, we guarantee Python
-# recompiles from the .py source on disk — every startup, automatically.
-import shutil as _shutil
-for _pycache in [
-    os.path.join(_base, "structurer", "__pycache__"),
-    os.path.join(_base, "agent",      "__pycache__"),
-]:
-    if os.path.isdir(_pycache):
-        try:
-            _shutil.rmtree(_pycache)
-            print(f"[Structurer] __pycache__ cleared: {_pycache}")
-        except Exception as _e:
-            print(f"[Structurer] WARNING: could not clear {_pycache}: {_e}")
-del _shutil, _pycache
-
 from agent.config                import AgentConfig
 from agent.logger                import build_logger
 from agent.structure_job_client  import StructureJobClient, STRUCTURER_VERSION

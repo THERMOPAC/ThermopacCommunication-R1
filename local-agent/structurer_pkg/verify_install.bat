@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Thermopac Drawing Structuring Agent v1.0.36
+REM  Thermopac Drawing Structuring Agent v1.0.37
 REM  VERIFY INSTALLATION
 REM  --
 REM  Confirms the installed solidworks_structurer.py produces
