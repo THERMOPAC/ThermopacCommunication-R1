@@ -209,25 +209,6 @@ router.get(
   }
 );
 
-// ── Serve patch_filename.py — standalone in-place patcher ────────────────────
-// User downloads this, runs:  python patch_filename.py
-// It directly patches the installed solidworks_structurer.py without needing
-// to replace the whole file via robocopy.
-router.get(
-  "/agent-downloads/filename-patcher",
-  ensureAuthenticated,
-  (_req: Request, res: Response) => {
-    const filePath = path.join(LOCAL_AGENT, "structurer", "patch_filename.py");
-    if (!fileExists(filePath)) {
-      res.status(404).json({ error: "patch_filename.py not found" });
-      return;
-    }
-    res.setHeader("Content-Type", "text/x-python");
-    res.setHeader("Content-Disposition", 'attachment; filename="patch_filename.py"');
-    res.setHeader("Cache-Control", "no-store");
-    res.sendFile(filePath);
-  }
-);
 
 // ── Serve solidworks_structurer.py directly (no auth — needed by fix_filename.bat) ──
 router.get(

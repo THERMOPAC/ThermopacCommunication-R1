@@ -304,18 +304,7 @@ function StructuringAgentRow() {
               </Button>
             </a>
           )}
-          <a href="/api/agent-downloads/filename-patcher" download="patch_filename.py">
-            <Button variant="outline" size="sm" className="h-7 text-xs border-orange-400 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950">
-              <Download className="h-3 w-3 mr-1" />
-              patch_filename.py
-            </Button>
-          </a>
         </div>
-        {verified && (
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Quick fix: download <span className="font-mono">patch_filename.py</span> → run <span className="font-mono">python patch_filename.py</span> as Admin
-          </p>
-        )}
       </td>
     </tr>
   );
