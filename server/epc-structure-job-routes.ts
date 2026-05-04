@@ -110,16 +110,16 @@ router.get('/epc-structure-jobs/pending', requireNodeAuth, async (req: Request, 
 
     const jobs = await db
       .select({
-        id:               epcStructureJobs.id,
-        drawingControlId: epcStructureJobs.drawingControlId,
-        drawingNumber:    epcStructureJobs.drawingNumber,
-        revision:         epcStructureJobs.revision,
-        baseRevision:     epcStructureJobs.baseRevision,
-        mode:             epcStructureJobs.mode,
-        ddsPayload:       epcStructureJobs.ddsPayload,
-        projectContext:   epcStructureJobs.projectContext,
-        templatePath:     epcStructureJobs.templatePath,
-        stagingRoot:      epcStructureJobs.stagingRoot,
+        id:                epcStructureJobs.id,
+        drawing_control_id: epcStructureJobs.drawingControlId,
+        drawing_number:    epcStructureJobs.drawingNumber,
+        revision:          epcStructureJobs.revision,
+        base_revision:     epcStructureJobs.baseRevision,
+        mode:              epcStructureJobs.mode,
+        dds:               epcStructureJobs.ddsPayload,
+        project_context:   epcStructureJobs.projectContext,
+        template_path:     epcStructureJobs.templatePath,
+        staging_root:      epcStructureJobs.stagingRoot,
       })
       .from(epcStructureJobs)
       .where(eq(epcStructureJobs.status, 'pending'))
