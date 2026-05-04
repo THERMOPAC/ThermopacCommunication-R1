@@ -369,7 +369,7 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
   // revisionCode on the drawing control is NOT advanced by structuring;
   // it advances only on formal Release Drawing.
   let revision: string;
-  const baseRevision: string | null = null;  // unused; kept for DB column compat
+  let baseRevision: string | null = null;
 
   if (mode === 'create_new') {
     // create_new builds the working file from template — only allowed once.
@@ -381,6 +381,7 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
     }
     // Initial revision is always 'A' — server decides, UI has no say.
     revision = 'A';
+    baseRevision = null;
 
   } else {
     // update_existing opens the working file in-place and rewrites properties.
@@ -401,6 +402,9 @@ router.post('/epc-drawing-controls/:id/structure-jobs', async (req: Request, res
     // The title-block Revision property stays as the current released revision
     // until a formal Release Drawing package is generated.
     revision = dbRevision;
+    // base_revision tells the agent which revision the working file is currently at.
+    // For update_existing this equals revision — one working file, no new file created.
+    baseRevision = dbRevision;
   }
 
   // ── Hazard level pre-flight warnings ─────────────────────────────────────
