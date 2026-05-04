@@ -1,0 +1,146 @@
+name: Build Structuring Agent Installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Agent version (e.g. 1.0.33)'
+        required: true
+        default: '1.0.33'
+  push:
+    paths:
+      - 'agent/**'
+      - 'structurer/**'
+      - 'extractor/**'
+      - 'installer/**'
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    name: Build Structuring Agent Installer (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pywin32 requests pyinstaller pywin32-ctypes
+
+      - name: Build dist with PyInstaller
+        run: |
+          pyinstaller `
+            --name ThermopacStructuringAgent `
+            --onedir `
+            --console `
+            --clean `
+            --noconfirm `
+            --distpath dist `
+            --workpath build `
+            --specpath . `
+            --add-data "extractor;extractor" `
+            --add-data "agent;agent" `
+            --add-data "structurer;structurer" `
+            --hidden-import win32com `
+            --hidden-import win32com.client `
+            --hidden-import pythoncom `
+            --hidden-import pywintypes `
+            --hidden-import win32api `
+            --hidden-import win32con `
+            --hidden-import requests `
+            --hidden-import configparser `
+            --hidden-import hashlib `
+            --paths agent `
+            --paths extractor `
+            --paths structurer `
+            agent\main_structurer.py
+
+      - name: Verify dist structure
+        run: |
+          $exe = "dist\ThermopacStructuringAgent\ThermopacStructuringAgent.exe"
+          if (!(Test-Path $exe)) {
+            Write-Error "ThermopacStructuringAgent.exe not found: $exe"
+            Get-ChildItem dist -Recurse -ErrorAction SilentlyContinue
+            exit 1
+          }
+          $sizeMB = [math]::Round((Get-Item $exe).Length / 1MB, 1)
+          Write-Host "EXE found: $exe ($sizeMB MB)"
+
+      - name: Install Inno Setup 6
+        run: |
+          $out = "$env:TEMP\innosetup.exe"
+          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile $out
+          Start-Process -FilePath $out -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
+          Write-Host "Inno Setup installed"
+
+      - name: Patch version in setup.iss
+        run: |
+          $version = "${{ github.event.inputs.version || '1.0.33' }}"
+          (Get-Content "installer\setup.iss") `
+            -replace '#define AppVersion\s+"[^"]+"', "#define AppVersion      `"$version`"" |
+            Set-Content "installer\setup.iss"
+          Write-Host "Version patched to: $version"
+
+      - name: Compile installer EXE (Inno Setup)
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          if (!(Test-Path $iscc)) {
+            Write-Error "ISCC.exe not found after installation"
+            exit 1
+          }
+          & $iscc "installer\setup.iss"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "ISCC failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+      - name: Verify installer output
+        run: |
+          $version = "${{ github.event.inputs.version || '1.0.33' }}"
+          $installer = "installer_output\ThermopacStructuringAgent-Setup-v$version.exe"
+          if (!(Test-Path $installer)) {
+            Write-Host "Contents of installer_output\:"
+            Get-ChildItem installer_output -ErrorAction SilentlyContinue
+            Write-Error "Installer not found: $installer"
+            exit 1
+          }
+          $sizeMB = [math]::Round((Get-Item $installer).Length / 1MB, 1)
+          Write-Host "Installer: $installer ($sizeMB MB)"
+
+      - name: Compute SHA-256 checksum
+        run: |
+          $version = "${{ github.event.inputs.version || '1.0.33' }}"
+          $installer = "installer_output\ThermopacStructuringAgent-Setup-v$version.exe"
+          $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLower()
+          Write-Host "SHA-256: $hash"
+          "$hash  ThermopacStructuringAgent-Setup-v$version.exe" |
+            Out-File "installer_output\SHA256SUMS.txt" -Encoding utf8
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThermopacStructuringAgent-Setup-v${{ github.event.inputs.version || '1.0.33' }}
+          path: |
+            installer_output/ThermopacStructuringAgent-Setup-v*.exe
+            installer_output/SHA256SUMS.txt
+          retention-days: 30
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThermopacStructuringAgent-dist-v${{ github.event.inputs.version || '1.0.33' }}
+          path: dist/ThermopacStructuringAgent/
+          retention-days: 7
