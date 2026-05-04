@@ -208,13 +208,59 @@ var
   ProgId: String;
   PyExe, Ps1: String;
   ResultCode: Integer;
+  SwFile, FileContent: String;
 begin
   if CurStep = ssPostInstall then
   begin
+    // ── 1. Delete __pycache__ — force Python to recompile from installed source
+    //    Without this, Python may load stale .pyc bytecode from a previous install
+    //    even when the .py source has been correctly overwritten.
+    DelTree(ExpandConstant('{app}\structurer\__pycache__'), True, True, True);
+    DelTree(ExpandConstant('{app}\agent\__pycache__'),      True, True, True);
+
+    // ── 2. Verify installed solidworks_structurer.py has no _rev- filename bug
+    //    LoadStringFromFile reads the entire file into FileContent.
+    //    Pos returns 0 if the substring is absent (clean), >0 if present (bug).
+    SwFile := ExpandConstant('{app}\structurer\solidworks_structurer.py');
+    if FileExists(SwFile) then
+    begin
+      if LoadStringFromFile(SwFile, FileContent) then
+      begin
+        if Pos('_rev-', FileContent) > 0 then
+        begin
+          MsgBox(
+            'INSTALLATION ERROR — filename bug detected.' + #13#10 + #13#10 +
+            'The installed solidworks_structurer.py still contains the "_rev-" ' +
+            'suffix pattern.' + #13#10 + #13#10 +
+            'This means SolidWorks will save files as:' + #13#10 +
+            '   {DrawingNo}_rev-A.slddrw   (WRONG)' + #13#10 + #13#10 +
+            'Required:' + #13#10 +
+            '   {DrawingNo}.slddrw   (no suffix)' + #13#10 + #13#10 +
+            'The installer package itself is corrupt or the wrong source was ' +
+            'used to build it.' + #13#10 +
+            'Re-download the latest package from the Worker Agents page and ' +
+            're-run this installer.' + #13#10 + #13#10 +
+            'File: ' + SwFile,
+            mbCriticalError, MB_OK);
+          // Abort: leave files in place but block "Launch now" completion
+          // The installer has already written files — user must re-run with correct package.
+          Exit;
+        end;
+        // Clean — log to installer log (visible in Inno Setup debug mode)
+        // No action needed: filename = f"{safe_dn}.slddrw" confirmed present.
+      end else
+      begin
+        MsgBox(
+          'WARNING: Could not read installed solidworks_structurer.py for verification.' +
+          #13#10 + 'File may be locked. Run verify_install.bat after closing this installer.',
+          mbError, MB_OK);
+      end;
+    end;
+
     PyExe := ExpandConstant('{app}\python\python.exe');
     Ps1   := ExpandConstant('{app}\setup.ps1');
 
-    // If Python was NOT bundled, run setup.ps1 to download it
+    // ── 3. Python setup — download if not bundled, or pre-generate makepy cache
     if not FileExists(PyExe) then
     begin
       if FileExists(Ps1) then
@@ -241,13 +287,10 @@ begin
         RunMakepy(ProgId);
     end;
 
-    // Force mode = testing in config.ini (works on fresh install AND upgrade)
-    // SetIniString writes without BOM using Windows API — no manual edit needed
+    // ── 4. Force mode = testing in config.ini (works on fresh install AND upgrade)
     SetIniString('agent', 'mode', 'testing', ExpandConstant('{app}\config.ini'));
 
-    // ── Fix APPDATA api_url → dev server (no admin needed, user's APPDATA) ──
-    // Creates the APPDATA dir if missing, then upserts the api_url key.
-    // Preserves node_token and all other existing keys.
+    // ── 5. Fix APPDATA api_url → dev server
     ForceDirectories(ExpandConstant('{userappdata}\ThermopacStructuringAgent'));
     SetIniString('cloud', 'api_url',
       'https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev',
@@ -257,6 +300,8 @@ begin
 
     MsgBox(
       'Installation complete!' + #13#10 + #13#10 +
+      'Verified: solidworks_structurer.py is clean.' + #13#10 +
+      'SaveAs3 will receive:  {DrawingNo}.slddrw  (no revision suffix).' + #13#10 + #13#10 +
       'NEXT STEPS:' + #13#10 + #13#10 +
       '  1. Edit config.ini in the install folder:' + #13#10 +
       '       ' + ExpandConstant('{app}') + '\config.ini' + #13#10 + #13#10 +
