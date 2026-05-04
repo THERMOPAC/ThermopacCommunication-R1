@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Save, CheckSquare } from 'lucide-react';
+import { Calendar, AlertTriangle, Save, CheckSquare } from 'lucide-react';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -45,9 +45,12 @@ interface CalendarData {
 export function CalendarAttendanceTab() {
   const { toast } = useToast();
   const now = new Date();
+  // Always locked to last month — no navigation allowed
+  const lastMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+  const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year] = useState(lastMonthYear);
+  const [month] = useState(lastMonth);
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -123,15 +126,6 @@ export function CalendarAttendanceTab() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const navigateMonth = (delta: number) => {
-    let newMonth = month + delta;
-    let newYear = year;
-    if (newMonth < 1) { newMonth = 12; newYear--; }
-    if (newMonth > 12) { newMonth = 1; newYear++; }
-    setMonth(newMonth);
-    setYear(newYear);
   };
 
   const computedSummary = useCallback(() => {
@@ -228,15 +222,9 @@ export function CalendarAttendanceTab() {
 
             {selectedUserId && (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="font-semibold min-w-[160px] text-center">
+                <span className="font-semibold min-w-[160px] text-center text-gray-700">
                   {MONTH_NAMES[month - 1]} {year}
                 </span>
-                <Button variant="outline" size="icon" onClick={() => navigateMonth(1)}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
               </div>
             )}
           </div>
