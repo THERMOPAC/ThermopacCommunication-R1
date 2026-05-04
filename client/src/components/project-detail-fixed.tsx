@@ -4001,41 +4001,68 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {pd.items.map(item => {
-                              const indent = item.parentProjectItemId ? 'pl-6 text-muted-foreground' : '';
-                              const marginVal = itemMargins[item.id] ?? '';
-                              const cost = parseFloat(item.rolledUpCost || '0');
-                              const margin = marginVal !== '' ? parseFloat(marginVal) : null;
-                              const sellingInr = (margin !== null && !isNaN(margin)) ? cost * (1 + margin / 100) : null;
+                            {(() => {
                               const er = parseFloat(pd.exchangeRate || '0');
-                              const sellingFc = sellingInr !== null && er > 0 ? sellingInr / er : null;
-                              return (
-                                <TableRow key={item.id} className="text-xs">
-                                  <TableCell className={`font-mono ${indent}`}>{item.itemCode}</TableCell>
-                                  <TableCell className={`max-w-[220px] truncate ${indent}`} title={item.description}>{item.description}</TableCell>
-                                  <TableCell className="text-right">{parseFloat(item.quantity || '1').toFixed(2)}</TableCell>
-                                  <TableCell className="text-right font-mono">{fmtInr(item.rolledUpCost)}</TableCell>
-                                  <TableCell className="text-right">
-                                    <Input
-                                      type="number" step="0.01" min={0} max={999}
-                                      className="h-6 w-[80px] text-xs text-right p-1"
-                                      value={marginVal}
-                                      placeholder="0.00"
-                                      onChange={e => {
-                                        setItemMargins(m => ({ ...m, [item.id]: e.target.value }));
-                                        setMarginEditDirty(true);
-                                      }}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono">
-                                    {sellingInr !== null ? fmtInr(sellingInr) : <span className="text-muted-foreground">—</span>}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono">
-                                    {sellingFc !== null ? fmtFc(sellingFc) : <span className="text-muted-foreground">—</span>}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
+                              const rootItems = pd.items.filter(i => !i.parentProjectItemId);
+                              const childrenByParent: Record<number, typeof pd.items> = {};
+                              pd.items.forEach(i => {
+                                if (i.parentProjectItemId) {
+                                  if (!childrenByParent[i.parentProjectItemId]) childrenByParent[i.parentProjectItemId] = [];
+                                  childrenByParent[i.parentProjectItemId].push(i);
+                                }
+                              });
+                              const rows: React.ReactNode[] = [];
+                              rootItems.forEach(item => {
+                                const marginVal = itemMargins[item.id] ?? '';
+                                const cost = parseFloat(item.rolledUpCost || '0');
+                                const margin = marginVal !== '' ? parseFloat(marginVal) : null;
+                                const sellingInr = (margin !== null && !isNaN(margin)) ? cost * (1 + margin / 100) : null;
+                                const sellingFc = sellingInr !== null && er > 0 ? sellingInr / er : null;
+                                rows.push(
+                                  <TableRow key={item.id} className="text-xs font-medium">
+                                    <TableCell className="font-mono">{item.itemCode}</TableCell>
+                                    <TableCell className="max-w-[220px] truncate" title={item.description}>{item.description}</TableCell>
+                                    <TableCell className="text-right">{parseFloat(item.quantity || '1').toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-mono">{fmtInr(item.rolledUpCost)}</TableCell>
+                                    <TableCell className="text-right">
+                                      <Input
+                                        type="number" step="0.01" min={0} max={999}
+                                        className="h-6 w-[80px] text-xs text-right p-1"
+                                        value={marginVal}
+                                        placeholder="0.00"
+                                        onChange={e => {
+                                          setItemMargins(m => ({ ...m, [item.id]: e.target.value }));
+                                          setMarginEditDirty(true);
+                                        }}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono">
+                                      {sellingInr !== null ? fmtInr(sellingInr) : <span className="text-muted-foreground">—</span>}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono">
+                                      {sellingFc !== null ? fmtFc(sellingFc) : <span className="text-muted-foreground">—</span>}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                                (childrenByParent[item.id] || []).forEach(child => {
+                                  const childCost = parseFloat(child.rolledUpCost || '0');
+                                  rows.push(
+                                    <TableRow key={child.id} className="text-xs bg-muted/20">
+                                      <TableCell className="font-mono pl-8 text-muted-foreground">{child.itemCode}</TableCell>
+                                      <TableCell className="max-w-[220px] truncate text-muted-foreground" title={child.description}>{child.description}</TableCell>
+                                      <TableCell className="text-right text-muted-foreground">{parseFloat(child.quantity || '1').toFixed(2)}</TableCell>
+                                      <TableCell className="text-right font-mono text-muted-foreground">{fmtInr(child.rolledUpCost)}</TableCell>
+                                      <TableCell className="text-right text-muted-foreground text-xs italic">
+                                        {childCost > 0 ? `${((childCost / parseFloat(item.rolledUpCost || '1')) * 100).toFixed(1)}%` : '—'}
+                                      </TableCell>
+                                      <TableCell className="text-right text-muted-foreground">—</TableCell>
+                                      <TableCell className="text-right text-muted-foreground">—</TableCell>
+                                    </TableRow>
+                                  );
+                                });
+                              });
+                              return rows;
+                            })()}
                           </TableBody>
                         </Table>
                       </div>
