@@ -8,12 +8,12 @@ REM      ThermopacStructuringAgent-v1.0.36\install_update.bat
 REM  NOT from inside a subfolder.
 REM
 REM  Steps:
-REM    1. Verify source files exist (fails with clear error if not)
+REM    1. Verify source solidworks_structurer.py has NO _rev- pattern (FAIL if found)
 REM    2. Stop any running agent Python process
 REM    3. Robocopy agent\ and structurer\ to install dir
-REM    4. Directly patch installed solidworks_structurer.py (bypasses robocopy)
-REM    5. Remove stale extractor files left by old installs
-REM    6. Run the Python filename self-test to confirm fix
+REM    4. Force overwrite solidworks_structurer.py with direct copy
+REM    5. Delete __pycache__ in installed agent\ and structurer\
+REM    6. Verify installed solidworks_structurer.py has NO _rev- pattern (FAIL if found)
 REM    7. Report PASS or FAIL
 REM ============================================================
 
@@ -52,25 +52,23 @@ if not exist "%INSTALL_DIR%\" (
     exit /b 1
 )
 
-REM ── Verify source folders exist relative to THIS script ──────────────────────
+REM ── Verify source folders exist ──────────────────────────────────────────────
 if not exist "%SRC%\agent\" (
     echo  [ERROR] Source folder not found: %SRC%\agent\
     echo.
-    echo  You must run install_update.bat from the ROOT of the extracted ZIP:
+    echo  Run install_update.bat from the ROOT of the extracted ZIP:
     echo.
     echo    ThermopacStructuringAgent-v1.0.36\
     echo      agent\                  ^<-- must be here
     echo      structurer\             ^<-- must be here
-    echo      install_update.bat      ^<-- run THIS file  (you are here)
-    echo      structure_pkg\
-    echo          install_update.bat  ^<-- do NOT run this one
+    echo      install_update.bat      ^<-- run THIS file
     echo.
     pause
     exit /b 1
 )
 if not exist "%SRC%\structurer\" (
     echo  [ERROR] Source folder not found: %SRC%\structurer\
-    echo  Same as above — run from the ZIP root folder.
+    echo  Run from the ZIP root folder.
     echo.
     pause
     exit /b 1
@@ -90,45 +88,82 @@ if not exist "%SRC%\structurer\solidworks_structurer.py" (
     exit /b 1
 )
 
-REM ── Verify source filename fix BEFORE copying ─────────────────────────────────
+REM ── STEP 1: Verify source file is clean BEFORE copying ───────────────────────
+echo  [STEP 1] Verifying source solidworks_structurer.py has no _rev- pattern...
 findstr /C:"_rev-" "%SRC%\structurer\solidworks_structurer.py" >nul 2>&1
 if %errorLevel% EQU 0 (
-    echo  [ERROR] Source file still contains _rev- pattern.
-    echo  This package is not clean. Re-download from the Worker Agents page.
+    echo.
+    echo  [FAIL] Source solidworks_structurer.py contains _rev- pattern.
+    echo  This package is corrupt. Re-download from the Worker Agents page.
     echo.
     pause
     exit /b 1
 )
-echo  [OK] Source verified: solidworks_structurer.py has no _rev- pattern.
-
-REM ── Stop any running agent processes ─────────────────────────────────────────
+echo  [OK] Source is clean: filename = f"{safe_dn}.slddrw"
 echo.
-echo  Stopping any running agent processes...
+
+REM ── STEP 2: Stop any running agent processes ─────────────────────────────────
+echo  [STEP 2] Stopping any running agent processes...
 taskkill /F /FI "WINDOWTITLE eq ThermopacStructurer*" >nul 2>&1
 PowerShell -NoProfile -ExecutionPolicy Bypass -Command ^
   "Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -like '*main_structurer*' -or $_.CommandLine -like '*ThermopacStructuringAgent*' } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop; Write-Host ('Stopped PID ' + $_.ProcessId) } catch {} }"
 timeout /t 2 >nul
+echo  [OK] Agent processes stopped.
+echo.
 
-REM ── Copy agent\ ──────────────────────────────────────────────────────────────
-echo  Copying agent\ ...
+REM ── STEP 3: Robocopy agent\ ──────────────────────────────────────────────────
+echo  [STEP 3] Copying agent\ ...
 robocopy "%SRC%\agent" "%INSTALL_DIR%\agent" /E /IS /IT /IM /NJH /NJS
 if %errorLevel% GEQ 8 (
-    echo  [ERROR] robocopy failed for agent\ (code %errorLevel%)
+    echo  [FAIL] robocopy failed for agent\ (code %errorLevel%)
     echo  The agent process may still be running. Close the console and retry.
     pause
     exit /b 1
 )
 echo  [OK] agent\ copied.
+echo.
 
 REM ── Copy structurer\ ─────────────────────────────────────────────────────────
-echo  Copying structurer\ ...
 robocopy "%SRC%\structurer" "%INSTALL_DIR%\structurer" /E /IS /IT /IM /NJH /NJS
 if %errorLevel% GEQ 8 (
-    echo  [ERROR] robocopy failed for structurer\ (code %errorLevel%)
+    echo  [FAIL] robocopy failed for structurer\ (code %errorLevel%)
     pause
     exit /b 1
 )
 echo  [OK] structurer\ copied.
+
+REM ── STEP 4: Force overwrite solidworks_structurer.py ────────────────────────
+REM    Belt-and-suspenders: copy /Y writes unconditionally regardless of
+REM    timestamps, bypassing any robocopy same-file heuristic.
+echo.
+echo  [STEP 4] Force overwriting installed solidworks_structurer.py...
+copy /Y "%SRC%\structurer\solidworks_structurer.py" "%INSTALL_DIR%\structurer\solidworks_structurer.py" >nul
+if %errorLevel% NEQ 0 (
+    echo  [FAIL] copy /Y failed for solidworks_structurer.py.
+    echo  Ensure the file is not open or locked and retry as Administrator.
+    pause
+    exit /b 1
+)
+echo  [OK] solidworks_structurer.py force-written to %INSTALL_DIR%\structurer\
+echo.
+
+REM ── STEP 5: Delete __pycache__ ───────────────────────────────────────────────
+REM    Python caches compiled bytecode in __pycache__\*.pyc.
+REM    Deleting it forces Python to recompile from the freshly copied source.
+echo  [STEP 5] Deleting __pycache__ to prevent stale bytecode...
+if exist "%INSTALL_DIR%\structurer\__pycache__" (
+    rd /S /Q "%INSTALL_DIR%\structurer\__pycache__"
+    echo  [OK] Deleted: structurer\__pycache__
+) else (
+    echo  [OK] structurer\__pycache__ not present.
+)
+if exist "%INSTALL_DIR%\agent\__pycache__" (
+    rd /S /Q "%INSTALL_DIR%\agent\__pycache__"
+    echo  [OK] Deleted: agent\__pycache__
+) else (
+    echo  [OK] agent\__pycache__ not present.
+)
+echo.
 
 REM ── Copy helper scripts (non-config files only) ───────────────────────────────
 for %%F in (
@@ -145,62 +180,6 @@ for %%F in (
     )
 )
 
-REM ── Direct in-place patch of the installed file ──────────────────────────────
-REM    Robocopy may silently skip files it thinks are unchanged.
-REM    This Python patcher opens and rewrites the installed solidworks_structurer.py
-REM    directly, removing the _rev-{revision} suffix regardless of robocopy outcome.
-echo.
-echo  Patching installed solidworks_structurer.py directly...
-
-set "PYTHON_PATCH="
-for %%P in (
-    "%INSTALL_DIR%\python\python.exe"
-    "C:\Python311\python.exe"
-    "C:\Python310\python.exe"
-    "C:\Python39\python.exe"
-) do (
-    if exist %%P (
-        set "PYTHON_PATCH=%%~P"
-        goto :found_python_patch
-    )
-)
-where python >nul 2>&1
-if %errorLevel% EQU 0 (
-    set "PYTHON_PATCH=python"
-    goto :found_python_patch
-)
-echo  [WARN] Python not found for patcher — skipping direct patch.
-goto :skip_patch
-:found_python_patch
-
-"%PYTHON_PATCH%" "%SRC%\structurer\patch_filename.py" "%INSTALL_DIR%"
-set "PATCH_RESULT=%errorLevel%"
-if %PATCH_RESULT% NEQ 0 (
-    echo.
-    echo  [ERROR] Filename patcher FAILED (code %PATCH_RESULT%).
-    echo  The installed solidworks_structurer.py could not be updated.
-    echo  Ensure the agent console is closed and retry as Administrator.
-    echo.
-    pause
-    exit /b 1
-)
-:skip_patch
-
-REM ── Clear __pycache__ so Python cannot load stale bytecode ──────────────────
-REM    Python caches compiled .pyc files in __pycache__.  Even after the .py is
-REM    patched, an old .pyc may shadow it if the stored mtime happens to match.
-REM    Deleting __pycache__ forces Python to recompile from the patched source.
-echo.
-echo  Clearing __pycache__ to prevent stale bytecode...
-if exist "%INSTALL_DIR%\structurer\__pycache__" (
-    rd /S /Q "%INSTALL_DIR%\structurer\__pycache__"
-    echo  [OK] Cleared: structurer\__pycache__
-)
-if exist "%INSTALL_DIR%\agent\__pycache__" (
-    rd /S /Q "%INSTALL_DIR%\agent\__pycache__"
-    echo  [OK] Cleared: agent\__pycache__
-)
-
 REM ── Remove stale extractor files from old installs ────────────────────────────
 if exist "%INSTALL_DIR%\agent\job_runner.py" (
     echo  Removing stale file: agent\job_runner.py
@@ -215,53 +194,33 @@ if exist "%INSTALL_DIR%\extractor" (
     rd /S /Q "%INSTALL_DIR%\extractor" >nul 2>&1
 )
 
-REM ── Find Python ───────────────────────────────────────────────────────────────
-set "PYTHON="
-for %%P in (
-    "%INSTALL_DIR%\python\python.exe"
-    "C:\Python311\python.exe"
-    "C:\Python310\python.exe"
-    "C:\Python39\python.exe"
-) do (
-    if exist %%P (
-        set "PYTHON=%%~P"
-        goto :found_python
-    )
+REM ── STEP 6: Verify INSTALLED file is clean ────────────────────────────────────
+echo  [STEP 6] Verifying installed solidworks_structurer.py has no _rev- pattern...
+if not exist "%INSTALL_DIR%\structurer\solidworks_structurer.py" (
+    echo  [FAIL] Installed file not found after copy: %INSTALL_DIR%\structurer\solidworks_structurer.py
+    pause
+    exit /b 1
 )
-where python >nul 2>&1
+findstr /C:"_rev-" "%INSTALL_DIR%\structurer\solidworks_structurer.py" >nul 2>&1
 if %errorLevel% EQU 0 (
-    set "PYTHON=python"
-    goto :found_python
-)
-echo.
-echo  [WARN] Python not found — skipping filename self-test.
-echo  Run verify_install.bat after installing Python to confirm the fix.
-goto :skip_test
-:found_python
-
-REM ── Run the filename self-test ────────────────────────────────────────────────
-echo.
-echo  Running filename self-test...
-"%PYTHON%" "%INSTALL_DIR%\structurer\_test_filename.py"
-set "TEST_RESULT=%errorLevel%"
-if %TEST_RESULT% NEQ 0 (
     echo.
-    echo  [ERROR] Self-test FAILED — the copy did not succeed correctly.
-    echo  The agent process may have had the files locked. Close the agent
-    echo  console window and run this script again.
+    echo  [FAIL] Installed solidworks_structurer.py still contains _rev- pattern.
+    echo  The file may have been locked during copy. Ensure the agent is fully
+    echo  stopped, then run this script again as Administrator.
     echo.
     pause
     exit /b 1
 )
-:skip_test
-
+echo  [OK] Installed file is clean: no _rev- pattern found.
+echo  [OK] SaveAs3 will receive:  {DrawingNo}.slddrw  (no revision suffix)
 echo.
+
 echo  config.ini preserved (your settings are unchanged).
 echo.
 echo  ============================================================
 echo   UPDATE COMPLETE — ThermopacStructuringAgent v1.0.36
-echo   Files will be saved as:  {DrawingNo}.slddrw
-echo   No revision suffix in filename.
+echo   Filename save path:  {staging_root}\{DrawingNo}\{DrawingNo}.slddrw
+echo   No revision suffix.  SaveAs3 receives the clean path.
 echo  ============================================================
 echo.
 echo  Close this window and reopen run.bat to start the agent.

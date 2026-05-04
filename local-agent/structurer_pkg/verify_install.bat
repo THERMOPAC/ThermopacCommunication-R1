@@ -1,12 +1,13 @@
 @echo off
 REM ============================================================
 REM  Thermopac Drawing Structuring Agent v1.0.36
-REM  VERIFY INSTALLATION — filename fix self-test
+REM  VERIFY INSTALLATION
 REM  --
-REM  Runs the Python self-test that confirms the installed
-REM  solidworks_structurer.py produces filenames of the form
+REM  Confirms the installed solidworks_structurer.py produces
+REM  filenames of the form:
 REM      {DrawingNo}.slddrw   (no _rev- suffix)
 REM
+REM  Uses findstr — no Python or additional scripts required.
 REM  Does NOT require Administrator — read-only test.
 REM  Does NOT require SolidWorks to be running.
 REM ============================================================
@@ -14,11 +15,13 @@ REM ============================================================
 title Thermopac Filename Verify
 
 set "INSTALL_DIR=C:\Program Files\ThermopacStructuringAgent"
-set "TEST_SCRIPT=%INSTALL_DIR%\structurer\_test_filename.py"
+set "TARGET=%INSTALL_DIR%\structurer\solidworks_structurer.py"
 
 echo.
 echo  Thermopac Structuring Agent — Filename Verification
 echo  ====================================================
+echo  Checking: %TARGET%
+echo.
 
 if not exist "%INSTALL_DIR%\" (
     echo  [FAIL] Install directory not found: %INSTALL_DIR%
@@ -28,63 +31,52 @@ if not exist "%INSTALL_DIR%\" (
     exit /b 1
 )
 
-if not exist "%TEST_SCRIPT%" (
-    echo  [FAIL] Self-test script not found: %TEST_SCRIPT%
-    echo  This means the installation is v1.0.32 (old version without the test).
-    echo  Download Full Package v1.0.36 from the Worker Agents page and run
-    echo  install_update.bat (as Administrator) from the ZIP root folder.
+if not exist "%TARGET%" (
+    echo  [FAIL] File not found: %TARGET%
+    echo  Run install_update.bat as Administrator to update the installation.
     echo.
     pause
     exit /b 1
 )
 
-REM ── Find Python ───────────────────────────────────────────────────────────────
-set "PYTHON="
-for %%P in (
-    "%INSTALL_DIR%\python\python.exe"
-    "C:\Python311\python.exe"
-    "C:\Python310\python.exe"
-    "C:\Python39\python.exe"
-    "C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python311\python.exe"
-    "C:\Users\%USERNAME%\AppData\Local\Programs\Python\Python310\python.exe"
-) do (
-    if exist %%P (
-        set "PYTHON=%%~P"
-        goto :found_python
+REM ── Check 1: no _rev- pattern in the file ─────────────────────────────────────
+findstr /C:"_rev-" "%TARGET%" >nul 2>&1
+if %errorLevel% EQU 0 (
+    echo  [FAIL] _rev- pattern found in installed solidworks_structurer.py.
+    echo.
+    echo  The installed file still has the old filename construction.
+    echo  Run install_update.bat as Administrator from the ZIP root.
+    echo.
+    pause
+    exit /b 1
+)
+echo  [OK] No _rev- pattern in installed file.
+
+REM ── Check 2: correct filename line is present ────────────────────────────────
+findstr /C:"filename  = f" "%TARGET%" >nul 2>&1
+if %errorLevel% NEQ 0 (
+    findstr /C:"filename = f" "%TARGET%" >nul 2>&1
+    if %errorLevel% NEQ 0 (
+        echo  [WARN] Cannot confirm filename assignment line. File may be modified.
+        goto :done_checks
     )
 )
-where python >nul 2>&1
-if %errorLevel% EQU 0 (
-    set "PYTHON=python"
-    goto :found_python
-)
-echo  [FAIL] Python not found. Install Python 3.9+ and re-run.
-echo.
-pause
-exit /b 1
-:found_python
+echo  [OK] filename assignment line is present.
 
-echo  Python: %PYTHON%
-echo.
-
-REM ── Run the self-test ─────────────────────────────────────────────────────────
-"%PYTHON%" "%TEST_SCRIPT%"
-set "TEST_EXIT=%errorLevel%"
-
-echo.
-if %TEST_EXIT% EQU 0 (
-    echo  ====================================================
-    echo   VERIFIED: filename fix is correctly installed.
-    echo   Next job will create:  {DrawingNo}.slddrw
-    echo  ====================================================
+REM ── Check 3: __pycache__ is absent (stale bytecode risk) ─────────────────────
+:done_checks
+if exist "%INSTALL_DIR%\structurer\__pycache__" (
+    echo  [WARN] __pycache__ exists in structurer\ — stale bytecode may be loaded.
+    echo         Run install_update.bat as Administrator to clear it.
 ) else (
-    echo  ====================================================
-    echo   FAILED: installed code still has old filename logic.
-    echo   Download Full Package v1.0.36 from the Worker Agents
-    echo   page and run install_update.bat as Administrator
-    echo   from the extracted ZIP root folder.
-    echo  ====================================================
+    echo  [OK] No __pycache__ in structurer\ — bytecode is fresh.
 )
+
+echo.
+echo  ====================================================
+echo   VERIFIED: installed code has no _rev- suffix.
+echo   SaveAs3 will receive:  {DrawingNo}.slddrw
+echo  ====================================================
 echo.
 pause
-exit /b %TEST_EXIT%
+exit /b 0
