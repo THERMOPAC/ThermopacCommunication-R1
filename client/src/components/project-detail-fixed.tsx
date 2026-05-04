@@ -216,6 +216,10 @@ const editProjectSchema = z.object({
   disciplineCode: z.string().optional(),
   // MDMT (Minimum Design Metal Temperature)
   mdmt: z.string().optional(),
+  // Inspection agency (default for Design Data Sheets)
+  inspectionBy: z.string().optional(),
+  // Three-phase voltage & frequency (default for Design Data Sheets)
+  voltageFrequency: z.string().optional(),
 });
 
 // Form type for editing project
@@ -304,6 +308,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       deliveryMethod: "standard",
       client: "",
       vendor: "",
+      inspectionBy: "",
+      voltageFrequency: "",
     },
   });
   
@@ -445,6 +451,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         vendor: project.vendor || "",
         disciplineCode: (project as any).disciplineCode || "",
         mdmt: (project as any).mdmt || "",
+        inspectionBy: (project as any).inspectionBy || "",
+        voltageFrequency: (project as any).voltageFrequency || "",
       });
     }
   }, [project, form]);
@@ -2462,6 +2470,70 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             </Select>
                             <p className="text-xs text-muted-foreground">
                               Used in Design Data Sheets for all equipment under this project.
+                            </p>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Inspection By */}
+                  <div className="border rounded-md p-4">
+                    <FormField
+                      control={form.control}
+                      name="inspectionBy"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Inspection By</FormLabel>
+                          <div className="flex items-center gap-3">
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl className="max-w-xs">
+                                <SelectTrigger className="max-w-xs">
+                                  <SelectValue placeholder="Select inspection agency…" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="SGS India">SGS India</SelectItem>
+                                <SelectItem value="TUV India">TUV India</SelectItem>
+                                <SelectItem value="Thermopac">Thermopac</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Pre-filled as default Inspection By in Design Data Sheets for all equipment under this project.
+                            </p>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Three-Phase Voltage & Frequency */}
+                  <div className="border rounded-md p-4">
+                    <FormField
+                      control={form.control}
+                      name="voltageFrequency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Three-Phase Voltage &amp; Frequency</FormLabel>
+                          <div className="flex items-center gap-3">
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl className="max-w-xs">
+                                <SelectTrigger className="max-w-xs">
+                                  <SelectValue placeholder="Select voltage & frequency…" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="380V / 50 Hz">380V / 50 Hz</SelectItem>
+                                <SelectItem value="400V / 50 Hz">400V / 50 Hz</SelectItem>
+                                <SelectItem value="415V / 50 Hz">415V / 50 Hz</SelectItem>
+                                <SelectItem value="440V / 60 Hz">440V / 60 Hz</SelectItem>
+                                <SelectItem value="480V / 60 Hz">480V / 60 Hz</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Pre-filled as default in Design Data Sheets for all equipment under this project.
                             </p>
                           </div>
                           <FormMessage />

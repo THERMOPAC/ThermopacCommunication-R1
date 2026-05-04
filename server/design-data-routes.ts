@@ -440,7 +440,7 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   let tagNoWarning: string | null = null;
 
   const projectResult = await db.execute(sql`
-    SELECT p.code, p.mdmt, p.country_code,
+    SELECT p.code, p.mdmt, p.country_code, p.inspection_by, p.voltage_frequency,
            c.sap_mail_city, c.sap_mail_country, c.country_name
     FROM projects p
     LEFT JOIN customers c ON c.id = p.customer_id
@@ -553,7 +553,10 @@ async function resolveAutoFields(dwgControl: any): Promise<{
     }
   }
 
-  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt, productEquipmentConfiguration, countryCode, locationAuto, qtyAuto };
+  const projectInspectionBy = proj?.inspection_by || null;
+  const projectVoltageFrequency = proj?.voltage_frequency || null;
+
+  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt, productEquipmentConfiguration, countryCode, locationAuto, qtyAuto, projectInspectionBy, projectVoltageFrequency };
 }
 
 async function verifyProjectAccess(userId: number, userRole: string, projectId: number, res: Response): Promise<boolean> {
@@ -597,6 +600,8 @@ router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     customerCountry: auto.countryCode || null,
     locationAuto: auto.locationAuto || null,
     qtyAuto: auto.qtyAuto || null,
+    projectInspectionBy: auto.projectInspectionBy || null,
+    projectVoltageFrequency: auto.projectVoltageFrequency || null,
   };
 
   const existing = await db.execute(sql`SELECT * FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`);

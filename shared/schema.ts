@@ -1792,6 +1792,10 @@ export const projects = pgTable('projects', {
   // MDMT (Minimum Design Metal Temperature)
   mdmt: varchar('mdmt', { length: 20 }),
 
+  // Project-level inspection & electrical defaults (used in Design Data Sheets)
+  inspectionBy: varchar('inspection_by', { length: 80 }),
+  voltageFrequency: varchar('voltage_frequency', { length: 20 }),
+
   // Commercial / pricing layer
   sellingCurrency: varchar('selling_currency', { length: 10 }).default('USD'),
   exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),

@@ -83,6 +83,7 @@ type GeneralData = {
   weightEmptyOperatingHydro: string | null;
   location: string | null;
   qty: string | null;
+  voltageFrequency: string | null;
 };
 
 type DesignDataSheet = {
@@ -379,6 +380,7 @@ const GENERAL_PARAM_LABELS: { key: keyof GeneralData; label: string }[] = [
   { key: 'weightEmptyOperatingHydro', label: 'WEIGHT (EMPTY / OPERATING / HYDRO TEST) KGS' },
   { key: 'location', label: 'LOCATION' },
   { key: 'qty', label: 'Qty' },
+  { key: 'voltageFrequency', label: 'THREE-PHASE VOLTAGE & FREQUENCY' },
 ];
 
 // ─── Smart computation helpers ────────────────────────────────────────────────
@@ -488,7 +490,7 @@ function emptyGeneralData(): GeneralData {
     windData: null, windDesignVelocity: null, seismicDesignCode: null,
     hazardFactorZ: null, seismicCoefficientHorizontal: null,
     seismicCoefficientVertical: null, weightEmptyOperatingHydro: null,
-    location: null, qty: null,
+    location: null, qty: null, voltageFrequency: null,
   };
 }
 
@@ -2250,11 +2252,11 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       const autoCode = (disciplineCode && DISCIPLINE_TO_DESIGN_CODE[disciplineCode]) || '';
       setDesignCode(autoCode);
       setEquipmentConfig(autoFields.productEquipmentConfiguration || 'Vessel');
-      setInspectionBy('');
+      setInspectionBy(autoFields.projectInspectionBy || '');
       setMechShell(seedColumn(emptyMechanicalColumn()));
       setMechTube(seedColumn(emptyMechanicalColumn()));
       setMechJacket(seedColumn(emptyMechanicalColumn()));
-      const base = emptyGeneralData();
+      const base: GeneralData = { ...emptyGeneralData(), voltageFrequency: autoFields.projectVoltageFrequency || null };
       const { seeded: s1, autoKeys: k1 } = applyCountryEnvDefaults(base, autoFields.customerCountry || null);
       const { seeded: s2, autoKeys: k2 } = seedLocationAndQty(s1, autoFields);
       setGeneralData(applyGeneralDataDefaults(s2));
