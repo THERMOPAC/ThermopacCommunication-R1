@@ -4,14 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Agent version (e.g. 1.0.33)'
+        description: 'Agent version (e.g. 1.0.34)'
         required: true
-        default: '1.0.33'
+        default: '1.0.34'
   push:
     paths:
       - 'agent/**'
       - 'structurer/**'
-      - 'extractor/**'
       - 'installer/**'
     branches:
       - main
@@ -50,7 +49,6 @@ jobs:
             --distpath dist `
             --workpath build `
             --specpath . `
-            --add-data "extractor;extractor" `
             --add-data "agent;agent" `
             --add-data "structurer;structurer" `
             --hidden-import win32com `
@@ -63,7 +61,6 @@ jobs:
             --hidden-import configparser `
             --hidden-import hashlib `
             --paths agent `
-            --paths extractor `
             --paths structurer `
             agent\main_structurer.py
 
@@ -87,7 +84,7 @@ jobs:
 
       - name: Patch version in setup.iss
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.33' }}"
+          $version = "${{ github.event.inputs.version || '1.0.34' }}"
           (Get-Content "installer\setup.iss") `
             -replace '#define AppVersion\s+"[^"]+"', "#define AppVersion      `"$version`"" |
             Set-Content "installer\setup.iss"
@@ -109,7 +106,7 @@ jobs:
 
       - name: Verify installer output
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.33' }}"
+          $version = "${{ github.event.inputs.version || '1.0.34' }}"
           $installer = "installer_output\ThermopacStructuringAgent-Setup-v$version.exe"
           if (!(Test-Path $installer)) {
             Write-Host "Contents of installer_output\:"
@@ -122,7 +119,7 @@ jobs:
 
       - name: Compute SHA-256 checksum
         run: |
-          $version = "${{ github.event.inputs.version || '1.0.33' }}"
+          $version = "${{ github.event.inputs.version || '1.0.34' }}"
           $installer = "installer_output\ThermopacStructuringAgent-Setup-v$version.exe"
           $hash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLower()
           Write-Host "SHA-256: $hash"
@@ -132,7 +129,7 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacStructuringAgent-Setup-v${{ github.event.inputs.version || '1.0.33' }}
+          name: ThermopacStructuringAgent-Setup-v${{ github.event.inputs.version || '1.0.34' }}
           path: |
             installer_output/ThermopacStructuringAgent-Setup-v*.exe
             installer_output/SHA256SUMS.txt
@@ -141,6 +138,6 @@ jobs:
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacStructuringAgent-dist-v${{ github.event.inputs.version || '1.0.33' }}
+          name: ThermopacStructuringAgent-dist-v${{ github.event.inputs.version || '1.0.34' }}
           path: dist/ThermopacStructuringAgent/
           retention-days: 7
