@@ -667,6 +667,12 @@ export default function WorkerAgentsPage() {
                           Full Package v1.0.35
                         </Button>
                       </a>
+                      <a href="/api/agent-downloads/fix-filename-bat" download="fix_filename.bat">
+                        <Button variant="outline" size="sm" className="h-7 text-xs border-red-400 text-red-600 hover:bg-red-50 dark:hover:bg-red-950">
+                          <Download className="h-3 w-3 mr-1" />
+                          Fix Filename Only
+                        </Button>
+                      </a>
                     </div>
                   </td>
                 </tr>
