@@ -2415,18 +2415,20 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </TabsList>
                 
                 <TabsContent value="project-details" className="space-y-4 mt-4">
-                  {/* Discipline Code */}
-                  <div className="border rounded-md p-4">
-                    <FormField
-                      control={form.control}
-                      name="disciplineCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-semibold">Project Discipline</FormLabel>
-                          <div className="flex items-center gap-3">
+                  {/* Technical Defaults — 2-column grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    {/* Row 1 Col 1 — Project Discipline */}
+                    <div className="border rounded-md p-4">
+                      <FormField
+                        control={form.control}
+                        name="disciplineCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-semibold">Project Discipline</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
-                              <FormControl className="max-w-xs">
-                                <SelectTrigger className="max-w-xs">
+                              <FormControl>
+                                <SelectTrigger>
                                   <SelectValue placeholder="Select discipline…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2438,28 +2440,26 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <SelectItem value="API 650">API 650</SelectItem>
                               </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground mt-1">
                               Used to auto-generate tag numbers on Design Data Sheets for all drawings under this project.
                             </p>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                  {/* MDMT */}
-                  <div className="border rounded-md p-4">
-                    <FormField
-                      control={form.control}
-                      name="mdmt"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-semibold">MDMT (Minimum Design Metal Temperature)</FormLabel>
-                          <div className="flex items-center gap-3">
+                    {/* Row 1 Col 2 — MDMT */}
+                    <div className="border rounded-md p-4">
+                      <FormField
+                        control={form.control}
+                        name="mdmt"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-semibold">MDMT (Minimum Design Metal Temperature)</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
-                              <FormControl className="max-w-xs">
-                                <SelectTrigger className="max-w-xs">
+                              <FormControl>
+                                <SelectTrigger>
                                   <SelectValue placeholder="Select MDMT…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2468,28 +2468,26 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <SelectItem value="0 Deg °C">0 Deg °C</SelectItem>
                               </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground mt-1">
                               Used in Design Data Sheets for all equipment under this project.
                             </p>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                  {/* Inspection By */}
-                  <div className="border rounded-md p-4">
-                    <FormField
-                      control={form.control}
-                      name="inspectionBy"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-semibold">Inspection By</FormLabel>
-                          <div className="flex items-center gap-3">
+                    {/* Row 2 Col 1 — Inspection By */}
+                    <div className="border rounded-md p-4">
+                      <FormField
+                        control={form.control}
+                        name="inspectionBy"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-semibold">Inspection By</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
-                              <FormControl className="max-w-xs">
-                                <SelectTrigger className="max-w-xs">
+                              <FormControl>
+                                <SelectTrigger>
                                   <SelectValue placeholder="Select inspection agency…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2499,28 +2497,26 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <SelectItem value="Thermopac">Thermopac</SelectItem>
                               </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground mt-1">
                               Pre-filled as default Inspection By in Design Data Sheets for all equipment under this project.
                             </p>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                  {/* Three-Phase Voltage & Frequency */}
-                  <div className="border rounded-md p-4">
-                    <FormField
-                      control={form.control}
-                      name="voltageFrequency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-semibold">Three-Phase Voltage &amp; Frequency</FormLabel>
-                          <div className="flex items-center gap-3">
+                    {/* Row 2 Col 2 — Three-Phase Voltage & Frequency */}
+                    <div className="border rounded-md p-4">
+                      <FormField
+                        control={form.control}
+                        name="voltageFrequency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-semibold">Three-Phase Voltage &amp; Frequency</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
-                              <FormControl className="max-w-xs">
-                                <SelectTrigger className="max-w-xs">
+                              <FormControl>
+                                <SelectTrigger>
                                   <SelectValue placeholder="Select voltage & frequency…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2532,14 +2528,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <SelectItem value="480V / 60 Hz">480V / 60 Hz</SelectItem>
                               </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground mt-1">
                               Pre-filled as default in Design Data Sheets for all equipment under this project.
                             </p>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                   </div>
 
                   {/* Cost Lock Warning Banner */}
