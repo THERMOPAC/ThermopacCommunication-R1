@@ -563,39 +563,47 @@ export function OffersContent() {
 
   const handleRemoveItem = (index: number) => {
     const item = watchItems?.[index];
-    if (!item?.isSubItem) {
+    const allItems = watchItems || [];
+
+    // Collect all descendant tempKeys recursively
+    function collectDescendants(parentTempKey: string): string[] {
+      const result: string[] = [];
+      for (const wi of allItems) {
+        if (wi.parentTempKey === parentTempKey && wi.tempKey) {
+          result.push(wi.tempKey);
+          result.push(...collectDescendants(wi.tempKey));
+        }
+      }
+      return result;
+    }
+
+    if (item?.tempKey) {
+      const descendantKeys = new Set(collectDescendants(item.tempKey));
       const indicesToRemove: number[] = [index];
-      (watchItems || []).forEach((wi, i) => {
-        if (wi.isSubItem && wi.parentTempKey === item?.tempKey) {
+      allItems.forEach((wi, i) => {
+        if (i !== index && wi.tempKey && descendantKeys.has(wi.tempKey)) {
           indicesToRemove.push(i);
         }
       });
       indicesToRemove.sort((a, b) => b - a);
-      for (const idx of indicesToRemove) {
-        remove(idx);
-      }
+      for (const idx of indicesToRemove) remove(idx);
       return;
     }
-    if (item?.isSubItem && item?.parentTempKey) {
-      const parentIdx = (watchItems || []).findIndex(wi => wi.tempKey === item.parentTempKey);
-      if (parentIdx >= 0) {
-        const parentItem = watchItems?.[parentIdx];
-        if (parentItem) {
-          const childPrice = parseFloat(item.unitPrice || "0") * parseFloat(item.quantity || "1");
-          const currentParentPrice = parseFloat(parentItem.unitPrice || "0");
-          const newParentPrice = Math.max(0, currentParentPrice - childPrice);
-          form.setValue(`items.${parentIdx}.unitPrice`, newParentPrice.toFixed(2));
-        }
-      }
-    }
     remove(index);
+  };
+
+  const getItemDepth = (item: any, items: any[]): number => {
+    if (!item?.parentTempKey) return 0;
+    const parent = items.find(i => i.tempKey === item.parentTempKey);
+    return parent ? 1 + getItemDepth(parent, items) : 0;
   };
 
   const handleAddSubItem = (parentIndex: number) => {
     const parentItem = watchItems?.[parentIndex];
     if (!parentItem) return;
-    if (parentItem.isSubItem) {
-      toast({ title: "Depth limit reached", description: "Offers support only one level of sub-items.", variant: "destructive" });
+    const depth = getItemDepth(parentItem, watchItems || []);
+    if (depth >= 2) {
+      toast({ title: "Depth limit reached", description: "Maximum 3 levels supported (Parent → Child → Sub-item).", variant: "destructive" });
       return;
     }
     append({
@@ -1390,31 +1398,38 @@ export function OffersContent() {
                           <TableBody>
                             {fields.map((field, index) => {
                               const item = watchItems?.[index];
+                              const allWatchItems = watchItems || [];
+                              const depth = getItemDepth(item, allWatchItems);
                               const isSubItem = item?.isSubItem || false;
                               const qty = parseFloat(item?.quantity || "0");
                               const price = parseFloat(item?.unitPrice || "0");
                               const disc = parseFloat(item?.discountPercent || "0");
                               const lineTotal = qty * price * (1 - disc / 100);
-                              const hasChildren = !isSubItem && (watchItems || []).some(wi => wi.isSubItem && wi.parentTempKey === item?.tempKey);
-                              const isZeroPrice = !isSubItem && price === 0 && qty > 0;
+                              const hasChildren = allWatchItems.some(wi => wi.parentTempKey === item?.tempKey);
+                              const canAddSub = depth < 2;
+                              const isZeroPrice = depth === 0 && price === 0 && qty > 0;
+                              const depthIndent = depth === 1 ? "pl-4" : depth >= 2 ? "pl-8" : "";
                               return (
                                 <TableRow
                                   key={field.id}
                                   className={[
                                     "group transition-colors",
-                                    isSubItem
-                                      ? "bg-slate-50/80"
-                                      : index % 2 === 0 ? "bg-white" : "bg-slate-50/40",
+                                    depth === 0
+                                      ? index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                                      : depth === 1 ? "bg-slate-50/80"
+                                      : "bg-violet-50/40",
                                     isZeroPrice ? "!bg-amber-50/60" : "",
                                     "hover:!bg-blue-50/50",
                                   ].filter(Boolean).join(" ")}
                                 >
                                   <TableCell className="px-3 py-1.5 text-xs text-slate-400 w-[36px] font-mono">
-                                    {isSubItem
-                                      ? <span className="text-base leading-none">└</span>
-                                      : <span className="font-semibold text-slate-600">
-                                          {index + 1 - (watchItems || []).slice(0, index).filter(wi => wi.isSubItem).length}
+                                    {depth === 0
+                                      ? <span className="font-semibold text-slate-600">
+                                          {index + 1 - allWatchItems.slice(0, index).filter(wi => wi.isSubItem).length}
                                         </span>
+                                      : depth === 1
+                                        ? <span className="text-base leading-none">└</span>
+                                        : <span className="text-base leading-none pl-3">└</span>
                                     }
                                   </TableCell>
                                   <TableCell className="px-3 py-1.5">
@@ -1423,11 +1438,11 @@ export function OffersContent() {
                                       onChange={(e) => form.setValue(`items.${index}.description`, e.target.value, { shouldDirty: true })}
                                       className={[
                                         "h-7 text-sm border-transparent bg-transparent focus:border-input focus:bg-white px-1",
-                                        isSubItem ? "pl-4 text-slate-500" : "font-medium text-slate-800",
+                                        depth === 0 ? "font-medium text-slate-800" : depth === 1 ? "pl-4 text-slate-500" : "pl-8 text-slate-400 text-xs",
                                       ].join(" ")}
                                       placeholder="Item description"
                                     />
-                                    <div className="flex items-center gap-1 mt-0.5 px-1">
+                                    <div className={`flex items-center gap-1 mt-0.5 px-1 ${depthIndent}`}>
                                       {item?.productCode && (
                                         <span className="text-[10px] text-slate-400 font-mono">{item.productCode}</span>
                                       )}
@@ -1436,8 +1451,11 @@ export function OffersContent() {
                                           <GitBranch className="h-2 w-2" /> breakdown
                                         </Badge>
                                       )}
-                                      {isSubItem && (
+                                      {depth === 1 && (
                                         <Badge variant="secondary" className="text-[10px] h-3.5 px-1">sub-item</Badge>
+                                      )}
+                                      {depth >= 2 && (
+                                        <Badge variant="outline" className="text-[10px] h-3.5 px-1 border-violet-300 text-violet-600 bg-violet-50">sub-sub-item</Badge>
                                       )}
                                       {isZeroPrice && (
                                         <Badge variant="outline" className="text-[10px] h-3.5 px-1 border-amber-300 text-amber-600 bg-amber-50">no price</Badge>
@@ -1482,10 +1500,10 @@ export function OffersContent() {
                                   </TableCell>
                                   <TableCell className="px-2 py-1.5 w-[54px]">
                                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      {!isSubItem && (
+                                      {canAddSub && (
                                         <Button type="button" variant="ghost" size="icon"
                                           className="h-6 w-6 text-slate-400 hover:text-violet-600"
-                                          title="Add sub-item"
+                                          title={depth === 0 ? "Add sub-item" : "Add sub-sub-item"}
                                           onClick={() => handleAddSubItem(index)}>
                                           <GitBranch className="h-3 w-3" />
                                         </Button>
@@ -1493,7 +1511,7 @@ export function OffersContent() {
                                       <Button type="button" variant="ghost" size="icon"
                                         className="h-6 w-6 text-slate-400 hover:text-destructive"
                                         onClick={() => handleRemoveItem(index)}>
-                                        {isSubItem ? <X className="h-3 w-3" /> : <Trash2 className="h-3 w-3" />}
+                                        {depth === 0 ? <Trash2 className="h-3 w-3" /> : <X className="h-3 w-3" />}
                                       </Button>
                                     </div>
                                   </TableCell>

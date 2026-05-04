@@ -124,12 +124,19 @@ export async function validatePreConversion(
             reason: `Sub-item "${item.description}" (id=${item.id}) references parent id=${item.parent_item_id} which does not exist in this offer.`,
           });
         } else {
-          const parent = items.find((p: any) => p.id === item.parent_item_id);
-          if (parent?.is_sub_item) {
-            failures.push({
-              field: 'itemHierarchy',
-              reason: `Sub-item "${item.description}" (id=${item.id}) references another sub-item as parent — offers support only one level of nesting.`,
-            });
+          // cycle detection for deep hierarchies
+          const visitedIds = new Set<number>();
+          let cur: any = item;
+          while (cur?.parent_item_id) {
+            if (visitedIds.has(cur.parent_item_id)) {
+              failures.push({
+                field: 'itemHierarchy',
+                reason: `Circular reference detected in item hierarchy near "${item.description}" (id=${item.id}).`,
+              });
+              break;
+            }
+            visitedIds.add(cur.parent_item_id);
+            cur = items.find((p: any) => p.id === cur.parent_item_id) || null;
           }
         }
       }
@@ -566,8 +573,20 @@ export async function executeOfferConversion(
       }
     }
 
-    const parentItems = offerItems.filter((i: any) => !i.is_sub_item);
-    const childItems = offerItems.filter((i: any) => i.is_sub_item);
+    // Topological sort — parents always before children, supports unlimited depth
+    const offerItemMap = new Map<number, any>(offerItems.map((i: any) => [i.id, i]));
+    const topoVisited = new Set<number>();
+    const topoOrdered: any[] = [];
+    function topoVisit(item: any) {
+      if (topoVisited.has(item.id)) return;
+      if (item.parent_item_id && offerItemMap.has(item.parent_item_id)) {
+        topoVisit(offerItemMap.get(item.parent_item_id));
+      }
+      topoVisited.add(item.id);
+      topoOrdered.push(item);
+    }
+    for (const item of offerItems) topoVisit(item);
+
     const offerItemIdToProjectItemId: Record<number, number> = {};
     let itemsCreated = 0;
     const itemsPendingMapping: Array<{ offerItemId: number; description: string; taskId: number }> = [];
@@ -603,7 +622,12 @@ export async function executeOfferConversion(
       return created.rows[0].id;
     }
 
-    for (const offerItem of parentItems) {
+    // Single pass in topological order — handles Parent → Child → Child-to-Child (unlimited depth)
+    for (const offerItem of topoOrdered) {
+      const parentProjectItemId = offerItem.parent_item_id
+        ? offerItemIdToProjectItemId[offerItem.parent_item_id] || null
+        : null;
+
       const baseItemCode = customerBpCode ? `${customerBpCode}-${offerItem.product_code || ''}` : (offerItem.product_code || '');
       const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
       const codeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
@@ -624,53 +648,6 @@ export async function executeOfferConversion(
         `INSERT INTO project_items
          (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
           quantity, estimated_cost, notes, status, source,
-          source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-          $9, $10, $11, 'Not Started', 'sales_offer',
-          $12, $13, $14, NOW(), NOW())
-         ON CONFLICT (source_order_number, source_offer_item_id)
-           WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
-         DO NOTHING
-         RETURNING id`,
-        [
-          project.id, projectCode, masterItemId,
-          projectItemCode, codeBars, offerItem.description, offerItem.unit || 'set', itemMakeOrBuy,
-          offerItem.quantity, offerItem.total_price,
-          offerItem.description,
-          offerId, offerItem.id, orderNumber
-        ]
-      );
-      if (piResult.rows.length > 0) {
-        offerItemIdToProjectItemId[offerItem.id] = piResult.rows[0].id;
-        itemsCreated++;
-      }
-    }
-
-    for (const childItem of childItems) {
-      const parentProjectItemId = childItem.parent_item_id
-        ? offerItemIdToProjectItemId[childItem.parent_item_id] || null
-        : null;
-
-      const baseItemCode = customerBpCode ? `${customerBpCode}-${childItem.product_code || ''}` : (childItem.product_code || '');
-      const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
-      const codeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
-      const masterItemId = childItem.product_code
-        ? await findOrCreateMasterItem(
-            client, childItem.product_code, childItem.description,
-            childItem.unit, childItem.total_price, childItem.hsn_sac_code, customerBpCode
-          )
-        : null;
-
-      let childMakeOrBuy = 'Make';
-      if (masterItemId) {
-        const miRow = await client.query(`SELECT make_or_buy FROM master_items WHERE id = $1`, [masterItemId]);
-        if (miRow.rows.length > 0 && miRow.rows[0].make_or_buy) childMakeOrBuy = miRow.rows[0].make_or_buy;
-      }
-
-      const piResult = await client.query(
-        `INSERT INTO project_items
-         (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
-          quantity, estimated_cost, notes, status, source,
           parent_project_item_id,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
@@ -682,15 +659,15 @@ export async function executeOfferConversion(
          RETURNING id`,
         [
           project.id, projectCode, masterItemId,
-          projectItemCode, codeBars, childItem.description, childItem.unit || 'set', childMakeOrBuy,
-          childItem.quantity, childItem.total_price,
-          childItem.description,
+          projectItemCode, codeBars, offerItem.description, offerItem.unit || 'set', itemMakeOrBuy,
+          offerItem.quantity, offerItem.total_price,
+          offerItem.description,
           parentProjectItemId,
-          offerId, childItem.id, orderNumber
+          offerId, offerItem.id, orderNumber
         ]
       );
       if (piResult.rows.length > 0) {
-        offerItemIdToProjectItemId[childItem.id] = piResult.rows[0].id;
+        offerItemIdToProjectItemId[offerItem.id] = piResult.rows[0].id;
         itemsCreated++;
       }
     }

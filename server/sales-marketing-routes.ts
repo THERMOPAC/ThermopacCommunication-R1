@@ -1380,9 +1380,16 @@ export function setupSalesMarketingRoutes(app: Express) {
         if (!tempKeySet.has(item.parentTempKey)) {
           return `Sub-item "${item.description}" references a parent that does not exist in this offer.`;
         }
-        const parent = items.find((i: any) => i.tempKey === item.parentTempKey);
-        if (parent?.isSubItem) {
-          return `Sub-item "${item.description}" references another sub-item as parent. Offers support only one level of sub-items.`;
+        // Cycle detection for unlimited depth
+        const visited = new Set<string>();
+        let cur = item.parentTempKey;
+        while (cur) {
+          if (visited.has(cur)) {
+            return `Circular reference detected in item hierarchy near "${item.description}".`;
+          }
+          visited.add(cur);
+          const parent = items.find((i: any) => i.tempKey === cur);
+          cur = parent?.parentTempKey || null;
         }
       }
     }
@@ -1392,47 +1399,45 @@ export function setupSalesMarketingRoutes(app: Express) {
   async function insertOfferItemsWithHierarchy(offerId: number, items: any[]) {
     await db.transaction(async (tx) => {
       const tempKeyToId = new Map<string, number>();
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (!item.isSubItem) {
-          const [created] = await tx.insert(offerItemsTable).values({
-            offerId,
-            productId: item.productId || null,
-            productCode: item.productCode || null,
-            description: item.description,
-            unit: item.unit,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discountPercent: item.discountPercent || '0',
-            totalPrice: item.totalPrice,
-            hsnSacCode: item.hsnSacCode || null,
-            isSubItem: false,
-            parentItemId: null,
-            sortOrder: i,
-          }).returning();
-          if (item.tempKey) tempKeyToId.set(item.tempKey, created.id);
+      const tempKeyToItem = new Map<string, any>(
+        items.filter(i => i.tempKey).map(i => [i.tempKey, i])
+      );
+
+      // Topological sort — parents always inserted before children, supports unlimited depth
+      const visited = new Set<string>();
+      const ordered: any[] = [];
+      function visit(item: any) {
+        if (!item.tempKey || visited.has(item.tempKey)) return;
+        if (item.parentTempKey && tempKeyToItem.has(item.parentTempKey)) {
+          visit(tempKeyToItem.get(item.parentTempKey)!);
         }
+        visited.add(item.tempKey);
+        ordered.push(item);
       }
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.isSubItem) {
-          const parentId = item.parentTempKey ? (tempKeyToId.get(item.parentTempKey) || null) : null;
-          await tx.insert(offerItemsTable).values({
-            offerId,
-            productId: item.productId || null,
-            productCode: item.productCode || null,
-            description: item.description,
-            unit: item.unit,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discountPercent: item.discountPercent || '0',
-            totalPrice: item.totalPrice,
-            hsnSacCode: item.hsnSacCode || null,
-            isSubItem: true,
-            parentItemId: parentId,
-            sortOrder: i,
-          });
-        }
+      for (const item of items) {
+        if (item.tempKey) visit(item);
+        else ordered.push(item); // items without tempKey go as-is
+      }
+
+      for (let i = 0; i < ordered.length; i++) {
+        const item = ordered[i];
+        const parentId = item.parentTempKey ? (tempKeyToId.get(item.parentTempKey) || null) : null;
+        const [created] = await tx.insert(offerItemsTable).values({
+          offerId,
+          productId: item.productId || null,
+          productCode: item.productCode || null,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent || '0',
+          totalPrice: item.totalPrice,
+          hsnSacCode: item.hsnSacCode || null,
+          isSubItem: !!item.parentTempKey,
+          parentItemId: parentId,
+          sortOrder: items.indexOf(item) >= 0 ? items.indexOf(item) : i,
+        }).returning();
+        if (item.tempKey) tempKeyToId.set(item.tempKey, created.id);
       }
     });
   }
