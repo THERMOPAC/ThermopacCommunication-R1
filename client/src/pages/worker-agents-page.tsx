@@ -286,7 +286,7 @@ function StructuringAgentRow() {
         </div>
       </td>
       <td className="py-3 px-3">
-        <span className="text-xs font-mono text-muted-foreground">v1.0.35</span>
+        <span className="text-xs font-mono text-muted-foreground">v1.0.36</span>
       </td>
       <td className="py-3 px-3">
         <div className="flex flex-wrap gap-1.5">
@@ -296,24 +296,24 @@ function StructuringAgentRow() {
               Download Blocked
             </Button>
           ) : (
-            <a href="/api/agent-downloads/structuring-agent" download="ThermopacStructuringAgent-v1.0.35-full.zip">
+            <a href="/api/agent-downloads/structuring-agent" download="ThermopacStructuringAgent-v1.0.36-full.zip">
               <Button variant="default" size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white">
                 <Download className="h-3 w-3 mr-1" />
-                Full Package v1.0.35
+                Full Package v1.0.36
                 {verified && <CheckCircle2 className="h-3 w-3 ml-1" />}
               </Button>
             </a>
           )}
-          <a href="/api/agent-downloads/fix-filename-bat" download="fix_filename.bat">
-            <Button variant="outline" size="sm" className="h-7 text-xs">
+          <a href="/api/agent-downloads/filename-patcher" download="patch_filename.py">
+            <Button variant="outline" size="sm" className="h-7 text-xs border-orange-400 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950">
               <Download className="h-3 w-3 mr-1" />
-              verify_install.bat
+              patch_filename.py
             </Button>
           </a>
         </div>
         {verified && (
           <p className="text-xs text-muted-foreground mt-1.5">
-            Extract ZIP → run <span className="font-mono">install_update.bat</span> as Admin from ZIP root
+            Quick fix: download <span className="font-mono">patch_filename.py</span> → run <span className="font-mono">python patch_filename.py</span> as Admin
           </p>
         )}
       </td>

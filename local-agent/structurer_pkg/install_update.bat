@@ -1,22 +1,23 @@
 @echo off
 REM ============================================================
-REM  Thermopac Drawing Structuring Agent v1.0.35
+REM  Thermopac Drawing Structuring Agent v1.0.36
 REM  INSTALL UPDATE SCRIPT
 REM  --
 REM  Run as Administrator from the ROOT of the extracted ZIP:
-REM      ThermopacStructuringAgent-v1.0.35\install_update.bat
+REM      ThermopacStructuringAgent-v1.0.36\install_update.bat
 REM  NOT from inside a subfolder.
 REM
 REM  Steps:
 REM    1. Verify source files exist (fails with clear error if not)
 REM    2. Stop any running agent Python process
 REM    3. Robocopy agent\ and structurer\ to install dir
-REM    4. Remove stale extractor files left by old installs
-REM    5. Run the Python filename self-test to confirm fix
-REM    6. Report PASS or FAIL
+REM    4. Directly patch installed solidworks_structurer.py (bypasses robocopy)
+REM    5. Remove stale extractor files left by old installs
+REM    6. Run the Python filename self-test to confirm fix
+REM    7. Report PASS or FAIL
 REM ============================================================
 
-title ThermopacStructurer Installer v1.0.35
+title ThermopacStructurer Installer v1.0.36
 
 REM ── Require Administrator ─────────────────────────────────────────────────────
 net session >nul 2>&1
@@ -143,6 +144,47 @@ for %%F in (
         copy /Y "%SRC%\%%F" "%INSTALL_DIR%\%%F" >nul 2>&1
     )
 )
+
+REM ── Direct in-place patch of the installed file ──────────────────────────────
+REM    Robocopy may silently skip files it thinks are unchanged.
+REM    This Python patcher opens and rewrites the installed solidworks_structurer.py
+REM    directly, removing the _rev-{revision} suffix regardless of robocopy outcome.
+echo.
+echo  Patching installed solidworks_structurer.py directly...
+
+set "PYTHON_PATCH="
+for %%P in (
+    "%INSTALL_DIR%\python\python.exe"
+    "C:\Python311\python.exe"
+    "C:\Python310\python.exe"
+    "C:\Python39\python.exe"
+) do (
+    if exist %%P (
+        set "PYTHON_PATCH=%%~P"
+        goto :found_python_patch
+    )
+)
+where python >nul 2>&1
+if %errorLevel% EQU 0 (
+    set "PYTHON_PATCH=python"
+    goto :found_python_patch
+)
+echo  [WARN] Python not found for patcher — skipping direct patch.
+goto :skip_patch
+:found_python_patch
+
+"%PYTHON_PATCH%" "%SRC%\structurer\patch_filename.py" "%INSTALL_DIR%"
+set "PATCH_RESULT=%errorLevel%"
+if %PATCH_RESULT% NEQ 0 (
+    echo.
+    echo  [ERROR] Filename patcher FAILED (code %PATCH_RESULT%).
+    echo  The installed solidworks_structurer.py could not be updated.
+    echo  Ensure the agent console is closed and retry as Administrator.
+    echo.
+    pause
+    exit /b 1
+)
+:skip_patch
 
 REM ── Remove stale extractor files from old installs ────────────────────────────
 if exist "%INSTALL_DIR%\agent\job_runner.py" (
