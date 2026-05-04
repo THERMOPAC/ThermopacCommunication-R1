@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet';
 import { format } from 'date-fns';
@@ -187,7 +188,7 @@ export default function BrcPageFixed() {
                   {brcs?.map((brc: any) => (
                     <TableRow key={brc.id}>
                       <TableCell className="font-medium">{brc.certificateNumber}</TableCell>
-                      <TableCell>{new Date(brc.issueDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{fmtDate(brc.issueDate)}</TableCell>
                       <TableCell>{brc.bankName}</TableCell>
                       <TableCell>{formatRupees(parseFloat(brc.amount))}</TableCell>
                       <TableCell>

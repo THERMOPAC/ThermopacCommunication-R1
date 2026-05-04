@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { fmtDate, fmtDateTime } from '@/lib/date-format';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
@@ -188,7 +189,7 @@ export default function ReconciliationReportPage() {
               <PopoverTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4" />
-                  {startDate ? format(startDate, 'PPP') : 'Start Date'}
+                  {startDate ? fmtDate(startDate) : 'Start Date'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -208,7 +209,7 @@ export default function ReconciliationReportPage() {
               <PopoverTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4" />
-                  {endDate ? format(endDate, 'PPP') : 'End Date'}
+                  {endDate ? fmtDate(endDate) : 'End Date'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
@@ -263,9 +264,9 @@ export default function ReconciliationReportPage() {
           <>
             {/* Report date and period */}
             <div className="mb-6 text-sm text-muted-foreground">
-              <p>Report generated on: {format(new Date(data.reportDate), 'PPP p')}</p>
+              <p>Report generated on: {fmtDateTime(data.reportDate)}</p>
               <p>
-                Period: {data.period.startDate !== 'All Time' ? format(new Date(data.period.startDate), 'PPP') : 'All Time'} to {data.period.endDate !== 'Present' ? format(new Date(data.period.endDate), 'PPP') : 'Present'}
+                Period: {data.period.startDate !== 'All Time' ? fmtDate(data.period.startDate) : 'All Time'} to {data.period.endDate !== 'Present' ? fmtDate(data.period.endDate) : 'Present'}
               </p>
             </div>
             

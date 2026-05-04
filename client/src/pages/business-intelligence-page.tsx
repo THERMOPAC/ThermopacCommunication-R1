@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery } from "@tanstack/react-query";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -958,7 +959,7 @@ export default function BusinessIntelligencePage() {
                             <p className="text-sm text-muted-foreground">{deadline.complianceType}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">{format(new Date(deadline.dueDate), 'MMM dd, yyyy')}</p>
+                            <p className="font-medium">{fmtDate(deadline.dueDate)}</p>
                             {getComplianceStatusBadge(deadline.status)}
                           </div>
                         </div>
@@ -989,7 +990,7 @@ export default function BusinessIntelligencePage() {
                         <div className="text-right">
                           {user.dueDate && (
                             <p className="text-sm text-red-600 dark:text-red-400">
-                              Due: {format(new Date(user.dueDate), 'MMM dd, yyyy')}
+                              Due: {fmtDate(user.dueDate)}
                             </p>
                           )}
                           {getComplianceStatusBadge(user.status)}
@@ -1222,7 +1223,7 @@ export default function BusinessIntelligencePage() {
                             {commitment.daysPastDue} days overdue
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            Due: {format(new Date(commitment.dueDate), 'MMM dd, yyyy')}
+                            Due: {fmtDate(commitment.dueDate)}
                           </p>
                         </div>
                       </div>

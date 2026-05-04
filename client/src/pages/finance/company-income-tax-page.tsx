@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
@@ -51,8 +52,7 @@ function statusBadge(status: string) {
 }
 
 function formatDate(d: any): string {
-  if (!d) return '-';
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return fmtDate(d) === '—' ? '-' : fmtDate(d);
 }
 
 export default function CompanyIncomeTaxPage() {

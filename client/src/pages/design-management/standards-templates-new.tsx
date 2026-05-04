@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -388,7 +389,7 @@ export default function StandardsTemplatesPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-gray-500">
-                            {format(new Date(standard.updatedAt), 'MMM dd, yyyy')}
+                            {fmtDate(standard.updatedAt)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -469,7 +470,7 @@ export default function StandardsTemplatesPage() {
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between text-sm text-gray-500">
-                          <span>Updated: {format(new Date(standard.updatedAt), 'MMM dd')}</span>
+                          <span>Updated: {fmtDate(standard.updatedAt)}</span>
                           <span>{standard.disciplineCode}</span>
                         </div>
                         {standard.tags && standard.tags.length > 0 && (

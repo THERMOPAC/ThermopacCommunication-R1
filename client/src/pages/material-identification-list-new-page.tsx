@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { format } from "date-fns";
@@ -186,7 +187,7 @@ export default function MaterialIdentificationListNewPage() {
   const formatDate = (dateString: string): string => {
     if (!dateString) return 'N/A';
     try {
-      return format(new Date(dateString), 'MMM d, yyyy');
+      return fmtDate(dateString);
     } catch (error) {
       return dateString;
     }

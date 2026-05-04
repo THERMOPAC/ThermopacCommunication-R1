@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -372,7 +373,7 @@ export default function OfferTemplatesPage() {
                         />
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "-"}
+                        {template.createdAt ? fmtDate(template.createdAt) : "-"}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">

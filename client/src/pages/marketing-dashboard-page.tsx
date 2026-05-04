@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart,
@@ -632,14 +633,13 @@ export default function MarketingDashboardPage() {
               {/* Display current date range */}
               <div className="text-xs text-muted-foreground text-right">
                 <span className="font-medium">{dateFilterLabel}:</span>{' '}
-                {dateRange.from.toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})} - {' '}
-                {dateRange.to.toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}
+                {fmtDate(dateRange.from)} - {fmtDate(dateRange.to)}
               </div>
             </div>
           </div>
           
           <div className="text-sm text-muted-foreground">
-            Showing data for: {dateFilterLabel} ({dateRange.from.toLocaleDateString()} - {dateRange.to.toLocaleDateString()})
+            Showing data for: {dateFilterLabel} ({fmtDate(dateRange.from)} - {fmtDate(dateRange.to)})
           </div>
         </div>
         
@@ -1064,7 +1064,7 @@ export default function MarketingDashboardPage() {
                                 </Badge>
                               </td>
                               <td className="px-4 py-3 text-sm">
-                                {campaign.startDate ? new Date(campaign.startDate).toLocaleDateString() : 'TBD'} - {campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : 'TBD'}
+                                {campaign.startDate ? fmtDate(campaign.startDate) : 'TBD'} - {campaign.endDate ? fmtDate(campaign.endDate) : 'TBD'}
                               </td>
                               <td className="px-4 py-3 text-right">
                                 {campaign.expectedLeadCount || 0} / {campaign.actualLeadCount || 0}

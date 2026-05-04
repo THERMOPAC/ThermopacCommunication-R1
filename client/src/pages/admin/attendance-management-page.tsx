@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -463,10 +464,10 @@ export default function AttendanceManagementPage() {
         yesterday.setDate(yesterday.getDate() - 1);
         return format(yesterday, 'MMMM d, yyyy');
       case 'thisWeek':
-        return `${format(startOfWeek(now), 'MMM d')} - ${format(endOfWeek(now), 'MMM d, yyyy')}`;
+        return `${fmtDate(startOfWeek(now))} - ${fmtDate(endOfWeek(now))}`;
       case 'lastWeek':
         const lastWeekStart = startOfWeek(new Date(now.setDate(now.getDate() - 7)));
-        return `${format(lastWeekStart, 'MMM d')} - ${format(endOfWeek(lastWeekStart), 'MMM d, yyyy')}`;
+        return `${fmtDate(lastWeekStart)} - ${fmtDate(endOfWeek(lastWeekStart))}`;
       case 'thisMonth':
         return format(now, 'MMMM yyyy');
       case 'lastMonth':
@@ -506,7 +507,7 @@ export default function AttendanceManagementPage() {
       doc.setFont('helvetica', 'normal');
       doc.text('Attendance Report', 14, 25);
       doc.setFontSize(10);
-      doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy HH:mm')}`, pageWidth - 14, 15, { align: 'right' });
+      doc.text(`Generated: ${fmtDateTime(new Date())}`, pageWidth - 14, 15, { align: 'right' });
 
       doc.setTextColor(0, 0, 0);
 
@@ -1092,7 +1093,7 @@ export default function AttendanceManagementPage() {
                                   <p className="font-medium">Override applied</p>
                                   {origStatus && <p className="text-xs text-gray-500 mt-1">System status: {origStatus.replace('_', ' ')}</p>}
                                   {record.adjustmentReason && <p className="text-xs mt-1">Reason: {record.adjustmentReason}</p>}
-                                  {record.adjustmentDate && <p className="text-xs text-gray-400">{format(new Date(record.adjustmentDate), 'dd MMM yyyy')}</p>}
+                                  {record.adjustmentDate && <p className="text-xs text-gray-400">{fmtDate(record.adjustmentDate)}</p>}
                                 </TooltipContent>
                               </Tooltip>
                             )}
@@ -1169,7 +1170,7 @@ export default function AttendanceManagementPage() {
             <div className="space-y-4">
               <div className="rounded-md bg-gray-50 p-3 text-sm">
                 <p><span className="font-medium">Employee:</span> {overrideTarget.userName}</p>
-                <p><span className="font-medium">Date:</span> {format(new Date(overrideTarget.date), 'dd MMM yyyy')}</p>
+                <p><span className="font-medium">Date:</span> {fmtDate(overrideTarget.date)}</p>
                 <p><span className="font-medium">Current Status:</span> {overrideTarget.status}
                   {overrideTarget.statusSource === 'admin_override' && (
                     <Badge className="ml-2 text-xs bg-amber-100 text-amber-800">Already overridden</Badge>
@@ -1262,7 +1263,7 @@ export default function AttendanceManagementPage() {
             <div className="space-y-4">
               <div className="rounded-md bg-gray-50 p-3 text-sm">
                 <p><span className="font-medium">Employee:</span> {revertTarget.userName}</p>
-                <p><span className="font-medium">Date:</span> {format(new Date(revertTarget.date), 'dd MMM yyyy')}</p>
+                <p><span className="font-medium">Date:</span> {fmtDate(revertTarget.date)}</p>
                 <p><span className="font-medium">Current (Override) Status:</span> {revertTarget.status}</p>
                 {revertTarget.originalPunchData?.systemStatus && (
                   <p className="text-gray-500 text-xs mt-1">Will restore to: <strong>{revertTarget.originalPunchData.systemStatus.replace('_', ' ')}</strong></p>

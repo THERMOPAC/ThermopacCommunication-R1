@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -169,7 +170,7 @@ const formatCurrency = (amount: number) => {
 
 // Helper function to format date for display
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-IN');
+  return fmtDate(dateString);
 };
 
 export default function PurchaseModule() {
@@ -412,7 +413,7 @@ export default function PurchaseModule() {
                 {filteredOrders?.map((order) => (
                   <TableRow key={order.docEntry}>
                     <TableCell className="font-medium">{order.docNum}</TableCell>
-                    <TableCell>{new Date(order.docDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{fmtDate(order.docDate)}</TableCell>
                     <TableCell>{order.vendorName}</TableCell>
                     <TableCell>
                       <Badge 
@@ -1283,7 +1284,7 @@ export default function PurchaseModule() {
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium">Date:</span>
-                      <span>{new Date(selectedOrder.docDate).toLocaleDateString()}</span>
+                      <span>{fmtDate(selectedOrder.docDate)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium">Status:</span>

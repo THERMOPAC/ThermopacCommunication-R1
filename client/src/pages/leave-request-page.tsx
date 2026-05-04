@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -530,9 +531,9 @@ export default function LeaveRequestPage() {
                             <div className="text-sm text-gray-600">
                               <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4" />
-                                {format(parseISO(request.startDate), 'MMM dd, yyyy')}
+                                {fmtDate(request.startDate)}
                                 {request.startDate !== request.endDate && (
-                                  <> - {format(parseISO(request.endDate), 'MMM dd, yyyy')}</>
+                                  <> - {fmtDate(request.endDate)}</>
                                 )}
                                 <span className="text-gray-400">|</span>
                                 <span>{request.totalDays} day{parseFloat(request.totalDays) !== 1 ? 's' : ''}</span>
@@ -550,7 +551,7 @@ export default function LeaveRequestPage() {
                                   <span className="ml-2">
                                     ({request.managerApprovalStatus}
                                     {request.managerApprovalDate && 
-                                      ` on ${format(parseISO(request.managerApprovalDate), 'MMM dd')}`
+                                      ` on ${fmtDate(request.managerApprovalDate)}`
                                     })
                                   </span>
                                 )}
@@ -625,9 +626,9 @@ export default function LeaveRequestPage() {
                                     <div className="text-sm text-gray-600">
                                       <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4" />
-                                        {format(parseISO(request.startDate), 'MMM dd, yyyy')}
+                                        {fmtDate(request.startDate)}
                                         {request.startDate !== request.endDate && (
-                                          <> - {format(parseISO(request.endDate), 'MMM dd, yyyy')}</>
+                                          <> - {fmtDate(request.endDate)}</>
                                         )}
                                         <span className="text-gray-400">|</span>
                                         <span className="font-medium">{request.totalDays} day{parseFloat(request.totalDays) !== 1 ? 's' : ''}</span>
@@ -640,7 +641,7 @@ export default function LeaveRequestPage() {
                                       <strong>Reason:</strong> {request.reason}
                                     </p>
                                     <p className="text-xs text-gray-500">
-                                      Applied on {format(parseISO(request.appliedDate), 'MMM dd, yyyy')}
+                                      Applied on {fmtDate(request.appliedDate)}
                                     </p>
                                   </div>
                                   <div className="flex gap-2 ml-4">
@@ -694,9 +695,9 @@ export default function LeaveRequestPage() {
                                       {getStatusBadge(request.status)}
                                     </div>
                                     <div className="text-sm text-gray-600">
-                                      {format(parseISO(request.startDate), 'MMM dd')}
+                                      {fmtDate(request.startDate)}
                                       {request.startDate !== request.endDate && (
-                                        <> - {format(parseISO(request.endDate), 'MMM dd')}</>
+                                        <> - {fmtDate(request.endDate)}</>
                                       )}
                                       <span className="ml-2">({request.totalDays} days)</span>
                                     </div>

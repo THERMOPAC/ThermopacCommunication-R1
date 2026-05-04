@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { Helmet } from "react-helmet";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -644,8 +645,8 @@ export default function ShopFloorPage() {
                                   <span className="text-muted-foreground">
                                     {activeTab === "delayed" ? "Due:" : "Date:"}
                                   </span> {activeTab === "delayed" && workOrder.plannedEndDate ? 
-                                    format(new Date(workOrder.plannedEndDate), 'dd MMM yyyy') : 
-                                    (workOrder.plannedStartDate ? format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : "Not scheduled")}
+                                    fmtDate(workOrder.plannedEndDate) : 
+                                    (workOrder.plannedStartDate ? fmtDate(workOrder.plannedStartDate) : "Not scheduled")}
                                 </div>
                                 
                                 {activeTab === "delayed" && isDelayed && (

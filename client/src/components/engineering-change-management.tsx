@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fmtDate } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLabelOptions } from '@shared/gcs-label-vocabulary';
 import { formatDistanceToNow } from 'date-fns';
@@ -317,7 +318,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString() + ' (' + formatDistanceToNow(date, { addSuffix: true }) + ')';
+    return fmtDate(date) + ' (' + formatDistanceToNow(date, { addSuffix: true }) + ')';
   };
 
   // Handle file input change
@@ -1017,7 +1018,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                 {selectedEcn.implementation_date && (
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Target Implementation Date</h4>
-                    <p>{new Date(selectedEcn.implementation_date).toLocaleDateString()}</p>
+                    <p>{fmtDate(selectedEcn.implementation_date)}</p>
                   </div>
                 )}
                 {selectedEcn.implemented_by && (

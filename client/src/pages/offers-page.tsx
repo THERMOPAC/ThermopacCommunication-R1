@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -184,7 +185,7 @@ function PdfDownloadDialog({ offerId, onClose, onDownload }: {
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {formatBytes(a.file_size_bytes)} · Confirmed {a.confirmed_at ? new Date(a.confirmed_at).toLocaleDateString() : ''}
+                            {formatBytes(a.file_size_bytes)} · Confirmed {a.confirmed_at ? fmtDate(a.confirmed_at) : ''}
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -218,7 +219,7 @@ function PdfDownloadDialog({ offerId, onClose, onDownload }: {
                             <Badge variant="secondary" className="text-[10px]">Rev {a.revision}</Badge>
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {formatBytes(a.file_size_bytes)} · Generated {new Date(a.generated_at).toLocaleDateString()}
+                            {formatBytes(a.file_size_bytes)} · Generated {fmtDate(a.generated_at)}
                           </div>
                         </div>
                         <Button variant="ghost" size="icon" className="h-7 w-7" title="Download"
@@ -833,8 +834,8 @@ export function OffersContent() {
                       </TableCell>
                       <TableCell>{offer.customerName}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{offer.subject}</TableCell>
-                      <TableCell>{offer.createdAt ? new Date(offer.createdAt).toLocaleDateString() : "-"}</TableCell>
-                      <TableCell>{offer.validUntil ? new Date(offer.validUntil).toLocaleDateString() : "-"}</TableCell>
+                      <TableCell>{offer.createdAt ? fmtDate(offer.createdAt) : "-"}</TableCell>
+                      <TableCell>{offer.validUntil ? fmtDate(offer.validUntil) : "-"}</TableCell>
                       <TableCell className="text-right font-medium">
                         {offer.currency} {parseFloat(offer.totalAmount || "0").toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </TableCell>
@@ -964,7 +965,7 @@ export function OffersContent() {
                   <div><Label className="text-muted-foreground">Customer</Label><p className="font-medium">{viewingOffer.customerName}</p></div>
                   <div><Label className="text-muted-foreground">Contact Person</Label><p>{viewingOffer.contactPerson || "-"}</p></div>
                   <div><Label className="text-muted-foreground">Email</Label><p>{viewingOffer.customerEmail || "-"}</p></div>
-                  <div><Label className="text-muted-foreground">Valid Until</Label><p>{viewingOffer.validUntil ? new Date(viewingOffer.validUntil).toLocaleDateString() : "-"}</p></div>
+                  <div><Label className="text-muted-foreground">Valid Until</Label><p>{viewingOffer.validUntil ? fmtDate(viewingOffer.validUntil) : "-"}</p></div>
                   <div className="col-span-2"><Label className="text-muted-foreground">Subject</Label><p className="font-medium">{viewingOffer.subject}</p></div>
                   <div><Label className="text-muted-foreground">Language</Label><p>{viewingOffer.language || "English"}</p></div>
                   {viewingOffer.customerAddress && <div className="col-span-2"><Label className="text-muted-foreground">Address</Label><p>{viewingOffer.customerAddress}</p></div>}

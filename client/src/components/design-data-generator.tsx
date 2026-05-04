@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fmtDate } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -2532,7 +2533,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   {/* Last saved date */}
                   {sheet.updated_at && (
                     <span className="text-[9px] text-slate-500 truncate">
-                      Saved {new Date(sheet.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      Saved {fmtDate(sheet.updated_at)}
                     </span>
                   )}
                 </div>
@@ -2672,7 +2673,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                           </td>
                           <td className="px-2 py-1 text-slate-500">{j.createdBy ?? '—'}</td>
                           <td className="px-2 py-1 text-slate-400">
-                            {j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' }) : '—'}
+                            {j.createdAt ? fmtDate(j.createdAt) : '—'}
                           </td>
                         </tr>
                       </tbody>

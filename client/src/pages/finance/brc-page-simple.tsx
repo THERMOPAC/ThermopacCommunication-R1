@@ -1,4 +1,5 @@
 import React from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { Helmet } from 'react-helmet';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -106,7 +107,7 @@ export default function BrcPageSimple() {
                   {brcs?.map((brc: any) => (
                     <TableRow key={brc.id}>
                       <TableCell className="font-medium">{brc.certificateNumber}</TableCell>
-                      <TableCell>{new Date(brc.issueDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{fmtDate(brc.issueDate)}</TableCell>
                       <TableCell>{brc.bankName}</TableCell>
                       <TableCell>{formatRupees(parseFloat(brc.amount))}</TableCell>
                       <TableCell>

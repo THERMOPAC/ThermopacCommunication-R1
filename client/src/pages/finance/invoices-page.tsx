@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { fmtDate } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -607,7 +608,7 @@ function CreditNoteDialog({
             return creditDate >= minDate;
           },
           { 
-            message: `Credit note date cannot be before invoice date (${creditNoteDetails?.minDate ? new Date(creditNoteDetails.minDate).toLocaleDateString() : ''})` 
+            message: `Credit note date cannot be before invoice date (${creditNoteDetails?.minDate ? fmtDate(creditNoteDetails.minDate) : ''})` 
           }
         )
     });
@@ -706,7 +707,7 @@ function CreditNoteDialog({
                   {creditNoteDetails && (
                     <div className="col-span-2 mt-2 pt-2 border-t">
                       <span className="text-muted-foreground">Issue Date:</span>
-                      <p className="font-medium">{new Date(creditNoteDetails.invoice.issueDate).toLocaleDateString()}</p>
+                      <p className="font-medium">{fmtDate(creditNoteDetails.invoice.issueDate)}</p>
                     </div>
                   )}
                 </div>
@@ -753,7 +754,7 @@ function CreditNoteDialog({
                       </FormControl>
                       {creditNoteDetails?.minDate && (
                         <p className="text-xs text-muted-foreground">
-                          Cannot be before invoice date: {new Date(creditNoteDetails.minDate).toLocaleDateString()}
+                          Cannot be before invoice date: {fmtDate(creditNoteDetails.minDate)}
                         </p>
                       )}
                       <FormMessage />

@@ -1,4 +1,5 @@
 import Layout from '@/components/layout';
+import { fmtDate } from "@/lib/date-format";
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -796,13 +797,13 @@ export default function PMAPage() {
                         </TableCell>
                         <TableCell>
                           {doc.issueDate || doc.issue_date 
-                            ? format(new Date(doc.issueDate || doc.issue_date), 'MMM dd, yyyy')
+                            ? fmtDate(doc.issueDate || doc.issue_date)
                             : '-'
                           }
                         </TableCell>
                         <TableCell className={expired ? "text-red-600 font-semibold" : ""}>
                           {doc.expiryDate || doc.expiry_date 
-                            ? format(new Date(doc.expiryDate || doc.expiry_date), 'MMM dd, yyyy')
+                            ? fmtDate(doc.expiryDate || doc.expiry_date)
                             : '-'
                           }
                           {expired && (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useAuth } from "@/hooks/use-auth";
 import { Task, User, insertTaskSchema } from "@shared/schema";
 import { useForm } from "react-hook-form";
@@ -684,8 +685,8 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                           {task.priority}
                         </Badge>
                       </TableCell>
-                      <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
-                      <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{fmtDate(task.startDate)}</TableCell>
+                      <TableCell>{fmtDate(task.finishDate)}</TableCell>
                       <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>
                       <TableCell>
                         <Badge 

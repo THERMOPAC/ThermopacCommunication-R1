@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { fmtDate } from "@/lib/date-format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
@@ -129,7 +130,7 @@ export default function PaymentAllocationsFixed({ invoiceId, invoiceAmount, curr
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {new Date(allocation.payment?.paymentDate || allocation.allocationDate).toLocaleDateString()}
+                      {fmtDate(allocation.payment?.paymentDate || allocation.allocationDate)}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <Badge variant="default" className="bg-blue-100 text-blue-800">
@@ -160,7 +161,7 @@ export default function PaymentAllocationsFixed({ invoiceId, invoiceAmount, curr
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {new Date(writeOff.approvalDate || writeOff.dateCreated).toLocaleDateString()}
+                      {fmtDate(writeOff.approvalDate || writeOff.dateCreated)}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <Badge variant="destructive" className="bg-orange-100 text-orange-800">

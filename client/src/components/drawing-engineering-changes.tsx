@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fmtDate } from '@/lib/date-format';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,8 +35,7 @@ const ECN_STATUS_STYLE: Record<string, string> = {
 };
 
 function formatDate(d: string | null) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return fmtDate(d);
 }
 
 interface Props {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -819,8 +820,8 @@ export default function CalibrationManagementPage() {
         i.manufacturer,
         i.serial_number,
         i.location,
-        new Date(i.last_calibration_date).toLocaleDateString(),
-        new Date(i.next_calibration_date).toLocaleDateString(),
+        fmtDate(i.last_calibration_date),
+        fmtDate(i.next_calibration_date),
         i.calibration_status
       ]);
       
@@ -1333,14 +1334,14 @@ export default function CalibrationManagementPage() {
                     <TableCell>{instrument.instrument_type}</TableCell>
                     <TableCell>{instrument.manufacturer}</TableCell>
                     <TableCell>{instrument.location}</TableCell>
-                    <TableCell>{new Date(instrument.last_calibration_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{fmtDate(instrument.last_calibration_date)}</TableCell>
                     <TableCell 
                       className={cn(
                         isOverdue(instrument.next_calibration_date) ? "text-red-600 font-bold" : "",
                         isDueSoon(instrument.next_calibration_date) ? "text-amber-500 font-medium" : ""
                       )}
                     >
-                      {new Date(instrument.next_calibration_date).toLocaleDateString()}
+                      {fmtDate(instrument.next_calibration_date)}
                       {isOverdue(instrument.next_calibration_date) && 
                         <AlertTriangle className="inline-block ml-1 h-4 w-4 text-red-600" />
                       }
@@ -1754,7 +1755,7 @@ export default function CalibrationManagementPage() {
                                       </div>
                                       <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
                                         <span>Size: {(file.size / 1024).toFixed(1)} KB</span>
-                                        <span>Modified: {new Date(file.updated).toLocaleDateString()}</span>
+                                        <span>Modified: {fmtDate(file.updated)}</span>
                                       </div>
                                       <div className="mt-1">
                                         <span className="text-xs text-gray-400 font-mono">

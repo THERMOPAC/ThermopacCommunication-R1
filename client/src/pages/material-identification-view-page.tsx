@@ -1,4 +1,5 @@
 import React from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -439,7 +440,7 @@ export default function MaterialIdentificationViewPage({ params }: { params?: { 
                           <FormLabel>Inspection Date</FormLabel>
                           <FormControl>
                             <Input 
-                              value={field.value ? new Date(field.value).toLocaleDateString() : ''}
+                              value={field.value ? fmtDate(field.value) : ''}
                               readOnly
                             />
                           </FormControl>

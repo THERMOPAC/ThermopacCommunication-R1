@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
@@ -371,7 +372,7 @@ export default function MaterialIdentificationListPage() {
                           <TableCell>{mi.material_grade}</TableCell>
                           <TableCell>{mi.heat_number}</TableCell>
                           <TableCell>
-                            {format(new Date(mi.inspection_date), "dd MMM yyyy")}
+                            {fmtDate(mi.inspection_date)}
                           </TableCell>
                           <TableCell>
                             <Badge

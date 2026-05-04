@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -306,7 +307,7 @@ export default function EpcDocumentPanel({
         <TableCell className="text-center py-1.5">{getStatusBadge(att.status)}</TableCell>
         <TableCell className="text-[9px] text-muted-foreground py-1.5">
           <div>{att.uploadedBy}</div>
-          <div className="text-[8px]">{att.uploadedAt ? new Date(att.uploadedAt).toLocaleDateString() : ""}</div>
+          <div className="text-[8px]">{att.uploadedAt ? fmtDate(att.uploadedAt) : ""}</div>
         </TableCell>
         <TableCell className="py-1.5">
           <div className="flex items-center gap-0.5">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -451,7 +452,7 @@ export default function TransmittalsPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-sm text-gray-500">
-                            {format(new Date(transmittal.createdAt), 'MMM dd, yyyy')}
+                            {fmtDate(transmittal.createdAt)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -517,7 +518,7 @@ export default function TransmittalsPage() {
                               {transmittal.subject}
                             </div>
                             <div className="flex items-center justify-between text-sm text-gray-500">
-                              <span>{format(new Date(transmittal.createdAt), 'MMM dd, yyyy')}</span>
+                              <span>{fmtDate(transmittal.createdAt)}</span>
                               {transmittal.acknowledgmentReceived && (
                                 <div className="flex items-center gap-1">
                                   <CheckCircle className="w-3 h-3 text-green-500" />

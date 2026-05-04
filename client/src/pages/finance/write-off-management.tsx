@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import Layout from '@/components/layout';
@@ -360,8 +361,7 @@ const WriteOffManagementPage = () => {
 
   // Format dates
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    return fmtDate(dateString);
   };
 
   // Fetch ALL write-offs for counting

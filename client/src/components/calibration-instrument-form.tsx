@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -488,7 +489,7 @@ export function CalibrationInstrumentForm({ onSuccess, onCancel, defaultValues, 
                                   <span className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     <span data-testid={`file-date-${index}`}>
-                                      {format(new Date(file.updated), 'MMM dd, yyyy')}
+                                      {fmtDate(file.updated)}
                                     </span>
                                   </span>
                                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspens
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
+import { fmtDate } from "@/lib/date-format";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -985,7 +986,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     rows.push(`"THERMOPAC — COMMERCIAL PRICE SHEET"`);
     rows.push(`"Snapshot","${data.snapshotNumber}","Revision","${data.revision}","Status","${data.status}"`);
     rows.push(`"Project","${data.projectName}","Code","${data.projectCode}"`);
-    rows.push(`"Customer","${data.customerName || ''}","Date","${new Date(data.createdAt).toLocaleDateString()}"`);
+    rows.push(`"Customer","${data.customerName || ''}","Date","${fmtDate(data.createdAt)}"`);
     rows.push(`"Currency","${data.sellingCurrency}","Exchange Rate","${data.exchangeRate}"`);
     rows.push(`"Incoterms","${data.incoterms || ''}","Validity (days)","${data.offerValidityDays || ''}"`);
     rows.push(`"Payment Terms","${data.paymentTerms || ''}"`);
@@ -1421,7 +1422,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       // Check if date is valid
       if (isNaN(date.getTime())) return "Not set";
       
-      return format(date, 'MMM d, yyyy');
+      return fmtDate(date);
     } catch (e) {
       console.error("Error formatting date:", e);
       return "Not set";
@@ -3054,7 +3055,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                   {stage.completed_by_name ? `Completed by ${stage.completed_by_name}` : 'Completed'} 
-                                                  {stage.completed_date ? ` on ${new Date(stage.completed_date).toLocaleDateString()}` : ''}
+                                                  {stage.completed_date ? ` on ${fmtDate(stage.completed_date)}` : ''}
                                                 </TooltipContent>
                                               </Tooltip>
                                             </TooltipProvider>
@@ -4237,7 +4238,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <TableCell className="text-right font-mono text-emerald-700 dark:text-emerald-400">{fmtInr(snap.total_selling_inr)}</TableCell>
                                 <TableCell className="text-right font-mono">{snap.total_selling_foreign ? fmtFc(snap.total_selling_foreign) : '—'}</TableCell>
                                 <TableCell>{snap.created_by_name || '—'}</TableCell>
-                                <TableCell>{snap.created_at ? format(new Date(snap.created_at), 'dd MMM yy') : '—'}</TableCell>
+                                <TableCell>{snap.created_at ? fmtDate(snap.created_at) : '—'}</TableCell>
                                 <TableCell className="text-right">
                                   <TooltipProvider>
                                     <Tooltip>

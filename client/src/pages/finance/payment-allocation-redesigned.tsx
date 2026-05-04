@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -367,7 +368,7 @@ export default function PaymentAllocationRedesigned() {
                           <div>
                             <p className="font-medium">{invoice.invoiceNumber}</p>
                             <p className="text-sm text-gray-600">Customer: {invoice.customerName}</p>
-                            <p className="text-sm text-gray-600">Date: {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-sm text-gray-600">Date: {invoice.invoiceDate ? fmtDate(invoice.invoiceDate) : 'N/A'}</p>
                             <p className="text-sm text-gray-600">
                               Type: {invoice.invoiceType}
                               {!isTypeCompatible && selectedPayment && (
@@ -436,7 +437,7 @@ export default function PaymentAllocationRedesigned() {
                 <div className="space-y-2">
                   <p><strong>Invoice ID:</strong> {selectedInvoice.id}</p>
                   <p><strong>Invoice Number:</strong> {selectedInvoice.invoiceNumber}</p>
-                  <p><strong>Date:</strong> {selectedInvoice.invoiceDate ? new Date(selectedInvoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
+                  <p><strong>Date:</strong> {selectedInvoice.invoiceDate ? fmtDate(selectedInvoice.invoiceDate) : 'N/A'}</p>
                   <p><strong>Customer:</strong> {selectedInvoice.customerName}</p>
                   <p><strong>Type:</strong> {selectedInvoice.invoiceType}</p>
                   <p><strong>Total Amount:</strong> {selectedInvoice.currency} {selectedInvoice.totalAmount}</p>

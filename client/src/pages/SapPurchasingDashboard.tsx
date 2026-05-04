@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -124,7 +125,7 @@ function DashboardContent() {
       queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase'] });
       toast({
         title: "Date Range Updated",
-        description: `Custom sync date range set to ${format(new Date(variables.fyStartDate), 'dd MMM yyyy')} onwards. Click "Sync Now" to apply changes.`,
+        description: `Custom sync date range set to ${fmtDate(variables.fyStartDate)} onwards. Click "Sync Now" to apply changes.`,
       });
     },
     onError: (error: Error) => {
@@ -373,7 +374,7 @@ function DashboardContent() {
               
               {dashboardData.fyStartDate && (
                 <Badge variant="outline" className="text-xs">
-                  From {format(new Date(dashboardData.fyStartDate), 'MMM dd, yyyy')}
+                  From {fmtDate(dashboardData.fyStartDate)}
                 </Badge>
               )}
             </div>
@@ -443,7 +444,7 @@ function DashboardContent() {
                   <p>Select custom date range for SAP data synchronization</p>
                   {syncStatusData?.data.settings?.fy_start_date && (
                     <p className="font-medium mt-1">
-                      Current range: From {format(new Date(syncStatusData.data.settings.fy_start_date), 'dd MMM yyyy')} onwards
+                      Current range: From {fmtDate(syncStatusData.data.settings.fy_start_date)} onwards
                     </p>
                   )}
                 </div>
@@ -565,7 +566,7 @@ function DashboardContent() {
                       <div>
                         <p className="text-sm font-medium">{activity.description}</p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(activity.timestamp), 'MMM dd, yyyy HH:mm')}
+                          {fmtDateTime(activity.timestamp)}
                         </p>
                       </div>
                     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -274,7 +275,7 @@ export default function ProjectsPage() {
 
   const formatDate = (d: string) => {
     if (!d) return "—";
-    return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return fmtDate(d);
   };
 
   const getDaysRemaining = (endDate: string) => {

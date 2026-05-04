@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
@@ -223,12 +224,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   function formatDate(dateString) {
     if (!dateString) return "Not set";
-    try {
-      const date = new Date(dateString);
-      return format(date, 'MMM d, yyyy');
-    } catch (e) {
-      return dateString;
-    }
+    const f = fmtDate(dateString);
+    return f === '—' ? dateString : f;
   }
 
   function getStatusBadgeColor(status) {

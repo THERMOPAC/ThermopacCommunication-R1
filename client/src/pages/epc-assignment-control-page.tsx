@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import Layout from "@/components/layout";
@@ -384,7 +385,7 @@ export default function EpcAssignmentControlPage() {
                     <tbody>
                       {auditLog.logs.map((log: any) => (
                         <tr key={log.id} className={`border-b last:border-0 ${log.resolution_method === "unassigned" ? "bg-red-50" : log.resolution_method === "fallback" ? "bg-amber-50" : ""}`}>
-                          <td className="py-2 text-xs text-muted-foreground">{new Date(log.logged_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
+                          <td className="py-2 text-xs text-muted-foreground">{fmtDateTime(log.logged_at)}</td>
                           <td className="py-2 text-xs">{log.project_code || "—"}</td>
                           <td className="py-2">
                             <span className="font-medium">{log.stage_gate}</span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { Helmet } from "react-helmet";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -312,14 +313,14 @@ export default function WorkOrderDetailPage() {
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Planned Start Date</h3>
                     <p className="font-semibold">
-                      {workOrder?.plannedStartDate ? format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : "Not specified"}
+                      {workOrder?.plannedStartDate ? fmtDate(workOrder.plannedStartDate) : "Not specified"}
                     </p>
                   </div>
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Planned End Date</h3>
                     <p className="font-semibold">
-                      {workOrder?.plannedEndDate ? format(new Date(workOrder.plannedEndDate), 'dd MMM yyyy') : "Not specified"}
+                      {workOrder?.plannedEndDate ? fmtDate(workOrder.plannedEndDate) : "Not specified"}
                     </p>
                   </div>
                   
@@ -493,7 +494,7 @@ export default function WorkOrderDetailPage() {
                               </span>
                               <span className="text-xs text-muted-foreground flex items-center">
                                 <Clock className="h-3 w-3 mr-1" />
-                                {format(new Date(record.createdAt), 'dd MMM yyyy, h:mm a')}
+                                {fmtDateTime(record.createdAt)}
                               </span>
                             </div>
                             

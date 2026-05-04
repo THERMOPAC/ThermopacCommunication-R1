@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -2354,7 +2355,7 @@ export default function LLMPromptEnginePage() {
                                     <span>{prompt.total_executions} executions</span>
                                   ) : null}
                                   {prompt.last_executed && (
-                                    <span>Last: {new Date(prompt.last_executed).toLocaleDateString()}</span>
+                                    <span>Last: {fmtDate(prompt.last_executed)}</span>
                                   )}
                                 </div>
                               </div>
@@ -2471,7 +2472,7 @@ export default function LLMPromptEnginePage() {
                               <span>{prompt.total_executions} executions</span>
                             ) : null}
                             {prompt.last_executed && (
-                              <span>Last: {new Date(prompt.last_executed).toLocaleDateString()}</span>
+                              <span>Last: {fmtDate(prompt.last_executed)}</span>
                             )}
                           </div>
                         </div>
@@ -2993,7 +2994,7 @@ export default function LLMPromptEnginePage() {
                   <p className="text-sm text-red-600 mt-1">{taskGenerationValidationErrors.days}</p>
                 ) : (
                   <p className="text-sm text-gray-500 mt-1">
-                    Due date will be calculated as {taskGenerationDays} days from today ({new Date(Date.now() + taskGenerationDays * 24 * 60 * 60 * 1000).toLocaleDateString()})
+                    Due date will be calculated as {taskGenerationDays} days from today ({fmtDate(new Date(Date.now() + taskGenerationDays * 24 * 60 * 60 * 1000))})
                   </p>
                 )}
               </div>
@@ -3141,7 +3142,7 @@ export default function LLMPromptEnginePage() {
                                   {task.category}
                                 </Badge>
                                 <Badge variant="outline" className="text-xs">
-                                  Due: {new Date(task.dueDate!).toLocaleDateString()}
+                                  Due: {fmtDate(task.dueDate)}
                                 </Badge>
                               </div>
                             </div>

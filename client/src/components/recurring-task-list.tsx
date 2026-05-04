@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { fmtDate } from "@/lib/date-format";
 import { RecurringTask, User } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -575,7 +576,7 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
                                 <TableCell>
                                   {/* Show past due dates in red */}
                                   <span className={new Date(task.dueDate) < new Date() && task.status !== 'completed' ? 'text-red-600 font-medium' : ''}>
-                                    {new Date(task.dueDate).toLocaleDateString()}
+                                    {fmtDate(task.dueDate)}
                                   </span>
                                 </TableCell>
                                 <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>

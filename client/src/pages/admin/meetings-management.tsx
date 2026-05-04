@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, getErrorMessage } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
@@ -1613,7 +1614,7 @@ export default function MeetingsManagement() {
                         <div>
                           <p className="font-medium text-gray-900">{commitment.commitment.title}</p>
                           <p className="text-sm text-gray-600">
-                            Due {format(parseISO(commitment.commitment.dueDate), 'MMM dd, yyyy')} • 
+                            Due {fmtDate(commitment.commitment.dueDate)} • 
                             Assigned to {commitment.assignedTo?.username}
                           </p>
                         </div>
@@ -2247,7 +2248,7 @@ export default function MeetingsManagement() {
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                             <span className="flex items-center gap-1">
                               <CalendarIcon className="h-4 w-4" />
-                              {format(parseISO(meeting.meeting.meetingDate), 'MMM dd, yyyy')}
+                              {fmtDate(meeting.meeting.meetingDate)}
                             </span>
                             <span className="flex items-center gap-1">
                               <ClockIcon className="h-4 w-4" />
@@ -2510,7 +2511,7 @@ export default function MeetingsManagement() {
                                         <SelectItem key={meeting.id} value={meeting.displayId.toString()}>
                                           {meeting.title}
                                           <span className="ml-2 text-sm text-gray-500">
-                                            ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
+                                            ({fmtDate(meeting.date)} at {meeting.startTime})
                                           </span>
                                         </SelectItem>
                                       ))}
@@ -2527,7 +2528,7 @@ export default function MeetingsManagement() {
                                         <SelectItem key={meeting.id} value={`google_calendar_${meeting.id}`}>
                                           {meeting.title}
                                           <span className="ml-2 text-sm text-gray-500">
-                                            ({format(parseISO(meeting.date), 'MMM dd')} at {meeting.startTime})
+                                            ({fmtDate(meeting.date)} at {meeting.startTime})
                                           </span>
                                         </SelectItem>
                                       ))}
@@ -2543,7 +2544,7 @@ export default function MeetingsManagement() {
                                       <SelectItem value={`concluded_${field.value}`}>
                                         {commitmentForm.watch('meetingTitle')}
                                         <span className="ml-2 text-sm text-gray-500">
-                                          (Concluded - {commitmentForm.watch('meetingDate') ? format(parseISO(commitmentForm.watch('meetingDate')), 'MMM dd') : ''})
+                                          (Concluded - {commitmentForm.watch('meetingDate') ? fmtDate(commitmentForm.watch('meetingDate')) : ''})
                                         </span>
                                       </SelectItem>
                                     </SelectGroup>
@@ -2715,7 +2716,7 @@ export default function MeetingsManagement() {
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                             <span className="flex items-center gap-1">
                               <CalendarIcon className="h-4 w-4" />
-                              Due: {format(parseISO(commitment.commitment.dueDate), 'MMM dd, yyyy')}
+                              Due: {fmtDate(commitment.commitment.dueDate)}
                             </span>
                             <span className="flex items-center gap-1">
                               <UsersIcon className="h-4 w-4" />
@@ -3019,7 +3020,7 @@ export default function MeetingsManagement() {
                             <div className="flex-1">
                               <h4 className="font-semibold">{meeting.meeting.title}</h4>
                               <p className="text-sm text-gray-600">
-                                {format(parseISO(meeting.meeting.meetingDate), 'MMM d, yyyy')} · {meeting.meeting.startTime}
+                                {fmtDate(meeting.meeting.meetingDate)} · {meeting.meeting.startTime}
                               </p>
                               <div className="flex items-center gap-2 mt-2">
                                 {meeting.meeting.googleMeetLink && (
@@ -3070,8 +3071,8 @@ export default function MeetingsManagement() {
                               <h4 className="font-semibold">{event.summary}</h4>
                               <p className="text-sm text-gray-600">
                                 {event.start.dateTime 
-                                  ? format(parseISO(event.start.dateTime), 'MMM d, yyyy · h:mm a')
-                                  : format(parseISO(event.start.date), 'MMM d, yyyy')
+                                  ? `${fmtDate(event.start.dateTime)} · ${format(parseISO(event.start.dateTime), 'h:mm a')}`
+                                  : fmtDate(event.start.date)
                                 }
                               </p>
                               {event.description && (
@@ -3247,8 +3248,8 @@ export default function MeetingsManagement() {
                           <div className="flex items-center gap-1">
                             <CalendarIcon className="h-4 w-4" />
                             {event.start.dateTime 
-                              ? format(parseISO(event.start.dateTime), 'MMM d, yyyy')
-                              : event.start.date
+                              ? fmtDate(event.start.dateTime)
+                              : fmtDate(event.start.date)
                             }
                           </div>
                           <div className="flex items-center gap-1">
@@ -3369,7 +3370,7 @@ export default function MeetingsManagement() {
                         <div className="flex flex-col">
                           <span className="font-medium">{meeting.meeting.title}</span>
                           <span className="text-sm text-gray-500">
-                            {format(parseISO(meeting.meeting.meetingDate), 'MMM dd, yyyy')} at {meeting.meeting.startTime}
+                            {fmtDate(meeting.meeting.meetingDate)} at {meeting.meeting.startTime}
                           </span>
                         </div>
                       </SelectItem>
@@ -3389,7 +3390,7 @@ export default function MeetingsManagement() {
                         <div>
                           <h5 className="font-medium text-blue-900">{selectedMeetingForAI.meeting.title}</h5>
                           <p className="text-sm text-blue-700">
-                            {format(parseISO(selectedMeetingForAI.meeting.meetingDate), 'MMM dd, yyyy')} · 
+                            {fmtDate(selectedMeetingForAI.meeting.meetingDate)} · 
                             {selectedMeetingForAI.meeting.startTime} - {selectedMeetingForAI.meeting.endTime}
                           </p>
                           {selectedMeetingForAI.meeting.description && (
@@ -4069,7 +4070,7 @@ Suggested next steps
                       <div>
                         <div className="font-medium text-gray-900">{meeting.title}</div>
                         <div className="text-sm text-gray-500">
-                          {format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')} • {meeting.startTime} - {meeting.endTime}
+                          {fmtDate(meeting.meetingDate)} • {meeting.startTime} - {meeting.endTime}
                         </div>
                       </div>
                     </div>
@@ -4591,7 +4592,7 @@ Suggested next steps
                         <div className="text-sm text-gray-600 space-y-1">
                           <div className="flex items-center gap-2">
                             <CalendarIcon className="h-4 w-4" />
-                            <span>{format(parseISO(meeting.meetingDate), 'MMM dd, yyyy')}</span>
+                            <span>{fmtDate(meeting.meetingDate)}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <ClockIcon className="h-4 w-4" />

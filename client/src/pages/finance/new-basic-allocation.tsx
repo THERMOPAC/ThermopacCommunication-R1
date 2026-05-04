@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
@@ -410,7 +411,7 @@ function NewBasicAllocationContent() {
                         <span className="text-muted-foreground">|</span>
                         <span className="truncate max-w-[200px]">{payment.customerName}</span>
                         <span className="text-muted-foreground">|</span>
-                        <span>{new Date(payment.paymentDate).toLocaleDateString()}</span>
+                        <span>{fmtDate(payment.paymentDate)}</span>
                         <span className="text-muted-foreground">|</span>
                         <span className="font-medium">{payment.currency} {payment.unallocatedAmount.toLocaleString()}</span>
                         <span className="text-muted-foreground">|</span>
@@ -475,7 +476,7 @@ function NewBasicAllocationContent() {
                         <span className="text-muted-foreground">|</span>
                         <span className="truncate max-w-[200px]">{invoice.customerName}</span>
                         <span className="text-muted-foreground">|</span>
-                        <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                        <span>Due: {fmtDate(invoice.dueDate)}</span>
                         <span className="text-muted-foreground">|</span>
                         <span className="font-medium">{invoice.currency} {Number(invoice.outstanding_amount || invoice.totalAmount || 0).toLocaleString()}</span>
                         <span className="text-muted-foreground">|</span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -3033,7 +3034,7 @@ function CurrencyConverter() {
                       <div className="flex justify-between">
                         <span>Last Updated:</span>
                         <span className="font-medium">
-                          {new Date(result.lastUpdated).toLocaleDateString()}
+                          {fmtDate(result.lastUpdated)}
                         </span>
                       </div>
                     </div>
@@ -3834,7 +3835,7 @@ Health & Education Cess: ${cessRate}%
 Total Tax Liability: ₹${result.totalTax.toLocaleString()}
 ${result.tdsCreditAmount > 0 ? `Total TDS Credit: ₹${result.tdsCreditAmount.toLocaleString()}` : ''}
 Assessed Tax (Tax - TDS): ₹${Math.round(result.assessedTax).toLocaleString()}
-${result.noAdvanceTaxRequired ? '\nAssessed Tax <= Rs.10,000. No advance tax required (Section 208).\n' : ''}${finalPaymentDate ? `Final Payment Date: ${new Date(finalPaymentDate).toLocaleDateString('en-GB')}` : ''}
+${result.noAdvanceTaxRequired ? '\nAssessed Tax <= Rs.10,000. No advance tax required (Section 208).\n' : ''}${finalPaymentDate ? `Final Payment Date: ${fmtDate(finalPaymentDate)}` : ''}
 ${!result.noAdvanceTaxRequired ? `
 INSTALMENT SCHEDULE (based on Assessed Tax):
 Note: Only advance tax paid is checked for compliance. TDS is NOT counted as instalment payment.
@@ -4034,7 +4035,7 @@ Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS onl
                                   Income: ₹{parseFloat(calc.annualTaxableIncome).toLocaleString()}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  Updated: {new Date(calc.updatedAt).toLocaleDateString()}
+                                  Updated: {fmtDate(calc.updatedAt)}
                                 </p>
                               </div>
                               <Button variant="ghost" size="sm">Load</Button>
@@ -4317,7 +4318,7 @@ Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS onl
                         <>
                           <p className="text-red-700 font-semibold mt-1">Advance tax paid {"<"} 90% of Assessed Tax - Section 234B applicable</p>
                           <p className="text-orange-700">Deficient amount (Assessed Tax - Advance Tax Paid): <span className="font-semibold">₹{result.deficientAmount234B.toLocaleString()}</span></p>
-                          <p className="text-orange-700">Interest period: April 1, {new Date(result.assessmentYearStart).getFullYear()} to {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} = <span className="font-semibold">{result.interest234BMonths} month(s)</span></p>
+                          <p className="text-orange-700">Interest period: April 1, {new Date(result.assessmentYearStart).getFullYear()} to {fmtDate(finalPaymentDate ? new Date(finalPaymentDate) : new Date())} = <span className="font-semibold">{result.interest234BMonths} month(s)</span></p>
                           <p className="text-red-700 font-bold mt-1">Interest u/s 234B: ₹{result.deficientAmount234B.toLocaleString()} x 1% x {result.interest234BMonths} = ₹{result.interest234B.toLocaleString()}</p>
                         </>
                       ) : (
@@ -4327,7 +4328,7 @@ Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS onl
                             <div className="mt-2 pt-2 border-t border-orange-200">
                               <p className="text-orange-800 font-semibold">Interest on Balance Tax (Self-Assessment Tax)</p>
                               <p className="text-orange-700 mt-1">Balance remaining: <span className="font-semibold">₹{result.remainingBalance.toLocaleString()}</span></p>
-                              <p className="text-orange-700">Interest period: March 15 to {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} = <span className="font-semibold">{result.interestOnBalanceMonths} month(s)</span></p>
+                              <p className="text-orange-700">Interest period: March 15 to {fmtDate(finalPaymentDate ? new Date(finalPaymentDate) : new Date())} = <span className="font-semibold">{result.interestOnBalanceMonths} month(s)</span></p>
                               <p className="text-red-700 font-bold mt-1">Interest on balance: ₹{result.remainingBalance.toLocaleString()} x 1% x {result.interestOnBalanceMonths} = ₹{result.interestOnBalance.toLocaleString()}</p>
                             </div>
                           )}

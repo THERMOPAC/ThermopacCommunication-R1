@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
+import { fmtDateTime } from '@/lib/date-format';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type { WorkflowRecommendation } from '@shared/schema';
@@ -161,14 +162,7 @@ export default function WorkflowRecommendations() {
 
   // Helper to format dates
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return fmtDateTime(dateString);
   };
 
   // Render the recommendation card based on type

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useProjectFilter } from "@/hooks/use-project-filter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
@@ -178,8 +179,7 @@ export default function EpcPlanningControlPage() {
   }
 
   function formatDate(d: any) {
-    if (!d) return "—";
-    return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return fmtDate(d);
   }
 
   return (

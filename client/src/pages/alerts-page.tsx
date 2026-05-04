@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Layout from "@/components/layout";
@@ -281,7 +282,7 @@ export default function AlertsPage() {
                           </TableCell>
                           <TableCell className="py-1.5" onClick={() => handleRowClick(notif)}>
                             <span className={`text-xs ${isUnread ? 'font-bold' : 'font-normal text-gray-500'}`}>
-                              {format(new Date(notif.createdAt), 'dd-MM-yyyy')}
+                              {fmtDate(notif.createdAt)}
                             </span>
                           </TableCell>
                           <TableCell className="py-1.5" onClick={() => handleRowClick(notif)}>

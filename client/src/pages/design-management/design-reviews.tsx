@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -379,7 +380,7 @@ const ReviewsDashboard: React.FC = () => {
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <span className="font-medium">Due:</span>
           <span className={review.dueDate && new Date(review.dueDate) < new Date() ? 'text-red-500 font-medium' : ''}>
-            {review.dueDate ? format(new Date(review.dueDate), 'MMM dd, yyyy') : 'No due date'}
+            {review.dueDate ? fmtDate(review.dueDate) : 'No due date'}
           </span>
         </div>
 

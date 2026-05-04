@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -277,7 +278,7 @@ export default function EpcCutoverDashboard() {
                 </div>
                 {dspUsage.firstCreated && (
                   <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm font-mono text-blue-700">{new Date(dspUsage.firstCreated).toLocaleDateString()}</p>
+                    <p className="text-sm font-mono text-blue-700">{fmtDate(dspUsage.firstCreated)}</p>
                     <p className="text-xs text-blue-600">First Created</p>
                   </div>
                 )}
@@ -297,8 +298,8 @@ export default function EpcCutoverDashboard() {
                       <TableRow key={p.project_code}>
                         <TableCell><span className="font-mono text-sm">{p.project_code}</span> — {p.project_name}</TableCell>
                         <TableCell className="font-bold">{p.dispatch_count}</TableCell>
-                        <TableCell className="text-sm">{new Date(p.first_dispatch).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-sm">{new Date(p.last_dispatch).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-sm">{fmtDate(p.first_dispatch)}</TableCell>
+                        <TableCell className="text-sm">{fmtDate(p.last_dispatch)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -324,7 +325,7 @@ export default function EpcCutoverDashboard() {
                 <div className="grid grid-cols-7 gap-2">
                   {readiness.legacyTrend7Day.map((d: any) => (
                     <div key={d.day} className="text-center p-2 bg-gray-50 rounded">
-                      <p className="text-xs text-muted-foreground">{new Date(d.day).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' })}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDate(d.day)}</p>
                       <p className="text-lg font-bold">{d.accesses}</p>
                     </div>
                   ))}
@@ -353,7 +354,7 @@ export default function EpcCutoverDashboard() {
                           <TableCell className="font-mono text-sm">{s.path_family}</TableCell>
                           <TableCell className="font-bold">{s.total_accesses}</TableCell>
                           <TableCell>{s.unique_users}</TableCell>
-                          <TableCell className="text-sm">{new Date(s.last_access).toLocaleDateString()}</TableCell>
+                          <TableCell className="text-sm">{fmtDate(s.last_access)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -552,7 +553,7 @@ export default function EpcCutoverDashboard() {
                             <TableCell className="text-sm">{r.item_code || r.item_number}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{r.reason}</TableCell>
                             <TableCell className="text-sm">{r.created_by_name}</TableCell>
-                            <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-sm">{fmtDate(r.created_at)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

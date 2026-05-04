@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { fmtDate } from "@/lib/date-format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -60,7 +61,7 @@ const AchievementBadge = ({
       <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-2">{description}</p>
       {earnedAt && (
         <p className="text-xs text-gray-400 dark:text-gray-500">
-          Earned on {new Date(earnedAt).toLocaleDateString()}
+          Earned on {fmtDate(earnedAt)}
         </p>
       )}
     </div>

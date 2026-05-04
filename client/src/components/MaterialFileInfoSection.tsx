@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { fmtDateTime } from "@/lib/date-format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Download, Upload, Calendar, User, HardDrive, Plus } from "lucide-react";
@@ -65,13 +66,7 @@ export function MaterialFileInfoSection({
   // Format date
   const formatDate = (dateString: string): string => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      return fmtDateTime(dateString);
     } catch {
       return 'Invalid date';
     }

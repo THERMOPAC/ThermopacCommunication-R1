@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -205,14 +206,14 @@ export default function EnhancedAIMeetingAssistant({ selectedMeeting, onUpdate }
               </Badge>
               {selectedMeeting.type === 'internal' && selectedMeeting.meeting?.meetingDate && (
                 <span>
-                  {format(parseISO(selectedMeeting.meeting.meetingDate), 'MMM d, yyyy')} at {selectedMeeting.meeting.startTime}
+                  {fmtDate(selectedMeeting.meeting.meetingDate)} at {selectedMeeting.meeting.startTime}
                 </span>
               )}
               {selectedMeeting.type === 'google-calendar' && selectedMeeting.event?.start && (
                 <span>
                   {selectedMeeting.event.start.dateTime 
-                    ? format(parseISO(selectedMeeting.event.start.dateTime), 'MMM d, yyyy · h:mm a')
-                    : selectedMeeting.event.start.date
+                    ? `${fmtDate(selectedMeeting.event.start.dateTime)} · ${format(parseISO(selectedMeeting.event.start.dateTime), 'h:mm a')}`
+                    : fmtDate(selectedMeeting.event.start.date)
                   }
                 </span>
               )}

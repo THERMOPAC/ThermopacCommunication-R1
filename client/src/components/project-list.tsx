@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { format } from 'date-fns';
@@ -226,12 +227,7 @@ export default function ProjectList() {
   };
 
   function formatDate(dateString: string) {
-    try {
-      const date = new Date(dateString);
-      return format(date, 'MMM d, yyyy');
-    } catch (e) {
-      return dateString;
-    }
+    return fmtDate(dateString) === '—' ? dateString : fmtDate(dateString);
   }
 
   function getStatusColor(status: string) {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { fmtDate } from '@/lib/date-format';
 import Layout from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -311,7 +312,7 @@ export default function InvoiceAgingDashboard() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.from ? format(dateRange.from, 'PPP') : 'Pick a date'}
+                        {dateRange.from ? fmtDate(dateRange.from) : 'Pick a date'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -331,7 +332,7 @@ export default function InvoiceAgingDashboard() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.to ? format(dateRange.to, 'PPP') : 'Pick a date'}
+                        {dateRange.to ? fmtDate(dateRange.to) : 'Pick a date'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, ShieldCheck, ShieldX, Users, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
+import { fmtDate } from '@/lib/date-format';
 
 interface NonCompliantUser {
   id: number;
@@ -179,7 +179,7 @@ export default function PasswordCompliancePage() {
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Policy Enforcement Date</h4>
               <p className="text-sm text-gray-600">
-                {complianceData ? format(new Date(complianceData.policyEnforcementDate), 'PPP') : 'Loading...'}
+                {complianceData ? fmtDate(complianceData.policyEnforcementDate) : 'Loading...'}
               </p>
             </div>
             <div>
@@ -231,11 +231,11 @@ export default function PasswordCompliancePage() {
                       <p className="text-sm text-gray-600 mt-1">{user.compliance_issue}</p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                         <span>
-                          Account Created: {format(new Date(user.created_at), 'MMM d, yyyy')}
+                          Account Created: {fmtDate(user.created_at)}
                         </span>
                         {user.last_password_change && (
                           <span>
-                            Last Password Change: {format(new Date(user.last_password_change), 'MMM d, yyyy')}
+                            Last Password Change: {fmtDate(user.last_password_change)}
                           </span>
                         )}
                       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Card, 
@@ -201,7 +202,7 @@ export default function AdvancePaymentAllocator({
                       <div>
                         <div className="font-medium">{payment.referenceNumber}</div>
                         <div className="text-xs text-muted-foreground">
-                          {new Date(payment.paymentDate).toLocaleDateString()}
+                          {fmtDate(payment.paymentDate)}
                         </div>
                       </div>
                       <div className="text-right">

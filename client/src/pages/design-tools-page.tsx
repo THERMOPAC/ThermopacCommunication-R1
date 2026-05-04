@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -439,7 +440,7 @@ function HelicalCoilPressureLossCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     // Function to load and add logo
     const addCompanyLogo = async () => {
@@ -839,7 +840,7 @@ function CombustionChamberPressureLossCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     // Function to load and add logo
     const addCompanyLogo = async () => {
@@ -1262,7 +1263,7 @@ function ExpansionTankCapacityCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     // Function to load and add logo
     const addCompanyLogo = async () => {
@@ -1820,7 +1821,7 @@ function ChimneyDiameterHeightCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     // Function to load and add logo
     const addCompanyLogo = async () => {
@@ -2292,7 +2293,7 @@ function ThermalOilHeaterSizingCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     // Function to load and add logo
     const addCompanyLogo = async () => {
@@ -2638,7 +2639,7 @@ function ThermalOilPumpSizingCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     // Define variables needed for PDF generation
     const rho = parseFloat(oilDensity); // kg/m³
@@ -3186,7 +3187,7 @@ function CombustionAirCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     const addCompanyLogo = async () => {
       try {
@@ -3467,7 +3468,7 @@ function BurnerCapacityCalculator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     const addCompanyLogo = async () => {
       try {
@@ -3764,7 +3765,7 @@ function FlueGasHeatLossEstimator() {
     if (!result) return;
 
     const doc = new jsPDF();
-    const currentDate = new Date().toLocaleDateString();
+    const currentDate = fmtDate(new Date());
     
     const addCompanyLogo = async () => {
       try {

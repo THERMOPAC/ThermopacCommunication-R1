@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -778,7 +779,7 @@ function ReconciliationTab() {
                         <TableCell className="text-right font-mono font-semibold">{fmt(r.payrollTdsAmount)}</TableCell>
                         <TableCell><Badge className={POSTING_STATUS_COLORS[r.sapPostingStatus] || 'bg-gray-100'}>{r.sapPostingStatus === 'posted' ? 'Posted' : r.sapPostingStatus === 'sap_missing' ? 'SAP Missing' : 'Failed'}</Badge></TableCell>
                         <TableCell className="font-mono text-xs">{r.sapJeNumber || '—'}</TableCell>
-                        <TableCell className="text-xs">{r.sapPostingDate ? new Date(r.sapPostingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</TableCell>
+                        <TableCell className="text-xs">{r.sapPostingDate ? fmtDate(r.sapPostingDate) : '—'}</TableCell>
                         <TableCell className="text-right font-mono">{r.sapVerifiedTdsAmount ? fmt(r.sapVerifiedTdsAmount) : '—'}</TableCell>
                         <TableCell className={`text-right font-mono ${variance !== 0 ? (Math.abs(variance) <= parseFloat(toleranceData?.tolerance || '1') ? 'text-amber-600' : 'text-red-600 font-semibold') : ''}`}>
                           {r.sapVerifiedTdsAmount ? fmt(r.variance) : '—'}

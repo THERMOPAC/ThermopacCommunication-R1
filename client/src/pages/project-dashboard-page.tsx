@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { fmtDate } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -363,7 +364,7 @@ export default function ProjectDashboardPage() {
                     <div className="text-right">
                       <div className="text-sm font-medium">{formatCurrency(parseFloat(project.estimatedBudget) || 0)}</div>
                       <div className="text-xs text-muted-foreground">
-                        {project.startDate && new Date(project.startDate).toLocaleDateString()}
+                        {project.startDate && fmtDate(project.startDate)}
                       </div>
                     </div>
                     <div className="flex gap-2">

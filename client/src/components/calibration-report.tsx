@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDateTime } from '@/lib/date-format';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { 
@@ -161,7 +162,7 @@ export default function CalibrationReport({ open, onOpenChange }: CalibrationRep
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
     try {
-      return format(new Date(dateString), 'dd-MM-yyyy');
+      return fmtDate(dateString);
     } catch (error) {
       return dateString;
     }
@@ -196,7 +197,7 @@ export default function CalibrationReport({ open, onOpenChange }: CalibrationRep
       doc.text('Calibration Instruments Report', 105, 15, { align: 'center' });
       
       doc.setFontSize(10);
-      doc.text(`Generated on: ${format(new Date(), 'dd-MM-yyyy HH:mm')}`, 105, 22, { align: 'center' });
+      doc.text(`Generated on: ${fmtDateTime(new Date())}`, 105, 22, { align: 'center' });
       
       // Add filters if applied
       if (instrumentIdFilter || 

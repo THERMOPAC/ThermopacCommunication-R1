@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Layout from "@/components/layout";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -30,13 +31,12 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDate(d: string | null): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return fmtDate(d);
 }
 
 function formatDateTime(d: string | null): string {
   if (!d) return "Never";
-  return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return fmtDateTime(d);
 }
 
 function getFileIcon(fileName: string) {

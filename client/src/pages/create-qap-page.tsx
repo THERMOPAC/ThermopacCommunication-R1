@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Helmet } from "react-helmet";
 import { useAuth } from "@/hooks/use-auth";
@@ -763,7 +764,7 @@ export default function CreateQAPPage() {
             <div class="qap-info">
               <p><strong>QAP Number:</strong> ${values.qapNumber}</p>
               <p><strong>Revision:</strong> ${values.revisionNumber}</p>
-              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+              <p><strong>Date:</strong> ${fmtDate(new Date())}</p>
             </div>
           </div>
           

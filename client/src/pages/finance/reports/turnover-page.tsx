@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import { DateRange } from "react-day-picker";
@@ -192,7 +193,7 @@ export default function TurnoverReportPage() {
         }
         startDate = format(downloadDateRange.from, 'yyyy-MM-dd');
         endDate = format(downloadDateRange.to, 'yyyy-MM-dd');
-        reportTitle = `Turnover Report - ${format(downloadDateRange.from, 'MMM dd, yyyy')} to ${format(downloadDateRange.to, 'MMM dd, yyyy')}`;
+        reportTitle = `Turnover Report - ${fmtDate(downloadDateRange.from)} to ${fmtDate(downloadDateRange.to)}`;
       }
       
       // Fetch data for the selected date range
@@ -235,8 +236,8 @@ export default function TurnoverReportPage() {
       // Summary Sheet with Credit Notes Integration
       const summaryData = [
         ['THERMOPAC TURNOVER REPORT'],
-        [`Report Period: ${downloadType === 'financialYear' ? financialYearPresets.find(fy => fy.value === downloadFinancialYear)?.label : format(downloadDateRange.from!, 'MMM dd, yyyy') + ' to ' + format(downloadDateRange.to!, 'MMM dd, yyyy')}`],
-        [`Generated on: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`],
+        [`Report Period: ${downloadType === 'financialYear' ? financialYearPresets.find(fy => fy.value === downloadFinancialYear)?.label : fmtDate(downloadDateRange.from!) + ' to ' + fmtDate(downloadDateRange.to!)}`],
+        [`Generated on: ${fmtDate(new Date())} ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`],
         [''],
         ['SUMMARY'],
         ['Metric', 'USD Amount', 'INR Amount'],
@@ -716,7 +717,7 @@ export default function TurnoverReportPage() {
             <CardTitle>Turnover Summary</CardTitle>
             <CardDescription>
               {dateRange.from && dateRange.to
-                ? `${format(dateRange.from, 'MMM dd, yyyy')} to ${format(dateRange.to, 'MMM dd, yyyy')}`
+                ? `${fmtDate(dateRange.from)} to ${fmtDate(dateRange.to)}`
                 : "Select a date range to view the report"}
             </CardDescription>
           </CardHeader>

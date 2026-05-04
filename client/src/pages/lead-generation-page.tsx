@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -834,7 +835,7 @@ export default function LeadGenerationPage() {
                         <div className="flex items-center justify-between">
                           <div className="text-xs text-gray-500 flex items-center gap-3">
                             <span>Completeness: {(lead.data_completeness_score * 100).toFixed(0)}%</span>
-                            <span>Found: {new Date(lead.created_at).toLocaleDateString()}</span>
+                            <span>Found: {fmtDate(lead.created_at)}</span>
                             {lead.search_query && <span>Query: "{lead.search_query}"</span>}
                           </div>
                           <div className="flex gap-2">

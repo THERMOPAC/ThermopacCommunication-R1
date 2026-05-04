@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { Helmet } from "react-helmet";
 import { useLocation } from "wouter";
 import Layout from "@/components/layout";
@@ -882,7 +883,7 @@ export default function ProductionPlanningPage() {
                         {getPriorityBadge(workOrder.priority)}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {workOrder.startDate && new Date(workOrder.startDate).toLocaleDateString()}
+                        {workOrder.startDate && fmtDate(workOrder.startDate)}
                       </div>
                       <div className="flex gap-2">
                         <Button 

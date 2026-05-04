@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,11 +98,7 @@ function GoodsReceiptsContent() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return fmtDate(dateString);
   };
 
   const getStatusBadge = (status: string) => {
@@ -255,7 +252,7 @@ Goods Receipt Document
 ======================
 GR Number: ${receipt.DocNum}
 Doc Entry: ${receipt.DocEntry}
-Receipt Date: ${new Date(receipt.DocDate).toLocaleDateString()}
+Receipt Date: ${fmtDate(receipt.DocDate)}
 Status: ${receipt.DocumentStatus}
 Vendor: ${receipt.CardName}
 Total Amount: ₹${receipt.DocTotal?.toLocaleString() || 'N/A'}

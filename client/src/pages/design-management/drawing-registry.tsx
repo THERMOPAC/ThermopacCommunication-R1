@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1038,7 +1039,7 @@ function ProjectBackupSection({ selectedProjectId, showAllRevisions }: {
                               <div className="flex-1">
                                 <div className="font-medium">{backup.fileName}</div>
                                 <div className="text-sm text-gray-500">
-                                  Uploaded {backup.uploadedAt ? format(new Date(backup.uploadedAt), 'MMM dd, yyyy') : 'Unknown date'} by {
+                                  Uploaded {backup.uploadedAt ? fmtDate(backup.uploadedAt) : 'Unknown date'} by {
                                     backup.uploader?.firstName && backup.uploader?.lastName 
                                       ? `${backup.uploader.firstName} ${backup.uploader.lastName}`
                                       : backup.uploader?.username || 'Unknown'
@@ -2316,7 +2317,7 @@ export default function DrawingRegistryPage() {
                           }
                         </TableCell>
                         <TableCell>
-                          {format(new Date(version.uploadDate), 'MMM dd, yyyy HH:mm')}
+                          {fmtDateTime(version.uploadDate)}
                         </TableCell>
                         <TableCell className="text-sm text-gray-600">
                           {version.versionNotes || 'No notes'}

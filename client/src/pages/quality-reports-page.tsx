@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { Helmet } from "react-helmet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
@@ -685,7 +686,7 @@ function QAPTemplatesTab() {
                 <TableCell>{template.description}</TableCell>
                 <TableCell>{template.version}</TableCell>
                 <TableCell>{template.creator?.username || 'Unknown'}</TableCell>
-                <TableCell>{format(new Date(template.createdAt), 'MMM dd, yyyy')}</TableCell>
+                <TableCell>{fmtDate(template.createdAt)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" size="sm" onClick={() => handleViewTemplate(template)}>
@@ -1666,7 +1667,7 @@ function ITPTemplatesTab() {
                 <TableCell>{truncateText(template.description)}</TableCell>
                 <TableCell>{template.version}</TableCell>
                 <TableCell>{template.creator?.username || 'Unknown'}</TableCell>
-                <TableCell>{format(new Date(template.createdAt), 'MMM dd, yyyy')}</TableCell>
+                <TableCell>{fmtDate(template.createdAt)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" size="sm" onClick={() => handleViewTemplate(template)}>

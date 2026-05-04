@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { fmtDate } from "@/lib/date-format";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine, Upload, AlertTriangle, File, Download } from "lucide-react";
@@ -1382,7 +1383,7 @@ export default function WpqrPage() {
                               </div>
                               <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
                                 <span>Size: {(file.size / 1024).toFixed(1)} KB</span>
-                                <span>Modified: {new Date(file.updated).toLocaleDateString()}</span>
+                                <span>Modified: {fmtDate(file.updated)}</span>
                               </div>
                               <div className="mt-1">
                                 <span className="text-xs text-gray-400 font-mono">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import Layout from "@/components/layout";
@@ -926,7 +927,7 @@ export default function EpcControlTower() {
                       <span>Records: <strong>{docStatus.dsp.totalEpcDispatches || 0}</strong></span>
                       <span className="ml-3">Status: <strong>{docStatus.dsp.status || 'inactive'}</strong></span>
                       {docStatus.dsp.firstCreated && (
-                        <span className="ml-3 text-muted-foreground">First used: {new Date(docStatus.dsp.firstCreated).toLocaleDateString()}</span>
+                        <span className="ml-3 text-muted-foreground">First used: {fmtDate(docStatus.dsp.firstCreated)}</span>
                       )}
                     </div>
                   </div>

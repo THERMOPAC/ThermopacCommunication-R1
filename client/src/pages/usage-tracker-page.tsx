@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import Layout from "@/components/layout";
@@ -215,7 +216,7 @@ export default function UsageTrackerPage() {
               <p className="text-xs text-muted-foreground mt-2">
                 Last recorded total: <span className="font-medium">${summary.lastCumulativeTotal}</span>
                 {dailyLogs.length > 0 && (
-                  <> — logged {new Date(dailyLogs[0].logDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}</>
+                  <> — logged {fmtDate(dailyLogs[0].logDate)}</>
                 )}
               </p>
             )}
@@ -333,7 +334,7 @@ export default function UsageTrackerPage() {
                       <div key={log.id} className={`grid grid-cols-[1fr_80px_80px] gap-2 items-center p-3 rounded-lg border ${pct >= 100 ? 'bg-red-50 border-red-200' : pct >= 75 ? 'bg-orange-50 border-orange-200' : 'bg-white'}`}>
                         <div>
                           <p className="text-sm font-medium">
-                            {new Date(log.logDate).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            {fmtDate(log.logDate)}
                           </p>
                           {log.notes && <p className="text-xs text-muted-foreground truncate max-w-[250px]">{log.notes}</p>}
                         </div>

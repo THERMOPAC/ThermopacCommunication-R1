@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,8 +139,7 @@ function timeAgo(dateStr: string | null): string {
 }
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return fmtDate(dateStr);
 }
 
 export default function EpcRisksDashboard() {

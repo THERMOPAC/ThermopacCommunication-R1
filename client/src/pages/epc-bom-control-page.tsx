@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -399,8 +400,8 @@ export default function EpcBomControlPage() {
     });
   }
 
-  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-  const formatDateTime = (d: string | null) => d ? new Date(d).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+  const formatDate = (d: string | null) => fmtDate(d);
+  const formatDateTime = (d: string | null) => fmtDateTime(d);
 
   return (
     <Layout>

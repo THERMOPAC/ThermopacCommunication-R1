@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet';
 import { format } from 'date-fns';
@@ -709,7 +710,7 @@ export default function BrcManagementPage() {
                               {invoice.customerName}
                             </TableCell>
                             <TableCell>
-                              {invoice.issueDate ? format(new Date(invoice.issueDate), 'MMM dd, yyyy') : '-'}
+                              {invoice.issueDate ? fmtDate(invoice.issueDate) : '-'}
                             </TableCell>
                             <TableCell>
                               {parseFloat(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}

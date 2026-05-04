@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/date-format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -192,16 +193,8 @@ export default function DesignDashboard() {
                 // Format project duration
                 const getProjectDuration = () => {
                   if (project.startDate && project.targetEndDate) {
-                    const startDate = new Date(project.startDate).toLocaleDateString('en-US', {
-                      month: '2-digit',
-                      day: '2-digit', 
-                      year: 'numeric'
-                    });
-                    const endDate = new Date(project.targetEndDate).toLocaleDateString('en-US', {
-                      month: '2-digit',
-                      day: '2-digit',
-                      year: 'numeric'
-                    });
+                    const startDate = fmtDate(project.startDate);
+                    const endDate = fmtDate(project.targetEndDate);
                     return `${startDate} – ${endDate}`;
                   }
                   return 'Duration TBD';

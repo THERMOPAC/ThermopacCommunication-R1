@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { fmtDate } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -233,7 +234,7 @@ export default function ActiveAlertsPage() {
                               <div className="bg-gray-50 p-2 rounded">
                                 <span className="font-medium">Oldest Due:</span> {
                                   alert.context.oldestOverdueDate 
-                                    ? new Date(alert.context.oldestOverdueDate).toLocaleDateString()
+                                    ? fmtDate(alert.context.oldestOverdueDate)
                                     : 'N/A'
                                 }
                               </div>
@@ -256,7 +257,7 @@ export default function ActiveAlertsPage() {
                                       </div>
                                       <div>
                                         <span className="font-medium">Due Date:</span> {
-                                          task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'
+                                          task.dueDate ? fmtDate(task.dueDate) : 'N/A'
                                         }
                                       </div>
                                       <div>

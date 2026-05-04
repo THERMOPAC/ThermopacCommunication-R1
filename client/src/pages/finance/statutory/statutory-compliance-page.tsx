@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate as fmtDateShared } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -80,8 +81,7 @@ function fmt(val: string | number | null | undefined): string {
 }
 
 function fmtDate(d: string | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return fmtDateShared(d) === '—' ? '—' : fmtDateShared(d);
 }
 
 interface Props {
@@ -728,7 +728,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                 <>
                   {dueDate && (
                     <div className={`text-xs px-3 py-1.5 rounded ${isLate ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                      Due date: {dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      Due date: {fmtDateShared(dueDate)}
                       {isLate ? ` — Late by ${delayDays} day${delayDays > 1 ? 's' : ''} (${Math.ceil(delayDays / 30)} month${Math.ceil(delayDays / 30) > 1 ? 's' : ''} @ ${rateLabel}/month)` : ' — On time, no interest'}
                     </div>
                   )}

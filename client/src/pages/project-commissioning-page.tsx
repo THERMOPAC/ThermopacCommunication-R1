@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { fmtDate } from "@/lib/date-format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,7 +32,7 @@ export default function ProjectCommissioningPage() {
     checklistComplete: project.status === 'Completed',
     documentationReady: project.status === 'Completed',
     customerApproved: false,
-    handoverDate: project.targetEndDate ? new Date(project.targetEndDate).toLocaleDateString() : 'Not Scheduled'
+    handoverDate: project.targetEndDate ? fmtDate(project.targetEndDate) : 'Not Scheduled'
   }));
 
   // Display status badge with appropriate color

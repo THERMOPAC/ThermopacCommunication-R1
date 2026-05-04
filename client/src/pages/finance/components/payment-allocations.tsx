@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -133,7 +134,7 @@ export default function PaymentAllocations({ invoiceId, invoiceAmount, currency 
                         {allocation.payment?.irmNo && <div>IRM: {allocation.payment.irmNo}</div>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">{new Date(allocation.payment?.paymentDate || allocation.allocationDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-sm">{fmtDate(allocation.payment?.paymentDate || allocation.allocationDate)}</td>
                     <td className="px-4 py-3 text-sm">{allocation.payment?.paymentMethod || 'N/A'}</td>
                     <td className="px-4 py-3 text-sm">
                       <Badge variant="default">

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { Helmet } from "react-helmet";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -354,7 +355,7 @@ export default function ProductionTeamManagement() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        {new Date(team.updatedAt).toLocaleDateString()}
+                        {fmtDate(team.updatedAt)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">

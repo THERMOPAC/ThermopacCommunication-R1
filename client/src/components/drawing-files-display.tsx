@@ -1,4 +1,5 @@
 import React from 'react';
+import { fmtDateTime } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Download, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -57,13 +58,7 @@ const DrawingFilesDisplay: React.FC<DrawingFilesDisplayProps> = ({
   };
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return fmtDateTime(dateString);
   };
 
   const handleDownload = async (documentId: number) => {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,7 +116,7 @@ function generatePaymentMemoPdf(type: 'loan' | 'advance', record: any, action: '
   y += 10;
 
   const reference = type === 'loan' ? record.loanReference : record.advanceReference;
-  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const today = fmtDate(new Date());
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -517,7 +518,7 @@ export default function LoansAdvancesPage() {
                                 <TooltipTrigger>
                                   <Badge className="bg-green-100 text-green-700 gap-1"><CheckCircle2 className="h-3 w-3" />JE #{loan.sapJeNumber}</Badge>
                                 </TooltipTrigger>
-                                <TooltipContent>Posted to SAP on {loan.sapPostedAt ? new Date(loan.sapPostedAt).toLocaleDateString() : 'N/A'}</TooltipContent>
+                                <TooltipContent>Posted to SAP on {loan.sapPostedAt ? fmtDate(loan.sapPostedAt) : 'N/A'}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           ) : loan.sapPostingStatus === 'failed' ? (
@@ -630,7 +631,7 @@ export default function LoansAdvancesPage() {
                                 <TooltipTrigger>
                                   <Badge className="bg-green-100 text-green-700 gap-1"><CheckCircle2 className="h-3 w-3" />JE #{adv.sapJeNumber}</Badge>
                                 </TooltipTrigger>
-                                <TooltipContent>Posted to SAP on {adv.sapPostedAt ? new Date(adv.sapPostedAt).toLocaleDateString() : 'N/A'}</TooltipContent>
+                                <TooltipContent>Posted to SAP on {adv.sapPostedAt ? fmtDate(adv.sapPostedAt) : 'N/A'}</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           ) : adv.sapPostingStatus === 'failed' ? (

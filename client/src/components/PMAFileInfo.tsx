@@ -1,4 +1,5 @@
 import React from 'react';
+import { fmtDateTime } from '@/lib/date-format';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Download, Upload, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -87,14 +88,7 @@ const PMAFileInfo: React.FC<PMAFileInfoProps> = ({ pmaId, showEmptyState = false
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return fmtDateTime(dateString);
   };
 
   const truncateFilename = (filename: string, maxLength: number = 30) => {

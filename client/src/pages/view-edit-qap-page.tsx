@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -1390,7 +1391,8 @@ export default function ViewEditQAPPage() {
                         <div>
                           <p className="text-sm font-medium">Version {version.version}</p>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(version.createdAt).toLocaleDateString("en-US", {
+                            {fmtDate(version.createdAt)}
+                            {false && new Date(version.createdAt).toLocaleDateString("en-US", {
                               year: "numeric",
                               month: "short",
                               day: "numeric",

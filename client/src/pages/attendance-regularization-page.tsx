@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -352,7 +353,7 @@ export default function AttendanceRegularizationPage() {
                     {myRequests.map((req: any) => (
                       <TableRow key={req.id}>
                         <TableCell className="font-medium">
-                          {format(new Date(req.requestDate), 'dd MMM yyyy')}
+                          {fmtDate(req.requestDate)}
                         </TableCell>
                         <TableCell><ScenarioBadge req={req} /></TableCell>
                         <TableCell className="text-sm text-muted-foreground">
@@ -430,7 +431,7 @@ export default function AttendanceRegularizationPage() {
                               <div className="text-xs text-muted-foreground">{req.employeeCode}</div>
                             </TableCell>
                             <TableCell className="font-medium">
-                              {format(new Date(req.requestDate), 'dd MMM yyyy')}
+                              {fmtDate(req.requestDate)}
                             </TableCell>
                             <TableCell><ScenarioBadge req={req} /></TableCell>
                             <TableCell className="text-sm text-muted-foreground">
@@ -448,7 +449,7 @@ export default function AttendanceRegularizationPage() {
                               )}
                             </TableCell>
                             <TableCell className="max-w-[200px] truncate text-sm">{req.reason}</TableCell>
-                            <TableCell className="text-sm">{format(new Date(req.createdAt), 'dd MMM, hh:mm a')}</TableCell>
+                            <TableCell className="text-sm">{fmtDateTime(req.createdAt)}</TableCell>
                             <TableCell>
                               <div className="flex gap-1">
                                 <Button
@@ -527,7 +528,7 @@ export default function AttendanceRegularizationPage() {
                             <div className="font-medium">{req.employeeName}</div>
                             <div className="text-xs text-muted-foreground">{req.employeeCode}</div>
                           </TableCell>
-                          <TableCell className="font-medium">{format(new Date(req.requestDate), 'dd MMM yyyy')}</TableCell>
+                          <TableCell className="font-medium">{fmtDate(req.requestDate)}</TableCell>
                           <TableCell><ScenarioBadge req={req} /></TableCell>
                           <TableCell className="max-w-[200px] truncate text-sm">{req.reason}</TableCell>
                           <TableCell><StatusBadge status={req.status} /></TableCell>
@@ -541,7 +542,7 @@ export default function AttendanceRegularizationPage() {
                               <span className="text-muted-foreground text-sm">No</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm">{format(new Date(req.createdAt), 'dd MMM yyyy')}</TableCell>
+                          <TableCell className="text-sm">{fmtDate(req.createdAt)}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="sm" onClick={() => { setSelectedRequest(req); setShowAuditDialog(true); }}>
                               <History className="h-4 w-4" />
@@ -609,7 +610,7 @@ export default function AttendanceRegularizationPage() {
                                   className={`cursor-pointer flex items-center justify-between px-3 py-2 transition-all ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}>
                                   <div className="flex items-center gap-2">
                                     <Calendar className={`h-3.5 w-3.5 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
-                                    <span className="text-sm font-medium">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</span>
+                                    <span className="text-sm font-medium">{fmtDate(day.date)}</span>
                                     <span className="text-xs text-muted-foreground">{day.dayName}</span>
                                   </div>
                                   <Badge variant="outline" className="text-[10px] shrink-0 bg-amber-50 text-amber-700 border-amber-200">
@@ -632,7 +633,7 @@ export default function AttendanceRegularizationPage() {
                                   className={`cursor-pointer flex items-center justify-between px-3 py-2 transition-all ${isSelected ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}>
                                   <div className="flex items-center gap-2">
                                     <Calendar className={`h-3.5 w-3.5 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
-                                    <span className="text-sm font-medium">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</span>
+                                    <span className="text-sm font-medium">{fmtDate(day.date)}</span>
                                     <span className="text-xs text-muted-foreground">{day.dayName}</span>
                                   </div>
                                   <Badge variant="outline" className="text-[10px] shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200">
@@ -654,7 +655,7 @@ export default function AttendanceRegularizationPage() {
               <div className="border-t pt-3 space-y-3">
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="text-sm font-medium">
-                    Selected: {format(new Date(selectedAbsentDay.date + 'T00:00:00'), 'dd MMM yyyy')} ({selectedAbsentDay.dayName})
+                    Selected: {fmtDate(selectedAbsentDay.date)} ({selectedAbsentDay.dayName})
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Status: {selectedAbsentDay.reason}</div>
                 </div>
@@ -730,7 +731,7 @@ export default function AttendanceRegularizationPage() {
           <DialogHeader>
             <DialogTitle>Approve Regularization</DialogTitle>
             <DialogDescription>
-              Approving will update the attendance record for {selectedRequest?.employeeName} on {selectedRequest?.requestDate ? format(new Date(selectedRequest.requestDate), 'dd MMM yyyy') : ''}
+              Approving will update the attendance record for {selectedRequest?.employeeName} on {selectedRequest?.requestDate ? fmtDate(selectedRequest.requestDate) : ''}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -780,7 +781,7 @@ export default function AttendanceRegularizationPage() {
           <div className="space-y-4">
             <div className="bg-red-50 p-3 rounded-lg text-sm space-y-1">
               <div><span className="font-medium">Employee:</span> {selectedRequest?.employeeName}</div>
-              <div><span className="font-medium">Date:</span> {selectedRequest?.requestDate ? format(new Date(selectedRequest.requestDate), 'dd MMM yyyy') : ''}</div>
+              <div><span className="font-medium">Date:</span> {selectedRequest?.requestDate ? fmtDate(selectedRequest.requestDate) : ''}</div>
               <div><span className="font-medium">Scenario:</span> {selectedRequest ? getDisplayLabel(selectedRequest) : ''}</div>
             </div>
             <div>
@@ -815,7 +816,7 @@ export default function AttendanceRegularizationPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-gray-50 p-3 rounded-lg text-sm space-y-1">
-              <div><span className="font-medium">Date:</span> {selectedRequest?.requestDate ? format(new Date(selectedRequest.requestDate), 'dd MMM yyyy') : ''}</div>
+              <div><span className="font-medium">Date:</span> {selectedRequest?.requestDate ? fmtDate(selectedRequest.requestDate) : ''}</div>
               <div><span className="font-medium">Scenario:</span> {selectedRequest ? getDisplayLabel(selectedRequest) : ''}</div>
               <div><span className="font-medium">Status:</span> <StatusBadge status={selectedRequest?.status || ''} /></div>
               {selectedRequest?.rejectionReason && (
@@ -854,7 +855,7 @@ export default function AttendanceRegularizationPage() {
                     <div key={i} className="flex items-start gap-2 text-sm border-l-2 border-blue-300 pl-3 py-1">
                       <div>
                         <div className="font-medium capitalize">{entry.action}</div>
-                        <div className="text-muted-foreground">{entry.byName} - {format(new Date(entry.at), 'dd MMM yyyy, hh:mm a')}</div>
+                        <div className="text-muted-foreground">{entry.byName} - {fmtDateTime(entry.at)}</div>
                         {entry.details && <div className="text-xs mt-0.5">{entry.details}</div>}
                         {entry.remarks && <div className="text-xs mt-0.5 text-green-700">Remarks: {entry.remarks}</div>}
                         {entry.rejectionReason && <div className="text-xs mt-0.5 text-red-700">Reason: {entry.rejectionReason}</div>}

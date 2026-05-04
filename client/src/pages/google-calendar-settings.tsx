@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -164,7 +165,7 @@ export default function GoogleCalendarSettings() {
                 )}
                 {status?.isConnected && status.connectedAt && (
                   <p className="text-xs text-gray-500">
-                    Connected on: {new Date(status.connectedAt).toLocaleDateString()}
+                    Connected on: {fmtDate(status.connectedAt)}
                   </p>
                 )}
               </div>

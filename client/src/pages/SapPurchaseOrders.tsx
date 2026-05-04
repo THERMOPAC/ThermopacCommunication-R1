@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { jsPDF } from 'jspdf';
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
 import { SapLoginModal } from '@/components/sap/SapLoginModal';
@@ -197,11 +198,7 @@ function PurchaseOrdersContent() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return fmtDate(dateString);
   };
 
   const getStatusBadge = (status: string, order?: any) => {
@@ -733,8 +730,8 @@ function PurchaseOrdersContent() {
 
                             addField('Vendor Code', po.CardCode || 'N/A', infoCol1, 0);
                             addField('Vendor Name', po.CardName || 'N/A', infoCol1, 1);
-                            addField('Order Date', po.DocDate ? new Date(po.DocDate).toLocaleDateString('en-IN') : 'N/A', infoCol1, 2);
-                            addField('Delivery Date', po.DocDueDate ? new Date(po.DocDueDate).toLocaleDateString('en-IN') : 'N/A', infoCol1, 3);
+                            addField('Order Date', po.DocDate ? fmtDate(po.DocDate) : 'N/A', infoCol1, 2);
+                            addField('Delivery Date', po.DocDueDate ? fmtDate(po.DocDueDate) : 'N/A', infoCol1, 3);
                             addField('Doc Entry', String(po.DocEntry), infoCol2, 0);
                             addField('Currency', po.DocCurrency || 'INR', infoCol2, 1);
                             addField('Series', String(po.Series || ''), infoCol2, 2);
@@ -1199,7 +1196,7 @@ function PurchaseOrdersContent() {
                   <span className="text-gray-300">|</span>
                   <span>GRPO: <span className={`font-semibold ${(poDetail?.canCreateGRPO ?? selectedOrder?.canCreateGRPO) ? 'text-green-600' : 'text-orange-600'}`}>{(poDetail?.canCreateGRPO ?? selectedOrder?.canCreateGRPO) ? 'Eligible' : 'No Open Lines'}</span></span>
                   <span className="text-gray-300">|</span>
-                  <span className="font-mono">{new Date().toLocaleDateString('en-IN')} {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="font-mono">{fmtDateTime(new Date())}</span>
                 </span>
               </div>
             </div>
@@ -1374,7 +1371,7 @@ function PurchaseOrdersContent() {
                                 {file.name}
                               </div>
                             </TableCell>
-                            <TableCell className="text-xs text-gray-500">{new Date().toLocaleDateString('en-GB')}</TableCell>
+                            <TableCell className="text-xs text-gray-500">{fmtDate(new Date())}</TableCell>
                             <TableCell className="text-xs text-right text-gray-500">{(file.size / 1024).toFixed(1)} KB</TableCell>
                             <TableCell className="text-center">
                               <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
 import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, ClipboardList, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter, Search, Info } from "lucide-react";
@@ -4897,7 +4898,7 @@ export default function InspectionsPage() {
     const newRecord = {
       ...recordData,
       id: generateProcedureId(),
-      linkedDate: new Date().toLocaleDateString(),
+      linkedDate: fmtDate(new Date()),
       linkedBy: 'Current User' // In a real app, this would be the logged-in user
     };
     
@@ -6395,7 +6396,7 @@ export default function InspectionsPage() {
                           <TableCell>{inspection.title}</TableCell>
                           <TableCell>{inspection.reportType}</TableCell>
                           <TableCell>
-                            {inspection.inspectionDate && format(new Date(inspection.inspectionDate), 'dd MMM yyyy')}
+                            {inspection.inspectionDate && fmtDate(inspection.inspectionDate)}
                           </TableCell>
                           <TableCell>
                             {getStatusBadge(inspection.status)}
@@ -6901,7 +6902,7 @@ export default function InspectionsPage() {
                                       <div className="text-right">
                                         <p className="font-medium">
                                           {schedule.date && !isNaN(new Date(schedule.date).getTime()) 
-                                            ? format(new Date(schedule.date), 'dd MMM yyyy')
+                                            ? fmtDate(schedule.date)
                                             : 'Invalid Date'
                                           }
                                         </p>
@@ -7007,8 +7008,8 @@ export default function InspectionsPage() {
                                     <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
                                     <TableCell>{order.description || order.title}</TableCell>
                                     <TableCell>
-                                      {order.lastUpdatedAt ? format(new Date(order.lastUpdatedAt), 'dd MMM yyyy') : 
-                                       order.createdAt ? format(new Date(order.createdAt), 'dd MMM yyyy') : 'N/A'}
+                                      {order.lastUpdatedAt ? fmtDate(order.lastUpdatedAt) : 
+                                       order.createdAt ? fmtDate(order.createdAt) : 'N/A'}
                                     </TableCell>
                                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                                     <TableCell className="text-right">
@@ -7156,7 +7157,7 @@ export default function InspectionsPage() {
                       <div className="text-sm">{inspectionOrderDetails.quantity} {inspectionOrderDetails.unit}</div>
                       
                       <div className="text-sm font-medium">Date Created:</div>
-                      <div className="text-sm">{format(new Date(inspectionOrderDetails.createdAt), 'dd MMM yyyy')}</div>
+                      <div className="text-sm">{fmtDate(inspectionOrderDetails.createdAt)}</div>
                       
                       <div className="text-sm font-medium">Created By:</div>
                       <div className="text-sm">{inspectionOrderDetails?.creator?.username || 'N/A'}</div>

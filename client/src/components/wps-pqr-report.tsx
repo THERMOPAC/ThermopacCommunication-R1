@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fmtDate } from '@/lib/date-format';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { 
@@ -105,7 +106,7 @@ export default function WpsPqrReport({ open, onOpenChange }: WpsPqrReportProps) 
   // Function to format date
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString();
+    return fmtDate(dateString);
   };
 
   // Function to generate PDF

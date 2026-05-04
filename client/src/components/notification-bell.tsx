@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
@@ -266,7 +267,7 @@ export default function NotificationBell() {
                             {notif.category}
                           </span>
                           <span className="text-[10px] text-muted-foreground ml-auto">
-                            {format(new Date(notif.createdAt), 'dd MMM, hh:mm a')}
+                            {fmtDateTime(notif.createdAt)}
                           </span>
                         </div>
                       </div>

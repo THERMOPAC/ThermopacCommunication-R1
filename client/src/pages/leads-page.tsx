@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, MoreHorizontal, Phone, Mail, Building, Users, BarChart, Calendar, Info, Percent, DollarSign, UserCircle, Globe, Loader2, User, Eye } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
@@ -470,12 +471,7 @@ export default function LeadsPage() {
 
   // Function to format date strings
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return fmtDate(dateString);
   };
 
   // Fetch lead activities if a lead is selected for viewing
@@ -815,7 +811,7 @@ export default function LeadsPage() {
                           <div className="flex-shrink-0 w-1/8 mr-2">
                             <span className="text-sm">
                               {lead.expectedCloseDate ? 
-                                new Date(lead.expectedCloseDate).toLocaleDateString() : 
+                                fmtDate(lead.expectedCloseDate) : 
                                 'Not set'}
                             </span>
                           </div>

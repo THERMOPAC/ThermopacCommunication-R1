@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
-import { format } from "date-fns";
+import { fmtDate } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -120,7 +120,7 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
-      return format(date, 'PPP'); // Format as "Apr 29, 2023"
+      return fmtDate(date);
     } catch (error) {
       return dateString;
     }

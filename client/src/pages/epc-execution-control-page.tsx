@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useProjectFilter } from "@/hooks/use-project-filter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -89,8 +90,7 @@ function DetailRow({ label, value, mono }: { label: string; value: any; mono?: b
 }
 
 function formatDate(d: any) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return fmtDate(d);
 }
 
 function formatAmount(amt: any) {

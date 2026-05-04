@@ -1,4 +1,5 @@
 import Layout from "@/components/layout";
+import { fmtDate } from "@/lib/date-format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -343,7 +344,7 @@ export default function DailyProductionReportPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
-              Production Details - {format(new Date(selectedDate), 'PPP')}
+              Production Details - {fmtDate(selectedDate)}
             </CardTitle>
             <CardDescription>
               Detailed breakdown of production activities for {selectedShift === 'all' ? 'all shifts' : `${selectedShift} shift`}

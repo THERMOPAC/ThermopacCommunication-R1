@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fmtDate } from '@/lib/date-format';
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -1254,7 +1255,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                               className="w-full pl-3 text-left font-normal"
                             >
                               {field.value ? (
-                                format(field.value, "PPP")
+                                fmtDate(field.value)
                               ) : (
                                 <span>Pick a date</span>
                               )}
@@ -1290,7 +1291,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                               className="w-full pl-3 text-left font-normal"
                             >
                               {field.value ? (
-                                format(field.value, "PPP")
+                                fmtDate(field.value)
                               ) : (
                                 <span>Pick a date</span>
                               )}
@@ -1410,7 +1411,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                         return (
                           <div key={payment.id} className={`px-4 py-3 border-t grid grid-cols-12 gap-4 items-center text-sm ${isApplying ? 'bg-green-50' : ''}`}>
                             <div className="col-span-3 font-medium">{payment.referenceNumber}</div>
-                            <div className="col-span-2">{new Date(payment.paymentDate).toLocaleDateString()}</div>
+                            <div className="col-span-2">{fmtDate(payment.paymentDate)}</div>
                             <div className="col-span-2">{payment.currency} {parseFloat(payment.amount).toFixed(2)}</div>
                             <div className="col-span-2">{payment.currency} {parseFloat(payment.unallocatedAmount).toFixed(2)}</div>
                             <div className="col-span-3">

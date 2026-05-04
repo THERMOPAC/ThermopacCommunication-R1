@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -819,7 +820,7 @@ export default function PaymentCreatePage() {
                                 <td className="px-4 py-2 text-left">
                                   {customersList?.find((c: any) => c.id === invoice.customerId)?.bpName || 'Unknown'}
                                 </td>
-                                <td className="px-4 py-2 text-left">{format(new Date(invoice.invoiceDate), 'MMM d, yyyy')}</td>
+                                <td className="px-4 py-2 text-left">{fmtDate(invoice.invoiceDate)}</td>
                                 <td className="px-4 py-2 text-right">
                                   {invoice.currency === 'INR' 
                                     ? formatRupees(invoice.totalAmount)

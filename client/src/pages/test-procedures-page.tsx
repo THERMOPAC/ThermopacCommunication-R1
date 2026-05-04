@@ -1,4 +1,5 @@
 import Layout from '@/components/layout';
+import { fmtDate } from "@/lib/date-format";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -495,7 +496,7 @@ export default function TestProceduresPage() {
                   <div className="flex items-center mt-1 space-x-4 text-xs text-gray-500 dark:text-gray-400">
                     <div className="flex items-center">
                       <Calendar className="w-3 h-3 mr-1" />
-                      {new Date(file.updated).toLocaleDateString()}
+                      {fmtDate(file.updated)}
                     </div>
                     <div className="flex items-center">
                       <span>Size: {(file.size / 1024).toFixed(1)} KB</span>

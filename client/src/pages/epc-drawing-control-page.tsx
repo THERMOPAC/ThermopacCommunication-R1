@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -631,8 +632,8 @@ export default function EpcDrawingControlPage() {
                                               {rec.discipline_code && <><div className="text-muted-foreground">Discipline</div><div>{rec.discipline_code}</div></>}
                                               {rec.drawing_category && <><div className="text-muted-foreground">Category</div><div>{rec.drawing_category}</div></>}
                                               <div className="text-muted-foreground">Created</div>
-                                              <div>{new Date(rec.created_at).toLocaleDateString()}</div>
-                                              {rec.submitted_at && <><div className="text-muted-foreground">Submitted</div><div>{new Date(rec.submitted_at).toLocaleDateString()}</div></>}
+                                              <div>{fmtDate(rec.created_at)}</div>
+                                              {rec.submitted_at && <><div className="text-muted-foreground">Submitted</div><div>{fmtDate(rec.submitted_at)}</div></>}
                                             </div>
 
                                             {/* ── Notes (inline, not collapsible) ── */}
@@ -667,21 +668,21 @@ export default function EpcDrawingControlPage() {
                                                     <div className="flex flex-wrap gap-1">
                                                       {rec.procurement_release_required ? (
                                                         <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_procurement ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
-                                                          P · {rec.released_for_procurement ? `✓ ${rec.released_for_procurement_at ? new Date(rec.released_for_procurement_at).toLocaleDateString() : "released"}` : "pending"}
+                                                          P · {rec.released_for_procurement ? `✓ ${rec.released_for_procurement_at ? fmtDate(rec.released_for_procurement_at) : "released"}` : "pending"}
                                                         </span>
                                                       ) : (
                                                         <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">P · n/a</span>
                                                       )}
                                                       {rec.manufacturing_release_required ? (
                                                         <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_manufacturing ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
-                                                          M · {rec.released_for_manufacturing ? `✓ ${rec.released_for_manufacturing_at ? new Date(rec.released_for_manufacturing_at).toLocaleDateString() : "released"}` : "pending"}
+                                                          M · {rec.released_for_manufacturing ? `✓ ${rec.released_for_manufacturing_at ? fmtDate(rec.released_for_manufacturing_at) : "released"}` : "pending"}
                                                         </span>
                                                       ) : (
                                                         <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">M · n/a</span>
                                                       )}
                                                       {rec.client_approval_required ? (
                                                         <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.client_approval_status === "approved" ? "bg-green-50 text-green-700 border-green-300" : rec.client_approval_status === "rejected" ? "bg-red-50 text-red-600 border-red-300" : "bg-yellow-50 text-yellow-600 border-yellow-300"}`}>
-                                                          C · {rec.client_approval_status || "pending"}{rec.client_approved_at ? ` ${new Date(rec.client_approved_at).toLocaleDateString()}` : ""}
+                                                          C · {rec.client_approval_status || "pending"}{rec.client_approved_at ? ` ${fmtDate(rec.client_approved_at)}` : ""}
                                                         </span>
                                                       ) : (
                                                         <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">C · n/a</span>
@@ -719,7 +720,7 @@ export default function EpcDrawingControlPage() {
                                                       ].filter(e => e.date).map(e => (
                                                         <div key={e.label} className="flex items-baseline gap-1.5 text-[9px]">
                                                           <span className="text-muted-foreground w-16 shrink-0">{e.label}</span>
-                                                          <span className="text-[8px] text-foreground/70">{new Date(e.date!).toLocaleDateString()}</span>
+                                                          <span className="text-[8px] text-foreground/70">{fmtDate(e.date!)}</span>
                                                           {e.note && <span className="text-muted-foreground truncate max-w-[140px]" title={e.note}>— {e.note}</span>}
                                                         </div>
                                                       ))}

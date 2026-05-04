@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { fmtDate } from "@/lib/date-format";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Task, User } from "@shared/schema";
@@ -752,7 +753,7 @@ function CommitmentTasksList({ commitmentTasks, isLoading }: CommitmentTasksList
                         <CalendarDays className="h-4 w-4" />
                         <span>From meeting: <strong>{meeting.title}</strong></span>
                         {meeting.meetingDate && (
-                          <span>({new Date(meeting.meetingDate).toLocaleDateString()})</span>
+                          <span>({fmtDate(meeting.meetingDate)})</span>
                         )}
                       </div>
                     )}
@@ -760,7 +761,7 @@ function CommitmentTasksList({ commitmentTasks, isLoading }: CommitmentTasksList
                     {task.dueDate && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
-                        <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                        <span>Due: {fmtDate(task.dueDate)}</span>
                         {isOverdue && <span className="text-red-500 font-medium">(Overdue)</span>}
                       </div>
                     )}
@@ -768,7 +769,7 @@ function CommitmentTasksList({ commitmentTasks, isLoading }: CommitmentTasksList
                     {commitment.dueDate && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        <span>Commitment due: {new Date(commitment.dueDate).toLocaleDateString()}</span>
+                        <span>Commitment due: {fmtDate(commitment.dueDate)}</span>
                       </div>
                     )}
                   </div>
