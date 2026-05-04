@@ -1,8 +1,29 @@
 /**
  * agent-download-routes.ts
  * Serves the Thermopac Drawing Structuring Agent full-package ZIP on-the-fly.
- * Bundles all Python source + helper scripts from local-agent/ into a single
- * downloadable archive containing everything needed to bootstrap the agent.
+ * Mirrors the GitHub repo structure exactly:
+ *
+ *  ThermopacStructuringAgent-v{X}/
+ *    agent/          ← Python source
+ *    extractor/      ← Python source
+ *    structurer/     ← Python source
+ *    installer/      ← Inno Setup build scripts
+ *    tools/          ← utility Python scripts
+ *    structure_pkg/  ← full structurer_pkg contents (Inno-style package)
+ *    build.bat
+ *    bootstrap.bat   ← updated version from structurer_pkg/
+ *    BUILD.md
+ *    config.ini
+ *    fix_appdata_url.ps1
+ *    INSTALL.md
+ *    install_update.bat
+ *    requirements.txt
+ *    run.bat
+ *    set_dev_url.bat
+ *    set_node_token.bat
+ *    set_prod_url.bat
+ *    set_testing_mode.bat
+ *    ThermopacDrawings.drwprp
  */
 import { Router, Request, Response } from "express";
 import path from "path";
@@ -25,7 +46,7 @@ function fileExists(p: string): boolean {
 
 /**
  * GET /api/agent-downloads/structuring-agent
- * Streams a ZIP of the full structuring-agent package.
+ * Streams a ZIP of the full structuring-agent package matching the GitHub repo structure.
  * Auth required (any logged-in user).
  */
 router.get(
@@ -52,13 +73,12 @@ router.get(
     const root = `ThermopacStructuringAgent-v${AGENT_VERSION}`;
 
     // ── Python source directories ──────────────────────────────────────────
-    const srcDirs: Array<[string, string]> = [
-      [path.join(LOCAL_AGENT, "agent"),     "agent"],
+    const pyDirs: Array<[string, string]> = [
+      [path.join(LOCAL_AGENT, "agent"),      "agent"],
+      [path.join(LOCAL_AGENT, "extractor"),  "extractor"],
       [path.join(LOCAL_AGENT, "structurer"), "structurer"],
-      [path.join(LOCAL_AGENT, "extractor"), "extractor"],
     ];
-
-    for (const [srcPath, destName] of srcDirs) {
+    for (const [srcPath, destName] of pyDirs) {
       if (dirExists(srcPath)) {
         archive.glob("**/*.py", {
           cwd: srcPath,
@@ -67,27 +87,50 @@ router.get(
       }
     }
 
-    // ── Package helper files (bat, ps1, ini, md, txt) ─────────────────────
-    const pkgFiles = [
-      "run.bat",
+    // ── installer/ — Inno Setup build scripts ─────────────────────────────
+    const installerDir = path.join(LOCAL_AGENT, "installer");
+    if (dirExists(installerDir)) {
+      archive.directory(installerDir, `${root}/installer`);
+    }
+
+    // ── tools/ — utility Python scripts ───────────────────────────────────
+    const toolsDir = path.join(LOCAL_AGENT, "tools");
+    if (dirExists(toolsDir)) {
+      archive.directory(toolsDir, `${root}/tools`);
+    }
+
+    // ── structure_pkg/ — full structurer_pkg directory ────────────────────
+    if (dirExists(PKG_DIR)) {
+      archive.directory(PKG_DIR, `${root}/structure_pkg`);
+    }
+
+    // ── Root helper files (updated versions from structurer_pkg/) ─────────
+    const pkgRootFiles = [
       "bootstrap.bat",
-      "install_update.bat",
-      "config.ini",
-      "INSTALL.md",
       "BUILD.md",
-      "requirements.txt",
+      "config.ini",
       "fix_appdata_url.ps1",
+      "INSTALL.md",
+      "install_update.bat",
+      "requirements.txt",
+      "run.bat",
       "set_dev_url.bat",
+      "set_node_token.bat",
       "set_prod_url.bat",
       "set_testing_mode.bat",
-      "set_node_token.bat",
+      "ThermopacDrawings.drwprp",
     ];
-
-    for (const f of pkgFiles) {
+    for (const f of pkgRootFiles) {
       const full = path.join(PKG_DIR, f);
       if (fileExists(full)) {
         archive.file(full, { name: `${root}/${f}` });
       }
+    }
+
+    // ── build.bat — from local-agent root ─────────────────────────────────
+    const buildBat = path.join(LOCAL_AGENT, "build.bat");
+    if (fileExists(buildBat)) {
+      archive.file(buildBat, { name: `${root}/build.bat` });
     }
 
     archive.finalize();
