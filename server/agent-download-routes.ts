@@ -155,10 +155,9 @@ router.get(
   }
 );
 
-// ── Serve solidworks_structurer.py directly ─────────────────────────────────
+// ── Serve solidworks_structurer.py directly (no auth — needed by fix_filename.bat) ──
 router.get(
   "/solidworks-structurer-py",
-  ensureAuthenticated,
   (_req: Request, res: Response) => {
     const filePath = path.join(LOCAL_AGENT, "structurer", "solidworks_structurer.py");
     if (!fileExists(filePath)) {
