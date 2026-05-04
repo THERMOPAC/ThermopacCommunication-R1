@@ -3871,6 +3871,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', epcStructureJobRoutes);
   console.log('EPC SolidWorks structuring agent routes registered');
 
+  // ── Agent package downloads ───────────────────────────────────────────────────
+  const { default: agentDownloadRoutes } = await import('./agent-download-routes');
+  app.use('/api', agentDownloadRoutes);
+  console.log('Agent download routes registered');
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes

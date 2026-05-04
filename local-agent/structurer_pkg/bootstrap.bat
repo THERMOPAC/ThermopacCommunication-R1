@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
 REM  Thermopac Drawing Structuring Agent — Bootstrap installer
-REM  Version: v1.0.5  |  Phase 1
+REM  Version: v1.0.34  |  Phase 1
 REM  Requires: Windows 10/11 x64, Python 3.9+ already installed
 REM  Run as Administrator for best results
 REM ============================================================
@@ -9,7 +9,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo  =========================================================
-echo   Thermopac Drawing Structuring Agent  v1.0.5
+echo   Thermopac Drawing Structuring Agent  v1.0.34
 echo   Bootstrap Installer
 echo   THERMOPAC ERP ^| SolidWorks WRITE Agent ^| Phase 1
 echo  =========================================================
@@ -99,9 +99,9 @@ REM ── Write start_structurer.bat ──────────────
 echo Writing start_structurer.bat launcher...
 (
     echo @echo off
-    echo title ThermopacStructurer v1.0.5 - THERMOPAC ERP
+    echo title ThermopacStructurer v1.0.34 - THERMOPAC ERP
     echo set AGENT_DIR=%%~dp0
-    echo "%VENV_DIR%\Scripts\python.exe" "%%AGENT_DIR%%agent\main_structurer.py"
+    echo "%VENV_DIR%\Scripts\python.exe" "%%AGENT_DIR%%agent\main_structurer.py" "%%AGENT_DIR%%config.ini"
 ) > "%AGENT_DIR%start_structurer.bat"
 echo   Created: %AGENT_DIR%start_structurer.bat
 echo.
@@ -112,7 +112,7 @@ REM ── Write test.bat ──────────────────
     echo REM Thermopac Drawing Structuring Agent — Self-Test
     echo setlocal
     echo set AGENT_DIR=%%~dp0
-    echo "%VENV_DIR%\Scripts\python.exe" "%%AGENT_DIR%%agent\main_structurer.py" --test
+    echo "%VENV_DIR%\Scripts\python.exe" "%%AGENT_DIR%%agent\main_structurer.py" "%%AGENT_DIR%%config.ini" --test
     echo echo.
     echo echo Self-test complete. Check %LOGS_DIR%\agent.log for details.
     echo pause
@@ -123,10 +123,10 @@ echo.
 
 REM ── Create Desktop shortcut ───────────────────────────────────
 echo Creating Desktop shortcut...
-set SHORTCUT_TARGET=%AGENT_DIR%start_structurer.bat
+set SHORTCUT_TARGET=%AGENT_DIR%run.bat
 set SHORTCUT_PATH=%USERPROFILE%\Desktop\ThermopacStructurer.lnk
 powershell -Command ^
-  "$s = (New-Object -COM WScript.Shell).CreateShortcut('%SHORTCUT_PATH%'); $s.TargetPath = '%SHORTCUT_TARGET%'; $s.WorkingDirectory = '%AGENT_DIR%'; $s.Description = 'Thermopac Drawing Structuring Agent v1.0.5'; $s.Save()"
+  "$s = (New-Object -COM WScript.Shell).CreateShortcut('%SHORTCUT_PATH%'); $s.TargetPath = '%SHORTCUT_TARGET%'; $s.WorkingDirectory = '%AGENT_DIR%'; $s.Description = 'Thermopac Drawing Structuring Agent v1.0.34'; $s.Save()"
 if exist "%SHORTCUT_PATH%" (
     echo   Created: Desktop\ThermopacStructurer.lnk
 ) else (
@@ -149,7 +149,7 @@ echo   node_id    = PC-DESIGN-01          ^<-- your node ID
 echo   node_token = REPLACE_ME            ^<-- your node token
 echo.
 echo   [solidworks]
-echo   solidworks_version = 2019          ^<-- your installed version
+echo   solidworks_progid = SldWorks.Application.27   ^<-- your version
 echo.
 echo   [structurer]
 echo   template_path = C:\SolidWorks Templates\Standard_A1.drwdot
@@ -167,15 +167,15 @@ echo.
 echo NOTE: Authentication will fail until you edit config.ini.
 echo       template_path must also be set before jobs can run.
 echo.
-"%VENV_DIR%\Scripts\python.exe" "%AGENT_DIR%agent\main_structurer.py" --test
+"%VENV_DIR%\Scripts\python.exe" "%AGENT_DIR%agent\main_structurer.py" "%AGENT_DIR%config.ini" --test
 echo.
 echo ============================================================
-echo   Bootstrap complete!
+echo   Bootstrap complete!  v1.0.34
 echo ============================================================
 echo.
 echo To start the structuring agent:
 echo   Double-click Desktop shortcut "ThermopacStructurer"
-echo   OR run: start_structurer.bat
+echo   OR run: run.bat
 echo.
 echo To run self-test again:
 echo   run: test.bat
