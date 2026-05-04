@@ -2140,21 +2140,48 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter project name" {...field} readOnly className="bg-muted cursor-not-allowed" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+
+              {/* ── Section 1: Project Identity (read-only) ───────────────── */}
+              <div className="rounded-lg border border-muted bg-muted/40 px-4 py-3 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project Identity — cannot be edited</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel className="text-xs text-muted-foreground">Project Name</FormLabel>
+                        <p className="text-sm font-medium leading-tight">{field.value || '—'}</p>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="code"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs text-muted-foreground">Project Code</FormLabel>
+                        <p className="text-sm font-medium font-mono leading-tight">{field.value || '—'}</p>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="customerId"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-3">
+                        <FormLabel className="text-xs text-muted-foreground">Customer</FormLabel>
+                        <p className="text-sm font-medium leading-tight">
+                          {customers?.find((c: any) => c.id === field.value)?.bpName || '—'}
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* ── Section 2: Description ────────────────────────────────── */}
               <FormField
                 control={form.control}
                 name="description"
@@ -2162,239 +2189,162 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Enter project description" 
-                        {...field} 
-                        className="min-h-[100px]"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {project?.status === 'canceled' ? (
-                            isSuperuser ? (
-                              <>
-                                <SelectItem value="canceled">Canceled</SelectItem>
-                                <SelectItem value="on_hold">On Hold</SelectItem>
-                                <SelectItem value="planning">Planning</SelectItem>
-                              </>
-                            ) : (
-                              <SelectItem value="canceled">Canceled</SelectItem>
-                            )
-                          ) : (
-                            <>
-                              <SelectItem value="planning">Planning</SelectItem>
-                              <SelectItem value="active">Active</SelectItem>
-                              <SelectItem value="on_hold">On Hold</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                              <SelectItem value="canceled">Canceled</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="priority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Priority</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select priority" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Low">Low</SelectItem>
-                          <SelectItem value="Medium">Medium</SelectItem>
-                          <SelectItem value="High">High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <FormField
-                control={form.control}
-                name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input 
-                        readOnly 
-                        className="bg-muted cursor-not-allowed"
-                        value={customers?.find(c => c.id === field.value)?.bpName || "No customer selected"}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="date" 
-                          {...field} 
-                          required
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="targetEndDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Target End Date <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="date" 
-                          {...field} 
-                          required
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Budget and Currency in a Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="estimatedBudget"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Budget</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="Enter project budget" 
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                            field.onChange(value);
-                          }}
-                          value={field.value?.toString() || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="INR">INR</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Project Code - Read Only */}
-              <FormField
-                control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Code</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        disabled 
-                        className="bg-muted cursor-not-allowed"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Project code cannot be modified
-                    </FormDescription>
-                  </FormItem>
-                )}
-              />
-
-              {/* Project Items Search Field */}
-              <FormField
-                control={form.control}
-                name="projectItemsSearch"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Items Search</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Search project items by code, description, or drawing number..." 
+                      <Textarea
+                        placeholder="Enter project description"
                         {...field}
+                        className="min-h-[60px] resize-y"
                       />
                     </FormControl>
-                    <FormDescription>
-                      Filter project items in the table below by typing keywords
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
-              {/* Tabs for Project Details, Stages, Logistics, Attachments */}
+
+              {/* ── Section 3: Scheduling & Priority ─────────────────────── */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scheduling &amp; Priority</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {project?.status === 'canceled' ? (
+                              isSuperuser ? (
+                                <>
+                                  <SelectItem value="canceled">Canceled</SelectItem>
+                                  <SelectItem value="on_hold">On Hold</SelectItem>
+                                  <SelectItem value="planning">Planning</SelectItem>
+                                </>
+                              ) : (
+                                <SelectItem value="canceled">Canceled</SelectItem>
+                              )
+                            ) : (
+                              <>
+                                <SelectItem value="planning">Planning</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="on_hold">On Hold</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="canceled">Canceled</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} required />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="targetEndDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Target End Date <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} required />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* ── Section 4: Financials ─────────────────────────────────── */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Financials</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="estimatedBudget"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Budget</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Enter project budget"
+                            {...field}
+                            onChange={(e) => {
+                              const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                              field.onChange(value);
+                            }}
+                            value={field.value?.toString() || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="EUR">EUR</SelectItem>
+                            <SelectItem value="INR">INR</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* ── Tabs for Project Details, Stages, Logistics, Attachments ─ */}
               <Tabs defaultValue="project-details" className="w-full mt-6">
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="project-details" className="flex items-center gap-1">
