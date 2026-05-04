@@ -51,9 +51,6 @@ REM ── Copy agent Python source (overwrite) ──────────�
 echo  Updating agent\...
 xcopy /E /I /Y "%SRC%\agent"      "%INSTALL_DIR%\agent"      >nul 2>&1
 
-echo  Updating extractor\...
-xcopy /E /I /Y "%SRC%\extractor"  "%INSTALL_DIR%\extractor"  >nul 2>&1
-
 echo  Updating structurer\...
 xcopy /E /I /Y "%SRC%\structurer" "%INSTALL_DIR%\structurer" >nul 2>&1
 

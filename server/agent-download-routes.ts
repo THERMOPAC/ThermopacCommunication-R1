@@ -75,7 +75,6 @@ router.get(
     // ── Python source directories ──────────────────────────────────────────
     const pyDirs: Array<[string, string]> = [
       [path.join(LOCAL_AGENT, "agent"),      "agent"],
-      [path.join(LOCAL_AGENT, "extractor"),  "extractor"],
       [path.join(LOCAL_AGENT, "structurer"), "structurer"],
     ];
     for (const [srcPath, destName] of pyDirs) {
