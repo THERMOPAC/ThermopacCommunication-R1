@@ -2625,19 +2625,19 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                       : <FilePen className="h-3 w-3 mr-1" />}
                     Create Drawing
                   </Button>
-                  {/* Update Drawing — update_existing, opens current rev, saves as next rev */}
+                  {/* Update Drawing — update_existing, opens working Rev in-place, rewrites DDS properties, NO new file or revision increment */}
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] px-2.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950 disabled:opacity-40"
                     disabled={!hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
                     onClick={() => createStructureMutation.mutate('update_existing')}
-                    title={hasAnyCompletedJob ? `Create Rev ${nextRevCode(currentRevision)} from Rev ${currentRevision}` : 'Create the drawing first'}
+                    title={hasAnyCompletedJob ? `Open Rev ${currentRevision} working file and rewrite DDS properties in-place (no new revision)` : 'Create the drawing first'}
                   >
                     {(createStructureMutation.isPending || structureJobPending)
                       ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
                       : <FilePen className="h-3 w-3 mr-1" />}
-                    Update Drawing{hasAnyCompletedJob ? ` → ${nextRevCode(currentRevision)}` : ''}
+                    Update Drawing
                   </Button>
                 </div>
               </div>
@@ -3053,19 +3053,19 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                     : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
                   Create Drawing
                 </Button>
-                {/* Update Drawing — update_existing, opens current rev, saves as next rev */}
+                {/* Update Drawing — update_existing, opens working Rev in-place, rewrites DDS properties, NO new file or revision increment */}
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-8 text-[11px] px-3 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950 disabled:opacity-40"
                   disabled={!hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
                   onClick={() => createStructureMutation.mutate('update_existing')}
-                  title={hasAnyCompletedJob ? `Create Rev ${nextRevCode(currentRevision)} from Rev ${currentRevision}` : 'Create the drawing first'}
+                  title={hasAnyCompletedJob ? `Open Rev ${currentRevision} working file and rewrite DDS properties in-place (no new revision)` : 'Create the drawing first'}
                 >
                   {(createStructureMutation.isPending || structureJobPending)
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                     : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
-                  Update Drawing{hasAnyCompletedJob ? ` → ${nextRevCode(currentRevision)}` : ''}
+                  Update Drawing
                 </Button>
               </div>
             )}
