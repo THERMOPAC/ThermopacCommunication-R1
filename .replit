@@ -50,3 +50,7 @@ AGENT_AUTO_REGISTER = "true"
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 300000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
