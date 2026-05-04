@@ -37,6 +37,35 @@ else:
 
 sys.path.insert(0, _base)
 
+# ── Self-healing __pycache__ removal ─────────────────────────────────────────
+# MUST run BEFORE any structurer import.
+#
+# Root cause of the {DrawingNo}_rev-A.slddrw bug in installed agents:
+#   1. The installer updates solidworks_structurer.py on disk (correct source).
+#   2. Robocopy's default /COPY:DAT preserves the file's original mtime.
+#   3. The old __pycache__\solidworks_structurer.cpython-3xx.pyc stores that
+#      same mtime as its source-match key.
+#   4. Python compares: stored_mtime == current .py mtime → match → loads the
+#      OLD bytecode, never reading the updated .py source.
+#   5. The old bytecode executes:  filename = f"{safe_dn}_rev-{safe_rev}.slddrw"
+#      The new .py source has:     filename = f"{safe_dn}.slddrw"
+#
+# By deleting __pycache__ here, before structure_job_runner (which imports
+# solidworks_structurer at module level) is loaded, we guarantee Python
+# recompiles from the .py source on disk — every startup, automatically.
+import shutil as _shutil
+for _pycache in [
+    os.path.join(_base, "structurer", "__pycache__"),
+    os.path.join(_base, "agent",      "__pycache__"),
+]:
+    if os.path.isdir(_pycache):
+        try:
+            _shutil.rmtree(_pycache)
+            print(f"[Structurer] __pycache__ cleared: {_pycache}")
+        except Exception as _e:
+            print(f"[Structurer] WARNING: could not clear {_pycache}: {_e}")
+del _shutil, _pycache
+
 from agent.config                import AgentConfig
 from agent.logger                import build_logger
 from agent.structure_job_client  import StructureJobClient, STRUCTURER_VERSION
@@ -154,15 +183,29 @@ def _print_zero_trust_diagnostics(logger) -> None:
         except Exception as e:
             print(f"  [DIAG] _rev- check     : ERROR reading file — {e}")
 
-        # 6. __pycache__ pyc that may be shadowing the .py
+        # 6. __pycache__ shadowing check
+        # Because main_structurer.py deletes __pycache__ before importing
+        # structure_job_runner, this should always be ABSENT here.
+        # If it EXISTS, the rmtree above failed (permissions?) and the
+        # bytecode loaded may be stale — the _rev- check above may be
+        # misleading because it reads the .py source, not the loaded bytecode.
         import importlib.util
         spec = importlib.util.find_spec("structurer.solidworks_structurer")
         if spec and spec.cached:
             pyc = spec.cached
             pyc_exists = os.path.isfile(pyc)
-            print(f"  [DIAG] pyc cache       : {pyc}  ({'EXISTS' if pyc_exists else 'missing'})")
+            if pyc_exists:
+                print(f"  [DIAG] pyc cache       : EXISTS — {pyc}")
+                print(f"  [DIAG] pyc WARNING     : __pycache__ was NOT cleared before import.")
+                print(f"  [DIAG] pyc WARNING     : Python may have loaded STALE bytecode.")
+                print(f"  [DIAG] pyc WARNING     : If _rev- check above says CLEAN but")
+                print(f"  [DIAG] pyc WARNING     : agent still produces _rev-A filenames,")
+                print(f"  [DIAG] pyc WARNING     : this stale .pyc is the cause.")
+                print(f"  [DIAG] pyc WARNING     : Delete __pycache__ and restart the agent.")
+            else:
+                print(f"  [DIAG] pyc cache       : absent (cleared on startup — OK)")
         else:
-            print(f"  [DIAG] pyc cache       : not found via importlib")
+            print(f"  [DIAG] pyc cache       : absent (cleared on startup — OK)")
 
     except Exception as e:
         print(f"  [DIAG] sw_structurer   : IMPORT ERROR — {e}")
