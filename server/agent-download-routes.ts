@@ -47,15 +47,70 @@ function fileExists(p: string): boolean {
  * Streams a ZIP of the full structuring-agent package matching the GitHub repo structure.
  * Auth required (any logged-in user).
  */
+// ── Endpoint: verify source is clean (used by Worker Agents page status badge) ─
+router.get(
+  "/agent-downloads/structuring-agent-status",
+  ensureAuthenticated,
+  (_req: Request, res: Response) => {
+    const result = _verifyStructurerSource();
+    res.json(result);
+  }
+);
+
+/**
+ * Reads solidworks_structurer.py and verifies the filename construction line
+ * does NOT contain _rev-. Returns { ok, filenamePattern, error? }.
+ * This is the server-side "build gate" — if it returns ok=false the ZIP
+ * download is blocked with HTTP 500.
+ */
+function _verifyStructurerSource(): { ok: boolean; filenamePattern?: string; error?: string } {
+  const srcPath = path.join(LOCAL_AGENT, "structurer", "solidworks_structurer.py");
+  if (!fileExists(srcPath)) {
+    return { ok: false, error: "solidworks_structurer.py not found in local-agent/structurer/" };
+  }
+  const source = fs.readFileSync(srcPath, "utf-8");
+
+  // Find:  filename  = f"{safe_dn}.slddrw"
+  const m = source.match(/filename\s*=\s*f"([^"]+)"/);
+  if (!m) {
+    return { ok: false, error: "Cannot locate filename = f\"...\" line in solidworks_structurer.py" };
+  }
+  const filenamePattern = m[1];
+  if (filenamePattern.includes("_rev-")) {
+    return {
+      ok: false,
+      filenamePattern,
+      error: `BUILD BLOCKED: _rev- in filename pattern "${filenamePattern}" — fix solidworks_structurer.py`,
+    };
+  }
+  return { ok: true, filenamePattern };
+}
+
 router.get(
   "/agent-downloads/structuring-agent",
   ensureAuthenticated,
   (_req: Request, res: Response) => {
+    // ── Server-side pre-flight gate ────────────────────────────────────────
+    // Block the download if solidworks_structurer.py still contains _rev-.
+    // This satisfies: "Build must fail if _rev- remains."
+    const verify = _verifyStructurerSource();
+    if (!verify.ok) {
+      console.error(`[AgentDownload] BUILD GATE BLOCKED: ${verify.error}`);
+      res.status(500).json({
+        error: verify.error,
+        code: "FILENAME_REV_SUFFIX_DETECTED",
+        action: "Fix solidworks_structurer.py in local-agent/structurer/ before downloading",
+      });
+      return;
+    }
+    console.log(`[AgentDownload] Pre-flight PASSED — filename pattern: "${verify.filenamePattern}"`);
+
     const filename = `ThermopacStructuringAgent-v${AGENT_VERSION}-full.zip`;
 
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Filename-Pattern-Verified", verify.filenamePattern!);
 
     const archive = archiver("zip", { zlib: { level: 6 } });
 
@@ -70,8 +125,7 @@ router.get(
 
     const root = `ThermopacStructuringAgent-v${AGENT_VERSION}`;
 
-    // ── Structuring-agent Python source only ──────────────────────────────
-    // agent/: include only files belonging to the structuring agent.
+    // ── agent/ — structuring-agent Python files only ──────────────────────
     // Extraction-agent files (job_runner.py, main.py) are intentionally excluded.
     const agentDir = path.join(LOCAL_AGENT, "agent");
     if (dirExists(agentDir)) {
@@ -81,7 +135,7 @@ router.get(
         "structure_job_runner.py",
         "config.py",
         "logger.py",
-        "job_client.py",   // required: structure_job_client imports error classes from here
+        "job_client.py",   // structure_job_client imports error classes from here
         "__init__.py",
       ];
       for (const f of agentFiles) {
@@ -92,7 +146,7 @@ router.get(
       }
     }
 
-    // ── structurer/ — all Python source ───────────────────────────────────
+    // ── structurer/ — all Python source including self-test ───────────────
     const structurerDir = path.join(LOCAL_AGENT, "structurer");
     if (dirExists(structurerDir)) {
       archive.glob("**/*.py", {
@@ -113,8 +167,7 @@ router.get(
       archive.directory(toolsDir, `${root}/tools`);
     }
 
-    // ── structure_pkg/ — full structurer_pkg directory (exclude install_update.bat
-    //    which lives at the ZIP root and must be run from there, not from structure_pkg/)
+    // ── structure_pkg/ contents — install_update.bat lives at ZIP root only
     if (dirExists(PKG_DIR)) {
       archive.glob("**/*", {
         cwd: PKG_DIR,
@@ -122,14 +175,15 @@ router.get(
       }, { prefix: `${root}/structure_pkg` });
     }
 
-    // ── Root helper files (updated versions from structurer_pkg/) ─────────
+    // ── Root helper files from structurer_pkg/ ────────────────────────────
     const pkgRootFiles = [
       "bootstrap.bat",
       "BUILD.md",
       "config.ini",
       "fix_appdata_url.ps1",
       "INSTALL.md",
-      "install_update.bat",
+      "install_update.bat",   // must be run from ZIP root as Admin
+      "verify_install.bat",   // run after install to confirm filename fix
       "requirements.txt",
       "run.bat",
       "set_dev_url.bat",
