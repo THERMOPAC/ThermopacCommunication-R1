@@ -667,13 +667,13 @@ export default function WorkerAgentsPage() {
                           Installer
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.32-full.zip" download="ThermopacStructuringAgent-v1.0.32-full.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.33-full.zip" download="ThermopacStructuringAgent-v1.0.33-full.zip">
                         <Button variant="default" size="sm" className="h-7 text-xs bg-amber-800 hover:bg-amber-900 text-white">
                           <Download className="h-3 w-3 mr-1" />
-                          Full Package v1.0.32
+                          Full Package v1.0.33
                         </Button>
                       </a>
-                      <a href="/ThermopacStructuringAgent-v1.0.32.zip" download="ThermopacStructuringAgent-v1.0.32.zip">
+                      <a href="/ThermopacStructuringAgent-v1.0.33.zip" download="ThermopacStructuringAgent-v1.0.33.zip">
                         <Button variant="outline" size="sm" className="h-7 text-xs">
                           <Download className="h-3 w-3 mr-1" />
                           Source ZIP
