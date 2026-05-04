@@ -45,7 +45,7 @@ except ImportError:
     pythoncom = None
     PYWIN32_AVAILABLE = False
 
-from extractor.sw_instance import (
+from structurer.sw_instance import (
     _get_sldworks_pids,
     _kill_orphan_sw_process,
     _launch_sw_dedicated_instance,

@@ -207,13 +207,11 @@ echo [STEP] Copying agent sources to %AGENT_DIST%...
 set SRC=%~dp0..
 
 REM Agent Python source folders
-if exist "%AGENT_DIST%\agent"     rmdir /s /q "%AGENT_DIST%\agent"
-if exist "%AGENT_DIST%\extractor" rmdir /s /q "%AGENT_DIST%\extractor"
+if exist "%AGENT_DIST%\agent"      rmdir /s /q "%AGENT_DIST%\agent"
+if exist "%AGENT_DIST%\structurer" rmdir /s /q "%AGENT_DIST%\structurer"
 
-xcopy "%SRC%\agent"     "%AGENT_DIST%\agent\"     /e /i /q /y
-xcopy "%SRC%\extractor" "%AGENT_DIST%\extractor\" /e /i /q /y
-
-if exist "%SRC%\_com_helper.py" copy /y "%SRC%\_com_helper.py" "%AGENT_DIST%\"
+xcopy "%SRC%\agent"      "%AGENT_DIST%\agent\"      /e /i /q /y
+xcopy "%SRC%\structurer" "%AGENT_DIST%\structurer\" /e /i /q /y
 
 REM Remove __pycache__
 for /d /r "%AGENT_DIST%" %%d in (__pycache__) do (

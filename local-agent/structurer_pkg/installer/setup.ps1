@@ -277,7 +277,7 @@ if (-not $makepy_ok) {
 Write-Step "Installing agent files to $InstallDir..."
 
 # Source detection: works from installer\ subfolder OR from {app} (Inno Setup)
-$agent_dirs = @("agent", "extractor", "structurer")
+$agent_dirs = @("agent", "structurer")
 foreach ($dir in $agent_dirs) {
     # Try ScriptDir (when setup.ps1 is in installer\ next to the source)
     $src = Join-Path (Split-Path -Parent $ScriptDir) $dir

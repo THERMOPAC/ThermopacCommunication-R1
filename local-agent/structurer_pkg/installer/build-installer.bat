@@ -14,7 +14,7 @@ REM    4. pip install pywin32 + requests into embeddable Python
 REM    5. Run pywin32 post-install (registers COM DLLs)
 REM    6. Generate SolidWorks COM type library cache (makepy) — 3 methods
 REM    7. Copy agent sources into dist\ThermopacStructuringAgent\
-REM         Copies: agent\  extractor\  structurer\
+REM         Copies: agent\  structurer\
 REM    8. Write run.bat / run-service.bat / makepy-repair.bat into dist\
 REM    9. Write config.ini template (includes [structurer] section)
 REM   10. Check for Inno Setup 6 — reports path but does NOT compile .exe
@@ -242,24 +242,21 @@ REM ── Copy agent sources ────────────────�
 echo [STEP] Copying agent sources to %AGENT_DIST%...
 set SRC=%PKG_ROOT%
 
-REM Structuring agent copies three Python folders:
-REM   agent\       main_structurer.py, structure_job_client.py, structure_job_runner.py, ...
-REM   extractor\   sw_instance.py  (shared COM helpers)
-REM   structurer\  solidworks_structurer.py  (Phase 1 WRITE logic)
+REM Structuring agent copies two Python folders:
+REM   agent\      main_structurer.py, structure_job_client.py, structure_job_runner.py, ...
+REM   structurer\ solidworks_structurer.py + sw_instance.py  (Phase 1 WRITE logic + COM helpers)
 
 if exist "%AGENT_DIST%\agent"      rmdir /s /q "%AGENT_DIST%\agent"
-if exist "%AGENT_DIST%\extractor"  rmdir /s /q "%AGENT_DIST%\extractor"
 if exist "%AGENT_DIST%\structurer" rmdir /s /q "%AGENT_DIST%\structurer"
 
 xcopy "%SRC%\agent"      "%AGENT_DIST%\agent\"      /e /i /q /y
-xcopy "%SRC%\extractor"  "%AGENT_DIST%\extractor\"  /e /i /q /y
 xcopy "%SRC%\structurer" "%AGENT_DIST%\structurer\"  /e /i /q /y
 
 REM Remove __pycache__
 for /d /r "%AGENT_DIST%" %%d in (__pycache__) do (
     if exist "%%d" rmdir /s /q "%%d"
 )
-echo [OK] Agent sources copied (agent\ extractor\ structurer\)
+echo [OK] Agent sources copied (agent\ structurer\)
 
 REM ── Write run.bat ──────────────────────────────────────────────────────────────
 echo [STEP] Writing run.bat...

@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'agent/**'
-      - 'extractor/**'
       - 'structurer/**'
       - 'installer/**'
       - '.github/workflows/build-structuring-agent.yml'
@@ -45,7 +44,7 @@ jobs:
           $required = @(
             "$dist\agent\main_structurer.py",
             "$dist\agent\structure_job_client.py",
-            "$dist\extractor\sw_instance.py",
+            "$dist\structurer\sw_instance.py",
             "$dist\structurer\solidworks_structurer.py",
             "$dist\run.bat",
             "$dist\config.ini"
