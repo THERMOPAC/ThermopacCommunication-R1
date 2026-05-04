@@ -4,6 +4,29 @@ This project is an enterprise-grade Quality Management System (QMS) for THERMOPA
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
+# Global Date Standard
+## Display Format
+| Context | Format |
+|---|---|
+| UI / Tables / Reports / Exports | DD/MM/YYYY |
+| Date-Time displays | DD/MM/YYYY HH:MM |
+| Database storage | yyyy-MM-dd |
+| HTML `input[type="date"]` value (internal) | yyyy-MM-dd |
+
+## Shared Utility
+- File: `client/src/lib/date-format.ts`
+- `fmtDate(date)` → DD/MM/YYYY (returns `—` for null/invalid)
+- `fmtDateTime(date)` → DD/MM/YYYY HH:MM
+
+## Rules — Non-Negotiable
+1. **No `toLocaleDateString()`** anywhere in the UI.
+2. **No `format(date, 'MMM dd')` or similar non-DD/MM/YYYY patterns** for any date displayed to users.
+3. **Always import and use `fmtDate` / `fmtDateTime`** from `@/lib/date-format` for every UI date display.
+4. `format(date, 'yyyy-MM-dd')` is permitted only for API/DB calls (not display).
+5. `format(date, 'HH:mm')` is permitted only for time-only (no date) display.
+6. Month/year-only labels (e.g. `toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })`) in statutory period columns are the only allowed exception — no day component means DD/MM/YYYY does not apply.
+7. No mixed formats. One formatter, one standard, everywhere.
+
 # System Architecture
 ## Core Architectural Decisions
 The system is a full-stack web application employing organized, hierarchical data structures, standardized UI/UX components, robust data integrity, and real-time synchronization. It features role-based access control, comprehensive validation, and dialog-based editing with form pre-population. Google Cloud Storage (GCS) serves as the single source of truth for file metadata, with security managed via signed URLs and client-side caching for performance. UI/UX emphasizes consistent color schemes, card-based layouts, unified dropdowns, and branded professional report generation.
