@@ -160,7 +160,7 @@ When the ERP dispatches a drawing structure job to this node:
 ```
 [Structurer] 1 pending job(s) — processing first
 [StructRunner] ══ Job 42 start ══ drawing=T-PRJ-001-GA-001 rev=A mode=create_new
-[Structurer] Pre-flight passed — staging_path=C:\ThermopacStaging\drawings\DC-2024-0042\T-PRJ-001-GA-001_rev-A.slddrw
+[Structurer] Pre-flight passed — staging_path=C:\ThermopacStaging\drawings\T-PRJ-001-GA-001\T-PRJ-001-GA-001.slddrw
 [COM] Launching dedicated SolidWorks instance: SldWorks.Application.27
 [COM] Instance created via DispatchEx(SldWorks.Application.27)
 [Structurer] SolidWorks hidden instance ready
@@ -171,7 +171,7 @@ When the ERP dispatches a drawing structure job to this node:
 [Structurer] Property written: Revision = 'A'
 [Structurer] Property written: Tag_No = 'HX-101'
 ...
-[Structurer] SaveAs3 → C:\ThermopacStaging\drawings\DC-2024-0042\T-PRJ-001-GA-001_rev-A.slddrw
+[Structurer] SaveAs3 → C:\ThermopacStaging\drawings\T-PRJ-001-GA-001\T-PRJ-001-GA-001.slddrw
 [Structurer] Save successful
 [COM] Document closed
 [COM] Dedicated SolidWorks instance exited cleanly
@@ -199,13 +199,16 @@ When the ERP dispatches a drawing structure job to this node:
 
 Output files are written to:
 ```
-{staging_root}\{drawingControlId}\{DrawingNumber}_rev-{Revision}.slddrw
+{staging_root}\{DrawingNumber}\{DrawingNumber}.slddrw
 ```
 
 Example:
 ```
-C:\ThermopacStaging\drawings\DC-2024-0042\T-PRJ-001-GA-001_rev-A.slddrw
+C:\ThermopacStaging\drawings\T-PRJ-001-GA-001\T-PRJ-001-GA-001.slddrw
 ```
+
+> **Note:** Revision is written as the `Revision` custom property inside the title block only.
+> It is never part of the filename. One working file per drawing — updated in-place.
 
 ---
 
