@@ -109,6 +109,85 @@ def _print_startup_config(config) -> None:
     print()
 
 
+def _print_zero_trust_diagnostics(logger) -> None:
+    """
+    Zero-trust startup diagnostics.
+    Prints the ACTUAL files being executed so any mismatch between the installed
+    files and the running code is immediately visible in the console log.
+    """
+    import inspect
+
+    sep = "=" * 62
+    print(sep)
+    print("  ZERO-TRUST RUNTIME DIAGNOSTICS")
+    print(sep)
+
+    # 1. Which Python binary is running?
+    print(f"  [DIAG] sys.executable  : {sys.executable}")
+
+    # 2. Is this a frozen/compiled EXE (PyInstaller)?
+    frozen = getattr(sys, "frozen", False)
+    print(f"  [DIAG] sys.frozen      : {frozen}  {'(PyInstaller EXE — .py files on disk NOT used)' if frozen else '(real Python — reading .py files from disk)'}")
+
+    # 3. Exact path of THIS main_structurer.py being executed
+    main_file = os.path.abspath(__file__)
+    print(f"  [DIAG] main_structurer : {main_file}")
+
+    # 4. Exact path of solidworks_structurer.py being imported
+    try:
+        import structurer.solidworks_structurer as _sw_mod
+        sw_file = os.path.abspath(inspect.getfile(_sw_mod))
+        print(f"  [DIAG] sw_structurer   : {sw_file}")
+
+        # 5. Does the LOADED source contain _rev- ?
+        try:
+            src = open(sw_file, "r", encoding="utf-8", errors="replace").read()
+            has_rev = "_rev-" in src
+            if has_rev:
+                # Find the exact line
+                for i, ln in enumerate(src.splitlines(), 1):
+                    if "_rev-" in ln and ".slddrw" in ln:
+                        print(f"  [DIAG] _rev- FOUND     : line {i}: {ln.strip()}")
+                print(f"  [DIAG] FILENAME BUG    : YES — loaded file still has _rev- suffix")
+            else:
+                print(f"  [DIAG] _rev- check     : CLEAN — no _rev- in loaded solidworks_structurer.py")
+        except Exception as e:
+            print(f"  [DIAG] _rev- check     : ERROR reading file — {e}")
+
+        # 6. __pycache__ pyc that may be shadowing the .py
+        import importlib.util
+        spec = importlib.util.find_spec("structurer.solidworks_structurer")
+        if spec and spec.cached:
+            pyc = spec.cached
+            pyc_exists = os.path.isfile(pyc)
+            print(f"  [DIAG] pyc cache       : {pyc}  ({'EXISTS' if pyc_exists else 'missing'})")
+        else:
+            print(f"  [DIAG] pyc cache       : not found via importlib")
+
+    except Exception as e:
+        print(f"  [DIAG] sw_structurer   : IMPORT ERROR — {e}")
+
+    # 7. sys.path (first 4 entries)
+    print(f"  [DIAG] sys.path[0:4]   : {sys.path[:4]}")
+
+    print(sep)
+    print()
+
+    # Mirror to logger so it appears in the log file too
+    if logger:
+        logger.info(f"[DIAG] sys.executable={sys.executable} frozen={frozen}")
+        logger.info(f"[DIAG] main_structurer={os.path.abspath(__file__)}")
+        try:
+            import structurer.solidworks_structurer as _sw_mod2
+            import inspect as _inspect
+            sw_file2 = os.path.abspath(_inspect.getfile(_sw_mod2))
+            logger.info(f"[DIAG] solidworks_structurer={sw_file2}")
+            src2 = open(sw_file2, "r", encoding="utf-8", errors="replace").read()
+            logger.info(f"[DIAG] _rev-_in_sw_file={'YES — BUG PRESENT' if '_rev-' in src2 else 'NO — clean'}")
+        except Exception as ex:
+            logger.info(f"[DIAG] sw_structurer check failed: {ex}")
+
+
 def main():
     global _shutdown
 
@@ -131,6 +210,9 @@ def main():
     logger.info(f"[Structurer] Agent version: {STRUCTURER_VERSION}")
     logger.info(f"[Structurer] template_path: {config.structurer_template_path}")
     logger.info(f"[Structurer] staging_root:  {config.structurer_staging_root}")
+
+    _print_zero_trust_diagnostics(logger)
+
     from structurer.property_registry import registry_summary
     logger.info(f"[Structurer] {registry_summary()}")
 

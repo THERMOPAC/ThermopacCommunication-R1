@@ -1,5 +1,5 @@
 # Thermopac Drawing Structuring Agent — Installation Guide
-### THERMOPAC ERP | SolidWorks WRITE Agent | v1.0.35 | Phase 1
+### THERMOPAC ERP | SolidWorks WRITE Agent | v1.0.36 | Phase 1
 
 ---
 

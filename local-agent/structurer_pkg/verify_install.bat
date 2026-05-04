@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Thermopac Drawing Structuring Agent v1.0.35
+REM  Thermopac Drawing Structuring Agent v1.0.36
 REM  VERIFY INSTALLATION — filename fix self-test
 REM  --
 REM  Runs the Python self-test that confirms the installed
@@ -31,7 +31,7 @@ if not exist "%INSTALL_DIR%\" (
 if not exist "%TEST_SCRIPT%" (
     echo  [FAIL] Self-test script not found: %TEST_SCRIPT%
     echo  This means the installation is v1.0.32 (old version without the test).
-    echo  Download Full Package v1.0.35 from the Worker Agents page and run
+    echo  Download Full Package v1.0.36 from the Worker Agents page and run
     echo  install_update.bat (as Administrator) from the ZIP root folder.
     echo.
     pause
@@ -80,7 +80,7 @@ if %TEST_EXIT% EQU 0 (
 ) else (
     echo  ====================================================
     echo   FAILED: installed code still has old filename logic.
-    echo   Download Full Package v1.0.35 from the Worker Agents
+    echo   Download Full Package v1.0.36 from the Worker Agents
     echo   page and run install_update.bat as Administrator
     echo   from the extracted ZIP root folder.
     echo  ====================================================

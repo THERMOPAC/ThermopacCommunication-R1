@@ -1,6 +1,6 @@
 # Thermopac Drawing Structuring Agent — Build & Delivery
 
-**Version:** v1.0.35
+**Version:** v1.0.36
 **Phase:** Phase 1
 
 ## What this package provides

@@ -37,7 +37,7 @@ if "%SRC:~-1%"=="\" set "SRC=%SRC:~0,-1%"
 set "INSTALL_DIR=C:\Program Files\ThermopacStructuringAgent"
 
 echo.
-echo  Thermopac Drawing Structuring Agent — Update to v1.0.35
+echo  Thermopac Drawing Structuring Agent — Update to v1.0.36
 echo  ---------------------------------------------------------
 echo  Source : %SRC%
 echo  Target : %INSTALL_DIR%
@@ -58,7 +58,7 @@ if not exist "%SRC%\agent\" (
     echo.
     echo  You must run install_update.bat from the ROOT of the extracted ZIP:
     echo.
-    echo    ThermopacStructuringAgent-v1.0.35\
+    echo    ThermopacStructuringAgent-v1.0.36\
     echo      agent\                  ^<-- must be here
     echo      structurer\             ^<-- must be here
     echo      install_update.bat      ^<-- run THIS file  (you are here)
@@ -77,14 +77,14 @@ if not exist "%SRC%\structurer\" (
 )
 if not exist "%SRC%\agent\structure_job_client.py" (
     echo  [ERROR] Key file missing: %SRC%\agent\structure_job_client.py
-    echo  Re-download Full Package v1.0.35 from the Worker Agents page.
+    echo  Re-download Full Package v1.0.36 from the Worker Agents page.
     echo.
     pause
     exit /b 1
 )
 if not exist "%SRC%\structurer\solidworks_structurer.py" (
     echo  [ERROR] Key file missing: %SRC%\structurer\solidworks_structurer.py
-    echo  Re-download Full Package v1.0.35 from the Worker Agents page.
+    echo  Re-download Full Package v1.0.36 from the Worker Agents page.
     echo.
     pause
     exit /b 1
@@ -186,6 +186,21 @@ if %PATCH_RESULT% NEQ 0 (
 )
 :skip_patch
 
+REM ── Clear __pycache__ so Python cannot load stale bytecode ──────────────────
+REM    Python caches compiled .pyc files in __pycache__.  Even after the .py is
+REM    patched, an old .pyc may shadow it if the stored mtime happens to match.
+REM    Deleting __pycache__ forces Python to recompile from the patched source.
+echo.
+echo  Clearing __pycache__ to prevent stale bytecode...
+if exist "%INSTALL_DIR%\structurer\__pycache__" (
+    rd /S /Q "%INSTALL_DIR%\structurer\__pycache__"
+    echo  [OK] Cleared: structurer\__pycache__
+)
+if exist "%INSTALL_DIR%\agent\__pycache__" (
+    rd /S /Q "%INSTALL_DIR%\agent\__pycache__"
+    echo  [OK] Cleared: agent\__pycache__
+)
+
 REM ── Remove stale extractor files from old installs ────────────────────────────
 if exist "%INSTALL_DIR%\agent\job_runner.py" (
     echo  Removing stale file: agent\job_runner.py
@@ -244,7 +259,7 @@ echo.
 echo  config.ini preserved (your settings are unchanged).
 echo.
 echo  ============================================================
-echo   UPDATE COMPLETE — ThermopacStructuringAgent v1.0.35
+echo   UPDATE COMPLETE — ThermopacStructuringAgent v1.0.36
 echo   Files will be saved as:  {DrawingNo}.slddrw
 echo   No revision suffix in filename.
 echo  ============================================================
