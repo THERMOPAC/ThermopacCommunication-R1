@@ -98,9 +98,13 @@ router.get(
       archive.directory(toolsDir, `${root}/tools`);
     }
 
-    // ── structure_pkg/ — full structurer_pkg directory ────────────────────
+    // ── structure_pkg/ — full structurer_pkg directory (exclude install_update.bat
+    //    which lives at the ZIP root and must be run from there, not from structure_pkg/)
     if (dirExists(PKG_DIR)) {
-      archive.directory(PKG_DIR, `${root}/structure_pkg`);
+      archive.glob("**/*", {
+        cwd: PKG_DIR,
+        ignore: ["install_update.bat"],
+      }, { prefix: `${root}/structure_pkg` });
     }
 
     // ── Root helper files (updated versions from structurer_pkg/) ─────────

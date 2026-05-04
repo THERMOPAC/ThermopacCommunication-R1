@@ -47,12 +47,55 @@ echo  Source : %SRC%
 echo  Target : %INSTALL_DIR%
 echo.
 
+REM ── Verify source directories exist before copying ───────────────────────────
+if not exist "%SRC%\agent\" (
+    echo  [ERROR] Source folder not found: %SRC%\agent\
+    echo.
+    echo  This script must be run from the ROOT of the extracted ZIP folder,
+    echo  not from inside a subfolder (e.g. structure_pkg\).
+    echo.
+    echo  Correct location:  ThermopacStructuringAgent-v1.0.34\install_update.bat
+    echo  Wrong location:    ThermopacStructuringAgent-v1.0.34\structure_pkg\install_update.bat
+    echo.
+    pause
+    exit /b 1
+)
+
+if not exist "%SRC%\structurer\" (
+    echo  [ERROR] Source folder not found: %SRC%\structurer\
+    echo.
+    echo  This script must be run from the ROOT of the extracted ZIP folder.
+    echo.
+    pause
+    exit /b 1
+)
+
+REM ── Verify key source file is present (sanity check) ─────────────────────────
+if not exist "%SRC%\agent\structure_job_client.py" (
+    echo  [ERROR] Key file missing: %SRC%\agent\structure_job_client.py
+    echo.
+    echo  The extracted ZIP may be incomplete. Re-download the Full Package.
+    echo.
+    pause
+    exit /b 1
+)
+
 REM ── Copy agent Python source (overwrite) ────────────────────────────────────
 echo  Updating agent\...
-xcopy /E /I /Y "%SRC%\agent"      "%INSTALL_DIR%\agent"      >nul 2>&1
+xcopy /E /I /Y "%SRC%\agent"      "%INSTALL_DIR%\agent"
+if %errorLevel% NEQ 0 (
+    echo  [ERROR] Failed to copy agent\ — check permissions.
+    pause
+    exit /b 1
+)
 
 echo  Updating structurer\...
-xcopy /E /I /Y "%SRC%\structurer" "%INSTALL_DIR%\structurer" >nul 2>&1
+xcopy /E /I /Y "%SRC%\structurer" "%INSTALL_DIR%\structurer"
+if %errorLevel% NEQ 0 (
+    echo  [ERROR] Failed to copy structurer\ — check permissions.
+    pause
+    exit /b 1
+)
 
 REM ── Copy bat/ps1 helper scripts (overwrite) ──────────────────────────────────
 for %%F in (
@@ -67,6 +110,18 @@ for %%F in (
         echo  Updating %%F...
         copy /Y "%SRC%\%%F" "%INSTALL_DIR%\%%F" >nul 2>&1
     )
+)
+
+REM ── Verify version was actually written ───────────────────────────────────────
+findstr /C:"1.0.34" "%INSTALL_DIR%\agent\structure_job_client.py" >nul 2>&1
+if %errorLevel% NEQ 0 (
+    echo.
+    echo  [WARNING] Version check failed — structure_job_client.py may not have updated.
+    echo  Check that the agent process was closed before running this script.
+    echo.
+) else (
+    echo.
+    echo  [OK] Version verified: structure_job_client.py contains v1.0.34
 )
 
 REM ── Preserve config.ini (do NOT overwrite user settings) ─────────────────────
