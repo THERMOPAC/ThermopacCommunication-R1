@@ -1,8 +1,7 @@
 """
 sw_instance.py — Shared SolidWorks COM instance helpers.
 
-Used by both the extraction agent (solidworks_extractor.py) and the
-structuring agent (solidworks_structurer.py).
+Used by the structuring agent (solidworks_structurer.py).
 
 Functions:
   _get_sldworks_pids()             — snapshot running SLDWORKS.EXE PIDs

@@ -1,22 +1,20 @@
 /**
  * agent-download-routes.ts
  * Serves the Thermopac Drawing Structuring Agent full-package ZIP on-the-fly.
- * Mirrors the GitHub repo structure exactly:
  *
  *  ThermopacStructuringAgent-v{X}/
- *    agent/          ← Python source
- *    extractor/      ← Python source
+ *    agent/          ← structuring-agent Python source only (no extractor files)
  *    structurer/     ← Python source
  *    installer/      ← Inno Setup build scripts
  *    tools/          ← utility Python scripts
- *    structure_pkg/  ← full structurer_pkg contents (Inno-style package)
+ *    structure_pkg/  ← structurer_pkg contents (install_update.bat excluded — lives at root)
  *    build.bat
- *    bootstrap.bat   ← updated version from structurer_pkg/
+ *    bootstrap.bat
  *    BUILD.md
  *    config.ini
  *    fix_appdata_url.ps1
  *    INSTALL.md
- *    install_update.bat
+ *    install_update.bat  ← run from ZIP root as Admin to update installed files
  *    requirements.txt
  *    run.bat
  *    set_dev_url.bat
@@ -33,7 +31,7 @@ import { ensureAuthenticated } from "./auth-middleware";
 
 const router = Router();
 
-const AGENT_VERSION = "1.0.34";
+const AGENT_VERSION = "1.0.35";
 const LOCAL_AGENT   = path.resolve("local-agent");
 const PKG_DIR       = path.join(LOCAL_AGENT, "structurer_pkg");
 
@@ -72,18 +70,35 @@ router.get(
 
     const root = `ThermopacStructuringAgent-v${AGENT_VERSION}`;
 
-    // ── Python source directories ──────────────────────────────────────────
-    const pyDirs: Array<[string, string]> = [
-      [path.join(LOCAL_AGENT, "agent"),      "agent"],
-      [path.join(LOCAL_AGENT, "structurer"), "structurer"],
-    ];
-    for (const [srcPath, destName] of pyDirs) {
-      if (dirExists(srcPath)) {
-        archive.glob("**/*.py", {
-          cwd: srcPath,
-          ignore: ["__pycache__/**", "*.pyc"],
-        }, { prefix: `${root}/${destName}` });
+    // ── Structuring-agent Python source only ──────────────────────────────
+    // agent/: include only files belonging to the structuring agent.
+    // Extraction-agent files (job_runner.py, main.py) are intentionally excluded.
+    const agentDir = path.join(LOCAL_AGENT, "agent");
+    if (dirExists(agentDir)) {
+      const agentFiles = [
+        "main_structurer.py",
+        "structure_job_client.py",
+        "structure_job_runner.py",
+        "config.py",
+        "logger.py",
+        "job_client.py",   // required: structure_job_client imports error classes from here
+        "__init__.py",
+      ];
+      for (const f of agentFiles) {
+        const full = path.join(agentDir, f);
+        if (fileExists(full)) {
+          archive.file(full, { name: `${root}/agent/${f}` });
+        }
       }
+    }
+
+    // ── structurer/ — all Python source ───────────────────────────────────
+    const structurerDir = path.join(LOCAL_AGENT, "structurer");
+    if (dirExists(structurerDir)) {
+      archive.glob("**/*.py", {
+        cwd: structurerDir,
+        ignore: ["__pycache__/**", "*.pyc"],
+      }, { prefix: `${root}/structurer` });
     }
 
     // ── installer/ — Inno Setup build scripts ─────────────────────────────
@@ -113,7 +128,6 @@ router.get(
       "BUILD.md",
       "config.ini",
       "fix_appdata_url.ps1",
-      "fix_filename.bat",
       "INSTALL.md",
       "install_update.bat",
       "requirements.txt",
