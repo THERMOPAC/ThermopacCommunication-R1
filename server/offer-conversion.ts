@@ -672,6 +672,83 @@ export async function executeOfferConversion(
       }
     }
 
+    // BOM Explosion: for each Level 2 offer item with no Level 3 children in the offer,
+    // auto-create Level 3 project items from product_children in the Product Master.
+    const level2Items = topoOrdered.filter((i: any) => !!i.parent_item_id);
+    for (const offerItem of level2Items) {
+      // Skip if this Level 2 item already has children in the offer (manually added Level 3)
+      const hasOfferChildren = offerItems.some((i: any) => i.parent_item_id === offerItem.id);
+      if (hasOfferChildren) continue;
+
+      // No project item created for this offer item (e.g. duplicate conflict) — skip
+      const parentProjectItemId = offerItemIdToProjectItemId[offerItem.id];
+      if (!parentProjectItemId) continue;
+
+      // Look up the product by product_code
+      if (!offerItem.product_code) continue;
+      const productRow = await client.query(
+        `SELECT id FROM products WHERE product_code = $1 LIMIT 1`,
+        [offerItem.product_code]
+      );
+      if (productRow.rows.length === 0) continue;
+      const productId = productRow.rows[0].id;
+
+      // Get children from product_children
+      const childRows = await client.query(
+        `SELECT pc.quantity, pc.sort_order, p.product_code, p.description, p.unit,
+                p.unit_price, p.make_or_buy, p.hsn_sac_code
+         FROM product_children pc
+         JOIN products p ON p.id = pc.child_product_id
+         WHERE pc.parent_product_id = $1
+         ORDER BY pc.sort_order, pc.id`,
+        [productId]
+      );
+      if (childRows.rows.length === 0) continue;
+
+      for (const child of childRows.rows) {
+        // Avoid duplicate on re-run: skip if a project item with same parent + item_code exists
+        const dupCheck = await client.query(
+          `SELECT id FROM project_items
+           WHERE project_id = $1 AND parent_project_item_id = $2 AND item_code LIKE $3`,
+          [project.id, parentProjectItemId, `%-${child.product_code}-%`]
+        );
+        if (dupCheck.rows.length > 0) continue;
+
+        const childBaseCode = customerBpCode
+          ? `${customerBpCode}-${child.product_code}`
+          : child.product_code;
+        const childItemCode = epcCoding.buildProjectItemCode(childBaseCode, fyCode, projectSeq);
+        const childCodeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
+
+        const childMasterItemId = child.product_code
+          ? await findOrCreateMasterItem(
+              client, child.product_code, child.description,
+              child.unit, child.unit_price, child.hsn_sac_code, customerBpCode
+            )
+          : null;
+
+        await client.query(
+          `INSERT INTO project_items
+           (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
+            quantity, estimated_cost, notes, status, source,
+            parent_project_item_id,
+            source_offer_id, source_order_number, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+            $9, $10, $11, 'Not Started', 'sales_offer',
+            $12, $13, $14, NOW(), NOW())`,
+          [
+            project.id, projectCode, childMasterItemId,
+            childItemCode, childCodeBars, child.description, child.unit || 'set', child.make_or_buy || 'Make',
+            child.quantity || 1, child.unit_price,
+            child.description,
+            parentProjectItemId,
+            offerId, orderNumber,
+          ]
+        );
+        itemsCreated++;
+      }
+    }
+
     await client.query(
       `UPDATE offer_conversion_snapshots SET conversion_status = 'items_created' WHERE id = $1`,
       [snapshotId]
