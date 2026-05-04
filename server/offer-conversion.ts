@@ -17,6 +17,10 @@ export interface EpcParams {
   targetEndDate: string;
   managerId: number;
   automationMode?: 'manual' | 'full_auto';
+  disciplineCode?: string;
+  mdmt?: string;
+  inspectionBy?: string;
+  voltageFrequency?: string;
 }
 
 interface ValidationFailure {
@@ -446,6 +450,7 @@ export async function executeOfferConversion(
         continent_code, country_code, fy_code, project_seq,
         source_offer_id, source_offer_revision, source_order_number, source_conversion_id, project_origin,
         automation_mode,
+        discipline_code, mdmt, inspection_by, voltage_frequency,
         created_at, updated_at)
        VALUES ($1, $2, $3, $4, 'active', $5, $6,
                $7, $8, $9, $10,
@@ -453,6 +458,7 @@ export async function executeOfferConversion(
                $15, $16, $17, $18,
                $19, $20, $21, $22, 'sales_offer',
                $23,
+               $24, $25, $26, $27,
                NOW(), NOW())
        RETURNING *`,
       [
@@ -461,7 +467,9 @@ export async function executeOfferConversion(
         offer.total_amount, projectCurrency, epcParams.managerId, userId,
         continentCode, countryCode, fyCode, projectSeq,
         offerId, offer.revision || 0, orderNumber, conversionId,
-        epcParams.automationMode || 'full_auto'
+        epcParams.automationMode || 'full_auto',
+        epcParams.disciplineCode || null, epcParams.mdmt || null,
+        epcParams.inspectionBy || null, epcParams.voltageFrequency || null
       ]
     );
     const project = projectInsert.rows[0];

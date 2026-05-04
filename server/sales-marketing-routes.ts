@@ -1563,6 +1563,14 @@ export function setupSalesMarketingRoutes(app: Express) {
             failures: [{ field: 'epcParams', reason: 'EPC parameters required for Order Confirmed' }],
           });
         }
+        const missingTechnical: { field: string; reason: string }[] = [];
+        if (!epcParams.disciplineCode) missingTechnical.push({ field: 'disciplineCode', reason: 'Project Discipline is required before creating an EPC Project' });
+        if (!epcParams.mdmt)           missingTechnical.push({ field: 'mdmt',           reason: 'MDMT is required before creating an EPC Project' });
+        if (!epcParams.inspectionBy)   missingTechnical.push({ field: 'inspectionBy',   reason: 'Inspection By is required before creating an EPC Project' });
+        if (!epcParams.voltageFrequency) missingTechnical.push({ field: 'voltageFrequency', reason: 'Three-Phase Voltage & Frequency is required before creating an EPC Project' });
+        if (missingTechnical.length > 0) {
+          return res.status(422).json({ error: 'Pre-conversion validation failed', failures: missingTechnical });
+        }
         try {
           const result = await executeOfferConversion(id, epcParams, user.id);
           return res.json(result);

@@ -262,6 +262,7 @@ export function OffersContent() {
   const [epcFormData, setEpcFormData] = useState({
     continentCode: '', countryCode: '', projectType: '', priority: 'Medium',
     startDate: '', targetEndDate: '', managerId: 0, automationMode: 'full_auto' as 'manual' | 'full_auto',
+    disciplineCode: '', mdmt: '', inspectionBy: '', voltageFrequency: '',
   });
   const [conversionErrors, setConversionErrors] = useState<any[]>([]);
 
@@ -901,6 +902,10 @@ export function OffersContent() {
                                 startDate: today,
                                 targetEndDate: sixMonths,
                                 managerId,
+                                disciplineCode: '',
+                                mdmt: '',
+                                inspectionBy: '',
+                                voltageFrequency: '',
                               });
                             }} title="Confirm Order → Create EPC Project">
                               <Rocket className="h-4 w-4" />
@@ -1150,11 +1155,69 @@ export function OffersContent() {
                   </div>
                 </div>
 
+                {/* ── Technical defaults required for DDS ─────────────────── */}
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 font-medium">
+                  The following 4 fields are mandatory — they will be saved on the project and used as defaults in Design Data Sheets for all equipment.
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Label className="text-xs">Project Discipline *</Label>
+                    <Select value={epcFormData.disciplineCode} onValueChange={(v) => setEpcFormData(p => ({ ...p, disciplineCode: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select discipline…" /></SelectTrigger>
+                      <SelectContent>
+                        {['ASME SEC VIII Div-1', 'ASME 31.3', 'EN 13445', 'PED 2014/68/EU', 'API 650'].map(d => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">MDMT *</Label>
+                    <Select value={epcFormData.mdmt} onValueChange={(v) => setEpcFormData(p => ({ ...p, mdmt: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select MDMT…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="-29 Deg °C">-29 Deg °C</SelectItem>
+                        <SelectItem value="0 Deg °C">0 Deg °C</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Inspection By *</Label>
+                    <Select value={epcFormData.inspectionBy} onValueChange={(v) => setEpcFormData(p => ({ ...p, inspectionBy: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select inspector…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SGS India">SGS India</SelectItem>
+                        <SelectItem value="TUV India">TUV India</SelectItem>
+                        <SelectItem value="Thermopac">Thermopac</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Three-Phase Voltage &amp; Frequency *</Label>
+                    <Select value={epcFormData.voltageFrequency} onValueChange={(v) => setEpcFormData(p => ({ ...p, voltageFrequency: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select voltage & frequency…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="380V / 50 Hz">380V / 50 Hz</SelectItem>
+                        <SelectItem value="400V / 50 Hz">400V / 50 Hz</SelectItem>
+                        <SelectItem value="415V / 50 Hz">415V / 50 Hz</SelectItem>
+                        <SelectItem value="440V / 60 Hz">440V / 60 Hz</SelectItem>
+                        <SelectItem value="480V / 60 Hz">480V / 60 Hz</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setConfirmOrderOffer(null)}>Cancel</Button>
                   <Button
                     className="bg-indigo-600 hover:bg-indigo-700"
-                    disabled={confirmOrderMutation.isPending || !epcFormData.continentCode || !epcFormData.countryCode || !epcFormData.startDate || !epcFormData.targetEndDate || !epcFormData.managerId}
+                    disabled={
+                      confirmOrderMutation.isPending ||
+                      !epcFormData.continentCode || !epcFormData.countryCode ||
+                      !epcFormData.startDate || !epcFormData.targetEndDate || !epcFormData.managerId ||
+                      !epcFormData.disciplineCode || !epcFormData.mdmt ||
+                      !epcFormData.inspectionBy || !epcFormData.voltageFrequency
+                    }
                     onClick={() => {
                       if (!confirmOrderOffer) return;
                       confirmOrderMutation.mutate({ id: confirmOrderOffer.id, epcParams: epcFormData });
