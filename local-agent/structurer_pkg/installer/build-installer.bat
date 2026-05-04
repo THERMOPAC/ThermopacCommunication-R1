@@ -238,6 +238,27 @@ echo.
 :makepy_done
 echo.
 
+REM ── Pre-copy safeguard: verify source files contain no _rev- filename bug ────────
+REM    Fail hard here so a dirty source never gets packaged into the installer.
+echo [STEP] Verifying source files have no _rev- filename bug...
+set "SW_SRC=%PKG_ROOT%\structurer\solidworks_structurer.py"
+if not exist "%SW_SRC%" (
+    echo [ERROR] Source not found: %SW_SRC%
+    pause & exit /b 1
+)
+
+REM Check for _rev- immediately followed by { in the slddrw context
+REM findstr /R searches for regex — /C: is literal.  Use two searches to catch variants.
+findstr /R "_rev-{" "%SW_SRC%" >nul 2>&1
+if not errorlevel 1 (
+    echo [ERROR] _rev- filename pattern found in source: %SW_SRC%
+    echo         The source still has the old revision-suffix bug.
+    echo         Fix solidworks_structurer.py before building.
+    echo         Required: filename = f"{safe_dn}.slddrw"
+    pause & exit /b 1
+)
+echo [OK] Source verified: no _rev- pattern in solidworks_structurer.py
+
 REM ── Copy agent sources ─────────────────────────────────────────────────────────
 echo [STEP] Copying agent sources to %AGENT_DIST%...
 set SRC=%PKG_ROOT%
@@ -257,6 +278,21 @@ for /d /r "%AGENT_DIST%" %%d in (__pycache__) do (
     if exist "%%d" rmdir /s /q "%%d"
 )
 echo [OK] Agent sources copied (agent\ structurer\)
+
+REM ── Post-copy safeguard: verify the COPIED dist file is also clean ─────────────
+REM    Confirms xcopy did not silently skip the file or copy the wrong version.
+set "SW_DIST=%AGENT_DIST%\structurer\solidworks_structurer.py"
+if not exist "%SW_DIST%" (
+    echo [ERROR] solidworks_structurer.py missing from dist after xcopy: %SW_DIST%
+    pause & exit /b 1
+)
+findstr /R "_rev-{" "%SW_DIST%" >nul 2>&1
+if not errorlevel 1 (
+    echo [ERROR] _rev- filename pattern found in dist copy: %SW_DIST%
+    echo         xcopy may have copied the wrong file. Investigate before distributing.
+    pause & exit /b 1
+)
+echo [OK] Dist copy verified: no _rev- pattern in %SW_DIST%
 
 REM ── Write run.bat ──────────────────────────────────────────────────────────────
 echo [STEP] Writing run.bat...

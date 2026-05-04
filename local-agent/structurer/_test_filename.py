@@ -25,24 +25,61 @@ _FAIL     = 1
 
 def _check_source(src: str) -> tuple[bool, str]:
     """
-    Parse solidworks_structurer.py and find the filename = f"..." line.
+    Parse solidworks_structurer.py and verify the filename construction is clean.
+
+    Strategy (defence-in-depth):
+      1. Scan EVERY line for _rev- combined with .slddrw — catches the bug
+         regardless of variable name or whitespace.
+      2. Also scan every  filename = f"..."  assignment and reject any that
+         contain _rev- or _Rev-.
+      3. Verify the CORRECT pattern  filename = f"{safe_dn}.slddrw"  is present.
+
     Returns (ok, message).
     """
-    # Match:  filename  = f"{safe_dn}.slddrw"
-    m = re.search(r'filename\s*=\s*f"([^"]+)"', src)
-    if not m:
+    lines = src.splitlines()
+    bugs_found = []
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        # Skip pure comment lines and diagnostic/test string literals
+        if stripped.startswith("#"):
+            continue
+        if "_rev-" not in stripped.lower() and "_rev-" not in stripped:
+            continue
+
+        # Any non-comment line with both _rev- and .slddrw is suspicious
+        if ".slddrw" in stripped and ("_rev-" in stripped or "_Rev-" in stripped):
+            # Whitelist: lines that are themselves checks/tests for the pattern
+            _is_guard = any(kw in stripped for kw in (
+                "if \"_rev-\"", 'if "_rev-"', "_rev-.*check", "has_rev",
+                "still_has_rev", "FAIL:", "PASS:", "return False", "return True",
+                "print(", "msg", "# ", "raise", "assert",
+            ))
+            if not _is_guard:
+                bugs_found.append((i, stripped))
+
+        # Any filename = f"..." assignment that contains _rev-
+        if re.match(r'\s*filename\s*=', line) and ("_rev-" in stripped or "_Rev-" in stripped):
+            bugs_found.append((i, stripped))
+
+    if bugs_found:
+        details = "\n".join(f"  line {ln}: {txt}" for ln, txt in bugs_found)
         return False, (
-            "Cannot find  filename = f\"...\"  in solidworks_structurer.py.\n"
-            "The file may be corrupt or from an unexpected version."
-        )
-    pattern = m.group(1)
-    if "_rev-" in pattern:
-        return False, (
-            f"FAIL: _rev- found in filename pattern: {pattern!r}\n"
-            "The installed solidworks_structurer.py is the old v1.0.32 code.\n"
+            f"FAIL: _rev- revision-suffix pattern found in solidworks_structurer.py:\n"
+            f"{details}\n"
+            "The installed file is the old v1.0.32 code.\n"
             "Run install_update.bat (as Administrator) from the ZIP root to fix."
         )
-    return True, f"filename pattern is clean: {pattern!r}"
+
+    # Verify the correct pattern IS present somewhere in the file
+    correct = re.search(r'filename\s*=\s*f"\{safe_dn\}\.slddrw"', src)
+    if not correct:
+        return False, (
+            "Cannot find  filename = f\"{safe_dn}.slddrw\"  in solidworks_structurer.py.\n"
+            "The file may be corrupt or from an unexpected version."
+        )
+
+    return True, f"filename pattern is clean: {correct.group(0).strip()!r}"
 
 
 def _check_runtime() -> tuple[bool, str]:

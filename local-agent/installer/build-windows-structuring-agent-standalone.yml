@@ -48,9 +48,27 @@ jobs:
           foreach ($f in $pyFiles) {
             $content = Get-Content $f.FullName -Raw -Encoding UTF8
 
-            if ($content -match '_rev-\{revision\}|_rev-\{rev\}') {
-              Write-Error "FAIL: _rev- filename pattern in $($f.FullName)"
-              $failed = $true
+            # Catch ANY _rev-{...} or _Rev-{...} token in a filename/slddrw context.
+            # Broadened from the original narrow {revision}|{rev} pattern to any variable name.
+            # Also catches _Rev- (capital R) and bare string literals like _rev-A.
+            $lines = $content -split "`n"
+            foreach ($line in $lines) {
+              # Skip comment lines and lines that are clearly diagnostic/test strings
+              $trimmed = $line.TrimStart()
+              if ($trimmed.StartsWith('#') -or $trimmed.StartsWith('//') -or $trimmed.StartsWith("'")) { continue }
+              # Flag: any line that assigns a .slddrw filename and contains _rev- or _Rev-
+              if ($line -match '\.slddrw' -and ($line -match '_rev-' -or $line -match '_Rev-')) {
+                # Exclude lines that are string literals inside _check_source / test / diagnostic functions
+                if ($line -notmatch '^\s*(#|if|print|Write|echo|return|assert|raise|msg|message|pattern|has_rev|still_has|_rev-.*check|_rev-.*FOUND|_rev-.*BUG|_rev-.*FAIL|_rev-.*PASS|_rev-.*OK)') {
+                  Write-Error "FAIL: _rev- + .slddrw filename pattern in $($f.FullName): $($line.Trim())"
+                  $failed = $true
+                }
+              }
+              # Also catch any f-string or string that constructs a filename with _rev- directly
+              if ($line -match 'filename\s*=.*_rev-') {
+                Write-Error "FAIL: filename assignment with _rev- in $($f.FullName): $($line.Trim())"
+                $failed = $true
+              }
             }
 
             if ($content -match 'from extractor\.' -or $content -match 'import extractor') {
@@ -110,6 +128,49 @@ jobs:
             exit 1
           }
           Write-Host "PASS: no extractor\ in dist"
+
+      # ── Post-dist verification — scan the PACKAGED .py files, not just source ──
+      # PyInstaller copies source .py files into dist via --add-data.
+      # This step verifies that the files actually bundled are also clean,
+      # catching any case where the build pipeline accidentally picked up
+      # old sources from a different directory.
+      - name: Verify dist — no _rev- in packaged Python files
+        run: |
+          $failed = $false
+          $distPy = Get-ChildItem -Path "dist\ThermopacStructuringAgent" -Recurse -Filter "*.py" -ErrorAction SilentlyContinue
+
+          if (-not $distPy) {
+            Write-Host "INFO: No .py files in dist (pure frozen build) — skipping packaged source scan"
+          }
+
+          foreach ($f in $distPy) {
+            $content = Get-Content $f.FullName -Raw -Encoding UTF8
+
+            # Check for filename assignment containing _rev-
+            if ($content -match 'filename\s*=.*_rev-') {
+              Write-Error "FAIL: _rev- in packaged file $($f.FullName)"
+              $failed = $true
+            }
+
+            # Check solidworks_structurer.py specifically for the exact buggy pattern
+            if ($f.Name -eq "solidworks_structurer.py") {
+              if ($content -match '_rev-\{[^}]+\}\.slddrw|_Rev-\{[^}]+\}\.slddrw') {
+                Write-Error "FAIL: old _rev- filename pattern in packaged solidworks_structurer.py"
+                $failed = $true
+              } else {
+                Write-Host "PASS: solidworks_structurer.py in dist is clean"
+              }
+              # Verify the exact correct pattern IS present
+              if ($content -notmatch 'filename\s*=\s*f"\{safe_dn\}\.slddrw"') {
+                Write-Warning "WARN: expected 'filename = f\"{safe_dn}.slddrw\"' not found in packaged file — verify manually"
+              } else {
+                Write-Host "PASS: correct filename pattern confirmed in packaged solidworks_structurer.py"
+              }
+            }
+          }
+
+          if ($failed) { exit 1 }
+          Write-Host "PASS: all packaged Python files clean — no _rev- filename patterns"
 
       - name: Install Inno Setup 6
         run: |
