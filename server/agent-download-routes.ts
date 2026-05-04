@@ -113,6 +113,7 @@ router.get(
       "BUILD.md",
       "config.ini",
       "fix_appdata_url.ps1",
+      "fix_filename.bat",
       "INSTALL.md",
       "install_update.bat",
       "requirements.txt",
