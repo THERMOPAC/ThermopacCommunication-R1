@@ -110,6 +110,10 @@ import {
   Camera,
   Download,
   Globe,
+  Thermometer,
+  Zap,
+  Search,
+  Settings,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -2140,79 +2144,96 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-              {/* ── Section 1: Project Identity (read-only) ───────────────── */}
-              <div className="rounded-lg border border-muted bg-muted/40 px-4 py-3 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project Identity — cannot be edited</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* ── Section 1: Project Identity ───────────────────────────── */}
+              <div className="rounded-xl bg-gray-100 border border-gray-200 shadow-sm p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building className="h-5 w-5 text-gray-500" />
+                    <h3 className="text-lg font-semibold text-gray-800">Project Identity</h3>
+                  </div>
+                  <span className="text-xs font-medium text-gray-500 bg-gray-200 px-2.5 py-0.5 rounded-full">Read-only</span>
+                </div>
+                <div className="h-px bg-gray-300" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel className="text-xs text-muted-foreground">Project Name</FormLabel>
-                        <p className="text-sm font-medium leading-tight">{field.value || '—'}</p>
-                      </FormItem>
+                      <div className="sm:col-span-2 space-y-1">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Project Name</p>
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{field.value || '—'}</p>
+                      </div>
                     )}
                   />
                   <FormField
                     control={form.control}
                     name="code"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs text-muted-foreground">Project Code</FormLabel>
-                        <p className="text-sm font-medium font-mono leading-tight">{field.value || '—'}</p>
-                      </FormItem>
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Project Code</p>
+                        <p className="text-sm font-semibold font-mono text-gray-900 leading-snug">{field.value || '—'}</p>
+                      </div>
                     )}
                   />
                   <FormField
                     control={form.control}
                     name="customerId"
                     render={({ field }) => (
-                      <FormItem className="sm:col-span-3">
-                        <FormLabel className="text-xs text-muted-foreground">Customer</FormLabel>
-                        <p className="text-sm font-medium leading-tight">
+                      <div className="sm:col-span-3 space-y-1">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Customer</p>
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">
                           {customers?.find((c: any) => c.id === field.value)?.bpName || '—'}
                         </p>
-                      </FormItem>
+                      </div>
                     )}
                   />
                 </div>
               </div>
 
               {/* ── Section 2: Description ────────────────────────────────── */}
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter project description"
-                        {...field}
-                        className="min-h-[60px] resize-y"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-gray-500" />
+                  <h3 className="text-lg font-semibold">Description</h3>
+                </div>
+                <div className="h-px bg-gray-100" />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter project description"
+                          {...field}
+                          className="min-h-[60px] resize-y focus:ring-2 focus:ring-blue-500"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {/* ── Section 3: Scheduling & Priority ─────────────────────── */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scheduling &amp; Priority</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-gray-500" />
+                  <h3 className="text-lg font-semibold">Scheduling &amp; Priority</h3>
+                </div>
+                <div className="h-px bg-gray-100" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <FormField
                     control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel className="font-medium">Status</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10 focus:ring-2 focus:ring-blue-500">
                               <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                           </FormControl>
@@ -2247,10 +2268,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     name="priority"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Priority</FormLabel>
+                        <FormLabel className="font-medium">Priority</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10 focus:ring-2 focus:ring-blue-500">
                               <SelectValue placeholder="Select priority" />
                             </SelectTrigger>
                           </FormControl>
@@ -2269,9 +2290,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     name="startDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel className="font-medium">Start Date <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} required />
+                          <Input type="date" {...field} required className="h-10 focus:ring-2 focus:ring-blue-500" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2282,9 +2303,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     name="targetEndDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Target End Date <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel className="font-medium">Target End Date <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} required />
+                          <Input type="date" {...field} required className="h-10 focus:ring-2 focus:ring-blue-500" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -2294,15 +2315,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               </div>
 
               {/* ── Section 4: Financials ─────────────────────────────────── */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Financials</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-gray-500" />
+                  <h3 className="text-lg font-semibold">Financials</h3>
+                </div>
+                <div className="h-px bg-gray-100" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <FormField
                     control={form.control}
                     name="estimatedBudget"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Budget</FormLabel>
+                        <FormLabel className="font-medium">Budget</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -2313,6 +2338,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               field.onChange(value);
                             }}
                             value={field.value?.toString() || ''}
+                            className="h-10 focus:ring-2 focus:ring-blue-500"
                           />
                         </FormControl>
                         <FormMessage />
@@ -2324,10 +2350,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     name="currency"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Currency</FormLabel>
+                        <FormLabel className="font-medium">Currency</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10 focus:ring-2 focus:ring-blue-500">
                               <SelectValue placeholder="Select currency" />
                             </SelectTrigger>
                           </FormControl>
@@ -2345,7 +2371,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               </div>
 
               {/* ── Tabs for Project Details, Stages, Logistics, Attachments ─ */}
-              <Tabs defaultValue="project-details" className="w-full mt-6">
+              <div className="border-t border-gray-200 pt-2">
+              <Tabs defaultValue="project-details" className="w-full mt-4">
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="project-details" className="flex items-center gap-1">
                     <ClipboardList className="h-4 w-4" /> Project Details
@@ -2363,22 +2390,30 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     <FileText className="h-4 w-4" /> Document Control
                   </TabsTrigger>
                 </TabsList>
-                
-                <TabsContent value="project-details" className="space-y-4 mt-4">
-                  {/* Technical Defaults — 2-column grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                    {/* Row 1 Col 1 — Project Discipline */}
-                    <div className="border rounded-md p-4">
+                <TabsContent value="project-details" className="space-y-4 mt-4">
+                  {/* Technical Defaults — elevated blue card */}
+                  <div className="rounded-xl bg-blue-50 border border-blue-200 shadow-sm hover:shadow-md transition-shadow p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Settings className="h-5 w-5 text-blue-600" />
+                      <h3 className="text-lg font-semibold text-blue-900">Technical Defaults</h3>
+                    </div>
+                    <div className="h-px bg-blue-200" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    {/* Project Discipline */}
+                    <div className="rounded-lg bg-white border border-blue-100 shadow-sm p-4">
                       <FormField
                         control={form.control}
                         name="disciplineCode"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-semibold">Project Discipline</FormLabel>
+                            <FormLabel className="font-semibold flex items-center gap-1.5">
+                              <ClipboardList className="h-4 w-4 text-blue-500" /> Project Discipline
+                            </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10 focus:ring-2 focus:ring-blue-500">
                                   <SelectValue placeholder="Select discipline…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2391,7 +2426,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Used to auto-generate tag numbers on Design Data Sheets for all drawings under this project.
+                              Used to auto-generate tag numbers on Design Data Sheets.
                             </p>
                             <FormMessage />
                           </FormItem>
@@ -2399,17 +2434,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       />
                     </div>
 
-                    {/* Row 1 Col 2 — MDMT */}
-                    <div className="border rounded-md p-4">
+                    {/* MDMT */}
+                    <div className="rounded-lg bg-white border border-blue-100 shadow-sm p-4">
                       <FormField
                         control={form.control}
                         name="mdmt"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-semibold">MDMT (Minimum Design Metal Temperature)</FormLabel>
+                            <FormLabel className="font-semibold flex items-center gap-1.5">
+                              <Thermometer className="h-4 w-4 text-blue-500" /> MDMT
+                            </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10 focus:ring-2 focus:ring-blue-500">
                                   <SelectValue placeholder="Select MDMT…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2419,7 +2456,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Used in Design Data Sheets for all equipment under this project.
+                              Minimum Design Metal Temperature for all equipment.
                             </p>
                             <FormMessage />
                           </FormItem>
@@ -2427,17 +2464,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       />
                     </div>
 
-                    {/* Row 2 Col 1 — Inspection By */}
-                    <div className="border rounded-md p-4">
+                    {/* Inspection By */}
+                    <div className="rounded-lg bg-white border border-blue-100 shadow-sm p-4">
                       <FormField
                         control={form.control}
                         name="inspectionBy"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-semibold">Inspection By</FormLabel>
+                            <FormLabel className="font-semibold flex items-center gap-1.5">
+                              <Search className="h-4 w-4 text-blue-500" /> Inspection By
+                            </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10 focus:ring-2 focus:ring-blue-500">
                                   <SelectValue placeholder="Select inspection agency…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2448,7 +2487,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Pre-filled as default Inspection By in Design Data Sheets for all equipment under this project.
+                              Default inspection agency for all Design Data Sheets.
                             </p>
                             <FormMessage />
                           </FormItem>
@@ -2456,17 +2495,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       />
                     </div>
 
-                    {/* Row 2 Col 2 — Three-Phase Voltage & Frequency */}
-                    <div className="border rounded-md p-4">
+                    {/* Voltage & Frequency */}
+                    <div className="rounded-lg bg-white border border-blue-100 shadow-sm p-4">
                       <FormField
                         control={form.control}
                         name="voltageFrequency"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="font-semibold">Three-Phase Voltage &amp; Frequency</FormLabel>
+                            <FormLabel className="font-semibold flex items-center gap-1.5">
+                              <Zap className="h-4 w-4 text-blue-500" /> Three-Phase Voltage &amp; Frequency
+                            </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value || ""}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10 focus:ring-2 focus:ring-blue-500">
                                   <SelectValue placeholder="Select voltage & frequency…" />
                                 </SelectTrigger>
                               </FormControl>
@@ -2479,7 +2520,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Pre-filled as default in Design Data Sheets for all equipment under this project.
+                              Default power supply spec pre-filled in all Design Data Sheets.
                             </p>
                             <FormMessage />
                           </FormItem>
@@ -2487,6 +2528,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       />
                     </div>
 
+                  </div>
                   </div>
 
                   {/* Cost Lock Warning Banner */}
@@ -3145,7 +3187,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   </div>
                 </TabsContent>
               </Tabs>
-              
+              </div>
+
               {/* Add Project Items Import Dialog inside the Edit Project dialog */}
               <ProjectItemsImport 
                 projectId={projectId} 
