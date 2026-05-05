@@ -111,7 +111,7 @@ interface PackageLine {
   notes: string | null; sortOrder: number;
 }
 interface BuyGroup    { id: number; code: string; label: string; sortOrder: number; }
-interface BuySubgroup { id: number; buyGroupId: number; code: string; label: string; }
+interface BuySubgroup { id: number; buy_group_id: number; code: string; label: string; }
 interface UomMaster   { id: number; code: string; label: string; }
 interface Product     { id: number; productCode: string; description: string; makeOrBuy: string; parentId: number | null; isGrandparent: boolean; }
 
@@ -753,7 +753,7 @@ export default function BuyPackagesPage() {
                         // Build group→subgroups structure from master data
                         const catalog = groups.map((g) => ({
                           ...g,
-                          subgroups: allSubgroups.filter((s) => s.buyGroupId === g.id),
+                          subgroups: allSubgroups.filter((s) => s.buy_group_id === g.id),
                         }));
 
                         return (
