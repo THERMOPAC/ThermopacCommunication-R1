@@ -449,6 +449,126 @@ function PipesAttrsForm({
   );
 }
 
+// ── Fittings requirement builder ─────────────────────────────────────────────
+function buildFittingsRequirement(attrs: Record<string, unknown>): string {
+  const fittingType = (attrs.fitting_type as string)?.trim() || "";
+  const endType     = (attrs.end_type     as string)?.trim() || "";
+  const sizeNb      = (attrs.size_nb      as string)?.trim() || "";
+  const rating      = (attrs.rating       as string)?.trim() || "";
+  const material    = (attrs.material     as string)?.trim() || "";
+  const standard    = (attrs.standard     as string)?.trim() || "";
+
+  const endAbbr: Record<string, string> = {
+    "Threaded":    "THD",
+    "Socket Weld": "SW",
+    "Butt Weld":   "BW",
+    "Flanged":     "FLG",
+  };
+  const endShort = endAbbr[endType] || endType;
+
+  const parts: string[] = [];
+  if (material)    parts.push(material);
+  if (fittingType) parts.push(fittingType);
+  if (sizeNb)      parts.push(`${sizeNb} NB`);
+  if (rating)      parts.push(rating);
+  if (endShort)    parts.push(endShort);
+  if (standard)    parts.push(standard);
+  return parts.join(", ");
+}
+
+// ── Fittings dropdown option lists ───────────────────────────────────────────
+const FITTING_OPTS: Record<string, string[]> = {
+  fitting_type: ["Elbow", "Tee", "Reducer", "Union", "Coupling", "Cap", "Cross", "Nipple"],
+  end_type:     ["Threaded", "Socket Weld", "Butt Weld", "Flanged"],
+  size_nb:      ["15", "20", "25", "32", "40", "50", "65", "80", "100", "150", "200", "250", "300"],
+  rating:       ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
+  material:     ["MS", "CS", "SS 304", "SS 316", "GI", "Alloy Steel"],
+  standard:     ["ASME B16.9", "ASME B16.11", "IS", "DIN", "EN"],
+};
+
+// ── Fittings structured form ──────────────────────────────────────────────────
+function FittingsAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of Object.keys(FITTING_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !FITTING_OPTS[key].includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts = FITTING_OPTS[key];
+    const curVal = (attrs[key] as string) ?? "";
+    const isCustom = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">
+          {label}{required && <span className="text-red-500"> *</span>}
+        </Label>
+        <SearchableSelect
+          value={selectVal}
+          options={opts}
+          placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)}
+        />
+        {isCustom && (
+          <Input
+            className="h-8 text-sm"
+            placeholder="Enter custom value…"
+            value={curVal}
+            onChange={(e) => set(key, e.target.value)}
+            autoFocus
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fitting Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        {renderField("fitting_type", "Fitting Type",    true)}
+        {renderField("end_type",     "End Type"              )}
+        {renderField("size_nb",      "Size (NB)",       true)}
+        {renderField("rating",       "Rating / Class"        )}
+        {renderField("material",     "Material"              )}
+        {renderField("standard",     "Standard"              )}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty}
+            onChange={(e) => onQtyChange(e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -631,6 +751,9 @@ export default function BuyPackagesPage() {
   const isPipesMode =
     (lineDialog.lock?.subgroupCode === "pipes") ||
     (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "pipes");
+  const isFittingsMode =
+    (lineDialog.lock?.subgroupCode === "fittings") ||
+    (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "fittings");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -784,6 +907,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.section_type as string)?.trim()) {
         toast({ title: "Section / Pipe Type is required", variant: "destructive" }); return;
+      }
+    } else if (isFittingsMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.fitting_type as string)?.trim() || !(ta.size_nb as string)?.trim()) {
+        toast({ title: "Fitting Type and Size (NB) are required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -1331,6 +1459,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Section / Pipe Type to generate…"} />
+                  </div>
+                </>
+              ) : isFittingsMode ? (
+                <>
+                  <FittingsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildFittingsRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Fitting Type and Size to generate…"} />
                   </div>
                 </>
               ) : (
