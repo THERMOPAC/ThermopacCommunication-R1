@@ -3048,6 +3048,164 @@ function LevelAttrsForm({
   );
 }
 
+// ── Control Valve requirement builder ────────────────────────────────────────
+function buildControlValveRequirement(attrs: Record<string, unknown>): string {
+  const valveType   = (attrs.valve_type        as string)?.trim() || "";
+  const config      = (attrs.valve_config      as string)?.trim() || "";
+  const sizeNb      = (attrs.size_nb           as string)?.trim() || "";
+  const rating      = (attrs.pressure_rating   as string)?.trim() || "";
+  const actuator    = (attrs.actuator_type     as string)?.trim() || "";
+  const failAction  = (attrs.fail_action       as string)?.trim() || "";
+  const trimMat     = (attrs.trim_material     as string)?.trim() || "";
+  const flowChar    = (attrs.flow_characteristic as string)?.trim() || "";
+  const signal      = (attrs.input_signal      as string)?.trim() || "";
+  const endConn     = (attrs.end_connection    as string)?.trim() || "";
+
+  const trimStr = trimMat ? `${trimMat} Trim` : "";
+  const parts: string[] = [];
+  if (valveType)  parts.push(valveType);
+  if (config)     parts.push(config);
+  if (sizeNb)     parts.push(sizeNb);
+  if (rating)     parts.push(rating);
+  if (actuator)   parts.push(actuator);
+  if (failAction) parts.push(failAction);
+  if (trimStr)    parts.push(trimStr);
+  if (flowChar)   parts.push(flowChar);
+  if (signal)     parts.push(signal);
+  if (endConn)    parts.push(endConn);
+  return parts.join(", ");
+}
+
+const CONTROL_VALVE_OPTS: Record<string, string[]> = {
+  valve_type:           ["Globe Control Valve", "Ball Control Valve", "Butterfly Control Valve", "Eccentric Plug Valve"],
+  valve_config:         ["Two Way", "Three Way (Mixing)", "Three Way (Diverting)"],
+  size_nb:              ["15 NB", "25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB", "200 NB"],
+  pressure_rating:      ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
+  service_type:         ["Flow Control", "Pressure Control", "Level Control", "Temperature Control"],
+  flow_characteristic:  ["Linear", "Equal Percentage", "Quick Opening"],
+  actuator_type:        ["Pneumatic Diaphragm", "Pneumatic Piston", "Electric Actuator", "Hydraulic"],
+  fail_action:          ["Fail Open (FO)", "Fail Close (FC)", "Fail Last (FL)"],
+  end_connection:       ["Flanged", "Threaded", "Butt Weld", "Wafer"],
+  body_material:        ["WCB (CS)", "SS304", "SS316", "Alloy Steel", "Duplex"],
+  trim_material:        ["SS304", "SS316", "Hardened Trim", "Stellite"],
+  seat_type:            ["Metal Seat", "Soft Seat (PTFE)", "Balanced Trim", "Unbalanced Trim"],
+  leakage_class:        ["Class II", "Class III", "Class IV", "Class V", "Class VI"],
+  input_signal:         ["4–20 mA", "0–10 V", "Digital"],
+  positioner:           ["With Positioner", "Without Positioner"],
+  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
+  certification:        ["ATEX", "IECEx", "PESO"],
+};
+
+function ControlValveAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const singleKeys = Object.keys(CONTROL_VALVE_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = CONTROL_VALVE_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = CONTROL_VALVE_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  const areaClass = (attrs.area_classification as string) ?? "";
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Control Valve Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Valve Type")}
+        {renderField("valve_type",   "Control Valve Type", true)}
+        {renderField("valve_config", "Valve Configuration", true)}
+
+        {sec("Size & Rating")}
+        {renderField("size_nb",         "Size (NB)",       true)}
+        {renderField("pressure_rating",  "Pressure Rating", true)}
+
+        {sec("Flow / Service")}
+        {renderField("service_type",       "Service Type")}
+        {renderField("flow_characteristic","Flow Characteristic")}
+
+        {sec("Actuation")}
+        {renderField("actuator_type", "Actuator Type", true)}
+        {renderField("fail_action",   "Fail Action",   true)}
+
+        {sec("Connection")}
+        {renderField("end_connection", "End Connection")}
+        <div />
+
+        {sec("Material")}
+        {renderField("body_material", "Body Material")}
+        {renderField("trim_material", "Trim Material")}
+
+        {sec("Seat / Leakage")}
+        {renderField("seat_type",     "Seat Type")}
+        {renderField("leakage_class", "Leakage Class")}
+
+        {sec("Signal / Control")}
+        {renderField("input_signal", "Input Signal")}
+        {renderField("positioner",   "Positioner")}
+
+        {sec("Hazardous Area (Optional)")}
+        {renderField("area_classification", "Area Classification")}
+        {(areaClass === "Zone 1" || areaClass === "Zone 2")
+          ? renderField("certification", "Certification")
+          : <div />}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Isolation Valve requirement builder ──────────────────────────────────────
 function buildIsolationValveRequirement(attrs: Record<string, unknown>): string {
   const valveType   = (attrs.valve_type        as string)?.trim() || "";
@@ -3952,6 +4110,9 @@ export default function BuyPackagesPage() {
   const isLevelMode =
     (lineDialog.lock?.subgroupCode === "level") ||
     (selectedGroupCode === "instruments" && selectedSubgroupCode === "level");
+  const isControlValveMode =
+    (lineDialog.lock?.subgroupCode === "control") ||
+    (selectedGroupCode === "valves" && selectedSubgroupCode === "control");
   const isIsolationValveMode =
     (lineDialog.lock?.subgroupCode === "isolation") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "isolation");
@@ -4200,6 +4361,26 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.instrument_type as string)?.trim()) {
         toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+    } else if (isControlValveMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.valve_type as string)?.trim()) {
+        toast({ title: "Control Valve Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.valve_config as string)?.trim()) {
+        toast({ title: "Valve Configuration is required", variant: "destructive" }); return;
+      }
+      if (!(ta.size_nb as string)?.trim()) {
+        toast({ title: "Size (NB) is required", variant: "destructive" }); return;
+      }
+      if (!(ta.pressure_rating as string)?.trim()) {
+        toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
+      }
+      if (!(ta.actuator_type as string)?.trim()) {
+        toast({ title: "Actuator Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.fail_action as string)?.trim()) {
+        toast({ title: "Fail Action is required", variant: "destructive" }); return;
       }
     } else if (isIsolationValveMode) {
       const ta = lf.technicalAttributes;
@@ -5082,6 +5263,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isControlValveMode ? (
+                <>
+                  <ControlValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildControlValveRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Valve Type, Size and Actuator to generate…"} />
                   </div>
                 </>
               ) : isIsolationValveMode ? (
