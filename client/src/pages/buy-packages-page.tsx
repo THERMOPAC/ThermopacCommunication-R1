@@ -22,7 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
-  CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle,
+  CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
 } from "lucide-react";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -320,6 +320,13 @@ export default function BuyPackagesPage() {
   const [expandedId,     setExpandedId]     = useState<number | null>(null);
   const [activeGroupTab, setActiveGroupTab] = useState<Record<number, string>>({});
 
+  // Details drawer state
+  const [detailsDrawer, setDetailsDrawer] = useState<{
+    open: boolean;
+    pkg: BuyPackage | null;
+    grp: { id: number; code: string; label: string } | null;
+    sub: { id: number; code: string; label: string } | null;
+  }>({ open: false, pkg: null, grp: null, sub: null });
 
   // Dialogs
   const [showCreate, setShowCreate]     = useState(false);
@@ -820,19 +827,32 @@ export default function BuyPackagesPage() {
                                                           </span>
                                                         )}
                                                       </div>
-                                                      {canWrite && pkg.status === "draft" && (
+                                                      <div className="flex items-center gap-1.5">
+                                                        {canWrite && pkg.status === "draft" && (
+                                                          <Button
+                                                            size="sm" variant="outline"
+                                                            className="h-7 px-2 gap-1 text-xs"
+                                                            onClick={() => openAddLineForSubgroup(
+                                                              pkg,
+                                                              grp.id, grp.code, grp.label,
+                                                              sub.id, sub.code, sub.label,
+                                                            )}
+                                                          >
+                                                            <Plus className="h-3 w-3" /> Add Line
+                                                          </Button>
+                                                        )}
                                                         <Button
                                                           size="sm" variant="outline"
                                                           className="h-7 px-2 gap-1 text-xs"
-                                                          onClick={() => openAddLineForSubgroup(
-                                                            pkg,
-                                                            grp.id, grp.code, grp.label,
-                                                            sub.id, sub.code, sub.label,
-                                                          )}
+                                                          onClick={() => setDetailsDrawer({
+                                                            open: true, pkg,
+                                                            grp: { id: grp.id, code: grp.code, label: grp.label },
+                                                            sub: { id: sub.id, code: sub.code, label: sub.label },
+                                                          })}
                                                         >
-                                                          <Plus className="h-3 w-3" /> Add Line
+                                                          <List className="h-3 w-3" /> Details
                                                         </Button>
-                                                      )}
+                                                      </div>
                                                     </div>
 
                                                     {/* Existing lines */}
@@ -1200,6 +1220,147 @@ export default function BuyPackagesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* ── Subgroup Details Dialog ──────────────────────────────────────── */}
+        {detailsDrawer.open && detailsDrawer.pkg && detailsDrawer.grp && detailsDrawer.sub && (() => {
+          const dpkg = detailsDrawer.pkg!;
+          const dgrp = detailsDrawer.grp!;
+          const dsub = detailsDrawer.sub!;
+          const dlines = expandedLines.filter(
+            (l) => l.buy_group_id === dgrp.id && l.buy_subgroup_id === dsub.id,
+          );
+          const isDraft = dpkg.status === "draft";
+          return (
+            <Dialog
+              open={detailsDrawer.open}
+              onOpenChange={(o) => !o && setDetailsDrawer((s) => ({ ...s, open: false }))}
+            >
+              <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col gap-0 p-0">
+                {/* Header */}
+                <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <DialogTitle className="text-base">
+                        {dgrp.label} — {dsub.label}
+                      </DialogTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {dpkg.packageCode} · {dlines.length} line{dlines.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    {canWrite && isDraft && (
+                      <Button
+                        size="sm" className="h-8 gap-1.5 shrink-0"
+                        onClick={() => {
+                          setDetailsDrawer((s) => ({ ...s, open: false }));
+                          openAddLineForSubgroup(
+                            dpkg,
+                            dgrp.id, dgrp.code, dgrp.label,
+                            dsub.id, dsub.code, dsub.label,
+                          );
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Line
+                      </Button>
+                    )}
+                  </div>
+                </DialogHeader>
+
+                {/* Body — scrollable table */}
+                <div className="flex-1 overflow-auto px-6 py-4">
+                  {dlines.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                      <List className="h-8 w-8 opacity-30" />
+                      <p className="text-sm">No lines added yet for this subgroup.</p>
+                      {canWrite && isDraft && (
+                        <Button
+                          size="sm" variant="outline" className="mt-2 gap-1.5"
+                          onClick={() => {
+                            setDetailsDrawer((s) => ({ ...s, open: false }));
+                            openAddLineForSubgroup(
+                              dpkg,
+                              dgrp.id, dgrp.code, dgrp.label,
+                              dsub.id, dsub.code, dsub.label,
+                            );
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Add First Line
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="text-xs">
+                          <TableHead className="w-8">#</TableHead>
+                          <TableHead>Requirement</TableHead>
+                          <TableHead className="w-16 text-right">Qty</TableHead>
+                          <TableHead className="w-16">UOM</TableHead>
+                          <TableHead className="w-36">Flags</TableHead>
+                          {canWrite && isDraft && <TableHead className="w-16 text-center">Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dlines.map((line, idx) => (
+                          <TableRow key={line.id} className="text-xs align-top">
+                            <TableCell className="text-muted-foreground font-mono pt-3">{idx + 1}</TableCell>
+                            <TableCell className="max-w-xs pt-3">
+                              <p className="leading-snug">{line.generic_requirement}</p>
+                              {line.default_specification && (
+                                <p className="text-muted-foreground text-[11px] mt-0.5 leading-snug">{line.default_specification}</p>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-mono pt-3">{line.default_quantity}</TableCell>
+                            <TableCell className="pt-3">{line.uom_code}</TableCell>
+                            <TableCell className="pt-3">
+                              <div className="flex flex-wrap gap-1">
+                                {line.selection_required   && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">SEL</span>}
+                                {line.datasheet_required   && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">DS</span>}
+                                {line.inspection_required  && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">INSP</span>}
+                                {line.certificate_required && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">CERT</span>}
+                                {line.compliance_required  && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">COMP</span>}
+                                {!line.selection_required && !line.datasheet_required && !line.inspection_required && !line.certificate_required && !line.compliance_required && (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            {canWrite && isDraft && (
+                              <TableCell className="text-center pt-2">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <Button
+                                    variant="ghost" size="sm" className="h-7 w-7 p-0"
+                                    title="Edit line"
+                                    onClick={() => {
+                                      setDetailsDrawer((s) => ({ ...s, open: false }));
+                                      openEditLine(dpkg, line);
+                                    }}
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost" size="sm"
+                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                                    title="Delete line"
+                                    onClick={() => {
+                                      if (confirm("Delete this line?")) {
+                                        deleteLineMutation.mutate({ lineId: line.id });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
 
       </div>
     </Layout>
