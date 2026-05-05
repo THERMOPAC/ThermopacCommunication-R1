@@ -326,10 +326,21 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
       const result = await pool.query(
         `SELECT
-           bph.id, bph.product_id, bph.package_code, bph.name, bph.description,
-           bph.version, bph.status, bph.is_active, bph.created_by, bph.created_at, bph.updated_at,
-           p.product_code, p.description AS product_description, p.item_family,
-           COUNT(bpl.id)::int AS line_count
+           bph.id,
+           bph.product_id        AS "productId",
+           bph.package_code      AS "packageCode",
+           bph.name,
+           bph.description,
+           bph.version,
+           bph.status,
+           bph.is_active         AS "isActive",
+           bph.created_by        AS "createdBy",
+           bph.created_at        AS "createdAt",
+           bph.updated_at        AS "updatedAt",
+           p.product_code        AS "productCode",
+           p.description         AS "productDescription",
+           p.item_family         AS "itemFamily",
+           COUNT(bpl.id)::int    AS "lineCount"
          FROM buy_package_headers bph
          JOIN products p ON p.id = bph.product_id
          LEFT JOIN buy_package_lines bpl ON bpl.buy_package_header_id = bph.id
