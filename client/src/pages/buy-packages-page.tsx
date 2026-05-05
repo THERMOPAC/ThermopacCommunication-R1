@@ -115,6 +115,25 @@ interface BuySubgroup { id: number; buyGroupId: number; code: string; label: str
 interface UomMaster   { id: number; code: string; label: string; }
 interface Product     { id: number; productCode: string; description: string; makeOrBuy: string; parentId: number | null; isGrandparent: boolean; }
 
+// ── Group lines by BUY Group → Subgroup ──────────────────────────────────────
+function groupLines(lines: PackageLine[]) {
+  const groupMap = new Map<number, {
+    groupId: number; groupCode: string; groupLabel: string;
+    subgroups: Map<number, { subgroupId: number; subgroupCode: string; subgroupLabel: string; lines: PackageLine[] }>;
+  }>();
+  for (const line of lines) {
+    if (!groupMap.has(line.buyGroupId)) {
+      groupMap.set(line.buyGroupId, { groupId: line.buyGroupId, groupCode: line.buyGroupCode, groupLabel: line.buyGroupLabel, subgroups: new Map() });
+    }
+    const grp = groupMap.get(line.buyGroupId)!;
+    if (!grp.subgroups.has(line.buySubgroupId)) {
+      grp.subgroups.set(line.buySubgroupId, { subgroupId: line.buySubgroupId, subgroupCode: line.buySubgroupCode, subgroupLabel: line.buySubgroupLabel, lines: [] });
+    }
+    grp.subgroups.get(line.buySubgroupId)!.lines.push(line);
+  }
+  return Array.from(groupMap.values()).map((g) => ({ ...g, subgroups: Array.from(g.subgroups.values()) }));
+}
+
 // ── Plates requirement builder ────────────────────────────────────────────────
 function buildPlatesRequirement(attrs: Record<string, unknown>): string {
   const plateType    = (attrs.plate_type     as string)?.trim() || "";
@@ -304,7 +323,8 @@ export default function BuyPackagesPage() {
   const [editPkg,    setEditPkg]        = useState<BuyPackage | null>(null);
   const [lineDialog, setLineDialog]     = useState<{
     open: boolean; pkgId: number; pkgStatus: string; editLine: PackageLine | null;
-  }>({ open: false, pkgId: 0, pkgStatus: "", editLine: null });
+    lock: { groupId: string; groupCode: string; groupLabel: string; subgroupId: string; subgroupCode: string; subgroupLabel: string } | null;
+  }>({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null });
 
   // Header form
   const [hdr, setHdr] = useState({ productId: "", packageCode: "", name: "", description: "" });
@@ -359,7 +379,9 @@ export default function BuyPackagesPage() {
 
   const selectedGroupCode    = groups.find((g)   => String(g.id) === String(lf.buyGroupId))?.code    ?? "";
   const selectedSubgroupCode = subgroups.find((s) => String(s.id) === String(lf.buySubgroupId))?.code ?? "";
-  const isPlatesMode = selectedGroupCode === "raw_materials" && selectedSubgroupCode === "plates";
+  const isPlatesMode =
+    (lineDialog.lock?.subgroupCode === "plates") ||
+    (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "plates");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -451,7 +473,19 @@ export default function BuyPackagesPage() {
 
   function openAddLine(pkg: BuyPackage) {
     setLf({ ...EMPTY_LINE });
-    setLineDialog({ open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null });
+    setLineDialog({ open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null, lock: null });
+  }
+
+  function openAddLineForSubgroup(
+    pkg: BuyPackage,
+    groupId: number, groupCode: string, groupLabel: string,
+    subgroupId: number, subgroupCode: string, subgroupLabel: string,
+  ) {
+    setLf({ ...EMPTY_LINE, buyGroupId: String(groupId), buySubgroupId: String(subgroupId) });
+    setLineDialog({
+      open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null,
+      lock: { groupId: String(groupId), groupCode, groupLabel, subgroupId: String(subgroupId), subgroupCode, subgroupLabel },
+    });
   }
 
   function openEditLine(pkg: BuyPackage, line: PackageLine) {
@@ -464,7 +498,10 @@ export default function BuyPackagesPage() {
       complianceRequired: line.complianceRequired, notes: line.notes ?? "",
       technicalAttributes: (line.technicalAttributes ?? {}) as Record<string, unknown>,
     });
-    setLineDialog({ open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: line });
+    setLineDialog({
+      open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: line,
+      lock: { groupId: String(line.buyGroupId), groupCode: line.buyGroupCode, groupLabel: line.buyGroupLabel, subgroupId: String(line.buySubgroupId), subgroupCode: line.buySubgroupCode, subgroupLabel: line.buySubgroupLabel },
+    });
   }
 
   function submitHeader(isEdit: boolean) {
@@ -687,11 +724,13 @@ export default function BuyPackagesPage() {
                         </TableCell>
                       </TableRow>
 
-                      {/* Expanded lines */}
+                      {/* Expanded lines — grouped by Group → Subgroup */}
                       {isExpanded && (
                         <TableRow className="hover:bg-transparent">
                           <TableCell colSpan={8} className="p-0 bg-muted/20 border-t">
-                            <div className="px-6 py-4 space-y-3">
+                            <div className="px-6 py-4 space-y-5">
+
+                              {/* Header row */}
                               <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold text-foreground">
                                   Package Lines — <span className="font-mono text-xs text-muted-foreground">{pkg.packageCode}</span>
@@ -718,61 +757,98 @@ export default function BuyPackagesPage() {
                                   )}
                                 </p>
                               ) : (
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow className="bg-transparent border-b">
-                                      <TableHead className="w-10 py-2">#</TableHead>
-                                      <TableHead className="py-2">Group</TableHead>
-                                      <TableHead className="py-2">Subgroup</TableHead>
-                                      <TableHead className="py-2">UOM</TableHead>
-                                      <TableHead className="py-2">Requirement</TableHead>
-                                      <TableHead className="text-right py-2">Qty</TableHead>
-                                      <TableHead className="py-2">Flags</TableHead>
-                                      {canWrite && pkg.status === "draft" && <TableHead className="py-2 w-20" />}
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {expandedLines.map((line) => (
-                                      <TableRow key={line.id} className="hover:bg-muted/30">
-                                        <TableCell className="font-mono text-xs py-2">{line.lineNumber}</TableCell>
-                                        <TableCell className="py-2 text-xs font-medium">{line.buyGroupLabel}</TableCell>
-                                        <TableCell className="py-2 text-xs">{line.buySubgroupLabel}</TableCell>
-                                        <TableCell className="py-2">
-                                          <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">
-                                            {line.uomCode}
-                                          </span>
-                                        </TableCell>
-                                        <TableCell className="py-2 text-sm max-w-[200px] truncate">
-                                          {line.genericRequirement}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-right text-sm">{line.defaultQuantity}</TableCell>
-                                        <TableCell className="py-2"><FlagBadges line={line} /></TableCell>
-                                        {canWrite && pkg.status === "draft" && (
-                                          <TableCell className="py-2">
-                                            <div className="flex items-center gap-0.5">
-                                              <Button
-                                                variant="ghost" size="sm"
-                                                onClick={() => openEditLine(pkg, line)}
-                                              >
-                                                <Edit2 className="h-3.5 w-3.5" />
-                                              </Button>
-                                              <Button
-                                                variant="ghost" size="sm"
-                                                className="text-red-500 hover:text-red-700"
-                                                onClick={() => {
-                                                  if (confirm("Delete this line?"))
-                                                    deleteLineMutation.mutate({ lineId: line.id });
-                                                }}
-                                              >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                              </Button>
+                                /* Grouped view: BUY Group → Subgroup → lines */
+                                <div className="space-y-5">
+                                  {groupLines(expandedLines).map((grp) => (
+                                    <div key={grp.groupId} className="space-y-3">
+                                      {/* BUY Group header */}
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold text-foreground tracking-tight">{grp.groupLabel}</span>
+                                        <div className="flex-1 h-px bg-border" />
+                                      </div>
+
+                                      {/* Subgroups */}
+                                      {grp.subgroups.map((sub) => (
+                                        <div key={sub.subgroupId} className="ml-4 space-y-1.5">
+                                          {/* Subgroup header */}
+                                          <div className="flex items-center justify-between py-1">
+                                            <div className="flex items-center gap-2">
+                                              <div className="w-1 h-4 rounded-full bg-primary/40" />
+                                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                {sub.subgroupLabel}
+                                              </span>
+                                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                                                {sub.lines.length} {sub.lines.length === 1 ? "line" : "lines"}
+                                              </span>
                                             </div>
-                                          </TableCell>
-                                        )}
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
+                                            {canWrite && pkg.status === "draft" && (
+                                              <Button
+                                                size="sm" variant="ghost"
+                                                className="h-6 gap-1 text-xs text-primary hover:text-primary hover:bg-primary/10"
+                                                onClick={() => openAddLineForSubgroup(
+                                                  pkg,
+                                                  grp.groupId, grp.groupCode, grp.groupLabel,
+                                                  sub.subgroupId, sub.subgroupCode, sub.subgroupLabel,
+                                                )}
+                                              >
+                                                <Plus className="h-3 w-3" /> Add Line
+                                              </Button>
+                                            )}
+                                          </div>
+
+                                          {/* Lines table for this subgroup */}
+                                          <div className="rounded-md border overflow-hidden">
+                                            <Table>
+                                              <TableHeader>
+                                                <TableRow className="bg-muted/40 border-b">
+                                                  <TableHead className="w-10 py-1.5 text-[11px]">#</TableHead>
+                                                  <TableHead className="py-1.5 text-[11px]">UOM</TableHead>
+                                                  <TableHead className="py-1.5 text-[11px]">Requirement</TableHead>
+                                                  <TableHead className="text-right py-1.5 text-[11px]">Qty</TableHead>
+                                                  <TableHead className="py-1.5 text-[11px]">Flags</TableHead>
+                                                  {canWrite && pkg.status === "draft" && <TableHead className="py-1.5 w-16" />}
+                                                </TableRow>
+                                              </TableHeader>
+                                              <TableBody>
+                                                {sub.lines.map((line) => (
+                                                  <TableRow key={line.id} className="hover:bg-muted/30">
+                                                    <TableCell className="font-mono text-xs py-2">{line.lineNumber}</TableCell>
+                                                    <TableCell className="py-2">
+                                                      <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">
+                                                        {line.uomCode}
+                                                      </span>
+                                                    </TableCell>
+                                                    <TableCell className="py-2 text-sm max-w-[260px] truncate">
+                                                      {line.genericRequirement}
+                                                    </TableCell>
+                                                    <TableCell className="py-2 text-right text-sm">{line.defaultQuantity}</TableCell>
+                                                    <TableCell className="py-2"><FlagBadges line={line} /></TableCell>
+                                                    {canWrite && pkg.status === "draft" && (
+                                                      <TableCell className="py-2">
+                                                        <div className="flex items-center gap-0.5">
+                                                          <Button variant="ghost" size="sm" onClick={() => openEditLine(pkg, line)}>
+                                                            <Edit2 className="h-3.5 w-3.5" />
+                                                          </Button>
+                                                          <Button
+                                                            variant="ghost" size="sm"
+                                                            className="text-red-500 hover:text-red-700"
+                                                            onClick={() => { if (confirm("Delete this line?")) deleteLineMutation.mutate({ lineId: line.id }); }}
+                                                          >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                          </Button>
+                                                        </div>
+                                                      </TableCell>
+                                                    )}
+                                                  </TableRow>
+                                                ))}
+                                              </TableBody>
+                                            </Table>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ))}
+                                </div>
                               )}
                             </div>
                           </TableCell>
@@ -910,15 +986,15 @@ export default function BuyPackagesPage() {
         {/* ── Add / Edit Line Dialog ────────────────────────────────────────── */}
         <Dialog
           open={lineDialog.open}
-          onOpenChange={(o) => !o && setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null })}
+          onOpenChange={(o) => !o && setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null })}
         >
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
               <DialogDescription>
-                {lineDialog.editLine
-                  ? "Modify this procurement line."
-                  : "Define a procurement requirement for this package."}
+                {lineDialog.lock
+                  ? <>Adding to <strong>{lineDialog.lock.groupLabel}</strong> → <strong>{lineDialog.lock.subgroupLabel}</strong></>
+                  : lineDialog.editLine ? "Modify this procurement line." : "Define a procurement requirement for this package."}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
@@ -927,28 +1003,40 @@ export default function BuyPackagesPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label>Group <span className="text-red-500">*</span></Label>
-                  <Select
-                    value={lf.buyGroupId}
-                    onValueChange={(v) => setLf((f) => ({ ...f, buyGroupId: v, buySubgroupId: "", technicalAttributes: {} }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent>
-                      {groups.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {lineDialog.lock ? (
+                    <div className="h-9 px-3 flex items-center text-sm bg-muted rounded-md border font-medium">
+                      {lineDialog.lock.groupLabel}
+                    </div>
+                  ) : (
+                    <Select
+                      value={lf.buyGroupId}
+                      onValueChange={(v) => setLf((f) => ({ ...f, buyGroupId: v, buySubgroupId: "", technicalAttributes: {}, genericRequirement: "" }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                      <SelectContent>
+                        {groups.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Subgroup <span className="text-red-500">*</span></Label>
-                  <Select
-                    value={lf.buySubgroupId}
-                    onValueChange={(v) => setLf((f) => ({ ...f, buySubgroupId: v, technicalAttributes: {}, genericRequirement: "" }))}
-                    disabled={!lf.buyGroupId}
-                  >
-                    <SelectTrigger><SelectValue placeholder={lf.buyGroupId ? "Select…" : "Pick group first"} /></SelectTrigger>
-                    <SelectContent>
-                      {subgroups.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {lineDialog.lock ? (
+                    <div className="h-9 px-3 flex items-center text-sm bg-muted rounded-md border">
+                      {lineDialog.lock.subgroupLabel}
+                    </div>
+                  ) : (
+                    <Select
+                      value={lf.buySubgroupId}
+                      onValueChange={(v) => setLf((f) => ({ ...f, buySubgroupId: v, technicalAttributes: {}, genericRequirement: "" }))}
+                      disabled={!lf.buyGroupId}
+                    >
+                      <SelectTrigger><SelectValue placeholder={lf.buyGroupId ? "Select…" : "Pick group first"} /></SelectTrigger>
+                      <SelectContent>
+                        {subgroups.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>UOM <span className="text-red-500">*</span></Label>
