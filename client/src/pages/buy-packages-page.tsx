@@ -1,4 +1,5 @@
 import { useState, Fragment, useCallback } from "react";
+import { Document, Page, View, Text, StyleSheet, pdf } from "@react-pdf/renderer";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -2951,6 +2952,171 @@ function buildDatasheetSections(
   }];
 }
 
+// ── Datasheet PDF Document (react-pdf) ───────────────────────────────────────
+const pdfStyles = StyleSheet.create({
+  page: {
+    fontFamily: "Helvetica",
+    fontSize: 9,
+    color: "#1a1a1a",
+    paddingTop: 40,
+    paddingBottom: 52,
+    paddingHorizontal: 42,
+    backgroundColor: "#ffffff",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    borderBottomWidth: 2,
+    borderBottomColor: "#1e3a5f",
+    paddingBottom: 8,
+    marginBottom: 14,
+  },
+  headerTitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Bold",
+    color: "#1e3a5f",
+    marginBottom: 3,
+  },
+  headerSub: { fontSize: 8, color: "#555" },
+  headerRight: { textAlign: "right" },
+  headerRightStrong: { fontSize: 9, fontFamily: "Helvetica-Bold", color: "#333", marginBottom: 2 },
+  headerRightSmall: { fontSize: 8, color: "#666" },
+  reqBlock: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 0.75,
+    borderColor: "#cbd5e1",
+    borderRadius: 3,
+    padding: 8,
+    marginBottom: 14,
+  },
+  reqLabel: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 3,
+  },
+  reqText: {
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    color: "#0f172a",
+    marginBottom: 2,
+  },
+  reqQty: { fontSize: 7.5, color: "#64748b" },
+  sectionTitle: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#1e3a5f",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    borderBottomWidth: 0.75,
+    borderBottomColor: "#93c5fd",
+    paddingBottom: 3,
+    marginBottom: 5,
+    marginTop: 12,
+  },
+  fieldsGrid: { flexDirection: "row", flexWrap: "wrap" },
+  fieldRow: { width: "50%", flexDirection: "row", paddingVertical: 2, paddingRight: 6 },
+  fieldLabel: { width: 105, fontSize: 8, color: "#64748b", flexShrink: 0 },
+  fieldValue:         { flex: 1, fontSize: 8, color: "#0f172a" },
+  fieldValueBold:     { flex: 1, fontSize: 8, color: "#0f172a", fontFamily: "Helvetica-Bold" },
+  fieldValueMissing:  { flex: 1, fontSize: 8, color: "#cbd5e1" },
+  divider: { borderBottomWidth: 0.5, borderBottomColor: "#e2e8f0", marginVertical: 4 },
+  footer: {
+    position: "absolute",
+    bottom: 24,
+    left: 42,
+    right: 42,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: 0.5,
+    borderTopColor: "#d1d5db",
+    paddingTop: 5,
+  },
+  footerText: { fontSize: 7, color: "#9ca3af" },
+});
+
+function DatasheetPDFDocument({
+  line,
+  sections,
+}: {
+  line: PackageLine;
+  sections: DatasheetSection[];
+}) {
+  return (
+    <Document
+      title={`Datasheet — ${line.generic_requirement}`}
+      author="THERMOPAC ENGINEERING PVT LTD"
+      subject="BUY Package Catalog Datasheet"
+    >
+      <Page size="A4" style={pdfStyles.page}>
+        {/* Header */}
+        <View style={pdfStyles.header}>
+          <View>
+            <Text style={pdfStyles.headerTitle}>THERMOPAC — ITEM DATASHEET</Text>
+            <Text style={pdfStyles.headerSub}>
+              {line.buy_group_label} / {line.buy_subgroup_label}
+            </Text>
+          </View>
+          <View style={pdfStyles.headerRight}>
+            <Text style={pdfStyles.headerRightStrong}>BUY Package Catalog</Text>
+            <Text style={pdfStyles.headerRightSmall}>
+              Qty: {line.default_quantity} {line.uom_code}
+            </Text>
+          </View>
+        </View>
+
+        {/* Generic Requirement */}
+        <View style={pdfStyles.reqBlock}>
+          <Text style={pdfStyles.reqLabel}>Generic Requirement</Text>
+          <Text style={pdfStyles.reqText}>{line.generic_requirement}</Text>
+          <Text style={pdfStyles.reqQty}>Quantity: {line.default_quantity} {line.uom_code}</Text>
+        </View>
+
+        {/* Sections */}
+        {sections.map((sec) => (
+          <View key={sec.title} wrap={false}>
+            <Text style={pdfStyles.sectionTitle}>{sec.title}</Text>
+            <View style={pdfStyles.fieldsGrid}>
+              {sec.fields.map((f) => (
+                <View key={f.label} style={pdfStyles.fieldRow}>
+                  <Text style={pdfStyles.fieldLabel}>{f.label}</Text>
+                  <Text
+                    style={
+                      f.value === "—"
+                        ? pdfStyles.fieldValueMissing
+                        : f.highlight
+                        ? pdfStyles.fieldValueBold
+                        : pdfStyles.fieldValue
+                    }
+                  >
+                    {f.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {/* Footer — fixed on every page */}
+        <View style={pdfStyles.footer} fixed>
+          <Text style={pdfStyles.footerText}>
+            THERMOPAC ENGINEERING PVT LTD — BUY Package Catalog
+          </Text>
+          <Text
+            style={pdfStyles.footerText}
+            render={({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
+              `Page ${pageNumber} of ${totalPages}`
+            }
+          />
+        </View>
+      </Page>
+    </Document>
+  );
+}
+
 // ── Datasheet Completeness ────────────────────────────────────────────────────
 type DatasheetCompleteness = { score: number; filled: number; total: number; criticalMissing: string[] };
 
@@ -2995,6 +3161,8 @@ function DatasheetPreviewDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   if (!line) return null;
   const isMotorCode  = line.buy_subgroup_code === "non_flameproof" || line.buy_subgroup_code === "flameproof";
   const attrs        = line.technical_attributes ?? {};
@@ -3003,6 +3171,28 @@ function DatasheetPreviewDialog({
 
   const scoreColor = completeness.score >= 80 ? "text-green-600" : completeness.score >= 50 ? "text-amber-600" : "text-red-600";
   const barColor   = completeness.score >= 80 ? "bg-green-500"  : completeness.score >= 50 ? "bg-amber-500"  : "bg-red-500";
+
+  async function handleDownloadPDF() {
+    setPdfLoading(true);
+    try {
+      const blob = await pdf(
+        <DatasheetPDFDocument line={line} sections={sections} />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = line.generic_requirement.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_").slice(0, 50);
+      a.download = `Datasheet_${safeName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -3120,8 +3310,20 @@ function DatasheetPreviewDialog({
 
         {/* Screen-only footer */}
         <DialogFooter className="gap-2 ds-no-print">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPDF}
+            disabled={pdfLoading}
+          >
+            {pdfLoading
+              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              : <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+            }
+            {pdfLoading ? "Generating…" : "Download PDF"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="h-3.5 w-3.5 mr-1.5" /> Print / Export
+            <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
           </Button>
           <Button size="sm" onClick={onClose}>Close</Button>
         </DialogFooter>
