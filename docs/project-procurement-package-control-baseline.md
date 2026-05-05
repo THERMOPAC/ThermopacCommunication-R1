@@ -491,24 +491,38 @@ Same layout pattern as `/epc/bom-controls`. Project selector, status filter, sta
 
 **Pattern:**
 ```
-{continentCode}/{countryCode}/DATASHEETS/{projectCode}/{listNumber}/{tagNo}/{lineId}_ds-rev-{revisionSeq}.{ext}
+TPEL/{CO}/{CC}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/{listNumber}/{tagNo}/{lineId}_ds-rev-{revisionSeq}.{ext}
 ```
+
+**Segment definitions:**
+
+| Segment | Meaning | Source |
+|---|---|---|
+| `TPEL` | Fixed root prefix (Thermopac Equipments Pvt Ltd) | Hardcoded |
+| `{CO}` | Country Code | `projects.countryCode` (e.g., `IN`) |
+| `{CC}` | Continent Code | `projects.continentCode` (e.g., `AS`) |
+| `{Cust}` | Customer BP code | `customers.bpCode` joined via `projects.customerId` |
+| `{FY}` | Financial year code | `projects.fyCode` (e.g., `FY25-26`) |
+| `{NNN}` | Project sequence number | `projects.projectSeq` (e.g., `013`) |
+| `PROCUREMENT/DATASHEETS` | Fixed module segment | Hardcoded |
+| `{listNumber}` | Buy list number | `project_buy_list_headers.list_number` |
+| `{tagNo}` | Equipment tag (sanitized) | `project_buy_list_lines.tag_no` (spaces → underscores; special chars stripped) |
+| `{lineId}` | Buy list line PK | `project_buy_list_lines.id` |
+| `{revisionSeq}` | Datasheet upload revision counter | `buy_list_line_selections.datasheet_revision_seq` |
+| `{ext}` | File extension | Derived from uploaded file MIME type |
 
 **Example:**
 ```
-IN/IN/DATASHEETS/2627-013/2627-013-BPL-001/P-101A/42_ds-rev-1.pdf
+TPEL/IN/AS/2627/FY25-26/013/PROCUREMENT/DATASHEETS/2627-013-BPL-001/P-101A/42_ds-rev-1.pdf
 ```
 
-**Components resolved by server:**
-- `continentCode` / `countryCode` — from `projects` row
-- `projectCode` — from `projects.code`
-- `listNumber` — from `project_buy_list_headers.list_number`
-- `tagNo` — from `project_buy_list_lines.tag_no` (sanitized: spaces → underscores, special chars stripped)
-- `lineId` — `project_buy_list_lines.id`
-- `revisionSeq` — `buy_list_line_selections.datasheet_revision_seq`
-- `ext` — derived from uploaded file MIME type
+**Path construction notes:**
+- All segments are resolved server-side at upload time from the project, list header, and line rows
+- `{Cust}` falls back to `projects.code` prefix (first segment before `-`) if `customers.bpCode` is null
+- `{tagNo}` sanitization: lowercase, spaces and `/` → underscores, characters outside `[a-z0-9_\-]` stripped
+- The full path is stored in `buy_list_line_selections.datasheet_gcs_object_path`; the client never supplies or influences any segment
 
-On re-upload after rejection: `datasheet_revision_seq++`; old GCS object queued in `gcs_object_deletions` table (existing mechanism).
+On re-upload after rejection: `datasheet_revision_seq` increments; the previous `datasheet_gcs_object_path` is queued in `gcs_object_deletions` table (existing mechanism) before the new path is written.
 
 ---
 
@@ -747,7 +761,7 @@ The following corrections from the review session are confirmed and applied in t
 | 2 | **Add `project_items.tag_no varchar(80)`** | Phase 4 schema additions; used as dedup key in raise-pr |
 | 3 | **Enforce subgroup belongs to group at API layer** | Phase 1 `POST /lines`, `PATCH /buy-package-lines/:id`; Phase 2 `POST /lines`, `PATCH /buy-list-lines/:id` |
 | 4 | **Do not accept client-provided GCS paths** | Phase 3: only file bytes accepted from client; all GCS fields server-set |
-| 5 | **Datasheet GCS path must be server-generated** | Phase 3: path constructed from project + list + tag_no + line id + revision_seq |
+| 5 | **Datasheet GCS path must be server-generated** | Phase 3: path pattern `TPEL/{CO}/{CC}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/{listNumber}/{tagNo}/{lineId}_ds-rev-{seq}.{ext}` — CO = Country Code, CC = Continent Code; all segments resolved server-side; no client input accepted |
 | 6 | **Keep existing procurement chain unchanged** | Phase 4: only two additive columns on `item_planning_records`; no other existing tables modified |
 
 ---
@@ -807,7 +821,7 @@ To be completed during and after implementation. Each item requires evidence bef
 ### Datasheet Upload Path Test
 
 - [ ] Upload datasheet for a released buy list line
-- [ ] Confirm server constructs path matching pattern: `{continentCode}/{countryCode}/DATASHEETS/{projectCode}/{listNumber}/{tagNo}/{lineId}_ds-rev-{revisionSeq}.{ext}`
+- [ ] Confirm server constructs path matching pattern: `TPEL/{CO}/{CC}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/{listNumber}/{tagNo}/{lineId}_ds-rev-{revisionSeq}.{ext}` (CO = Country Code, CC = Continent Code)
 - [ ] Confirm client cannot inject GCS path (any `gcsObjectPath` in body is ignored)
 - [ ] Reject line; re-upload; confirm `datasheet_revision_seq` incremented to 2 in DB
 - [ ] Confirm old GCS object path queued in `gcs_object_deletions` table after rejection re-upload
