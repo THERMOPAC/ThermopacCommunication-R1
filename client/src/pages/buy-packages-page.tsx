@@ -3282,6 +3282,178 @@ function PanelAttrsForm({
   );
 }
 
+// ── Cabling requirement builder ───────────────────────────────────────────────
+function buildCablingRequirement(attrs: Record<string, unknown>): string {
+  const cableType    = (attrs.cable_type        as string)?.trim() || "";
+  const numCores     = (attrs.num_cores         as string)?.trim() || "";
+  const cableSize    = (attrs.cable_size        as string)?.trim() || "";
+  const insulation   = (attrs.insulation_type   as string)?.trim() || "";
+  const armour       = (attrs.armour_type       as string)?.trim() || "";
+  const voltageGrade = (attrs.voltage_grade     as string)?.trim() || "";
+  const layingType   = (attrs.laying_type       as string)?.trim() || "";
+  const conductor    = (attrs.conductor_material as string)?.trim() || "";
+
+  const coreStr      = numCores && cableSize ? `${numCores}C x ${cableSize} sq.mm` : cableSize ? `${cableSize} sq.mm` : "";
+  const armourAbbr   = armour.startsWith("Unarmoured") ? "Unarmoured" : armour.includes("Armoured") ? "Armoured" : armour;
+  const insulStr     = [insulation, armourAbbr].filter(Boolean).join(" ");
+
+  const parts: string[] = [];
+  if (cableType)    parts.push(cableType);
+  if (coreStr)      parts.push(coreStr);
+  if (insulStr)     parts.push(insulStr);
+  if (voltageGrade) parts.push(voltageGrade);
+  if (layingType)   parts.push(layingType);
+  if (conductor)    parts.push(conductor);
+  return parts.join(", ");
+}
+
+const CABLING_OPTS: Record<string, string[]> = {
+  cable_type:         ["Power Cable", "Control Cable", "Instrument Cable", "Communication Cable", "Earthing Cable"],
+  conductor_material: ["Copper", "Aluminum"],
+  core_type:          ["Single Core", "Multi Core"],
+  cable_size:         ["1.5", "2.5", "4", "6", "10", "16", "25", "35", "50", "70", "95", "120", "150", "185", "240"],
+  num_cores:          ["1", "2", "3", "3.5", "4", "5", "7", "10", "12", "24"],
+  voltage_grade:      ["1.1 kV", "3.3 kV", "6.6 kV", "11 kV"],
+  insulation_type:    ["PVC", "XLPE", "EPR"],
+  sheath_type:        ["PVC", "FRLS", "FRLSZH", "PE"],
+  armour_type:        ["Unarmoured", "Armoured (Steel Wire)", "Armoured (Aluminum Wire)"],
+  laying_type:        ["Underground", "Cable Tray", "Conduit", "Direct Buried"],
+  application:        ["Motor Power", "Panel Interconnection", "Instrument Signal", "Communication", "Earthing"],
+  area_classification:["Safe Area", "Zone 1", "Zone 2"],
+  cable_certification:["CE", "IEC", "ATEX", "IECEx", "Flame Retardant", "Fire Resistant"],
+};
+
+const CABLE_MAKES = ["Polycab", "Havells", "Finolex", "KEI", "Nexans", "Prysmian", "RR Kabel", "Gloster", "Birla Cables"];
+
+function CablingAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const singleKeys = Object.keys(CABLING_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = CABLING_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  const selectedMakes: string[] = (() => {
+    const raw = (attrs.approved_makes as string) ?? "";
+    return raw ? raw.split(",").map(s => s.trim()).filter(Boolean) : [];
+  })();
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function toggleMake(make: string) {
+    const updated = selectedMakes.includes(make)
+      ? selectedMakes.filter(m => m !== make)
+      : [...selectedMakes, make];
+    set("approved_makes", updated.join(", "));
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = CABLING_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cable Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Cable Type")}
+        {renderField("cable_type",         "Cable Type",          true)}
+        {renderField("conductor_material", "Conductor Material")}
+        {renderField("core_type",          "Core Type")}
+        <div />
+
+        {sec("Size / Rating")}
+        {renderField("cable_size",    "Cable Size (sq.mm)", true)}
+        {renderField("num_cores",     "Number of Cores")}
+        {renderField("voltage_grade", "Voltage Grade")}
+        <div />
+
+        {sec("Insulation / Construction")}
+        {renderField("insulation_type", "Insulation Type")}
+        {renderField("sheath_type",     "Sheath Type")}
+        <div className="col-span-2">{renderField("armour_type", "Armour Type")}</div>
+
+        {sec("Installation")}
+        {renderField("laying_type", "Laying Type")}
+        {renderField("application", "Application")}
+
+        {sec("Area / Certification")}
+        {renderField("area_classification", "Area Classification")}
+        {renderField("cable_certification", "Cable Certification")}
+
+        {sec("Approved Makes")}
+        <div className="col-span-2 space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {CABLE_MAKES.map(make => (
+              <button key={make} type="button" onClick={() => toggleMake(make)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  selectedMakes.includes(make)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary"
+                }`}>
+                {make}
+              </button>
+            ))}
+          </div>
+          {selectedMakes.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">Selected: {selectedMakes.join(", ")}</p>
+          )}
+          <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
+            value={(attrs.approved_makes_other as string) ?? ""}
+            onChange={(e) => set("approved_makes_other", e.target.value)} />
+        </div>
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Length (m) <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Control Valve requirement builder ────────────────────────────────────────
 function buildControlValveRequirement(attrs: Record<string, unknown>): string {
   const valveType   = (attrs.valve_type        as string)?.trim() || "";
@@ -4505,6 +4677,9 @@ export default function BuyPackagesPage() {
   const isPanelMode =
     (lineDialog.lock?.subgroupCode === "panels") ||
     (selectedGroupCode === "electrical_control" && selectedSubgroupCode === "panels");
+  const isCablingMode =
+    (lineDialog.lock?.subgroupCode === "cabling") ||
+    (selectedGroupCode === "electrical_control" && selectedSubgroupCode === "cabling");
   const isControlValveMode =
     (lineDialog.lock?.subgroupCode === "control") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "control");
@@ -4759,6 +4934,14 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.instrument_type as string)?.trim()) {
         toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+    } else if (isCablingMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.cable_type as string)?.trim()) {
+        toast({ title: "Cable Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.cable_size as string)?.trim()) {
+        toast({ title: "Cable Size is required", variant: "destructive" }); return;
       }
     } else if (isPanelMode) {
       const ta = lf.technicalAttributes;
@@ -5687,6 +5870,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isCablingMode ? (
+                <>
+                  <CablingAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildCablingRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Cable Type and Size to generate…"} />
                   </div>
                 </>
               ) : isPanelMode ? (
