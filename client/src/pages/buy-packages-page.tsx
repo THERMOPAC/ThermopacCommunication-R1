@@ -3183,8 +3183,8 @@ function PanelAttrsForm({
   const enclosureType = (attrs.enclosure_type as string) ?? "";
   const areaClass     = (attrs.area_classification as string) ?? "";
 
-  const isPLCPanel   = ["PLC Panel", "Control Panel", "Instrument Panel"].some(t => panelType.includes(t.split(" ")[0]));
-  const isFeederPanel = ["PCC", "MCC", "VFD"].some(t => panelType.includes(t));
+  const isPLCPanel    = panelType === "PLC Panel" || panelType === "Control Panel" || panelType === "Instrument Panel";
+  const isFeederPanel = panelType === "PCC (Power Control Center)" || panelType === "MCC (Motor Control Center)" || panelType === "VFD Panel";
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
