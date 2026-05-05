@@ -19,6 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle,
@@ -317,6 +318,7 @@ export default function BuyPackagesPage() {
   const [productFilter,  setProductFilter]  = useState<string>("all");
   const [search,         setSearch]         = useState("");
   const [expandedId,     setExpandedId]     = useState<number | null>(null);
+  const [activeGroupTab, setActiveGroupTab] = useState<Record<number, string>>({});
 
 
   // Dialogs
@@ -770,106 +772,113 @@ export default function BuyPackagesPage() {
                                   <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
                                     <Loader2 className="h-4 w-4 animate-spin" /> Loading…
                                   </div>
-                                ) : (
-                                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                    {catalog.map((grp) => {
-                                      const grpLinesMap = linesMap.get(grp.id);
-                                      const grpLineCount = grpLinesMap
-                                        ? Array.from(grpLinesMap.values()).reduce((a, v) => a + v.length, 0)
-                                        : 0;
-                                      return (
-                                        <div
-                                          key={grp.id}
-                                          className="rounded-lg border bg-card shadow-sm flex flex-col"
-                                        >
-                                          {/* Group card header */}
-                                          <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/40 rounded-t-lg">
-                                            <span className="text-sm font-bold tracking-tight">{grp.label}</span>
-                                            {grpLineCount > 0 && (
-                                              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">
-                                                {grpLineCount} line{grpLineCount !== 1 ? "s" : ""}
-                                              </span>
-                                            )}
-                                          </div>
+                                ) : (() => {
+                                  const tabVal = activeGroupTab[pkg.id] ?? String(catalog[0]?.id ?? "");
+                                  return (
+                                    <Tabs
+                                      value={tabVal}
+                                      onValueChange={(v) => setActiveGroupTab((prev) => ({ ...prev, [pkg.id]: v }))}
+                                    >
+                                      {/* Tab strip — one trigger per BUY Group */}
+                                      <TabsList className="flex-wrap h-auto gap-1 bg-muted/50 p-1">
+                                        {catalog.map((grp) => {
+                                          const grpLineCount = Array.from(linesMap.get(grp.id)?.values() ?? []).reduce((a, v) => a + v.length, 0);
+                                          return (
+                                            <TabsTrigger
+                                              key={grp.id}
+                                              value={String(grp.id)}
+                                              className="text-xs gap-1.5"
+                                            >
+                                              {grp.label}
+                                              {grpLineCount > 0 && (
+                                                <span className="ml-1 rounded-full bg-primary/15 text-primary px-1.5 py-0 text-[10px] font-semibold">
+                                                  {grpLineCount}
+                                                </span>
+                                              )}
+                                            </TabsTrigger>
+                                          );
+                                        })}
+                                      </TabsList>
 
-                                          {/* Subgroup rows */}
-                                          <div className="divide-y flex-1">
-                                            {grp.subgroups.map((sub) => {
-                                              const subLines = grpLinesMap?.get(sub.id) ?? [];
-                                              return (
-                                                <div key={sub.id} className="px-4 py-2 space-y-1.5">
-                                                  {/* Subgroup row */}
-                                                  <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                      <span className="text-xs font-medium text-foreground">{sub.label}</span>
-                                                      {subLines.length > 0 && (
-                                                        <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
-                                                          {subLines.length}
-                                                        </span>
+                                      {/* Tab panels — one per BUY Group */}
+                                      {catalog.map((grp) => {
+                                        const grpLinesMap = linesMap.get(grp.id);
+                                        return (
+                                          <TabsContent key={grp.id} value={String(grp.id)} className="mt-3">
+                                            <div className="rounded-lg border bg-card divide-y">
+                                              {grp.subgroups.map((sub) => {
+                                                const subLines = grpLinesMap?.get(sub.id) ?? [];
+                                                return (
+                                                  <div key={sub.id} className="px-4 py-3 space-y-2">
+                                                    {/* Subgroup header row */}
+                                                    <div className="flex items-center justify-between">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium">{sub.label}</span>
+                                                        {subLines.length > 0 && (
+                                                          <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                                            {subLines.length} line{subLines.length !== 1 ? "s" : ""}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                      {canWrite && pkg.status === "draft" && (
+                                                        <Button
+                                                          size="sm" variant="outline"
+                                                          className="h-7 px-2 gap-1 text-xs"
+                                                          onClick={() => openAddLineForSubgroup(
+                                                            pkg,
+                                                            grp.id, grp.code, grp.label,
+                                                            sub.id, sub.code, sub.label,
+                                                          )}
+                                                        >
+                                                          <Plus className="h-3 w-3" /> Add Line
+                                                        </Button>
                                                       )}
                                                     </div>
-                                                    {canWrite && pkg.status === "draft" && (
-                                                      <Button
-                                                        size="sm" variant="ghost"
-                                                        className="h-6 px-2 gap-1 text-[11px] text-primary hover:bg-primary/10"
-                                                        onClick={() => openAddLineForSubgroup(
-                                                          pkg,
-                                                          grp.id, grp.code, grp.label,
-                                                          sub.id, sub.code, sub.label,
-                                                        )}
-                                                      >
-                                                        <Plus className="h-3 w-3" /> Add Line
-                                                      </Button>
+
+                                                    {/* Existing lines */}
+                                                    {subLines.length > 0 && (
+                                                      <div className="space-y-1 pl-3 border-l-2 border-primary/20">
+                                                        {subLines.map((line) => (
+                                                          <div key={line.id} className="flex items-start justify-between gap-2 text-xs">
+                                                            <div className="flex-1 min-w-0">
+                                                              <p className="text-foreground leading-snug" title={line.genericRequirement}>
+                                                                {line.genericRequirement}
+                                                              </p>
+                                                              <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                                                                  {line.defaultQuantity} {line.uomCode}
+                                                                </span>
+                                                                <FlagBadges line={line} />
+                                                              </div>
+                                                            </div>
+                                                            {canWrite && pkg.status === "draft" && (
+                                                              <div className="flex items-center shrink-0">
+                                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openEditLine(pkg, line)}>
+                                                                  <Edit2 className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                  variant="ghost" size="sm"
+                                                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                                                  onClick={() => { if (confirm("Delete this line?")) deleteLineMutation.mutate({ lineId: line.id }); }}
+                                                                >
+                                                                  <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        ))}
+                                                      </div>
                                                     )}
                                                   </div>
-
-                                                  {/* Existing lines for this subgroup */}
-                                                  {subLines.length > 0 && (
-                                                    <div className="space-y-1 pl-2 border-l-2 border-primary/20">
-                                                      {subLines.map((line) => (
-                                                        <div key={line.id} className="flex items-start justify-between gap-2 text-xs">
-                                                          <div className="flex-1 min-w-0">
-                                                            <p className="truncate text-foreground leading-snug" title={line.genericRequirement}>
-                                                              {line.genericRequirement}
-                                                            </p>
-                                                            <div className="flex items-center gap-1 mt-0.5">
-                                                              <span className="font-mono bg-slate-100 px-1 rounded text-[10px]">
-                                                                {line.defaultQuantity} {line.uomCode}
-                                                              </span>
-                                                              <FlagBadges line={line} />
-                                                            </div>
-                                                          </div>
-                                                          {canWrite && pkg.status === "draft" && (
-                                                            <div className="flex items-center gap-0 shrink-0">
-                                                              <Button
-                                                                variant="ghost" size="sm"
-                                                                className="h-6 w-6 p-0"
-                                                                onClick={() => openEditLine(pkg, line)}
-                                                              >
-                                                                <Edit2 className="h-3 w-3" />
-                                                              </Button>
-                                                              <Button
-                                                                variant="ghost" size="sm"
-                                                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                                                onClick={() => { if (confirm("Delete this line?")) deleteLineMutation.mutate({ lineId: line.id }); }}
-                                                              >
-                                                                <Trash2 className="h-3 w-3" />
-                                                              </Button>
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
+                                                );
+                                              })}
+                                            </div>
+                                          </TabsContent>
+                                        );
+                                      })}
+                                    </Tabs>
+                                  );
+                                })()}
                               </div>
                             </TableCell>
                           </TableRow>
