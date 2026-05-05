@@ -118,9 +118,10 @@ export const PPPC_SEED_GROUPS: SeedGroup[] = [
   {
     code: 'valves', label: 'Valves', sortOrder: 5,
     subgroups: [
-      { code: 'isolation', label: 'Isolation', sortOrder: 1 },
-      { code: 'control',   label: 'Control',   sortOrder: 2 },
-      { code: 'safety',    label: 'Safety',    sortOrder: 3 },
+      { code: 'isolation', label: 'Isolation',    sortOrder: 1 },
+      { code: 'control',   label: 'Control',     sortOrder: 2 },
+      { code: 'safety',    label: 'Safety',      sortOrder: 3 },
+      { code: 'on_off',    label: 'ON/OFF Valve', sortOrder: 4 },
     ],
   },
   {

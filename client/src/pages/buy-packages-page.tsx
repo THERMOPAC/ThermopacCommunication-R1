@@ -4309,6 +4309,119 @@ function SafetyValveAttrsForm({
   );
 }
 
+// ── ON/OFF Valve requirement builder ─────────────────────────────────────────
+const OO_VALVE_TYPE_OPTS  = ["Ball Valve","Gate Valve","Butterfly Valve","Plug Valve","Diaphragm Valve","Other"];
+const OO_VALVE_CFG_OPTS   = ["Two Way","Three Way","Other"];
+const OO_SIZE_NB_OPTS     = ["15 NB","25 NB","40 NB","50 NB","80 NB","100 NB","150 NB","200 NB","Other"];
+const OO_PR_OPTS          = ["Class 150","Class 300","Class 600","PN10","PN16","PN25","PN40","Other"];
+const OO_SERVICE_OPTS     = ["Isolation","On/Off Control","Emergency Shutdown (ESD)","Bypass","Other"];
+const OO_ACT_OPTS         = ["Manual Lever","Manual Gear","Pneumatic Actuator","Electric Actuator","Hydraulic Actuator","Other"];
+const OO_FAIL_OPTS        = ["Fail Open (FO)","Fail Close (FC)","Fail Last (FL)","Not Applicable"];
+const OO_END_CONN_OPTS    = ["Flanged","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type","Other"];
+const OO_BODY_MAT_OPTS    = ["WCB (CS)","SS304","SS316","Alloy Steel","Duplex","CI","Other"];
+const OO_TRIM_MAT_OPTS    = ["SS304","SS316","Hardened Steel","Stellite","PTFE Lined","Other"];
+const OO_SEAT_OPTS        = ["Metal Seat","Soft Seat (PTFE)","Resilient Seat","Other"];
+const OO_AREA_OPTS        = ["Safe Area","Zone 1","Zone 2"];
+const OO_CERT_OPTS        = ["ATEX","IECEx","PESO","SIL Rated","Other"];
+
+const OO_ACTUATED = ["Pneumatic Actuator","Electric Actuator","Hydraulic Actuator"];
+
+function buildOnOffValveRequirement(attrs: Record<string, unknown>): string {
+  const valveType = (attrs.valve_type      as string)?.trim() || "";
+  const sizeNb    = (attrs.size_nb         as string)?.trim() || "";
+  const pr        = (attrs.pressure_rating as string)?.trim() || "";
+  const act       = (attrs.actuation_type  as string)?.trim() || "";
+  const fail      = (attrs.fail_action     as string)?.trim() || "";
+  const bodyMat   = (attrs.body_material   as string)?.trim() || "";
+  const endConn   = (attrs.end_connection  as string)?.trim() || "";
+  const parts: string[] = [];
+  if (valveType) parts.push(valveType);
+  if (sizeNb)    parts.push(sizeNb);
+  if (pr)        parts.push(pr);
+  const isActuated = OO_ACTUATED.includes(act);
+  if (act)       parts.push(isActuated ? act : act);
+  if (isActuated && fail && fail !== "Not Applicable") parts.push(fail);
+  if (bodyMat)   parts.push(`${bodyMat} Body`);
+  if (endConn)   parts.push(endConn);
+  return parts.join(", ");
+}
+
+function OnOffValveAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (k: string, v: unknown) => onChange({ ...attrs, [k]: v });
+  const actuation = (attrs.actuation_type as string) ?? "";
+  const isActuated = OO_ACTUATED.includes(actuation);
+
+  const sec = (title: string) => (
+    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-2 border-b pb-1 mt-1">{title}</p>
+  );
+  const ss = (key: string, label: string, opts: string[], required = false) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <SearchableSelect options={opts} value={(attrs[key] as string) ?? ""}
+        onSelect={(v) => set(key, v === "__other__" ? "" : v)}
+        placeholder={`Select ${label}…`} />
+    </div>
+  );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">ON/OFF Valve Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Valve Type")}
+        {ss("valve_type",        "Valve Type",        OO_VALVE_TYPE_OPTS, true)}
+        {ss("valve_configuration","Valve Configuration",OO_VALVE_CFG_OPTS)}
+
+        {sec("Size & Rating")}
+        {ss("size_nb",           "Size (NB)",          OO_SIZE_NB_OPTS, true)}
+        {ss("pressure_rating",   "Pressure Rating",    OO_PR_OPTS, true)}
+
+        {sec("Service")}
+        {ss("service_type",      "Service Type",       OO_SERVICE_OPTS)}
+        <div />
+
+        {sec("Actuation")}
+        {ss("actuation_type",    "Actuation Type",     OO_ACT_OPTS, true)}
+        {isActuated
+          ? ss("fail_action",    "Fail Action",        OO_FAIL_OPTS, true)
+          : <div />}
+
+        {sec("Connection")}
+        {ss("end_connection",    "End Connection",     OO_END_CONN_OPTS)}
+        <div />
+
+        {sec("Material")}
+        {ss("body_material",     "Body Material",      OO_BODY_MAT_OPTS)}
+        {ss("trim_disc_material","Trim / Disc Material",OO_TRIM_MAT_OPTS)}
+
+        {sec("Seat")}
+        {ss("seat_type",         "Seat Type",          OO_SEAT_OPTS)}
+        <div />
+
+        {sec("Hazardous Area")}
+        {ss("area_classification","Area Classification",OO_AREA_OPTS)}
+        {ss("certification",      "Certification",      OO_CERT_OPTS)}
+
+        {sec("Quantity")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+        <div />
+
+      </div>
+    </div>
+  );
+}
+
 // ── Isolation Valve requirement builder ──────────────────────────────────────
 function buildIsolationValveRequirement(attrs: Record<string, unknown>): string {
   const valveType   = (attrs.valve_type        as string)?.trim() || "";
@@ -5228,6 +5341,9 @@ export default function BuyPackagesPage() {
   const isIsolationValveMode =
     (lineDialog.lock?.subgroupCode === "isolation") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "isolation");
+  const isOnOffValveMode =
+    (lineDialog.lock?.subgroupCode === "on_off") ||
+    (selectedGroupCode === "valves" && selectedSubgroupCode === "on_off");
   const isBoughtOutMode =
     (lineDialog.lock?.subgroupCode === "general" && lineDialog.lock?.groupCode === "bought_out_packages") ||
     (selectedGroupCode === "bought_out_packages" && selectedSubgroupCode === "general");
@@ -5547,6 +5663,24 @@ export default function BuyPackagesPage() {
       }
       if (!(ta.pressure_rating as string)?.trim()) {
         toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
+      }
+    } else if (isOnOffValveMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.valve_type as string)?.trim()) {
+        toast({ title: "Valve Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.size_nb as string)?.trim()) {
+        toast({ title: "Size (NB) is required", variant: "destructive" }); return;
+      }
+      if (!(ta.pressure_rating as string)?.trim()) {
+        toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
+      }
+      if (!(ta.actuation_type as string)?.trim()) {
+        toast({ title: "Actuation Type is required", variant: "destructive" }); return;
+      }
+      const act = (ta.actuation_type as string)?.trim();
+      if (OO_ACTUATED.includes(act) && !(ta.fail_action as string)?.trim()) {
+        toast({ title: "Fail Action is required for actuated valves", variant: "destructive" }); return;
       }
     } else if (isBoughtOutMode) {
       const ta = lf.technicalAttributes;
@@ -6601,6 +6735,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Valve Type, Size and Actuator to generate…"} />
+                  </div>
+                </>
+              ) : isOnOffValveMode ? (
+                <>
+                  <OnOffValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildOnOffValveRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Select Valve Type, Size and Actuation to generate…"} />
                   </div>
                 </>
               ) : isIsolationValveMode ? (
