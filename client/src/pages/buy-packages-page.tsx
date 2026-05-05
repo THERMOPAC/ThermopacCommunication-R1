@@ -694,6 +694,137 @@ function FlangesAttrsForm({
   );
 }
 
+// ── Fasteners requirement builder ────────────────────────────────────────────
+function buildFastenersRequirement(attrs: Record<string, unknown>): string {
+  const fastenerType = (attrs.fastener_type as string)?.trim() || "";
+  const size         = (attrs.size_dia      as string)?.trim() || "";
+  const length       = (attrs.length        as string)?.trim() || "";
+  const grade        = (attrs.grade         as string)?.trim() || "";
+  const finish       = (attrs.finish        as string)?.trim() || "";
+  const standard     = (attrs.standard      as string)?.trim() || "";
+
+  const finishAbbr: Record<string, string> = {
+    "Hot Dip Galvanized (HDG)": "HDG",
+    "Zinc Plated":              "ZP",
+    "PTFE Coated":              "PTFE",
+    "Black":                    "Black",
+  };
+  const finishShort = finishAbbr[finish] || finish;
+
+  const sizePart = size && length ? `${size} x ${length}` : size;
+  const parts: string[] = [];
+  if (fastenerType) parts.push(fastenerType);
+  if (sizePart)     parts.push(sizePart);
+  if (grade)        parts.push(`Grade ${grade}`);
+  if (finishShort)  parts.push(finishShort);
+  if (standard)     parts.push(standard);
+  return parts.join(", ");
+}
+
+// ── Fasteners dropdown option lists ──────────────────────────────────────────
+const FASTENER_OPTS: Record<string, string[]> = {
+  fastener_type: ["Bolt", "Nut", "Washer", "Stud", "Screw", "Anchor Bolt", "U-Bolt"],
+  size_dia:      ["M6", "M8", "M10", "M12", "M16", "M20", "M24", "M30"],
+  length:        ["20", "30", "40", "50", "60", "75", "100", "150", "200"],
+  thread_type:   ["Metric", "UNC", "UNF", "BSW"],
+  grade:         ["4.6", "5.6", "8.8", "10.9", "12.9", "SS 304", "SS 316"],
+  material:      ["MS", "CS", "SS 304", "SS 316", "Alloy Steel"],
+  finish:        ["Black", "Zinc Plated", "Hot Dip Galvanized (HDG)", "PTFE Coated"],
+  standard:      ["IS", "ASTM", "DIN", "ISO"],
+};
+
+const FASTENER_LENGTH_TYPES = new Set(["Bolt", "Stud", "U-Bolt", "Anchor Bolt"]);
+
+// ── Fasteners structured form ─────────────────────────────────────────────────
+function FastenersAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of Object.keys(FASTENER_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !FASTENER_OPTS[key].includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts = FASTENER_OPTS[key];
+    const curVal = (attrs[key] as string) ?? "";
+    const isCustom = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">
+          {label}{required && <span className="text-red-500"> *</span>}
+        </Label>
+        <SearchableSelect
+          value={selectVal}
+          options={opts}
+          placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)}
+        />
+        {isCustom && (
+          <Input
+            className="h-8 text-sm"
+            placeholder="Enter custom value…"
+            value={curVal}
+            onChange={(e) => set(key, e.target.value)}
+            autoFocus
+          />
+        )}
+      </div>
+    );
+  }
+
+  const fastenerType  = (attrs.fastener_type as string) ?? "";
+  const showLength    = FASTENER_LENGTH_TYPES.has(fastenerType);
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fastener Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        {renderField("fastener_type", "Fastener Type", true)}
+        {renderField("size_dia",      "Size (Diameter)", true)}
+
+        {showLength && renderField("length", "Length (mm)")}
+
+        {renderField("thread_type", "Thread Type")}
+        {renderField("grade",       "Grade"      )}
+        {renderField("material",    "Material"   )}
+        {renderField("finish",      "Finish"     )}
+        {renderField("standard",    "Standard"   )}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty}
+            onChange={(e) => onQtyChange(e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -882,6 +1013,9 @@ export default function BuyPackagesPage() {
   const isFlangesMode =
     (lineDialog.lock?.subgroupCode === "flanges") ||
     (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "flanges");
+  const isFastenersMode =
+    (lineDialog.lock?.subgroupCode === "fasteners") ||
+    (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "fasteners");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -1045,6 +1179,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.flange_type as string)?.trim() || !(ta.size_nb as string)?.trim()) {
         toast({ title: "Flange Type and Size (NB) are required", variant: "destructive" }); return;
+      }
+    } else if (isFastenersMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.fastener_type as string)?.trim() || !(ta.size_dia as string)?.trim()) {
+        toast({ title: "Fastener Type and Size are required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -1630,6 +1769,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Flange Type and Size to generate…"} />
+                  </div>
+                </>
+              ) : isFastenersMode ? (
+                <>
+                  <FastenersAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildFastenersRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Fastener Type and Size to generate…"} />
                   </div>
                 </>
               ) : (
