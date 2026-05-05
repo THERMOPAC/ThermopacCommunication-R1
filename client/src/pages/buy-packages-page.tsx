@@ -3048,6 +3048,240 @@ function LevelAttrsForm({
   );
 }
 
+// ── Electrical Panel requirement builder ─────────────────────────────────────
+function buildPanelRequirement(attrs: Record<string, unknown>): string {
+  const panelType   = (attrs.panel_type          as string)?.trim() || "";
+  const voltage     = (attrs.voltage             as string)?.trim() || "";
+  const frequency   = (attrs.frequency           as string)?.trim() || "";
+  const enclosure   = (attrs.enclosure_type      as string)?.trim() || "";
+  const ipRating    = (attrs.ip_rating           as string)?.trim() || "";
+  const feederLoad  = (attrs.feeder_load         as string)?.trim() || "";
+  const incomerType = (attrs.incomer_type        as string)?.trim() || "";
+  const incomerRating = (attrs.incomer_rating    as string)?.trim() || "";
+  const ctrlSupply  = (attrs.control_supply      as string)?.trim() || "";
+  const protocol    = (attrs.communication_protocol as string)?.trim() || "";
+  const cert        = (attrs.certification       as string)?.trim() || "";
+
+  const encStr      = [enclosure, ipRating].filter(Boolean).join(" ");
+  const feederStr   = feederLoad ? `${feederLoad} kW` : "";
+  const incomerStr  = [incomerType, incomerRating].filter(Boolean).join(" ");
+  const certStr     = cert ? `${cert} Certified` : "";
+
+  const parts: string[] = [];
+  if (panelType) parts.push(panelType);
+  if (voltage)   parts.push(voltage);
+  parts.push("3 Phase");
+  if (frequency) parts.push(frequency);
+  if (encStr)    parts.push(encStr);
+  if (feederStr) parts.push(feederStr);
+  if (incomerStr) parts.push(incomerStr);
+  if (ctrlSupply) parts.push(ctrlSupply);
+  if (protocol)  parts.push(protocol);
+  if (certStr)   parts.push(certStr);
+  return parts.join(", ");
+}
+
+const PANEL_OPTS: Record<string, string[]> = {
+  panel_type:             ["PCC (Power Control Center)", "MCC (Motor Control Center)", "PLC Panel", "VFD Panel", "Control Panel", "Instrument Panel", "Junction Box Panel"],
+  voltage:                ["380 V", "400 V", "415 V", "690 V"],
+  frequency:              ["50 Hz", "60 Hz"],
+  enclosure_type:         ["Indoor", "Outdoor", "Weatherproof", "Flameproof"],
+  mounting:               ["Floor Mounted", "Wall Mounted", "Free Standing"],
+  ip_rating:              ["IP42", "IP54", "IP55", "IP65", "IP66"],
+  enclosure_material:     ["MS Powder Coated", "SS304", "SS316", "Aluminum"],
+  area_classification:    ["Safe Area", "Zone 1", "Zone 2"],
+  certification:          ["CE", "UL", "IEC", "IECEx", "ATEX", "PESO"],
+  incomer_type:           ["MCCB", "ACB", "Isolator", "MCB"],
+  incomer_rating:         ["32A", "63A", "100A", "160A", "250A", "400A", "630A", "800A"],
+  busbar_type:            ["Aluminum", "Copper"],
+  communication_protocol: ["Modbus RTU", "Modbus TCP", "Profibus", "Profinet", "Ethernet/IP"],
+  control_supply:         ["24 V DC", "110 V AC", "230 V AC"],
+  cable_entry:            ["Bottom", "Top", "Both"],
+};
+
+const PANEL_MAKES = ["Siemens", "ABB", "Schneider Electric", "L&T", "Eaton", "GE", "Allen-Bradley", "Fuji", "Legrand", "Havells"];
+
+function PanelAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const singleKeys = Object.keys(PANEL_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = PANEL_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  const selectedMakes: string[] = (() => {
+    const raw = (attrs.approved_makes as string) ?? "";
+    return raw ? raw.split(",").map(s => s.trim()).filter(Boolean) : [];
+  })();
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function toggleMake(make: string) {
+    const current = selectedMakes.includes(make)
+      ? selectedMakes.filter(m => m !== make)
+      : [...selectedMakes, make];
+    set("approved_makes", current.join(", "));
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = PANEL_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function renderNumeric(key: string, label: string, placeholder?: string) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}</Label>
+        <Input className="h-8 text-sm" type="number" min="0" placeholder={placeholder ?? "0"}
+          value={(attrs[key] as string) ?? ""}
+          onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  const panelType     = (attrs.panel_type as string) ?? "";
+  const enclosureType = (attrs.enclosure_type as string) ?? "";
+  const areaClass     = (attrs.area_classification as string) ?? "";
+
+  const isPLCPanel   = ["PLC Panel", "Control Panel", "Instrument Panel"].some(t => panelType.includes(t.split(" ")[0]));
+  const isFeederPanel = ["PCC", "MCC", "VFD"].some(t => panelType.includes(t));
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Electrical Panel Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Panel Type")}
+        <div className="col-span-2">{renderField("panel_type", "Panel Type", true)}</div>
+
+        {sec("Electrical Specifications")}
+        {renderField("voltage", "Voltage", true)}
+        {renderField("frequency", "Frequency")}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Phase</Label>
+          <Input readOnly className="h-8 text-sm bg-muted/50 text-muted-foreground cursor-default" value="Three Phase" />
+        </div>
+
+        {sec("Enclosure")}
+        {renderField("enclosure_type",     "Enclosure Type")}
+        {renderField("mounting",           "Mounting")}
+        {renderField("ip_rating",          enclosureType === "Outdoor" ? "IP Rating *" : "IP Rating")}
+        {renderField("enclosure_material", "Enclosure Material")}
+
+        {sec("Area Classification")}
+        {renderField("area_classification", enclosureType === "Flameproof" ? "Area Classification *" : "Area Classification")}
+        {renderField("certification", "Certification")}
+
+        {isFeederPanel && (
+          <>
+            {sec("Feeder / Power Details")}
+            {renderNumeric("feeder_load",     "Feeder Load (kW)", "e.g. 250")}
+            {renderNumeric("number_of_feeders","Number of Feeders", "e.g. 8")}
+            {renderField("incomer_type",   "Incomer Type")}
+            {renderField("incomer_rating", "Incomer Rating (A)")}
+            {renderField("busbar_type",    "Busbar Type")}
+            <div />
+          </>
+        )}
+
+        {isPLCPanel && (
+          <>
+            {sec("Control / PLC I/O Details")}
+            {renderNumeric("di_count", "DI Count", "0")}
+            {renderNumeric("do_count", "DO Count", "0")}
+            {renderNumeric("ai_count", "AI Count", "0")}
+            {renderNumeric("ao_count", "AO Count", "0")}
+            {renderField("communication_protocol", "Communication Protocol")}
+            {renderField("control_supply",         "Control Supply")}
+          </>
+        )}
+
+        {!isPLCPanel && (
+          <>
+            {sec("Control")}
+            {renderField("control_supply", "Control Supply")}
+            <div />
+          </>
+        )}
+
+        {sec("Panel Configuration")}
+        {renderField("cable_entry", "Cable Entry")}
+        <div />
+
+        {sec("Vendor / Approved Makes")}
+        <div className="col-span-2 space-y-2">
+          <Label className="text-xs">Approved Makes</Label>
+          <div className="flex flex-wrap gap-2">
+            {PANEL_MAKES.map(make => (
+              <button key={make} type="button"
+                onClick={() => toggleMake(make)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  selectedMakes.includes(make)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary"
+                }`}>
+                {make}
+              </button>
+            ))}
+          </div>
+          {selectedMakes.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">Selected: {selectedMakes.join(", ")}</p>
+          )}
+          <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
+            value={(attrs.approved_makes_other as string) ?? ""}
+            onChange={(e) => set("approved_makes_other", e.target.value)} />
+        </div>
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Control Valve requirement builder ────────────────────────────────────────
 function buildControlValveRequirement(attrs: Record<string, unknown>): string {
   const valveType   = (attrs.valve_type        as string)?.trim() || "";
@@ -4268,6 +4502,9 @@ export default function BuyPackagesPage() {
   const isLevelMode =
     (lineDialog.lock?.subgroupCode === "level") ||
     (selectedGroupCode === "instruments" && selectedSubgroupCode === "level");
+  const isPanelMode =
+    (lineDialog.lock?.subgroupCode === "panels") ||
+    (selectedGroupCode === "electrical_control" && selectedSubgroupCode === "panels");
   const isControlValveMode =
     (lineDialog.lock?.subgroupCode === "control") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "control");
@@ -4522,6 +4759,21 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.instrument_type as string)?.trim()) {
         toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+    } else if (isPanelMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.panel_type as string)?.trim()) {
+        toast({ title: "Panel Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.voltage as string)?.trim()) {
+        toast({ title: "Voltage is required", variant: "destructive" }); return;
+      }
+      const enc = (ta.enclosure_type as string)?.trim();
+      if (enc === "Outdoor" && !(ta.ip_rating as string)?.trim()) {
+        toast({ title: "IP Rating is required for Outdoor enclosure", variant: "destructive" }); return;
+      }
+      if (enc === "Flameproof" && !(ta.area_classification as string)?.trim()) {
+        toast({ title: "Area Classification is required for Flameproof enclosure", variant: "destructive" }); return;
       }
     } else if (isSafetyValveMode) {
       const ta = lf.technicalAttributes;
@@ -5435,6 +5687,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isPanelMode ? (
+                <>
+                  <PanelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildPanelRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Panel Type and Voltage to generate…"} />
                   </div>
                 </>
               ) : isSafetyValveMode ? (
