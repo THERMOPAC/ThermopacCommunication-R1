@@ -279,7 +279,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         .replace(/[^A-Z0-9-]/g, '')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')
-        .slice(0, 18)
+        .slice(0, 22)
         .replace(/-$/g, '');
 
       // Count how many packages exist for this product already (to compute next seq)
