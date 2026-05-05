@@ -115,6 +115,99 @@ interface BuySubgroup { id: number; buyGroupId: number; code: string; label: str
 interface UomMaster   { id: number; code: string; label: string; }
 interface Product     { id: number; productCode: string; description: string; makeOrBuy: string; parentId: number | null; isGrandparent: boolean; }
 
+// ── Plates requirement builder ────────────────────────────────────────────────
+function buildPlatesRequirement(attrs: Record<string, unknown>): string {
+  const plateType    = (attrs.plate_type     as string)?.trim() || "";
+  const grade        = (attrs.material_grade as string)?.trim() || "";
+  const standard     = (attrs.standard       as string)?.trim() || "";
+  const thick        = attrs.thickness_mm ? `${attrs.thickness_mm}mm Thk` : "";
+  const width        = attrs.width_mm      ? `${attrs.width_mm}mm W`      : "";
+  const length       = attrs.length_mm     ? `${attrs.length_mm}mm L`     : "";
+
+  const prefix = [plateType, "Plate"].filter(Boolean).join(" ");
+  const spec   = [standard, grade].filter(Boolean).join(" ");
+  const dims   = [thick, width, length].filter(Boolean).join(" x ");
+
+  let result = [prefix, spec].filter(Boolean).join(" ");
+  if (dims) result += (result ? ", " : "") + dims;
+  return result;
+}
+
+// ── Plates structured form ────────────────────────────────────────────────────
+function PlatesAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plate Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Plate Type <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" placeholder="e.g. MS, SS 304, Chequered"
+            value={(attrs.plate_type as string) ?? ""}
+            onChange={(e) => set("plate_type", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Material Grade</Label>
+          <Input
+            className="h-8 text-sm" placeholder="e.g. E250, E350, 304L"
+            value={(attrs.material_grade as string) ?? ""}
+            onChange={(e) => set("material_grade", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Thickness (mm) <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" type="number" placeholder="e.g. 10"
+            value={(attrs.thickness_mm as string) ?? ""}
+            onChange={(e) => set("thickness_mm", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Width (mm)</Label>
+          <Input
+            className="h-8 text-sm" type="number" placeholder="e.g. 1500"
+            value={(attrs.width_mm as string) ?? ""}
+            onChange={(e) => set("width_mm", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Length (mm)</Label>
+          <Input
+            className="h-8 text-sm" type="number" placeholder="e.g. 3000"
+            value={(attrs.length_mm as string) ?? ""}
+            onChange={(e) => set("length_mm", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Standard</Label>
+          <Input
+            className="h-8 text-sm" placeholder="e.g. IS 2062, ASTM A36"
+            value={(attrs.standard as string) ?? ""}
+            onChange={(e) => set("standard", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty}
+            onChange={(e) => onQtyChange(e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -264,7 +357,9 @@ export default function BuyPackagesPage() {
     return true;
   });
 
-  const selectedGroupCode = groups.find((g) => String(g.id) === String(lf.buyGroupId))?.code ?? "";
+  const selectedGroupCode    = groups.find((g)   => String(g.id) === String(lf.buyGroupId))?.code    ?? "";
+  const selectedSubgroupCode = subgroups.find((s) => String(s.id) === String(lf.buySubgroupId))?.code ?? "";
+  const isPlatesMode = selectedGroupCode === "raw_materials" && selectedSubgroupCode === "plates";
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -391,8 +486,16 @@ export default function BuyPackagesPage() {
 
   function submitLine() {
     const { editLine, pkgId } = lineDialog;
-    if (!lf.buyGroupId || !lf.buySubgroupId || !lf.uomId || !lf.genericRequirement.trim()) {
-      toast({ title: "Group, subgroup, UOM, and requirement are required", variant: "destructive" }); return;
+    if (!lf.buyGroupId || !lf.buySubgroupId || !lf.uomId) {
+      toast({ title: "Group, subgroup, and UOM are required", variant: "destructive" }); return;
+    }
+    if (isPlatesMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.plate_type as string)?.trim() || !(ta.thickness_mm)) {
+        toast({ title: "Plate Type and Thickness are required", variant: "destructive" }); return;
+      }
+    } else if (!lf.genericRequirement.trim()) {
+      toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
     }
     const body = {
       buyGroupId:           Number(lf.buyGroupId),
@@ -838,7 +941,7 @@ export default function BuyPackagesPage() {
                   <Label>Subgroup <span className="text-red-500">*</span></Label>
                   <Select
                     value={lf.buySubgroupId}
-                    onValueChange={(v) => setLf((f) => ({ ...f, buySubgroupId: v }))}
+                    onValueChange={(v) => setLf((f) => ({ ...f, buySubgroupId: v, technicalAttributes: {}, genericRequirement: "" }))}
                     disabled={!lf.buyGroupId}
                   >
                     <SelectTrigger><SelectValue placeholder={lf.buyGroupId ? "Select…" : "Pick group first"} /></SelectTrigger>
@@ -858,44 +961,72 @@ export default function BuyPackagesPage() {
                 </div>
               </div>
 
-              {/* Requirement + Qty */}
-              <div className="grid grid-cols-4 gap-3">
-                <div className="col-span-3 space-y-1.5">
-                  <Label>Generic Requirement <span className="text-red-500">*</span></Label>
-                  <Input
-                    placeholder="e.g. Feed Pump, Suction Strainer"
-                    value={lf.genericRequirement}
-                    onChange={(e) => setLf((f) => ({ ...f, genericRequirement: e.target.value }))}
+              {/* Plates mode: structured plate fields + auto-generated requirement */}
+              {isPlatesMode ? (
+                <>
+                  <PlatesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildPlatesRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Default Qty</Label>
-                  <Input
-                    type="number" min="0.01" step="0.01"
-                    value={lf.defaultQuantity}
-                    onChange={(e) => setLf((f) => ({ ...f, defaultQuantity: e.target.value }))}
-                  />
-                </div>
-              </div>
+                  {/* Auto-generated Generic Requirement */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated from fields above)</span>
+                    </Label>
+                    <Input
+                      readOnly
+                      className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Plate Type and Thickness to generate…"}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Requirement + Qty */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="col-span-3 space-y-1.5">
+                      <Label>Generic Requirement <span className="text-red-500">*</span></Label>
+                      <Input
+                        placeholder="e.g. Feed Pump, Suction Strainer"
+                        value={lf.genericRequirement}
+                        onChange={(e) => setLf((f) => ({ ...f, genericRequirement: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Default Qty</Label>
+                      <Input
+                        type="number" min="0.01" step="0.01"
+                        value={lf.defaultQuantity}
+                        onChange={(e) => setLf((f) => ({ ...f, defaultQuantity: e.target.value }))}
+                      />
+                    </div>
+                  </div>
 
-              {/* Default Specification */}
-              <div className="space-y-1.5">
-                <Label>Default Specification</Label>
-                <Textarea
-                  placeholder="Optional technical specification…"
-                  value={lf.defaultSpecification}
-                  onChange={(e) => setLf((f) => ({ ...f, defaultSpecification: e.target.value }))}
-                  rows={2}
-                />
-              </div>
+                  {/* Default Specification */}
+                  <div className="space-y-1.5">
+                    <Label>Default Specification</Label>
+                    <Textarea
+                      placeholder="Optional technical specification…"
+                      value={lf.defaultSpecification}
+                      onChange={(e) => setLf((f) => ({ ...f, defaultSpecification: e.target.value }))}
+                      rows={2}
+                    />
+                  </div>
 
-              {/* Group-specific Technical Attributes */}
-              {selectedGroupCode && (
-                <TechnicalAttrsForm
-                  groupCode={selectedGroupCode}
-                  attrs={lf.technicalAttributes}
-                  onChange={(attrs) => setLf((f) => ({ ...f, technicalAttributes: attrs }))}
-                />
+                  {/* Group-specific Technical Attributes */}
+                  {selectedGroupCode && (
+                    <TechnicalAttrsForm
+                      groupCode={selectedGroupCode}
+                      attrs={lf.technicalAttributes}
+                      onChange={(attrs) => setLf((f) => ({ ...f, technicalAttributes: attrs }))}
+                    />
+                  )}
+                </>
               )}
 
               {/* Required Flags */}
