@@ -4155,10 +4155,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProducts(): Promise<any[]> {
-    const rows = await db.select().from(productsTable).orderBy(desc(productsTable.createdAt));
-    const childIds = await db.select({ id: productChildrenTable.childProductId }).from(productChildrenTable);
-    const childSet = new Set(childIds.map((r) => r.id));
-    return rows.map((r) => ({ ...r, isChild: childSet.has(r.id) }));
+    return await db.select().from(productsTable).orderBy(desc(productsTable.createdAt));
   }
 
   async getProductById(id: number): Promise<any | undefined> {

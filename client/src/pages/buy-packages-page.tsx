@@ -113,7 +113,7 @@ interface PackageLine {
 interface BuyGroup    { id: number; code: string; label: string; sortOrder: number; }
 interface BuySubgroup { id: number; buyGroupId: number; code: string; label: string; }
 interface UomMaster   { id: number; code: string; label: string; }
-interface Product     { id: number; productCode: string; description: string; makeOrBuy: string; parentId: number | null; isChild: boolean; }
+interface Product     { id: number; productCode: string; description: string; makeOrBuy: string; parentId: number | null; isGrandparent: boolean; }
 
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
@@ -245,7 +245,7 @@ export default function BuyPackagesPage() {
   const { data: allProducts = [] } = useQuery<Product[]>({
     queryKey: ["/api/sales-marketing/products"],
   });
-  const buyProducts = allProducts.filter((p) => !p.isChild);
+  const buyProducts = allProducts.filter((p) => p.isGrandparent === true);
 
   // ── Derived ───────────────────────────────────────────────────────────────────
   const visiblePackages = packages.filter((p) => {

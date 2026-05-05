@@ -44,6 +44,7 @@ const productFormSchema = z.object({
   makeOrBuy: z.string().default('Make'),
   preferredVendor: z.string().optional(),
   isActive: z.boolean().default(true),
+  isGrandparent: z.boolean().default(false),
   tagNo: z.string().min(1, "Tag No is required"),
   equipmentConfiguration: z.string().default('Vessel'),
 });
@@ -203,7 +204,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      makeOrBuy: "Make", preferredVendor: "", isActive: true, tagNo: "",
+      makeOrBuy: "Make", preferredVendor: "", isActive: true, isGrandparent: false, tagNo: "",
       equipmentConfiguration: "Vessel",
     },
   });
@@ -482,6 +483,7 @@ export default function ProductsPage() {
       makeOrBuy: (product as any).makeOrBuy || "Make",
       preferredVendor: (product as any).preferredVendor || "",
       isActive: product.isActive ?? true,
+      isGrandparent: (product as any).isGrandparent ?? false,
       tagNo: (product as any).tagNo || "",
       equipmentConfiguration: (product as any).equipmentConfiguration || "Vessel",
     });
@@ -1470,6 +1472,7 @@ export default function ProductsPage() {
 
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t mt-1">
+                  <div className="flex items-center gap-6">
                   <FormField
                     control={productForm.control}
                     name="isActive"
@@ -1482,6 +1485,24 @@ export default function ProductsPage() {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={productForm.control}
+                    name="isGrandparent"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={(e) => field.onChange(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+                          />
+                        </FormControl>
+                        <FormLabel className="mt-0 cursor-pointer font-normal">Grandparent (Top-level Product)</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                  </div>
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" onClick={() => { setIsProductDialogOpen(false); setEditingProduct(null); }}>
                       Cancel
