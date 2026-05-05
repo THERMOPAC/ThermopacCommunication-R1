@@ -10,4 +10,5 @@ export const CampaignsPage = lazyWithRetry(() => import("@/pages/campaigns-page"
 export const MarketingDashboardPage = lazyWithRetry(() => import("@/pages/marketing-dashboard-page"));
 export const MarketingToolsPage = lazyWithRetry(() => import("@/pages/marketing-tools-page"));
 export const ROICalculatorPage = lazyWithRetry(() => import("@/pages/roi-calculator-page"));
-export const BuyPackagesPage   = lazyWithRetry(() => import("@/pages/buy-packages-page"));
+export const BuyPackagesPage     = lazyWithRetry(() => import("@/pages/buy-packages-page"));
+export const BuyPackageLinesPage = lazyWithRetry(() => import("@/pages/buy-package-lines-page"));
