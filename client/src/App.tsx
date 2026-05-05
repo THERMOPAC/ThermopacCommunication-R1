@@ -170,6 +170,7 @@ function Router() {
       
       {/* Projects & Production Routes */}
       <ProtectedRoute path="/project-dashboard" component={() => <ProjectsProduction.ProjectDashboardPage />} />
+      <PageProtectedRoute path="/epc/buy-list-control" pageKey="buy-list-control" component={() => <ProjectsProduction.EpcBuyListControlPage />} />
       <PageProtectedRoute path="/epc/bom-controls" pageKey="bom-controls" component={() => <ProjectsProduction.EpcBomControlPage />} />
       <PageProtectedRoute path="/epc/drawing-controls" pageKey="drawing-controls" component={() => <ProjectsProduction.EpcDrawingControlPage />} />
       <PageProtectedRoute path="/epc/purchase-orders" pageKey="purchase-orders" component={() => <ProjectsProduction.EpcPurchaseOrdersPage />} />

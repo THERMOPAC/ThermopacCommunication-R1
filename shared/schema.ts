@@ -804,6 +804,7 @@ export const epcPageKeys = [
   "item-master",
   "execution-control",
   "drawing-controls",
+  "buy-list-control",
   "bom-controls",
   "purchase-orders",
   "work-orders",
@@ -13171,3 +13172,77 @@ export const buyPackageLines = pgTable('buy_package_lines', {
 export const insertBuyPackageLineSchema = createInsertSchema(buyPackageLines).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertBuyPackageLine = z.infer<typeof insertBuyPackageLineSchema>;
 export type BuyPackageLine = typeof buyPackageLines.$inferSelect;
+
+// =============================================================================
+// PPPC — Phase 2: Project BUY Procurement List
+// project_buy_list_headers · project_buy_list_lines
+// =============================================================================
+
+export const projectBuyListHeaders = pgTable('project_buy_list_headers', {
+  id:                   serial('id').primaryKey(),
+  projectId:            integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId:        integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  sourcePackageId:      integer('source_package_id').references(() => buyPackageHeaders.id, { onDelete: 'set null' }),
+  listNumber:           varchar('list_number', { length: 35 }).notNull().unique(),
+  revisionCode:         varchar('revision_code', { length: 5 }).notNull().default('A'),
+  isCurrent:            boolean('is_current').notNull().default(true),
+  status:               varchar('status', { length: 30 }).notNull().default('draft'),
+  supersedesId:         integer('supersedes_id'),
+  supersededBy:         integer('superseded_by'),
+  supersededAt:         timestamp('superseded_at'),
+  supersessionReason:   text('supersession_reason'),
+  revisionNotes:        text('revision_notes'),
+  submittedBy:          integer('submitted_by').references(() => users.id, { onDelete: 'set null' }),
+  submittedAt:          timestamp('submitted_at'),
+  submissionNote:       text('submission_note'),
+  reviewedBy:           integer('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt:           timestamp('reviewed_at'),
+  reviewNote:           text('review_note'),
+  reviewRecommendation: varchar('review_recommendation', { length: 30 }),
+  releasedBy:           integer('released_by').references(() => users.id, { onDelete: 'set null' }),
+  releasedAt:           timestamp('released_at'),
+  releaseNote:          text('release_note'),
+  cancelledBy:          integer('cancelled_by').references(() => users.id, { onDelete: 'set null' }),
+  cancelledAt:          timestamp('cancelled_at'),
+  cancelReason:         text('cancel_reason'),
+  createdBy:            integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertProjectBuyListHeaderSchema = createInsertSchema(projectBuyListHeaders).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProjectBuyListHeader = z.infer<typeof insertProjectBuyListHeaderSchema>;
+export type ProjectBuyListHeader = typeof projectBuyListHeaders.$inferSelect;
+
+export const projectBuyListLines = pgTable('project_buy_list_lines', {
+  id:                   serial('id').primaryKey(),
+  buyListHeaderId:      integer('buy_list_header_id').notNull().references(() => projectBuyListHeaders.id, { onDelete: 'cascade' }),
+  lineNumber:           integer('line_number').notNull(),
+  buyGroupId:           integer('buy_group_id').notNull().references(() => buyGroups.id, { onDelete: 'restrict' }),
+  buySubgroupId:        integer('buy_subgroup_id').notNull().references(() => buySubgroups.id, { onDelete: 'restrict' }),
+  uomId:                integer('uom_id').notNull().references(() => uomMaster.id, { onDelete: 'restrict' }),
+  genericRequirement:   text('generic_requirement').notNull(),
+  quantity:             numeric('quantity', { precision: 10, scale: 2 }).notNull().default('1'),
+  requiredDate:         date('required_date'),
+  specification:        text('specification'),
+  technicalAttributes:  jsonb('technical_attributes'),
+  tagNo:                varchar('tag_no', { length: 80 }).notNull().default(''),
+  equipmentReference:   varchar('equipment_reference', { length: 120 }).notNull().default(''),
+  serviceDescription:   varchar('service_description', { length: 255 }).notNull().default(''),
+  selectionRequired:    boolean('selection_required').notNull().default(true),
+  datasheetRequired:    boolean('datasheet_required').notNull().default(false),
+  inspectionRequired:   boolean('inspection_required').notNull().default(false),
+  certificateRequired:  boolean('certificate_required').notNull().default(false),
+  complianceRequired:   boolean('compliance_required').notNull().default(false),
+  status:               varchar('status', { length: 30 }).notNull().default('open'),
+  selectedMasterItemId: integer('selected_master_item_id').references(() => masterItems.id, { onDelete: 'set null' }),
+  sourcePackageLineId:  integer('source_package_line_id').references(() => buyPackageLines.id, { onDelete: 'set null' }),
+  planningRecordId:     integer('planning_record_id'),
+  notes:                text('notes'),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertProjectBuyListLineSchema = createInsertSchema(projectBuyListLines).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProjectBuyListLine = z.infer<typeof insertProjectBuyListLineSchema>;
+export type ProjectBuyListLine = typeof projectBuyListLines.$inferSelect;
