@@ -13070,3 +13070,51 @@ export const epcStructureJobs = pgTable('epc_structure_jobs', {
 });
 
 export type EpcStructureJob = typeof epcStructureJobs.$inferSelect;
+
+// =============================================================================
+// PPPC — Phase 0: Master Reference Tables
+// buy_groups · buy_subgroups · uom_master
+// =============================================================================
+
+export const buyGroups = pgTable('buy_groups', {
+  id:        serial('id').primaryKey(),
+  code:      varchar('code', { length: 40 }).notNull().unique(),
+  label:     varchar('label', { length: 100 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive:  boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertBuyGroupSchema = createInsertSchema(buyGroups).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBuyGroup = z.infer<typeof insertBuyGroupSchema>;
+export type BuyGroup = typeof buyGroups.$inferSelect;
+
+export const buySubgroups = pgTable('buy_subgroups', {
+  id:         serial('id').primaryKey(),
+  buyGroupId: integer('buy_group_id').notNull().references(() => buyGroups.id, { onDelete: 'restrict' }),
+  code:       varchar('code', { length: 60 }).notNull(),
+  label:      varchar('label', { length: 120 }).notNull(),
+  sortOrder:  integer('sort_order').notNull().default(0),
+  isActive:   boolean('is_active').notNull().default(true),
+  createdAt:  timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:  timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertBuySubgroupSchema = createInsertSchema(buySubgroups).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBuySubgroup = z.infer<typeof insertBuySubgroupSchema>;
+export type BuySubgroup = typeof buySubgroups.$inferSelect;
+
+export const uomMaster = pgTable('uom_master', {
+  id:        serial('id').primaryKey(),
+  code:      varchar('code', { length: 20 }).notNull().unique(),
+  label:     varchar('label', { length: 60 }).notNull(),
+  category:  varchar('category', { length: 40 }),
+  isActive:  boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertUomMasterSchema = createInsertSchema(uomMaster).omit({ id: true, createdAt: true });
+export type InsertUomMaster = z.infer<typeof insertUomMasterSchema>;
+export type UomMaster = typeof uomMaster.$inferSelect;

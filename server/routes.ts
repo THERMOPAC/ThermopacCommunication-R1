@@ -3876,6 +3876,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', agentDownloadRoutes);
   console.log('Agent download routes registered');
 
+  // ── PPPC — Project Procurement Package Control ────────────────────────────────
+  const { setupPppcRoutes } = await import('./pppc-routes');
+  await setupPppcRoutes(app);
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes
