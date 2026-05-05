@@ -91,8 +91,9 @@ export const PPPC_SEED_GROUPS: SeedGroup[] = [
       { code: 'gear',           label: 'Gear',               sortOrder: 2 },
       { code: 'screw',          label: 'Screw',              sortOrder: 3 },
       { code: 'multistage',     label: 'Multistage',         sortOrder: 4 },
-      { code: 'dosing_metering',label: 'Dosing / Metering',  sortOrder: 5 },
-      { code: 'pump_skid',      label: 'Pump Skid Packages', sortOrder: 6 },
+      { code: 'dosing_metering',  label: 'Dosing / Metering',  sortOrder: 5 },
+      { code: 'vacuum_boosters',  label: 'Vacuum Boosters',    sortOrder: 6 },
+      { code: 'pump_skid',        label: 'Pump Skid Packages', sortOrder: 7 },
     ],
   },
   {
