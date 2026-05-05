@@ -272,6 +272,65 @@ function TechnicalAttrsForm({
   );
 }
 
+// ── Inline "add to category" bar ─────────────────────────────────────────────
+function AddCategoryBar({
+  pkg, groups, addCat, setAddCat, addCatSubgroups, openAddLineForSubgroup,
+}: {
+  pkg: BuyPackage;
+  groups: BuyGroup[];
+  addCat: { groupId: string; subgroupId: string };
+  setAddCat: (v: { groupId: string; subgroupId: string }) => void;
+  addCatSubgroups: BuySubgroup[];
+  openAddLineForSubgroup: (
+    pkg: BuyPackage,
+    groupId: number, groupCode: string, groupLabel: string,
+    subgroupId: number, subgroupCode: string, subgroupLabel: string,
+  ) => void;
+}) {
+  const selGrp = groups.find((g) => String(g.id) === addCat.groupId);
+  const selSub = addCatSubgroups.find((s) => String(s.id) === addCat.subgroupId);
+  return (
+    <div className="flex items-center gap-2 flex-wrap rounded-md border border-dashed p-3 bg-muted/20">
+      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Add to:</span>
+      <Select
+        value={addCat.groupId}
+        onValueChange={(v) => setAddCat({ groupId: v, subgroupId: "" })}
+      >
+        <SelectTrigger className="h-7 text-xs w-40">
+          <SelectValue placeholder="Select Group…" />
+        </SelectTrigger>
+        <SelectContent>
+          {groups.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+      <Select
+        value={addCat.subgroupId}
+        onValueChange={(v) => setAddCat({ ...addCat, subgroupId: v })}
+        disabled={!addCat.groupId}
+      >
+        <SelectTrigger className="h-7 text-xs w-44">
+          <SelectValue placeholder={addCat.groupId ? "Select Subgroup…" : "Pick group first"} />
+        </SelectTrigger>
+        <SelectContent>
+          {addCatSubgroups.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Button
+        size="sm" className="h-7 gap-1 text-xs"
+        disabled={!selGrp || !selSub}
+        onClick={() => {
+          if (!selGrp || !selSub) return;
+          openAddLineForSubgroup(pkg, selGrp.id, selGrp.code, selGrp.label, selSub.id, selSub.code, selSub.label);
+          setAddCat({ groupId: "", subgroupId: "" });
+        }}
+      >
+        <Plus className="h-3 w-3" /> Add Line
+      </Button>
+    </div>
+  );
+}
+
 // ── Flag badges ───────────────────────────────────────────────────────────────
 const FLAGS = [
   { key: "selectionRequired",   short: "SEL"  },
@@ -318,6 +377,14 @@ export default function BuyPackagesPage() {
   const [search,         setSearch]         = useState("");
   const [expandedId,     setExpandedId]     = useState<number | null>(null);
 
+  // Inline "add to category" bar (group + subgroup selects inside expanded panel)
+  const [addCat, setAddCat] = useState({ groupId: "", subgroupId: "" });
+
+  function toggleExpand(pkgId: number) {
+    setExpandedId((cur) => (cur === pkgId ? null : pkgId));
+    setAddCat({ groupId: "", subgroupId: "" });
+  }
+
   // Dialogs
   const [showCreate, setShowCreate]     = useState(false);
   const [editPkg,    setEditPkg]        = useState<BuyPackage | null>(null);
@@ -352,6 +419,13 @@ export default function BuyPackagesPage() {
     queryFn: () =>
       fetch(`/api/buy-groups/${lf.buyGroupId}/subgroups`, { credentials: "include" }).then((r) => r.json()),
     enabled: !!lf.buyGroupId,
+  });
+
+  const { data: addCatSubgroups = [] } = useQuery<BuySubgroup[]>({
+    queryKey: ["/api/buy-groups", addCat.groupId, "subgroups"],
+    queryFn: () =>
+      fetch(`/api/buy-groups/${addCat.groupId}/subgroups`, { credentials: "include" }).then((r) => r.json()),
+    enabled: !!addCat.groupId,
   });
 
   const { data: uoms = [] } = useQuery<UomMaster[]>({ queryKey: ["/api/uom-master"] });
@@ -665,7 +739,7 @@ export default function BuyPackagesPage() {
                     <Fragment key={pkg.id}>
                       <TableRow
                         className="cursor-pointer hover:bg-muted/40 transition-colors"
-                        onClick={() => setExpandedId(isExpanded ? null : pkg.id)}
+                        onClick={() => toggleExpand(pkg.id)}
                       >
                         <TableCell className="pl-4">
                           {isExpanded
@@ -747,15 +821,20 @@ export default function BuyPackagesPage() {
                                   <Loader2 className="h-4 w-4 animate-spin" /> Loading lines…
                                 </div>
                               ) : expandedLines.length === 0 ? (
-                                <p className="text-sm text-muted-foreground flex items-center gap-2 py-2">
-                                  <AlertCircle className="h-4 w-4" />
-                                  No lines yet.{" "}
+                                <div className="space-y-3 py-1">
+                                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4" />
+                                    No lines yet. Select a group and subgroup below to add the first line.
+                                  </p>
                                   {canWrite && pkg.status === "draft" && (
-                                    <button className="text-primary underline" onClick={() => openAddLine(pkg)}>
-                                      Add the first line
-                                    </button>
+                                    <AddCategoryBar
+                                      pkg={pkg} groups={groups}
+                                      addCat={addCat} setAddCat={setAddCat}
+                                      addCatSubgroups={addCatSubgroups}
+                                      openAddLineForSubgroup={openAddLineForSubgroup}
+                                    />
                                   )}
-                                </p>
+                                </div>
                               ) : (
                                 /* Grouped view: BUY Group → Subgroup → lines */
                                 <div className="space-y-5">
@@ -849,6 +928,16 @@ export default function BuyPackagesPage() {
                                     </div>
                                   ))}
                                 </div>
+                              )}
+
+                              {/* Always-visible "add to new category" bar (draft only) */}
+                              {canWrite && pkg.status === "draft" && !linesLoad && (
+                                <AddCategoryBar
+                                  pkg={pkg} groups={groups}
+                                  addCat={addCat} setAddCat={setAddCat}
+                                  addCatSubgroups={addCatSubgroups}
+                                  openAddLineForSubgroup={openAddLineForSubgroup}
+                                />
                               )}
                             </div>
                           </TableCell>
