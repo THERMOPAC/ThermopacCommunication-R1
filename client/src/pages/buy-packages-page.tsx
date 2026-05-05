@@ -153,6 +153,16 @@ function buildPlatesRequirement(attrs: Record<string, unknown>): string {
   return result;
 }
 
+// ── Plates dropdown option lists ─────────────────────────────────────────────
+const PLATE_OPTS: Record<string, string[]> = {
+  plate_type:     ["MS", "SS 304", "SS 316", "Chequered", "Boiler Quality Plate"],
+  material_grade: ["IS 2062 E250", "IS 2062 E350", "SA 516 Gr 60", "SA 516 Gr 65", "SA 516 Gr 70", "ASTM A36", "SS 304", "SS 316"],
+  thickness_mm:   ["3", "5", "6", "8", "10", "12", "16", "20", "25", "32", "40"],
+  width_mm:       ["1000", "1250", "1500", "2000", "2500"],
+  length_mm:      ["2000", "2500", "3000", "6000"],
+  standard:       ["IS 2062", "ASTM A36", "ASTM A516", "ASME SA-516", "DIN", "EN", "JIS"],
+};
+
 // ── Plates structured form ────────────────────────────────────────────────────
 function PlatesAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -163,59 +173,68 @@ function PlatesAttrsForm({
   onQtyChange: (q: string) => void;
 }) {
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  // Track which fields are in free-text "Other" mode
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of Object.keys(PLATE_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !PLATE_OPTS[key].includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean, colSpan?: boolean) {
+    const opts = PLATE_OPTS[key];
+    const curVal = (attrs[key] as string) ?? "";
+    const isCustom = custom[key] ?? false;
+    const dropdownVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className={`space-y-1.5${colSpan ? " col-span-2" : ""}`}>
+        <Label className="text-xs">
+          {label}{required && <span className="text-red-500"> *</span>}
+        </Label>
+        <Select value={dropdownVal} onValueChange={(v) => handleSelect(key, v)}>
+          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+          <SelectContent>
+            {opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+            <SelectItem value="__other__">Other…</SelectItem>
+          </SelectContent>
+        </Select>
+        {isCustom && (
+          <Input
+            className="h-8 text-sm"
+            placeholder={`Enter custom value…`}
+            value={curVal}
+            onChange={(e) => set(key, e.target.value)}
+            autoFocus
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plate Specifications</p>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Plate Type <span className="text-red-500">*</span></Label>
-          <Input
-            className="h-8 text-sm" placeholder="e.g. MS, SS 304, Chequered"
-            value={(attrs.plate_type as string) ?? ""}
-            onChange={(e) => set("plate_type", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Material Grade</Label>
-          <Input
-            className="h-8 text-sm" placeholder="e.g. E250, E350, 304L"
-            value={(attrs.material_grade as string) ?? ""}
-            onChange={(e) => set("material_grade", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Thickness (mm) <span className="text-red-500">*</span></Label>
-          <Input
-            className="h-8 text-sm" type="number" placeholder="e.g. 10"
-            value={(attrs.thickness_mm as string) ?? ""}
-            onChange={(e) => set("thickness_mm", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Width (mm)</Label>
-          <Input
-            className="h-8 text-sm" type="number" placeholder="e.g. 1500"
-            value={(attrs.width_mm as string) ?? ""}
-            onChange={(e) => set("width_mm", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Length (mm)</Label>
-          <Input
-            className="h-8 text-sm" type="number" placeholder="e.g. 3000"
-            value={(attrs.length_mm as string) ?? ""}
-            onChange={(e) => set("length_mm", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Standard</Label>
-          <Input
-            className="h-8 text-sm" placeholder="e.g. IS 2062, ASTM A36"
-            value={(attrs.standard as string) ?? ""}
-            onChange={(e) => set("standard", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1 col-span-2">
+        {renderField("plate_type",     "Plate Type",      true)}
+        {renderField("material_grade", "Material Grade")}
+        {renderField("thickness_mm",   "Thickness (mm)",  true)}
+        {renderField("width_mm",       "Width (mm)")}
+        {renderField("length_mm",      "Length (mm)")}
+        {renderField("standard",       "Standard")}
+        <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input
             className="h-8 text-sm" type="number" min="0.01" step="0.01"
