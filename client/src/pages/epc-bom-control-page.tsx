@@ -25,6 +25,7 @@ import {
   Loader2, Search, Filter, Layers, Plus, Edit, Send, CheckCircle2, ShieldCheck,
   XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, FileText, Eye, Lock, Trash2, History,
+  Zap, PackageCheck, Info, ChevronUp, SkipForward,
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
@@ -115,6 +116,12 @@ export default function EpcBomControlPage() {
   const [supersedeReason, setSupersedeReason] = useState("");
   const [lineDialogOpen, setLineDialogOpen] = useState(false);
   const [lineEditTarget, setLineEditTarget] = useState<any>(null);
+  const [explosionDialogOpen, setExplosionDialogOpen] = useState(false);
+  const [explosionTarget, setExplosionTarget] = useState<any>(null);
+  const [explosionPreview, setExplosionPreview] = useState<any>(null);
+  const [explosionPreviewLoading, setExplosionPreviewLoading] = useState(false);
+  const [selectedExplosionLineIds, setSelectedExplosionLineIds] = useState<number[]>([]);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   const [createForm, setCreateForm] = useState({ projectItemId: "", masterItemId: "", drawingControlId: "", bomType: "assembly", bomTitle: "", bomDescription: "", notes: "" });
   const [editForm, setEditForm] = useState({ bomTitle: "", bomDescription: "", notes: "" });
@@ -289,6 +296,42 @@ export default function EpcBomControlPage() {
     },
   });
 
+  const explodeMutation = useMutation({
+    mutationFn: async ({ id, lineIds }: { id: number; lineIds: number[] }) => {
+      const res = await apiRequest("POST", `/api/bom-headers/${id}/explode`, { confirm: true, lineIds });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "BOM Exploded", description: data.message || `${data.explodedCount ?? 0} lines exploded into project items.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "bom-headers"] });
+      setExplosionDialogOpen(false);
+      setExplosionPreview(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "Explosion Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  async function openExplosionDialog(rec: any) {
+    setExplosionTarget(rec);
+    setExplosionPreview(null);
+    setSelectedExplosionLineIds([]);
+    setExplosionPreviewLoading(true);
+    setExplosionDialogOpen(true);
+    try {
+      const res = await fetch(`/api/bom-headers/${rec.id}/explosion-preview`);
+      const data = await res.json();
+      setExplosionPreview(data);
+      const explodable = (data.lines || []).filter((l: any) => l.action === "create").map((l: any) => l.bomLineId);
+      setSelectedExplosionLineIds(explodable);
+    } catch (e: any) {
+      toast({ title: "Preview Error", description: e.message, variant: "destructive" });
+      setExplosionDialogOpen(false);
+    } finally {
+      setExplosionPreviewLoading(false);
+    }
+  }
+
   function resetCreateForm() {
     setCreateForm({ projectItemId: "", masterItemId: "", drawingControlId: "", bomType: "assembly", bomTitle: "", bomDescription: "", notes: "" });
   }
@@ -413,7 +456,58 @@ export default function EpcBomControlPage() {
           <Layers className="h-4 w-4 text-primary" />
           <h1 className="text-base font-semibold">EPC BOM Control</h1>
           <Badge variant="outline" className="text-[9px] h-4">Bill of Materials Management</Badge>
+          <Button variant="ghost" size="sm" className="h-6 px-1.5 ml-auto" onClick={() => setShowInfoPanel(v => !v)}>
+            <Info className="h-3.5 w-3.5 mr-1" />
+            <span className="text-[10px]">How it works</span>
+            {showInfoPanel ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+          </Button>
         </div>
+
+        {showInfoPanel && (
+          <Card className="shadow-sm border-blue-200 bg-blue-50/50">
+            <CardContent className="p-3 space-y-2">
+              <div className="text-[11px] font-semibold text-blue-800">How EPC Project BOM is Managed</div>
+              <p className="text-[10px] text-blue-700 leading-relaxed">
+                Each project item that is manufactured or assembled gets its own Bill of Materials (BOM). The BOM lists every
+                component required, with quantities, specifications, and procurement details. BOM management follows a strict
+                lifecycle to ensure engineering accuracy before any procurement or production begins.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-semibold text-blue-800">Lifecycle Stages</div>
+                  {[
+                    ["Draft", "BOM is being built. Lines can be added, edited, or deleted. Needs at least one line to proceed."],
+                    ["Under Review", "Submitted for technical review. Submitter cannot self-review. A review task is auto-assigned."],
+                    ["Approved", "Senior Manager has approved. BOM is ready to be Released."],
+                    ["Released", "BOM is active. BOM Explosion can now push component lines into project items and planning records."],
+                    ["Locked", "Fully frozen. No further changes. Explosion still allowed if not yet done."],
+                    ["Superseded", "Replaced by a newer revision. Old revision preserved for audit. Reconciliation runs automatically."],
+                  ].map(([stage, desc]) => (
+                    <div key={stage} className="flex gap-1.5 text-[10px]">
+                      <span className="font-medium w-24 shrink-0 text-blue-800">{stage}</span>
+                      <span className="text-muted-foreground">{desc}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-semibold text-blue-800">BOM Explosion</div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Once a BOM reaches <strong>Released</strong> or <strong>Locked</strong> status, you can run <strong>BOM Explosion</strong>.
+                    This converts each BOM line into a child project item under the parent assembly, and automatically creates
+                    planning records for procurement or manufacturing. Components already exploded are skipped to prevent duplicates.
+                    Components marked "Not Required" (e.g. standard hardware not tracked individually) are also skipped.
+                  </p>
+                  <div className="text-[10px] font-semibold text-blue-800 mt-1.5">Supersession & Reconciliation</div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    When a BOM is superseded, the system automatically compares old and new lines. Removed components with no
+                    downstream POs/WOs get their planning records cancelled. Changed quantities update project item quantities.
+                    Any changes with active downstream records trigger review tasks for the project team.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
@@ -674,6 +768,41 @@ export default function EpcBomControlPage() {
                                 </CardContent>
                               </Card>
 
+                              {["released", "locked"].includes(rec.status) && (
+                                <Card className="shadow-sm lg:col-span-2 border-amber-200">
+                                  <CardHeader className="py-2 px-3">
+                                    <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
+                                      <Zap className="h-3.5 w-3.5 text-amber-600" />
+                                      <span className="text-amber-800">BOM Explosion</span>
+                                      {rec.explosion_state === "fully_exploded" && (
+                                        <Badge className="text-[8px] h-4 bg-emerald-100 text-emerald-800 ml-1"><PackageCheck className="h-2.5 w-2.5 mr-0.5 inline" />Fully Exploded</Badge>
+                                      )}
+                                      {rec.explosion_state === "partially_exploded" && (
+                                        <Badge className="text-[8px] h-4 bg-amber-100 text-amber-800 ml-1">Partially Exploded</Badge>
+                                      )}
+                                      {(!rec.explosion_state || rec.explosion_state === "not_exploded") && (
+                                        <Badge className="text-[8px] h-4 bg-slate-100 text-slate-600 ml-1">Not Exploded</Badge>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        className="h-5 px-2 text-[9px] ml-auto bg-amber-600 hover:bg-amber-700 text-white"
+                                        onClick={(e) => { e.stopPropagation(); openExplosionDialog(rec); }}
+                                      >
+                                        <Zap className="h-2.5 w-2.5 mr-0.5" />
+                                        {rec.explosion_state === "fully_exploded" ? "Re-check Explosion" : "Explode BOM"}
+                                      </Button>
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="px-3 pb-2">
+                                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                      BOM Explosion converts each BOM line into a child project item and generates planning records for
+                                      procurement or manufacturing. Components already exploded are skipped automatically.
+                                      Run explosion after the BOM is confirmed correct.
+                                    </p>
+                                  </CardContent>
+                                </Card>
+                              )}
+
                               <Card className="shadow-sm lg:col-span-2">
                                 <CardHeader className="py-2 px-3">
                                   <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
@@ -757,7 +886,13 @@ export default function EpcBomControlPage() {
             <div className="space-y-3">
               <div>
                 <Label className="text-xs">Project Item *</Label>
-                <Select value={createForm.projectItemId} onValueChange={(v) => setCreateForm({ ...createForm, projectItemId: v })}>
+                <Select
+                  value={createForm.projectItemId}
+                  onValueChange={(v) => {
+                    const pi = projectItems.find((p: any) => String(p.id) === v);
+                    setCreateForm({ ...createForm, projectItemId: v, masterItemId: pi?.item_id ? String(pi.item_id) : createForm.masterItemId });
+                  }}
+                >
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select item" /></SelectTrigger>
                   <SelectContent>
                     {projectItems.map((pi: any) => (
@@ -768,19 +903,31 @@ export default function EpcBomControlPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-xs">Master Item *</Label>
-                <Select value={createForm.masterItemId} onValueChange={(v) => setCreateForm({ ...createForm, masterItemId: v })}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select master item" /></SelectTrigger>
-                  <SelectContent>
-                    {masterItems.map((mi: any) => (
-                      <SelectItem key={mi.id} value={String(mi.id)} className="text-xs">
-                        {mi.item_code} — {mi.description}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {createForm.masterItemId ? (
+                <div className="flex items-center gap-2 p-2 rounded bg-emerald-50 border border-emerald-200 text-[10px]">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                  <span className="text-emerald-700">
+                    Master item auto-linked from project item:{" "}
+                    <span className="font-mono font-medium">
+                      {masterItems.find((m: any) => String(m.id) === createForm.masterItemId)?.item_code || `#${createForm.masterItemId}`}
+                    </span>
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <Label className="text-xs">Master Item * <span className="text-muted-foreground">(select project item above to auto-fill)</span></Label>
+                  <Select value={createForm.masterItemId} onValueChange={(v) => setCreateForm({ ...createForm, masterItemId: v })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select master item" /></SelectTrigger>
+                    <SelectContent>
+                      {masterItems.map((mi: any) => (
+                        <SelectItem key={mi.id} value={String(mi.id)} className="text-xs">
+                          {mi.item_code} — {mi.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label className="text-xs">BOM Type</Label>
                 <Select value={createForm.bomType} onValueChange={(v) => setCreateForm({ ...createForm, bomType: v })}>
@@ -924,6 +1071,142 @@ export default function EpcBomControlPage() {
                 {lifecycleMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                 Supersede & Create New Rev
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={explosionDialogOpen} onOpenChange={(o) => { if (!o) { setExplosionDialogOpen(false); setExplosionPreview(null); } }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-600" />
+                BOM Explosion — {explosionTarget?.bom_number}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Preview which BOM lines will be converted into project items and planning records.
+                Select the lines to explode and confirm.
+              </DialogDescription>
+            </DialogHeader>
+
+            {explosionPreviewLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-amber-600" /></div>
+            ) : explosionPreview ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    ["Total Lines", explosionPreview.summary?.totalLines ?? 0, "bg-slate-50"],
+                    ["To Explode", explosionPreview.summary?.explodableLines ?? 0, "bg-amber-50"],
+                    ["Already Done", explosionPreview.summary?.skipExisting ?? 0, "bg-emerald-50"],
+                    ["Skipped", explosionPreview.summary?.skippedNotRequired ?? 0, "bg-gray-50"],
+                  ].map(([label, count, bg]) => (
+                    <div key={label as string} className={`${bg} rounded p-2 text-center`}>
+                      <div className="text-sm font-bold">{count as number}</div>
+                      <div className="text-[9px] text-muted-foreground">{label as string}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {explosionPreview.summary?.explodableLines === 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-emerald-50 border border-emerald-200 text-[10px] text-emerald-700">
+                    <PackageCheck className="h-3.5 w-3.5 shrink-0" />
+                    All explodable lines have already been processed. Nothing new to explode.
+                  </div>
+                )}
+
+                <div className="overflow-x-auto rounded border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="text-[9px]">
+                        <TableHead className="w-8 text-[9px]">
+                          <Checkbox
+                            checked={selectedExplosionLineIds.length > 0 && selectedExplosionLineIds.length === (explosionPreview.lines || []).filter((l: any) => l.action === "create").length}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedExplosionLineIds((explosionPreview.lines || []).filter((l: any) => l.action === "create").map((l: any) => l.bomLineId));
+                              } else {
+                                setSelectedExplosionLineIds([]);
+                              }
+                            }}
+                            className="h-3 w-3"
+                          />
+                        </TableHead>
+                        <TableHead className="text-[9px]">Item Code</TableHead>
+                        <TableHead className="text-[9px]">Description</TableHead>
+                        <TableHead className="text-[9px]">Make/Buy</TableHead>
+                        <TableHead className="text-[9px] text-right">Qty/Unit</TableHead>
+                        <TableHead className="text-[9px] text-right">Total Qty</TableHead>
+                        <TableHead className="text-[9px]">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(explosionPreview.lines || []).map((line: any) => {
+                        const isExplodable = line.action === "create";
+                        const isChecked = selectedExplosionLineIds.includes(line.bomLineId);
+                        return (
+                          <TableRow key={line.bomLineId} className={`text-[10px] ${!isExplodable ? "opacity-50" : ""}`}>
+                            <TableCell className="w-8">
+                              {isExplodable ? (
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedExplosionLineIds(prev =>
+                                      checked ? [...prev, line.bomLineId] : prev.filter(id => id !== line.bomLineId)
+                                    );
+                                  }}
+                                  className="h-3 w-3"
+                                />
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="font-mono text-[10px]">{line.componentItemCode || "—"}</TableCell>
+                            <TableCell className="text-[10px] max-w-[200px] truncate">{line.componentDescription || "—"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[8px] h-4">{line.makeOrBuy || "—"}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-[10px]">{line.quantityPerUnit}</TableCell>
+                            <TableCell className="text-right font-mono text-[10px] font-medium">{line.computedQuantity}</TableCell>
+                            <TableCell>
+                              {line.action === "create" && (
+                                <Badge className="text-[8px] h-4 bg-amber-100 text-amber-800">Will Create</Badge>
+                              )}
+                              {line.action === "skip_existing" && (
+                                <Badge className="text-[8px] h-4 bg-emerald-100 text-emerald-800"><PackageCheck className="h-2.5 w-2.5 mr-0.5 inline" />Already Done</Badge>
+                              )}
+                              {line.action === "skipped_not_required" && (
+                                <Badge className="text-[8px] h-4 bg-slate-100 text-slate-600"><SkipForward className="h-2.5 w-2.5 mr-0.5 inline" />Not Required</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {explosionPreview.summary?.explodableLines > 0 && (
+                  <div className="flex items-start gap-2 p-2 rounded bg-amber-50 border border-amber-200 text-[10px] text-amber-800">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      This will create <strong>{selectedExplosionLineIds.length}</strong> child project item(s) under <strong>{explosionTarget?.item_code || explosionTarget?.bom_number}</strong> and
+                      generate planning records for each. Existing items will not be duplicated.
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => { setExplosionDialogOpen(false); setExplosionPreview(null); }}>Close</Button>
+              {explosionPreview?.summary?.explodableLines > 0 && (
+                <Button
+                  size="sm"
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                  disabled={selectedExplosionLineIds.length === 0 || explodeMutation.isPending}
+                  onClick={() => explosionTarget && explodeMutation.mutate({ id: explosionTarget.id, lineIds: selectedExplosionLineIds })}
+                >
+                  {explodeMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Zap className="h-3 w-3 mr-1" />}
+                  Explode {selectedExplosionLineIds.length} Line{selectedExplosionLineIds.length !== 1 ? "s" : ""}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
