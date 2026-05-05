@@ -259,6 +259,49 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
   // PHASE 1 — BUY PACKAGE HEADERS
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // GET /api/buy-packages/generate-code?productId=X — auto-generate next package code
+  app.get('/api/buy-packages/generate-code', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const productId = parseInt(req.query.productId as string);
+      if (isNaN(productId)) return sendValidationError(res, 'productId query param required');
+
+      const prodRow = await pool.query(
+        `SELECT product_code FROM products WHERE id = $1`,
+        [productId],
+      );
+      if (prodRow.rowCount === 0) return sendNotFound(res, 'Product', productId);
+
+      const rawCode: string = prodRow.rows[0].product_code ?? '';
+      // Clean: uppercase, replace spaces→hyphens, strip non-alphanumeric-non-hyphen, max 18 chars
+      const slug = rawCode
+        .toUpperCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^A-Z0-9-]/g, '')
+        .slice(0, 18);
+
+      // Count how many packages exist for this product already (to compute next seq)
+      const countRow = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM buy_package_headers WHERE product_id = $1`,
+        [productId],
+      );
+      let seq = (countRow.rows[0].n ?? 0) + 1;
+
+      // Find a code that doesn't collide (in case of gaps)
+      let candidate = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
+      while (true) {
+        const clash = await pool.query(
+          `SELECT 1 FROM buy_package_headers WHERE package_code = $1`,
+          [candidate],
+        );
+        if (clash.rowCount === 0) break;
+        seq++;
+        candidate = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
+      }
+
+      res.json({ packageCode: candidate });
+    } catch (err) { sendError(res, err); }
+  });
+
   // GET /api/buy-packages — list with product info + line count
   app.get('/api/buy-packages', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {

@@ -1,4 +1,4 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -214,6 +214,7 @@ export default function BuyPackagesPage() {
 
   // Header form
   const [hdr, setHdr] = useState({ productId: "", packageCode: "", name: "", description: "" });
+  const [codeLoading, setCodeLoading] = useState(false);
 
   // Line form
   const [lf, setLf] = useState({ ...EMPTY_LINE });
@@ -325,6 +326,22 @@ export default function BuyPackagesPage() {
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
+  const fetchGeneratedCode = useCallback(async (productId: string) => {
+    if (!productId) return;
+    setCodeLoading(true);
+    try {
+      const res = await fetch(`/api/buy-packages/generate-code?productId=${productId}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setHdr((h) => ({ ...h, packageCode: data.packageCode }));
+      }
+    } catch {
+      // silently ignore — user can type manually
+    } finally {
+      setCodeLoading(false);
+    }
+  }, []);
+
   function openCreate() {
     setHdr({ productId: "", packageCode: "", name: "", description: "" });
     setShowCreate(true);
@@ -658,7 +675,13 @@ export default function BuyPackagesPage() {
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
                 <Label>BUY Product <span className="text-red-500">*</span></Label>
-                <Select value={hdr.productId} onValueChange={(v) => setHdr((h) => ({ ...h, productId: v }))}>
+                <Select
+                  value={hdr.productId}
+                  onValueChange={(v) => {
+                    setHdr((h) => ({ ...h, productId: v, packageCode: "" }));
+                    fetchGeneratedCode(v);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a BUY catalog product…" />
                   </SelectTrigger>
@@ -675,13 +698,23 @@ export default function BuyPackagesPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Package Code <span className="text-red-500">*</span></Label>
-                <Input
-                  placeholder="e.g. PKG-PUMP-001"
-                  value={hdr.packageCode}
-                  onChange={(e) => setHdr((h) => ({ ...h, packageCode: e.target.value.toUpperCase() }))}
-                  maxLength={30}
-                />
+                <div className="flex items-center justify-between">
+                  <Label>Package Code <span className="text-red-500">*</span></Label>
+                  <span className="text-[11px] text-muted-foreground">Auto-generated · editable</span>
+                </div>
+                <div className="relative">
+                  <Input
+                    placeholder={codeLoading ? "Generating…" : "Select a product to auto-generate"}
+                    value={hdr.packageCode}
+                    onChange={(e) => setHdr((h) => ({ ...h, packageCode: e.target.value.toUpperCase() }))}
+                    maxLength={30}
+                    className="font-mono pr-8"
+                    disabled={codeLoading}
+                  />
+                  {codeLoading && (
+                    <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Package Name <span className="text-red-500">*</span></Label>
