@@ -27,7 +27,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
-  ChevronsUpDown, Check, X,
+  ChevronsUpDown, Check, X, FileSpreadsheet, Printer,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -2480,6 +2480,567 @@ function computeSubgroupWarnings(
   }
 
   return w;
+}
+
+// ── Datasheet Section Types ───────────────────────────────────────────────────
+type DatasheetField   = { label: string; value: string; highlight?: boolean };
+type DatasheetSection = { title: string; fields: DatasheetField[] };
+
+function buildDatasheetSections(
+  subgroupCode: string,
+  groupCode: string,
+  attrs: Record<string, unknown>,
+  isMotor: boolean,
+): DatasheetSection[] {
+  const v = (key: string): string => ((attrs[key] as string) ?? "").trim() || "—";
+  const vUnit = (key: string, unitKey: string): string => {
+    const val = ((attrs[key] as string) ?? "").trim();
+    const unit = ((attrs[unitKey] as string) ?? "").trim();
+    if (!val) return "—";
+    return unit ? `${val} ${unit}` : val;
+  };
+  const vMakes = (): string => {
+    const raw = attrs["approved_makes"];
+    if (Array.isArray(raw)) return raw.join(", ") || "—";
+    return ((raw as string) ?? "").trim() || "—";
+  };
+
+  if (isMotor) {
+    return [
+      { title: "Motor Details", fields: [
+        { label: "Motor Type",       value: v("motor_type"), highlight: true },
+        { label: "Power (kW)",       value: v("power") },
+        { label: "Voltage",          value: v("voltage") },
+        { label: "Speed (RPM)",      value: v("speed") },
+        { label: "Efficiency Class", value: v("efficiency_class") },
+        { label: "Frame Size",       value: v("frame_size") },
+        { label: "Poles",            value: v("poles") },
+      ]},
+      { title: "Mechanical", fields: [
+        { label: "Cooling Type",     value: v("cooling_type") },
+        { label: "Mounting",         value: v("mounting") },
+        { label: "IP Rating",        value: v("ip_rating") },
+        { label: "Insulation Class", value: v("insulation_class") },
+        { label: "Duty",             value: v("duty") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification",  value: v("area_classification") },
+        { label: "Explosion Protection", value: v("explosion_protection") },
+        { label: "Certification",        value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "pressure") {
+    return [
+      { title: "Instrument Details", fields: [
+        { label: "Instrument Type",  value: v("instrument_type"), highlight: true },
+        { label: "Measurement Type", value: v("measurement_type") },
+        { label: "Output Signal",    value: v("output_signal") },
+      ]},
+      { title: "Measurement Range", fields: [
+        { label: "Range Min",  value: v("range_min") },
+        { label: "Range Max",  value: v("range_max") },
+        { label: "Range Unit", value: v("range_unit") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",       value: v("process_fluid") },
+        { label: "Operating Temp",      value: v("operating_temp") },
+        { label: "Design Pressure",     value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",  value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Connection", fields: [
+        { label: "Connection Size", value: v("connection_size") },
+        { label: "Connection Type", value: v("connection_type") },
+      ]},
+      { title: "Construction", fields: [
+        { label: "Wetted Material", value: v("wetted_material") },
+        { label: "Enclosure Type",  value: v("enclosure_type") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification",  value: v("area_classification") },
+        { label: "Explosion Protection", value: v("explosion_protection") },
+        { label: "Certification",        value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "temperature") {
+    return [
+      { title: "Instrument Details", fields: [
+        { label: "Instrument Type", value: v("instrument_type"), highlight: true },
+        { label: "Sensor Type",     value: v("sensor_type") },
+      ]},
+      { title: "Measuring Range", fields: [
+        { label: "Range Min",  value: v("range_min") },
+        { label: "Range Max",  value: v("range_max") },
+        { label: "Range Unit", value: v("range_unit") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",       value: v("process_fluid") },
+        { label: "Design Pressure",     value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",  value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Connection", fields: [
+        { label: "Connection Size", value: v("connection_size") },
+        { label: "Connection Type", value: v("connection_type") },
+        { label: "Wetted Material", value: v("wetted_material") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification",  value: v("area_classification") },
+        { label: "Explosion Protection", value: v("explosion_protection") },
+        { label: "Certification",        value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "flow") {
+    return [
+      { title: "Instrument Details", fields: [
+        { label: "Instrument Type", value: v("instrument_type"), highlight: true },
+        { label: "Line Size",       value: v("line_size") },
+        { label: "Output Signal",   value: v("output_signal") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",       value: v("process_fluid") },
+        { label: "Design Pressure",     value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",  value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Construction", fields: [
+        { label: "Liner Material", value: v("liner_material") },
+        { label: "End Connection", value: v("end_connection") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification",  value: v("area_classification") },
+        { label: "Explosion Protection", value: v("explosion_protection") },
+        { label: "Certification",        value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "level") {
+    return [
+      { title: "Instrument Details", fields: [
+        { label: "Instrument Type", value: v("instrument_type"), highlight: true },
+        { label: "Output Signal",   value: v("output_signal") },
+      ]},
+      { title: "Measurement Range", fields: [
+        { label: "Range Min",  value: v("range_min") },
+        { label: "Range Max",  value: v("range_max") },
+        { label: "Range Unit", value: v("range_unit") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",       value: v("process_fluid") },
+        { label: "Design Pressure",     value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",  value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Construction", fields: [
+        { label: "Wetted Material", value: v("wetted_material") },
+        { label: "Connection Size", value: v("connection_size") },
+        { label: "Connection Type", value: v("connection_type") },
+        { label: "Enclosure",       value: v("enclosure") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification",  value: v("area_classification") },
+        { label: "Explosion Protection", value: v("explosion_protection") },
+        { label: "Certification",        value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "isolation") {
+    return [
+      { title: "Valve Details", fields: [
+        { label: "Valve Type",      value: v("valve_type"), highlight: true },
+        { label: "Size (NB)",       value: v("size_nb") },
+        { label: "Pressure Rating", value: v("pressure_rating") },
+        { label: "Operation Type",  value: v("operation_type") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",         value: v("process_fluid") },
+        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
+        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
+        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Connection & Material", fields: [
+        { label: "End Connection", value: v("end_connection") },
+        { label: "Body Material",  value: v("body_material") },
+        { label: "Trim Material",  value: v("trim_material") },
+        { label: "Seat Type",      value: v("seat_type") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "control") {
+    return [
+      { title: "Valve Details", fields: [
+        { label: "Valve Type",          value: v("valve_type"), highlight: true },
+        { label: "Size (NB)",           value: v("size_nb") },
+        { label: "Pressure Rating",     value: v("pressure_rating") },
+        { label: "Flow Characteristic", value: v("flow_characteristic") },
+      ]},
+      { title: "Actuation", fields: [
+        { label: "Actuation Type", value: v("actuation_type") },
+        { label: "Fail Action",    value: v("fail_action") },
+        { label: "Input Signal",   value: v("input_signal") },
+        { label: "Positioner",     value: v("positioner") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",         value: v("process_fluid") },
+        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
+        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
+        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Connection & Material", fields: [
+        { label: "End Connection", value: v("end_connection") },
+        { label: "Body Material",  value: v("body_material") },
+        { label: "Trim Material",  value: v("trim_material") },
+        { label: "Seat Type",      value: v("seat_type") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "safety") {
+    return [
+      { title: "Valve Details", fields: [
+        { label: "Valve Type",      value: v("valve_type"), highlight: true },
+        { label: "Size (NB)",       value: v("size_nb") },
+        { label: "Pressure Rating", value: v("pressure_rating") },
+        { label: "Set Pressure",    value: v("set_pressure") },
+        { label: "API Orifice",     value: v("api_orifice") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",         value: v("process_fluid") },
+        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
+        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
+        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Connection & Material", fields: [
+        { label: "End Connection", value: v("end_connection") },
+        { label: "Body Material",  value: v("body_material") },
+        { label: "Trim Material",  value: v("trim_material") },
+        { label: "Bonnet Type",    value: v("bonnet_type") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "on_off") {
+    return [
+      { title: "Valve Details", fields: [
+        { label: "Valve Type",          value: v("valve_type"), highlight: true },
+        { label: "Valve Configuration", value: v("valve_configuration") },
+        { label: "Size (NB)",           value: v("size_nb") },
+        { label: "Pressure Rating",     value: v("pressure_rating") },
+        { label: "Service Type",        value: v("service_type") },
+      ]},
+      { title: "Actuation", fields: [
+        { label: "Actuation Type", value: v("actuation_type") },
+        { label: "Fail Action",    value: v("fail_action") },
+      ]},
+      { title: "Process Conditions", fields: [
+        { label: "Process Fluid",         value: v("process_fluid") },
+        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
+        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
+        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
+      ]},
+      { title: "Connection & Material", fields: [
+        { label: "End Connection",     value: v("end_connection") },
+        { label: "Body Material",      value: v("body_material") },
+        { label: "Trim/Disc Material", value: v("trim_disc_material") },
+        { label: "Seat Type",          value: v("seat_type") },
+      ]},
+      { title: "Hazardous Area", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+      ]},
+    ];
+  }
+
+  if (subgroupCode === "panels") {
+    return [
+      { title: "Panel Details", fields: [
+        { label: "Panel Type",     value: v("panel_type"), highlight: true },
+        { label: "Voltage",        value: v("voltage") },
+        { label: "Frequency",      value: v("frequency") },
+        { label: "Control Supply", value: v("control_supply") },
+      ]},
+      { title: "Enclosure", fields: [
+        { label: "Enclosure Type",     value: v("enclosure_type") },
+        { label: "IP Rating",          value: v("ip_rating") },
+        { label: "Enclosure Material", value: v("enclosure_material") },
+        { label: "Mounting",           value: v("mounting") },
+      ]},
+      { title: "Feeder / Incomer", fields: [
+        { label: "Incomer Type",   value: v("incomer_type") },
+        { label: "Incomer Rating", value: v("incomer_rating") },
+        { label: "Feeder Load",    value: v("feeder_load") },
+        { label: "Busbar Type",    value: v("busbar_type") },
+      ]},
+      { title: "Communication & Certification", fields: [
+        { label: "Protocol",            value: v("communication_protocol") },
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "cabling") {
+    return [
+      { title: "Cable Details", fields: [
+        { label: "Cable Type",         value: v("cable_type"), highlight: true },
+        { label: "No. of Cores",       value: v("num_cores") },
+        { label: "Cable Size (sq.mm)", value: v("cable_size") },
+        { label: "Conductor",          value: v("conductor_material") },
+      ]},
+      { title: "Insulation & Armour", fields: [
+        { label: "Insulation Type", value: v("insulation_type") },
+        { label: "Armour Type",     value: v("armour_type") },
+        { label: "Voltage Grade",   value: v("voltage_grade") },
+        { label: "Laying Type",     value: v("laying_type") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "junction_box") {
+    const l = v("length_mm"), w = v("width_mm"), d = v("depth_mm");
+    const dims = l !== "—" && w !== "—" && d !== "—" ? `${l} × ${w} × ${d} mm` : "—";
+    return [
+      { title: "Junction Box Details", fields: [
+        { label: "JB Type",         value: v("jb_type"), highlight: true },
+        { label: "Enclosure Type",  value: v("enclosure_type") },
+        { label: "Mounting",        value: v("mounting") },
+        { label: "IP Rating",       value: v("ip_rating") },
+        { label: "Material",        value: v("enclosure_material") },
+        { label: "Dimensions",      value: dims },
+      ]},
+      { title: "Termination & Glands", fields: [
+        { label: "No. of Terminals",  value: v("num_terminals") },
+        { label: "Terminal Type",     value: v("terminal_type") },
+        { label: "Cable Entries",     value: v("num_cable_entries") },
+        { label: "Cable Entry Type",  value: v("cable_entry_type") },
+        { label: "No. of Glands",     value: v("num_glands") },
+        { label: "Cable Gland Type",  value: v("cable_gland_type") },
+        { label: "Gland Size",        value: v("gland_size") },
+      ]},
+      { title: "Area & Certification", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+        { label: "Earthing",            value: v("earthing") },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "cooling_tower") {
+    return [
+      { title: "Cooling Tower Details", fields: [
+        { label: "Type",              value: v("cooling_tower_type"), highlight: true },
+        { label: "Circulation Rate",  value: v("circulation_rate") !== "—" ? `${v("circulation_rate")} m³/hr` : "—" },
+        { label: "Fan Type",          value: v("fan_type") },
+        { label: "Fan Drive",         value: v("fan_drive") },
+        { label: "Motor Power (kW)",  value: v("motor_power_kw") },
+      ]},
+      { title: "Thermal Performance", fields: [
+        { label: "Inlet Water Temp (°C)",  value: v("inlet_water_temp") },
+        { label: "Outlet Water Temp (°C)", value: v("outlet_water_temp") },
+        { label: "Wet Bulb Temp (°C)",     value: v("wet_bulb_temp") },
+      ]},
+      { title: "Construction", fields: [
+        { label: "Casing Material", value: v("casing_material") },
+        { label: "Fill Type",       value: v("fill_type") },
+        { label: "Construction",    value: v("construction") },
+      ]},
+    ];
+  }
+
+  if (subgroupCode === "general" && groupCode === "bought_out_packages") {
+    return [
+      { title: "Package Details", fields: [
+        { label: "Package Type",   value: v("package_type"), highlight: true },
+        { label: "Capacity",       value: v("capacity") },
+        { label: "Configuration",  value: v("configuration") },
+        { label: "Material Class", value: v("material_class") },
+      ]},
+      { title: "Components", fields: [
+        { label: "Package Components", value: ((attrs.package_components as string) ?? "").trim() || "—" },
+      ]},
+      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+    ];
+  }
+
+  if (subgroupCode === "pump_skid" || subgroupCode === "pump_skid_packages") {
+    return [
+      { title: "Package Details", fields: [
+        { label: "Package Type",   value: v("package_type"), highlight: true },
+        { label: "Pump Type",      value: v("pump_type") },
+        { label: "Flow Rate",      value: v("flow_rate") },
+        { label: "No. of Pumps",   value: v("num_pumps") },
+        { label: "Standby Config", value: v("standby_config") },
+        { label: "Mounting",       value: v("mounting") },
+        { label: "Material Class", value: v("material_class") },
+      ]},
+      { title: "Components", fields: [
+        { label: "Included Components",
+          value: ((attrs.included_components as string[]) ?? []).join(", ") || "—" },
+      ]},
+    ];
+  }
+
+  return [];
+}
+
+// ── Datasheet Preview Dialog ──────────────────────────────────────────────────
+function DatasheetPreviewDialog({
+  line, open, onClose,
+}: {
+  line: PackageLine | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (!line) return null;
+  const isMotorCode = line.buy_subgroup_code === "non_flameproof" || line.buy_subgroup_code === "flameproof";
+  const attrs    = line.technical_attributes ?? {};
+  const sections = buildDatasheetSections(line.buy_subgroup_code, line.buy_group_code, attrs, isMotorCode);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-primary" />
+            Datasheet Preview
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            {line.buy_group_label} → {line.buy_subgroup_label}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-md bg-muted/50 border px-3 py-2">
+          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Generic Requirement</p>
+          <p className="text-sm font-semibold">{line.generic_requirement}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Qty: {line.default_quantity} {line.uom_code}</p>
+        </div>
+
+        {sections.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            No structured datasheet available for this item type.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {sections.map((sec) => (
+              <div key={sec.title}>
+                <p className="text-[11px] font-semibold text-primary uppercase tracking-wide border-b pb-1 mb-2">
+                  {sec.title}
+                </p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                  {sec.fields.map((f) => (
+                    <div key={f.label} className="flex gap-2 text-xs py-0.5">
+                      <span className="text-muted-foreground min-w-[140px] shrink-0">{f.label}</span>
+                      <span className={
+                        f.value === "—"
+                          ? "text-muted-foreground/40 italic"
+                          : f.highlight
+                            ? "font-semibold text-foreground"
+                            : "text-foreground"
+                      }>{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
+          </Button>
+          <Button size="sm" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Process & Design Conditions Block (for valve modes) ───────────────────────
+const PROC_FLUID_OPTS    = ["Water","Steam","Air","Compressed Air","Nitrogen","Oil","Gas","LPG","Acid","Alkali","Chemical","Slurry","Other"];
+const PRESSURE_UNIT_OPTS = ["bar","barg","psi","kg/cm²","kPa","MPa"];
+const TEMP_UNIT_OPTS     = ["°C","°F","K"];
+
+function ProcessDesignConditionsBlock({
+  attrs, onChange,
+}: {
+  attrs: Record<string, unknown>;
+  onChange: (a: Record<string, unknown>) => void;
+}) {
+  const set = (k: string, v: unknown) => onChange({ ...attrs, [k]: v });
+  const val = (k: string) => (attrs[k] as string) ?? "";
+
+  const numRow = (label: string, numKey: string, unitKey: string, unitOpts: string[], defaultUnit: string) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex gap-1">
+        <Input className="h-8 text-sm" type="number" step="any"
+          value={val(numKey)} onChange={(e) => set(numKey, e.target.value)} />
+        <Select value={val(unitKey) || defaultUnit} onValueChange={(v) => set(unitKey, v)}>
+          <SelectTrigger className="h-8 w-20 text-xs shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {unitOpts.map((u) => <SelectItem key={u} value={u} className="text-xs">{u}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3 rounded-md border border-blue-200 dark:border-blue-800 p-3 bg-blue-50/40 dark:bg-blue-950/10">
+      <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+        Process &amp; Design Conditions
+        <span className="text-[10px] font-normal normal-case text-blue-500 ml-2">required for datasheet</span>
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Process Fluid</Label>
+          <SearchableSelect options={PROC_FLUID_OPTS} value={val("process_fluid")}
+            onSelect={(v) => set("process_fluid", v === "__other__" ? "" : v)}
+            placeholder="Select fluid…" />
+        </div>
+        <div />
+        {numRow("Operating Pressure", "operating_pressure", "operating_pressure_unit", PRESSURE_UNIT_OPTS, "barg")}
+        {numRow("Operating Temperature", "operating_temperature", "operating_temperature_unit", TEMP_UNIT_OPTS, "°C")}
+        {numRow("Design Pressure", "design_pressure", "design_pressure_unit", PRESSURE_UNIT_OPTS, "barg")}
+        {numRow("Design Temperature", "design_temperature", "design_temperature_unit", TEMP_UNIT_OPTS, "°C")}
+      </div>
+    </div>
+  );
 }
 
 // ── Pressure Instrument requirement builder ───────────────────────────────────
@@ -5285,6 +5846,8 @@ export default function BuyPackagesPage() {
     lock: { groupId: string; groupCode: string; groupLabel: string; subgroupId: string; subgroupCode: string; subgroupLabel: string } | null;
   }>({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null });
 
+  const [datasheetLine, setDatasheetLine] = useState<PackageLine | null>(null);
+
   // Header form
   const [hdr, setHdr] = useState({ productId: "", packageCode: "", name: "", description: "" });
   const [codeLoading, setCodeLoading] = useState(false);
@@ -6910,6 +7473,14 @@ export default function BuyPackagesPage() {
                 </>
               )}
 
+              {/* Process & Design Conditions — valve modes */}
+              {(isIsolationValveMode || isControlValveMode || isSafetyValveMode || isOnOffValveMode) && (
+                <ProcessDesignConditionsBlock
+                  attrs={lf.technicalAttributes}
+                  onChange={(a) => setLf((f) => ({ ...f, technicalAttributes: a }))}
+                />
+              )}
+
               {/* Completeness Warnings */}
               {(() => {
                 const sg = lineDialog.lock?.subgroupCode || selectedSubgroupCode || "";
@@ -7055,10 +7626,24 @@ export default function BuyPackagesPage() {
                           <TableRow key={line.id} className="text-xs align-top">
                             <TableCell className="text-muted-foreground font-mono pt-3">{idx + 1}</TableCell>
                             <TableCell className="max-w-xs pt-3">
-                              <p className="leading-snug">{line.generic_requirement}</p>
-                              {line.default_specification && (
-                                <p className="text-muted-foreground text-[11px] mt-0.5 leading-snug">{line.default_specification}</p>
-                              )}
+                              <div className="flex items-start gap-1">
+                                <div className="flex-1 min-w-0">
+                                  <p className="leading-snug">{line.generic_requirement}</p>
+                                  {line.default_specification && (
+                                    <p className="text-muted-foreground text-[11px] mt-0.5 leading-snug">{line.default_specification}</p>
+                                  )}
+                                </div>
+                                {line.technical_attributes && Object.keys(line.technical_attributes).length > 0 && (
+                                  <Button
+                                    variant="ghost" size="sm"
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-primary shrink-0"
+                                    title="Preview Datasheet"
+                                    onClick={() => setDatasheetLine(line)}
+                                  >
+                                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="text-right font-mono pt-3">{line.default_quantity}</TableCell>
                             <TableCell className="pt-3">{line.uom_code}</TableCell>
@@ -7114,6 +7699,14 @@ export default function BuyPackagesPage() {
         })()}
 
       </div>
+
+      {/* Datasheet Preview Dialog */}
+      <DatasheetPreviewDialog
+        line={datasheetLine}
+        open={datasheetLine !== null}
+        onClose={() => setDatasheetLine(null)}
+      />
+
     </Layout>
   );
 }
