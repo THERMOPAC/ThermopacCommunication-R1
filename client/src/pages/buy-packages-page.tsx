@@ -2391,6 +2391,97 @@ function VacuumBoosterAttrsForm({
   );
 }
 
+// ── Completeness Warning System ───────────────────────────────────────────────
+function WarningPanel({ warnings }: { warnings: string[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 p-3 space-y-1.5">
+      <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+        ⚠ Datasheet Completeness Warning
+      </p>
+      <ul className="space-y-0.5">
+        {warnings.map((w, i) => (
+          <li key={i} className="text-xs text-amber-700 dark:text-amber-400">• {w}</li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-amber-500 dark:text-amber-500 italic">
+        These fields are optional but leaving them empty may impact datasheet completeness.
+      </p>
+    </div>
+  );
+}
+
+function computeSubgroupWarnings(
+  subgroupCode: string,
+  groupCode: string,
+  attrs: Record<string, unknown>,
+  isMotor: boolean,
+): string[] {
+  const w: string[] = [];
+  const missing = (key: string) => !((attrs[key] as string) ?? "").trim();
+
+  if (isMotor) {
+    if (missing("efficiency_class")) w.push("Efficiency Class — required for energy compliance datasheets.");
+    if (missing("ip_rating"))        w.push("IP Rating — required for area classification datasheets.");
+    if (missing("mounting"))         w.push("Mounting type — needed for installation drawings.");
+    if (missing("cooling_type"))     w.push("Cooling Type — may be needed for thermal datasheets.");
+    return w;
+  }
+
+  if (subgroupCode === "pressure") {
+    if (missing("range_min") && missing("range_max")) w.push("Pressure range — critical for instrument datasheet.");
+    if (missing("range_unit"))      w.push("Range unit — needed for datasheet completeness.");
+    if (missing("connection_type")) w.push("Connection type — needed for piping interface.");
+    if (missing("wetted_material")) w.push("Wetted material — required for material selection datasheet.");
+    if (missing("output_signal"))   w.push("Output signal — needed for control system interface.");
+  } else if (subgroupCode === "temperature") {
+    if (missing("sensor_type"))     w.push("Sensor type (TC/RTD) — required for instrument datasheet.");
+    if (missing("range_min") && missing("range_max")) w.push("Temperature range — critical for instrument datasheet.");
+    if (missing("wetted_material")) w.push("Wetted material — required for thermowell selection.");
+    if (missing("connection_type")) w.push("Connection type — needed for piping interface.");
+  } else if (subgroupCode === "flow") {
+    if (missing("liner_material"))  w.push("Liner material — required for flow meter datasheet.");
+    if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
+    if (missing("output_signal"))   w.push("Output signal — needed for control system interface.");
+  } else if (subgroupCode === "level") {
+    if (missing("range_min") && missing("range_max")) w.push("Level range — required for instrument datasheet.");
+    if (missing("output_signal"))   w.push("Output signal — needed for control system interface.");
+    if (missing("wetted_material")) w.push("Wetted material — required for material selection.");
+  } else if (subgroupCode === "isolation") {
+    if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
+    if (missing("body_material"))   w.push("Body material — required for material class datasheet.");
+  } else if (subgroupCode === "control") {
+    if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
+    if (missing("trim_material"))   w.push("Trim material — required for valve datasheet.");
+  } else if (subgroupCode === "safety") {
+    if (missing("set_pressure"))    w.push("Set pressure — critical for PSV datasheet and SIL compliance.");
+    if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
+    if (missing("body_material"))   w.push("Body material — required for material class datasheet.");
+  } else if (subgroupCode === "on_off") {
+    if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
+    if (missing("body_material"))   w.push("Body material — required for material class datasheet.");
+  } else if (subgroupCode === "panels") {
+    if (missing("voltage"))         w.push("Supply voltage — required for electrical datasheet.");
+    if (missing("ip_rating"))       w.push("IP rating — required for enclosure datasheet.");
+    if (missing("enclosure_type"))  w.push("Enclosure type — needed for panel datasheet.");
+  } else if (subgroupCode === "cabling") {
+    if (missing("insulation_type")) w.push("Insulation type — required for cable datasheet.");
+    if (missing("armour_type"))     w.push("Armour type — required for cable routing design.");
+    if (missing("voltage_grade"))   w.push("Voltage grade — critical for cable selection.");
+  } else if (subgroupCode === "junction_box") {
+    if (missing("num_terminals"))   w.push("Number of terminals — needed for JB schedule.");
+    if (missing("terminal_type"))   w.push("Terminal type — required for termination datasheet.");
+  } else if (subgroupCode === "general" && groupCode === "bought_out_packages") {
+    if (missing("material_class"))  w.push("Material class — required for vendor datasheet.");
+    if (missing("configuration"))   w.push("Configuration — may impact vendor selection.");
+  } else if (subgroupCode === "cooling_tower") {
+    if (missing("casing_material")) w.push("Casing material — required for CT datasheet.");
+    if (missing("fan_type"))        w.push("Fan type — required for fan selection datasheet.");
+  }
+
+  return w;
+}
+
 // ── Pressure Instrument requirement builder ───────────────────────────────────
 function buildPressureRequirement(attrs: Record<string, unknown>): string {
   const instrType   = (attrs.instrument_type    as string)?.trim() || "";
@@ -6818,6 +6909,14 @@ export default function BuyPackagesPage() {
                   )}
                 </>
               )}
+
+              {/* Completeness Warnings */}
+              {(() => {
+                const sg = lineDialog.lock?.subgroupCode || selectedSubgroupCode || "";
+                const gr = lineDialog.lock?.groupCode    || selectedGroupCode    || "";
+                const warns = computeSubgroupWarnings(sg, gr, lf.technicalAttributes, isMotorMode);
+                return warns.length > 0 ? <WarningPanel warnings={warns} /> : null;
+              })()}
 
               {/* Required Flags */}
               <div className="space-y-2 rounded-md border p-3 bg-muted/30">
