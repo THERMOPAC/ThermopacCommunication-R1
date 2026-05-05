@@ -14,6 +14,8 @@
  */
 
 import express, { Request, Response } from 'express';
+import multer from 'multer';
+import crypto from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { requirePageAccess } from './utils/permission-utils';
@@ -24,6 +26,29 @@ import {
 import { canManage, roleHierarchy } from '@shared/roles';
 import { seedPppcMasterData, validateSubgroupBelongsToGroup } from './utils/pppc-services';
 import { agentEventBus } from './agents/framework/event-bus';
+import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
+import { bucketName as GCS_BUCKET } from './utils/storage-config';
+
+// ─── Phase 3 helpers ──────────────────────────────────────────────────────────
+const dsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+function mimeToExt(mime: string): string {
+  const map: Record<string, string> = {
+    'application/pdf': 'pdf',
+    'image/jpeg': 'jpg', 'image/jpg': 'jpg',
+    'image/png': 'png', 'image/gif': 'gif',
+    'image/tiff': 'tiff', 'image/tiff-fx': 'tiff',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  };
+  return map[mime.toLowerCase()] ?? 'bin';
+}
+
+function sanitizeTagNo(tag: string): string {
+  return tag.replace(/\s+/g, '_').replace(/[^A-Za-z0-9_\-]/g, '');
+}
 
 // ─── Role guard helpers ───────────────────────────────────────────────────────
 
@@ -1315,8 +1340,416 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 3 — SELECTION & DATASHEET WORKFLOW
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ─── Helper: fetch line + header context (used by all Phase 3 routes) ──────
+  async function getLineCtx(lineId: number) {
+    const r = await pool.query<{
+      lineId: number; buyListHeaderId: number; tagNo: string;
+      selectionRequired: boolean; datasheetRequired: boolean;
+      lineStatus: string; headerStatus: string;
+      projectId: number; continentCode: string; countryCode: string;
+      fyCode: string; projectSeq: string; customerId: number | null;
+      listNumber: string;
+    }>(
+      `SELECT
+         l.id                   AS "lineId",
+         l.buy_list_header_id   AS "buyListHeaderId",
+         l.tag_no               AS "tagNo",
+         l.selection_required   AS "selectionRequired",
+         l.datasheet_required   AS "datasheetRequired",
+         l.status               AS "lineStatus",
+         h.status               AS "headerStatus",
+         h.project_id           AS "projectId",
+         h.list_number          AS "listNumber",
+         p.continent_code       AS "continentCode",
+         p.country_code         AS "countryCode",
+         p.fy_code              AS "fyCode",
+         p.project_seq          AS "projectSeq",
+         p.customer_id          AS "customerId"
+       FROM project_buy_list_lines l
+       JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
+       JOIN projects p ON p.id = h.project_id
+       WHERE l.id = $1`,
+      [lineId],
+    );
+    return r.rows[0] ?? null;
+  }
+
+  // ─── Helper: resolve customer bp_code for GCS path ────────────────────────
+  async function resolveCustomerSegment(customerId: number | null, projectCode: string): Promise<string> {
+    if (customerId) {
+      const cr = await pool.query<{ bpCode: string }>(`SELECT bp_code AS "bpCode" FROM customers WHERE id = $1`, [customerId]);
+      if (cr.rows[0]?.bpCode) return cr.rows[0].bpCode;
+    }
+    return projectCode.replace(/\D.*/, '') || 'UNK';
+  }
+
+  // ─── Helper: queue GCS object for deletion ────────────────────────────────
+  async function queueGcsDeletion(bucket: string, objectPath: string, reason: string, requestedBy: number, projectId: number) {
+    await pool.query(
+      `INSERT INTO gcs_object_deletions
+         (gcs_bucket, gcs_object_path, deletion_reason, deletion_policy, requested_by, project_id, document_type, status)
+       VALUES ($1, $2, $3, 'auto', $4, $5, 'datasheet', 'pending')`,
+      [bucket, objectPath, reason, requestedBy, projectId],
+    );
+  }
+
+  // ─── POST /api/buy-list-lines/:id/select ─────────────────────────────────
+  app.post('/api/buy-list-lines/:id/select', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const lineId = parseInt(req.params.id);
+      if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+
+      const { masterItemId, drawingNumber, drawingRevision, notes } = req.body;
+      if (!masterItemId || isNaN(parseInt(masterItemId))) return sendValidationError(res, 'masterItemId is required');
+      const mItemId = parseInt(masterItemId);
+
+      const ctx = await getLineCtx(lineId);
+      if (!ctx) return sendNotFound(res, 'Buy list line', lineId);
+
+      if (!['released', 'locked'].includes(ctx.headerStatus)) {
+        return sendBusinessError(res, 'Selection requires buy list status to be released or locked.');
+      }
+
+      // Verify master item exists and snapshot fields
+      const miRow = await pool.query<{ id: number; itemCode: string; description: string; specification: string | null }>(
+        `SELECT id, item_code AS "itemCode", description, specification FROM master_items WHERE id = $1`, [mItemId],
+      );
+      if (miRow.rowCount === 0) return sendNotFound(res, 'Master item', mItemId);
+      const mi = miRow.rows[0];
+
+      // Check existing selection
+      const existSel = await pool.query(`SELECT id, approval_status, datasheet_uploaded, datasheet_gcs_bucket, datasheet_gcs_object_path FROM buy_list_line_selections WHERE buy_list_line_id = $1`, [lineId]);
+      if (existSel.rowCount && existSel.rowCount > 0) {
+        const ex = existSel.rows[0];
+        if (ex.approval_status === 'approved') {
+          return res.status(409).json({ error: 'Selection already approved. Cannot replace an approved selection.' });
+        }
+        // Queue GCS deletion if datasheet was uploaded
+        if (ex.datasheet_uploaded && ex.datasheet_gcs_object_path) {
+          await queueGcsDeletion(ex.datasheet_gcs_bucket, ex.datasheet_gcs_object_path, 'replaced by new selection', (req.user as any).id, ctx.projectId);
+        }
+        await pool.query(`DELETE FROM buy_list_line_selections WHERE id = $1`, [ex.id]);
+      }
+
+      const userId = (req.user as any).id;
+      const ins = await pool.query<{ id: number }>(
+        `INSERT INTO buy_list_line_selections
+           (buy_list_line_id, master_item_id, item_code, item_description, item_specification,
+            drawing_number, drawing_revision, selected_by, selected_at, datasheet_required, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,$10)
+         RETURNING id`,
+        [lineId, mItemId, mi.itemCode, mi.description, mi.specification ?? null,
+         drawingNumber ?? null, drawingRevision ?? null, userId, ctx.datasheetRequired, notes ?? null],
+      );
+
+      // Update line status
+      await pool.query(
+        `UPDATE project_buy_list_lines SET status = 'selected', updated_at = NOW() WHERE id = $1`,
+        [lineId],
+      );
+
+      res.status(201).json({ selectionId: ins.rows[0].id, lineId, masterItemId: mItemId });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── PATCH /api/buy-list-lines/:id/selection ──────────────────────────────
+  app.patch('/api/buy-list-lines/:id/selection', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const lineId = parseInt(req.params.id);
+      if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+
+      const sel = await pool.query(`SELECT id, approval_status FROM buy_list_line_selections WHERE buy_list_line_id = $1`, [lineId]);
+      if (!sel.rowCount || sel.rowCount === 0) return sendNotFound(res, 'Selection for line', lineId);
+      const s = sel.rows[0];
+      if (s.approval_status === 'approved') {
+        return sendBusinessError(res, 'Cannot edit an approved selection.');
+      }
+
+      const { drawingNumber, drawingRevision, notes } = req.body;
+      await pool.query(
+        `UPDATE buy_list_line_selections
+         SET drawing_number = COALESCE($1, drawing_number),
+             drawing_revision = COALESCE($2, drawing_revision),
+             notes = COALESCE($3, notes),
+             updated_at = NOW()
+         WHERE id = $4`,
+        [drawingNumber ?? null, drawingRevision ?? null, notes ?? null, s.id],
+      );
+
+      const updated = await pool.query(`SELECT * FROM buy_list_line_selections WHERE id = $1`, [s.id]);
+      res.json(updated.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-list-lines/:id/selection/upload-datasheet ──────────────
+  app.post(
+    '/api/buy-list-lines/:id/selection/upload-datasheet',
+    ensureAuthenticated,
+    PAGE,
+    dsUpload.single('datasheet'),
+    async (req: Request, res: Response) => {
+      try {
+        const lineId = parseInt(req.params.id);
+        if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+
+        const file = (req as any).file as Express.Multer.File | undefined;
+        if (!file) return sendValidationError(res, 'No file uploaded. Use multipart/form-data field name "datasheet".');
+
+        const ctx = await getLineCtx(lineId);
+        if (!ctx) return sendNotFound(res, 'Buy list line', lineId);
+
+        if (!['released', 'locked'].includes(ctx.headerStatus)) {
+          return sendBusinessError(res, 'Datasheet upload requires buy list status to be released or locked.');
+        }
+
+        const selRow = await pool.query(
+          `SELECT id, approval_status, datasheet_uploaded, datasheet_gcs_bucket, datasheet_gcs_object_path, datasheet_revision_seq FROM buy_list_line_selections WHERE buy_list_line_id = $1`,
+          [lineId],
+        );
+        if (!selRow.rowCount || selRow.rowCount === 0) return sendBusinessError(res, 'No selection exists for this line. Call POST /select first.');
+        const sel = selRow.rows[0];
+        if (sel.approval_status === 'approved') return sendBusinessError(res, 'Selection is already approved. Cannot re-upload datasheet.');
+
+        const userId = (req.user as any).id;
+        let revisionSeq: number = sel.datasheet_revision_seq;
+
+        // On re-upload after rejection: increment revision_seq; queue old GCS path for deletion
+        if (sel.approval_status === 'rejected' && sel.datasheet_uploaded && sel.datasheet_gcs_object_path) {
+          await queueGcsDeletion(sel.datasheet_gcs_bucket, sel.datasheet_gcs_object_path, 'superseded by re-upload after rejection', userId, ctx.projectId);
+          revisionSeq = sel.datasheet_revision_seq + 1;
+        }
+
+        // Build GCS object path — all segments resolved server-side
+        const custSegment = await resolveCustomerSegment(ctx.customerId, '');
+        const safeTag = sanitizeTagNo(ctx.tagNo) || 'NO_TAG';
+        const ext = mimeToExt(file.mimetype);
+        const gcsObjectPath = `TPEL/${ctx.continentCode}/${ctx.countryCode}/${custSegment}/${ctx.fyCode}/${ctx.projectSeq}/PROCUREMENT/DATASHEETS/${ctx.listNumber}/${safeTag}/${lineId}_ds-rev-${revisionSeq}.${ext}`;
+        const gcsBucket = GCS_BUCKET ?? 'thermopac_storage';
+
+        // SHA-256 checksum
+        const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex');
+
+        // Upload to GCS
+        const uploadResult = await uploadFileWithDiagnostics(gcsObjectPath, file.buffer, file.mimetype);
+        if (!uploadResult.successful) {
+          console.error('[PPPC Phase3] GCS upload failed:', uploadResult.error);
+          return res.status(502).json({ error: 'GCS upload failed.', detail: String(uploadResult.error) });
+        }
+
+        // Update selection record
+        await pool.query(
+          `UPDATE buy_list_line_selections SET
+             datasheet_uploaded         = true,
+             datasheet_gcs_bucket       = $1,
+             datasheet_gcs_object_path  = $2,
+             datasheet_original_filename = $3,
+             datasheet_mime_type        = $4,
+             datasheet_file_size_bytes  = $5,
+             datasheet_checksum_sha256  = $6,
+             datasheet_revision_seq     = $7,
+             datasheet_uploaded_by      = $8,
+             datasheet_uploaded_at      = NOW(),
+             approval_status            = 'pending',
+             rejection_reason           = NULL,
+             updated_at                 = NOW()
+           WHERE id = $9`,
+          [gcsBucket, gcsObjectPath, file.originalname, file.mimetype, file.size, checksum, revisionSeq, userId, sel.id],
+        );
+
+        // Update line status to datasheet_submitted
+        await pool.query(
+          `UPDATE project_buy_list_lines SET status = 'datasheet_submitted', updated_at = NOW() WHERE id = $1`,
+          [lineId],
+        );
+
+        res.json({
+          success: true,
+          gcsObjectPath,
+          gcsBucket,
+          revisionSeq,
+          checksum,
+          originalFilename: file.originalname,
+        });
+      } catch (err) { sendError(res, err); }
+    },
+  );
+
+  // ─── POST /api/buy-list-lines/:id/selection/approve ───────────────────────
+  app.post('/api/buy-list-lines/:id/selection/approve', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+
+      const lineId = parseInt(req.params.id);
+      if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+
+      const ctx = await getLineCtx(lineId);
+      if (!ctx) return sendNotFound(res, 'Buy list line', lineId);
+
+      if (!['released', 'locked'].includes(ctx.headerStatus)) {
+        return sendBusinessError(res, 'Approval requires buy list status to be released or locked.');
+      }
+
+      const selRow = await pool.query(
+        `SELECT id, master_item_id, approval_status, datasheet_required, datasheet_uploaded FROM buy_list_line_selections WHERE buy_list_line_id = $1`,
+        [lineId],
+      );
+      if (!selRow.rowCount || selRow.rowCount === 0) return sendBusinessError(res, 'No selection exists for this line.');
+      const sel = selRow.rows[0];
+
+      if (sel.approval_status === 'approved') return sendBusinessError(res, 'Selection is already approved.');
+      if (sel.approval_status === 'rejected') return sendBusinessError(res, 'Cannot approve after rejection — re-upload datasheet first.');
+      if (sel.datasheet_required && !sel.datasheet_uploaded) {
+        return sendBusinessError(res, 'Datasheet must be uploaded before approval when datasheet_required is true.');
+      }
+
+      const userId = (req.user as any).id;
+
+      await pool.query(
+        `UPDATE buy_list_line_selections SET
+           approval_status = 'approved',
+           approved_by     = $1,
+           approved_at     = NOW(),
+           updated_at      = NOW()
+         WHERE id = $2`,
+        [userId, sel.id],
+      );
+
+      // Update line: status = 'approved', selected_master_item_id
+      await pool.query(
+        `UPDATE project_buy_list_lines SET
+           status                  = 'approved',
+           selected_master_item_id = $1,
+           updated_at              = NOW()
+         WHERE id = $2`,
+        [sel.master_item_id, lineId],
+      );
+
+      res.json({ success: true, lineId, masterItemId: sel.master_item_id });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-list-lines/:id/selection/reject ────────────────────────
+  app.post('/api/buy-list-lines/:id/selection/reject', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+
+      const lineId = parseInt(req.params.id);
+      if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+
+      const { rejectionReason } = req.body;
+      if (!rejectionReason || !String(rejectionReason).trim()) {
+        return sendValidationError(res, 'rejectionReason is required');
+      }
+
+      const ctx = await getLineCtx(lineId);
+      if (!ctx) return sendNotFound(res, 'Buy list line', lineId);
+
+      if (!['released', 'locked'].includes(ctx.headerStatus)) {
+        return sendBusinessError(res, 'Rejection requires buy list status to be released or locked.');
+      }
+
+      const selRow = await pool.query(
+        `SELECT id, approval_status, datasheet_uploaded FROM buy_list_line_selections WHERE buy_list_line_id = $1`,
+        [lineId],
+      );
+      if (!selRow.rowCount || selRow.rowCount === 0) return sendBusinessError(res, 'No selection exists for this line.');
+      const sel = selRow.rows[0];
+      if (sel.approval_status === 'approved') return sendBusinessError(res, 'Cannot reject an already approved selection.');
+      if (!sel.datasheet_uploaded) return sendBusinessError(res, 'Cannot reject before a datasheet has been uploaded.');
+
+      await pool.query(
+        `UPDATE buy_list_line_selections SET
+           approval_status  = 'rejected',
+           rejection_reason = $1,
+           updated_at       = NOW()
+         WHERE id = $2`,
+        [String(rejectionReason).trim(), sel.id],
+      );
+
+      // Line status reverts to 'selected' (awaiting re-upload)
+      await pool.query(
+        `UPDATE project_buy_list_lines SET status = 'selected', updated_at = NOW() WHERE id = $1`,
+        [lineId],
+      );
+
+      res.json({ success: true, lineId, rejectionReason: String(rejectionReason).trim() });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── DELETE /api/buy-list-lines/:id/selection ─────────────────────────────
+  app.delete('/api/buy-list-lines/:id/selection', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+
+      const lineId = parseInt(req.params.id);
+      if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+
+      const ctx = await getLineCtx(lineId);
+      if (!ctx) return sendNotFound(res, 'Buy list line', lineId);
+
+      const selRow = await pool.query(
+        `SELECT id, approval_status, datasheet_uploaded, datasheet_gcs_bucket, datasheet_gcs_object_path FROM buy_list_line_selections WHERE buy_list_line_id = $1`,
+        [lineId],
+      );
+      if (!selRow.rowCount || selRow.rowCount === 0) return sendNotFound(res, 'Selection for line', lineId);
+      const sel = selRow.rows[0];
+
+      if (sel.approval_status === 'approved') {
+        return sendBusinessError(res, 'Cannot delete an approved selection. The selection is locked.');
+      }
+
+      const userId = (req.user as any).id;
+
+      // Queue GCS deletion if a datasheet was uploaded
+      if (sel.datasheet_uploaded && sel.datasheet_gcs_object_path) {
+        await queueGcsDeletion(sel.datasheet_gcs_bucket, sel.datasheet_gcs_object_path, 'selection deleted by manager', userId, ctx.projectId);
+      }
+
+      await pool.query(`DELETE FROM buy_list_line_selections WHERE id = $1`, [sel.id]);
+
+      // Reset line status back to open
+      await pool.query(
+        `UPDATE project_buy_list_lines SET status = 'open', selected_master_item_id = NULL, updated_at = NOW() WHERE id = $1`,
+        [lineId],
+      );
+
+      res.json({ success: true, lineId });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── GET /api/buy-list-lines/:id/selection ────────────────────────────────
+  app.get('/api/buy-list-lines/:id/selection', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const lineId = parseInt(req.params.id);
+      if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+      const r = await pool.query(
+        `SELECT s.*,
+                mi.item_code AS "masterItemCode",
+                mi.description AS "masterItemDescription",
+                u1.username AS "selectedByName",
+                u2.username AS "approvedByName",
+                u3.username AS "uploadedByName"
+         FROM buy_list_line_selections s
+         JOIN master_items mi ON mi.id = s.master_item_id
+         JOIN users u1 ON u1.id = s.selected_by
+         LEFT JOIN users u2 ON u2.id = s.approved_by
+         LEFT JOIN users u3 ON u3.id = s.datasheet_uploaded_by
+         WHERE s.buy_list_line_id = $1`,
+        [lineId],
+      );
+      if (!r.rowCount || r.rowCount === 0) return res.status(404).json({ error: 'No selection for this line.' });
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
   console.log('[PPPC] ✅ Phase 0 routes registered (buy-groups · buy-subgroups · uom-master)');
   console.log('[PPPC] ✅ Phase 1 routes registered (buy-packages · buy-package-lines)');
   console.log('[PPPC] ✅ Phase 2 routes registered (project buy lists · buy list lines)');
   console.log('[PPPC] ✅ Phase 2 hook registered (offer→project buy list auto-creation)');
+  console.log('[PPPC] ✅ Phase 3 routes registered (selection · upload-datasheet · approve · reject · delete)');
 }

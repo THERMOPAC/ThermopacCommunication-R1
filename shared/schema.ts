@@ -13247,3 +13247,39 @@ export const projectBuyListLines = pgTable('project_buy_list_lines', {
 export const insertProjectBuyListLineSchema = createInsertSchema(projectBuyListLines).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertProjectBuyListLine = z.infer<typeof insertProjectBuyListLineSchema>;
 export type ProjectBuyListLine = typeof projectBuyListLines.$inferSelect;
+
+// ─── Phase 3: buy_list_line_selections ────────────────────────────────────────
+export const buyListLineSelections = pgTable('buy_list_line_selections', {
+  id:                         serial('id').primaryKey(),
+  buyListLineId:              integer('buy_list_line_id').notNull().unique().references(() => projectBuyListLines.id, { onDelete: 'cascade' }),
+  masterItemId:               integer('master_item_id').notNull(),
+  itemCode:                   varchar('item_code', { length: 100 }),
+  itemDescription:            text('item_description'),
+  itemSpecification:          text('item_specification'),
+  drawingNumber:              varchar('drawing_number', { length: 100 }),
+  drawingRevision:            varchar('drawing_revision', { length: 20 }),
+  selectedBy:                 integer('selected_by').notNull(),
+  selectedAt:                 timestamp('selected_at').notNull().defaultNow(),
+  datasheetRequired:          boolean('datasheet_required').notNull(),
+  datasheetUploaded:          boolean('datasheet_uploaded').notNull().default(false),
+  datasheetGcsBucket:         varchar('datasheet_gcs_bucket', { length: 100 }),
+  datasheetGcsObjectPath:     varchar('datasheet_gcs_object_path', { length: 500 }),
+  datasheetOriginalFilename:  varchar('datasheet_original_filename', { length: 255 }),
+  datasheetMimeType:          varchar('datasheet_mime_type', { length: 100 }),
+  datasheetFileSizeBytes:     bigint('datasheet_file_size_bytes', { mode: 'number' }),
+  datasheetChecksumSha256:    varchar('datasheet_checksum_sha256', { length: 64 }),
+  datasheetRevisionSeq:       integer('datasheet_revision_seq').notNull().default(1),
+  datasheetUploadedBy:        integer('datasheet_uploaded_by'),
+  datasheetUploadedAt:        timestamp('datasheet_uploaded_at'),
+  approvalStatus:             varchar('approval_status', { length: 20 }).notNull().default('pending'),
+  approvedBy:                 integer('approved_by'),
+  approvedAt:                 timestamp('approved_at'),
+  rejectionReason:            text('rejection_reason'),
+  notes:                      text('notes'),
+  createdAt:                  timestamp('created_at').notNull().defaultNow(),
+  updatedAt:                  timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertBuyListLineSelectionSchema = createInsertSchema(buyListLineSelections).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBuyListLineSelection = z.infer<typeof insertBuyListLineSelectionSchema>;
+export type BuyListLineSelection = typeof buyListLineSelections.$inferSelect;
