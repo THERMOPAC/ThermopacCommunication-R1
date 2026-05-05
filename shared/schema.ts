@@ -13099,7 +13099,9 @@ export const buySubgroups = pgTable('buy_subgroups', {
   isActive:   boolean('is_active').notNull().default(true),
   createdAt:  timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt:  timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  groupCodeUnique: uniqueIndex('buy_subgroups_group_code_unique').on(t.buyGroupId, t.code),
+}));
 
 export const insertBuySubgroupSchema = createInsertSchema(buySubgroups).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertBuySubgroup = z.infer<typeof insertBuySubgroupSchema>;
