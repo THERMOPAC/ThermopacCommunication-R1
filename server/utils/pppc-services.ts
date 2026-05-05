@@ -187,7 +187,7 @@ export async function seedPppcMasterData(pool: Pool): Promise<void> {
         await pool.query(
           `INSERT INTO buy_subgroups (buy_group_id, code, label, sort_order, is_active)
            VALUES ($1, $2, $3, $4, true)
-           ON CONFLICT (buy_group_id, code) DO NOTHING`,
+           ON CONFLICT (buy_group_id, code) DO UPDATE SET sort_order = EXCLUDED.sort_order, label = EXCLUDED.label`,
           [grpId, sub.code, sub.label, sub.sortOrder],
         );
       }
