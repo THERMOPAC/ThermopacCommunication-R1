@@ -245,7 +245,7 @@ export default function BuyPackagesPage() {
   const { data: allProducts = [] } = useQuery<Product[]>({
     queryKey: ["/api/sales-marketing/products"],
   });
-  const buyProducts = allProducts.filter((p) => !p.parentId || p.makeOrBuy === "Buy");
+  const buyProducts = allProducts.filter((p) => !p.parentId);
 
   // ── Derived ───────────────────────────────────────────────────────────────────
   const visiblePackages = packages.filter((p) => {
