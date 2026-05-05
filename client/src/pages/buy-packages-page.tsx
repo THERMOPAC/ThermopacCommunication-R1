@@ -855,40 +855,6 @@ export default function BuyPackagesPage() {
                                                       </div>
                                                     </div>
 
-                                                    {/* Existing lines */}
-                                                    {subLines.length > 0 && (
-                                                      <div className="space-y-1 pl-3 border-l-2 border-primary/20">
-                                                        {subLines.map((line) => (
-                                                          <div key={line.id} className="flex items-start justify-between gap-2 text-xs">
-                                                            <div className="flex-1 min-w-0">
-                                                              <p className="text-foreground leading-snug" title={line.generic_requirement}>
-                                                                {line.generic_requirement}
-                                                              </p>
-                                                              <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
-                                                                  {line.default_quantity} {line.uom_code}
-                                                                </span>
-                                                                <FlagBadges line={line} />
-                                                              </div>
-                                                            </div>
-                                                            {canWrite && pkg.status === "draft" && (
-                                                              <div className="flex items-center shrink-0">
-                                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openEditLine(pkg, line)}>
-                                                                  <Edit2 className="h-3 w-3" />
-                                                                </Button>
-                                                                <Button
-                                                                  variant="ghost" size="sm"
-                                                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                                                  onClick={() => { if (confirm("Delete this line?")) deleteLineMutation.mutate({ lineId: line.id }); }}
-                                                                >
-                                                                  <Trash2 className="h-3 w-3" />
-                                                                </Button>
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        ))}
-                                                      </div>
-                                                    )}
                                                   </div>
                                                 );
                                               })}
