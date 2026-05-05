@@ -13120,3 +13120,54 @@ export const uomMaster = pgTable('uom_master', {
 export const insertUomMasterSchema = createInsertSchema(uomMaster).omit({ id: true, createdAt: true });
 export type InsertUomMaster = z.infer<typeof insertUomMasterSchema>;
 export type UomMaster = typeof uomMaster.$inferSelect;
+
+// =============================================================================
+// PPPC — Phase 1: Standard BUY Package (Catalog)
+// buy_package_headers · buy_package_lines
+// =============================================================================
+
+export const buyPackageHeaders = pgTable('buy_package_headers', {
+  id:          serial('id').primaryKey(),
+  productId:   integer('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
+  packageCode: varchar('package_code', { length: 30 }).notNull().unique(),
+  name:        varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  version:     integer('version').notNull().default(1),
+  status:      varchar('status', { length: 20 }).notNull().default('draft'),
+  isActive:    boolean('is_active').notNull().default(true),
+  createdBy:   integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt:   timestamp('created_at').notNull().defaultNow(),
+  updatedAt:   timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  productVersionUnique: uniqueIndex('buy_package_headers_product_version_unique').on(t.productId, t.version),
+}));
+
+export const insertBuyPackageHeaderSchema = createInsertSchema(buyPackageHeaders).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBuyPackageHeader = z.infer<typeof insertBuyPackageHeaderSchema>;
+export type BuyPackageHeader = typeof buyPackageHeaders.$inferSelect;
+
+export const buyPackageLines = pgTable('buy_package_lines', {
+  id:                   serial('id').primaryKey(),
+  buyPackageHeaderId:   integer('buy_package_header_id').notNull().references(() => buyPackageHeaders.id, { onDelete: 'cascade' }),
+  lineNumber:           integer('line_number').notNull(),
+  buyGroupId:           integer('buy_group_id').notNull().references(() => buyGroups.id, { onDelete: 'restrict' }),
+  buySubgroupId:        integer('buy_subgroup_id').notNull().references(() => buySubgroups.id, { onDelete: 'restrict' }),
+  uomId:                integer('uom_id').notNull().references(() => uomMaster.id, { onDelete: 'restrict' }),
+  genericRequirement:   text('generic_requirement').notNull(),
+  defaultQuantity:      numeric('default_quantity', { precision: 10, scale: 2 }).notNull().default('1'),
+  defaultSpecification: text('default_specification'),
+  technicalAttributes:  jsonb('technical_attributes'),
+  selectionRequired:    boolean('selection_required').notNull().default(true),
+  datasheetRequired:    boolean('datasheet_required').notNull().default(false),
+  inspectionRequired:   boolean('inspection_required').notNull().default(false),
+  certificateRequired:  boolean('certificate_required').notNull().default(false),
+  complianceRequired:   boolean('compliance_required').notNull().default(false),
+  notes:                text('notes'),
+  sortOrder:            integer('sort_order').notNull().default(0),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertBuyPackageLineSchema = createInsertSchema(buyPackageLines).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBuyPackageLine = z.infer<typeof insertBuyPackageLineSchema>;
+export type BuyPackageLine = typeof buyPackageLines.$inferSelect;

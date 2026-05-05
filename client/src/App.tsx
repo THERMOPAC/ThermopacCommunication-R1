@@ -92,6 +92,7 @@ function Router() {
       <ProtectedRoute path="/radar" component={() => <SalesMarketing.RadarPage />} />
       <ProtectedRoute path="/lead-generation" component={() => <SalesMarketing.LeadGenerationPage />} />
       <ProtectedRoute path="/leads" component={() => <SalesMarketing.LeadsPage />} />
+      <ProtectedRoute path="/products/buy-packages" component={() => <SalesMarketing.BuyPackagesPage />} />
       <ProtectedRoute path="/products" component={() => <SalesMarketing.ProductsPage />} />
       <ProtectedRoute path="/offer-templates" component={() => <SalesMarketing.OfferTemplatesPage />} />
       <ProtectedRoute path="/offers" component={() => <SalesMarketing.OffersPage />} />
