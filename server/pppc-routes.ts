@@ -1966,6 +1966,227 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 5 — BULK OPERATIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ─── GET /api/pppc/buy-items — Buy master items for selection picker ────────
+  app.get('/api/pppc/buy-items', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'max-age=300');
+    try {
+      const r = await pool.query(
+        `SELECT id, item_code, description, specification, uom
+         FROM master_items
+         WHERE LOWER(make_or_buy) IN ('buy','b')
+         ORDER BY item_code`,
+      );
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-lists/:id/bulk-select ─────────────────────────────────
+  app.post('/api/buy-lists/:id/bulk-select', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const headerId = parseInt(req.params.id);
+      if (isNaN(headerId)) return sendValidationError(res, 'Invalid buy list id');
+
+      const { lines } = req.body as { lines: { lineId: number; masterItemId: number; drawingNumber?: string; drawingRevision?: string }[] };
+      if (!Array.isArray(lines) || lines.length === 0) return sendValidationError(res, 'lines[] is required');
+
+      const hdr = await pool.query(`SELECT id, status, project_id FROM project_buy_list_headers WHERE id = $1`, [headerId]);
+      if (!hdr.rowCount || hdr.rowCount === 0) return sendNotFound(res, 'Buy list', headerId);
+      const { status: hdrStatus } = hdr.rows[0];
+      if (!['released', 'locked'].includes(hdrStatus)) return sendBusinessError(res, 'Bulk select requires buy list to be released or locked.');
+
+      const userId = (req.user as any).id;
+      const results: any[] = [];
+      const errors: any[] = [];
+      let succeeded = 0; let skipped = 0;
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const item of lines) {
+          const spName = `sp_${item.lineId}`;
+          await client.query(`SAVEPOINT ${spName}`);
+          try {
+            const lineRow = await client.query(
+              `SELECT l.id, l.status, l.datasheet_required, l.tag_no, h.project_id
+               FROM project_buy_list_lines l JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
+               WHERE l.id = $1 AND l.buy_list_header_id = $2`,
+              [item.lineId, headerId],
+            );
+            if (!lineRow.rowCount || lineRow.rowCount === 0) throw new Error('Line not found in this buy list');
+            const line = lineRow.rows[0];
+            if (line.status === 'approved') { await client.query(`RELEASE SAVEPOINT ${spName}`); skipped++; results.push({ lineId: item.lineId, status: 'skipped', reason: 'already approved' }); continue; }
+
+            const miRow = await client.query(`SELECT id, item_code, description, specification FROM master_items WHERE id = $1`, [item.masterItemId]);
+            if (!miRow.rowCount || miRow.rowCount === 0) throw new Error(`Master item ${item.masterItemId} not found`);
+            const mi = miRow.rows[0];
+
+            const existSel = await client.query(`SELECT id, datasheet_uploaded, datasheet_gcs_bucket, datasheet_gcs_object_path FROM buy_list_line_selections WHERE buy_list_line_id = $1`, [item.lineId]);
+            if (existSel.rowCount && existSel.rowCount > 0) {
+              const ex = existSel.rows[0];
+              if (ex.datasheet_uploaded && ex.datasheet_gcs_object_path) {
+                await client.query(`INSERT INTO gcs_object_deletions (gcs_bucket,gcs_object_path,deletion_reason,deletion_policy,requested_by,project_id,document_type,status) VALUES($1,$2,'replaced by bulk select','auto',$3,$4,'datasheet','pending')`, [ex.datasheet_gcs_bucket, ex.datasheet_gcs_object_path, userId, line.project_id]);
+              }
+              await client.query(`DELETE FROM buy_list_line_selections WHERE id = $1`, [ex.id]);
+            }
+
+            await client.query(
+              `INSERT INTO buy_list_line_selections (buy_list_line_id,master_item_id,item_code,item_description,item_specification,drawing_number,drawing_revision,selected_by,selected_at,datasheet_required) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9)`,
+              [item.lineId, mi.id, mi.item_code, mi.description, mi.specification ?? null, item.drawingNumber ?? null, item.drawingRevision ?? null, userId, line.datasheet_required],
+            );
+            await client.query(`UPDATE project_buy_list_lines SET status='selected', updated_at=NOW() WHERE id=$1`, [item.lineId]);
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            succeeded++; results.push({ lineId: item.lineId, status: 'ok' });
+          } catch (e: any) {
+            await client.query(`ROLLBACK TO SAVEPOINT ${spName}`);
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            errors.push({ lineId: item.lineId, error: e.message });
+          }
+        }
+        await client.query('COMMIT');
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+
+      res.json({ processed: lines.length, succeeded, skipped, errors, results });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-lists/:id/bulk-approve ─────────────────────────────────
+  app.post('/api/buy-lists/:id/bulk-approve', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const headerId = parseInt(req.params.id);
+      if (isNaN(headerId)) return sendValidationError(res, 'Invalid buy list id');
+
+      const { lineIds, approvalNote } = req.body as { lineIds: number[]; approvalNote?: string };
+      if (!Array.isArray(lineIds) || lineIds.length === 0) return sendValidationError(res, 'lineIds[] is required');
+
+      const hdr = await pool.query(`SELECT status FROM project_buy_list_headers WHERE id = $1`, [headerId]);
+      if (!hdr.rowCount || hdr.rowCount === 0) return sendNotFound(res, 'Buy list', headerId);
+      if (!['released', 'locked'].includes(hdr.rows[0].status)) return sendBusinessError(res, 'Bulk approve requires buy list to be released or locked.');
+
+      const userId = (req.user as any).id;
+      const results: any[] = []; const errors: any[] = [];
+      let succeeded = 0; let skipped = 0;
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const lineId of lineIds) {
+          const spName = `sp_${lineId}`;
+          await client.query(`SAVEPOINT ${spName}`);
+          try {
+            const lineRow = await client.query(`SELECT id, status FROM project_buy_list_lines WHERE id = $1 AND buy_list_header_id = $2`, [lineId, headerId]);
+            if (!lineRow.rowCount || lineRow.rowCount === 0) throw new Error('Line not found in this buy list');
+
+            const selRow = await client.query(`SELECT id, master_item_id, approval_status, datasheet_required, datasheet_uploaded FROM buy_list_line_selections WHERE buy_list_line_id = $1`, [lineId]);
+            if (!selRow.rowCount || selRow.rowCount === 0) throw new Error('No selection exists for this line');
+            const sel = selRow.rows[0];
+
+            if (sel.approval_status === 'approved') { await client.query(`RELEASE SAVEPOINT ${spName}`); skipped++; results.push({ lineId, status: 'skipped', reason: 'already approved' }); continue; }
+            if (sel.approval_status === 'rejected') throw new Error('Cannot approve after rejection — re-upload datasheet first');
+            if (sel.datasheet_required && !sel.datasheet_uploaded) throw new Error('Datasheet required but not uploaded');
+
+            await client.query(`UPDATE buy_list_line_selections SET approval_status='approved', approved_by=$1, approved_at=NOW(), updated_at=NOW() WHERE id=$2`, [userId, sel.id]);
+            await client.query(`UPDATE project_buy_list_lines SET status='approved', selected_master_item_id=$1, updated_at=NOW() WHERE id=$2`, [sel.master_item_id, lineId]);
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            succeeded++; results.push({ lineId, status: 'ok' });
+          } catch (e: any) {
+            await client.query(`ROLLBACK TO SAVEPOINT ${spName}`);
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            errors.push({ lineId, error: e.message });
+          }
+        }
+        await client.query('COMMIT');
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+
+      res.json({ processed: lineIds.length, succeeded, skipped, errors, results });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-lists/:id/bulk-raise-pr ────────────────────────────────
+  app.post('/api/buy-lists/:id/bulk-raise-pr', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const headerId = parseInt(req.params.id);
+      if (isNaN(headerId)) return sendValidationError(res, 'Invalid buy list id');
+
+      const { lineIds } = req.body as { lineIds: number[] };
+      if (!Array.isArray(lineIds) || lineIds.length === 0) return sendValidationError(res, 'lineIds[] is required');
+
+      const hdr = await pool.query(`SELECT h.status, h.project_id, p.status AS proj_status, p.cost_lock_status, p.code AS project_code FROM project_buy_list_headers h JOIN projects p ON p.id = h.project_id WHERE h.id = $1`, [headerId]);
+      if (!hdr.rowCount || hdr.rowCount === 0) return sendNotFound(res, 'Buy list', headerId);
+      const h = hdr.rows[0];
+      if (!['released', 'locked'].includes(h.status)) return sendBusinessError(res, 'Bulk raise-pr requires buy list to be released or locked.');
+      if (isProjectFrozen(h.proj_status)) return sendBusinessError(res, 'Project is frozen — no new records allowed.');
+      if ((h.cost_lock_status ?? 'unlocked') === 'approved') return sendBusinessError(res, 'Cost is locked — project items cannot be modified.');
+
+      const userId = (req.user as any).id;
+      const results: any[] = []; const errors: any[] = [];
+      let succeeded = 0;
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const lineId of lineIds) {
+          const spName = `sp_${lineId}`;
+          await client.query(`SAVEPOINT ${spName}`);
+          try {
+            const lineRow = await client.query(
+              `SELECT l.id, l.status, l.tag_no, l.service_description, l.equipment_reference, l.quantity, l.selected_master_item_id, l.planning_record_id
+               FROM project_buy_list_lines l WHERE l.id = $1 AND l.buy_list_header_id = $2`,
+              [lineId, headerId],
+            );
+            if (!lineRow.rowCount || lineRow.rowCount === 0) throw new Error('Line not found in this buy list');
+            const line = lineRow.rows[0];
+            if (line.status !== 'approved') throw new Error(`Line status is '${line.status}' — must be approved`);
+            if (!line.selected_master_item_id) throw new Error('No master item selected for this line');
+
+            if (line.planning_record_id) {
+              const pr = await client.query(`SELECT status FROM item_planning_records WHERE id = $1`, [line.planning_record_id]);
+              if (pr.rows[0] && !['canceled', 'superseded'].includes(pr.rows[0].status)) throw new Error('Active planning record already exists');
+            }
+
+            const qty = parseFloat(line.quantity) || 1;
+
+            const piDedup = await client.query(`SELECT id FROM project_items WHERE project_id=$1 AND item_id=$2 AND tag_no=$3 AND source='buy_list' AND status!='Cancelled' LIMIT 1`, [h.project_id, line.selected_master_item_id, line.tag_no]);
+            let projectItemId: number;
+            if (piDedup.rows[0]) {
+              projectItemId = piDedup.rows[0].id;
+              await client.query(`UPDATE project_items SET required_quantity=$1, updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
+            } else {
+              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
+                [h.project_id, h.project_code, line.selected_master_item_id, qty, qty, line.tag_no,
+                 `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
+              projectItemId = piIns.rows[0].id;
+            }
+
+            const seq = await getNextDocSeq('PLN', h.project_id, pool);
+            const planningNumber = `${h.project_code}-PLN-${seq}`;
+            const notes = [line.tag_no ? `Tag: ${line.tag_no}` : null, line.service_description || null, line.equipment_reference || null].filter(Boolean).join(' | ');
+
+            const plnIns = await client.query<{ id: number }>(
+              `INSERT INTO item_planning_records (project_id,project_item_id,master_item_id,planning_type,source,source_buy_list_header_id,source_buy_list_line_id,quantity,notes,planning_number,status,created_by,created_at,updated_at) VALUES($1,$2,$3,'procurement','buy_list',$4,$5,$6,$7,$8,'draft',$9,NOW(),NOW()) RETURNING id`,
+              [h.project_id, projectItemId, line.selected_master_item_id, headerId, lineId, qty, notes, planningNumber, userId],
+            );
+            const planningRecordId = plnIns.rows[0].id;
+            await client.query(`UPDATE project_buy_list_lines SET planning_record_id=$1, updated_at=NOW() WHERE id=$2`, [planningRecordId, lineId]);
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            succeeded++; results.push({ lineId, status: 'ok', planningRecordId });
+          } catch (e: any) {
+            await client.query(`ROLLBACK TO SAVEPOINT ${spName}`);
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            errors.push({ lineId, error: e.message });
+          }
+        }
+        await client.query('COMMIT');
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+
+      res.json({ processed: lineIds.length, succeeded, errors, results });
+    } catch (err) { sendError(res, err); }
+  });
+
   console.log('[PPPC] ✅ Phase 0 routes registered (buy-groups · buy-subgroups · uom-master)');
   console.log('[PPPC] ✅ Phase 1 routes registered (buy-packages · buy-package-lines)');
   console.log('[PPPC] ✅ Phase 2 routes registered (project buy lists · buy list lines)');

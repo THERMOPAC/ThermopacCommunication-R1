@@ -201,9 +201,10 @@ export default function BuyPackagesPage() {
   const canAction = isSeniorManager(role);
 
   // Filters / expand
-  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active" | "archived">("all");
-  const [search,       setSearch]       = useState("");
-  const [expandedId,   setExpandedId]   = useState<number | null>(null);
+  const [statusFilter,   setStatusFilter]   = useState<"all" | "draft" | "active" | "archived">("all");
+  const [productFilter,  setProductFilter]  = useState<string>("all");
+  const [search,         setSearch]         = useState("");
+  const [expandedId,     setExpandedId]     = useState<number | null>(null);
 
   // Dialogs
   const [showCreate, setShowCreate]     = useState(false);
@@ -250,6 +251,7 @@ export default function BuyPackagesPage() {
   // ── Derived ───────────────────────────────────────────────────────────────────
   const visiblePackages = packages.filter((p) => {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (productFilter !== "all" && String(p.productId) !== productFilter) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -439,8 +441,8 @@ export default function BuyPackagesPage() {
 
         {/* Filters */}
         <Card>
-          <CardContent className="py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div className="relative flex-1 max-w-sm">
+          <CardContent className="py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
+            <div className="relative flex-1 min-w-48 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search code, name, product…"
@@ -448,6 +450,22 @@ export default function BuyPackagesPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
+            </div>
+            {/* Product family filter */}
+            <div className="w-52">
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All product families" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All product families</SelectItem>
+                  {buyProducts.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.productCode} — {p.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-1 flex-wrap">
               {(["all", "draft", "active", "archived"] as const).map((s) => (

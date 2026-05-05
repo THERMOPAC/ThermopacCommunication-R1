@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -19,10 +18,10 @@ import {
   Send, Eye, ShieldCheck, Lock, RotateCcw, XCircle,
   GitBranch, Edit2, Trash2, AlertCircle, Package,
   ClipboardList, ArrowRight, CheckCircle2, FileText,
-  TrendingUp, ExternalLink,
+  TrendingUp, UserCheck, XOctagon, Upload, Layers,
 } from "lucide-react";
 
-// ── Role helpers ──────────────────────────────────────────────────────────────
+// ── Role helpers ───────────────────────────────────────────────────────────────
 const RL: Record<string, number> = {
   Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, "Senior Executive": 4, Employee: 5,
 };
@@ -56,7 +55,7 @@ const PLN_STATUS: Record<string, { label: string; cls: string }> = {
   superseded:   { label: "Superseded",   cls: "bg-orange-100 text-orange-800" },
 };
 
-// Stage badge for procurement chain
+// ── Stage badge for procurement chain ─────────────────────────────────────────
 function StageBadge({ label, value, cls }: { label: string; value?: string | null; cls?: string }) {
   if (!value) return (
     <div className="flex flex-col items-center gap-0.5 min-w-16">
@@ -88,8 +87,8 @@ const EMPTY_LINE = {
 export default function EpcBuyListControlPage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const role = (user as any)?.role as string | undefined;
-  const userId = (user as any)?.id as number | undefined;
+  const role    = (user as any)?.role as string | undefined;
+  const userId  = (user as any)?.id as number | undefined;
   const canWrite  = isManager(role);
   const canAction = isSeniorManager(role);
 
@@ -100,23 +99,37 @@ export default function EpcBuyListControlPage() {
   const [showAllRevisions, setShowAllRevisions] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  // Dialogs
-  const [showCreate, setShowCreate]           = useState(false);
-  const [actionDialog, setActionDialog]       = useState<{ open: boolean; listId: number; action: string } | null>(null);
-  const [actionNote, setActionNote]           = useState("");
-  const [reviewRec, setReviewRec]             = useState("approve");
-  const [lineDialog, setLineDialog]           = useState<{ open: boolean; listId: number; status: string; editLine: any | null } | null>(null);
+  // Dialogs — lifecycle
+  const [showCreate, setShowCreate]     = useState(false);
+  const [actionDialog, setActionDialog] = useState<{ open: boolean; listId: number; action: string } | null>(null);
+  const [actionNote, setActionNote]     = useState("");
+  const [reviewRec, setReviewRec]       = useState("approve");
 
-  // Phase 4 — procurement chain panel
-  const [showProcChain, setShowProcChain] = useState<number | null>(null); // listId
+  // Line add/edit dialog
+  const [lineDialog, setLineDialog] = useState<{ open: boolean; listId: number; status: string; editLine: any | null } | null>(null);
+  const [lf, setLf] = useState({ ...EMPTY_LINE });
 
   // Create form
   const [createForm, setCreateForm] = useState({ projectItemId: "", sourcePackageId: "" });
 
-  // Line form
-  const [lf, setLf] = useState({ ...EMPTY_LINE });
+  // Phase 4 — procurement chain panel
+  const [showProcChain, setShowProcChain] = useState<number | null>(null);
 
-  // ── Queries ───────────────────────────────────────────────────────────────
+  // Phase 5 — selection card
+  const [openSelLineId, setOpenSelLineId] = useState<number | null>(null);
+  const [selForm, setSelForm] = useState({ masterItemId: "", drawingNumber: "", drawingRevision: "" });
+  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; lineId: number }>({ open: false, lineId: 0 });
+  const [rejectReason, setRejectReason] = useState("");
+
+  // Phase 5 — bulk ops
+  const [checkedLines, setCheckedLines] = useState<Set<number>>(new Set());
+  const [bulkSelDialog, setBulkSelDialog] = useState(false);
+  const [bulkMasterItemId, setBulkMasterItemId] = useState("");
+
+  // Datasheet upload ref
+  const dsInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
 
   const { data: buyLists = [], isLoading } = useQuery<any[]>({
@@ -135,8 +148,7 @@ export default function EpcBuyListControlPage() {
 
   const { data: packages = [] } = useQuery<any[]>({
     queryKey: ["/api/buy-packages", "active"],
-    queryFn: () =>
-      fetch(`/api/buy-packages?status=active`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/buy-packages?status=active`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: groups = [] } = useQuery<any[]>({ queryKey: ["/api/buy-groups"] });
@@ -157,7 +169,7 @@ export default function EpcBuyListControlPage() {
     enabled: expandedId !== null,
   });
 
-  // Phase 4 — procurement chain query (lazy per list)
+  // Phase 4 — procurement chain
   const { data: procChainData, isLoading: procChainLoading } = useQuery<{ lines: any[] }>({
     queryKey: ["/api/buy-lists", showProcChain, "procurement-status"],
     queryFn: () =>
@@ -165,7 +177,26 @@ export default function EpcBuyListControlPage() {
     enabled: showProcChain !== null,
   });
 
-  // ── Derived ───────────────────────────────────────────────────────────────
+  // Phase 5 — buy items for selection picker
+  const { data: buyItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/pppc/buy-items"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Phase 5 — selection record for open line (null = no selection)
+  const { data: openSelData, isLoading: selLoading, error: selError } = useQuery<any>({
+    queryKey: ["/api/buy-list-lines", openSelLineId, "selection"],
+    queryFn: async () => {
+      const r = await fetch(`/api/buy-list-lines/${openSelLineId}/selection`, { credentials: "include" });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    },
+    enabled: openSelLineId !== null,
+    retry: false,
+  });
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = buyLists;
     if (statusFilter !== "all") list = list.filter(h => h.status === statusFilter);
@@ -184,24 +215,33 @@ export default function EpcBuyListControlPage() {
   const stats = useMemo(() => {
     const cur = buyLists.filter(h => h.is_current);
     return {
-      total: cur.length,
-      draft: cur.filter(h => h.status === "draft").length,
+      total:        cur.length,
+      draft:        cur.filter(h => h.status === "draft").length,
       under_review: cur.filter(h => h.status === "under_review").length,
-      released: cur.filter(h => h.status === "released").length,
-      locked: cur.filter(h => h.status === "locked").length,
+      released:     cur.filter(h => h.status === "released").length,
+      locked:       cur.filter(h => h.status === "locked").length,
     };
   }, [buyLists]);
 
-  // ── Invalidation ─────────────────────────────────────────────────────────
+  // Current expanded buy list header
+  const currentLst = useMemo(() => filtered.find(l => l.id === expandedId), [filtered, expandedId]);
+
+  // Whether bulk ops are available (list is released or locked)
+  const bulkAvailable = currentLst && ["released", "locked"].includes(currentLst.status);
+
+  // ── Invalidation ─────────────────────────────────────────────────────────────
   const invalidateLists = () => queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "buy-lists"] });
   const invalidateLines = (listId: number) => {
     queryClient.invalidateQueries({ queryKey: ["/api/buy-lists", listId, "lines"] });
     invalidateLists();
   };
+  const invalidateSel = (lineId: number) =>
+    queryClient.invalidateQueries({ queryKey: ["/api/buy-list-lines", lineId, "selection"] });
   const invalidateProcChain = (listId: number) =>
     queryClient.invalidateQueries({ queryKey: ["/api/buy-lists", listId, "procurement-status"] });
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
+  // ── Mutations ─────────────────────────────────────────────────────────────────
+
   const createList = useMutation({
     mutationFn: (body: any) => apiRequest("POST", `/api/projects/${selectedProjectId}/buy-lists`, body),
     onSuccess: () => { toast({ title: "Buy list created" }); invalidateLists(); setShowCreate(false); },
@@ -235,18 +275,15 @@ export default function EpcBuyListControlPage() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  // Phase 4 — raise PR
+  // Phase 4 — Raise PR (single line)
   const raisePr = useMutation({
     mutationFn: (lineId: number) => apiRequest("POST", `/api/buy-list-lines/${lineId}/raise-pr`, {}),
-    onSuccess: (data: any, lineId) => {
+    onSuccess: (data: any) => {
       const msg = data.isReused
-        ? `Planning record created (project item reused). PLN ID: ${data.planningRecordId}`
-        : `Planning record created. PLN ID: ${data.planningRecordId}`;
+        ? `Planning record created (project item reused). PLN: ${data.planningNumber ?? data.planningRecordId}`
+        : `Planning record created. PLN: ${data.planningNumber ?? data.planningRecordId}`;
       toast({ title: "PR Raised", description: msg });
-      if (expandedId) {
-        invalidateLines(expandedId);
-        invalidateProcChain(expandedId);
-      }
+      if (expandedId) { invalidateLines(expandedId); invalidateProcChain(expandedId); }
     },
     onError: (e: any) => {
       const msg = e.message?.includes("409") || e.status === 409
@@ -256,7 +293,104 @@ export default function EpcBuyListControlPage() {
     },
   });
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // Phase 5 — Selection mutations
+  const selectItem = useMutation({
+    mutationFn: ({ lineId, body }: { lineId: number; body: any }) =>
+      apiRequest("POST", `/api/buy-list-lines/${lineId}/select`, body),
+    onSuccess: (_, { lineId }) => {
+      toast({ title: "Item selected" });
+      invalidateSel(lineId);
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Selection error", description: e.message, variant: "destructive" }),
+  });
+
+  const approveSelection = useMutation({
+    mutationFn: (lineId: number) => apiRequest("POST", `/api/buy-list-lines/${lineId}/selection/approve`, {}),
+    onSuccess: (_, lineId) => {
+      toast({ title: "Selection approved" });
+      invalidateSel(lineId);
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Approve error", description: e.message, variant: "destructive" }),
+  });
+
+  const rejectSelection = useMutation({
+    mutationFn: ({ lineId, reason }: { lineId: number; reason: string }) =>
+      apiRequest("POST", `/api/buy-list-lines/${lineId}/selection/reject`, { rejectionReason: reason }),
+    onSuccess: (_, { lineId }) => {
+      toast({ title: "Selection rejected" });
+      setRejectDialog({ open: false, lineId: 0 }); setRejectReason("");
+      invalidateSel(lineId);
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Reject error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteSelection = useMutation({
+    mutationFn: (lineId: number) => apiRequest("DELETE", `/api/buy-list-lines/${lineId}/selection`, undefined),
+    onSuccess: (_, lineId) => {
+      toast({ title: "Selection removed" });
+      invalidateSel(lineId);
+      if (expandedId) invalidateLines(expandedId);
+      setOpenSelLineId(null);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const uploadDatasheet = useMutation({
+    mutationFn: async ({ lineId, file }: { lineId: number; file: File }) => {
+      const fd = new FormData();
+      fd.append("datasheet", file);
+      const r = await fetch(`/api/buy-list-lines/${lineId}/selection/upload-datasheet`, {
+        method: "POST", credentials: "include", body: fd,
+      });
+      if (!r.ok) { const err = await r.json().catch(() => ({ error: r.statusText })); throw new Error(err.error ?? r.statusText); }
+      return r.json();
+    },
+    onSuccess: (_, { lineId }) => {
+      toast({ title: "Datasheet uploaded" });
+      invalidateSel(lineId);
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Upload failed", description: e.message, variant: "destructive" }),
+  });
+
+  // Phase 5 — Bulk mutations
+  const bulkSelect = useMutation({
+    mutationFn: ({ headerId, lines }: { headerId: number; lines: { lineId: number; masterItemId: number }[] }) =>
+      apiRequest("POST", `/api/buy-lists/${headerId}/bulk-select`, { lines }),
+    onSuccess: (data: any) => {
+      toast({ title: `Bulk select done`, description: `${data.succeeded} succeeded, ${data.errors?.length ?? 0} errors` });
+      setBulkSelDialog(false); setBulkMasterItemId(""); setCheckedLines(new Set());
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Bulk select error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkApprove = useMutation({
+    mutationFn: ({ headerId, lineIds }: { headerId: number; lineIds: number[] }) =>
+      apiRequest("POST", `/api/buy-lists/${headerId}/bulk-approve`, { lineIds }),
+    onSuccess: (data: any) => {
+      toast({ title: `Bulk approve done`, description: `${data.succeeded} succeeded, ${data.errors?.length ?? 0} errors` });
+      setCheckedLines(new Set());
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Bulk approve error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkRaisePr = useMutation({
+    mutationFn: ({ headerId, lineIds }: { headerId: number; lineIds: number[] }) =>
+      apiRequest("POST", `/api/buy-lists/${headerId}/bulk-raise-pr`, { lineIds }),
+    onSuccess: (data: any) => {
+      toast({ title: `Bulk raise PR done`, description: `${data.succeeded} raised, ${data.errors?.length ?? 0} errors` });
+      setCheckedLines(new Set());
+      if (expandedId) { invalidateLines(expandedId); invalidateProcChain(expandedId); }
+    },
+    onError: (e: any) => toast({ title: "Bulk raise-pr error", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Handlers ──────────────────────────────────────────────────────────────────
   function openAction(listId: number, action: string) {
     setActionNote(""); setReviewRec("approve");
     setActionDialog({ open: true, listId, action });
@@ -296,7 +430,7 @@ export default function EpcBuyListControlPage() {
   function submitLine() {
     if (!lineDialog) return;
     if (!lf.buyGroupId || !lf.buySubgroupId || !lf.uomId || !lf.genericRequirement) {
-      toast({ title: "Group, subgroup, UOM and generic requirement are required", variant: "destructive" }); return;
+      toast({ title: "Group, subgroup, UOM and requirement are required", variant: "destructive" }); return;
     }
     const body = {
       buyGroupId: Number(lf.buyGroupId), buySubgroupId: Number(lf.buySubgroupId),
@@ -320,15 +454,57 @@ export default function EpcBuyListControlPage() {
     setShowProcChain(prev => prev === listId ? null : listId);
   }
 
-  // ── Action label/icon map ─────────────────────────────────────────────────
+  function toggleSelCard(lineId: number) {
+    if (openSelLineId === lineId) {
+      setOpenSelLineId(null);
+    } else {
+      setOpenSelLineId(lineId);
+      setSelForm({ masterItemId: "", drawingNumber: "", drawingRevision: "" });
+    }
+  }
+
+  function toggleChecked(lineId: number) {
+    setCheckedLines(prev => {
+      const next = new Set(prev);
+      next.has(lineId) ? next.delete(lineId) : next.add(lineId);
+      return next;
+    });
+  }
+
+  function toggleAllLines(lines: any[]) {
+    const ids = lines.map((l: any) => l.id);
+    const allChecked = ids.every(id => checkedLines.has(id));
+    setCheckedLines(allChecked ? new Set() : new Set(ids));
+  }
+
+  function submitSelect(lineId: number) {
+    if (!selForm.masterItemId) {
+      toast({ title: "Select a master item", variant: "destructive" }); return;
+    }
+    selectItem.mutate({ lineId, body: {
+      masterItemId: Number(selForm.masterItemId),
+      drawingNumber: selForm.drawingNumber || undefined,
+      drawingRevision: selForm.drawingRevision || undefined,
+    }});
+  }
+
+  function submitBulkSelect() {
+    if (!bulkMasterItemId || !expandedId) {
+      toast({ title: "Select a master item first", variant: "destructive" }); return;
+    }
+    const lines = Array.from(checkedLines).map(id => ({ lineId: id, masterItemId: Number(bulkMasterItemId) }));
+    bulkSelect.mutate({ headerId: expandedId, lines });
+  }
+
+  // ── Action label/icon map ──────────────────────────────────────────────────
   const ACTION_META: Record<string, { label: string; icon: any; needsNote: boolean; noteLabel: string; senior?: boolean }> = {
-    "submit-for-review": { label: "Submit for Review", icon: Send, needsNote: false, noteLabel: "Submission Note" },
-    "revert-to-draft":   { label: "Revert to Draft",   icon: RotateCcw, needsNote: false, noteLabel: "" },
-    "review":            { label: "Record Review",     icon: Eye, needsNote: true, noteLabel: "Review Note" },
+    "submit-for-review": { label: "Submit for Review", icon: Send,        needsNote: false, noteLabel: "Submission Note" },
+    "revert-to-draft":   { label: "Revert to Draft",   icon: RotateCcw,   needsNote: false, noteLabel: "" },
+    "review":            { label: "Record Review",     icon: Eye,         needsNote: true,  noteLabel: "Review Note" },
     "release":           { label: "Release",           icon: ShieldCheck, needsNote: false, noteLabel: "Release Note", senior: true },
-    "lock":              { label: "Lock",              icon: Lock, needsNote: false, noteLabel: "", senior: true },
-    "cancel":            { label: "Cancel",            icon: XCircle, needsNote: true, noteLabel: "Cancel Reason", senior: true },
-    "supersede":         { label: "Supersede",         icon: GitBranch, needsNote: true, noteLabel: "Supersession Reason", senior: true },
+    "lock":              { label: "Lock",              icon: Lock,        needsNote: false, noteLabel: "",             senior: true },
+    "cancel":            { label: "Cancel",            icon: XCircle,     needsNote: true,  noteLabel: "Cancel Reason",      senior: true },
+    "supersede":         { label: "Supersede",         icon: GitBranch,   needsNote: true,  noteLabel: "Supersession Reason", senior: true },
   };
 
   function getAvailableActions(lst: any): string[] {
@@ -346,15 +522,253 @@ export default function EpcBuyListControlPage() {
     return actions;
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Selection card render ────────────────────────────────────────────────────
+  function renderSelCard(line: any, lst: any) {
+    const noSel     = openSelData === null && !selLoading;
+    const hasSel    = openSelData && openSelData !== null;
+    const selStatus = hasSel ? (openSelData.approval_status ?? "pending") : null;
+
+    return (
+      <div className="p-4 rounded-lg border border-blue-200 bg-blue-50/60 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-semibold text-blue-900">
+              Selection — Line {line.line_number} ({line.tag_no || "no tag"})
+            </span>
+            {hasSel && (
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                selStatus === "approved" ? "bg-emerald-100 text-emerald-800" :
+                selStatus === "rejected" ? "bg-red-100 text-red-700" :
+                "bg-amber-100 text-amber-800"
+              }`}>
+                {selStatus === "approved" ? "Approved" : selStatus === "rejected" ? "Rejected" : "Pending Approval"}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setOpenSelLineId(null)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Close selection card"
+          >
+            <XOctagon className="h-4 w-4" />
+          </button>
+        </div>
+
+        {selLoading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        )}
+
+        {/* ── No selection: show picker form ── */}
+        {!selLoading && noSel && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">No item selected yet. Choose a buy-type master item below.</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-3 space-y-1">
+                <Label className="text-xs">Master Item (Buy) <span className="text-red-500">*</span></Label>
+                <Select value={selForm.masterItemId} onValueChange={v => setSelForm(f => ({ ...f, masterItemId: v }))}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Search and select an item…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buyItems.length === 0 && (
+                      <SelectItem value="_none" disabled>No buy items in master list</SelectItem>
+                    )}
+                    {(buyItems as any[]).map((m: any) => (
+                      <SelectItem key={m.id} value={String(m.id)}>
+                        {m.item_code} — {m.description}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Drawing Number</Label>
+                <Input
+                  className="h-8 text-xs"
+                  value={selForm.drawingNumber}
+                  onChange={e => setSelForm(f => ({ ...f, drawingNumber: e.target.value }))}
+                  placeholder="DRW-001"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Drawing Revision</Label>
+                <Input
+                  className="h-8 text-xs"
+                  value={selForm.drawingRevision}
+                  onChange={e => setSelForm(f => ({ ...f, drawingRevision: e.target.value }))}
+                  placeholder="Rev A"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  size="sm"
+                  className="h-8 text-xs w-full gap-1"
+                  disabled={!selForm.masterItemId || selectItem.isPending}
+                  onClick={() => submitSelect(line.id)}
+                >
+                  {selectItem.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  Submit Selection
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Existing selection: show details ── */}
+        {!selLoading && hasSel && (
+          <div className="space-y-3">
+            {/* Selected item info */}
+            <div className="rounded-md bg-white border p-3 space-y-1">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-foreground font-mono">{openSelData.item_code}</p>
+                  <p className="text-xs text-muted-foreground">{openSelData.item_description}</p>
+                  {openSelData.item_specification && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 italic">{openSelData.item_specification}</p>
+                  )}
+                </div>
+                {selStatus !== "approved" && (
+                  <Button
+                    size="sm" variant="ghost"
+                    className="h-6 w-6 p-0 text-red-500 hover:text-red-700 shrink-0"
+                    disabled={deleteSelection.isPending}
+                    title="Remove selection"
+                    onClick={() => {
+                      if (confirm("Remove this selection?")) deleteSelection.mutate(line.id);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+              {(openSelData.drawing_number || openSelData.drawing_revision) && (
+                <div className="flex gap-3 text-[11px] text-muted-foreground mt-1">
+                  {openSelData.drawing_number && <span>DRW: <span className="font-mono">{openSelData.drawing_number}</span></span>}
+                  {openSelData.drawing_revision && <span>Rev: <span className="font-mono">{openSelData.drawing_revision}</span></span>}
+                </div>
+              )}
+            </div>
+
+            {/* Rejection reason */}
+            {selStatus === "rejected" && openSelData.rejection_reason && (
+              <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                <span className="font-semibold">Rejected: </span>{openSelData.rejection_reason}
+                <p className="mt-1 text-muted-foreground">Please remove this selection and submit a new item.</p>
+              </div>
+            )}
+
+            {/* Datasheet section */}
+            {openSelData.datasheet_required && selStatus !== "approved" && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium">
+                  Datasheet
+                  {openSelData.datasheet_uploaded
+                    ? <span className="ml-2 text-emerald-600 font-normal">✓ Uploaded (rev {openSelData.datasheet_revision_seq ?? 0})</span>
+                    : <span className="ml-2 text-amber-600 font-normal">Required — not uploaded</span>
+                  }
+                </p>
+                {selStatus !== "rejected" || openSelData.datasheet_uploaded ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={dsInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadDatasheet.mutate({ lineId: line.id, file });
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      size="sm" variant="outline"
+                      className="h-7 text-xs gap-1"
+                      disabled={uploadDatasheet.isPending}
+                      onClick={() => dsInputRef.current?.click()}
+                    >
+                      {uploadDatasheet.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Upload className="h-3.5 w-3.5" />}
+                      {openSelData.datasheet_uploaded ? "Re-upload Datasheet" : "Upload Datasheet"}
+                    </Button>
+                    {openSelData.datasheet_original_filename && (
+                      <span className="text-[11px] text-muted-foreground truncate max-w-48">
+                        {openSelData.datasheet_original_filename}
+                      </span>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {/* Approved datasheet info */}
+            {openSelData.datasheet_required && selStatus === "approved" && openSelData.datasheet_uploaded && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700">
+                <FileText className="h-3.5 w-3.5" />
+                Datasheet on file (rev {openSelData.datasheet_revision_seq ?? 0})
+                {openSelData.datasheet_original_filename && (
+                  <span className="text-muted-foreground">— {openSelData.datasheet_original_filename}</span>
+                )}
+              </div>
+            )}
+
+            {/* Approve / Reject actions (Manager+) */}
+            {canAction && selStatus === "pending" && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                  disabled={approveSelection.isPending || (openSelData.datasheet_required && !openSelData.datasheet_uploaded)}
+                  onClick={() => approveSelection.mutate(line.id)}
+                >
+                  {approveSelection.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  Approve
+                </Button>
+                <Button
+                  size="sm" variant="outline"
+                  className="h-7 text-xs gap-1 border-red-300 text-red-700 hover:bg-red-50"
+                  disabled={rejectSelection.isPending}
+                  onClick={() => setRejectDialog({ open: true, lineId: line.id })}
+                >
+                  <XOctagon className="h-3.5 w-3.5" /> Reject
+                </Button>
+                {openSelData.datasheet_required && !openSelData.datasheet_uploaded && (
+                  <span className="text-[11px] text-amber-600 self-center">Datasheet needed before approval</span>
+                )}
+              </div>
+            )}
+
+            {/* Approved: Raise PR */}
+            {selStatus === "approved" && !line.planning_record_id && ["released", "locked"].includes(lst.status) && (
+              <Button
+                size="sm"
+                className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                disabled={raisePr.isPending}
+                onClick={() => raisePr.mutate(line.id)}
+              >
+                {raisePr.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TrendingUp className="h-3.5 w-3.5" />}
+                Raise PR
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <Layout>
       <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
-        {/* Header */}
+
+        {/* Page header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">BUY List Control</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Project procurement buy lists · Phase 4 · PPPC</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Project procurement buy lists · Phase 5 · PPPC</p>
           </div>
           {canWrite && selectedProjectId && (
             <Button onClick={() => { setCreateForm({ projectItemId: "", sourcePackageId: "" }); setShowCreate(true); }}>
@@ -363,7 +777,7 @@ export default function EpcBuyListControlPage() {
           )}
         </div>
 
-        {/* Project selector */}
+        {/* Filters card */}
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex flex-wrap gap-4 items-end">
@@ -371,14 +785,12 @@ export default function EpcBuyListControlPage() {
                 <Label className="text-xs">Project</Label>
                 <Select
                   value={selectedProjectId ? String(selectedProjectId) : ""}
-                  onValueChange={(v) => { setSelectedProjectId(Number(v)); setExpandedId(null); setShowProcChain(null); }}
+                  onValueChange={(v) => { setSelectedProjectId(Number(v)); setExpandedId(null); setShowProcChain(null); setCheckedLines(new Set()); setOpenSelLineId(null); }}
                 >
                   <SelectTrigger><SelectValue placeholder="Select a project…" /></SelectTrigger>
                   <SelectContent>
                     {(projects as any[]).map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.code} — {p.name}
-                      </SelectItem>
+                      <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -414,11 +826,11 @@ export default function EpcBuyListControlPage() {
         {selectedProjectId && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
-              { label: "Total", value: stats.total, cls: "text-foreground" },
-              { label: "Draft", value: stats.draft, cls: "text-slate-600" },
+              { label: "Total",        value: stats.total,        cls: "text-foreground" },
+              { label: "Draft",        value: stats.draft,        cls: "text-slate-600" },
               { label: "Under Review", value: stats.under_review, cls: "text-amber-700" },
-              { label: "Released", value: stats.released, cls: "text-emerald-700" },
-              { label: "Locked", value: stats.locked, cls: "text-purple-700" },
+              { label: "Released",     value: stats.released,     cls: "text-emerald-700" },
+              { label: "Locked",       value: stats.locked,       cls: "text-purple-700" },
             ].map(s => (
               <Card key={s.label}>
                 <CardContent className="pt-3 pb-3 text-center">
@@ -430,7 +842,7 @@ export default function EpcBuyListControlPage() {
           </div>
         )}
 
-        {/* Table */}
+        {/* Main table */}
         {!selectedProjectId ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">Select a project to view buy lists.</CardContent></Card>
         ) : isLoading ? (
@@ -456,7 +868,14 @@ export default function EpcBuyListControlPage() {
                 {filtered.map(lst => (
                   <Fragment key={lst.id}>
                     {/* Header row */}
-                    <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => setExpandedId(expandedId === lst.id ? null : lst.id)}>
+                    <TableRow
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() => {
+                        setExpandedId(expandedId === lst.id ? null : lst.id);
+                        setOpenSelLineId(null);
+                        setCheckedLines(new Set());
+                      }}
+                    >
                       <TableCell>
                         {expandedId === lst.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </TableCell>
@@ -514,10 +933,72 @@ export default function EpcBuyListControlPage() {
                           ) : (
                             <div className="p-4 space-y-4">
 
+                              {/* ── Phase 5: Bulk toolbar ── */}
+                              {bulkAvailable && checkedLines.size > 0 && (
+                                <div className="flex items-center gap-2 p-2 rounded-md bg-blue-50 border border-blue-200">
+                                  <Layers className="h-4 w-4 text-blue-600 shrink-0" />
+                                  <span className="text-xs font-semibold text-blue-700">{checkedLines.size} line{checkedLines.size > 1 ? "s" : ""} selected</span>
+                                  <div className="flex-1" />
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="h-7 text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-100"
+                                    disabled={bulkSelect.isPending}
+                                    onClick={() => setBulkSelDialog(true)}
+                                  >
+                                    <UserCheck className="h-3.5 w-3.5" /> Bulk Select
+                                  </Button>
+                                  {canAction && (
+                                    <Button
+                                      size="sm" variant="outline"
+                                      className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                      disabled={bulkApprove.isPending}
+                                      onClick={() => {
+                                        if (confirm(`Approve selection for ${checkedLines.size} line(s)?`))
+                                          bulkApprove.mutate({ headerId: lst.id, lineIds: Array.from(checkedLines) });
+                                      }}
+                                    >
+                                      {bulkApprove.isPending
+                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                      Bulk Approve
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                    disabled={bulkRaisePr.isPending}
+                                    onClick={() => {
+                                      if (confirm(`Raise PR for ${checkedLines.size} line(s)?`))
+                                        bulkRaisePr.mutate({ headerId: lst.id, lineIds: Array.from(checkedLines) });
+                                    }}
+                                  >
+                                    {bulkRaisePr.isPending
+                                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      : <TrendingUp className="h-3.5 w-3.5" />}
+                                    Bulk Raise PR
+                                  </Button>
+                                  <Button
+                                    size="sm" variant="ghost"
+                                    className="h-7 text-xs text-muted-foreground"
+                                    onClick={() => setCheckedLines(new Set())}
+                                  >
+                                    Clear
+                                  </Button>
+                                </div>
+                              )}
+
                               {/* ── Lines Table ── */}
                               <Table>
                                 <TableHeader>
                                   <TableRow className="bg-muted/50">
+                                    {bulkAvailable && (
+                                      <TableHead className="w-8">
+                                        <Checkbox
+                                          checked={expandedLines.length > 0 && expandedLines.every((l: any) => checkedLines.has(l.id))}
+                                          onCheckedChange={() => toggleAllLines(expandedLines)}
+                                        />
+                                      </TableHead>
+                                    )}
                                     <TableHead className="text-xs">#</TableHead>
                                     <TableHead className="text-xs">Group / Subgroup</TableHead>
                                     <TableHead className="text-xs">Requirement</TableHead>
@@ -537,98 +1018,128 @@ export default function EpcBuyListControlPage() {
                                       !line.planning_record_id &&
                                       ["released", "locked"].includes(lst.status);
                                     const alreadyRaised = !!line.planning_record_id;
+                                    const selCardOpen   = openSelLineId === line.id;
+                                    const showSelToggle = ["released", "locked"].includes(lst.status) && line.selection_required;
 
                                     return (
-                                      <TableRow key={line.id}>
-                                        <TableCell className="text-xs font-mono">{line.line_number}</TableCell>
-                                        <TableCell className="text-xs">
-                                          <div className="font-medium">{line.buy_group_code}</div>
-                                          <div className="text-muted-foreground">{line.buy_subgroup_code}</div>
-                                        </TableCell>
-                                        <TableCell className="text-xs max-w-40 truncate">{line.generic_requirement}</TableCell>
-                                        <TableCell className="text-xs font-mono">
-                                          {line.tag_no || <span className="text-amber-600 italic">missing</span>}
-                                        </TableCell>
-                                        <TableCell className="text-xs truncate max-w-32">
-                                          {line.equipment_reference || <span className="text-amber-600 italic">missing</span>}
-                                        </TableCell>
-                                        <TableCell className="text-xs truncate max-w-32">
-                                          {line.service_description || <span className="text-amber-600 italic">missing</span>}
-                                        </TableCell>
-                                        <TableCell className="text-xs text-center">{line.quantity} {line.uom_code}</TableCell>
-                                        <TableCell>
-                                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${LINE_STATUS[line.status]?.cls ?? ""}`}>
-                                            {LINE_STATUS[line.status]?.label ?? line.status}
-                                          </span>
-                                        </TableCell>
+                                      <Fragment key={line.id}>
+                                        <TableRow className={selCardOpen ? "bg-blue-50/40" : ""}>
+                                          {bulkAvailable && (
+                                            <TableCell>
+                                              <Checkbox
+                                                checked={checkedLines.has(line.id)}
+                                                onCheckedChange={() => toggleChecked(line.id)}
+                                              />
+                                            </TableCell>
+                                          )}
+                                          <TableCell className="text-xs font-mono">{line.line_number}</TableCell>
+                                          <TableCell className="text-xs">
+                                            <div className="font-medium">{line.buy_group_code}</div>
+                                            <div className="text-muted-foreground">{line.buy_subgroup_code}</div>
+                                          </TableCell>
+                                          <TableCell className="text-xs max-w-40 truncate">{line.generic_requirement}</TableCell>
+                                          <TableCell className="text-xs font-mono">
+                                            {line.tag_no || <span className="text-amber-600 italic">missing</span>}
+                                          </TableCell>
+                                          <TableCell className="text-xs truncate max-w-32">
+                                            {line.equipment_reference || <span className="text-amber-600 italic">missing</span>}
+                                          </TableCell>
+                                          <TableCell className="text-xs truncate max-w-32">
+                                            {line.service_description || <span className="text-amber-600 italic">missing</span>}
+                                          </TableCell>
+                                          <TableCell className="text-xs text-center">{line.quantity} {line.uom_code}</TableCell>
+                                          <TableCell>
+                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${LINE_STATUS[line.status]?.cls ?? ""}`}>
+                                              {LINE_STATUS[line.status]?.label ?? line.status}
+                                            </span>
+                                          </TableCell>
 
-                                        {/* ── Planning cell ── */}
-                                        <TableCell className="min-w-36">
-                                          {alreadyRaised ? (
-                                            <div className="space-y-0.5">
-                                              <span className="font-mono text-[10px] text-emerald-700 font-semibold block">
-                                                {line.ipr_planning_number ?? `PLN #${line.planning_record_id}`}
-                                              </span>
-                                              {line.ipr_status && (
-                                                <span className={`inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium ${PLN_STATUS[line.ipr_status]?.cls ?? "bg-slate-100 text-slate-600"}`}>
-                                                  {PLN_STATUS[line.ipr_status]?.label ?? line.ipr_status}
+                                          {/* Planning cell */}
+                                          <TableCell className="min-w-36">
+                                            {alreadyRaised ? (
+                                              <div className="space-y-0.5">
+                                                <span className="font-mono text-[10px] text-emerald-700 font-semibold block">
+                                                  {line.ipr_planning_number ?? `PLN #${line.planning_record_id}`}
                                                 </span>
+                                                {line.ipr_status && (
+                                                  <span className={`inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium ${PLN_STATUS[line.ipr_status]?.cls ?? "bg-slate-100 text-slate-600"}`}>
+                                                    {PLN_STATUS[line.ipr_status]?.label ?? line.ipr_status}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span className="text-[10px] text-muted-foreground/50 italic">not raised</span>
+                                            )}
+                                          </TableCell>
+
+                                          {/* Actions cell */}
+                                          <TableCell>
+                                            <div className="flex gap-1 flex-wrap">
+                                              {lst.status === "draft" && canWrite && (
+                                                <>
+                                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                                                    onClick={() => openEditLine(lst.id, lst.status, line)}>
+                                                    <Edit2 className="h-3 w-3" />
+                                                  </Button>
+                                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive"
+                                                    onClick={() => deleteLine.mutate(line.id)}>
+                                                    <Trash2 className="h-3 w-3" />
+                                                  </Button>
+                                                </>
+                                              )}
+                                              {/* Phase 5 — selection card toggle */}
+                                              {showSelToggle && (
+                                                <Button
+                                                  size="sm" variant={selCardOpen ? "default" : "outline"}
+                                                  className="h-6 text-[10px] px-1.5 gap-0.5"
+                                                  title="Manage item selection"
+                                                  onClick={() => toggleSelCard(line.id)}
+                                                >
+                                                  <UserCheck className="h-3 w-3" />
+                                                  {selCardOpen ? "Close" : "Select"}
+                                                </Button>
+                                              )}
+                                              {/* Raise PR (single) */}
+                                              {canRaisePr && (
+                                                <Button
+                                                  size="sm" variant="outline"
+                                                  className="h-6 text-[10px] px-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                                  disabled={raisePr.isPending}
+                                                  onClick={() => raisePr.mutate(line.id)}
+                                                >
+                                                  {raisePr.isPending
+                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                    : <><TrendingUp className="h-3 w-3 mr-1" />Raise PR</>
+                                                  }
+                                                </Button>
+                                              )}
+                                              {/* Re-raise for canceled/superseded PLN */}
+                                              {line.status === "approved" &&
+                                                alreadyRaised &&
+                                                ["canceled", "superseded"].includes(line.ipr_status) &&
+                                                ["released", "locked"].includes(lst.status) && (
+                                                <Button
+                                                  size="sm" variant="outline"
+                                                  className="h-6 text-[10px] px-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                                                  disabled={raisePr.isPending}
+                                                  onClick={() => raisePr.mutate(line.id)}
+                                                >
+                                                  <RotateCcw className="h-3 w-3 mr-1" />Re-raise PR
+                                                </Button>
                                               )}
                                             </div>
-                                          ) : (
-                                            <span className="text-[10px] text-muted-foreground/50 italic">not raised</span>
-                                          )}
-                                        </TableCell>
+                                          </TableCell>
+                                        </TableRow>
 
-                                        {/* ── Actions cell ── */}
-                                        <TableCell>
-                                          <div className="flex gap-1 flex-wrap">
-                                            {/* Edit/Delete on draft lists */}
-                                            {lst.status === "draft" && canWrite && (
-                                              <>
-                                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
-                                                  onClick={() => openEditLine(lst.id, lst.status, line)}>
-                                                  <Edit2 className="h-3 w-3" />
-                                                </Button>
-                                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive"
-                                                  onClick={() => deleteLine.mutate(line.id)}>
-                                                  <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                              </>
-                                            )}
-                                            {/* Raise PR button */}
-                                            {canRaisePr && (
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-6 text-[10px] px-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                                disabled={raisePr.isPending}
-                                                onClick={() => raisePr.mutate(line.id)}
-                                              >
-                                                {raisePr.isPending
-                                                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                  : <><TrendingUp className="h-3 w-3 mr-1" />Raise PR</>
-                                                }
-                                              </Button>
-                                            )}
-                                            {/* Already raised + re-raise available (canceled/superseded PLN) */}
-                                            {line.status === "approved" &&
-                                              alreadyRaised &&
-                                              ["canceled", "superseded"].includes(line.ipr_status) &&
-                                              ["released", "locked"].includes(lst.status) && (
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-6 text-[10px] px-2 border-amber-300 text-amber-700 hover:bg-amber-50"
-                                                disabled={raisePr.isPending}
-                                                onClick={() => raisePr.mutate(line.id)}
-                                              >
-                                                <RotateCcw className="h-3 w-3 mr-1" />Re-raise PR
-                                              </Button>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
+                                        {/* Phase 5 — inline selection card */}
+                                        {selCardOpen && (
+                                          <TableRow>
+                                            <TableCell colSpan={bulkAvailable ? 11 : 10} className="py-2 px-4 bg-blue-50/30">
+                                              {renderSelCard(line, lst)}
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                                      </Fragment>
                                     );
                                   })}
                                 </TableBody>
@@ -650,10 +1161,8 @@ export default function EpcBuyListControlPage() {
                                       }
                                     </button>
                                     {showProcChain === lst.id && (
-                                      <Button
-                                        size="sm" variant="ghost" className="h-7 text-xs px-2"
-                                        onClick={() => invalidateProcChain(lst.id)}
-                                      >
+                                      <Button size="sm" variant="ghost" className="h-7 text-xs px-2"
+                                        onClick={() => invalidateProcChain(lst.id)}>
                                         Refresh
                                       </Button>
                                     )}
@@ -700,61 +1209,39 @@ export default function EpcBuyListControlPage() {
                                                     </td>
                                                     <td className="py-2.5">
                                                       <div className="flex items-center gap-2">
-                                                        {/* PLN */}
                                                         <StageBadge
                                                           label="Planning"
                                                           value={row.planningStatus ? (PLN_STATUS[row.planningStatus]?.label ?? row.planningStatus) : null}
                                                           cls={PLN_STATUS[row.planningStatus]?.cls}
                                                         />
                                                         {row.planningRecordId && <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />}
-                                                        {/* Exec */}
                                                         {row.planningRecordId && (
                                                           <>
-                                                            <StageBadge
-                                                              label="Exec"
-                                                              value={row.procurementStatus}
-                                                              cls="bg-blue-100 text-blue-800"
-                                                            />
+                                                            <StageBadge label="Exec" value={row.procurementStatus} cls="bg-blue-100 text-blue-800" />
                                                             <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
                                                           </>
                                                         )}
-                                                        {/* PO Prep */}
                                                         {row.planningRecordId && (
                                                           <>
-                                                            <StageBadge
-                                                              label="PO Prep"
-                                                              value={row.poPrepStatus}
-                                                              cls="bg-violet-100 text-violet-800"
-                                                            />
+                                                            <StageBadge label="PO Prep" value={row.poPrepStatus} cls="bg-violet-100 text-violet-800" />
                                                             <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
                                                           </>
                                                         )}
-                                                        {/* PO */}
                                                         {row.planningRecordId && (
                                                           <>
                                                             <StageBadge
                                                               label="PO"
-                                                              value={row.epcPoStatus
-                                                                ? `${row.epcPoStatus}${row.epcPoNumber ? ` · ${row.epcPoNumber}` : ""}`
-                                                                : null}
+                                                              value={row.epcPoStatus ? `${row.epcPoStatus}${row.epcPoNumber ? ` · ${row.epcPoNumber}` : ""}` : null}
                                                               cls="bg-indigo-100 text-indigo-800"
                                                             />
                                                             <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
                                                           </>
                                                         )}
-                                                        {/* QC */}
                                                         {row.planningRecordId && (
-                                                          <StageBadge
-                                                            label="QC"
-                                                            value={row.qualityStatus}
-                                                            cls="bg-teal-100 text-teal-800"
-                                                          />
+                                                          <StageBadge label="QC" value={row.qualityStatus} cls="bg-teal-100 text-teal-800" />
                                                         )}
-                                                        {/* Not yet raised */}
                                                         {!row.planningRecordId && (
-                                                          <span className="text-[10px] text-muted-foreground/50 italic">
-                                                            PR not raised
-                                                          </span>
+                                                          <span className="text-[10px] text-muted-foreground/50 italic">PR not raised</span>
                                                         )}
                                                       </div>
                                                     </td>
@@ -783,7 +1270,7 @@ export default function EpcBuyListControlPage() {
         )}
       </div>
 
-      {/* ── Create Buy List Dialog ─────────────────────────────────────────── */}
+      {/* ── Create Buy List Dialog ─────────────────────────────────────────────── */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -822,10 +1309,13 @@ export default function EpcBuyListControlPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={() => createList.mutate({
-              projectItemId: Number(createForm.projectItemId),
-              sourcePackageId: createForm.sourcePackageId ? Number(createForm.sourcePackageId) : undefined,
-            })} disabled={!createForm.projectItemId || createList.isPending}>
+            <Button
+              onClick={() => createList.mutate({
+                projectItemId: Number(createForm.projectItemId),
+                sourcePackageId: createForm.sourcePackageId ? Number(createForm.sourcePackageId) : undefined,
+              })}
+              disabled={!createForm.projectItemId || createList.isPending}
+            >
               {createList.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Create List
             </Button>
@@ -833,16 +1323,16 @@ export default function EpcBuyListControlPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Lifecycle Action Dialog ────────────────────────────────────────── */}
+      {/* ── Lifecycle Action Dialog ─────────────────────────────────────────────── */}
       {actionDialog && (
         <Dialog open={actionDialog.open} onOpenChange={() => setActionDialog(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{ACTION_META[actionDialog.action]?.label}</DialogTitle>
               <DialogDescription>
-                {actionDialog.action === "cancel" && "This cannot be undone for released lists."}
+                {actionDialog.action === "cancel"   && "This cannot be undone for released lists."}
                 {actionDialog.action === "supersede" && "A new draft revision will be created with all lines copied."}
-                {actionDialog.action === "review" && "Record your review recommendation."}
+                {actionDialog.action === "review"   && "Record your review recommendation."}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
@@ -861,15 +1351,20 @@ export default function EpcBuyListControlPage() {
               )}
               {ACTION_META[actionDialog.action]?.needsNote && (
                 <div className="space-y-1.5">
-                  <Label>{ACTION_META[actionDialog.action].noteLabel} {["cancel", "supersede"].includes(actionDialog.action) && <span className="text-red-500">*</span>}</Label>
+                  <Label>
+                    {ACTION_META[actionDialog.action].noteLabel}
+                    {["cancel", "supersede"].includes(actionDialog.action) && <span className="text-red-500 ml-1">*</span>}
+                  </Label>
                   <Textarea value={actionNote} onChange={e => setActionNote(e.target.value)} rows={3} />
                 </div>
               )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>
-              <Button onClick={submitAction} disabled={doAction.isPending ||
-                (["cancel", "supersede"].includes(actionDialog.action) && !actionNote.trim())}>
+              <Button
+                onClick={submitAction}
+                disabled={doAction.isPending || (["cancel", "supersede"].includes(actionDialog.action) && !actionNote.trim())}
+              >
                 {doAction.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Confirm
               </Button>
@@ -878,16 +1373,15 @@ export default function EpcBuyListControlPage() {
         </Dialog>
       )}
 
-      {/* ── Line Dialog ────────────────────────────────────────────────────── */}
+      {/* ── Line Add/Edit Dialog ────────────────────────────────────────────────── */}
       {lineDialog && (
         <Dialog open={lineDialog.open} onOpenChange={() => setLineDialog(null)}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
-              <DialogDescription>All tag, equipment, and service fields must be filled before submission.</DialogDescription>
+              <DialogDescription>Tag, equipment and service fields must be filled before submission.</DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-2">
-              {/* Buy Group */}
               <div className="space-y-1.5">
                 <Label>Buy Group <span className="text-red-500">*</span></Label>
                 <Select value={lf.buyGroupId} onValueChange={v => setLf(f => ({ ...f, buyGroupId: v, buySubgroupId: "" }))}>
@@ -899,7 +1393,6 @@ export default function EpcBuyListControlPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {/* Buy Subgroup */}
               <div className="space-y-1.5">
                 <Label>Buy Subgroup <span className="text-red-500">*</span></Label>
                 <Select value={lf.buySubgroupId} onValueChange={v => setLf(f => ({ ...f, buySubgroupId: v }))} disabled={!lf.buyGroupId}>
@@ -911,7 +1404,6 @@ export default function EpcBuyListControlPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {/* UOM */}
               <div className="space-y-1.5">
                 <Label>UOM <span className="text-red-500">*</span></Label>
                 <Select value={lf.uomId} onValueChange={v => setLf(f => ({ ...f, uomId: v }))}>
@@ -923,66 +1415,58 @@ export default function EpcBuyListControlPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {/* Quantity */}
               <div className="space-y-1.5">
                 <Label>Quantity</Label>
                 <Input type="number" min="0.01" step="0.01" value={lf.quantity}
                   onChange={e => setLf(f => ({ ...f, quantity: e.target.value }))} />
               </div>
-              {/* Generic Requirement */}
               <div className="col-span-2 space-y-1.5">
                 <Label>Generic Requirement <span className="text-red-500">*</span></Label>
-                <Textarea value={lf.genericRequirement} onChange={e => setLf(f => ({ ...f, genericRequirement: e.target.value }))} rows={2} />
+                <Input placeholder="e.g. Feed Pump, Suction Strainer"
+                  value={lf.genericRequirement} onChange={e => setLf(f => ({ ...f, genericRequirement: e.target.value }))} />
               </div>
-              {/* Tag No */}
               <div className="space-y-1.5">
                 <Label>Tag No</Label>
-                <Input placeholder="e.g. P-101A" value={lf.tagNo}
-                  onChange={e => setLf(f => ({ ...f, tagNo: e.target.value }))} />
+                <Input placeholder="e.g. P-101A" value={lf.tagNo} onChange={e => setLf(f => ({ ...f, tagNo: e.target.value }))} />
               </div>
-              {/* Required Date */}
               <div className="space-y-1.5">
-                <Label>Required Date</Label>
-                <Input type="date" value={lf.requiredDate}
-                  onChange={e => setLf(f => ({ ...f, requiredDate: e.target.value }))} />
-              </div>
-              {/* Equipment Reference */}
-              <div className="col-span-2 space-y-1.5">
                 <Label>Equipment Reference</Label>
-                <Input placeholder="Parent equipment or system reference" value={lf.equipmentReference}
-                  onChange={e => setLf(f => ({ ...f, equipmentReference: e.target.value }))} />
+                <Input placeholder="e.g. EQ-2024-001" value={lf.equipmentReference} onChange={e => setLf(f => ({ ...f, equipmentReference: e.target.value }))} />
               </div>
-              {/* Service Description */}
               <div className="col-span-2 space-y-1.5">
                 <Label>Service Description</Label>
-                <Input placeholder="Process service description" value={lf.serviceDescription}
-                  onChange={e => setLf(f => ({ ...f, serviceDescription: e.target.value }))} />
+                <Input placeholder="e.g. Cooling Water Pump"
+                  value={lf.serviceDescription} onChange={e => setLf(f => ({ ...f, serviceDescription: e.target.value }))} />
               </div>
-              {/* Specification */}
-              <div className="col-span-2 space-y-1.5">
+              <div className="space-y-1.5">
+                <Label>Required Date</Label>
+                <Input type="date" value={lf.requiredDate} onChange={e => setLf(f => ({ ...f, requiredDate: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
                 <Label>Specification</Label>
-                <Textarea value={lf.specification} onChange={e => setLf(f => ({ ...f, specification: e.target.value }))} rows={2} />
+                <Input value={lf.specification} onChange={e => setLf(f => ({ ...f, specification: e.target.value }))} />
               </div>
-              {/* Flags */}
-              <div className="col-span-2">
-                <Label className="text-xs text-muted-foreground mb-2 block">Requirements</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {([
-                    ["selectionRequired", "Selection Required"],
-                    ["datasheetRequired", "Datasheet Required"],
-                    ["inspectionRequired", "Inspection Required"],
-                    ["certificateRequired", "Certificate Required"],
-                    ["complianceRequired", "Compliance Required"],
-                  ] as [keyof typeof lf, string][]).map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <Checkbox checked={lf[key] as boolean}
-                        onCheckedChange={v => setLf(f => ({ ...f, [key]: !!v }))} />
-                      {label}
-                    </label>
+              <div className="col-span-2 space-y-2 rounded-md border p-3 bg-muted/30">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Required Flags</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { key: "selectionRequired",   label: "Selection Required" },
+                    { key: "datasheetRequired",   label: "Datasheet Required" },
+                    { key: "inspectionRequired",  label: "Inspection Required" },
+                    { key: "certificateRequired", label: "Certificate Required" },
+                    { key: "complianceRequired",  label: "Compliance Required" },
+                  ].map(flag => (
+                    <div key={flag.key} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`lflag-${flag.key}`}
+                        checked={lf[flag.key as keyof typeof lf] as boolean}
+                        onCheckedChange={v => setLf(f => ({ ...f, [flag.key]: Boolean(v) }))}
+                      />
+                      <Label htmlFor={`lflag-${flag.key}`} className="text-xs">{flag.label}</Label>
+                    </div>
                   ))}
                 </div>
               </div>
-              {/* Notes */}
               <div className="col-span-2 space-y-1.5">
                 <Label>Notes</Label>
                 <Textarea value={lf.notes} onChange={e => setLf(f => ({ ...f, notes: e.target.value }))} rows={2} />
@@ -998,6 +1482,91 @@ export default function EpcBuyListControlPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── Reject Dialog ──────────────────────────────────────────────────────── */}
+      <Dialog
+        open={rejectDialog.open}
+        onOpenChange={(o) => { if (!o) { setRejectDialog({ open: false, lineId: 0 }); setRejectReason(""); } }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reject Selection</DialogTitle>
+            <DialogDescription>Provide a reason for rejection. The submitter will be notified.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Rejection Reason <span className="text-red-500">*</span></Label>
+              <Textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={3}
+                placeholder="e.g. Wrong specification, datasheet mismatch…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectDialog({ open: false, lineId: 0 }); setRejectReason(""); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!rejectReason.trim() || rejectSelection.isPending}
+              onClick={() => rejectSelection.mutate({ lineId: rejectDialog.lineId, reason: rejectReason.trim() })}
+            >
+              {rejectSelection.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Bulk Select Dialog ─────────────────────────────────────────────────── */}
+      <Dialog open={bulkSelDialog} onOpenChange={(o) => { if (!o) { setBulkSelDialog(false); setBulkMasterItemId(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bulk Select — {checkedLines.size} Line{checkedLines.size > 1 ? "s" : ""}</DialogTitle>
+            <DialogDescription>
+              Apply the same master item to all selected lines. Already-approved lines will be skipped.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Master Item (Buy) <span className="text-red-500">*</span></Label>
+              <Select value={bulkMasterItemId} onValueChange={setBulkMasterItemId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Search and select an item…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {buyItems.length === 0 && (
+                    <SelectItem value="_none" disabled>No buy items available</SelectItem>
+                  )}
+                  {(buyItems as any[]).map((m: any) => (
+                    <SelectItem key={m.id} value={String(m.id)}>
+                      {m.item_code} — {m.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This will replace any existing non-approved selection on all {checkedLines.size} selected line(s).
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBulkSelDialog(false); setBulkMasterItemId(""); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!bulkMasterItemId || bulkSelect.isPending}
+              onClick={submitBulkSelect}
+            >
+              {bulkSelect.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Apply to {checkedLines.size} Line{checkedLines.size > 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Layout>
   );
 }
