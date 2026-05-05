@@ -370,8 +370,6 @@ function Layout({ children }: LayoutProps) {
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Users, label: "Customers", href: "/customers" },
-        { icon: Package, label: "Products", href: "/products" },
-        ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY Package Catalog", href: "/products/buy-packages" }] : []),
         { icon: FileText, label: "Offer Templates", href: "/offer-templates" },
         { icon: FileText, label: "Offers / Quotations", href: "/offers" },
         { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }
@@ -413,6 +411,8 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: BarChart4, label: "Project Dashboard", href: "/project-dashboard" },
         { icon: Briefcase, label: "Projects", href: "/projects" },
+        { icon: Package, label: "Products", href: "/products" },
+        ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY Package Catalog", href: "/products/buy-packages" }] : []),
         ...(hasPageAccess("planning-control") ? [{ icon: ClipboardList, label: "Planning Control", href: "/epc/planning-control" }] : []),
         ...(hasPageAccess("procurement-production") ? [{ icon: Package, label: "Procurement & Production", href: "/epc/execution-control" }] : []),
         ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY List Control", href: "/epc/buy-list-control" }] : []),
