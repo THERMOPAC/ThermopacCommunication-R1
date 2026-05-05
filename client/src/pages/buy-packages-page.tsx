@@ -3521,9 +3521,9 @@ function CoolingTowerAttrsForm({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
       <SearchableSelect
-        options={opts.map(o => ({ value: o, label: o }))}
+        options={opts}
         value={(attrs[key] as string) ?? ""}
-        onChange={(v) => set(key, v === "__other__" ? "" : v)}
+        onSelect={(v) => set(key, v === "__other__" ? "" : v)}
         placeholder={`Select ${label}…`}
       />
     </div>
@@ -3701,31 +3701,23 @@ function BoughtOutAttrsForm({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
       <SearchableSelect
-        options={opts.map(o => ({ value: o, label: o }))}
+        options={opts}
         value={(attrs[key] as string) ?? ""}
-        onChange={(v) => {
-          if (v === "__other__") { set(key, ""); return; }
-          set(key, v);
-        }}
+        onSelect={(v) => set(key, v === "__other__" ? "" : v)}
         placeholder={`Select ${label}…`}
       />
-      {(attrs[key] as string) === "" && (attrs[`${key}_other`] as string) !== undefined && (
-        <Input className="h-8 text-sm mt-1" placeholder="Specify…"
-          value={(attrs[`${key}_other`] as string) ?? ""}
-          onChange={(e) => set(`${key}_other`, e.target.value)} />
-      )}
     </div>
   );
   const renderOtherText = (key: string, label: string, opts: string[]) => {
     const val = (attrs[key] as string) ?? "";
-    const isOther = val === "" && opts.includes("Other");
+    const isOther = val === "__other__" || (val === "" && (attrs[`${key}_other`] as string) !== undefined);
     return (
       <div className="space-y-1.5">
         <Label className="text-xs">{label}</Label>
         <SearchableSelect
-          options={opts.map(o => ({ value: o, label: o }))}
+          options={opts}
           value={val}
-          onChange={(v) => { if (v === "__other__") { set(key, ""); } else { set(key, v); } }}
+          onSelect={(v) => set(key, v)}
           placeholder={`Select ${label}…`}
         />
         {isOther && (
