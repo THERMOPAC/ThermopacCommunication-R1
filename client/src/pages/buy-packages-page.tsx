@@ -272,65 +272,6 @@ function TechnicalAttrsForm({
   );
 }
 
-// ── Inline "add to category" bar ─────────────────────────────────────────────
-function AddCategoryBar({
-  pkg, groups, addCat, setAddCat, addCatSubgroups, openAddLineForSubgroup,
-}: {
-  pkg: BuyPackage;
-  groups: BuyGroup[];
-  addCat: { groupId: string; subgroupId: string };
-  setAddCat: (v: { groupId: string; subgroupId: string }) => void;
-  addCatSubgroups: BuySubgroup[];
-  openAddLineForSubgroup: (
-    pkg: BuyPackage,
-    groupId: number, groupCode: string, groupLabel: string,
-    subgroupId: number, subgroupCode: string, subgroupLabel: string,
-  ) => void;
-}) {
-  const selGrp = groups.find((g) => String(g.id) === addCat.groupId);
-  const selSub = addCatSubgroups.find((s) => String(s.id) === addCat.subgroupId);
-  return (
-    <div className="flex items-center gap-2 flex-wrap rounded-md border border-dashed p-3 bg-muted/20">
-      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Add to:</span>
-      <Select
-        value={addCat.groupId}
-        onValueChange={(v) => setAddCat({ groupId: v, subgroupId: "" })}
-      >
-        <SelectTrigger className="h-7 text-xs w-40">
-          <SelectValue placeholder="Select Group…" />
-        </SelectTrigger>
-        <SelectContent>
-          {groups.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.label}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-      <Select
-        value={addCat.subgroupId}
-        onValueChange={(v) => setAddCat({ ...addCat, subgroupId: v })}
-        disabled={!addCat.groupId}
-      >
-        <SelectTrigger className="h-7 text-xs w-44">
-          <SelectValue placeholder={addCat.groupId ? "Select Subgroup…" : "Pick group first"} />
-        </SelectTrigger>
-        <SelectContent>
-          {addCatSubgroups.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      <Button
-        size="sm" className="h-7 gap-1 text-xs"
-        disabled={!selGrp || !selSub}
-        onClick={() => {
-          if (!selGrp || !selSub) return;
-          openAddLineForSubgroup(pkg, selGrp.id, selGrp.code, selGrp.label, selSub.id, selSub.code, selSub.label);
-          setAddCat({ groupId: "", subgroupId: "" });
-        }}
-      >
-        <Plus className="h-3 w-3" /> Add Line
-      </Button>
-    </div>
-  );
-}
-
 // ── Flag badges ───────────────────────────────────────────────────────────────
 const FLAGS = [
   { key: "selectionRequired",   short: "SEL"  },
@@ -377,13 +318,6 @@ export default function BuyPackagesPage() {
   const [search,         setSearch]         = useState("");
   const [expandedId,     setExpandedId]     = useState<number | null>(null);
 
-  // Inline "add to category" bar (group + subgroup selects inside expanded panel)
-  const [addCat, setAddCat] = useState({ groupId: "", subgroupId: "" });
-
-  function toggleExpand(pkgId: number) {
-    setExpandedId((cur) => (cur === pkgId ? null : pkgId));
-    setAddCat({ groupId: "", subgroupId: "" });
-  }
 
   // Dialogs
   const [showCreate, setShowCreate]     = useState(false);
@@ -421,11 +355,19 @@ export default function BuyPackagesPage() {
     enabled: !!lf.buyGroupId,
   });
 
-  const { data: addCatSubgroups = [] } = useQuery<BuySubgroup[]>({
-    queryKey: ["/api/buy-groups", addCat.groupId, "subgroups"],
-    queryFn: () =>
-      fetch(`/api/buy-groups/${addCat.groupId}/subgroups`, { credentials: "include" }).then((r) => r.json()),
-    enabled: !!addCat.groupId,
+  const { data: allSubgroups = [] } = useQuery<BuySubgroup[]>({
+    queryKey: ["/api/buy-subgroups-all", groups.map((g) => g.id).join(",")],
+    queryFn: async () => {
+      if (groups.length === 0) return [];
+      const results = await Promise.all(
+        groups.map((g) =>
+          fetch(`/api/buy-groups/${g.id}/subgroups`, { credentials: "include" }).then((r) => r.json()),
+        ),
+      );
+      return (results as BuySubgroup[][]).flat();
+    },
+    enabled: groups.length > 0,
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: uoms = [] } = useQuery<UomMaster[]>({ queryKey: ["/api/uom-master"] });
@@ -739,7 +681,7 @@ export default function BuyPackagesPage() {
                     <Fragment key={pkg.id}>
                       <TableRow
                         className="cursor-pointer hover:bg-muted/40 transition-colors"
-                        onClick={() => toggleExpand(pkg.id)}
+                        onClick={() => setExpandedId((cur) => (cur === pkg.id ? null : pkg.id))}
                       >
                         <TableCell className="pl-4">
                           {isExpanded
@@ -798,151 +740,141 @@ export default function BuyPackagesPage() {
                         </TableCell>
                       </TableRow>
 
-                      {/* Expanded lines — grouped by Group → Subgroup */}
-                      {isExpanded && (
-                        <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={8} className="p-0 bg-muted/20 border-t">
-                            <div className="px-6 py-4 space-y-5">
+                      {/* Expanded lines — all groups as cards, all subgroups as rows */}
+                      {isExpanded && (() => {
+                        // Build lines lookup: groupId → subgroupId → lines[]
+                        const linesMap = new Map<number, Map<number, PackageLine[]>>();
+                        for (const line of expandedLines) {
+                          if (!linesMap.has(line.buyGroupId)) linesMap.set(line.buyGroupId, new Map());
+                          const gm = linesMap.get(line.buyGroupId)!;
+                          if (!gm.has(line.buySubgroupId)) gm.set(line.buySubgroupId, []);
+                          gm.get(line.buySubgroupId)!.push(line);
+                        }
+                        // Build group→subgroups structure from master data
+                        const catalog = groups.map((g) => ({
+                          ...g,
+                          subgroups: allSubgroups.filter((s) => s.buyGroupId === g.id),
+                        }));
 
-                              {/* Header row */}
-                              <div className="flex items-center justify-between">
+                        return (
+                          <TableRow className="hover:bg-transparent">
+                            <TableCell colSpan={8} className="p-0 bg-muted/20 border-t">
+                              <div className="px-6 py-5 space-y-4">
+
+                                {/* Section title */}
                                 <h4 className="text-sm font-semibold text-foreground">
                                   Package Lines — <span className="font-mono text-xs text-muted-foreground">{pkg.packageCode}</span>
                                 </h4>
-                                {canWrite && pkg.status === "draft" && (
-                                  <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openAddLine(pkg)}>
-                                    <Plus className="h-3.5 w-3.5" /> Add Line
-                                  </Button>
-                                )}
-                              </div>
 
-                              {linesLoad ? (
-                                <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-                                  <Loader2 className="h-4 w-4 animate-spin" /> Loading lines…
-                                </div>
-                              ) : expandedLines.length === 0 ? (
-                                <div className="space-y-3 py-1">
-                                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                    <AlertCircle className="h-4 w-4" />
-                                    No lines yet. Select a group and subgroup below to add the first line.
-                                  </p>
-                                  {canWrite && pkg.status === "draft" && (
-                                    <AddCategoryBar
-                                      pkg={pkg} groups={groups}
-                                      addCat={addCat} setAddCat={setAddCat}
-                                      addCatSubgroups={addCatSubgroups}
-                                      openAddLineForSubgroup={openAddLineForSubgroup}
-                                    />
-                                  )}
-                                </div>
-                              ) : (
-                                /* Grouped view: BUY Group → Subgroup → lines */
-                                <div className="space-y-5">
-                                  {groupLines(expandedLines).map((grp) => (
-                                    <div key={grp.groupId} className="space-y-3">
-                                      {/* BUY Group header */}
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold text-foreground tracking-tight">{grp.groupLabel}</span>
-                                        <div className="flex-1 h-px bg-border" />
-                                      </div>
-
-                                      {/* Subgroups */}
-                                      {grp.subgroups.map((sub) => (
-                                        <div key={sub.subgroupId} className="ml-4 space-y-1.5">
-                                          {/* Subgroup header */}
-                                          <div className="flex items-center justify-between py-1">
-                                            <div className="flex items-center gap-2">
-                                              <div className="w-1 h-4 rounded-full bg-primary/40" />
-                                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                                {sub.subgroupLabel}
+                                {linesLoad || allSubgroups.length === 0 ? (
+                                  <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    {catalog.map((grp) => {
+                                      const grpLinesMap = linesMap.get(grp.id);
+                                      const grpLineCount = grpLinesMap
+                                        ? Array.from(grpLinesMap.values()).reduce((a, v) => a + v.length, 0)
+                                        : 0;
+                                      return (
+                                        <div
+                                          key={grp.id}
+                                          className="rounded-lg border bg-card shadow-sm flex flex-col"
+                                        >
+                                          {/* Group card header */}
+                                          <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/40 rounded-t-lg">
+                                            <span className="text-sm font-bold tracking-tight">{grp.label}</span>
+                                            {grpLineCount > 0 && (
+                                              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">
+                                                {grpLineCount} line{grpLineCount !== 1 ? "s" : ""}
                                               </span>
-                                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-                                                {sub.lines.length} {sub.lines.length === 1 ? "line" : "lines"}
-                                              </span>
-                                            </div>
-                                            {canWrite && pkg.status === "draft" && (
-                                              <Button
-                                                size="sm" variant="ghost"
-                                                className="h-6 gap-1 text-xs text-primary hover:text-primary hover:bg-primary/10"
-                                                onClick={() => openAddLineForSubgroup(
-                                                  pkg,
-                                                  grp.groupId, grp.groupCode, grp.groupLabel,
-                                                  sub.subgroupId, sub.subgroupCode, sub.subgroupLabel,
-                                                )}
-                                              >
-                                                <Plus className="h-3 w-3" /> Add Line
-                                              </Button>
                                             )}
                                           </div>
 
-                                          {/* Lines table for this subgroup */}
-                                          <div className="rounded-md border overflow-hidden">
-                                            <Table>
-                                              <TableHeader>
-                                                <TableRow className="bg-muted/40 border-b">
-                                                  <TableHead className="w-10 py-1.5 text-[11px]">#</TableHead>
-                                                  <TableHead className="py-1.5 text-[11px]">UOM</TableHead>
-                                                  <TableHead className="py-1.5 text-[11px]">Requirement</TableHead>
-                                                  <TableHead className="text-right py-1.5 text-[11px]">Qty</TableHead>
-                                                  <TableHead className="py-1.5 text-[11px]">Flags</TableHead>
-                                                  {canWrite && pkg.status === "draft" && <TableHead className="py-1.5 w-16" />}
-                                                </TableRow>
-                                              </TableHeader>
-                                              <TableBody>
-                                                {sub.lines.map((line) => (
-                                                  <TableRow key={line.id} className="hover:bg-muted/30">
-                                                    <TableCell className="font-mono text-xs py-2">{line.lineNumber}</TableCell>
-                                                    <TableCell className="py-2">
-                                                      <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">
-                                                        {line.uomCode}
-                                                      </span>
-                                                    </TableCell>
-                                                    <TableCell className="py-2 text-sm max-w-[260px] truncate">
-                                                      {line.genericRequirement}
-                                                    </TableCell>
-                                                    <TableCell className="py-2 text-right text-sm">{line.defaultQuantity}</TableCell>
-                                                    <TableCell className="py-2"><FlagBadges line={line} /></TableCell>
+                                          {/* Subgroup rows */}
+                                          <div className="divide-y flex-1">
+                                            {grp.subgroups.map((sub) => {
+                                              const subLines = grpLinesMap?.get(sub.id) ?? [];
+                                              return (
+                                                <div key={sub.id} className="px-4 py-2 space-y-1.5">
+                                                  {/* Subgroup row */}
+                                                  <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-xs font-medium text-foreground">{sub.label}</span>
+                                                      {subLines.length > 0 && (
+                                                        <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                                          {subLines.length}
+                                                        </span>
+                                                      )}
+                                                    </div>
                                                     {canWrite && pkg.status === "draft" && (
-                                                      <TableCell className="py-2">
-                                                        <div className="flex items-center gap-0.5">
-                                                          <Button variant="ghost" size="sm" onClick={() => openEditLine(pkg, line)}>
-                                                            <Edit2 className="h-3.5 w-3.5" />
-                                                          </Button>
-                                                          <Button
-                                                            variant="ghost" size="sm"
-                                                            className="text-red-500 hover:text-red-700"
-                                                            onClick={() => { if (confirm("Delete this line?")) deleteLineMutation.mutate({ lineId: line.id }); }}
-                                                          >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                          </Button>
-                                                        </div>
-                                                      </TableCell>
+                                                      <Button
+                                                        size="sm" variant="ghost"
+                                                        className="h-6 px-2 gap-1 text-[11px] text-primary hover:bg-primary/10"
+                                                        onClick={() => openAddLineForSubgroup(
+                                                          pkg,
+                                                          grp.id, grp.code, grp.label,
+                                                          sub.id, sub.code, sub.label,
+                                                        )}
+                                                      >
+                                                        <Plus className="h-3 w-3" /> Add Line
+                                                      </Button>
                                                     )}
-                                                  </TableRow>
-                                                ))}
-                                              </TableBody>
-                                            </Table>
+                                                  </div>
+
+                                                  {/* Existing lines for this subgroup */}
+                                                  {subLines.length > 0 && (
+                                                    <div className="space-y-1 pl-2 border-l-2 border-primary/20">
+                                                      {subLines.map((line) => (
+                                                        <div key={line.id} className="flex items-start justify-between gap-2 text-xs">
+                                                          <div className="flex-1 min-w-0">
+                                                            <p className="truncate text-foreground leading-snug" title={line.genericRequirement}>
+                                                              {line.genericRequirement}
+                                                            </p>
+                                                            <div className="flex items-center gap-1 mt-0.5">
+                                                              <span className="font-mono bg-slate-100 px-1 rounded text-[10px]">
+                                                                {line.defaultQuantity} {line.uomCode}
+                                                              </span>
+                                                              <FlagBadges line={line} />
+                                                            </div>
+                                                          </div>
+                                                          {canWrite && pkg.status === "draft" && (
+                                                            <div className="flex items-center gap-0 shrink-0">
+                                                              <Button
+                                                                variant="ghost" size="sm"
+                                                                className="h-6 w-6 p-0"
+                                                                onClick={() => openEditLine(pkg, line)}
+                                                              >
+                                                                <Edit2 className="h-3 w-3" />
+                                                              </Button>
+                                                              <Button
+                                                                variant="ghost" size="sm"
+                                                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                                                onClick={() => { if (confirm("Delete this line?")) deleteLineMutation.mutate({ lineId: line.id }); }}
+                                                              >
+                                                                <Trash2 className="h-3 w-3" />
+                                                              </Button>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
                                           </div>
                                         </div>
-                                      ))}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {/* Always-visible "add to new category" bar (draft only) */}
-                              {canWrite && pkg.status === "draft" && !linesLoad && (
-                                <AddCategoryBar
-                                  pkg={pkg} groups={groups}
-                                  addCat={addCat} setAddCat={setAddCat}
-                                  addCatSubgroups={addCatSubgroups}
-                                  openAddLineForSubgroup={openAddLineForSubgroup}
-                                />
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })()}
                     </Fragment>
                   );
                 })}
