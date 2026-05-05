@@ -371,6 +371,7 @@ function Layout({ children }: LayoutProps) {
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: Package, label: "Products", href: "/products" },
+        ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY Package Catalog", href: "/products/buy-packages" }] : []),
         { icon: FileText, label: "Offer Templates", href: "/offer-templates" },
         { icon: FileText, label: "Offers / Quotations", href: "/offers" },
         { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }
