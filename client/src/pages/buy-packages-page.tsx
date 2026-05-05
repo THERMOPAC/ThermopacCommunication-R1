@@ -2610,6 +2610,444 @@ function PressureAttrsForm({
   );
 }
 
+// ── Temperature Instrument requirement builder ────────────────────────────────
+function buildTemperatureRequirement(attrs: Record<string, unknown>): string {
+  const instrType   = (attrs.instrument_type   as string)?.trim() || "";
+  const sensorType  = (attrs.sensor_type       as string)?.trim() || "";
+  const rangeMin    = (attrs.range_min         as string)?.trim() || "";
+  const rangeMax    = (attrs.range_max         as string)?.trim() || "";
+  const rangeUnit   = (attrs.range_unit        as string)?.trim() || "°C";
+  const material    = (attrs.wetted_material   as string)?.trim() || "";
+  const connSize    = (attrs.connection_size   as string)?.trim() || "";
+  const connType    = (attrs.connection_type   as string)?.trim() || "";
+  const areaClass   = (attrs.area_classification as string)?.trim() || "";
+  const expProt     = (attrs.explosion_protection as string)?.trim() || "";
+
+  const rangeStr    = rangeMin || rangeMax ? `${rangeMin}–${rangeMax} ${rangeUnit}`.trim() : "";
+  const connStr     = [connSize, connType].filter(Boolean).join(" ");
+  const parts: string[] = [];
+  if (instrType)  parts.push(instrType);
+  if (sensorType) parts.push(sensorType);
+  if (rangeStr)   parts.push(rangeStr);
+  if (material)   parts.push(material);
+  if (connStr)    parts.push(connStr);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
+  if (expProt)    parts.push(expProt);
+  return parts.join(", ");
+}
+
+const TEMPERATURE_OPTS: Record<string, string[]> = {
+  instrument_type:      ["Thermocouple (TC)", "RTD", "Temperature Transmitter (TT)", "Temperature Switch (TS)", "Bimetal Thermometer"],
+  sensor_type:          ["PT100", "PT1000", "Type K", "Type J", "Type E", "Type T"],
+  range_unit:           ["°C", "°F", "K"],
+  wetted_material:      ["SS304", "SS316", "Inconel 600", "Carbon Steel"],
+  connection_size:      ["1/4\"", "1/2\"", "3/4\"", "1\""],
+  connection_type:      ["NPT", "BSP", "Flanged"],
+  output_signal:        ["4–20 mA", "HART", "Resistance (RTD)", "mV (TC)", "SPDT Contact", "Local Display"],
+  enclosure:            ["IP65", "IP66", "Flameproof", "Weatherproof"],
+  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
+  explosion_protection: ["Ex d (Flameproof)", "Ex ia (Intrinsically Safe)", "Ex ib (Intrinsically Safe)", "Non-Flameproof"],
+  certification:        ["ATEX", "IECEx", "PESO"],
+  gas_group:            ["IIA", "IIB", "IIC"],
+  temperature_class:    ["T1", "T2", "T3", "T4", "T5", "T6"],
+};
+
+function TemperatureAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const singleKeys = Object.keys(TEMPERATURE_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val = (attrs[key] as string) ?? "";
+      const opts = TEMPERATURE_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = TEMPERATURE_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  const areaClass = (attrs.area_classification as string) ?? "";
+  const instrType = (attrs.instrument_type as string) ?? "";
+  const showSensor = instrType.startsWith("Thermocouple") || instrType.startsWith("RTD");
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Temperature Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Instrument Type")}
+        <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
+
+        {showSensor && <>{sec("Sensor")}{renderField("sensor_type", "Sensor Type")}<div /></>}
+
+        {sec("Measuring Range")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Range Min</Label>
+          <Input className="h-8 text-sm" placeholder="e.g. -50" value={(attrs.range_min as string) ?? ""}
+            onChange={(e) => set("range_min", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Range Max</Label>
+          <Input className="h-8 text-sm" placeholder="e.g. 200" value={(attrs.range_max as string) ?? ""}
+            onChange={(e) => set("range_max", e.target.value)} />
+        </div>
+        <div className="col-span-2">{renderField("range_unit", "Range Unit")}</div>
+
+        {sec("Material & Connection")}
+        {renderField("wetted_material", "Wetted Parts Material")}
+        {renderField("connection_size",  "Connection Size")}
+        {renderField("connection_type",  "Connection Type")}
+        {renderField("output_signal",    "Output Signal")}
+
+        {sec("Enclosure")}
+        {renderField("enclosure", "Enclosure Type")}
+        <div />
+
+        {sec("Hazardous Area (Optional)")}
+        {renderField("area_classification",  "Area Classification")}
+        {renderField("explosion_protection", "Explosion Protection")}
+        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (
+          <>
+            {renderField("certification",    "Certification")}
+            {renderField("gas_group",        "Gas Group")}
+            {renderField("temperature_class","Temperature Class")}
+            <div />
+          </>
+        )}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Flow Instrument requirement builder ───────────────────────────────────────
+function buildFlowRequirement(attrs: Record<string, unknown>): string {
+  const instrType  = (attrs.instrument_type  as string)?.trim() || "";
+  const lineSize   = (attrs.line_size        as string)?.trim() || "";
+  const signal     = (attrs.output_signal    as string)?.trim() || "";
+  const material   = (attrs.liner_material   as string)?.trim() || "";
+  const endConn    = (attrs.end_connection   as string)?.trim() || "";
+  const areaClass  = (attrs.area_classification as string)?.trim() || "";
+  const expProt    = (attrs.explosion_protection as string)?.trim() || "";
+
+  const matStr = material ? `${material} Liner` : "";
+  const parts: string[] = [];
+  if (instrType) parts.push(instrType);
+  if (lineSize)  parts.push(lineSize);
+  if (signal)    parts.push(signal);
+  if (matStr)    parts.push(matStr);
+  if (endConn)   parts.push(endConn);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
+  if (expProt)   parts.push(expProt);
+  return parts.join(", ");
+}
+
+const FLOW_OPTS: Record<string, string[]> = {
+  instrument_type:      ["Electromagnetic Flowmeter", "Vortex Flowmeter", "Turbine Flowmeter", "Orifice / DP Flowmeter", "Ultrasonic Flowmeter", "Coriolis Flowmeter", "Rotameter"],
+  line_size:            ["15 NB", "25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB", "200 NB", "250 NB", "300 NB"],
+  process_fluid:        ["Water", "Oil", "Chemical", "Steam", "Gas", "Slurry", "Acid", "Alkali"],
+  output_signal:        ["4–20 mA", "HART", "4–20 mA / HART", "Pulse", "RS485", "Modbus RTU"],
+  liner_material:       ["PTFE", "Hard Rubber", "PFA", "SS316", "Carbon Steel", "PP"],
+  end_connection:       ["Flanged", "Wafer", "Clamp", "Inline"],
+  pressure_rating:      ["PN10", "PN16", "PN25", "PN40", "Class 150", "Class 300"],
+  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
+  explosion_protection: ["Ex d (Flameproof)", "Ex ia (Intrinsically Safe)", "Ex ib (Intrinsically Safe)", "Non-Flameproof"],
+  certification:        ["ATEX", "IECEx", "PESO"],
+  gas_group:            ["IIA", "IIB", "IIC"],
+  temperature_class:    ["T1", "T2", "T3", "T4", "T5", "T6"],
+};
+
+function FlowAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const singleKeys = Object.keys(FLOW_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val = (attrs[key] as string) ?? "";
+      const opts = FLOW_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = FLOW_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  const areaClass = (attrs.area_classification as string) ?? "";
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flow Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Instrument Type")}
+        <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
+
+        {sec("Line & Process")}
+        {renderField("line_size",    "Line Size (NB)", true)}
+        {renderField("process_fluid","Process Fluid")}
+
+        {sec("Signal & Material")}
+        {renderField("output_signal",   "Output Signal")}
+        {renderField("liner_material",  "Liner / Body Material")}
+
+        {sec("Connection")}
+        {renderField("end_connection",  "End Connection")}
+        {renderField("pressure_rating", "Pressure Rating")}
+
+        {sec("Hazardous Area (Optional)")}
+        {renderField("area_classification",  "Area Classification")}
+        {renderField("explosion_protection", "Explosion Protection")}
+        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (
+          <>
+            {renderField("certification",    "Certification")}
+            {renderField("gas_group",        "Gas Group")}
+            {renderField("temperature_class","Temperature Class")}
+            <div />
+          </>
+        )}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Level Instrument requirement builder ──────────────────────────────────────
+function buildLevelRequirement(attrs: Record<string, unknown>): string {
+  const instrType  = (attrs.instrument_type  as string)?.trim() || "";
+  const rangeMin   = (attrs.range_min        as string)?.trim() || "";
+  const rangeMax   = (attrs.range_max        as string)?.trim() || "";
+  const rangeUnit  = (attrs.range_unit       as string)?.trim() || "m";
+  const signal     = (attrs.output_signal    as string)?.trim() || "";
+  const material   = (attrs.wetted_material  as string)?.trim() || "";
+  const areaClass  = (attrs.area_classification as string)?.trim() || "";
+  const expProt    = (attrs.explosion_protection as string)?.trim() || "";
+
+  const rangeStr = rangeMin || rangeMax ? `${rangeMin}–${rangeMax} ${rangeUnit}`.trim() : "";
+  const parts: string[] = [];
+  if (instrType) parts.push(instrType);
+  if (rangeStr)  parts.push(rangeStr);
+  if (signal)    parts.push(signal);
+  if (material)  parts.push(material);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
+  if (expProt)   parts.push(expProt);
+  return parts.join(", ");
+}
+
+const LEVEL_OPTS: Record<string, string[]> = {
+  instrument_type:      ["Radar Level Transmitter (LT)", "Guided Wave Radar (GWR)", "DP Level Transmitter", "Ultrasonic Level Transmitter", "Float Level Switch (LS)", "Displacer Level Transmitter", "Level Gauge (Glass)", "Magnetostrictive Level Transmitter"],
+  range_unit:           ["m", "mm", "ft", "%"],
+  output_signal:        ["4–20 mA", "HART", "4–20 mA / HART", "SPDT Contact", "Modbus RTU"],
+  connection_size:      ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""],
+  connection_type:      ["Flanged", "Threaded (NPT)", "Threaded (BSP)"],
+  wetted_material:      ["SS316", "SS304", "CS", "PP", "PVC", "PTFE", "Hastelloy C"],
+  enclosure:            ["IP65", "IP66", "Flameproof", "Weatherproof"],
+  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
+  explosion_protection: ["Ex d (Flameproof)", "Ex ia (Intrinsically Safe)", "Ex ib (Intrinsically Safe)", "Non-Flameproof"],
+  certification:        ["ATEX", "IECEx", "PESO"],
+  gas_group:            ["IIA", "IIB", "IIC"],
+  temperature_class:    ["T1", "T2", "T3", "T4", "T5", "T6"],
+};
+
+function LevelAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const singleKeys = Object.keys(LEVEL_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val = (attrs[key] as string) ?? "";
+      const opts = LEVEL_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = LEVEL_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  const areaClass = (attrs.area_classification as string) ?? "";
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Level Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Instrument Type")}
+        <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
+
+        {sec("Measuring Range")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Range Min</Label>
+          <Input className="h-8 text-sm" placeholder="e.g. 0" value={(attrs.range_min as string) ?? ""}
+            onChange={(e) => set("range_min", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Range Max</Label>
+          <Input className="h-8 text-sm" placeholder="e.g. 5" value={(attrs.range_max as string) ?? ""}
+            onChange={(e) => set("range_max", e.target.value)} />
+        </div>
+        <div className="col-span-2">{renderField("range_unit", "Range Unit")}</div>
+
+        {sec("Output Signal")}
+        {renderField("output_signal", "Output Signal")}
+        <div />
+
+        {sec("Process Connection")}
+        {renderField("connection_size", "Connection Size")}
+        {renderField("connection_type", "Connection Type")}
+
+        {sec("Material & Enclosure")}
+        {renderField("wetted_material", "Wetted Parts Material")}
+        {renderField("enclosure",       "Enclosure Type")}
+
+        {sec("Hazardous Area (Optional)")}
+        {renderField("area_classification",  "Area Classification")}
+        {renderField("explosion_protection", "Explosion Protection")}
+        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (
+          <>
+            {renderField("certification",    "Certification")}
+            {renderField("gas_group",        "Gas Group")}
+            {renderField("temperature_class","Temperature Class")}
+            <div />
+          </>
+        )}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Isolation Valve requirement builder ──────────────────────────────────────
 function buildIsolationValveRequirement(attrs: Record<string, unknown>): string {
   const valveType   = (attrs.valve_type        as string)?.trim() || "";
@@ -3505,6 +3943,15 @@ export default function BuyPackagesPage() {
   const isPressureMode =
     (lineDialog.lock?.subgroupCode === "pressure") ||
     (selectedGroupCode === "instruments" && selectedSubgroupCode === "pressure");
+  const isTemperatureMode =
+    (lineDialog.lock?.subgroupCode === "temperature") ||
+    (selectedGroupCode === "instruments" && selectedSubgroupCode === "temperature");
+  const isFlowMode =
+    (lineDialog.lock?.subgroupCode === "flow") ||
+    (selectedGroupCode === "instruments" && selectedSubgroupCode === "flow");
+  const isLevelMode =
+    (lineDialog.lock?.subgroupCode === "level") ||
+    (selectedGroupCode === "instruments" && selectedSubgroupCode === "level");
   const isIsolationValveMode =
     (lineDialog.lock?.subgroupCode === "isolation") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "isolation");
@@ -3735,6 +4182,24 @@ export default function BuyPackagesPage() {
       const areaClass = (ta.area_classification as string)?.trim();
       if ((areaClass === "Zone 1" || areaClass === "Zone 2") && !(ta.certification as string)?.trim()) {
         toast({ title: "Certification is required for Zone 1 / Zone 2", variant: "destructive" }); return;
+      }
+    } else if (isTemperatureMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.instrument_type as string)?.trim()) {
+        toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+    } else if (isFlowMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.instrument_type as string)?.trim()) {
+        toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.line_size as string)?.trim()) {
+        toast({ title: "Line Size (NB) is required", variant: "destructive" }); return;
+      }
+    } else if (isLevelMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.instrument_type as string)?.trim()) {
+        toast({ title: "Instrument Type is required", variant: "destructive" }); return;
       }
     } else if (isIsolationValveMode) {
       const ta = lf.technicalAttributes;
@@ -4550,6 +5015,63 @@ export default function BuyPackagesPage() {
                     qty={lf.defaultQuantity}
                     onChange={(attrs) => {
                       const req = buildPressureRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isTemperatureMode ? (
+                <>
+                  <TemperatureAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildTemperatureRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isFlowMode ? (
+                <>
+                  <FlowAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildFlowRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Instrument Type and Line Size to generate…"} />
+                  </div>
+                </>
+              ) : isLevelMode ? (
+                <>
+                  <LevelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildLevelRequirement(attrs);
                       setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
