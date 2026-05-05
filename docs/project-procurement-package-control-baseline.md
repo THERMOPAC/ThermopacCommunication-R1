@@ -1,6 +1,8 @@
 # Project Procurement Package Control — Baseline Plan
 
-**Document status:** BASELINE — Awaiting approval before implementation  
+**Baseline Version:** FINAL APPROVED  
+**Ready for Implementation:** YES  
+**Document status:** APPROVED  
 **Created:** 2026-05-05  
 **Module code:** PPPC  
 **Target page:** `/epc/buy-list-control` (new), `/products/buy-packages` (new)
@@ -876,4 +878,4 @@ No phase may begin implementation until its predecessor phase is schema-complete
 
 ---
 
-*End of baseline document. Status: AWAITING APPROVAL. Do not begin implementation until this document is approved.*
+*End of baseline document. Baseline Version: FINAL APPROVED. Ready for Implementation: YES.*
