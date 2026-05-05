@@ -2193,6 +2193,204 @@ function DosingPumpAttrsForm({
   );
 }
 
+// ── Vacuum Booster requirement builder ───────────────────────────────────────
+function buildVacuumBoosterRequirement(attrs: Record<string, unknown>): string {
+  const boosterType    = (attrs.booster_type     as string)?.trim() || "";
+  const flowRate       = (attrs.flow_rate        as string)?.trim() || "";
+  const suctionPres    = (attrs.suction_pressure as string)?.trim() || "";
+  const gasType        = (attrs.gas_type         as string)?.trim() || "";
+
+  // "Roots Blower" → "Roots Type", "Vacuum Booster" → "Vacuum Type", "Twin Lobe" → "Twin Lobe Type"
+  const typeLabel = boosterType
+    ? boosterType.replace(/ (Blower|Booster)$/, "") + " Type"
+    : "";
+
+  const parts: string[] = ["Vacuum Booster"];
+  if (typeLabel)    parts.push(typeLabel);
+  if (flowRate)     parts.push(flowRate);
+  if (suctionPres)  parts.push(`${suctionPres} suction`);
+  if (gasType)      parts.push(`${gasType} Service`);
+  return parts.join(", ");
+}
+
+// ── Vacuum Booster option lists ───────────────────────────────────────────────
+const VACUUM_BOOSTER_OPTS: Record<string, string[]> = {
+  booster_type:      ["Roots Blower", "Vacuum Booster", "Twin Lobe", "Tri-Lobe"],
+  flow_rate:         ["250 m³/hr", "500 m³/hr", "1000 m³/hr", "2000 m³/hr",
+                      "4000 m³/hr", "6000 m³/hr", "10000 m³/hr"],
+  suction_pressure:  ["1000 mbar (Atmospheric)", "500 mbar", "200 mbar",
+                      "100 mbar", "50 mbar", "10 mbar", "1 mbar"],
+  discharge_pressure:["Atmospheric", "Slight Positive", "0.2 bar(g)", "0.5 bar(g)"],
+  gas_type:          ["Air", "Nitrogen", "Hydrocarbon Vapors", "Process Gas"],
+  material_class:    ["CI", "CS", "SS304", "SS316"],
+  cooling_type:      ["Air Cooled", "Water Cooled"],
+};
+
+const VACUUM_BOOSTER_MAKES = ["MD-Kinney", "Busch", "Pfeiffer", "Atlas Copco", "Leybold", "Edwards", "Elmo Rietschle", "Tuthill"];
+
+// ── Vacuum Booster structured form ───────────────────────────────────────────
+function VacuumBoosterAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const singleKeys = Object.keys(VACUUM_BOOSTER_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = VACUUM_BOOSTER_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = VACUUM_BOOSTER_OPTS[key];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…"
+            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  // ── Makes multi-select ──
+  const [makesOpen, setMakesOpen] = useState(false);
+  const [makesQuery, setMakesQuery] = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const [customMakeVal, setCustomMakeVal] = useState("");
+  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
+
+  function toggleMake(make: string) {
+    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
+      ? approvedMakes.filter((m) => m !== make)
+      : [...approvedMakes, make] });
+  }
+  function addCustomMake() {
+    const t = customMakeVal.trim();
+    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
+    setCustomMakeVal(""); setShowCustomMake(false);
+  }
+  const filteredMakes = VACUUM_BOOSTER_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
+
+  function sectionHeader(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vacuum Booster Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sectionHeader("Equipment Type")}
+        {renderField("booster_type", "Booster Type", true)}
+        <div /> {/* spacer */}
+
+        {sectionHeader("Operating Conditions")}
+        {renderField("flow_rate",          "Flow Rate (m³/hr)"   )}
+        {renderField("suction_pressure",   "Suction Pressure"    )}
+        {renderField("discharge_pressure", "Discharge Pressure"  )}
+        {renderField("gas_type",           "Gas Type"            )}
+
+        {sectionHeader("Construction")}
+        {renderField("material_class", "Material Class" )}
+        {renderField("cooling_type",   "Cooling Type"   )}
+
+        {sectionHeader("Vendor / Make")}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
+                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                <CommandList>
+                  <CommandEmpty>No results.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredMakes.map((opt) => (
+                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
+                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
+                        {opt}
+                      </CommandItem>
+                    ))}
+                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                      <Plus className="mr-2 h-4 w-4" />Add custom make…
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {approvedMakes.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {approvedMakes.map((make) => (
+                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
+                  {make}
+                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          {showCustomMake && (
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
+                autoFocus />
+              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
+              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -2406,6 +2604,10 @@ export default function BuyPackagesPage() {
     (lineDialog.lock?.subgroupCode === "dosing_metering") ||
     (lineDialog.lock?.subgroupCode === "dosing") ||
     (selectedGroupCode === "pumps" && (selectedSubgroupCode === "dosing_metering" || selectedSubgroupCode === "dosing"));
+  const isVacuumBoosterMode =
+    (lineDialog.lock?.subgroupCode === "vacuum_boosters") ||
+    (lineDialog.lock?.subgroupCode === "vacuum") ||
+    (selectedGroupCode === "pumps" && (selectedSubgroupCode === "vacuum_boosters" || selectedSubgroupCode === "vacuum"));
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -2609,6 +2811,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.pump_type as string)?.trim()) {
         toast({ title: "Pump Type is required", variant: "destructive" }); return;
+      }
+    } else if (isVacuumBoosterMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.booster_type as string)?.trim()) {
+        toast({ title: "Booster Type is required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -3346,6 +3553,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Pump Type to generate…"} />
+                  </div>
+                </>
+              ) : isVacuumBoosterMode ? (
+                <>
+                  <VacuumBoosterAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildVacuumBoosterRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Booster Type to generate…"} />
                   </div>
                 </>
               ) : (
