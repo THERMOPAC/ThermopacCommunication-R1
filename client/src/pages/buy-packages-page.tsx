@@ -678,7 +678,14 @@ export default function BuyPackagesPage() {
                 <Select
                   value={hdr.productId}
                   onValueChange={(v) => {
-                    setHdr((h) => ({ ...h, productId: v, packageCode: "" }));
+                    const prod = buyProducts.find((p) => String(p.id) === v);
+                    setHdr((h) => ({
+                      ...h,
+                      productId: v,
+                      packageCode: "",
+                      name: prod?.description ?? "",
+                      description: prod?.description ?? "",
+                    }));
                     fetchGeneratedCode(v);
                   }}
                 >
@@ -716,21 +723,29 @@ export default function BuyPackagesPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Package Name <span className="text-red-500">*</span></Label>
+                <div className="flex items-center justify-between">
+                  <Label>Package Name <span className="text-red-500">*</span></Label>
+                  <span className="text-[11px] text-muted-foreground">Auto-generated</span>
+                </div>
                 <Input
-                  placeholder="e.g. Centrifugal Pump Package"
+                  placeholder="Select a product above"
                   value={hdr.name}
-                  onChange={(e) => setHdr((h) => ({ ...h, name: e.target.value }))}
+                  readOnly
                   maxLength={255}
+                  className="bg-muted cursor-not-allowed"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Description</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Description</Label>
+                  <span className="text-[11px] text-muted-foreground">From product</span>
+                </div>
                 <Textarea
-                  placeholder="Optional description…"
+                  placeholder="Select a product above"
                   value={hdr.description}
-                  onChange={(e) => setHdr((h) => ({ ...h, description: e.target.value }))}
+                  readOnly
                   rows={3}
+                  className="bg-muted cursor-not-allowed resize-none"
                 />
               </div>
             </div>
