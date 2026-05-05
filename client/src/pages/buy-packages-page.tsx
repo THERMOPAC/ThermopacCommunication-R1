@@ -3454,6 +3454,173 @@ function CablingAttrsForm({
   );
 }
 
+// ── Cooling Tower requirement builder ────────────────────────────────────────
+const CT_TYPE_OPTS         = ["Induced Draft","Forced Draft","Cross Flow","Counter Flow","Other"];
+const CT_CONSTRUCTION_OPTS = ["FRP","RCC","Steel","Other"];
+const CT_FAN_TYPE_OPTS     = ["Axial","Centrifugal"];
+const CT_FAN_DRIVE_OPTS    = ["Direct Drive","Gearbox Drive","Belt Drive"];
+const CT_FILL_OPTS         = ["Splash Fill","Film Fill","Other"];
+const CT_YES_NO            = ["Yes","No"];
+const CT_CASING_MAT_OPTS   = ["FRP","GI","SS304","Other"];
+const CT_BASIN_MAT_OPTS    = ["RCC","FRP","Steel","Other"];
+const CT_WATER_TYPE_OPTS   = ["Cooling Water","Process Water","Chemical Water","Other"];
+const CT_VENDOR_CHIPS      = [
+  "Paharpur","Cooling Tower India","Alfa Laval","SPX Cooling","Brentwood",
+  "Baltimore Aircoil","Evapco","Star Cooling","Tower Tech","Hindustan",
+];
+
+function buildCoolingTowerRequirement(attrs: Record<string, unknown>): string {
+  const ctType    = (attrs.cooling_tower_type   as string)?.trim() || "";
+  const circ      = (attrs.circulation_rate     as string)?.trim() || "";
+  const inletT    = parseFloat((attrs.inlet_water_temp  as string) ?? "");
+  const outletT   = parseFloat((attrs.outlet_water_temp as string) ?? "");
+  const wbt       = parseFloat((attrs.wet_bulb_temp     as string) ?? "");
+  const casing    = (attrs.casing_material      as string)?.trim() || "";
+  const fanType   = (attrs.fan_type             as string)?.trim() || "";
+  const motorKW   = (attrs.motor_power_kw       as string)?.trim() || "";
+  const parts: string[] = ["Cooling Tower"];
+  if (circ)               parts.push(`${circ} m³/hr`);
+  if (!isNaN(inletT) && !isNaN(outletT)) parts.push(`Range ${(inletT - outletT).toFixed(1)}°C`);
+  if (!isNaN(outletT) && !isNaN(wbt))    parts.push(`Approach ${(outletT - wbt).toFixed(1)}°C`);
+  if (casing)             parts.push(casing);
+  if (ctType)             parts.push(ctType);
+  if (fanType)            parts.push(`${fanType} Fan`);
+  if (motorKW)            parts.push(`${motorKW} kW`);
+  return parts.join(", ");
+}
+
+function CoolingTowerAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (k: string, v: unknown) => onChange({ ...attrs, [k]: v });
+
+  const inletT  = parseFloat((attrs.inlet_water_temp  as string) ?? "");
+  const outletT = parseFloat((attrs.outlet_water_temp as string) ?? "");
+  const wbt     = parseFloat((attrs.wet_bulb_temp     as string) ?? "");
+  const range   = (!isNaN(inletT) && !isNaN(outletT)) ? (inletT - outletT).toFixed(1) : "—";
+  const approach = (!isNaN(outletT) && !isNaN(wbt))   ? (outletT - wbt).toFixed(1)    : "—";
+
+  const selectedVendors: string[] = ((attrs.approved_makes as string) ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+  const toggleVendor = (chip: string) => {
+    const next = selectedVendors.includes(chip)
+      ? selectedVendors.filter(v => v !== chip)
+      : [...selectedVendors, chip];
+    set("approved_makes", next.join(", "));
+  };
+
+  const sec = (title: string) => (
+    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-2 border-b pb-1 mt-1">{title}</p>
+  );
+  const renderSS = (key: string, label: string, opts: string[], required = false) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <SearchableSelect
+        options={opts.map(o => ({ value: o, label: o }))}
+        value={(attrs[key] as string) ?? ""}
+        onChange={(v) => set(key, v === "__other__" ? "" : v)}
+        placeholder={`Select ${label}…`}
+      />
+    </div>
+  );
+  const renderNum = (key: string, label: string, required = false) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <Input className="h-8 text-sm" type="number" min="0" step="any"
+        value={(attrs[key] as string) ?? ""}
+        onChange={(e) => {
+          set(key, e.target.value);
+        }} />
+    </div>
+  );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cooling Tower Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Type")}
+        {renderSS("cooling_tower_type", "Cooling Tower Type", CT_TYPE_OPTS, true)}
+        {renderSS("construction_type",  "Construction Type",  CT_CONSTRUCTION_OPTS)}
+
+        {sec("Capacity / Duty")}
+        {renderNum("circulation_rate", "Circulation Rate (m³/hr)", true)}
+        {renderNum("heat_load_kcal",   "Heat Load (kcal/hr)")}
+        {renderNum("inlet_water_temp",  "Inlet Water Temp (°C)",  true)}
+        {renderNum("outlet_water_temp", "Outlet Water Temp (°C)", true)}
+        {renderNum("wet_bulb_temp",     "Wet Bulb Temp (°C)",     true)}
+        <div />
+
+        {sec("Performance (Auto-calculated)")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Range (°C) <span className="text-[10px] text-muted-foreground">(Inlet − Outlet)</span></Label>
+          <Input readOnly className="h-8 text-sm bg-muted/50 text-muted-foreground cursor-default" value={range} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Approach (°C) <span className="text-[10px] text-muted-foreground">(Outlet − WBT)</span></Label>
+          <Input readOnly className="h-8 text-sm bg-muted/50 text-muted-foreground cursor-default" value={approach} />
+        </div>
+
+        {sec("Fan / Drive")}
+        {renderSS("fan_type",   "Fan Type",   CT_FAN_TYPE_OPTS)}
+        {renderSS("fan_drive",  "Fan Drive",  CT_FAN_DRIVE_OPTS)}
+        {renderNum("motor_power_kw", "Motor Power (kW)")}
+        <div />
+
+        {sec("Components")}
+        {renderSS("fill_type",         "Fill Type",         CT_FILL_OPTS)}
+        {renderSS("drift_eliminator",  "Drift Eliminator",  CT_YES_NO)}
+        {renderSS("louvers",           "Louvers",           CT_YES_NO)}
+        <div />
+
+        {sec("Material")}
+        {renderSS("casing_material", "Casing Material", CT_CASING_MAT_OPTS)}
+        {renderSS("basin_material",  "Basin Material",  CT_BASIN_MAT_OPTS)}
+
+        {sec("Operating Conditions")}
+        {renderSS("water_type", "Water Type", CT_WATER_TYPE_OPTS)}
+        <div />
+
+        {sec("Approved Makes")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Approved Makes</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {CT_VENDOR_CHIPS.map(chip => (
+              <button key={chip} type="button"
+                onClick={() => toggleVendor(chip)}
+                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  selectedVendors.includes(chip)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary"
+                }`}>{chip}</button>
+            ))}
+          </div>
+          {selectedVendors.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
+          )}
+          <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
+            value={(attrs.approved_makes_other as string) ?? ""}
+            onChange={(e) => set("approved_makes_other", e.target.value)} />
+        </div>
+
+        {sec("Quantity")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+        <div />
+
+      </div>
+    </div>
+  );
+}
+
 // ── Bought-out Package requirement builder ────────────────────────────────────
 const BOUGHT_OUT_PKG_TYPE_OPTS = [
   "Pump Skid Package","Vacuum System","Dosing System","Filtration Unit",
@@ -4891,6 +5058,9 @@ export default function BuyPackagesPage() {
   const isBoughtOutMode =
     (lineDialog.lock?.subgroupCode === "general" && lineDialog.lock?.groupCode === "bought_out_packages") ||
     (selectedGroupCode === "bought_out_packages" && selectedSubgroupCode === "general");
+  const isCoolingTowerMode =
+    (lineDialog.lock?.subgroupCode === "cooling_tower") ||
+    (selectedGroupCode === "bought_out_packages" && selectedSubgroupCode === "cooling_tower");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -5212,6 +5382,23 @@ export default function BuyPackagesPage() {
       }
       if (!((ta.capacity as string) ?? "").trim()) {
         toast({ title: "Capacity is required", variant: "destructive" }); return;
+      }
+    } else if (isCoolingTowerMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.cooling_tower_type as string)?.trim()) {
+        toast({ title: "Cooling Tower Type is required", variant: "destructive" }); return;
+      }
+      if (!((ta.circulation_rate as string) ?? "").trim()) {
+        toast({ title: "Circulation Rate is required", variant: "destructive" }); return;
+      }
+      if (!((ta.inlet_water_temp as string) ?? "").trim()) {
+        toast({ title: "Inlet Water Temperature is required", variant: "destructive" }); return;
+      }
+      if (!((ta.outlet_water_temp as string) ?? "").trim()) {
+        toast({ title: "Outlet Water Temperature is required", variant: "destructive" }); return;
+      }
+      if (!((ta.wet_bulb_temp as string) ?? "").trim()) {
+        toast({ title: "Wet Bulb Temperature is required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -6083,6 +6270,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isCoolingTowerMode ? (
+                <>
+                  <CoolingTowerAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildCoolingTowerRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Enter temperatures and flow to generate…"} />
                   </div>
                 </>
               ) : isBoughtOutMode ? (

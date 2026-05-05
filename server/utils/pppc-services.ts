@@ -135,7 +135,8 @@ export const PPPC_SEED_GROUPS: SeedGroup[] = [
   {
     code: 'bought_out_packages', label: 'Bought-out Packages', sortOrder: 7,
     subgroups: [
-      { code: 'general', label: 'General Bought-out Package', sortOrder: 1 },
+      { code: 'general',       label: 'General Bought-out Package', sortOrder: 1 },
+      { code: 'cooling_tower', label: 'Cooling Tower',              sortOrder: 2 },
     ],
   },
 ];
