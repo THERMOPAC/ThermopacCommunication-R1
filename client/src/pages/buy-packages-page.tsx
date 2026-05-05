@@ -101,15 +101,15 @@ interface BuyPackage {
   createdAt: string;
 }
 interface PackageLine {
-  id: number; buyPackageHeaderId: number; lineNumber: number;
-  buyGroupId: number; buyGroupCode: string; buyGroupLabel: string;
-  buySubgroupId: number; buySubgroupCode: string; buySubgroupLabel: string;
-  uomId: number; uomCode: string; uomLabel: string;
-  genericRequirement: string; defaultQuantity: string;
-  defaultSpecification: string | null; technicalAttributes: Record<string, unknown> | null;
-  selectionRequired: boolean; datasheetRequired: boolean;
-  inspectionRequired: boolean; certificateRequired: boolean; complianceRequired: boolean;
-  notes: string | null; sortOrder: number;
+  id: number; buy_package_header_id: number; line_number: number;
+  buy_group_id: number; buy_group_code: string; buy_group_label: string;
+  buy_subgroup_id: number; buy_subgroup_code: string; buy_subgroup_label: string;
+  uom_id: number; uom_code: string; uom_label: string;
+  generic_requirement: string; default_quantity: string;
+  default_specification: string | null; technical_attributes: Record<string, unknown> | null;
+  selection_required: boolean; datasheet_required: boolean;
+  inspection_required: boolean; certificate_required: boolean; compliance_required: boolean;
+  notes: string | null; sort_order: number;
 }
 interface BuyGroup    { id: number; code: string; label: string; sortOrder: number; }
 interface BuySubgroup { id: number; buy_group_id: number; code: string; label: string; }
@@ -123,14 +123,14 @@ function groupLines(lines: PackageLine[]) {
     subgroups: Map<number, { subgroupId: number; subgroupCode: string; subgroupLabel: string; lines: PackageLine[] }>;
   }>();
   for (const line of lines) {
-    if (!groupMap.has(line.buyGroupId)) {
-      groupMap.set(line.buyGroupId, { groupId: line.buyGroupId, groupCode: line.buyGroupCode, groupLabel: line.buyGroupLabel, subgroups: new Map() });
+    if (!groupMap.has(line.buy_group_id)) {
+      groupMap.set(line.buy_group_id, { groupId: line.buy_group_id, groupCode: line.buy_group_code, groupLabel: line.buy_group_label, subgroups: new Map() });
     }
-    const grp = groupMap.get(line.buyGroupId)!;
-    if (!grp.subgroups.has(line.buySubgroupId)) {
-      grp.subgroups.set(line.buySubgroupId, { subgroupId: line.buySubgroupId, subgroupCode: line.buySubgroupCode, subgroupLabel: line.buySubgroupLabel, lines: [] });
+    const grp = groupMap.get(line.buy_group_id)!;
+    if (!grp.subgroups.has(line.buy_subgroup_id)) {
+      grp.subgroups.set(line.buy_subgroup_id, { subgroupId: line.buy_subgroup_id, subgroupCode: line.buy_subgroup_code, subgroupLabel: line.buy_subgroup_label, lines: [] });
     }
-    grp.subgroups.get(line.buySubgroupId)!.lines.push(line);
+    grp.subgroups.get(line.buy_subgroup_id)!.lines.push(line);
   }
   return Array.from(groupMap.values()).map((g) => ({ ...g, subgroups: Array.from(g.subgroups.values()) }));
 }
@@ -275,11 +275,11 @@ function TechnicalAttrsForm({
 
 // ── Flag badges ───────────────────────────────────────────────────────────────
 const FLAGS = [
-  { key: "selectionRequired",   short: "SEL"  },
-  { key: "datasheetRequired",   short: "DS"   },
-  { key: "inspectionRequired",  short: "INSP" },
-  { key: "certificateRequired", short: "CERT" },
-  { key: "complianceRequired",  short: "COMP" },
+  { key: "selection_required",   short: "SEL"  },
+  { key: "datasheet_required",   short: "DS"   },
+  { key: "inspection_required",  short: "INSP" },
+  { key: "certificate_required", short: "CERT" },
+  { key: "compliance_required",  short: "COMP" },
 ] as const;
 
 function FlagBadges({ line }: { line: PackageLine }) {
@@ -508,17 +508,17 @@ export default function BuyPackagesPage() {
 
   function openEditLine(pkg: BuyPackage, line: PackageLine) {
     setLf({
-      buyGroupId: String(line.buyGroupId), buySubgroupId: String(line.buySubgroupId), uomId: String(line.uomId),
-      genericRequirement: line.genericRequirement, defaultQuantity: line.defaultQuantity,
-      defaultSpecification: line.defaultSpecification ?? "",
-      selectionRequired: line.selectionRequired, datasheetRequired: line.datasheetRequired,
-      inspectionRequired: line.inspectionRequired, certificateRequired: line.certificateRequired,
-      complianceRequired: line.complianceRequired, notes: line.notes ?? "",
-      technicalAttributes: (line.technicalAttributes ?? {}) as Record<string, unknown>,
+      buyGroupId: String(line.buy_group_id), buySubgroupId: String(line.buy_subgroup_id), uomId: String(line.uom_id),
+      genericRequirement: line.generic_requirement, defaultQuantity: line.default_quantity,
+      defaultSpecification: line.default_specification ?? "",
+      selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
+      inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
+      complianceRequired: line.compliance_required, notes: line.notes ?? "",
+      technicalAttributes: (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: line,
-      lock: { groupId: String(line.buyGroupId), groupCode: line.buyGroupCode, groupLabel: line.buyGroupLabel, subgroupId: String(line.buySubgroupId), subgroupCode: line.buySubgroupCode, subgroupLabel: line.buySubgroupLabel },
+      lock: { groupId: String(line.buy_group_id), groupCode: line.buy_group_code, groupLabel: line.buy_group_label, subgroupId: String(line.buy_subgroup_id), subgroupCode: line.buy_subgroup_code, subgroupLabel: line.buy_subgroup_label },
     });
   }
 
@@ -747,10 +747,10 @@ export default function BuyPackagesPage() {
                         // Build lines lookup: groupId → subgroupId → lines[]
                         const linesMap = new Map<number, Map<number, PackageLine[]>>();
                         for (const line of expandedLines) {
-                          if (!linesMap.has(line.buyGroupId)) linesMap.set(line.buyGroupId, new Map());
-                          const gm = linesMap.get(line.buyGroupId)!;
-                          if (!gm.has(line.buySubgroupId)) gm.set(line.buySubgroupId, []);
-                          gm.get(line.buySubgroupId)!.push(line);
+                          if (!linesMap.has(line.buy_group_id)) linesMap.set(line.buy_group_id, new Map());
+                          const gm = linesMap.get(line.buy_group_id)!;
+                          if (!gm.has(line.buy_subgroup_id)) gm.set(line.buy_subgroup_id, []);
+                          gm.get(line.buy_subgroup_id)!.push(line);
                         }
                         // Build group→subgroups structure from master data
                         const catalog = groups.map((g) => ({
@@ -841,12 +841,12 @@ export default function BuyPackagesPage() {
                                                         {subLines.map((line) => (
                                                           <div key={line.id} className="flex items-start justify-between gap-2 text-xs">
                                                             <div className="flex-1 min-w-0">
-                                                              <p className="text-foreground leading-snug" title={line.genericRequirement}>
-                                                                {line.genericRequirement}
+                                                              <p className="text-foreground leading-snug" title={line.generic_requirement}>
+                                                                {line.generic_requirement}
                                                               </p>
                                                               <div className="flex items-center gap-1.5 mt-0.5">
                                                                 <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
-                                                                  {line.defaultQuantity} {line.uomCode}
+                                                                  {line.default_quantity} {line.uom_code}
                                                                 </span>
                                                                 <FlagBadges line={line} />
                                                               </div>
