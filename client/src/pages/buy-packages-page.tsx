@@ -3206,6 +3206,164 @@ function ControlValveAttrsForm({
   );
 }
 
+// ── Safety Valve requirement builder ─────────────────────────────────────────
+function buildSafetyValveRequirement(attrs: Record<string, unknown>): string {
+  const valveType   = (attrs.valve_type     as string)?.trim() || "";
+  const inletSize   = (attrs.inlet_size     as string)?.trim() || "";
+  const outletSize  = (attrs.outlet_size    as string)?.trim() || "";
+  const setPressure = (attrs.set_pressure   as string)?.trim() || "";
+  const bodyMat     = (attrs.body_material  as string)?.trim() || "";
+  const trimMat     = (attrs.trim_material  as string)?.trim() || "";
+  const endConn     = (attrs.end_connection as string)?.trim() || "";
+  const standard    = (attrs.design_standard as string)?.trim() || "";
+
+  const typeAbbr = valveType.match(/\(([^)]+)\)/)?.[ 1] || valveType.split(" ").map(w => w[0]).join("") || valveType;
+  const sizeStr   = inletSize && outletSize ? `${inletSize} x ${outletSize}` : inletSize || outletSize;
+  const pressStr  = setPressure ? `Set @ ${setPressure}` : "";
+  const bodyStr   = bodyMat ? `${bodyMat} Body` : "";
+  const trimStr   = trimMat ? `${trimMat} Trim` : "";
+
+  const parts: string[] = [];
+  if (typeAbbr)  parts.push(typeAbbr);
+  if (sizeStr)   parts.push(sizeStr);
+  if (pressStr)  parts.push(pressStr);
+  if (bodyStr)   parts.push(bodyStr);
+  if (trimStr)   parts.push(trimStr);
+  if (endConn)   parts.push(endConn);
+  if (standard)  parts.push(standard);
+  return parts.join(", ");
+}
+
+const SAFETY_VALVE_OPTS: Record<string, string[]> = {
+  valve_type:           ["Pressure Safety Valve (PSV)", "Pressure Relief Valve (PRV)", "Safety Relief Valve (SRV)", "Vacuum Relief Valve (VRV)", "Breather Valve"],
+  inlet_size:           ["15 NB", "25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB"],
+  outlet_size:          ["25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB", "200 NB"],
+  pressure_rating:      ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
+  set_pressure:         ["2 bar", "5 bar", "10 bar", "15 bar", "20 bar", "25 bar"],
+  overpressure:         ["10%", "16%", "21%"],
+  service_fluid:        ["Steam", "Air", "Gas", "Water", "Oil", "Chemical"],
+  operating_temp:       ["Ambient", "50°C", "100°C", "150°C", "250°C"],
+  end_connection:       ["Flanged", "Threaded"],
+  body_material:        ["WCB (CS)", "SS304", "SS316", "Alloy Steel"],
+  trim_material:        ["SS304", "SS316", "Hardened Trim"],
+  discharge_type:       ["Open Discharge", "Closed Discharge", "Vent to Atmosphere", "To Flare Line"],
+  design_standard:      ["API 520", "API 526", "ASME", "ISO"],
+  certification:        ["IBR", "ATEX", "IECEx", "PESO"],
+  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
+};
+
+function SafetyValveAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const singleKeys = Object.keys(SAFETY_VALVE_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = SAFETY_VALVE_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = SAFETY_VALVE_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Safety Valve (PSV/PRV) Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Valve Type")}
+        <div className="col-span-2">{renderField("valve_type", "Safety Valve Type", true)}</div>
+
+        {sec("Size & Rating")}
+        {renderField("inlet_size",      "Inlet Size (NB)",  true)}
+        {renderField("outlet_size",     "Outlet Size (NB)")}
+        <div className="col-span-2">{renderField("pressure_rating", "Pressure Rating")}</div>
+
+        {sec("Pressure Settings")}
+        {renderField("set_pressure", "Set Pressure", true)}
+        {renderField("overpressure", "Overpressure (%)")}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Relieving Capacity (optional)</Label>
+          <Input className="h-8 text-sm" placeholder="e.g. 500 kg/h"
+            value={(attrs.relieving_capacity as string) ?? ""}
+            onChange={(e) => set("relieving_capacity", e.target.value)} />
+        </div>
+
+        {sec("Service Conditions")}
+        {renderField("service_fluid",  "Service Fluid")}
+        {renderField("operating_temp", "Operating Temperature")}
+
+        {sec("Connection")}
+        {renderField("end_connection", "End Connection")}
+        <div />
+
+        {sec("Material")}
+        {renderField("body_material", "Body Material")}
+        {renderField("trim_material", "Trim Material")}
+
+        {sec("Discharge Type")}
+        {renderField("discharge_type", "Discharge Type")}
+        <div />
+
+        {sec("Certification / Standard")}
+        {renderField("design_standard", "Design Standard")}
+        {renderField("certification",   "Certification")}
+
+        {sec("Hazardous Area (Optional)")}
+        {renderField("area_classification", "Area Classification")}
+        <div />
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Isolation Valve requirement builder ──────────────────────────────────────
 function buildIsolationValveRequirement(attrs: Record<string, unknown>): string {
   const valveType   = (attrs.valve_type        as string)?.trim() || "";
@@ -4113,6 +4271,9 @@ export default function BuyPackagesPage() {
   const isControlValveMode =
     (lineDialog.lock?.subgroupCode === "control") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "control");
+  const isSafetyValveMode =
+    (lineDialog.lock?.subgroupCode === "safety") ||
+    (selectedGroupCode === "valves" && selectedSubgroupCode === "safety");
   const isIsolationValveMode =
     (lineDialog.lock?.subgroupCode === "isolation") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "isolation");
@@ -4361,6 +4522,17 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.instrument_type as string)?.trim()) {
         toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+    } else if (isSafetyValveMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.valve_type as string)?.trim()) {
+        toast({ title: "Safety Valve Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.inlet_size as string)?.trim()) {
+        toast({ title: "Inlet Size is required", variant: "destructive" }); return;
+      }
+      if (!(ta.set_pressure as string)?.trim()) {
+        toast({ title: "Set Pressure is required", variant: "destructive" }); return;
       }
     } else if (isControlValveMode) {
       const ta = lf.technicalAttributes;
@@ -5263,6 +5435,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isSafetyValveMode ? (
+                <>
+                  <SafetyValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildSafetyValveRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Valve Type, Inlet Size and Set Pressure to generate…"} />
                   </div>
                 </>
               ) : isControlValveMode ? (
