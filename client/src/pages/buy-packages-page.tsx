@@ -700,16 +700,15 @@ export default function BuyPackagesPage() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label>Package Code <span className="text-red-500">*</span></Label>
-                  <span className="text-[11px] text-muted-foreground">Auto-generated · editable</span>
+                  <span className="text-[11px] text-muted-foreground">Auto-generated</span>
                 </div>
                 <div className="relative">
                   <Input
-                    placeholder={codeLoading ? "Generating…" : "Select a product to auto-generate"}
+                    placeholder={codeLoading ? "Generating…" : "Select a product above"}
                     value={hdr.packageCode}
-                    onChange={(e) => setHdr((h) => ({ ...h, packageCode: e.target.value.toUpperCase() }))}
+                    readOnly
                     maxLength={30}
-                    className="font-mono pr-8"
-                    disabled={codeLoading}
+                    className="font-mono pr-8 bg-muted cursor-not-allowed select-all"
                   />
                   {codeLoading && (
                     <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />

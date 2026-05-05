@@ -277,7 +277,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         .toUpperCase()
         .replace(/\s+/g, '-')
         .replace(/[^A-Z0-9-]/g, '')
-        .slice(0, 18);
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 18)
+        .replace(/-$/g, '');
 
       // Count how many packages exist for this product already (to compute next seq)
       const countRow = await pool.query(
