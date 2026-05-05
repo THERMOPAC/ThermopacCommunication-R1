@@ -27,8 +27,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
-  ChevronsUpDown, Check,
+  ChevronsUpDown, Check, X,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
 const ROLE_LEVEL: Record<string, number> = {
@@ -1120,6 +1122,251 @@ function StructuralSteelAttrsForm({
   );
 }
 
+// ── Centrifugal Pump requirement builder ──────────────────────────────────────
+function buildCentrifugalPumpRequirement(attrs: Record<string, unknown>): string {
+  const pumpType  = (attrs.pump_type      as string)?.trim() || "";
+  const flowRate  = (attrs.flow_rate      as string)?.trim() || "";
+  const head      = (attrs.head           as string)?.trim() || "";
+  const matClass  = (attrs.material_class as string)?.trim() || "";
+
+  const parts: string[] = ["Centrifugal Pump"];
+  if (pumpType) parts.push(pumpType);
+
+  const opCond: string[] = [];
+  if (flowRate) opCond.push(flowRate);
+  if (head)     opCond.push(`${head} head`);
+  if (opCond.length === 2) parts.push(opCond.join(" @ "));
+  else if (opCond.length === 1) parts.push(opCond[0]);
+
+  if (matClass) parts.push(matClass);
+  return parts.join(", ");
+}
+
+// ── Centrifugal Pump option lists ─────────────────────────────────────────────
+const CENTRIFUGAL_OPTS: Record<string, string[]> = {
+  pump_type:      ["End Suction", "Split Case", "Multistage", "Vertical Inline", "Vertical Turbine"],
+  mounting:       ["Base Mounted", "Inline", "Vertical"],
+  drive_type:     ["Motor Driven", "Engine Driven"],
+  service_type:   ["Continuous", "Intermittent", "Standby"],
+  seal_type:      ["Single Mechanical Seal", "Double Mechanical Seal", "Gland Packing"],
+  material_class: ["CI", "CS", "SS304", "SS316", "Duplex"],
+  flow_rate:      ["5 m³/hr", "10 m³/hr", "20 m³/hr", "30 m³/hr", "50 m³/hr",
+                   "75 m³/hr", "100 m³/hr", "150 m³/hr", "200 m³/hr", "300 m³/hr", "500 m³/hr"],
+  head:           ["5 m", "10 m", "20 m", "30 m", "40 m", "50 m", "75 m", "100 m", "150 m", "200 m"],
+  operating_temp: ["Ambient", "50°C", "80°C", "100°C", "150°C", "200°C"],
+  fluid:          ["Water", "Hot Water", "Oil", "Chemical", "Slurry", "Effluent"],
+};
+
+const PUMP_MAKES = ["KSB", "Grundfos", "SPX Flow", "Flowserve", "Sulzer", "Kirloskar", "WILO", "CNP", "ITT", "Armstrong"];
+const PUMP_SERIES_BY_MAKE: Record<string, string[]> = {
+  "KSB":       ["Etanorm", "MegaCPK", "Omega", "Movitec"],
+  "Grundfos":  ["CR", "NK", "CM", "TP", "S"],
+  "SPX Flow":  ["W+", "SIHI", "Bran+Luebbe"],
+  "Flowserve": ["Mark 3", "Durco", "Worthington"],
+  "Sulzer":    ["A Series", "B Series", "CPT"],
+  "Kirloskar": ["GD", "HOSC", "DB"],
+  "WILO":      ["Economy", "Stratos", "Helix"],
+  "ITT":       ["Goulds 3196", "Goulds 3410"],
+  "Armstrong": ["4300", "4380", "S-Series"],
+};
+
+// ── Approved Makes multi-select ────────────────────────────────────────────────
+function ApprovedMakesField({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+  const [customVal, setCustomVal] = useState("");
+
+  const filtered = PUMP_MAKES.filter((o) => o.toLowerCase().includes(query.toLowerCase()));
+
+  function toggle(make: string) {
+    onChange(values.includes(make) ? values.filter((m) => m !== make) : [...values, make]);
+  }
+
+  function addCustom() {
+    const t = customVal.trim();
+    if (t && !values.includes(t)) onChange([...values, t]);
+    setCustomVal("");
+    setShowCustom(false);
+  }
+
+  return (
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
+            {values.length > 0 ? `${values.length} make${values.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
+            <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search makes…" value={query} onValueChange={setQuery} />
+            <CommandList>
+              <CommandEmpty>No results.</CommandEmpty>
+              <CommandGroup>
+                {filtered.map((opt) => (
+                  <CommandItem key={opt} value={opt} onSelect={() => toggle(opt)}>
+                    <Check className={cn("mr-2 h-4 w-4", values.includes(opt) ? "opacity-100" : "opacity-0")} />
+                    {opt}
+                  </CommandItem>
+                ))}
+                <CommandItem value="__add_custom__" onSelect={() => { setShowCustom(true); setOpen(false); }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add custom make…
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {values.map((make) => (
+            <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
+              {make}
+              <button type="button" onClick={() => onChange(values.filter((m) => m !== make))} className="hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {showCustom && (
+        <div className="flex gap-2">
+          <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+            value={customVal} onChange={(e) => setCustomVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }}
+            autoFocus />
+          <Button size="sm" className="h-8 px-3" type="button" onClick={addCustom}>Add</Button>
+          <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+            onClick={() => { setShowCustom(false); setCustomVal(""); }}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Centrifugal Pump structured form ──────────────────────────────────────────
+function CentrifugalPumpAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const singleKeys = ["pump_type", "mounting", "drive_type", "service_type", "seal_type",
+    "material_class", "flow_rate", "head", "operating_temp", "fluid", "preferred_series"];
+
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = key === "preferred_series" ? [] : (CENTRIFUGAL_OPTS[key] ?? []);
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string, opts: string[]) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+    const curVal   = (attrs[key] as string) ?? "";
+    const isCustom = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v, opts)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…"
+            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
+  // Preferred series options: union of all selected makes' series
+  const seriesOpts = Array.from(new Set(approvedMakes.flatMap((m) => PUMP_SERIES_BY_MAKE[m] ?? [])));
+  const preferredSeries = (attrs.preferred_series as string) ?? "";
+  const isSeriesCustom = custom["preferred_series"] ?? false;
+  const seriesSelectVal = isSeriesCustom ? "__other__" : (seriesOpts.includes(preferredSeries) ? preferredSeries : "");
+
+  function sectionHeader(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Centrifugal Pump Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sectionHeader("Pump Specifications")}
+        {renderField("pump_type",      "Pump Type",      CENTRIFUGAL_OPTS.pump_type,      true)}
+        {renderField("mounting",       "Mounting",       CENTRIFUGAL_OPTS.mounting             )}
+        {renderField("drive_type",     "Drive Type",     CENTRIFUGAL_OPTS.drive_type           )}
+        {renderField("service_type",   "Service Type",   CENTRIFUGAL_OPTS.service_type         )}
+        {renderField("seal_type",      "Seal Type",      CENTRIFUGAL_OPTS.seal_type            )}
+        {renderField("material_class", "Material Class", CENTRIFUGAL_OPTS.material_class       )}
+
+        {sectionHeader("Operating Conditions")}
+        {renderField("flow_rate",      "Flow Rate",      CENTRIFUGAL_OPTS.flow_rate            )}
+        {renderField("head",           "Head",           CENTRIFUGAL_OPTS.head                 )}
+        {renderField("operating_temp", "Operating Temp", CENTRIFUGAL_OPTS.operating_temp       )}
+        {renderField("fluid",          "Fluid",          CENTRIFUGAL_OPTS.fluid                )}
+
+        {sectionHeader("Vendor / Make")}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <ApprovedMakesField
+            values={approvedMakes}
+            onChange={(v) => onChange({ ...attrs, approved_makes: v, preferred_series: "" })}
+          />
+        </div>
+
+        {seriesOpts.length > 0 && (
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Preferred Series <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+            <SearchableSelect value={seriesSelectVal} options={seriesOpts} placeholder="Select series…"
+              onSelect={(v) => handleSelect("preferred_series", v, seriesOpts)} />
+            {isSeriesCustom && (
+              <Input className="h-8 text-sm" placeholder="Enter custom series…"
+                value={preferredSeries} onChange={(e) => set("preferred_series", e.target.value)} autoFocus />
+            )}
+          </div>
+        )}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -1317,6 +1564,9 @@ export default function BuyPackagesPage() {
   const isStructuralSteelMode =
     (lineDialog.lock?.subgroupCode === "structural_steel") ||
     (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "structural_steel");
+  const isCentrifugalPumpMode =
+    (lineDialog.lock?.subgroupCode === "centrifugal") ||
+    (selectedGroupCode === "pumps" && selectedSubgroupCode === "centrifugal");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -1495,6 +1745,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.section_type as string)?.trim()) {
         toast({ title: "Section Type is required", variant: "destructive" }); return;
+      }
+    } else if (isCentrifugalPumpMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.pump_type as string)?.trim()) {
+        toast({ title: "Pump Type is required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -2137,6 +2392,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Section Type to generate…"} />
+                  </div>
+                </>
+              ) : isCentrifugalPumpMode ? (
+                <>
+                  <CentrifugalPumpAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildCentrifugalPumpRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Pump Type to generate…"} />
                   </div>
                 </>
               ) : (
