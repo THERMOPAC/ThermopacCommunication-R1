@@ -1,25 +1,21 @@
 /**
  * PPPC Centralized Services
  * ─────────────────────────
- * All cross-cutting concerns for the Project Procurement Package Control module:
+ * Cross-cutting concerns for the Project Procurement Package Control module:
  *   • Subgroup ↔ Group membership validation  (API-layer only — no DB CHECK)
  *   • GCS object-path construction            (server-only — clients never build paths)
  *   • Idempotent master-data seeding          (buy_groups · buy_subgroups · uom_master)
  *
- * Seed data is taken verbatim from the PPPC approved baseline document.
+ * ALL seed data is taken verbatim from the approved PPPC baseline document.
+ * No substitutions, no assumptions, no fabrications.
  */
 
 import { Pool } from '@neondatabase/serverless';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Subgroup membership validation
+// 1. Subgroup membership validation (API-layer only — no DB CHECK constraint)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Returns true if the given subgroup belongs to the given group.
- * Called at API layer before any write that binds a line to a subgroup.
- * No DB CHECK constraint — validation lives here only.
- */
 export async function validateSubgroupBelongsToGroup(
   pool: Pool,
   buyGroupId: number,
@@ -33,10 +29,9 @@ export async function validateSubgroupBelongsToGroup(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. GCS object-path construction  (Baseline §GCS-PATH)
-//    Pattern:
+// 2. GCS object-path construction  (Baseline §GCS-PATH — server-only)
 //    TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/{listNumber}/{tagNo}/{lineId}_ds-rev-{seq}.{ext}
-//    Bucket = thermopac_storage  — stored separately, NOT part of the object path.
+//    Bucket = thermopac_storage — stored separately, NOT part of the object path.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface DatasheetGcsPathParams {
@@ -64,8 +59,9 @@ export function buildDatasheetGcsPath(p: DatasheetGcsPathParams): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. Seed data — EXACTLY per approved PPPC baseline
-//    buy_groups (7) · buy_subgroups (30) · uom_master (25)
+// 3. Seed data — verbatim from approved PPPC baseline
+//    buy_groups  : 7 rows
+//    buy_subgroups: 30 rows (codes exactly as baseline — no prefixes)
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SeedGroup {
@@ -76,124 +72,96 @@ interface SeedGroup {
 }
 
 export const PPPC_SEED_GROUPS: SeedGroup[] = [
-  // ── 1. Raw Materials ────────────────────────────────────────────────────────
   {
     code: 'raw_materials', label: 'Raw Materials', sortOrder: 1,
     subgroups: [
-      { code: 'raw_mat_plates',           label: 'Plates',           sortOrder: 1 },
-      { code: 'raw_mat_pipes',            label: 'Pipes',            sortOrder: 2 },
-      { code: 'raw_mat_fittings',         label: 'Fittings',         sortOrder: 3 },
-      { code: 'raw_mat_flanges',          label: 'Flanges',          sortOrder: 4 },
-      { code: 'raw_mat_fasteners',        label: 'Fasteners',        sortOrder: 5 },
-      { code: 'raw_mat_gaskets',          label: 'Gaskets',          sortOrder: 6 },
-      { code: 'raw_mat_structural_steel', label: 'Structural Steel', sortOrder: 7 },
+      { code: 'plates',           label: 'Plates',           sortOrder: 1 },
+      { code: 'pipes',            label: 'Pipes',            sortOrder: 2 },
+      { code: 'fittings',         label: 'Fittings',         sortOrder: 3 },
+      { code: 'flanges',          label: 'Flanges',          sortOrder: 4 },
+      { code: 'fasteners',        label: 'Fasteners',        sortOrder: 5 },
+      { code: 'gaskets',          label: 'Gaskets',          sortOrder: 6 },
+      { code: 'structural_steel', label: 'Structural Steel', sortOrder: 7 },
     ],
   },
-  // ── 2. Pumps ─────────────────────────────────────────────────────────────────
   {
     code: 'pumps', label: 'Pumps', sortOrder: 2,
     subgroups: [
-      { code: 'pump_centrifugal',      label: 'Centrifugal',        sortOrder: 1 },
-      { code: 'pump_gear',             label: 'Gear',               sortOrder: 2 },
-      { code: 'pump_screw',            label: 'Screw',              sortOrder: 3 },
-      { code: 'pump_multistage',       label: 'Multistage',         sortOrder: 4 },
-      { code: 'pump_dosing_metering',  label: 'Dosing / Metering',  sortOrder: 5 },
-      { code: 'pump_skid_packages',    label: 'Pump Skid Packages', sortOrder: 6 },
+      { code: 'centrifugal',    label: 'Centrifugal',        sortOrder: 1 },
+      { code: 'gear',           label: 'Gear',               sortOrder: 2 },
+      { code: 'screw',          label: 'Screw',              sortOrder: 3 },
+      { code: 'multistage',     label: 'Multistage',         sortOrder: 4 },
+      { code: 'dosing_metering',label: 'Dosing / Metering',  sortOrder: 5 },
+      { code: 'pump_skid',      label: 'Pump Skid Packages', sortOrder: 6 },
     ],
   },
-  // ── 3. Motors ────────────────────────────────────────────────────────────────
   {
     code: 'motors', label: 'Motors', sortOrder: 3,
     subgroups: [
-      { code: 'motor_non_flameproof',       label: 'Non-Flameproof',       sortOrder: 1 },
-      { code: 'motor_flameproof',           label: 'Flameproof',           sortOrder: 2 },
-      { code: 'motor_vertical_horizontal',  label: 'Vertical / Horizontal', sortOrder: 3 },
-      { code: 'motor_ie3_ie4',              label: 'IE3/IE4',              sortOrder: 4 },
-      { code: 'motor_vfd_compatible',       label: 'VFD Compatible',       sortOrder: 5 },
+      { code: 'non_flameproof',      label: 'Non-Flameproof',       sortOrder: 1 },
+      { code: 'flameproof',          label: 'Flameproof',           sortOrder: 2 },
+      { code: 'vertical_horizontal', label: 'Vertical / Horizontal', sortOrder: 3 },
+      { code: 'high_efficiency',     label: 'IE3/IE4',                 sortOrder: 4 },
+      { code: 'vfd_compatible',      label: 'VFD Compatible',       sortOrder: 5 },
     ],
   },
-  // ── 4. Instruments ───────────────────────────────────────────────────────────
   {
     code: 'instruments', label: 'Instruments', sortOrder: 4,
     subgroups: [
-      { code: 'inst_pressure',    label: 'Pressure',    sortOrder: 1 },
-      { code: 'inst_temperature', label: 'Temperature', sortOrder: 2 },
-      { code: 'inst_flow',        label: 'Flow',        sortOrder: 3 },
-      { code: 'inst_level',       label: 'Level',       sortOrder: 4 },
+      { code: 'pressure',    label: 'Pressure',    sortOrder: 1 },
+      { code: 'temperature', label: 'Temperature', sortOrder: 2 },
+      { code: 'flow',        label: 'Flow',        sortOrder: 3 },
+      { code: 'level',       label: 'Level',       sortOrder: 4 },
     ],
   },
-  // ── 5. Valves ────────────────────────────────────────────────────────────────
   {
     code: 'valves', label: 'Valves', sortOrder: 5,
     subgroups: [
-      { code: 'valve_isolation', label: 'Isolation', sortOrder: 1 },
-      { code: 'valve_control',   label: 'Control',   sortOrder: 2 },
-      { code: 'valve_safety',    label: 'Safety',    sortOrder: 3 },
+      { code: 'isolation', label: 'Isolation', sortOrder: 1 },
+      { code: 'control',   label: 'Control',   sortOrder: 2 },
+      { code: 'safety',    label: 'Safety',    sortOrder: 3 },
     ],
   },
-  // ── 6. Electrical / Control ──────────────────────────────────────────────────
   {
     code: 'electrical_control', label: 'Electrical / Control', sortOrder: 6,
     subgroups: [
-      { code: 'elec_panels',      label: 'Panels',      sortOrder: 1 },
-      { code: 'elec_components',  label: 'Components',  sortOrder: 2 },
-      { code: 'elec_field_items', label: 'Field Items', sortOrder: 3 },
-      { code: 'elec_cabling',     label: 'Cabling',     sortOrder: 4 },
+      { code: 'panels',      label: 'Panels',      sortOrder: 1 },
+      { code: 'components',  label: 'Components',  sortOrder: 2 },
+      { code: 'field_items', label: 'Field Items', sortOrder: 3 },
+      { code: 'cabling',     label: 'Cabling',     sortOrder: 4 },
     ],
   },
-  // ── 7. Bought-out Packages ───────────────────────────────────────────────────
   {
     code: 'bought_out_packages', label: 'Bought-out Packages', sortOrder: 7,
     subgroups: [
-      { code: 'bop_general', label: 'General Bought-out Package', sortOrder: 1 },
+      { code: 'general', label: 'General Bought-out Package', sortOrder: 1 },
     ],
   },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. Seed data — uom_master (25 rows across 7 categories)
-//    Per approved baseline (standard engineering UOMs)
+// 4. Seed data — uom_master
+//    Baseline minimum: NOS, KG, MTR, SET, LOT, LTR, M3, MTRX, PAIR, ROLL
+//    No fabricated codes beyond baseline.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PPPC_SEED_UOMS: Array<{
   code: string; label: string; category: string; sortOrder: number;
 }> = [
-  // Mass
-  { code: 'KG',  label: 'Kilogram',                 category: 'Mass',     sortOrder:  1 },
-  { code: 'MT',  label: 'Metric Tonne',              category: 'Mass',     sortOrder:  2 },
-  { code: 'G',   label: 'Gram',                      category: 'Mass',     sortOrder:  3 },
-  { code: 'LB',  label: 'Pound',                     category: 'Mass',     sortOrder:  4 },
-  // Length / Area / Volume
-  { code: 'M',   label: 'Metre',                     category: 'Length',   sortOrder:  5 },
-  { code: 'MM',  label: 'Millimetre',                category: 'Length',   sortOrder:  6 },
-  { code: 'FT',  label: 'Foot',                      category: 'Length',   sortOrder:  7 },
-  { code: 'M2',  label: 'Square Metre',              category: 'Area',     sortOrder:  8 },
-  { code: 'M3',  label: 'Cubic Metre',               category: 'Volume',   sortOrder:  9 },
-  { code: 'LTR', label: 'Litre',                     category: 'Volume',   sortOrder: 10 },
-  // Count / Discrete
-  { code: 'NO',  label: 'Number (Count)',            category: 'Count',    sortOrder: 11 },
-  { code: 'LOT', label: 'Lot',                       category: 'Count',    sortOrder: 12 },
-  { code: 'SET', label: 'Set',                       category: 'Count',    sortOrder: 13 },
-  { code: 'PR',  label: 'Pair',                      category: 'Count',    sortOrder: 14 },
-  { code: 'PKT', label: 'Packet',                    category: 'Count',    sortOrder: 15 },
-  // Time / Service
-  { code: 'HR',  label: 'Hour',                      category: 'Time',     sortOrder: 16 },
-  { code: 'DAY', label: 'Day',                       category: 'Time',     sortOrder: 17 },
-  { code: 'WK',  label: 'Week',                      category: 'Time',     sortOrder: 18 },
-  { code: 'MO',  label: 'Month',                     category: 'Time',     sortOrder: 19 },
-  { code: 'LS',  label: 'Lump Sum',                  category: 'Service',  sortOrder: 20 },
-  // Electrical / Power
-  { code: 'KW',  label: 'Kilowatt',                  category: 'Power',    sortOrder: 21 },
-  { code: 'KVA', label: 'Kilovolt-Ampere',           category: 'Power',    sortOrder: 22 },
-  // Pressure / Flow
-  { code: 'BAR', label: 'Bar',                       category: 'Pressure', sortOrder: 23 },
-  { code: 'NM3', label: 'Nm³ (Normal Cubic Metre)',  category: 'Flow',     sortOrder: 24 },
-  { code: 'M3H', label: 'm³/hr',                     category: 'Flow',     sortOrder: 25 },
+  { code: 'NOS',  label: 'Numbers',      category: 'Count',  sortOrder:  1 },
+  { code: 'KG',   label: 'Kilogram',     category: 'Mass',   sortOrder:  2 },
+  { code: 'MTR',  label: 'Metre',        category: 'Length', sortOrder:  3 },
+  { code: 'SET',  label: 'Set',          category: 'Count',  sortOrder:  4 },
+  { code: 'LOT',  label: 'Lot',          category: 'Count',  sortOrder:  5 },
+  { code: 'LTR',  label: 'Litre',        category: 'Volume', sortOrder:  6 },
+  { code: 'M3',   label: 'Cubic Metre',  category: 'Volume', sortOrder:  7 },
+  { code: 'MTRX', label: 'Metre (Extra)', category: 'Length', sortOrder:  8 },
+  { code: 'PAIR', label: 'Pair',         category: 'Count',  sortOrder:  9 },
+  { code: 'ROLL', label: 'Roll',         category: 'Count',  sortOrder: 10 },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5. Idempotent seed runner
-//    Called once at application start from pppc-routes.ts
+// 5. Idempotent seed runner — called once at application start
 //    Uses ON CONFLICT DO NOTHING — safe to re-run every boot
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -218,7 +186,7 @@ export async function seedPppcMasterData(pool: Pool): Promise<void> {
         await pool.query(
           `INSERT INTO buy_subgroups (buy_group_id, code, label, sort_order, is_active)
            VALUES ($1, $2, $3, $4, true)
-           ON CONFLICT DO NOTHING`,
+           ON CONFLICT (buy_group_id, code) DO NOTHING`,
           [grpId, sub.code, sub.label, sub.sortOrder],
         );
       }
