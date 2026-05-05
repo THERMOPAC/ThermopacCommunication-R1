@@ -935,6 +935,191 @@ function GasketsAttrsForm({
   );
 }
 
+// ── Structural Steel requirement builder ─────────────────────────────────────
+function buildStructuralSteelRequirement(attrs: Record<string, unknown>): string {
+  const sectionType = (attrs.section_type  as string)?.trim() || "";
+  const size        = (attrs.size          as string)?.trim() || "";
+  const thickness   = (attrs.thickness_mm  as string)?.trim() || "";
+  const length      = (attrs.length        as string)?.trim() || "";
+  const matGrade    = (attrs.material_grade as string)?.trim() || "";
+  const standard    = (attrs.standard      as string)?.trim() || "";
+
+  // For IS-named sections (Channel, I-Beam, H-Beam) size already contains
+  // the designation (e.g. "ISMC 150") — put it before the type label.
+  const isNamedSection = ["Channel", "I-Beam (UB)", "H-Beam (UC)"].includes(sectionType);
+  let mainPart = "";
+  if (isNamedSection && size) {
+    mainPart = `${size} ${sectionType}`;
+  } else {
+    mainPart = [sectionType, size].filter(Boolean).join(" ");
+  }
+
+  const parts: string[] = [];
+  if (mainPart)   parts.push(mainPart);
+  if (thickness)  parts.push(`${thickness}mm thk`);
+  if (matGrade)   parts.push(matGrade);
+  if (length)     parts.push(`${length} length`);
+  if (standard)   parts.push(standard);
+  return parts.join(", ");
+}
+
+// ── Structural Steel size/option lists ───────────────────────────────────────
+const STRUCTURAL_COMMON_OPTS: Record<string, string[]> = {
+  length:        ["3m", "6m", "12m", "Random"],
+  material_grade:["IS 2062 E250", "IS 2062 E350", "ASTM A36"],
+  standard:      ["IS", "ASTM", "EN", "DIN"],
+  thickness_mm:  ["3", "5", "6", "8", "10", "12", "16", "20"],
+};
+
+const STRUCTURAL_SIZE_BY_TYPE: Record<string, string[]> = {
+  "Angle":              ["25x25x3", "40x40x5", "50x50x6", "65x65x6", "75x75x8", "100x100x10"],
+  "Channel":            ["ISMC 75", "ISMC 100", "ISMC 125", "ISMC 150", "ISMC 200", "ISMC 250", "ISMC 300"],
+  "I-Beam (UB)":        ["ISMB 100", "ISMB 150", "ISMB 200", "ISMB 250", "ISMB 300", "ISMB 400"],
+  "H-Beam (UC)":        ["ISMB 100", "ISMB 150", "ISMB 200", "ISMB 250", "ISMB 300", "ISMB 400"],
+  "Flat Bar":           ["25x3", "50x6", "75x8", "100x10", "150x12"],
+  "Square Bar":         ["10x10", "12x12", "16x16", "20x20", "25x25"],
+  "Round Bar":          ["10", "12", "16", "20", "25", "32"],
+  "Hollow Section (SHS)":               ["25x25", "40x40", "50x50", "75x75", "100x100"],
+  "Rectangular Hollow Section (RHS)":   ["50x25", "75x40", "100x50", "150x75", "200x100"],
+  "T-Section":                          [],
+  "Plate (for structural use)":         [],
+};
+
+// Types that show a separate Thickness field
+const STRUCTURAL_SHOW_THICKNESS = new Set([
+  "Plate (for structural use)", "T-Section", "Flat Bar", "Square Bar",
+]);
+
+// ── Structural Steel form ─────────────────────────────────────────────────────
+function StructuralSteelAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  // Track custom-entry per field
+  type CustomMap = Record<string, boolean>;
+  const allKeys = ["size", "length", "material_grade", "standard", "thickness_mm"];
+  const [custom, setCustom] = useState<CustomMap>(() => {
+    const c: CustomMap = {};
+    for (const key of allKeys) {
+      const val = (attrs[key] as string) ?? "";
+      const opts = key === "size"
+        ? (STRUCTURAL_SIZE_BY_TYPE[(attrs.section_type as string) ?? ""] ?? [])
+        : STRUCTURAL_COMMON_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  // Section-type custom
+  const sectionTypes = Object.keys(STRUCTURAL_SIZE_BY_TYPE);
+  const [sectionCustom, setSectionCustom] = useState(
+    () => {
+      const v = (attrs.section_type as string) ?? "";
+      return v !== "" && !sectionTypes.includes(v);
+    }
+  );
+
+  const sectionType = (attrs.section_type as string) ?? "";
+  const sizeOpts    = STRUCTURAL_SIZE_BY_TYPE[sectionType] ?? [];
+  const showThickness = STRUCTURAL_SHOW_THICKNESS.has(sectionType);
+
+  function handleSectionSelect(val: string) {
+    if (val === "__other__") {
+      setSectionCustom(true);
+      onChange({ ...attrs, section_type: "", size: "" });
+    } else {
+      setSectionCustom(false);
+      // Clear size when section type changes
+      onChange({ ...attrs, section_type: val, size: "" });
+      setCustom((c) => ({ ...c, size: false }));
+    }
+  }
+
+  function handleSelect(key: string, val: string, opts: string[]) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderCommonField(key: string, label: string, opts: string[], required?: boolean) {
+    const curVal  = (attrs[key] as string) ?? "";
+    const isCustom = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect
+          value={selectVal} options={opts} placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v, opts)}
+        />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…"
+            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  const sectionSelectVal = sectionCustom ? "__other__" : (sectionTypes.includes(sectionType) ? sectionType : "");
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural Steel Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        {/* Section Type */}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Section Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={sectionSelectVal} options={sectionTypes} placeholder="Select section type…"
+            onSelect={handleSectionSelect}
+          />
+          {sectionCustom && (
+            <Input className="h-8 text-sm" placeholder="Enter custom section type…"
+              value={sectionType} onChange={(e) => onChange({ ...attrs, section_type: e.target.value })} autoFocus />
+          )}
+        </div>
+
+        {/* Size — only when section type has predefined options */}
+        {sectionType && (
+          sizeOpts.length > 0
+            ? renderCommonField("size", "Size", sizeOpts, true)
+            : (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Size <span className="text-red-500">*</span></Label>
+                <Input className="h-8 text-sm" placeholder="Enter size…"
+                  value={(attrs.size as string) ?? ""}
+                  onChange={(e) => set("size", e.target.value)} />
+              </div>
+            )
+        )}
+
+        {/* Thickness — conditional */}
+        {showThickness && renderCommonField("thickness_mm", "Thickness (mm)", STRUCTURAL_COMMON_OPTS.thickness_mm)}
+
+        {renderCommonField("material_grade", "Material Grade", STRUCTURAL_COMMON_OPTS.material_grade)}
+        {renderCommonField("length",         "Length",         STRUCTURAL_COMMON_OPTS.length        )}
+        {renderCommonField("standard",       "Standard",       STRUCTURAL_COMMON_OPTS.standard      )}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -1129,6 +1314,9 @@ export default function BuyPackagesPage() {
   const isGasketsMode =
     (lineDialog.lock?.subgroupCode === "gaskets") ||
     (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "gaskets");
+  const isStructuralSteelMode =
+    (lineDialog.lock?.subgroupCode === "structural_steel") ||
+    (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "structural_steel");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -1302,6 +1490,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.gasket_type as string)?.trim() || !(ta.size_nb as string)?.trim()) {
         toast({ title: "Gasket Type and Size (NB) are required", variant: "destructive" }); return;
+      }
+    } else if (isStructuralSteelMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.section_type as string)?.trim()) {
+        toast({ title: "Section Type is required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -1925,6 +2118,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Gasket Type and Size to generate…"} />
+                  </div>
+                </>
+              ) : isStructuralSteelMode ? (
+                <>
+                  <StructuralSteelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildStructuralSteelRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Section Type to generate…"} />
                   </div>
                 </>
               ) : (
