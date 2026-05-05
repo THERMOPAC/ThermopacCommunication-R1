@@ -1093,11 +1093,16 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         `SELECT l.*,
            bg.code AS buy_group_code, bg.label AS buy_group_label,
            bs.code AS buy_subgroup_code, bs.label AS buy_subgroup_label,
-           u.code AS uom_code, u.label AS uom_label
+           u.code AS uom_code, u.label AS uom_label,
+           ipr.planning_number AS ipr_planning_number,
+           ipr.status AS ipr_status,
+           mi.item_code AS selected_item_code, mi.description AS selected_item_description
          FROM project_buy_list_lines l
          JOIN buy_groups bg ON bg.id = l.buy_group_id
          JOIN buy_subgroups bs ON bs.id = l.buy_subgroup_id
          JOIN uom_master u ON u.id = l.uom_id
+         LEFT JOIN item_planning_records ipr ON ipr.id = l.planning_record_id
+         LEFT JOIN master_items mi ON mi.id = l.selected_master_item_id
          WHERE l.buy_list_header_id=$1
          ORDER BY l.line_number`,
         [id],

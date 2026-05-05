@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ import {
   Loader2, Search, Plus, ChevronRight, ChevronDown,
   Send, Eye, ShieldCheck, Lock, RotateCcw, XCircle,
   GitBranch, Edit2, Trash2, AlertCircle, Package,
+  ClipboardList, ArrowRight, CheckCircle2, FileText,
+  TrendingUp, ExternalLink,
 } from "lucide-react";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ const rl = (r?: string) => RL[r ?? ""] ?? 999;
 const isManager       = (r?: string) => rl(r) <= 3;
 const isSeniorManager = (r?: string) => rl(r) <= 2;
 
-// ── Status config ─────────────────────────────────────────────────────────────
+// ── Status configs ─────────────────────────────────────────────────────────────
 const STATUS: Record<string, { label: string; cls: string }> = {
   draft:        { label: "Draft",        cls: "bg-slate-100 text-slate-700 border border-slate-200" },
   under_review: { label: "Under Review", cls: "bg-amber-100 text-amber-800 border border-amber-200" },
@@ -39,12 +41,38 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 const LINE_STATUS: Record<string, { label: string; cls: string }> = {
-  open:                { label: "Open",          cls: "bg-slate-100 text-slate-600" },
-  selected:            { label: "Selected",      cls: "bg-blue-100 text-blue-800" },
-  datasheet_submitted: { label: "DS Submitted",  cls: "bg-amber-100 text-amber-800" },
-  approved:            { label: "Approved",      cls: "bg-emerald-100 text-emerald-800" },
-  canceled:            { label: "Cancelled",     cls: "bg-red-100 text-red-700" },
+  open:                { label: "Open",         cls: "bg-slate-100 text-slate-600" },
+  selected:            { label: "Selected",     cls: "bg-blue-100 text-blue-800" },
+  datasheet_submitted: { label: "DS Submitted", cls: "bg-amber-100 text-amber-800" },
+  approved:            { label: "Approved",     cls: "bg-emerald-100 text-emerald-800" },
+  canceled:            { label: "Cancelled",    cls: "bg-red-100 text-red-700" },
 };
+
+const PLN_STATUS: Record<string, { label: string; cls: string }> = {
+  draft:        { label: "Draft",        cls: "bg-slate-100 text-slate-600" },
+  under_review: { label: "Under Review", cls: "bg-amber-100 text-amber-800" },
+  released:     { label: "Released",     cls: "bg-emerald-100 text-emerald-800" },
+  canceled:     { label: "Cancelled",    cls: "bg-red-100 text-red-700" },
+  superseded:   { label: "Superseded",   cls: "bg-orange-100 text-orange-800" },
+};
+
+// Stage badge for procurement chain
+function StageBadge({ label, value, cls }: { label: string; value?: string | null; cls?: string }) {
+  if (!value) return (
+    <div className="flex flex-col items-center gap-0.5 min-w-16">
+      <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-[10px] text-muted-foreground/50 italic">—</span>
+    </div>
+  );
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-16">
+      <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cls ?? "bg-slate-100 text-slate-700"}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 const EMPTY_LINE = {
   buyGroupId: "", buySubgroupId: "", uomId: "",
@@ -78,6 +106,9 @@ export default function EpcBuyListControlPage() {
   const [actionNote, setActionNote]           = useState("");
   const [reviewRec, setReviewRec]             = useState("approve");
   const [lineDialog, setLineDialog]           = useState<{ open: boolean; listId: number; status: string; editLine: any | null } | null>(null);
+
+  // Phase 4 — procurement chain panel
+  const [showProcChain, setShowProcChain] = useState<number | null>(null); // listId
 
   // Create form
   const [createForm, setCreateForm] = useState({ projectItemId: "", sourcePackageId: "" });
@@ -126,6 +157,14 @@ export default function EpcBuyListControlPage() {
     enabled: expandedId !== null,
   });
 
+  // Phase 4 — procurement chain query (lazy per list)
+  const { data: procChainData, isLoading: procChainLoading } = useQuery<{ lines: any[] }>({
+    queryKey: ["/api/buy-lists", showProcChain, "procurement-status"],
+    queryFn: () =>
+      fetch(`/api/buy-lists/${showProcChain}/procurement-status`, { credentials: "include" }).then(r => r.json()),
+    enabled: showProcChain !== null,
+  });
+
   // ── Derived ───────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = buyLists;
@@ -159,6 +198,8 @@ export default function EpcBuyListControlPage() {
     queryClient.invalidateQueries({ queryKey: ["/api/buy-lists", listId, "lines"] });
     invalidateLists();
   };
+  const invalidateProcChain = (listId: number) =>
+    queryClient.invalidateQueries({ queryKey: ["/api/buy-lists", listId, "procurement-status"] });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const createList = useMutation({
@@ -192,6 +233,27 @@ export default function EpcBuyListControlPage() {
     mutationFn: (lineId: number) => apiRequest("DELETE", `/api/buy-list-lines/${lineId}`, undefined),
     onSuccess: () => { toast({ title: "Line deleted" }); if (expandedId) invalidateLines(expandedId); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  // Phase 4 — raise PR
+  const raisePr = useMutation({
+    mutationFn: (lineId: number) => apiRequest("POST", `/api/buy-list-lines/${lineId}/raise-pr`, {}),
+    onSuccess: (data: any, lineId) => {
+      const msg = data.isReused
+        ? `Planning record created (project item reused). PLN ID: ${data.planningRecordId}`
+        : `Planning record created. PLN ID: ${data.planningRecordId}`;
+      toast({ title: "PR Raised", description: msg });
+      if (expandedId) {
+        invalidateLines(expandedId);
+        invalidateProcChain(expandedId);
+      }
+    },
+    onError: (e: any) => {
+      const msg = e.message?.includes("409") || e.status === 409
+        ? "Planning record already active for this line."
+        : e.message;
+      toast({ title: "Cannot Raise PR", description: msg, variant: "destructive" });
+    },
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -254,6 +316,10 @@ export default function EpcBuyListControlPage() {
     }
   }
 
+  function toggleProcChain(listId: number) {
+    setShowProcChain(prev => prev === listId ? null : listId);
+  }
+
   // ── Action label/icon map ─────────────────────────────────────────────────
   const ACTION_META: Record<string, { label: string; icon: any; needsNote: boolean; noteLabel: string; senior?: boolean }> = {
     "submit-for-review": { label: "Submit for Review", icon: Send, needsNote: false, noteLabel: "Submission Note" },
@@ -288,7 +354,7 @@ export default function EpcBuyListControlPage() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">BUY List Control</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Project procurement buy lists — Phase 2 · PPPC</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Project procurement buy lists · Phase 4 · PPPC</p>
           </div>
           {canWrite && selectedProjectId && (
             <Button onClick={() => { setCreateForm({ projectItemId: "", sourcePackageId: "" }); setShowCreate(true); }}>
@@ -305,7 +371,7 @@ export default function EpcBuyListControlPage() {
                 <Label className="text-xs">Project</Label>
                 <Select
                   value={selectedProjectId ? String(selectedProjectId) : ""}
-                  onValueChange={(v) => { setSelectedProjectId(Number(v)); setExpandedId(null); }}
+                  onValueChange={(v) => { setSelectedProjectId(Number(v)); setExpandedId(null); setShowProcChain(null); }}
                 >
                   <SelectTrigger><SelectValue placeholder="Select a project…" /></SelectTrigger>
                   <SelectContent>
@@ -437,7 +503,7 @@ export default function EpcBuyListControlPage() {
                       </TableCell>
                     </TableRow>
 
-                    {/* Expanded lines */}
+                    {/* Expanded section */}
                     {expandedId === lst.id && (
                       <TableRow>
                         <TableCell colSpan={8} className="p-0 bg-muted/20">
@@ -446,7 +512,9 @@ export default function EpcBuyListControlPage() {
                           ) : expandedLines.length === 0 ? (
                             <div className="py-6 text-center text-muted-foreground text-sm">No lines yet.</div>
                           ) : (
-                            <div className="p-4">
+                            <div className="p-4 space-y-4">
+
+                              {/* ── Lines Table ── */}
                               <Table>
                                 <TableHeader>
                                   <TableRow className="bg-muted/50">
@@ -457,52 +525,251 @@ export default function EpcBuyListControlPage() {
                                     <TableHead className="text-xs">Equip. Ref</TableHead>
                                     <TableHead className="text-xs">Service Desc</TableHead>
                                     <TableHead className="text-xs text-center">Qty</TableHead>
-                                    <TableHead className="text-xs">Status</TableHead>
-                                    {lst.status === "draft" && canWrite && <TableHead className="text-xs">Actions</TableHead>}
+                                    <TableHead className="text-xs">Line Status</TableHead>
+                                    <TableHead className="text-xs">Planning</TableHead>
+                                    <TableHead className="text-xs">Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {expandedLines.map((line: any) => (
-                                    <TableRow key={line.id}>
-                                      <TableCell className="text-xs font-mono">{line.line_number}</TableCell>
-                                      <TableCell className="text-xs">
-                                        <div className="font-medium">{line.buy_group_code}</div>
-                                        <div className="text-muted-foreground">{line.buy_subgroup_code}</div>
-                                      </TableCell>
-                                      <TableCell className="text-xs max-w-40 truncate">{line.generic_requirement}</TableCell>
-                                      <TableCell className="text-xs font-mono">
-                                        {line.tag_no || <span className="text-amber-600 italic">missing</span>}
-                                      </TableCell>
-                                      <TableCell className="text-xs truncate max-w-32">
-                                        {line.equipment_reference || <span className="text-amber-600 italic">missing</span>}
-                                      </TableCell>
-                                      <TableCell className="text-xs truncate max-w-32">
-                                        {line.service_description || <span className="text-amber-600 italic">missing</span>}
-                                      </TableCell>
-                                      <TableCell className="text-xs text-center">{line.quantity} {line.uom_code}</TableCell>
-                                      <TableCell>
-                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${LINE_STATUS[line.status]?.cls ?? ""}`}>
-                                          {LINE_STATUS[line.status]?.label ?? line.status}
-                                        </span>
-                                      </TableCell>
-                                      {lst.status === "draft" && canWrite && (
+                                  {expandedLines.map((line: any) => {
+                                    const canRaisePr =
+                                      line.status === "approved" &&
+                                      !line.planning_record_id &&
+                                      ["released", "locked"].includes(lst.status);
+                                    const alreadyRaised = !!line.planning_record_id;
+
+                                    return (
+                                      <TableRow key={line.id}>
+                                        <TableCell className="text-xs font-mono">{line.line_number}</TableCell>
+                                        <TableCell className="text-xs">
+                                          <div className="font-medium">{line.buy_group_code}</div>
+                                          <div className="text-muted-foreground">{line.buy_subgroup_code}</div>
+                                        </TableCell>
+                                        <TableCell className="text-xs max-w-40 truncate">{line.generic_requirement}</TableCell>
+                                        <TableCell className="text-xs font-mono">
+                                          {line.tag_no || <span className="text-amber-600 italic">missing</span>}
+                                        </TableCell>
+                                        <TableCell className="text-xs truncate max-w-32">
+                                          {line.equipment_reference || <span className="text-amber-600 italic">missing</span>}
+                                        </TableCell>
+                                        <TableCell className="text-xs truncate max-w-32">
+                                          {line.service_description || <span className="text-amber-600 italic">missing</span>}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-center">{line.quantity} {line.uom_code}</TableCell>
                                         <TableCell>
-                                          <div className="flex gap-1">
-                                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
-                                              onClick={() => openEditLine(lst.id, lst.status, line)}>
-                                              <Edit2 className="h-3 w-3" />
-                                            </Button>
-                                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive"
-                                              onClick={() => deleteLine.mutate(line.id)}>
-                                              <Trash2 className="h-3 w-3" />
-                                            </Button>
+                                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${LINE_STATUS[line.status]?.cls ?? ""}`}>
+                                            {LINE_STATUS[line.status]?.label ?? line.status}
+                                          </span>
+                                        </TableCell>
+
+                                        {/* ── Planning cell ── */}
+                                        <TableCell className="min-w-36">
+                                          {alreadyRaised ? (
+                                            <div className="space-y-0.5">
+                                              <span className="font-mono text-[10px] text-emerald-700 font-semibold block">
+                                                {line.ipr_planning_number ?? `PLN #${line.planning_record_id}`}
+                                              </span>
+                                              {line.ipr_status && (
+                                                <span className={`inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium ${PLN_STATUS[line.ipr_status]?.cls ?? "bg-slate-100 text-slate-600"}`}>
+                                                  {PLN_STATUS[line.ipr_status]?.label ?? line.ipr_status}
+                                                </span>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <span className="text-[10px] text-muted-foreground/50 italic">not raised</span>
+                                          )}
+                                        </TableCell>
+
+                                        {/* ── Actions cell ── */}
+                                        <TableCell>
+                                          <div className="flex gap-1 flex-wrap">
+                                            {/* Edit/Delete on draft lists */}
+                                            {lst.status === "draft" && canWrite && (
+                                              <>
+                                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                                                  onClick={() => openEditLine(lst.id, lst.status, line)}>
+                                                  <Edit2 className="h-3 w-3" />
+                                                </Button>
+                                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive"
+                                                  onClick={() => deleteLine.mutate(line.id)}>
+                                                  <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                              </>
+                                            )}
+                                            {/* Raise PR button */}
+                                            {canRaisePr && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-6 text-[10px] px-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                                disabled={raisePr.isPending}
+                                                onClick={() => raisePr.mutate(line.id)}
+                                              >
+                                                {raisePr.isPending
+                                                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                  : <><TrendingUp className="h-3 w-3 mr-1" />Raise PR</>
+                                                }
+                                              </Button>
+                                            )}
+                                            {/* Already raised + re-raise available (canceled/superseded PLN) */}
+                                            {line.status === "approved" &&
+                                              alreadyRaised &&
+                                              ["canceled", "superseded"].includes(line.ipr_status) &&
+                                              ["released", "locked"].includes(lst.status) && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-6 text-[10px] px-2 border-amber-300 text-amber-700 hover:bg-amber-50"
+                                                disabled={raisePr.isPending}
+                                                onClick={() => raisePr.mutate(line.id)}
+                                              >
+                                                <RotateCcw className="h-3 w-3 mr-1" />Re-raise PR
+                                              </Button>
+                                            )}
                                           </div>
                                         </TableCell>
-                                      )}
-                                    </TableRow>
-                                  ))}
+                                      </TableRow>
+                                    );
+                                  })}
                                 </TableBody>
                               </Table>
+
+                              {/* ── Phase 4: Procurement Chain Panel ── */}
+                              {["released", "locked"].includes(lst.status) && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <button
+                                      className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                                      onClick={() => toggleProcChain(lst.id)}
+                                    >
+                                      <ClipboardList className="h-4 w-4" />
+                                      Procurement Chain Status
+                                      {showProcChain === lst.id
+                                        ? <ChevronDown className="h-3.5 w-3.5" />
+                                        : <ChevronRight className="h-3.5 w-3.5" />
+                                      }
+                                    </button>
+                                    {showProcChain === lst.id && (
+                                      <Button
+                                        size="sm" variant="ghost" className="h-7 text-xs px-2"
+                                        onClick={() => invalidateProcChain(lst.id)}
+                                      >
+                                        Refresh
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {showProcChain === lst.id && (
+                                    <Card className="border-dashed">
+                                      <CardHeader className="pb-2 pt-3 px-4">
+                                        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                                          <TrendingUp className="h-3.5 w-3.5" />
+                                          Downstream procurement chain per line
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="px-4 pb-4">
+                                        {procChainLoading ? (
+                                          <div className="py-6 text-center">
+                                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                          </div>
+                                        ) : !procChainData?.lines?.length ? (
+                                          <p className="text-sm text-muted-foreground italic">No lines found.</p>
+                                        ) : (
+                                          <div className="overflow-x-auto">
+                                            <table className="w-full text-xs">
+                                              <thead>
+                                                <tr className="border-b">
+                                                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground w-24">Tag No</th>
+                                                  <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Line Status</th>
+                                                  <th className="text-center py-2 font-semibold text-muted-foreground" colSpan={5}>
+                                                    <div className="flex items-center justify-center gap-1">
+                                                      <span>Procurement Pipeline</span>
+                                                      <ArrowRight className="h-3 w-3" />
+                                                    </div>
+                                                  </th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {procChainData.lines.map((row: any) => (
+                                                  <tr key={row.lineId} className="border-b last:border-0 hover:bg-muted/30">
+                                                    <td className="py-2.5 pr-4 font-mono font-semibold">{row.tagNo || "—"}</td>
+                                                    <td className="py-2.5 pr-6">
+                                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${LINE_STATUS[row.lineStatus]?.cls ?? "bg-slate-100 text-slate-600"}`}>
+                                                        {LINE_STATUS[row.lineStatus]?.label ?? row.lineStatus}
+                                                      </span>
+                                                    </td>
+                                                    <td className="py-2.5">
+                                                      <div className="flex items-center gap-2">
+                                                        {/* PLN */}
+                                                        <StageBadge
+                                                          label="Planning"
+                                                          value={row.planningStatus ? (PLN_STATUS[row.planningStatus]?.label ?? row.planningStatus) : null}
+                                                          cls={PLN_STATUS[row.planningStatus]?.cls}
+                                                        />
+                                                        {row.planningRecordId && <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />}
+                                                        {/* Exec */}
+                                                        {row.planningRecordId && (
+                                                          <>
+                                                            <StageBadge
+                                                              label="Exec"
+                                                              value={row.procurementStatus}
+                                                              cls="bg-blue-100 text-blue-800"
+                                                            />
+                                                            <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                                                          </>
+                                                        )}
+                                                        {/* PO Prep */}
+                                                        {row.planningRecordId && (
+                                                          <>
+                                                            <StageBadge
+                                                              label="PO Prep"
+                                                              value={row.poPrepStatus}
+                                                              cls="bg-violet-100 text-violet-800"
+                                                            />
+                                                            <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                                                          </>
+                                                        )}
+                                                        {/* PO */}
+                                                        {row.planningRecordId && (
+                                                          <>
+                                                            <StageBadge
+                                                              label="PO"
+                                                              value={row.epcPoStatus
+                                                                ? `${row.epcPoStatus}${row.epcPoNumber ? ` · ${row.epcPoNumber}` : ""}`
+                                                                : null}
+                                                              cls="bg-indigo-100 text-indigo-800"
+                                                            />
+                                                            <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                                                          </>
+                                                        )}
+                                                        {/* QC */}
+                                                        {row.planningRecordId && (
+                                                          <StageBadge
+                                                            label="QC"
+                                                            value={row.qualityStatus}
+                                                            cls="bg-teal-100 text-teal-800"
+                                                          />
+                                                        )}
+                                                        {/* Not yet raised */}
+                                                        {!row.planningRecordId && (
+                                                          <span className="text-[10px] text-muted-foreground/50 italic">
+                                                            PR not raised
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        )}
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                </div>
+                              )}
+
                             </div>
                           )}
                         </TableCell>
