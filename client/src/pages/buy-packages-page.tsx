@@ -2391,6 +2391,225 @@ function VacuumBoosterAttrsForm({
   );
 }
 
+// ── Pressure Instrument requirement builder ───────────────────────────────────
+function buildPressureRequirement(attrs: Record<string, unknown>): string {
+  const instrType   = (attrs.instrument_type    as string)?.trim() || "";
+  const rangeMin    = (attrs.range_min          as string)?.trim() || "";
+  const rangeMax    = (attrs.range_max          as string)?.trim() || "";
+  const rangeUnit   = (attrs.range_unit         as string)?.trim() || "";
+  const outputSig   = (attrs.output_signal      as string)?.trim() || "";
+  const wettedMat   = (attrs.wetted_material    as string)?.trim() || "";
+  const connSize    = (attrs.connection_size    as string)?.trim() || "";
+  const connType    = (attrs.connection_type    as string)?.trim() || "";
+  const areaClass   = (attrs.area_classification as string)?.trim() || "";
+  const exProt      = (attrs.explosion_protection as string)?.trim() || "";
+
+  const rangeStr  = rangeMin && rangeMax && rangeUnit
+    ? `${rangeMin}–${rangeMax} ${rangeUnit}`
+    : rangeMax && rangeUnit ? `0–${rangeMax} ${rangeUnit}` : "";
+  const connStr   = connSize && connType ? `${connSize} ${connType}` : connSize || connType;
+  const exStr     = exProt && exProt !== "Non-Flameproof" ? exProt.replace("Flameproof ", "").replace("Intrinsically Safe ", "") : "";
+
+  const parts: string[] = [];
+  if (instrType)  parts.push(instrType);
+  if (rangeStr)   parts.push(rangeStr);
+  if (outputSig && outputSig !== "Not Applicable") parts.push(outputSig);
+  if (wettedMat)  parts.push(wettedMat);
+  if (connStr)    parts.push(connStr);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
+  if (exStr)      parts.push(exStr);
+  return parts.join(", ");
+}
+
+// ── Pressure Instrument option lists ─────────────────────────────────────────
+const PRESSURE_OPTS: Record<string, string[]> = {
+  instrument_type:       ["Pressure Gauge (PG)", "Pressure Transmitter (PT)", "Differential Pressure Transmitter (DPT)", "Pressure Switch (PS)", "Vacuum Gauge"],
+  measurement_type:      ["Gauge Pressure", "Absolute Pressure", "Differential Pressure", "Vacuum"],
+  range_unit:            ["bar", "kg/cm²", "psi", "kPa", "mmWC"],
+  process_fluid:         ["Air", "Water", "Steam", "Oil", "Gas", "Chemical"],
+  operating_temp:        ["Ambient", "50°C", "100°C", "150°C", "250°C"],
+  connection_size:       ['1/4"', '1/2"', '3/4"', '1"'],
+  connection_type:       ["NPT", "BSP", "Flanged"],
+  wetted_material:       ["SS316", "SS304", "Brass"],
+  enclosure_type:        ["IP65", "IP66", "Flameproof", "Weatherproof"],
+  area_classification:   ["Safe Area", "Zone 1", "Zone 2"],
+  explosion_protection:  ["Non-Flameproof", "Flameproof Ex d", "Intrinsically Safe Ex ia", "Intrinsically Safe Ex ib", "Increased Safety Ex e"],
+  certification:         ["ATEX", "IECEx", "PESO", "UL", "FM"],
+  gas_group:             ["IIA", "IIB", "IIC"],
+  temperature_class:     ["T1", "T2", "T3", "T4", "T5", "T6"],
+};
+
+// Output signal options depend on instrument_type
+function pressureOutputOpts(instrType: string): string[] | null {
+  if (!instrType) return null;
+  const t = instrType.toLowerCase();
+  if (t.includes("gauge") || t.includes("vacuum gauge")) return null; // N/A for gauges
+  if (t.includes("transmitter")) return ["4–20 mA", "HART"];
+  if (t.includes("switch")) return ["NO/NC Contact"];
+  return null;
+}
+
+// ── Pressure Instrument structured form ──────────────────────────────────────
+function PressureAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const singleKeys = Object.keys(PRESSURE_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = PRESSURE_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      // Clear dependent fields when instrument_type changes
+      if (key === "instrument_type") {
+        onChange({ ...attrs, instrument_type: val, output_signal: "" });
+      } else {
+        set(key, val);
+      }
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean, overrideOpts?: string[]) {
+    const opts      = overrideOpts ?? PRESSURE_OPTS[key] ?? [];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…"
+            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function renderNumeric(key: string, label: string) {
+    const curVal = (attrs[key] as string) ?? "";
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}</Label>
+        <Input className="h-8 text-sm" type="number" placeholder="0"
+          value={curVal} onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
+  }
+
+  function sectionHeader(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  const instrType   = (attrs.instrument_type as string) ?? "";
+  const areaClass   = (attrs.area_classification as string) ?? "";
+  const outputOpts  = pressureOutputOpts(instrType);
+  const isGaugeType = instrType.toLowerCase().includes("gauge");
+  const isZone      = areaClass === "Zone 1" || areaClass === "Zone 2";
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pressure Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sectionHeader("Instrument Type")}
+        <div className="col-span-2">
+          {renderField("instrument_type", "Instrument Type", true)}
+        </div>
+
+        {sectionHeader("Measurement")}
+        {renderField("measurement_type", "Measurement Type")}
+        {renderField("range_unit",       "Range Unit")}
+        {renderNumeric("range_min",      "Range Min")}
+        {renderNumeric("range_max",      "Range Max")}
+
+        {sectionHeader("Process Conditions")}
+        {renderField("process_fluid",   "Process Fluid")}
+        {renderField("operating_temp",  "Operating Temperature")}
+
+        {sectionHeader("Connection Details")}
+        {renderField("connection_size", "Connection Size")}
+        {renderField("connection_type", "Connection Type")}
+
+        {sectionHeader("Signal / Output")}
+        {isGaugeType ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Output Signal</Label>
+            <div className="h-8 px-3 flex items-center text-sm bg-muted rounded-md border text-muted-foreground">Not Applicable</div>
+          </div>
+        ) : outputOpts ? (
+          renderField("output_signal", "Output Signal", false, [...outputOpts, "Other"])
+        ) : (
+          renderField("output_signal", "Output Signal")
+        )}
+        <div /> {/* spacer */}
+
+        {sectionHeader("Construction")}
+        {renderField("wetted_material", "Wetted Parts Material")}
+        {renderField("enclosure_type",  "Enclosure Type")}
+
+        {sectionHeader("Hazardous Area / Certification")}
+        {renderField("area_classification",   "Area Classification")}
+        {renderField("explosion_protection",  "Explosion Protection")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">
+            Certification
+            {isZone && <span className="text-red-500"> *</span>}
+            {!isZone && <span className="text-[10px] font-normal text-muted-foreground ml-1">(optional for Safe Area)</span>}
+          </Label>
+          {(() => {
+            const key     = "certification";
+            const opts    = PRESSURE_OPTS[key];
+            const curVal  = (attrs[key] as string) ?? "";
+            const isCustom= custom[key] ?? false;
+            const selVal  = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+            return (
+              <>
+                <SearchableSelect value={selVal} options={opts} placeholder="Select…"
+                  onSelect={(v) => handleSelect(key, v)} />
+                {isCustom && (
+                  <Input className="h-8 text-sm" placeholder="Enter custom value…"
+                    value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+                )}
+              </>
+            );
+          })()}
+        </div>
+        {renderField("gas_group",          "Gas Group")}
+        {renderField("temperature_class",  "Temperature Class")}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Pump Skid requirement builder ────────────────────────────────────────────
 function buildPumpSkidRequirement(attrs: Record<string, unknown>): string {
   const pkgType    = (attrs.package_type         as string)?.trim()   || "";
@@ -3143,6 +3362,9 @@ export default function BuyPackagesPage() {
     (lineDialog.lock?.subgroupCode === "flameproof") ||
     (selectedGroupCode === "motors" && selectedSubgroupCode === "flameproof");
   const isMotorMode = isNonFlameproofMotorMode || isFlameproofMotorMode;
+  const isPressureMode =
+    (lineDialog.lock?.subgroupCode === "pressure") ||
+    (selectedGroupCode === "instruments" && selectedSubgroupCode === "pressure");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -3361,6 +3583,15 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.motor_type as string)?.trim()) {
         toast({ title: "Motor Type is required", variant: "destructive" }); return;
+      }
+    } else if (isPressureMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.instrument_type as string)?.trim()) {
+        toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+      const areaClass = (ta.area_classification as string)?.trim();
+      if ((areaClass === "Zone 1" || areaClass === "Zone 2") && !(ta.certification as string)?.trim()) {
+        toast({ title: "Certification is required for Zone 1 / Zone 2", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -4156,6 +4387,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Motor Type to generate…"} />
+                  </div>
+                </>
+              ) : isPressureMode ? (
+                <>
+                  <PressureAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildPressureRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
                   </div>
                 </>
               ) : (
