@@ -3454,6 +3454,187 @@ function CablingAttrsForm({
   );
 }
 
+// ── Junction Box requirement builder ─────────────────────────────────────────
+const JB_TYPE_OPTS        = ["Field Junction Box","Instrument Junction Box","Marshalling Box","Control Junction Box","Explosion Proof Junction Box","Other"];
+const JB_ENCLOSURE_OPTS   = ["Indoor","Outdoor","Weatherproof","Flameproof","Other"];
+const JB_MOUNTING_OPTS    = ["Wall Mounted","Structure Mounted","Pole Mounted","Other"];
+const JB_IP_OPTS          = ["IP54","IP55","IP65","IP66","IP67","Other"];
+const JB_MATERIAL_OPTS    = ["MS Powder Coated","SS304","SS316","Aluminum","FRP","Other"];
+const JB_TERMINALS_OPTS   = ["10","20","30","50","75","100","Other"];
+const JB_TERMINAL_TYPE    = ["Screw Type","Spring Clamp","Barrier Type","Other"];
+const JB_ENTRY_TYPE_OPTS  = ["Bottom Entry","Top Entry","Side Entry","Multi Side","Other"];
+const JB_GLAND_TYPE_OPTS  = ["Single Compression","Double Compression","Explosion Proof","Other"];
+const JB_GLAND_SIZE_OPTS  = ["M16","M20","M25","M32","M40","M50","M63","Other"];
+const JB_AREA_OPTS        = ["Safe Area","Zone 1","Zone 2"];
+const JB_CERT_OPTS        = ["CE","ATEX","IECEx","PESO","Other"];
+const JB_EARTHING_OPTS    = ["Internal Earthing","External Earthing","Both"];
+const JB_ACCESSORIES      = ["Glands","Lugs","Terminal Blocks","Mounting Brackets","Labels","Other"];
+const JB_VENDOR_CHIPS     = ["Hensel","Rittal","Pepperl+Fuchs","R.Stahl","Eaton","ABB","Baliga","Apex","Clifford","Flameproof Enclosures"];
+
+function buildJunctionBoxRequirement(attrs: Record<string, unknown>): string {
+  const jbType   = (attrs.jb_type            as string)?.trim() || "";
+  const mat      = (attrs.enclosure_material  as string)?.trim() || "";
+  const ip       = (attrs.ip_rating           as string)?.trim() || "";
+  const lenMM    = (attrs.length_mm           as string)?.trim() || "";
+  const widMM    = (attrs.width_mm            as string)?.trim() || "";
+  const depMM    = (attrs.depth_mm            as string)?.trim() || "";
+  const terms    = (attrs.num_terminals       as string)?.trim() || "";
+  const entries  = (attrs.num_cable_entries   as string)?.trim() || "";
+  const glands   = (attrs.num_glands          as string)?.trim() || "";
+  const glandSz  = (attrs.gland_size          as string)?.trim() || "";
+  const area     = (attrs.area_classification as string)?.trim() || "";
+  const parts: string[] = [];
+  if (jbType)  parts.push(jbType);
+  if (mat)     parts.push(mat);
+  if (ip)      parts.push(ip);
+  if (lenMM && widMM && depMM) parts.push(`${lenMM}×${widMM}×${depMM} mm`);
+  if (terms)   parts.push(`${terms} Terminals`);
+  if (entries) parts.push(`${entries} Entries`);
+  if (glands)  parts.push(glandSz ? `${glands} Glands ${glandSz}` : `${glands} Glands`);
+  if (area)    parts.push(area);
+  return parts.join(", ");
+}
+
+function JunctionBoxAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (k: string, v: unknown) => onChange({ ...attrs, [k]: v });
+  const encType = (attrs.enclosure_type as string) ?? "";
+
+  const selectedAcc: string[] = ((attrs.accessories as string) ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+  const toggleAcc = (chip: string) => {
+    const next = selectedAcc.includes(chip)
+      ? selectedAcc.filter(a => a !== chip)
+      : [...selectedAcc, chip];
+    set("accessories", next.join(", "));
+  };
+
+  const selectedVendors: string[] = ((attrs.approved_makes as string) ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+  const toggleVendor = (chip: string) => {
+    const next = selectedVendors.includes(chip)
+      ? selectedVendors.filter(v => v !== chip)
+      : [...selectedVendors, chip];
+    set("approved_makes", next.join(", "));
+  };
+
+  const sec = (title: string) => (
+    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-2 border-b pb-1 mt-1">{title}</p>
+  );
+  const ss = (key: string, label: string, opts: string[], required = false) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <SearchableSelect options={opts} value={(attrs[key] as string) ?? ""}
+        onSelect={(v) => set(key, v === "__other__" ? "" : v)}
+        placeholder={`Select ${label}…`} />
+    </div>
+  );
+  const num = (key: string, label: string, required = false) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <Input className="h-8 text-sm" type="number" min="0" step="1"
+        value={(attrs[key] as string) ?? ""}
+        onChange={(e) => set(key, e.target.value)} />
+    </div>
+  );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Junction Box Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Type")}
+        {ss("jb_type", "Junction Box Type", JB_TYPE_OPTS, true)}
+        <div />
+
+        {sec("Enclosure")}
+        {ss("enclosure_type",     "Enclosure Type",     JB_ENCLOSURE_OPTS)}
+        {ss("mounting",           "Mounting",           JB_MOUNTING_OPTS)}
+        {ss("ip_rating",          "IP Rating",          JB_IP_OPTS, encType === "Outdoor" || encType === "Weatherproof")}
+        {ss("enclosure_material", "Enclosure Material", JB_MATERIAL_OPTS, true)}
+
+        {sec("Dimensions (mm)")}
+        {num("length_mm", "Length (mm)", true)}
+        {num("width_mm",  "Width (mm)",  true)}
+        {num("depth_mm",  "Depth (mm)",  true)}
+        <div />
+
+        {sec("Termination")}
+        {ss("num_terminals",  "Number of Terminals", JB_TERMINALS_OPTS)}
+        {ss("terminal_type",  "Terminal Type",       JB_TERMINAL_TYPE)}
+
+        {sec("Cable Entry & Glands")}
+        {num("num_cable_entries", "Number of Cable Entries")}
+        {num("num_glands",        "Number of Glands")}
+        {ss("cable_entry_type", "Cable Entry Type", JB_ENTRY_TYPE_OPTS)}
+        {ss("cable_gland_type", "Cable Gland Type", JB_GLAND_TYPE_OPTS)}
+        {ss("gland_size",       "Gland Size",       JB_GLAND_SIZE_OPTS)}
+        <div />
+
+        {sec("Area / Certification")}
+        {ss("area_classification", "Area Classification", JB_AREA_OPTS, encType === "Flameproof")}
+        {ss("certification",       "Certification",       JB_CERT_OPTS)}
+
+        {sec("Earthing / Accessories")}
+        {ss("earthing", "Earthing", JB_EARTHING_OPTS)}
+        <div />
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Accessories</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {JB_ACCESSORIES.map(chip => (
+              <button key={chip} type="button" onClick={() => toggleAcc(chip)}
+                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  selectedAcc.includes(chip)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary"
+                }`}>{chip}</button>
+            ))}
+          </div>
+          {selectedAcc.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">Selected: {selectedAcc.join(", ")}</p>
+          )}
+        </div>
+
+        {sec("Approved Makes")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Approved Makes</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {JB_VENDOR_CHIPS.map(chip => (
+              <button key={chip} type="button" onClick={() => toggleVendor(chip)}
+                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  selectedVendors.includes(chip)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary"
+                }`}>{chip}</button>
+            ))}
+          </div>
+          {selectedVendors.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
+          )}
+          <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
+            value={(attrs.approved_makes_other as string) ?? ""}
+            onChange={(e) => set("approved_makes_other", e.target.value)} />
+        </div>
+
+        {sec("Quantity")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+        <div />
+
+      </div>
+    </div>
+  );
+}
+
 // ── Cooling Tower requirement builder ────────────────────────────────────────
 const CT_TYPE_OPTS         = ["Induced Draft","Forced Draft","Cross Flow","Counter Flow","Other"];
 const CT_CONSTRUCTION_OPTS = ["FRP","RCC","Steel","Other"];
@@ -5053,6 +5234,9 @@ export default function BuyPackagesPage() {
   const isCoolingTowerMode =
     (lineDialog.lock?.subgroupCode === "cooling_tower") ||
     (selectedGroupCode === "bought_out_packages" && selectedSubgroupCode === "cooling_tower");
+  const isJunctionBoxMode =
+    (lineDialog.lock?.subgroupCode === "junction_box") ||
+    (selectedGroupCode === "electrical_control" && selectedSubgroupCode === "junction_box");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -5391,6 +5575,28 @@ export default function BuyPackagesPage() {
       }
       if (!((ta.wet_bulb_temp as string) ?? "").trim()) {
         toast({ title: "Wet Bulb Temperature is required", variant: "destructive" }); return;
+      }
+    } else if (isJunctionBoxMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.jb_type as string)?.trim()) {
+        toast({ title: "Junction Box Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.enclosure_material as string)?.trim()) {
+        toast({ title: "Enclosure Material is required", variant: "destructive" }); return;
+      }
+      if (!((ta.length_mm as string) ?? "").trim() || !((ta.width_mm as string) ?? "").trim() || !((ta.depth_mm as string) ?? "").trim()) {
+        toast({ title: "All dimensions (L/W/D) are required", variant: "destructive" }); return;
+      }
+      const enc = (ta.enclosure_type as string)?.trim();
+      if ((enc === "Outdoor" || enc === "Weatherproof") && !(ta.ip_rating as string)?.trim()) {
+        toast({ title: "IP Rating is required for Outdoor/Weatherproof enclosure", variant: "destructive" }); return;
+      }
+      if (enc === "Flameproof" && !(ta.area_classification as string)?.trim()) {
+        toast({ title: "Area Classification is required for Flameproof enclosure", variant: "destructive" }); return;
+      }
+      const ng = parseFloat((ta.num_glands as string) ?? "0");
+      if (ng > 0 && !(ta.gland_size as string)?.trim()) {
+        toast({ title: "Gland Size is required when Number of Glands > 0", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -6262,6 +6468,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isJunctionBoxMode ? (
+                <>
+                  <JunctionBoxAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildJunctionBoxRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Select JB Type and fill dimensions to generate…"} />
                   </div>
                 </>
               ) : isCoolingTowerMode ? (

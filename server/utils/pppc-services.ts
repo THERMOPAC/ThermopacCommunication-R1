@@ -127,9 +127,10 @@ export const PPPC_SEED_GROUPS: SeedGroup[] = [
     code: 'electrical_control', label: 'Electrical / Control', sortOrder: 6,
     subgroups: [
       { code: 'panels',      label: 'Panels',      sortOrder: 1 },
-      { code: 'components',  label: 'Components',  sortOrder: 2 },
-      { code: 'field_items', label: 'Field Items', sortOrder: 3 },
-      { code: 'cabling',     label: 'Cabling',     sortOrder: 4 },
+      { code: 'components',    label: 'Components',    sortOrder: 2 },
+      { code: 'field_items',  label: 'Field Items',  sortOrder: 3 },
+      { code: 'cabling',      label: 'Cabling',      sortOrder: 4 },
+      { code: 'junction_box', label: 'Junction Box', sortOrder: 5 },
     ],
   },
   {
