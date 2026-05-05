@@ -1,5 +1,4 @@
 import { useState, Fragment, useCallback } from "react";
-import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -19,9 +19,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
-  CheckCircle2, Archive, Edit2, Loader2, Search, ExternalLink,
+  CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle,
 } from "lucide-react";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -38,6 +39,58 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   draft:    { label: "Draft",    cls: "bg-slate-100 text-slate-700 border border-slate-200" },
   active:   { label: "Active",   cls: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
   archived: { label: "Archived", cls: "bg-orange-100 text-orange-800 border border-orange-200" },
+};
+
+// ── Technical attribute field definitions (verbatim from baseline) ─────────────
+type TAField = { key: string; label: string; type: "text" | "number" | "boolean" };
+const TA_FIELDS: Record<string, TAField[]> = {
+  pumps: [
+    { key: "flow_m3hr",        label: "Flow Rate (m³/hr)",    type: "number" },
+    { key: "head_m",           label: "Head (m)",              type: "number" },
+    { key: "fluid",            label: "Fluid",                 type: "text"   },
+    { key: "operating_temp_c", label: "Operating Temp (°C)",   type: "number" },
+    { key: "moc",              label: "MOC",                   type: "text"   },
+    { key: "seal_type",        label: "Seal Type",             type: "text"   },
+    { key: "mounting",         label: "Mounting",              type: "text"   },
+    { key: "motor_coupling",   label: "Motor Coupling",        type: "boolean"},
+    { key: "duty_class",       label: "Duty Class",            type: "text"   },
+  ],
+  motors: [
+    { key: "kw",                 label: "Power (kW)",           type: "number" },
+    { key: "hp",                 label: "Power (HP)",           type: "number" },
+    { key: "voltage_v",          label: "Voltage (V)",          type: "number" },
+    { key: "phase",              label: "Phase",                type: "text"   },
+    { key: "frequency_hz",       label: "Frequency (Hz)",       type: "number" },
+    { key: "rpm",                label: "RPM",                  type: "number" },
+    { key: "duty",               label: "Duty",                 type: "text"   },
+    { key: "mounting",           label: "Mounting",             type: "text"   },
+    { key: "ip_rating",          label: "IP Rating",            type: "text"   },
+    { key: "area_classification",label: "Area Classification",  type: "text"   },
+    { key: "efficiency_class",   label: "Efficiency Class",     type: "text"   },
+  ],
+  instruments: [
+    { key: "measurement_type",    label: "Measurement Type",    type: "text"   },
+    { key: "range_min",           label: "Range Min",           type: "number" },
+    { key: "range_max",           label: "Range Max",           type: "number" },
+    { key: "range_unit",          label: "Range Unit",          type: "text"   },
+    { key: "process_fluid",       label: "Process Fluid",       type: "text"   },
+    { key: "connection_size_mm",  label: "Connection Size (mm)",type: "number" },
+  ],
+  valves: [
+    { key: "valve_type",    label: "Valve Type",    type: "text"   },
+    { key: "size_mm",       label: "Size (mm)",     type: "number" },
+    { key: "rating_class",  label: "Rating Class",  type: "text"   },
+    { key: "end_connection",label: "End Connection",type: "text"   },
+    { key: "moc_body",      label: "MOC Body",      type: "text"   },
+    { key: "moc_trim",      label: "MOC Trim",      type: "text"   },
+  ],
+  electrical_control: [
+    { key: "panel_type",          label: "Panel Type",         type: "text"   },
+    { key: "voltage_v",           label: "Voltage (V)",        type: "number" },
+    { key: "phase",               label: "Phase",              type: "text"   },
+    { key: "ip_rating",           label: "IP Rating",          type: "text"   },
+    { key: "enclosure_material",  label: "Enclosure Material", type: "text"   },
+  ],
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -58,8 +111,199 @@ interface PackageLine {
   inspection_required: boolean; certificate_required: boolean; compliance_required: boolean;
   notes: string | null; sort_order: number;
 }
-interface BuyGroup { id: number; code: string; label: string; sortOrder: number; }
-interface Product  { id: number; productCode: string; description: string; makeOrBuy: string; parentId: number | null; isGrandparent: boolean; }
+interface BuyGroup    { id: number; code: string; label: string; sortOrder: number; }
+interface BuySubgroup { id: number; buy_group_id: number; code: string; label: string; }
+interface UomMaster   { id: number; code: string; label: string; }
+interface Product     { id: number; productCode: string; description: string; makeOrBuy: string; parentId: number | null; isGrandparent: boolean; }
+
+// ── Group lines by BUY Group → Subgroup ──────────────────────────────────────
+function groupLines(lines: PackageLine[]) {
+  const groupMap = new Map<number, {
+    groupId: number; groupCode: string; groupLabel: string;
+    subgroups: Map<number, { subgroupId: number; subgroupCode: string; subgroupLabel: string; lines: PackageLine[] }>;
+  }>();
+  for (const line of lines) {
+    if (!groupMap.has(line.buy_group_id)) {
+      groupMap.set(line.buy_group_id, { groupId: line.buy_group_id, groupCode: line.buy_group_code, groupLabel: line.buy_group_label, subgroups: new Map() });
+    }
+    const grp = groupMap.get(line.buy_group_id)!;
+    if (!grp.subgroups.has(line.buy_subgroup_id)) {
+      grp.subgroups.set(line.buy_subgroup_id, { subgroupId: line.buy_subgroup_id, subgroupCode: line.buy_subgroup_code, subgroupLabel: line.buy_subgroup_label, lines: [] });
+    }
+    grp.subgroups.get(line.buy_subgroup_id)!.lines.push(line);
+  }
+  return Array.from(groupMap.values()).map((g) => ({ ...g, subgroups: Array.from(g.subgroups.values()) }));
+}
+
+// ── Plates requirement builder ────────────────────────────────────────────────
+function buildPlatesRequirement(attrs: Record<string, unknown>): string {
+  const plateType    = (attrs.plate_type     as string)?.trim() || "";
+  const grade        = (attrs.material_grade as string)?.trim() || "";
+  const standard     = (attrs.standard       as string)?.trim() || "";
+  const thick        = attrs.thickness_mm ? `${attrs.thickness_mm}mm Thk` : "";
+  const width        = attrs.width_mm      ? `${attrs.width_mm}mm W`      : "";
+  const length       = attrs.length_mm     ? `${attrs.length_mm}mm L`     : "";
+
+  const prefix = [plateType, "Plate"].filter(Boolean).join(" ");
+  const spec   = [standard, grade].filter(Boolean).join(" ");
+  const dims   = [thick, width, length].filter(Boolean).join(" x ");
+
+  let result = [prefix, spec].filter(Boolean).join(" ");
+  if (dims) result += (result ? ", " : "") + dims;
+  return result;
+}
+
+// ── Plates structured form ────────────────────────────────────────────────────
+function PlatesAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plate Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Plate Type <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" placeholder="e.g. MS, SS 304, Chequered"
+            value={(attrs.plate_type as string) ?? ""}
+            onChange={(e) => set("plate_type", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Material Grade</Label>
+          <Input
+            className="h-8 text-sm" placeholder="e.g. E250, E350, 304L"
+            value={(attrs.material_grade as string) ?? ""}
+            onChange={(e) => set("material_grade", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Thickness (mm) <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" type="number" placeholder="e.g. 10"
+            value={(attrs.thickness_mm as string) ?? ""}
+            onChange={(e) => set("thickness_mm", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Width (mm)</Label>
+          <Input
+            className="h-8 text-sm" type="number" placeholder="e.g. 1500"
+            value={(attrs.width_mm as string) ?? ""}
+            onChange={(e) => set("width_mm", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Length (mm)</Label>
+          <Input
+            className="h-8 text-sm" type="number" placeholder="e.g. 3000"
+            value={(attrs.length_mm as string) ?? ""}
+            onChange={(e) => set("length_mm", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Standard</Label>
+          <Input
+            className="h-8 text-sm" placeholder="e.g. IS 2062, ASTM A36"
+            value={(attrs.standard as string) ?? ""}
+            onChange={(e) => set("standard", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty}
+            onChange={(e) => onQtyChange(e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Technical attributes form ─────────────────────────────────────────────────
+function TechnicalAttrsForm({
+  groupCode, attrs, onChange,
+}: { groupCode: string; attrs: Record<string, unknown>; onChange: (a: Record<string, unknown>) => void }) {
+  const fields = TA_FIELDS[groupCode];
+  if (!fields || fields.length === 0) return null;
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Technical Attributes</p>
+      <div className="grid grid-cols-2 gap-3">
+        {fields.map((f) => {
+          if (f.type === "boolean") {
+            return (
+              <div key={f.key} className="flex items-center gap-2">
+                <Checkbox
+                  id={`ta-${f.key}`}
+                  checked={Boolean(attrs[f.key])}
+                  onCheckedChange={(v) => onChange({ ...attrs, [f.key]: Boolean(v) })}
+                />
+                <Label htmlFor={`ta-${f.key}`} className="text-sm">{f.label}</Label>
+              </div>
+            );
+          }
+          return (
+            <div key={f.key} className="space-y-1">
+              <Label className="text-xs">{f.label}</Label>
+              <Input
+                type={f.type === "number" ? "number" : "text"}
+                value={(attrs[f.key] as string | number) ?? ""}
+                onChange={(e) => {
+                  const v = f.type === "number"
+                    ? (e.target.value === "" ? undefined : Number(e.target.value))
+                    : e.target.value;
+                  onChange({ ...attrs, [f.key]: v });
+                }}
+                className="h-8 text-sm"
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Flag badges ───────────────────────────────────────────────────────────────
+const FLAGS = [
+  { key: "selection_required",   short: "SEL"  },
+  { key: "datasheet_required",   short: "DS"   },
+  { key: "inspection_required",  short: "INSP" },
+  { key: "certificate_required", short: "CERT" },
+  { key: "compliance_required",  short: "COMP" },
+] as const;
+
+function FlagBadges({ line }: { line: PackageLine }) {
+  const active = FLAGS.filter((f) => line[f.key as keyof PackageLine]);
+  if (active.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {active.map((f) => (
+        <span key={f.key} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800">
+          {f.short}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ── Line form default ─────────────────────────────────────────────────────────
+const EMPTY_LINE = {
+  buyGroupId: "", buySubgroupId: "", uomId: "",
+  genericRequirement: "", defaultQuantity: "1", defaultSpecification: "",
+  selectionRequired: true, datasheetRequired: false, inspectionRequired: false,
+  certificateRequired: false, complianceRequired: false,
+  notes: "", technicalAttributes: {} as Record<string, unknown>,
+};
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function BuyPackagesPage() {
@@ -74,14 +318,23 @@ export default function BuyPackagesPage() {
   const [productFilter,  setProductFilter]  = useState<string>("all");
   const [search,         setSearch]         = useState("");
   const [expandedId,     setExpandedId]     = useState<number | null>(null);
+  const [activeGroupTab, setActiveGroupTab] = useState<Record<number, string>>({});
+
 
   // Dialogs
-  const [showCreate, setShowCreate] = useState(false);
-  const [editPkg,    setEditPkg]    = useState<BuyPackage | null>(null);
+  const [showCreate, setShowCreate]     = useState(false);
+  const [editPkg,    setEditPkg]        = useState<BuyPackage | null>(null);
+  const [lineDialog, setLineDialog]     = useState<{
+    open: boolean; pkgId: number; pkgStatus: string; editLine: PackageLine | null;
+    lock: { groupId: string; groupCode: string; groupLabel: string; subgroupId: string; subgroupCode: string; subgroupLabel: string } | null;
+  }>({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null });
 
   // Header form
   const [hdr, setHdr] = useState({ productId: "", packageCode: "", name: "", description: "" });
   const [codeLoading, setCodeLoading] = useState(false);
+
+  // Line form
+  const [lf, setLf] = useState({ ...EMPTY_LINE });
 
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: packages = [], isLoading: pkgLoad } = useQuery<BuyPackage[]>({
@@ -96,6 +349,30 @@ export default function BuyPackagesPage() {
   });
 
   const { data: groups = [] } = useQuery<BuyGroup[]>({ queryKey: ["/api/buy-groups"] });
+
+  const { data: subgroups = [] } = useQuery<BuySubgroup[]>({
+    queryKey: ["/api/buy-groups", lf.buyGroupId, "subgroups"],
+    queryFn: () =>
+      fetch(`/api/buy-groups/${lf.buyGroupId}/subgroups`, { credentials: "include" }).then((r) => r.json()),
+    enabled: !!lf.buyGroupId,
+  });
+
+  const { data: allSubgroups = [] } = useQuery<BuySubgroup[]>({
+    queryKey: ["/api/buy-subgroups-all", groups.map((g) => g.id).join(",")],
+    queryFn: async () => {
+      if (groups.length === 0) return [];
+      const results = await Promise.all(
+        groups.map((g) =>
+          fetch(`/api/buy-groups/${g.id}/subgroups`, { credentials: "include" }).then((r) => r.json()),
+        ),
+      );
+      return (results as BuySubgroup[][]).flat();
+    },
+    enabled: groups.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: uoms = [] } = useQuery<UomMaster[]>({ queryKey: ["/api/uom-master"] });
 
   const { data: allProducts = [] } = useQuery<Product[]>({
     queryKey: ["/api/sales-marketing/products"],
@@ -118,8 +395,18 @@ export default function BuyPackagesPage() {
     return true;
   });
 
+  const selectedGroupCode    = groups.find((g)   => String(g.id) === String(lf.buyGroupId))?.code    ?? "";
+  const selectedSubgroupCode = subgroups.find((s) => String(s.id) === String(lf.buySubgroupId))?.code ?? "";
+  const isPlatesMode =
+    (lineDialog.lock?.subgroupCode === "plates") ||
+    (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "plates");
+
   // ── Invalidation helpers ──────────────────────────────────────────────────────
-  const invalidatePkgs = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
+  const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
+  const invalidateLines = (pid: number) => {
+    queryClient.invalidateQueries({ queryKey: ["/api/buy-packages", pid, "lines"] });
+    invalidatePkgs();
+  };
 
   // ── Mutations ─────────────────────────────────────────────────────────────────
   const createPkg = useMutation({
@@ -143,6 +430,35 @@ export default function BuyPackagesPage() {
   const archivePkg = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/buy-packages/${id}/archive`, {}),
     onSuccess: () => { toast({ title: "Package archived" }); invalidatePkgs(); },
+    onError:   (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const addLineMutation = useMutation({
+    mutationFn: ({ pkgId, body }: { pkgId: number; body: object }) =>
+      apiRequest("POST", `/api/buy-packages/${pkgId}/lines`, body),
+    onSuccess: (_, v) => {
+      toast({ title: "Line added" });
+      setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null });
+      invalidateLines(v.pkgId);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const editLineMutation = useMutation({
+    mutationFn: ({ lineId, pkgId, body }: { lineId: number; pkgId: number; body: object }) =>
+      apiRequest("PATCH", `/api/buy-package-lines/${lineId}`, body),
+    onSuccess: (_, v) => {
+      toast({ title: "Line updated" });
+      setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null });
+      invalidateLines(v.pkgId);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteLineMutation = useMutation({
+    mutationFn: ({ lineId }: { lineId: number }) =>
+      apiRequest("DELETE", `/api/buy-package-lines/${lineId}`, undefined),
+    onSuccess: () => { toast({ title: "Line deleted" }); if (expandedId) invalidateLines(expandedId); },
     onError:   (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -173,6 +489,39 @@ export default function BuyPackagesPage() {
     setEditPkg(pkg);
   }
 
+  function openAddLine(pkg: BuyPackage) {
+    setLf({ ...EMPTY_LINE });
+    setLineDialog({ open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null, lock: null });
+  }
+
+  function openAddLineForSubgroup(
+    pkg: BuyPackage,
+    groupId: number, groupCode: string, groupLabel: string,
+    subgroupId: number, subgroupCode: string, subgroupLabel: string,
+  ) {
+    setLf({ ...EMPTY_LINE, buyGroupId: String(groupId), buySubgroupId: String(subgroupId) });
+    setLineDialog({
+      open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null,
+      lock: { groupId: String(groupId), groupCode, groupLabel, subgroupId: String(subgroupId), subgroupCode, subgroupLabel },
+    });
+  }
+
+  function openEditLine(pkg: BuyPackage, line: PackageLine) {
+    setLf({
+      buyGroupId: String(line.buy_group_id), buySubgroupId: String(line.buy_subgroup_id), uomId: String(line.uom_id),
+      genericRequirement: line.generic_requirement, defaultQuantity: line.default_quantity,
+      defaultSpecification: line.default_specification ?? "",
+      selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
+      inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
+      complianceRequired: line.compliance_required, notes: line.notes ?? "",
+      technicalAttributes: (line.technical_attributes ?? {}) as Record<string, unknown>,
+    });
+    setLineDialog({
+      open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: line,
+      lock: { groupId: String(line.buy_group_id), groupCode: line.buy_group_code, groupLabel: line.buy_group_label, subgroupId: String(line.buy_subgroup_id), subgroupCode: line.buy_subgroup_code, subgroupLabel: line.buy_subgroup_label },
+    });
+  }
+
   function submitHeader(isEdit: boolean) {
     if (!hdr.productId || !hdr.packageCode || !hdr.name) {
       toast({ title: "Product, package code, and name are required", variant: "destructive" }); return;
@@ -187,6 +536,41 @@ export default function BuyPackagesPage() {
       patchPkg.mutate({ id: editPkg.id, body: { name: body.name, description: body.description } });
     } else {
       createPkg.mutate(body);
+    }
+  }
+
+  function submitLine() {
+    const { editLine, pkgId } = lineDialog;
+    if (!lf.buyGroupId || !lf.buySubgroupId || !lf.uomId) {
+      toast({ title: "Group, subgroup, and UOM are required", variant: "destructive" }); return;
+    }
+    if (isPlatesMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.plate_type as string)?.trim() || !(ta.thickness_mm)) {
+        toast({ title: "Plate Type and Thickness are required", variant: "destructive" }); return;
+      }
+    } else if (!lf.genericRequirement.trim()) {
+      toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
+    }
+    const body = {
+      buyGroupId:           Number(lf.buyGroupId),
+      buySubgroupId:        Number(lf.buySubgroupId),
+      uomId:                Number(lf.uomId),
+      genericRequirement:   lf.genericRequirement.trim(),
+      defaultQuantity:      lf.defaultQuantity,
+      defaultSpecification: lf.defaultSpecification.trim() || null,
+      selectionRequired:    lf.selectionRequired,
+      datasheetRequired:    lf.datasheetRequired,
+      inspectionRequired:   lf.inspectionRequired,
+      certificateRequired:  lf.certificateRequired,
+      complianceRequired:   lf.complianceRequired,
+      notes:                lf.notes.trim() || null,
+      technicalAttributes:  Object.keys(lf.technicalAttributes).length > 0 ? lf.technicalAttributes : null,
+    };
+    if (editLine) {
+      editLineMutation.mutate({ lineId: editLine.id, pkgId, body });
+    } else {
+      addLineMutation.mutate({ pkgId, body });
     }
   }
 
@@ -329,11 +713,6 @@ export default function BuyPackagesPage() {
                         </TableCell>
                         <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
-                            <Link href={`/products/buy-packages/${pkg.id}/lines`}>
-                              <Button variant="outline" size="sm" className="gap-1 text-primary border-primary/30 hover:bg-primary/5">
-                                <ExternalLink className="h-3.5 w-3.5" /> View Lines
-                              </Button>
-                            </Link>
                             {canWrite && pkg.status === "draft" && (
                               <Button variant="ghost" size="sm" onClick={() => openEdit(pkg)}>
                                 <Edit2 className="h-4 w-4" />
@@ -363,39 +742,143 @@ export default function BuyPackagesPage() {
                         </TableCell>
                       </TableRow>
 
-                      {/* Expanded summary — compact line count breakdown per group */}
+                      {/* Expanded lines — all groups as cards, all subgroups as rows */}
                       {isExpanded && (() => {
-                        const linesMap = new Map<number, number>();
+                        // Build lines lookup: groupId → subgroupId → lines[]
+                        const linesMap = new Map<number, Map<number, PackageLine[]>>();
                         for (const line of expandedLines) {
-                          linesMap.set(line.buy_group_id, (linesMap.get(line.buy_group_id) ?? 0) + 1);
+                          if (!linesMap.has(line.buy_group_id)) linesMap.set(line.buy_group_id, new Map());
+                          const gm = linesMap.get(line.buy_group_id)!;
+                          if (!gm.has(line.buy_subgroup_id)) gm.set(line.buy_subgroup_id, []);
+                          gm.get(line.buy_subgroup_id)!.push(line);
                         }
-                        const populatedGroups = groups.filter((g) => (linesMap.get(g.id) ?? 0) > 0);
+                        // Build group→subgroups structure from master data
+                        const catalog = groups.map((g) => ({
+                          ...g,
+                          subgroups: allSubgroups.filter((s) => s.buy_group_id === g.id),
+                        }));
 
                         return (
                           <TableRow className="hover:bg-transparent">
                             <TableCell colSpan={8} className="p-0 bg-muted/20 border-t">
-                              <div className="px-6 py-3 flex items-center gap-4 flex-wrap">
-                                {linesLoad ? (
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+                              <div className="px-6 py-5 space-y-4">
+
+                                {/* Section title */}
+                                <h4 className="text-sm font-semibold text-foreground">
+                                  Package Lines — <span className="font-mono text-xs text-muted-foreground">{pkg.packageCode}</span>
+                                </h4>
+
+                                {linesLoad || allSubgroups.length === 0 ? (
+                                  <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Loading…
                                   </div>
-                                ) : populatedGroups.length === 0 ? (
-                                  <span className="text-sm text-muted-foreground">No lines added yet.</span>
-                                ) : (
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    {populatedGroups.map((g) => (
-                                      <span key={g.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
-                                        {g.label}
-                                        <span className="font-bold">{linesMap.get(g.id)}</span>
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                <Link href={`/products/buy-packages/${pkg.id}/lines`} onClick={(e) => e.stopPropagation()}>
-                                  <Button size="sm" variant="outline" className="gap-1.5 ml-auto h-7 text-xs">
-                                    <ExternalLink className="h-3 w-3" /> Manage Lines
-                                  </Button>
-                                </Link>
+                                ) : (() => {
+                                  const tabVal = activeGroupTab[pkg.id] ?? String(catalog[0]?.id ?? "");
+                                  return (
+                                    <Tabs
+                                      value={tabVal}
+                                      onValueChange={(v) => setActiveGroupTab((prev) => ({ ...prev, [pkg.id]: v }))}
+                                    >
+                                      {/* Tab strip — one trigger per BUY Group */}
+                                      <TabsList className="flex-wrap h-auto gap-1 bg-muted/50 p-1">
+                                        {catalog.map((grp) => {
+                                          const grpLineCount = Array.from(linesMap.get(grp.id)?.values() ?? []).reduce((a, v) => a + v.length, 0);
+                                          return (
+                                            <TabsTrigger
+                                              key={grp.id}
+                                              value={String(grp.id)}
+                                              className="text-xs gap-1.5"
+                                            >
+                                              {grp.label}
+                                              {grpLineCount > 0 && (
+                                                <span className="ml-1 rounded-full bg-primary/15 text-primary px-1.5 py-0 text-[10px] font-semibold">
+                                                  {grpLineCount}
+                                                </span>
+                                              )}
+                                            </TabsTrigger>
+                                          );
+                                        })}
+                                      </TabsList>
+
+                                      {/* Tab panels — one per BUY Group */}
+                                      {catalog.map((grp) => {
+                                        const grpLinesMap = linesMap.get(grp.id);
+                                        return (
+                                          <TabsContent key={grp.id} value={String(grp.id)} className="mt-3">
+                                            <div className="rounded-lg border bg-card divide-y">
+                                              {grp.subgroups.map((sub) => {
+                                                const subLines = grpLinesMap?.get(sub.id) ?? [];
+                                                return (
+                                                  <div key={sub.id} className="px-4 py-3 space-y-2">
+                                                    {/* Subgroup header row */}
+                                                    <div className="flex items-center justify-between">
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium">{sub.label}</span>
+                                                        {subLines.length > 0 && (
+                                                          <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                                            {subLines.length} line{subLines.length !== 1 ? "s" : ""}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                      {canWrite && pkg.status === "draft" && (
+                                                        <Button
+                                                          size="sm" variant="outline"
+                                                          className="h-7 px-2 gap-1 text-xs"
+                                                          onClick={() => openAddLineForSubgroup(
+                                                            pkg,
+                                                            grp.id, grp.code, grp.label,
+                                                            sub.id, sub.code, sub.label,
+                                                          )}
+                                                        >
+                                                          <Plus className="h-3 w-3" /> Add Line
+                                                        </Button>
+                                                      )}
+                                                    </div>
+
+                                                    {/* Existing lines */}
+                                                    {subLines.length > 0 && (
+                                                      <div className="space-y-1 pl-3 border-l-2 border-primary/20">
+                                                        {subLines.map((line) => (
+                                                          <div key={line.id} className="flex items-start justify-between gap-2 text-xs">
+                                                            <div className="flex-1 min-w-0">
+                                                              <p className="text-foreground leading-snug" title={line.generic_requirement}>
+                                                                {line.generic_requirement}
+                                                              </p>
+                                                              <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                                                                  {line.default_quantity} {line.uom_code}
+                                                                </span>
+                                                                <FlagBadges line={line} />
+                                                              </div>
+                                                            </div>
+                                                            {canWrite && pkg.status === "draft" && (
+                                                              <div className="flex items-center shrink-0">
+                                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openEditLine(pkg, line)}>
+                                                                  <Edit2 className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                  variant="ghost" size="sm"
+                                                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                                                  onClick={() => { if (confirm("Delete this line?")) deleteLineMutation.mutate({ lineId: line.id }); }}
+                                                                >
+                                                                  <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          </TabsContent>
+                                        );
+                                      })}
+                                    </Tabs>
+                                  );
+                                })()}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -525,6 +1008,194 @@ export default function BuyPackagesPage() {
               <Button onClick={() => submitHeader(true)} disabled={patchPkg.isPending}>
                 {patchPkg.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Add / Edit Line Dialog ────────────────────────────────────────── */}
+        <Dialog
+          open={lineDialog.open}
+          onOpenChange={(o) => !o && setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null })}
+        >
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
+              <DialogDescription>
+                {lineDialog.lock
+                  ? <>Adding to <strong>{lineDialog.lock.groupLabel}</strong> → <strong>{lineDialog.lock.subgroupLabel}</strong></>
+                  : lineDialog.editLine ? "Modify this procurement line." : "Define a procurement requirement for this package."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+
+              {/* Group / Subgroup / UOM */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Group <span className="text-red-500">*</span></Label>
+                  {lineDialog.lock ? (
+                    <div className="h-9 px-3 flex items-center text-sm bg-muted rounded-md border font-medium">
+                      {lineDialog.lock.groupLabel}
+                    </div>
+                  ) : (
+                    <Select
+                      value={lf.buyGroupId}
+                      onValueChange={(v) => setLf((f) => ({ ...f, buyGroupId: v, buySubgroupId: "", technicalAttributes: {}, genericRequirement: "" }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                      <SelectContent>
+                        {groups.map((g) => <SelectItem key={g.id} value={String(g.id)}>{g.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Subgroup <span className="text-red-500">*</span></Label>
+                  {lineDialog.lock ? (
+                    <div className="h-9 px-3 flex items-center text-sm bg-muted rounded-md border">
+                      {lineDialog.lock.subgroupLabel}
+                    </div>
+                  ) : (
+                    <Select
+                      value={lf.buySubgroupId}
+                      onValueChange={(v) => setLf((f) => ({ ...f, buySubgroupId: v, technicalAttributes: {}, genericRequirement: "" }))}
+                      disabled={!lf.buyGroupId}
+                    >
+                      <SelectTrigger><SelectValue placeholder={lf.buyGroupId ? "Select…" : "Pick group first"} /></SelectTrigger>
+                      <SelectContent>
+                        {subgroups.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>UOM <span className="text-red-500">*</span></Label>
+                  <Select value={lf.uomId} onValueChange={(v) => setLf((f) => ({ ...f, uomId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      {uoms.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.code} — {u.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Plates mode: structured plate fields + auto-generated requirement */}
+              {isPlatesMode ? (
+                <>
+                  <PlatesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildPlatesRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  {/* Auto-generated Generic Requirement */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated from fields above)</span>
+                    </Label>
+                    <Input
+                      readOnly
+                      className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Plate Type and Thickness to generate…"}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Requirement + Qty */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="col-span-3 space-y-1.5">
+                      <Label>Generic Requirement <span className="text-red-500">*</span></Label>
+                      <Input
+                        placeholder="e.g. Feed Pump, Suction Strainer"
+                        value={lf.genericRequirement}
+                        onChange={(e) => setLf((f) => ({ ...f, genericRequirement: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Default Qty</Label>
+                      <Input
+                        type="number" min="0.01" step="0.01"
+                        value={lf.defaultQuantity}
+                        onChange={(e) => setLf((f) => ({ ...f, defaultQuantity: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Default Specification */}
+                  <div className="space-y-1.5">
+                    <Label>Default Specification</Label>
+                    <Textarea
+                      placeholder="Optional technical specification…"
+                      value={lf.defaultSpecification}
+                      onChange={(e) => setLf((f) => ({ ...f, defaultSpecification: e.target.value }))}
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Group-specific Technical Attributes */}
+                  {selectedGroupCode && (
+                    <TechnicalAttrsForm
+                      groupCode={selectedGroupCode}
+                      attrs={lf.technicalAttributes}
+                      onChange={(attrs) => setLf((f) => ({ ...f, technicalAttributes: attrs }))}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* Required Flags */}
+              <div className="space-y-2 rounded-md border p-3 bg-muted/30">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Required Flags</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { key: "selectionRequired",   label: "Selection Required" },
+                    { key: "datasheetRequired",   label: "Datasheet Required" },
+                    { key: "inspectionRequired",  label: "Inspection Required" },
+                    { key: "certificateRequired", label: "Certificate Required" },
+                    { key: "complianceRequired",  label: "Compliance Required" },
+                  ].map((flag) => (
+                    <div key={flag.key} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`fl-${flag.key}`}
+                        checked={lf[flag.key as keyof typeof lf] as boolean}
+                        onCheckedChange={(v) => setLf((f) => ({ ...f, [flag.key]: Boolean(v) }))}
+                      />
+                      <Label htmlFor={`fl-${flag.key}`} className="text-sm">{flag.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1.5">
+                <Label>Notes</Label>
+                <Textarea
+                  placeholder="Optional notes…"
+                  value={lf.notes}
+                  onChange={(e) => setLf((f) => ({ ...f, notes: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null })}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={submitLine}
+                disabled={addLineMutation.isPending || editLineMutation.isPending}
+              >
+                {(addLineMutation.isPending || editLineMutation.isPending) && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                {lineDialog.editLine ? "Save Changes" : "Add Line"}
               </Button>
             </DialogFooter>
           </DialogContent>
