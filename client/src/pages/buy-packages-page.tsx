@@ -3454,6 +3454,205 @@ function CablingAttrsForm({
   );
 }
 
+// ── Bought-out Package requirement builder ────────────────────────────────────
+const BOUGHT_OUT_PKG_TYPE_OPTS = [
+  "Pump Skid Package","Vacuum System","Dosing System","Filtration Unit",
+  "Heat Exchanger Package","Compressor Package","Utility Skid","Other",
+];
+const BOUGHT_OUT_CAPACITY_OPTS = [
+  "1 m³/hr","5 m³/hr","10 m³/hr","20 m³/hr","50 m³/hr","100 m³/hr","Other",
+];
+const BOUGHT_OUT_DUTY_OPTS     = ["Continuous","Intermittent","Standby"];
+const BOUGHT_OUT_UNITS_OPTS    = ["1","2","3","4","Other"];
+const BOUGHT_OUT_CONFIG_OPTS   = [
+  "Single","Duty + Standby","2 Working + 1 Standby","Parallel","Other",
+];
+const BOUGHT_OUT_COMPONENTS    = [
+  "Pumps","Motors","Base Frame","Coupling","Control Panel",
+  "VFD","Instruments","Piping","Valves","Gauges","Flow Meter","Other",
+];
+const BOUGHT_OUT_FLUID_OPTS    = ["Water","Oil","Chemical","Slurry","Air","Gas","Other"];
+const BOUGHT_OUT_TEMP_OPTS     = ["Ambient","50°C","80°C","120°C","Other"];
+const BOUGHT_OUT_MATERIAL_OPTS = ["CS","SS304","SS316","Duplex","Other"];
+const BOUGHT_OUT_AREA_OPTS     = ["Safe Area","Zone 1","Zone 2"];
+const BOUGHT_OUT_CERT_OPTS     = ["CE","ATEX","IECEx","PESO","Other"];
+const BOUGHT_OUT_VENDOR_CHIPS  = [
+  "Flowserve","KSB","Sulzer","Grundfos","SPX Flow","Atlas Copco",
+  "Alfa Laval","Praj Industries","ISGEC","Thermax","HOWE-Baker","Samarth",
+];
+
+function buildBoughtOutRequirement(attrs: Record<string, unknown>): string {
+  const pkgType   = (attrs.package_type    as string)?.trim() || "";
+  const capacity  = (attrs.capacity        as string)?.trim() || "";
+  const config    = (attrs.configuration   as string)?.trim() || "";
+  const material  = (attrs.material_class  as string)?.trim() || "";
+  const compsRaw  = (attrs.package_components as string)?.trim() || "";
+  const parts: string[] = [];
+  if (pkgType)  parts.push(pkgType);
+  if (capacity) parts.push(capacity);
+  if (config)   parts.push(config);
+  if (material) parts.push(material);
+  if (compsRaw) {
+    const comps = compsRaw.split(",").map(s => s.trim()).filter(Boolean);
+    if (comps.length) parts.push("Includes " + comps.join(" + "));
+  }
+  return parts.join(", ");
+}
+
+function BoughtOutAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (k: string, v: unknown) => onChange({ ...attrs, [k]: v });
+
+  const selectedComps: string[] = ((attrs.package_components as string) ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+  const toggleComp = (chip: string) => {
+    const next = selectedComps.includes(chip)
+      ? selectedComps.filter(c => c !== chip)
+      : [...selectedComps, chip];
+    set("package_components", next.join(", "));
+  };
+
+  const selectedVendors: string[] = ((attrs.approved_vendors as string) ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+  const toggleVendor = (chip: string) => {
+    const next = selectedVendors.includes(chip)
+      ? selectedVendors.filter(v => v !== chip)
+      : [...selectedVendors, chip];
+    set("approved_vendors", next.join(", "));
+  };
+
+  const sec = (title: string) => (
+    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-2 border-b pb-1 mt-1">{title}</p>
+  );
+  const renderSS = (key: string, label: string, opts: string[], required = false) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
+      <SearchableSelect
+        options={opts.map(o => ({ value: o, label: o }))}
+        value={(attrs[key] as string) ?? ""}
+        onChange={(v) => {
+          if (v === "__other__") { set(key, ""); return; }
+          set(key, v);
+        }}
+        placeholder={`Select ${label}…`}
+      />
+      {(attrs[key] as string) === "" && (attrs[`${key}_other`] as string) !== undefined && (
+        <Input className="h-8 text-sm mt-1" placeholder="Specify…"
+          value={(attrs[`${key}_other`] as string) ?? ""}
+          onChange={(e) => set(`${key}_other`, e.target.value)} />
+      )}
+    </div>
+  );
+  const renderOtherText = (key: string, label: string, opts: string[]) => {
+    const val = (attrs[key] as string) ?? "";
+    const isOther = val === "" && opts.includes("Other");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}</Label>
+        <SearchableSelect
+          options={opts.map(o => ({ value: o, label: o }))}
+          value={val}
+          onChange={(v) => { if (v === "__other__") { set(key, ""); } else { set(key, v); } }}
+          placeholder={`Select ${label}…`}
+        />
+        {isOther && (
+          <Input className="h-8 text-sm mt-1" placeholder="Specify…"
+            value={(attrs[`${key}_other`] as string) ?? ""}
+            onChange={(e) => set(`${key}_other`, e.target.value)} />
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bought-out Package Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sec("Package Type")}
+        {renderSS("package_type", "Package Type", BOUGHT_OUT_PKG_TYPE_OPTS, true)}
+        <div />
+
+        {sec("Capacity / Duty")}
+        {renderOtherText("capacity", "Capacity", BOUGHT_OUT_CAPACITY_OPTS)}
+        {renderSS("duty_type", "Duty Type", BOUGHT_OUT_DUTY_OPTS)}
+
+        {sec("Configuration")}
+        {renderSS("number_of_units", "Number of Units", BOUGHT_OUT_UNITS_OPTS)}
+        {renderSS("configuration", "Configuration", BOUGHT_OUT_CONFIG_OPTS)}
+
+        {sec("Major Components")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Package Components <span className="text-red-500">*</span></Label>
+          <div className="flex flex-wrap gap-1.5">
+            {BOUGHT_OUT_COMPONENTS.map(chip => (
+              <button key={chip} type="button"
+                onClick={() => toggleComp(chip)}
+                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  selectedComps.includes(chip)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary"
+                }`}>{chip}</button>
+            ))}
+          </div>
+          {selectedComps.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">Selected: {selectedComps.join(", ")}</p>
+          )}
+        </div>
+
+        {sec("Operating Conditions")}
+        {renderSS("fluid_type", "Fluid Type", BOUGHT_OUT_FLUID_OPTS)}
+        {renderSS("operating_temperature", "Operating Temperature", BOUGHT_OUT_TEMP_OPTS)}
+
+        {sec("Construction")}
+        {renderSS("material_class", "Material Class", BOUGHT_OUT_MATERIAL_OPTS)}
+        <div />
+
+        {sec("Area / Compliance")}
+        {renderSS("area_classification", "Area Classification", BOUGHT_OUT_AREA_OPTS)}
+        {renderSS("certification", "Certification", BOUGHT_OUT_CERT_OPTS)}
+
+        {sec("Approved Package Vendors")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Approved Vendors</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {BOUGHT_OUT_VENDOR_CHIPS.map(chip => (
+              <button key={chip} type="button"
+                onClick={() => toggleVendor(chip)}
+                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  selectedVendors.includes(chip)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary"
+                }`}>{chip}</button>
+            ))}
+          </div>
+          {selectedVendors.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
+          )}
+          <Input className="h-8 text-sm" placeholder="Other vendors (comma-separated)…"
+            value={(attrs.approved_vendors_other as string) ?? ""}
+            onChange={(e) => set("approved_vendors_other", e.target.value)} />
+        </div>
+
+        {sec("Quantity")}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity (Systems) <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+        <div />
+
+      </div>
+    </div>
+  );
+}
+
 // ── Control Valve requirement builder ────────────────────────────────────────
 function buildControlValveRequirement(attrs: Record<string, unknown>): string {
   const valveType   = (attrs.valve_type        as string)?.trim() || "";
@@ -4689,6 +4888,9 @@ export default function BuyPackagesPage() {
   const isIsolationValveMode =
     (lineDialog.lock?.subgroupCode === "isolation") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "isolation");
+  const isBoughtOutMode =
+    (lineDialog.lock?.subgroupCode === "general" && lineDialog.lock?.groupCode === "bought_out_packages") ||
+    (selectedGroupCode === "bought_out_packages" && selectedSubgroupCode === "general");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -4999,6 +5201,17 @@ export default function BuyPackagesPage() {
       }
       if (!(ta.pressure_rating as string)?.trim()) {
         toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
+      }
+    } else if (isBoughtOutMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.package_type as string)?.trim()) {
+        toast({ title: "Package Type is required", variant: "destructive" }); return;
+      }
+      if (!((ta.package_components as string) ?? "").trim()) {
+        toast({ title: "At least one Package Component must be selected", variant: "destructive" }); return;
+      }
+      if (!((ta.capacity as string) ?? "").trim()) {
+        toast({ title: "Capacity is required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -5870,6 +6083,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isBoughtOutMode ? (
+                <>
+                  <BoughtOutAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildBoughtOutRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Select Package Type and Capacity to generate…"} />
                   </div>
                 </>
               ) : isCablingMode ? (
