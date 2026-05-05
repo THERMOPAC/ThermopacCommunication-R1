@@ -12,6 +12,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -23,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
+  ChevronsUpDown, Check,
 } from "lucide-react";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -247,6 +252,203 @@ function PlatesAttrsForm({
   );
 }
 
+// ── Pipes requirement builder ─────────────────────────────────────────────────
+function buildPipesRequirement(attrs: Record<string, unknown>): string {
+  const sectionType = (attrs.section_type  as string)?.trim() || "";
+  const matGrade    = (attrs.material_grade as string)?.trim() || "";
+  const lengthVal   = (attrs.length         as string)?.trim() || "";
+  const standard    = (attrs.standard       as string)?.trim() || "";
+
+  let sizePart = "";
+  if (sectionType === "Round Pipe") {
+    const nb  = attrs.nb_mm    ? `${attrs.nb_mm}NB`   : "";
+    const sch = (attrs.schedule as string)?.trim() || "";
+    sizePart = [nb, sch].filter(Boolean).join(" ");
+  } else if (sectionType === "Square Pipe") {
+    const sz  = (attrs.sq_size     as string)?.trim() || "";
+    const thk = attrs.thickness_mm ? `x${attrs.thickness_mm}mm` : "";
+    sizePart = sz ? `${sz}${thk}` : "";
+  } else if (sectionType === "Rectangular Pipe") {
+    const sz  = (attrs.rect_size   as string)?.trim() || "";
+    const thk = attrs.thickness_mm ? `x${attrs.thickness_mm}mm` : "";
+    sizePart = sz ? `${sz}${thk}` : "";
+  }
+
+  const label = sectionType || "Pipe";
+  const parts: string[] = [label];
+  if (sizePart) parts.push(sizePart);
+  const trailer = [matGrade, lengthVal ? `${lengthVal} length` : "", standard].filter(Boolean).join(", ");
+  let result = parts.join(" ");
+  if (trailer) result += (result ? ", " : "") + trailer;
+  return result;
+}
+
+// ── Pipes dropdown option lists ───────────────────────────────────────────────
+const PIPE_OPTS: Record<string, string[]> = {
+  section_type:   ["Round Pipe", "Square Pipe", "Rectangular Pipe", "Seamless", "ERW", "Welded", "GI", "MS", "SS"],
+  material_grade: ["ASTM A106 Gr B", "ASTM A53", "IS 1239", "IS 3589", "SS 304", "SS 316"],
+  nb_mm:          ["15", "20", "25", "32", "40", "50", "65", "80", "100", "150", "200", "250", "300"],
+  schedule:       ["Sch 10", "Sch 20", "Sch 40", "Sch 80", "Sch 160", "XS", "XXS"],
+  sq_size:        ["25x25", "40x40", "50x50", "75x75", "100x100", "150x150"],
+  rect_size:      ["50x25", "75x40", "100x50", "150x75", "200x100"],
+  thickness_mm:   ["1.6", "2", "3", "4", "5", "6", "8", "10"],
+  length:         ["3m", "6m", "12m", "Random"],
+  standard:       ["ASTM", "ASME", "IS", "DIN", "EN", "JIS"],
+};
+
+// ── Searchable combobox ───────────────────────────────────────────────────────
+function SearchableSelect({
+  value, options, placeholder, onSelect: onSelectProp,
+}: {
+  value: string;
+  options: string[];
+  placeholder?: string;
+  onSelect: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const displayVal = value === "__other__" ? "Other…" : value;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline" role="combobox"
+          className="h-8 text-sm justify-between font-normal w-full overflow-hidden"
+        >
+          <span className={displayVal ? "truncate" : "text-muted-foreground"}>
+            {displayVal || (placeholder ?? "Select…")}
+          </span>
+          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search…" className="h-8" />
+          <CommandList>
+            <CommandEmpty>No match.</CommandEmpty>
+            <CommandGroup>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt} value={opt}
+                  onSelect={() => { onSelectProp(opt); setOpen(false); }}
+                >
+                  <Check className={`mr-2 h-3.5 w-3.5 ${value === opt ? "opacity-100" : "opacity-0"}`} />
+                  {opt}
+                </CommandItem>
+              ))}
+              <CommandItem
+                key="__other__" value="Other…"
+                onSelect={() => { onSelectProp("__other__"); setOpen(false); }}
+              >
+                <Check className={`mr-2 h-3.5 w-3.5 ${value === "__other__" ? "opacity-100" : "opacity-0"}`} />
+                Other…
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── Pipes structured form ─────────────────────────────────────────────────────
+function PipesAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of Object.keys(PIPE_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !PIPE_OPTS[key].includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      // clear shape-specific fields when section_type changes
+      if (key === "section_type") {
+        onChange({ ...attrs, section_type: val, nb_mm: "", schedule: "", sq_size: "", rect_size: "", thickness_mm: "" });
+      } else {
+        set(key, val);
+      }
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts = PIPE_OPTS[key];
+    const curVal = (attrs[key] as string) ?? "";
+    const isCustom = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">
+          {label}{required && <span className="text-red-500"> *</span>}
+        </Label>
+        <SearchableSelect
+          value={selectVal}
+          options={opts}
+          placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)}
+        />
+        {isCustom && (
+          <Input
+            className="h-8 text-sm"
+            placeholder="Enter custom value…"
+            value={curVal}
+            onChange={(e) => set(key, e.target.value)}
+            autoFocus
+          />
+        )}
+      </div>
+    );
+  }
+
+  const sectionType = (attrs.section_type as string) ?? "";
+  const isRound  = sectionType === "Round Pipe";
+  const isSquare = sectionType === "Square Pipe";
+  const isRect   = sectionType === "Rectangular Pipe";
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pipe Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        {renderField("section_type",   "Section / Pipe Type", true)}
+        {renderField("material_grade", "Material Grade")}
+
+        {isRound  && renderField("nb_mm",        "Nominal Bore (NB)", true)}
+        {isRound  && renderField("schedule",      "Schedule")}
+        {isSquare && renderField("sq_size",       "Size (mm)",         true)}
+        {isSquare && renderField("thickness_mm",  "Thickness (mm)",    true)}
+        {isRect   && renderField("rect_size",     "Size (mm)",         true)}
+        {isRect   && renderField("thickness_mm",  "Thickness (mm)",    true)}
+
+        {renderField("length",   "Length")}
+        {renderField("standard", "Standard")}
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input
+            className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty}
+            onChange={(e) => onQtyChange(e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -426,6 +628,9 @@ export default function BuyPackagesPage() {
   const isPlatesMode =
     (lineDialog.lock?.subgroupCode === "plates") ||
     (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "plates");
+  const isPipesMode =
+    (lineDialog.lock?.subgroupCode === "pipes") ||
+    (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "pipes");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -574,6 +779,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.plate_type as string)?.trim() || !(ta.thickness_mm)) {
         toast({ title: "Plate Type and Thickness are required", variant: "destructive" }); return;
+      }
+    } else if (isPipesMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.section_type as string)?.trim()) {
+        toast({ title: "Section / Pipe Type is required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -1084,7 +1294,7 @@ export default function BuyPackagesPage() {
                 </div>
               </div>
 
-              {/* Plates mode: structured plate fields + auto-generated requirement */}
+              {/* Structured forms: Plates / Pipes / generic */}
               {isPlatesMode ? (
                 <>
                   <PlatesAttrsForm
@@ -1096,16 +1306,31 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  {/* Auto-generated Generic Requirement */}
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated from fields above)</span>
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
                     </Label>
-                    <Input
-                      readOnly
-                      className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Plate Type and Thickness to generate…"}
-                    />
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Plate Type and Thickness to generate…"} />
+                  </div>
+                </>
+              ) : isPipesMode ? (
+                <>
+                  <PipesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildPipesRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Section / Pipe Type to generate…"} />
                   </div>
                 </>
               ) : (
