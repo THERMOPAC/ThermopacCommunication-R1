@@ -2391,6 +2391,294 @@ function VacuumBoosterAttrsForm({
   );
 }
 
+// ── Pump Skid requirement builder ────────────────────────────────────────────
+function buildPumpSkidRequirement(attrs: Record<string, unknown>): string {
+  const pkgType    = (attrs.package_type         as string)?.trim()   || "";
+  const pumpType   = (attrs.pump_type            as string)?.trim()   || "";
+  const flowRate   = (attrs.flow_rate            as string)?.trim()   || "";
+  const standby    = (attrs.standby_config       as string)?.trim()   || "";
+  const components = (attrs.included_components  as string[])         ?? [];
+
+  // "Duplex Pump Skid (1W + 1S)" → "Duplex Pump Skid"
+  const pkgLabel   = pkgType.replace(/\s*\(.*\)$/, "");
+  // "Centrifugal" → "Centrifugal Pumps"
+  const pumpLabel  = pumpType ? `${pumpType} Pumps` : "";
+  // "1 Working + 1 Standby" → "1W+1S"
+  const standbyLabel = standby
+    .replace("1 Working + 1 Standby", "1W+1S")
+    .replace("2 Working + 1 Standby", "2W+1S");
+
+  const parts: string[] = [];
+  if (pkgLabel)  parts.push(pkgLabel);
+  if (pumpLabel) parts.push(pumpLabel);
+  if (flowRate)  parts.push(flowRate);
+  if (standbyLabel && standbyLabel !== "No Standby") parts.push(standbyLabel);
+  if (components.length > 0) parts.push(`Complete with ${components.slice(0, 4).join(", ")}`);
+  return parts.join(", ");
+}
+
+// ── Pump Skid option lists ────────────────────────────────────────────────────
+const PUMP_SKID_OPTS: Record<string, string[]> = {
+  package_type:     ["Single Pump Skid", "Duplex Pump Skid (1W + 1S)", "Triplex Pump Skid (2W + 1S)", "Custom Package"],
+  pump_type:        ["Centrifugal", "Multistage", "Gear", "Screw", "Dosing / Metering", "Vacuum Booster"],
+  flow_rate:        ["5 m³/hr", "10 m³/hr", "20 m³/hr", "50 m³/hr", "100 m³/hr", "200 m³/hr"],
+  head_pressure:    ["10", "20", "50", "100", "150", "200"],
+  num_pumps:        ["1", "2", "3", "4"],
+  standby_config:   ["No Standby", "1 Working + 1 Standby", "2 Working + 1 Standby"],
+  mounting:         ["Base Mounted", "Skid Mounted", "Containerized"],
+  material_class:   ["CS", "SS304", "SS316", "Duplex"],
+};
+
+const PUMP_SKID_COMPONENT_OPTS = [
+  "Pumps", "Motor", "Base Frame", "Coupling", "Control Panel",
+  "VFD", "Instrumentation", "Piping", "Valves", "NRV",
+  "Pressure Gauges", "Flow Meter",
+];
+
+const PUMP_SKID_MAKES = ["Flowserve", "KSB", "Grundfos", "Sulzer", "Ebara", "Ruhrpumpen", "SPX", "Peerless", "Kirloskar"];
+
+// ── Pump Skid structured form ─────────────────────────────────────────────────
+function PumpSkidAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange: (q: string) => void;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const singleKeys = Object.keys(PUMP_SKID_OPTS);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of singleKeys) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = PUMP_SKID_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, required?: boolean) {
+    const opts      = PUMP_SKID_OPTS[key];
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…"
+            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  // ── Included Components multi-select ──
+  const [compOpen, setCompOpen] = useState(false);
+  const [compQuery, setCompQuery] = useState("");
+  const [showCustomComp, setShowCustomComp] = useState(false);
+  const [customCompVal, setCustomCompVal] = useState("");
+  const includedComponents = (attrs.included_components as string[]) ?? [];
+
+  function toggleComp(comp: string) {
+    onChange({ ...attrs, included_components: includedComponents.includes(comp)
+      ? includedComponents.filter((c) => c !== comp)
+      : [...includedComponents, comp] });
+  }
+  function addCustomComp() {
+    const t = customCompVal.trim();
+    if (t && !includedComponents.includes(t)) onChange({ ...attrs, included_components: [...includedComponents, t] });
+    setCustomCompVal(""); setShowCustomComp(false);
+  }
+  const filteredComps = PUMP_SKID_COMPONENT_OPTS.filter((o) => o.toLowerCase().includes(compQuery.toLowerCase()));
+
+  // ── Makes multi-select ──
+  const [makesOpen, setMakesOpen] = useState(false);
+  const [makesQuery, setMakesQuery] = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const [customMakeVal, setCustomMakeVal] = useState("");
+  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
+
+  function toggleMake(make: string) {
+    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
+      ? approvedMakes.filter((m) => m !== make)
+      : [...approvedMakes, make] });
+  }
+  function addCustomMake() {
+    const t = customMakeVal.trim();
+    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
+    setCustomMakeVal(""); setShowCustomMake(false);
+  }
+  const filteredMakes = PUMP_SKID_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
+
+  function sectionHeader(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pump Skid Package Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+
+        {sectionHeader("Package Type")}
+        {renderField("package_type", "Package Type", true)}
+        {renderField("pump_type",    "Pump Type"        )}
+
+        {sectionHeader("Capacity (Indicative)")}
+        {renderField("flow_rate",     "Flow Rate (m³/hr)"          )}
+        {renderField("head_pressure", "Head / Pressure (m or bar)" )}
+
+        {sectionHeader("Package Configuration")}
+        {renderField("num_pumps",      "Number of Pumps"      )}
+        {renderField("standby_config", "Standby Configuration")}
+        {renderField("mounting",       "Mounting"             )}
+
+        {sectionHeader("Scope of Supply")}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Included Components <span className="text-[10px] font-normal text-muted-foreground">(multi-select)</span></Label>
+          <Popover open={compOpen} onOpenChange={setCompOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
+                {includedComponents.length > 0 ? `${includedComponents.length} item${includedComponents.length > 1 ? "s" : ""} selected` : "Select components…"}
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search…" value={compQuery} onValueChange={setCompQuery} />
+                <CommandList>
+                  <CommandEmpty>No results.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredComps.map((opt) => (
+                      <CommandItem key={opt} value={opt} onSelect={() => toggleComp(opt)}>
+                        <Check className={cn("mr-2 h-4 w-4", includedComponents.includes(opt) ? "opacity-100" : "opacity-0")} />
+                        {opt}
+                      </CommandItem>
+                    ))}
+                    <CommandItem value="__add_custom_comp__" onSelect={() => { setShowCustomComp(true); setCompOpen(false); }}>
+                      <Plus className="mr-2 h-4 w-4" />Add custom…
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {includedComponents.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {includedComponents.map((comp) => (
+                <Badge key={comp} variant="secondary" className="text-xs pr-1 gap-1">
+                  {comp}
+                  <button type="button" onClick={() => onChange({ ...attrs, included_components: includedComponents.filter((c) => c !== comp) })} className="hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          {showCustomComp && (
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Enter component…"
+                value={customCompVal} onChange={(e) => setCustomCompVal(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomComp(); } }}
+                autoFocus />
+              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomComp}>Add</Button>
+              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                onClick={() => { setShowCustomComp(false); setCustomCompVal(""); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {sectionHeader("Construction")}
+        {renderField("material_class", "Material Class")}
+        <div /> {/* spacer */}
+
+        {sectionHeader("Vendor / Make")}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
+                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                <CommandList>
+                  <CommandEmpty>No results.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredMakes.map((opt) => (
+                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
+                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
+                        {opt}
+                      </CommandItem>
+                    ))}
+                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                      <Plus className="mr-2 h-4 w-4" />Add custom make…
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {approvedMakes.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {approvedMakes.map((make) => (
+                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
+                  {make}
+                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          {showCustomMake && (
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
+                autoFocus />
+              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
+              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Technical attributes form ─────────────────────────────────────────────────
 function TechnicalAttrsForm({
   groupCode, attrs, onChange,
@@ -2608,6 +2896,10 @@ export default function BuyPackagesPage() {
     (lineDialog.lock?.subgroupCode === "vacuum_boosters") ||
     (lineDialog.lock?.subgroupCode === "vacuum") ||
     (selectedGroupCode === "pumps" && (selectedSubgroupCode === "vacuum_boosters" || selectedSubgroupCode === "vacuum"));
+  const isPumpSkidMode =
+    (lineDialog.lock?.subgroupCode === "pump_skid_packages") ||
+    (lineDialog.lock?.subgroupCode === "pump_skid") ||
+    (selectedGroupCode === "pumps" && (selectedSubgroupCode === "pump_skid_packages" || selectedSubgroupCode === "pump_skid"));
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -2816,6 +3108,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.booster_type as string)?.trim()) {
         toast({ title: "Booster Type is required", variant: "destructive" }); return;
+      }
+    } else if (isPumpSkidMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.package_type as string)?.trim()) {
+        toast({ title: "Package Type is required", variant: "destructive" }); return;
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -3572,6 +3869,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Booster Type to generate…"} />
+                  </div>
+                </>
+              ) : isPumpSkidMode ? (
+                <>
+                  <PumpSkidAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildPumpSkidRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Fill Package Type to generate…"} />
                   </div>
                 </>
               ) : (
