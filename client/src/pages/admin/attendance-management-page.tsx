@@ -17,7 +17,6 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
-import { fmtDate, fmtDateTime } from '@/lib/date-utils';
 
 interface AttendanceRecord {
   id: number;

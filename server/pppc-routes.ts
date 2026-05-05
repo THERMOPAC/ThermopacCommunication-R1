@@ -308,6 +308,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
   // GET /api/buy-packages — list with product info + line count
   app.get('/api/buy-packages', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
     try {
       const conditions: string[] = [];
       const values: unknown[] = [];
