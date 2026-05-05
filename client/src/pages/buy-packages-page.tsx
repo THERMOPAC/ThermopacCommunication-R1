@@ -4310,7 +4310,7 @@ function SafetyValveAttrsForm({
 }
 
 // ── ON/OFF Valve requirement builder ─────────────────────────────────────────
-const OO_VALVE_TYPE_OPTS  = ["Ball Valve","Gate Valve","Glob Valve","Butterfly Valve","Plug Valve","Diaphragm Valve","Other"];
+const OO_VALVE_TYPE_OPTS  = ["Ball Valve","Gate Valve","Globe Valve","Butterfly Valve","Plug Valve","Diaphragm Valve","Other"];
 const OO_VALVE_CFG_OPTS   = ["Two Way","Three Way","Other"];
 const OO_SIZE_NB_OPTS     = ["15 NB","25 NB","40 NB","50 NB","80 NB","100 NB","150 NB","200 NB","Other"];
 const OO_PR_OPTS          = ["Class 150","Class 300","Class 600","PN10","PN16","PN25","PN40","Other"];
