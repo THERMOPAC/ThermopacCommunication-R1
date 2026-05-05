@@ -28,6 +28,8 @@ import { seedPppcMasterData, validateSubgroupBelongsToGroup } from './utils/pppc
 import { agentEventBus } from './agents/framework/event-bus';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { bucketName as GCS_BUCKET } from './utils/storage-config';
+import { isProjectFrozen } from './utils/epc-project-cascade';
+import { getNextDocSeq } from './doc-sequence-service';
 
 // ─── Phase 3 helpers ──────────────────────────────────────────────────────────
 const dsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -1747,9 +1749,222 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 4 — APPROVED BUY ITEMS TO PR / PO / QC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ─── Inline guards (mirror project-routes.ts pattern, uses pool directly) ─
+  async function guardNotFrozen(projectId: number, res: Response): Promise<boolean> {
+    const r = await pool.query(`SELECT status FROM projects WHERE id = $1`, [projectId]);
+    if (!r.rows[0]) return true;
+    if (isProjectFrozen(r.rows[0].status)) {
+      const label = r.rows[0].status === 'canceled' ? 'canceled' : 'on hold';
+      sendBusinessError(res, `Project is ${label} — no new records or status changes allowed.`);
+      return false;
+    }
+    return true;
+  }
+
+  async function guardCostUnlocked(projectId: number, res: Response): Promise<boolean> {
+    const r = await pool.query(`SELECT cost_lock_status FROM projects WHERE id = $1`, [projectId]);
+    if (!r.rows[0]) return true;
+    if ((r.rows[0].cost_lock_status ?? 'unlocked') === 'approved') {
+      sendBusinessError(res, 'Cost is approved and locked — project items and BOMs cannot be modified.');
+      return false;
+    }
+    return true;
+  }
+
+  // ─── POST /api/buy-list-lines/:id/raise-pr ────────────────────────────────
+  app.post('/api/buy-list-lines/:id/raise-pr', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const lineId = parseInt(req.params.id);
+      if (isNaN(lineId)) return sendValidationError(res, 'Invalid line id');
+
+      // ── Fetch full line + header + project context ────────────────────────
+      const ctxRow = await pool.query<{
+        lineId: number; buyListHeaderId: number; tagNo: string;
+        serviceDescription: string; equipmentReference: string;
+        lineStatus: string; headerStatus: string;
+        projectId: number; projectCode: string;
+        selectedMasterItemId: number | null; planningRecordId: number | null;
+        quantity: string;
+      }>(
+        `SELECT
+           l.id                        AS "lineId",
+           l.buy_list_header_id        AS "buyListHeaderId",
+           l.tag_no                    AS "tagNo",
+           l.service_description       AS "serviceDescription",
+           l.equipment_reference       AS "equipmentReference",
+           l.status                    AS "lineStatus",
+           l.selected_master_item_id   AS "selectedMasterItemId",
+           l.planning_record_id        AS "planningRecordId",
+           l.quantity                  AS "quantity",
+           h.status                    AS "headerStatus",
+           h.project_id                AS "projectId",
+           p.code                      AS "projectCode"
+         FROM project_buy_list_lines l
+         JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
+         JOIN projects p ON p.id = h.project_id
+         WHERE l.id = $1`,
+        [lineId],
+      );
+      if (!ctxRow.rowCount || ctxRow.rowCount === 0) return sendNotFound(res, 'Buy list line', lineId);
+      const ctx = ctxRow.rows[0];
+
+      // ── Pre-guards ────────────────────────────────────────────────────────
+      if (ctx.lineStatus !== 'approved') {
+        return sendBusinessError(res, `Line must be approved before raising PR (current status: ${ctx.lineStatus}).`);
+      }
+      if (!['released', 'locked'].includes(ctx.headerStatus)) {
+        return sendBusinessError(res, 'Buy list must be in released or locked status to raise PR.');
+      }
+      if (!ctx.selectedMasterItemId) {
+        return sendBusinessError(res, 'Line has no selected master item. Approve the selection first.');
+      }
+      if (!(await guardNotFrozen(ctx.projectId, res))) return;
+      if (!(await guardCostUnlocked(ctx.projectId, res))) return;
+
+      // ── Duplicate prevention ──────────────────────────────────────────────
+      if (ctx.planningRecordId) {
+        const pr = await pool.query(
+          `SELECT id, status FROM item_planning_records WHERE id = $1`,
+          [ctx.planningRecordId],
+        );
+        if (pr.rows[0] && !['canceled', 'superseded'].includes(pr.rows[0].status)) {
+          return res.status(409).json({
+            error: 'Planning record already active for this line.',
+            planningRecordId: ctx.planningRecordId,
+            planningStatus: pr.rows[0].status,
+          });
+        }
+      }
+
+      const userId = (req.user as any).id;
+      const qty = parseFloat(ctx.quantity) || 1;
+
+      // ── project_items dedup: master_item_id + tag_no + source='buy_list' ──
+      const piDedup = await pool.query<{ id: number }>(
+        `SELECT id FROM project_items
+         WHERE project_id = $1
+           AND item_id    = $2
+           AND tag_no     = $3
+           AND source     = 'buy_list'
+           AND status    != 'Cancelled'
+         LIMIT 1`,
+        [ctx.projectId, ctx.selectedMasterItemId, ctx.tagNo],
+      );
+
+      let projectItemId: number;
+      let isReused = false;
+
+      if (piDedup.rows[0]) {
+        projectItemId = piDedup.rows[0].id;
+        isReused = true;
+        await pool.query(
+          `UPDATE project_items SET required_quantity = $1, updated_at = NOW() WHERE id = $2`,
+          [qty, projectItemId],
+        );
+      } else {
+        const piIns = await pool.query<{ id: number }>(
+          `INSERT INTO project_items
+             (project_id, project_code, item_id, quantity, required_quantity, source, tag_no,
+              notes, status, created_at, updated_at)
+           VALUES ($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW())
+           RETURNING id`,
+          [
+            ctx.projectId, ctx.projectCode,
+            ctx.selectedMasterItemId, qty, qty,
+            ctx.tagNo,
+            `BUY LIST: ${ctx.tagNo}${ctx.serviceDescription ? ' | ' + ctx.serviceDescription : ''}`,
+          ],
+        );
+        projectItemId = piIns.rows[0].id;
+      }
+
+      // ── Generate planning number: {projectCode}-PLN-{seq} ─────────────────
+      const seq = await getNextDocSeq('PLN', ctx.projectId, pool);
+      const planningNumber = `${ctx.projectCode}-PLN-${seq}`;
+      const planningNotes = [
+        ctx.tagNo ? `Tag: ${ctx.tagNo}` : null,
+        ctx.serviceDescription || null,
+        ctx.equipmentReference || null,
+      ].filter(Boolean).join(' | ');
+
+      // ── INSERT item_planning_records ──────────────────────────────────────
+      const plnIns = await pool.query<{ id: number }>(
+        `INSERT INTO item_planning_records
+           (project_id, project_item_id, master_item_id, planning_type, source,
+            source_buy_list_header_id, source_buy_list_line_id,
+            quantity, notes, planning_number, status, created_by,
+            created_at, updated_at)
+         VALUES ($1,$2,$3,'procurement','buy_list',$4,$5,$6,$7,$8,'draft',$9,NOW(),NOW())
+         RETURNING id`,
+        [
+          ctx.projectId, projectItemId, ctx.selectedMasterItemId,
+          ctx.buyListHeaderId, lineId,
+          qty, planningNotes, planningNumber,
+          userId,
+        ],
+      );
+      const planningRecordId = plnIns.rows[0].id;
+
+      // ── Link back to line ─────────────────────────────────────────────────
+      await pool.query(
+        `UPDATE project_buy_list_lines SET planning_record_id = $1, updated_at = NOW() WHERE id = $2`,
+        [planningRecordId, lineId],
+      );
+
+      res.status(201).json({ success: true, planningRecordId, projectItemId, isReused });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── GET /api/buy-lists/:id/procurement-status ────────────────────────────
+  app.get('/api/buy-lists/:id/procurement-status', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const headerId = parseInt(req.params.id);
+      if (isNaN(headerId)) return sendValidationError(res, 'Invalid buy list id');
+
+      const hdr = await pool.query(`SELECT id FROM project_buy_list_headers WHERE id = $1`, [headerId]);
+      if (!hdr.rowCount || hdr.rowCount === 0) return sendNotFound(res, 'Buy list', headerId);
+
+      const result = await pool.query(
+        `SELECT
+           l.id                          AS "lineId",
+           l.tag_no                      AS "tagNo",
+           l.status                      AS "lineStatus",
+           l.planning_record_id          AS "planningRecordId",
+           ipr.status                    AS "planningStatus",
+           ipr.planning_number           AS "planningNumber",
+           per.id                        AS "procurementExecutionId",
+           per.status                    AS "procurementStatus",
+           ppr.id                        AS "poPrepId",
+           ppr.status                    AS "poPrepStatus",
+           epo.id                        AS "epcPoId",
+           epo.status                    AS "epcPoStatus",
+           epo.po_number                 AS "epcPoNumber",
+           qpr.id                        AS "qualityPlanId",
+           qpr.status                    AS "qualityStatus"
+         FROM project_buy_list_lines l
+         LEFT JOIN item_planning_records       ipr ON ipr.id  = l.planning_record_id
+         LEFT JOIN procurement_execution_records per ON per.planning_record_id = ipr.id
+         LEFT JOIN po_preparation_records      ppr ON ppr.execution_record_id = per.id
+         LEFT JOIN epc_purchase_orders         epo ON epo.po_preparation_id   = ppr.id
+         LEFT JOIN quality_planning_records    qpr ON qpr.planning_record_id  = ipr.id
+         WHERE l.buy_list_header_id = $1
+         ORDER BY l.line_number`,
+        [headerId],
+      );
+
+      res.json({ lines: result.rows });
+    } catch (err) { sendError(res, err); }
+  });
+
   console.log('[PPPC] ✅ Phase 0 routes registered (buy-groups · buy-subgroups · uom-master)');
   console.log('[PPPC] ✅ Phase 1 routes registered (buy-packages · buy-package-lines)');
   console.log('[PPPC] ✅ Phase 2 routes registered (project buy lists · buy list lines)');
   console.log('[PPPC] ✅ Phase 2 hook registered (offer→project buy list auto-creation)');
   console.log('[PPPC] ✅ Phase 3 routes registered (selection · upload-datasheet · approve · reject · delete)');
+  console.log('[PPPC] ✅ Phase 4 routes registered (raise-pr · procurement-status)');
 }

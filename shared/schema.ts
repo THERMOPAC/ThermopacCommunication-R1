@@ -2076,6 +2076,7 @@ export const projectItems = pgTable('project_items', {
   sourceBomLineId: integer('source_bom_line_id'),
   source: varchar('source', { length: 30 }),
   requiredQuantity: decimal('required_quantity', { precision: 12, scale: 2 }),
+  tagNo: varchar('tag_no', { length: 80 }),
 
   sourceOfferId: integer('source_offer_id'),
   sourceOfferItemId: integer('source_offer_item_id'),
@@ -2147,6 +2148,8 @@ export const itemPlanningRecords = pgTable('item_planning_records', {
   source: varchar('source', { length: 30 }),
   sourceBomHeaderId: integer('source_bom_header_id'),
   sourceBomLineId: integer('source_bom_line_id'),
+  sourceBuyListHeaderId: integer('source_buy_list_header_id'),
+  sourceBuyListLineId: integer('source_buy_list_line_id'),
   parentProjectItemId: integer('parent_project_item_id'),
   quantity: decimal('quantity', { precision: 12, scale: 2 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -12224,7 +12227,7 @@ export const bomGatingBypassLog = pgTable('bom_gating_bypass_log', {
 
 export type BomGatingBypassLog = typeof bomGatingBypassLog.$inferSelect;
 
-export const VALID_PROJECT_ITEM_SOURCES = ['sales_offer', 'manual', 'bom_explosion'] as const;
+export const VALID_PROJECT_ITEM_SOURCES = ['sales_offer', 'manual', 'bom_explosion', 'buy_list'] as const;
 export type ProjectItemSource = typeof VALID_PROJECT_ITEM_SOURCES[number];
 
 export const offerConversionSnapshots = pgTable('offer_conversion_snapshots', {
