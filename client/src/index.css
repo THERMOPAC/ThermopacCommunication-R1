@@ -35,3 +35,96 @@
     @apply text-blue-600 font-medium;
   }
 }
+
+/* ── Datasheet Print Styles ──────────────────────────────────────────────────── */
+
+/* Screen: hide print-only header/footer */
+.ds-print-header,
+.ds-print-footer {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 18mm 15mm 20mm 15mm;
+  }
+
+  /* Hide everything on the page, then reveal only the datasheet */
+  body * {
+    visibility: hidden;
+  }
+
+  .ds-print,
+  .ds-print * {
+    visibility: visible;
+  }
+
+  .ds-no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Datasheet root — full page white canvas */
+  .ds-print {
+    position: fixed;
+    inset: 0;
+    background: white;
+    color: black;
+    padding: 0 2mm;
+    overflow: visible;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  /* Print header — company + item */
+  .ds-print-header {
+    display: flex !important;
+    visibility: visible !important;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #1e3a5f;
+    padding-bottom: 8px;
+    margin-bottom: 14px;
+  }
+
+  /* Section title strip */
+  .ds-section-title {
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
+    color: #1e3a5f !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    padding-bottom: 3px !important;
+    margin-bottom: 5px !important;
+    margin-top: 10px !important;
+  }
+
+  /* Faint "—" for missing values */
+  .ds-field-missing {
+    color: #bbb !important;
+    font-style: italic !important;
+  }
+
+  /* Page footer */
+  .ds-print-footer {
+    display: block !important;
+    visibility: visible !important;
+    position: fixed;
+    bottom: 8mm;
+    left: 0;
+    right: 0;
+    font-size: 9px;
+    color: #6b7280;
+    border-top: 1px solid #d1d5db;
+    padding-top: 4px;
+    padding-left: 2mm;
+    padding-right: 2mm;
+  }
+
+  /* CSS page counter */
+  .ds-page-num::after {
+    content: counter(page);
+  }
+}

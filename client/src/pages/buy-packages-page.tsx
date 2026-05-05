@@ -2505,6 +2505,14 @@ function buildDatasheetSections(
     return ((raw as string) ?? "").trim() || "—";
   };
 
+  const vFirst = (...keys: string[]): string => {
+    for (const k of keys) {
+      const val = ((attrs[k] as string) ?? "").trim();
+      if (val) return val;
+    }
+    return "—";
+  };
+
   if (isMotor) {
     return [
       { title: "Motor Details", fields: [
@@ -2882,10 +2890,12 @@ function buildDatasheetSections(
   if (subgroupCode === "general" && groupCode === "bought_out_packages") {
     return [
       { title: "Package Details", fields: [
-        { label: "Package Type",   value: v("package_type"), highlight: true },
-        { label: "Capacity",       value: v("capacity") },
-        { label: "Configuration",  value: v("configuration") },
-        { label: "Material Class", value: v("material_class") },
+        { label: "Package Type",    value: v("package_type"), highlight: true },
+        { label: "Capacity",        value: v("capacity") },
+        { label: "Duty Type",       value: v("duty_type") },
+        { label: "Number of Units", value: v("number_of_units") },
+        { label: "Configuration",   value: v("configuration") },
+        { label: "Material Class",  value: v("material_class") },
       ]},
       { title: "Components", fields: [
         { label: "Package Components", value: ((attrs.package_components as string) ?? "").trim() || "—" },
@@ -2898,12 +2908,18 @@ function buildDatasheetSections(
     return [
       { title: "Package Details", fields: [
         { label: "Package Type",   value: v("package_type"), highlight: true },
-        { label: "Pump Type",      value: v("pump_type") },
-        { label: "Flow Rate",      value: v("flow_rate") },
+        { label: "Pump Type",      value: vFirst("pump_type") },
         { label: "No. of Pumps",   value: v("num_pumps") },
         { label: "Standby Config", value: v("standby_config") },
         { label: "Mounting",       value: v("mounting") },
         { label: "Material Class", value: v("material_class") },
+      ]},
+      { title: "Operating Conditions", fields: [
+        { label: "Flow Rate / Flow (m³/hr)", value: vFirst("flow_rate", "flow_m3hr"), highlight: true },
+        { label: "Head / Pressure",          value: vFirst("head", "head_m", "head_pressure") },
+        { label: "Fluid / Process Fluid",    value: vFirst("fluid", "process_fluid") },
+        { label: "Operating Temperature",    value: vFirst("operating_temp", "operating_temp_c") },
+        { label: "Design Pressure",          value: vUnit("design_pressure", "design_pressure_unit") },
       ]},
       { title: "Components", fields: [
         { label: "Included Components",
@@ -2912,7 +2928,63 @@ function buildDatasheetSections(
     ];
   }
 
-  return [];
+  // Generic fallback — raw materials, unrecognized subgroups, or any attrs-bearing item
+  const SKIP_GEN = new Set(["preferred_series", "approved_makes"]);
+  const genericFields: DatasheetField[] = [];
+  for (const [key, val] of Object.entries(attrs)) {
+    if (SKIP_GEN.has(key)) continue;
+    const raw = Array.isArray(val)
+      ? (val as string[]).join(", ")
+      : String(val ?? "").trim();
+    if (!raw || raw === "false" || raw === "0") continue;
+    const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    genericFields.push({ label, value: raw });
+  }
+  const makesVal = vMakes();
+  if (makesVal !== "—") genericFields.push({ label: "Approved Makes", value: makesVal });
+
+  return [{
+    title: "Item Specifications",
+    fields: genericFields.length > 0
+      ? genericFields
+      : [{ label: "Description", value: "Refer to generic requirement", highlight: true }],
+  }];
+}
+
+// ── Datasheet Completeness ────────────────────────────────────────────────────
+type DatasheetCompleteness = { score: number; filled: number; total: number; criticalMissing: string[] };
+
+const DS_CRITICAL_FIELDS: Record<string, string[]> = {
+  pressure:     ["Instrument Type","Range Min","Range Max","Range Unit","Output Signal","Wetted Material"],
+  temperature:  ["Instrument Type","Range Min","Range Max","Range Unit"],
+  flow:         ["Instrument Type","Line Size","Liner Material","End Connection","Output Signal"],
+  level:        ["Instrument Type","Output Signal","Range Min","Range Max"],
+  isolation:    ["Valve Type","Size (NB)","Pressure Rating","End Connection","Body Material"],
+  control:      ["Valve Type","Size (NB)","Pressure Rating","Actuation Type","Fail Action","End Connection"],
+  safety:       ["Valve Type","Size (NB)","Set Pressure","End Connection","Body Material"],
+  on_off:       ["Valve Type","Size (NB)","End Connection","Body Material"],
+  panels:       ["Panel Type","Voltage","IP Rating","Enclosure Type"],
+  cabling:      ["Cable Type","No. of Cores","Insulation Type","Armour Type","Voltage Grade"],
+  junction_box: ["JB Type","IP Rating","No. of Terminals","Terminal Type"],
+  cooling_tower:["Type","Circulation Rate","Casing Material","Fan Type"],
+  motor:        ["Motor Type","Power (kW)","Voltage","IP Rating","Efficiency Class","Mounting","Cooling Type"],
+  pump_skid:    ["Package Type","Pump Type","Flow Rate / Flow (m³/hr)","Head / Pressure","Fluid / Process Fluid"],
+};
+
+function computeDatasheetCompleteness(
+  sections: DatasheetSection[],
+  subgroupCode: string,
+  isMotor: boolean,
+): DatasheetCompleteness {
+  const allFields = sections.flatMap((s) => s.fields);
+  const filled    = allFields.filter((f) => f.value !== "—").length;
+  const total     = allFields.length;
+  const score     = total === 0 ? 0 : Math.round((filled / total) * 100);
+  const key       = isMotor ? "motor" : subgroupCode;
+  const critical  = DS_CRITICAL_FIELDS[key] ?? [];
+  const fieldMap  = new Map(allFields.map((f) => [f.label, f.value]));
+  const criticalMissing = critical.filter((l) => !fieldMap.has(l) || fieldMap.get(l) === "—");
+  return { score, filled, total, criticalMissing };
 }
 
 // ── Datasheet Preview Dialog ──────────────────────────────────────────────────
@@ -2924,14 +2996,20 @@ function DatasheetPreviewDialog({
   onClose: () => void;
 }) {
   if (!line) return null;
-  const isMotorCode = line.buy_subgroup_code === "non_flameproof" || line.buy_subgroup_code === "flameproof";
-  const attrs    = line.technical_attributes ?? {};
-  const sections = buildDatasheetSections(line.buy_subgroup_code, line.buy_group_code, attrs, isMotorCode);
+  const isMotorCode  = line.buy_subgroup_code === "non_flameproof" || line.buy_subgroup_code === "flameproof";
+  const attrs        = line.technical_attributes ?? {};
+  const sections     = buildDatasheetSections(line.buy_subgroup_code, line.buy_group_code, attrs, isMotorCode);
+  const completeness = computeDatasheetCompleteness(sections, line.buy_subgroup_code, isMotorCode);
+
+  const scoreColor = completeness.score >= 80 ? "text-green-600" : completeness.score >= 50 ? "text-amber-600" : "text-red-600";
+  const barColor   = completeness.score >= 80 ? "bg-green-500"  : completeness.score >= 50 ? "bg-amber-500"  : "bg-red-500";
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+
+        {/* Screen-only header */}
+        <DialogHeader className="ds-no-print">
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-4 w-4 text-primary" />
             Datasheet Preview
@@ -2941,30 +3019,84 @@ function DatasheetPreviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-md bg-muted/50 border px-3 py-2">
-          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Generic Requirement</p>
-          <p className="text-sm font-semibold">{line.generic_requirement}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Qty: {line.default_quantity} {line.uom_code}</p>
-        </div>
+        {/* ── Printable content root ── */}
+        <div className="ds-print">
 
-        {sections.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            No structured datasheet available for this item type.
+          {/* Print-only header — hidden on screen via CSS */}
+          <div className="ds-print-header">
+            <div>
+              <p style={{ fontSize: "15px", fontWeight: 700, color: "#1e3a5f", marginBottom: "2px" }}>
+                THERMOPAC — ITEM DATASHEET
+              </p>
+              <p style={{ fontSize: "10px", color: "#555" }}>
+                {line.buy_group_label} / {line.buy_subgroup_label}
+              </p>
+            </div>
+            <div style={{ textAlign: "right", fontSize: "10px", color: "#555" }}>
+              <p style={{ fontWeight: 600 }}>BUY Package Catalog</p>
+              <p style={{ marginTop: "2px" }}>Qty: {line.default_quantity} {line.uom_code}</p>
+            </div>
           </div>
-        ) : (
+
+          {/* Generic requirement block */}
+          <div className="rounded-md bg-muted/50 border px-3 py-2 mb-3">
+            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">
+              Generic Requirement
+            </p>
+            <p className="text-sm font-semibold">{line.generic_requirement}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Qty: {line.default_quantity} {line.uom_code}
+            </p>
+          </div>
+
+          {/* Completeness indicator — screen only */}
+          <div className="ds-no-print mb-3 rounded-md border px-3 py-2 bg-muted/20">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Datasheet Completeness
+              </span>
+              <span className={`text-sm font-bold tabular-nums ${scoreColor}`}>
+                {completeness.score}%
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${barColor}`}
+                style={{ width: `${completeness.score}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {completeness.filled} of {completeness.total} fields filled
+            </p>
+            {completeness.criticalMissing.length > 0 && (
+              <div className="mt-2 flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 px-2 py-1.5">
+                <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] font-semibold text-red-700 dark:text-red-400">
+                    Critical fields missing:
+                  </p>
+                  <p className="text-[10px] text-red-600 dark:text-red-500 mt-0.5 leading-relaxed">
+                    {completeness.criticalMissing.join(" · ")}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sections */}
           <div className="space-y-4">
             {sections.map((sec) => (
               <div key={sec.title}>
-                <p className="text-[11px] font-semibold text-primary uppercase tracking-wide border-b pb-1 mb-2">
+                <p className="ds-section-title text-[11px] font-semibold text-primary uppercase tracking-wide border-b pb-1 mb-2">
                   {sec.title}
                 </p>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-0.5">
                   {sec.fields.map((f) => (
                     <div key={f.label} className="flex gap-2 text-xs py-0.5">
-                      <span className="text-muted-foreground min-w-[140px] shrink-0">{f.label}</span>
+                      <span className="text-muted-foreground min-w-[148px] shrink-0">{f.label}</span>
                       <span className={
                         f.value === "—"
-                          ? "text-muted-foreground/40 italic"
+                          ? "ds-field-missing text-muted-foreground/40 italic"
                           : f.highlight
                             ? "font-semibold text-foreground"
                             : "text-foreground"
@@ -2975,14 +3107,25 @@ function DatasheetPreviewDialog({
               </div>
             ))}
           </div>
-        )}
 
-        <DialogFooter className="gap-2">
+          {/* Print-only footer — hidden on screen via CSS */}
+          <div className="ds-print-footer">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>THERMOPAC ENGINEERING PVT LTD — BUY Package Catalog</span>
+              <span>Page <span className="ds-page-num" /></span>
+            </div>
+          </div>
+
+        </div>{/* end ds-print */}
+
+        {/* Screen-only footer */}
+        <DialogFooter className="gap-2 ds-no-print">
           <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
+            <Printer className="h-3.5 w-3.5 mr-1.5" /> Print / Export
           </Button>
           <Button size="sm" onClick={onClose}>Close</Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
