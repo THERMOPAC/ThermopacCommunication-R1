@@ -114,6 +114,7 @@ export default function IncrementApprovalsPage() {
       setCreateForm({ ...BLANK_CREATE });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/increment-proposals/all'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/increment-proposals/pending-count'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/payroll/manual-increment-eligible'] });
     },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
