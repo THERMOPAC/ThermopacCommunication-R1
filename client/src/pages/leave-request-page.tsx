@@ -40,7 +40,6 @@ import {
   Users
 } from "lucide-react";
 import { format, differenceInDays, parseISO, addDays } from "date-fns";
-import { fmtDate } from "@/lib/date-utils";
 
 interface LeaveType {
   id: number;
