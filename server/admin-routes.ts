@@ -3482,6 +3482,7 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
  * Fetch GL accounts from SAP Chart of Accounts
  */
 router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request, res: Response) => {
+  let sessionId = '';
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
@@ -3489,7 +3490,7 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
     if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    const sessionId = loginResult.sessionId;
+    sessionId = loginResult.sessionId;
     let routeId = '';
     const setCookieHeader = loginResult.response.headers['set-cookie'];
     if (setCookieHeader) {
@@ -3518,10 +3519,13 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
     }
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
+  } finally {
+    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
 router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, res: Response) => {
+  let sessionId = '';
   try {
     const search = (req.query.q as string || '').trim();
     if (!search || search.length < 2) {
@@ -3534,7 +3538,7 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    const sessionId = loginResult.sessionId;
+    sessionId = loginResult.sessionId;
     let routeId = '';
     const setCookieHeader = loginResult.response.headers['set-cookie'];
     if (setCookieHeader) {
@@ -3625,10 +3629,13 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     return res.json({ accounts: matched, total: matched.length, totalInSap: allSapAccounts.length, search, companyDb: sapDb });
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
+  } finally {
+    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
 router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, res: Response) => {
+  let sessionId = '';
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
@@ -3641,7 +3648,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
     console.log(`[SAP Diag] Company DB: ${sapDb}, User: ${sapUser}`);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    const sessionId = loginResult.sessionId;
+    sessionId = loginResult.sessionId;
     let routeId = '';
     const setCookieHeader = loginResult.response.headers['set-cookie'];
     if (setCookieHeader) {
@@ -3775,6 +3782,12 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
   } catch (e: any) {
     console.error('[SAP Diag] Fatal error:', e);
     return res.status(500).json({ error: e.message });
+  } finally {
+    if (sessionId) {
+      sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' })
+        .then(() => console.log('[SAP Diag] Session logged out cleanly'))
+        .catch(() => {});
+    }
   }
 });
 
@@ -3796,6 +3809,7 @@ router.get('/payroll/gl-mappings', ensureAuthenticated, async (req: Request, res
 });
 
 router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Request, res: Response) => {
+  let sessionId = '';
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
@@ -3803,7 +3817,7 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
     if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    const sessionId = loginResult.sessionId;
+    sessionId = loginResult.sessionId;
     let routeId = '';
     const setCookieHeader = loginResult.response.headers['set-cookie'];
     if (setCookieHeader) {
@@ -3981,6 +3995,8 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
     });
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
+  } finally {
+    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
@@ -4011,6 +4027,7 @@ router.post('/payroll/gl-mapping/:id/set-sap-code', ensureAuthenticated, async (
  * Test SAP JE posting with custom payload
  */
 router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, res: Response) => {
+  let sessionId = '';
   try {
     const currentUser = req.user as any;
     const jePayload = req.body.jePayload;
@@ -4029,7 +4046,7 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
 
     console.log(`[Test SAP JE] Fresh login to ${sapDb} as ${sapUser}...`);
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    const sessionId = loginResult.sessionId;
+    sessionId = loginResult.sessionId;
 
     let routeId = '';
     const setCookieHeader = loginResult.response.headers['set-cookie'];
@@ -4292,6 +4309,8 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
   } catch (error: any) {
     console.error('Error in test SAP JE:', error);
     sendError(res, error);
+  } finally {
+    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
@@ -4591,6 +4610,7 @@ router.get('/payroll/records/:id/je-preview', ensureAuthenticated, async (req: R
 });
 
 router.post('/payroll/gl-mapping/auto-resolve', ensureAuthenticated, async (req: Request, res: Response) => {
+  let autoResolveSessionId = '';
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
@@ -4598,10 +4618,13 @@ router.post('/payroll/gl-mapping/auto-resolve', ensureAuthenticated, async (req:
     if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    const result = await resolveGlMappingsFromSap(loginResult.sessionId);
+    autoResolveSessionId = loginResult.sessionId;
+    const result = await resolveGlMappingsFromSap(autoResolveSessionId);
     res.json({ success: true, ...result });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
+  } finally {
+    if (autoResolveSessionId) sapHttpsClient.authenticatedRequest(autoResolveSessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
@@ -4790,7 +4813,30 @@ function isSapRetryableError(error: string): boolean {
   if (error.includes('socket hang up') || error.includes('econnreset') || error.includes('econnrefused') || error.includes('etimedout')) return true;
   // HTTP gateway errors → SAP Service Layer backend temporarily unavailable
   if (error.includes('502') || error.includes('503') || error.includes('bad gateway') || error.includes('service unavailable')) return true;
+  // SAP B1 session limit / switch company conflict — worth retrying after a short delay
+  if (error.includes('-1102') || error.includes('switch company')) return true;
   return false;
+}
+
+/** Extract a clean user-facing error from a SAP login throw or SAP response body */
+function extractSapLoginError(err: any): string {
+  const raw: string = typeof err === 'string' ? err : (err?.message || String(err));
+  // "SAP login failed: 500 - {json}" → extract inner message
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const msg = parsed?.error?.message?.value;
+      if (msg) {
+        if (msg.toLowerCase().includes('switch company') || raw.includes('-1102')) {
+          return `SAP session conflict (-1102): The Manager account already has an active session in SAP B1 (likely from a recent SAP Diagnostic run). Wait 1–2 minutes for the previous session to expire, then click "Retry SAP" again.`;
+        }
+        return msg;
+      }
+    } catch (_) {}
+  }
+  // Fallback: strip "SAP login failed: NNN - " prefix
+  return raw.replace(/^SAP login failed:\s*\d+\s*-\s*/, '').substring(0, 300);
 }
 
 /** Strip HTML tags from SAP error responses and return a clean one-liner. */
@@ -5013,10 +5059,12 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
           return res.status(500).json({ error: errorMsg });
         }
       } catch (sapErr: any) {
-        lastError = `SAP connection error: ${sapErr.message}`;
-        if (attempt === 0 && isSapRetryableError(lastError.toLowerCase())) {
-          console.log(`[Salary JE] Retryable connection error for record #${recordId}: ${sapErr.message}. Retrying with fresh session...`);
-          await new Promise(r => setTimeout(r, 1500)); // brief pause before retry
+        lastError = extractSapLoginError(sapErr);
+        const is1102 = sapErr.message?.includes('-1102') || sapErr.message?.toLowerCase().includes('switch company');
+        if (attempt === 0 && isSapRetryableError(sapErr.message?.toLowerCase() || '')) {
+          const delay = is1102 ? 5000 : 1500; // longer wait for session conflict
+          console.log(`[Salary JE] Retryable${is1102 ? ' (-1102 session conflict)' : ''} error for record #${recordId}: ${sapErr.message}. Waiting ${delay}ms then retrying with fresh session...`);
+          await new Promise(r => setTimeout(r, delay));
           continue;
         }
         await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
