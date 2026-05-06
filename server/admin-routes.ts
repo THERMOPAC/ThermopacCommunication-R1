@@ -4745,19 +4745,30 @@ function buildSalaryJePayload(
 
   const netPayValue = parseFloat(record.netPay || '0');
   if (netPayValue > 0) {
-    const netPayCode = glMap.get('NET_PAY|payroll_liability');
-    if (netPayCode) {
-      // NOTE: Use AccountCode only — do NOT add ShortName (BP code) here.
-      // Adding ShortName forces SAP to do BP-currency reconciliation, which
-      // requires a foreign-currency exchange rate even when all amounts are INR.
-      // BP traceability is preserved via LineMemo and the JE-level Reference2.
+    // NET_PAY: use the employee's SAP Business Partner Card Code (ShortName).
+    // SAP B1 automatically routes this through the employee BP's reconciliation/control account.
+    // Do NOT use a GL AccountCode here — posting directly to the BP control account is rejected by SAP
+    // with "Cannot perform transaction in controlling type account".
+    if (employee.cardCode && employee.cardCode.trim() !== '') {
       jeLines.push({
         Line_ID: lineNum++,
-        AccountCode: netPayCode,
+        ShortName: employee.cardCode.trim(),
         Debit: 0,
         Credit: netPayValue,
-        LineMemo: `NET_PAY - ${empName} (${employee.cardCode}) - ${periodLabel}`,
+        LineMemo: `NET_PAY - ${empName} - ${periodLabel}`,
       });
+    } else {
+      // Fallback: use GL account only if employee has no BP card code
+      const netPayCode = glMap.get('NET_PAY|payroll_liability');
+      if (netPayCode) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: netPayCode,
+          Debit: 0,
+          Credit: netPayValue,
+          LineMemo: `NET_PAY - ${empName} - ${periodLabel}`,
+        });
+      }
     }
   }
 
@@ -5006,31 +5017,6 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
 
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
       const errMsg = `JE imbalance: Debit=${totalDebit.toFixed(2)} Credit=${totalCredit.toFixed(2)} Diff=${(totalDebit - totalCredit).toFixed(2)}`;
-      await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
-      return res.status(400).json({ error: errMsg });
-    }
-
-    // Pre-posting control account check: look up known control accounts from DB mappings
-    // Any mapping where glAccountCode is a known control account will be caught here
-    const controlAccountIssues: string[] = [];
-    for (const [key, sapCode] of glMap.entries()) {
-      const [compCode, ctx] = key.split('|');
-      const dbMapping = await db.select().from(glAccountMappings)
-        .where(and(eq(glAccountMappings.componentCode, compCode), eq(glAccountMappings.postingContext, ctx as any), eq(glAccountMappings.isActive, true)))
-        .limit(1);
-      if (dbMapping.length > 0) {
-        // Heuristic: "Creditors for Suppliers" (20304020000ARL / _SYS00000000286) is a control/reconciliation
-        // account in SAP B1 — direct JE postings to it are blocked by SAP with "controlling type account" error.
-        const name = (dbMapping[0].glAccountName || '').toLowerCase();
-        const code = (dbMapping[0].glAccountCode || '').toLowerCase();
-        const isKnownControl = name.includes('creditors for suppliers') || code.startsWith('20304020000');
-        if (isKnownControl) {
-          controlAccountIssues.push(`${compCode} (${ctx}): "${dbMapping[0].glAccountName || dbMapping[0].glAccountCode}" [${sapCode}] is a control/reconciliation account — SAP rejects JE postings to this account`);
-        }
-      }
-    }
-    if (controlAccountIssues.length > 0) {
-      const errMsg = `GL mapping error — control accounts cannot receive direct JE postings:\n${controlAccountIssues.join('\n')}\nFix: Finance → GL Account Mapping → find the component → Search SAP CoA → select a non-control "Salary Payable" account.`;
       await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
       return res.status(400).json({ error: errMsg });
     }
