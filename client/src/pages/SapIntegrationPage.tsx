@@ -68,14 +68,15 @@ export default function SapIntegrationPage() {
     }
   });
 
-  // Test connection mutation
+  // Test connection mutation — calls dedicated ping endpoint (login → verify → logout)
+  // Does NOT interfere with payroll session since it cleans up immediately
   const testConnectionMutation = useMutation({
-    mutationFn: () => apiRequest('GET', '/api/sap/connection/status'),
+    mutationFn: () => apiRequest('POST', '/api/sap/connection/ping'),
     onSuccess: (data) => {
       toast({
         title: "Connection Test",
-        description: data.success && data.status === 'connected' ? "SAP B1 connection successful!" : "Connection failed",
-        variant: data.success && data.status === 'connected' ? "default" : "destructive",
+        description: data.isConnected ? "SAP B1 connection successful!" : `Connection failed: ${data.error || 'Unknown error'}`,
+        variant: data.isConnected ? "default" : "destructive",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/sap/connection/status'] });
     },

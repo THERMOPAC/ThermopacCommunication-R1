@@ -4764,7 +4764,18 @@ async function getSapSession(userId: number, forceNew = false): Promise<string> 
   if (!sapUser || !sapPass || !sapDb) throw new Error('SAP credentials not configured');
 
   const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-  sapSessionManager.setSession(userId, { sessionId: loginResult.sessionId, routeId: undefined, userId, createdAt: new Date(), expiresAt: new Date(Date.now() + 25 * 60000) });
+  // Extract ROUTEID from login Set-Cookie so authenticated requests use sticky routing
+  let routeId: string | undefined;
+  const setCookie = loginResult.response.headers['set-cookie'];
+  if (setCookie) {
+    const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+    for (const c of cookies) {
+      const m = c.match(/ROUTEID=([^;]+)/);
+      if (m) { routeId = m[1]; break; }
+    }
+  }
+  // Use the correct setSession(userId, sessionId, routeId?, companyDb?) signature
+  sapSessionManager.setSession(userId, loginResult.sessionId, routeId, sapDb);
   return loginResult.sessionId;
 }
 

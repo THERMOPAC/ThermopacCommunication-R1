@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
 import { sapHttpsClient } from './sap-https-client';
+import { sapSessionManager } from '../sap-session-manager';
 
 const router = Router();
 
@@ -34,6 +35,11 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       method: 'GET',
       path: '/b1s/v1/PurchaseOrders?$top=1'
     });
+
+    // Always logout immediately — orphaned sessions block subsequent logins
+    try {
+      await sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' });
+    } catch (_) {}
 
     if (!testResponse.ok) {
       console.log('❌ Purchase Orders API test failed:', testResponse.statusCode);
@@ -110,7 +116,9 @@ router.post('/credentials', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// Get current SAP connection status
+// Lightweight passive connection status — NO login, NO SAP session created.
+// Called every 30 seconds by the SapIntegrationPage polling query.
+// Reports whether credentials are configured and whether a cached session exists.
 router.get('/connection/status', async (req, res) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
@@ -127,23 +135,80 @@ router.get('/connection/status', async (req, res) => {
       });
     }
 
-    console.log(`[SAP Status] Testing login → user=${sapUser} db=${sapDb}`);
-
-    let isConnected = false;
-    let connectionError: string | undefined;
-
-    try {
-      await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      isConnected = true;
-      console.log(`[SAP Status] ✅ Login OK — ${sapDb}`);
-    } catch (err: any) {
-      isConnected = false;
-      connectionError = err.message;
-      console.error(`[SAP Status] ❌ Login failed — db=${sapDb} user=${sapUser}: ${err.message}`);
-    }
+    // Check if any user has a valid cached SAP session
+    const summary = sapSessionManager.getSessionsSummary();
+    const hasActiveSession = summary.some(s => s.ttlSeconds > 0);
 
     res.json({
       success: true,
+      status: hasActiveSession ? 'connected' : 'configured',
+      isConnected: hasActiveSession,
+      credentialsConfigured: true,
+      activeSessions: summary.length,
+      lastTestTime: new Date().toISOString(),
+      details: {
+        serviceLayerUrl: 'https://59.152.52.58:50000/b1s/v1',
+        companyDb: sapDb,
+        username: sapUser
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ SAP status check error:', error);
+    res.json({
+      success: true,
+      status: 'error',
+      isConnected: false,
+      error: error.message,
+      lastTestTime: new Date().toISOString()
+    });
+  }
+});
+
+// Active connection ping — used by the "Test SAP B1 Connection" button.
+// Performs a real login → API check → immediate logout. No orphaned session left behind.
+router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
+  try {
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb   = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
+
+    if (!sapUser || !sapPass || !sapDb) {
+      return res.json({
+        success: false,
+        status: 'disconnected',
+        isConnected: false,
+        error: `SAP credentials not configured — SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || '(empty)'}`,
+      });
+    }
+
+    console.log(`[SAP Ping] Testing login → user=${sapUser} db=${sapDb}`);
+    let isConnected = false;
+    let connectionError: string | undefined;
+    let sessionId: string | undefined;
+
+    try {
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sessionId = loginResult.sessionId;
+      isConnected = true;
+      console.log(`[SAP Ping] ✅ Login OK — ${sapDb}`);
+    } catch (err: any) {
+      connectionError = err.message;
+      console.error(`[SAP Ping] ❌ Login failed — db=${sapDb} user=${sapUser}: ${err.message}`);
+    }
+
+    if (sessionId) {
+      // Logout immediately — we never leave orphaned sessions that block payroll logins
+      try {
+        await sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' });
+        console.log(`[SAP Ping] Session released (logout OK)`);
+      } catch (logoutErr: any) {
+        console.warn(`[SAP Ping] Logout warning (non-fatal): ${logoutErr.message}`);
+      }
+    }
+
+    res.json({
+      success: isConnected,
       status: isConnected ? 'connected' : 'disconnected',
       isConnected,
       lastTestTime: new Date().toISOString(),
@@ -156,9 +221,9 @@ router.get('/connection/status', async (req, res) => {
     });
 
   } catch (error: any) {
-    console.error('❌ SAP status check error:', error);
+    console.error('❌ SAP ping error:', error);
     res.json({
-      success: true,
+      success: false,
       status: 'error',
       isConnected: false,
       error: error.message,
