@@ -48,6 +48,14 @@ import { verifyPayslipRelease } from './payroll-calculation-verifier';
 import { glAccountMappings } from '../shared/schema';
 import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
 import { sapSessionManager } from './sap-session-manager';
+import {
+  adminCreateLeave,
+  adminApproveLeave,
+  adminRejectLeave,
+  revokeApprovedLeave,
+  grantLwpExemption,
+  revokeLwpExemption,
+} from './leave-service';
 
 const router = express.Router();
 
@@ -2193,24 +2201,44 @@ router.get('/leave-requests', ensureAuthenticated, async (req: Request, res: Res
 });
 
 /**
- * Create new leave request
+ * Create new leave request (admin — balance-safe via leave-service)
  */
 router.post('/leave-requests', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const validatedData = insertLeaveRequestSchema.parse(req.body);
     const currentUser = (req as any).user;
+    const {
+      employeeId,
+      leaveTypeId,
+      startDate,
+      endDate,
+      totalDays,
+      isHalfDay,
+      halfDayPeriod,
+      reason,
+      status,
+      managerId,
+    } = req.body;
 
-    // Set the employee ID to current user if not provided (for self-requests)
-    if (!validatedData.employeeId) {
-      validatedData.employeeId = currentUser.id;
+    const effectiveEmployeeId = employeeId || currentUser.id;
+    if (!leaveTypeId || !startDate || !reason) {
+      return res.status(400).json({ error: 'Missing required fields: leaveTypeId, startDate, reason' });
     }
 
-    const [newLeaveRequest] = await db
-      .insert(leaveRequests)
-      .values(validatedData)
-      .returning();
+    const newRequest = await adminCreateLeave({
+      employeeId: effectiveEmployeeId,
+      leaveTypeId,
+      startDate,
+      endDate: endDate || startDate,
+      totalDays: parseFloat(totalDays) || 1,
+      isHalfDay: isHalfDay || false,
+      halfDayPeriod: halfDayPeriod || null,
+      reason,
+      status: status || 'pending',
+      managerId: managerId || null,
+      adminId: currentUser.id,
+    });
 
-    res.status(201).json(newLeaveRequest);
+    res.status(201).json(newRequest);
   } catch (error) {
     console.error('Error creating leave request:', error);
     sendError(res, error);
@@ -2218,54 +2246,243 @@ router.post('/leave-requests', ensureAuthenticated, async (req: Request, res: Re
 });
 
 /**
- * Update leave request status (approve/reject)
+ * Update leave request status (approve/reject) — balance-safe via leave-service
  */
 router.put('/leave-requests/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const { status, comments, approvalLevel } = req.body;
+    const { status, comments } = req.body;
     const currentUser = (req as any).user;
 
-    const updateData: any = {
-      updatedAt: new Date()
-    };
+    if (!status) return res.status(400).json({ error: 'status is required' });
 
-    // Update based on approval level
-    if (approvalLevel === 1) { // Manager approval
-      updateData.managerApprovalStatus = status;
-      updateData.managerApprovalDate = new Date();
-      updateData.managerComments = comments;
-      updateData.managerId = currentUser.id;
-    } else if (approvalLevel === 2) { // HR approval
-      updateData.hrApprovalStatus = status;
-      updateData.hrApprovalDate = new Date();
-      updateData.hrComments = comments;
-      updateData.hrApprovalId = currentUser.id;
-    }
-
-    // Set final status if both approvals are complete
     if (status === 'approved') {
-      updateData.status = 'approved';
-      updateData.approvedBy = currentUser.id;
-      updateData.approvedDate = new Date();
+      await adminApproveLeave(id, currentUser.id, comments);
     } else if (status === 'rejected') {
-      updateData.status = 'rejected';
-      updateData.rejectionReason = comments;
+      if (!comments) return res.status(400).json({ error: 'comments required for rejection' });
+      await adminRejectLeave(id, currentUser.id, comments);
+    } else {
+      return res.status(400).json({ error: 'status must be approved or rejected' });
     }
 
-    const [updatedRequest] = await db
-      .update(leaveRequests)
-      .set(updateData)
-      .where(eq(leaveRequests.id, id))
-      .returning();
-
-    if (!updatedRequest) {
-      return res.status(404).json({ error: 'Leave request not found' });
-    }
-
-    res.json(updatedRequest);
-  } catch (error) {
+    const [updated] = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id));
+    if (!updated) return res.status(404).json({ error: 'Leave request not found' });
+    res.json(updated);
+  } catch (error: any) {
     console.error('Error updating leave request status:', error);
+    if (error.message?.includes('already been processed')) {
+      return res.status(409).json({ error: error.message });
+    }
+    sendError(res, error);
+  }
+});
+
+/**
+ * Admin revoke an approved leave request
+ */
+router.post('/leave-requests/:id/revoke', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { reason } = req.body;
+    const currentUser = (req as any).user;
+    const allowedRoles = ['admin', 'hr', 'Superuser', 'General Manager'];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    if (!reason) return res.status(400).json({ error: 'reason is required' });
+    await revokeApprovedLeave(id, currentUser.id, reason);
+    res.json({ success: true, message: 'Leave revoked successfully' });
+  } catch (error: any) {
+    console.error('Error revoking leave:', error);
+    if (error.message?.includes('Only approved')) return res.status(400).json({ error: error.message });
+    sendError(res, error);
+  }
+});
+
+/**
+ * LWP / LOP Exemption — Grant
+ */
+router.post('/users/:id/lwp-exemption/grant', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const targetUserId = parseInt(req.params.id);
+    const { reason, nextReview } = req.body;
+    const currentUser = (req as any).user;
+    const allowedRoles = ['admin', 'hr', 'Superuser', 'General Manager'];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    if (!reason) return res.status(400).json({ error: 'reason is required' });
+    await grantLwpExemption(targetUserId, currentUser.id, reason, nextReview);
+    res.json({ success: true, message: 'LWP exemption granted' });
+  } catch (error) {
+    console.error('Error granting LWP exemption:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * LWP / LOP Exemption — Revoke
+ */
+router.post('/users/:id/lwp-exemption/revoke', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const targetUserId = parseInt(req.params.id);
+    const { reason } = req.body;
+    const currentUser = (req as any).user;
+    const allowedRoles = ['admin', 'hr', 'Superuser', 'General Manager'];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    if (!reason) return res.status(400).json({ error: 'reason is required' });
+    await revokeLwpExemption(targetUserId, currentUser.id, reason);
+    res.json({ success: true, message: 'LWP exemption revoked' });
+  } catch (error) {
+    console.error('Error revoking LWP exemption:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * LWP Exemption status — GET
+ */
+router.get('/users/:id/lwp-exemption', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const targetUserId = parseInt(req.params.id);
+    const [user] = await db
+      .select({
+        id: users.id,
+        role: users.role,
+        lwpExempt: users.lwpExempt,
+        lwpExemptReason: users.lwpExemptReason,
+        lwpExemptGrantedBy: users.lwpExemptGrantedBy,
+        lwpExemptGrantedAt: users.lwpExemptGrantedAt,
+        lwpExemptNextReview: users.lwpExemptNextReview,
+      })
+      .from(users)
+      .where(eq(users.id, targetUserId));
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const policyExemptRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+    res.json({
+      ...user,
+      exemptByPolicy: policyExemptRoles.includes(user.role),
+      effectivelyExempt: user.lwpExempt || policyExemptRoles.includes(user.role),
+    });
+  } catch (error) {
+    console.error('Error fetching LWP exemption status:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * LOP Confirmation — confirm computed LOP for a payroll run
+ */
+router.post('/payroll/lop-confirmation', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const allowedRoles = ['admin', 'hr', 'Superuser', 'General Manager'];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    const { periodId, runNumber, userId, lopDaysConfirmed, notes } = req.body;
+    if (!periodId || !runNumber || !userId) {
+      return res.status(400).json({ error: 'periodId, runNumber, userId required' });
+    }
+    await db
+      .update(payrollAttendanceSnapshot)
+      .set({
+        lopDaysConfirmed: lopDaysConfirmed?.toString() ?? null,
+        lopConfirmedBy: currentUser.id,
+        lopConfirmedAt: new Date(),
+        lopOverrideNotes: notes || null,
+      })
+      .where(
+        and(
+          eq(payrollAttendanceSnapshot.periodId, periodId),
+          eq(payrollAttendanceSnapshot.runNumber, runNumber),
+          eq(payrollAttendanceSnapshot.userId, userId)
+        )
+      );
+    res.json({ success: true, message: 'LOP confirmed' });
+  } catch (error) {
+    console.error('Error confirming LOP:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * Bulk LOP Confirmation — confirm all employees in a run
+ */
+router.post('/payroll/lop-confirmation/bulk', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const allowedRoles = ['admin', 'hr', 'Superuser', 'General Manager'];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    const { periodId, runNumber } = req.body;
+    if (!periodId || !runNumber) {
+      return res.status(400).json({ error: 'periodId, runNumber required' });
+    }
+    // Confirm all rows with computed LOP (accept lopDays as the confirmed value)
+    await db
+      .update(payrollAttendanceSnapshot)
+      .set({
+        lopDaysConfirmed: sql`lop_days`,
+        lopConfirmedBy: currentUser.id,
+        lopConfirmedAt: new Date(),
+        lopOverrideNotes: 'Bulk confirmed',
+      })
+      .where(
+        and(
+          eq(payrollAttendanceSnapshot.periodId, periodId),
+          eq(payrollAttendanceSnapshot.runNumber, runNumber),
+          sql`lop_confirmed_at IS NULL`
+        )
+      );
+    res.json({ success: true, message: 'Bulk LOP confirmation complete' });
+  } catch (error) {
+    console.error('Error bulk confirming LOP:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * Sandwich deduction — void a specific deduction record
+ */
+router.post('/leave-deductions/:id/void', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const deductionId = parseInt(req.params.id);
+    const { reason } = req.body;
+    const currentUser = (req as any).user;
+    const allowedRoles = ['admin', 'hr', 'Superuser', 'General Manager'];
+    if (!allowedRoles.includes(currentUser.role)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    if (!reason) return res.status(400).json({ error: 'reason is required' });
+    const { voidSandwichDeduction } = await import('./leave-service');
+    await voidSandwichDeduction(deductionId, currentUser.id, reason);
+    res.json({ success: true, message: 'Deduction voided' });
+  } catch (error: any) {
+    console.error('Error voiding deduction:', error);
+    if (error.message?.includes('Only approved')) return res.status(400).json({ error: error.message });
+    sendError(res, error);
+  }
+});
+
+/**
+ * Get sandwich deductions for a leave request
+ */
+router.get('/leave-requests/:id/deductions', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const requestId = parseInt(req.params.id);
+    const { leaveDeductions } = await import('@shared/schema');
+    const deductions = await db
+      .select()
+      .from(leaveDeductions)
+      .where(eq(leaveDeductions.leaveRequestId, requestId))
+      .orderBy(leaveDeductions.deductionDate);
+    res.json(deductions);
+  } catch (error) {
+    console.error('Error fetching deductions:', error);
     sendError(res, error);
   }
 });

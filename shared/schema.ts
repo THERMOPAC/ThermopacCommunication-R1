@@ -452,6 +452,11 @@ export const leaveTypes = pgTable('leave_types', {
   sandwichApplicable: boolean('sandwich_applicable').default(false),
   colorCode: varchar('color_code', { length: 7 }).default('#3B82F6'),
   isActive: boolean('is_active').default(true),
+  // Accrual configuration (CL accrues 1.25/month; others are 'manual')
+  accrualType: varchar('accrual_type', { length: 20 }).default('manual'), // 'manual' | 'monthly'
+  monthlyAccrualRate: decimal('monthly_accrual_rate', { precision: 5, scale: 2 }).default('0'),
+  accrualDayOfMonth: integer('accrual_day_of_month').default(1),
+  accrualProRate: boolean('accrual_pro_rate').default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -544,6 +549,71 @@ export const leavePolicies = pgTable('leave_policies', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   updatedBy: integer('updated_by').references(() => users.id),
 });
+
+// ============================================================================
+// LEAVE MANAGEMENT CORRECTION PLAN — NEW TABLES (Baseline v1.0)
+// ============================================================================
+
+// Sandwich deduction records — one row per enclosed off-day per leave request
+export const leaveDeductions = pgTable('leave_deductions', {
+  id: serial('id').primaryKey(),
+  leaveRequestId: integer('leave_request_id').notNull().references(() => leaveRequests.id, { onDelete: 'cascade' }),
+  employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  leaveTypeId: integer('leave_type_id').notNull().references(() => leaveTypes.id),
+  deductionDate: date('deduction_date').notNull(),
+  days: decimal('days', { precision: 4, scale: 2 }).notNull().default('1'),
+  deductionType: varchar('deduction_type', { length: 30 }).notNull().default('sandwich'), // 'sandwich'
+  reason: text('reason'),
+  // Lifecycle: pending_approval → approved | voided | revoked
+  status: varchar('status', { length: 20 }).notNull().default('approved'),
+  voidedBy: integer('voided_by').references(() => users.id),
+  voidedAt: timestamp('voided_at'),
+  voidReason: text('void_reason'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Leave accrual log — one row per monthly accrual run per user
+export const leaveAccrualLog = pgTable('leave_accrual_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  leaveTypeId: integer('leave_type_id').notNull().references(() => leaveTypes.id),
+  accrualMonth: varchar('accrual_month', { length: 7 }).notNull(), // YYYY-MM
+  daysAccrued: decimal('days_accrued', { precision: 5, scale: 2 }).notNull(),
+  balanceAfter: decimal('balance_after', { precision: 5, scale: 2 }),
+  runBy: integer('run_by').references(() => users.id), // null = system cron
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// LWP / LOP exemption audit log
+export const lwpExemptionAuditLog = pgTable('lwp_exemption_audit_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  action: varchar('action', { length: 20 }).notNull(), // 'granted' | 'revoked' | 'auto_policy'
+  grantedBy: integer('granted_by').references(() => users.id),
+  reason: text('reason'),
+  effectiveFrom: date('effective_from'),
+  nextReview: date('next_review'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// ============================================================================
+// LEAVE MANAGEMENT CORRECTION PLAN — INSERT SCHEMAS & TYPES
+// ============================================================================
+
+export const insertLeaveDeductionSchema = createInsertSchema(leaveDeductions)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+export type LeaveDeduction = typeof leaveDeductions.$inferSelect;
+export type InsertLeaveDeduction = z.infer<typeof insertLeaveDeductionSchema>;
+
+export const insertLeaveAccrualLogSchema = createInsertSchema(leaveAccrualLog)
+  .omit({ id: true, createdAt: true });
+export type LeaveAccrualLog = typeof leaveAccrualLog.$inferSelect;
+
+export const insertLwpExemptionAuditLogSchema = createInsertSchema(lwpExemptionAuditLog)
+  .omit({ id: true, createdAt: true });
+export type LwpExemptionAuditLog = typeof lwpExemptionAuditLog.$inferSelect;
 
 // Sales and Marketing tables
 export const leadSourcesTable = pgTable('lead_sources', {
@@ -932,6 +1002,13 @@ const userSchema = {
   workTimePolicy: text('work_time_policy').default('Fixed'), // 'Fixed' or 'Flexible'
   minimumDailyHours: doublePrecision('minimum_daily_hours').default(8), // Minimum hours for Present status (Flexible policy)
   halfDayMinimumHours: doublePrecision('half_day_minimum_hours').default(4), // Minimum hours for Half Day status (Flexible policy)
+
+  // LWP / LOP Exemption — Superuser, GM, SM are exempt by policy; others by grant
+  lwpExempt: boolean('lwp_exempt').default(false),
+  lwpExemptReason: text('lwp_exempt_reason'),
+  lwpExemptGrantedBy: integer('lwp_exempt_granted_by'),
+  lwpExemptGrantedAt: timestamp('lwp_exempt_granted_at'),
+  lwpExemptNextReview: date('lwp_exempt_next_review'),
 };
 
 // Create the users table with self-reference after definition
@@ -5743,6 +5820,17 @@ export const payrollAttendanceSnapshot = pgTable('payroll_attendance_snapshot', 
   paidDays: decimal('paid_days', { precision: 5, scale: 2 }).notNull(),
   autoLeaveApplied: jsonb('auto_leave_applied').default([]),
   dailyBreakdown: jsonb('daily_breakdown'),
+  // Sandwich deduction tracking
+  sandwichPaidDays: decimal('sandwich_paid_days', { precision: 5, scale: 2 }).default('0'),
+  sandwichLwpDays: decimal('sandwich_lwp_days', { precision: 5, scale: 2 }).default('0'),
+  // LOP confirmation gate — salary step blocked until HR confirms
+  lopDaysComputed: decimal('lop_days_computed', { precision: 5, scale: 2 }),
+  lopDaysConfirmed: decimal('lop_days_confirmed', { precision: 5, scale: 2 }),
+  lopConfirmedBy: integer('lop_confirmed_by'),
+  lopConfirmedAt: timestamp('lop_confirmed_at'),
+  lopOverrideNotes: text('lop_override_notes'),
+  // LWP exemption applied flag
+  lwpExemptApplied: boolean('lwp_exempt_applied').default(false),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   uniquePerRunUser: uniqueIndex('payroll_att_snap_period_run_user').on(table.periodId, table.runNumber, table.userId),

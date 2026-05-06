@@ -23,6 +23,7 @@ import {
   employeeAdvanceRecoveries,
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between, inArray } from 'drizzle-orm';
+import { isLwpExempt } from './leave-service';
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
 import { resolveStatutoryApplicability } from '@shared/statutory-rules';
@@ -338,6 +339,7 @@ async function stepAttendanceSnapshot(
       let lopDays: number;
       let paidDays: number;
       let presentDays: number;
+      let exempt = false;
 
       if (salaryType === 'daily') {
         presentDays = presentFull + lateDays + (halfDays * 0.5);
@@ -377,6 +379,20 @@ async function stepAttendanceSnapshot(
         const missingCount = missingDates.length;
         presentDays = presentFull + lateDays + (halfDays * 0.5);
         lopDays = absentCount + (halfDays * 0.5) + missingCount;
+
+        // LWP Exemption — zero out LOP for exempt senior roles (Superuser, GM, SM)
+        exempt = await isLwpExempt(emp.id);
+        if (exempt && lopDays > 0) {
+          exceptions.push({
+            userId: emp.id,
+            type: 'lwp_exempt',
+            severity: 'warning',
+            title: `LWP exemption applied for ${emp.username}`,
+            details: `LOP of ${lopDays} days waived due to LWP exemption policy.`,
+          });
+          lopDays = 0;
+        }
+
         paidDays = Math.max(MONTHLY_DIVISOR - lopDays, 0);
 
         if (paidDays > MONTHLY_DIVISOR) {
@@ -414,6 +430,8 @@ async function stepAttendanceSnapshot(
           paidLeaveDays: '0',
           unpaidLeaveDays: '0',
           lopDays: lopDays.toString(),
+          lopDaysComputed: lopDays.toString(),
+          lwpExemptApplied: exempt ?? false,
         })
         .onConflictDoUpdate({
           target: [payrollAttendanceSnapshot.periodId, payrollAttendanceSnapshot.runNumber, payrollAttendanceSnapshot.userId],
@@ -429,6 +447,8 @@ async function stepAttendanceSnapshot(
             holidays: holidayDates.size,
             companyHolidays: holidayDates.size,
             lopDays: lopDays.toString(),
+            lopDaysComputed: lopDays.toString(),
+            lwpExemptApplied: exempt ?? false,
           },
         });
 

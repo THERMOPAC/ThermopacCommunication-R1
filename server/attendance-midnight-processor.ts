@@ -5,6 +5,7 @@ import { determineAttendanceStatus } from './attendance-status-engine';
 import { schedule } from 'node-cron';
 import { APP_TIMEZONE, getISTDateString, getISTYesterdayString, buildISTDateTime } from './utils/date-ist';
 import { autoApplyDueIncrements } from './salary-increment-service';
+import { runMonthlyClAccrual, runYearEndClCarryover } from './leave-service';
 
 /**
  * Midnight Attendance Processor
@@ -389,9 +390,38 @@ export class AttendanceMidnightProcessor {
       console.log(`[${new Date().toISOString()}] IST midnight cron triggered`);
       this.processIncompleteAttendance();
       autoApplyDueIncrements().catch(err => console.error('[IncrementCron] Error:', err));
+      this.runLeaveAccrualIfDue().catch(err => console.error('[LeaveAccrual] Error:', err));
     }, { timezone: APP_TIMEZONE });
 
     console.log(`Attendance midnight processor scheduled at IST midnight (${APP_TIMEZONE})`);
+  }
+
+  /**
+   * Run monthly CL accrual if today is the 1st of the month,
+   * and year-end carryover if today is Jan 1.
+   */
+  async runLeaveAccrualIfDue(): Promise<void> {
+    try {
+      const todayIST = getISTDateString(); // YYYY-MM-DD
+      const [year, month, day] = todayIST.split('-').map(Number);
+
+      // Year-end carryover: runs on January 1 for the previous year
+      if (month === 1 && day === 1) {
+        console.log(`[LeaveAccrual] Running year-end carryover for ${year - 1}→${year}`);
+        const result = await runYearEndClCarryover(year - 1);
+        console.log(`[LeaveAccrual] Carryover done: ${result.processed} processed, ${result.errors.length} errors`);
+      }
+
+      // Monthly accrual: runs on 1st of every month
+      if (day === 1) {
+        const accrualMonth = `${year}-${String(month).padStart(2, '0')}`;
+        console.log(`[LeaveAccrual] Running monthly accrual for ${accrualMonth}`);
+        const result = await runMonthlyClAccrual(accrualMonth);
+        console.log(`[LeaveAccrual] Accrual done: ${result.processed} processed, ${result.skipped} skipped, ${result.errors.length} errors`);
+      }
+    } catch (err) {
+      console.error('[LeaveAccrual] runLeaveAccrualIfDue error:', err);
+    }
   }
 
   /**

@@ -27,6 +27,7 @@ An enterprise-grade Quality Management System optimizing operations, enhancing e
 - `server/pppc-routes.ts`: Procurement control API endpoints
 - `server/epc-slddrw-job-routes.ts`: SolidWorks Agent API endpoints
 - `server/dds-pdf-service.ts`: DDS PDF generation logic
+- `server/leave-service.ts`: Central leave state machine — all mutations, sandwich engine, CL accrual, LWP exemption
 
 ## Architecture decisions
 - **Data Integrity & Consistency**: Google Cloud Storage (GCS) is the single source of truth for file metadata; security via signed URLs. All GCS paths enforce a strict `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/…` root and controlled vocabulary.
@@ -34,6 +35,7 @@ An enterprise-grade Quality Management System optimizing operations, enhancing e
 - **Date Handling**: Strict global date standard (DD/MM/YYYY for UI, YYYY-MM-DD for DB) enforced by shared utilities and non-negotiable rules to prevent `toLocaleDateString()` and ensure consistency.
 - **SolidWorks Integration**: Dedicated local Windows agent polls cloud for jobs, extracts data via SolidWorks COM API, and uploads JSON results, decoupling heavy SolidWorks processing from the cloud application.
 - **Commercial Pricing Layer**: Implemented with immutable versioned price sheets (snapshots) and a clear formula for `selling_price_inr` and `selling_price`, ensuring financial traceability and auditability.
+- **Leave Management Service Layer**: All leave state mutations (apply/approve/reject/cancel/revoke/accrue) go through `server/leave-service.ts`. Sandwich deduction stored in `leave_deductions` table (forward-only from 2026-05-01). CL accrues at 1.25/month via nightly cron + manual admin trigger. LWP exemption for Superuser/GM/SM roles (or explicit DB grant) zeroes LOP in payroll. Admin bypass routes in `admin-routes.ts` are service-layer-backed.
 
 ## Product
 - **Core Modules**: Project & Quality Management, Finance & HR Management, Document Management.

@@ -2,12 +2,22 @@ import { sendError, sendValidationError, sendNotFound, sendPermissionError, send
 import { Router, Request, Response } from "express";
 import { ensureAuthenticated } from "./auth-middleware";
 import { db } from "./db";
-import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users, attendanceRecords } from "@shared/schema";
+import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users, attendanceRecords, leaveDeductions, leaveAccrualLog } from "@shared/schema";
 import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import { checkModulePermission } from "./utils/permission-utils";
 import { checkPayrollLock } from './payroll-lock-service';
 import { createNotification } from './notification-routes';
 import { computeSandwichLeave } from './sandwich-leave-utils';
+import {
+  applyLeave,
+  approveLeave,
+  rejectLeave,
+  cancelLeave,
+  revokeApprovedLeave,
+  runMonthlyClAccrual,
+  runYearEndClCarryover,
+  SANDWICH_EFFECTIVE_DATE as SVC_SANDWICH_DATE,
+} from './leave-service';
 
 // Sandwich leave applies FORWARD only — no retro-deduction for pre-cutover requests.
 const SANDWICH_EFFECTIVE_DATE = '2026-05-01';
@@ -502,47 +512,36 @@ router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res
   try {
     const userId = (req.user as any).id;
     const requestId = parseInt(req.params.id);
-
-    const [existingRequest] = await db
-      .select()
-      .from(leaveRequests)
-      .where(and(
-        eq(leaveRequests.id, requestId),
-        eq(leaveRequests.employeeId, userId)
-      ));
-
-    if (!existingRequest) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-
-    if (existingRequest.status !== 'pending') {
-      return res.status(400).json({ error: 'Only pending requests can be cancelled' });
-    }
-
-    await db
-      .update(leaveRequests)
-      .set({
-        status: 'canceled',
-        updatedAt: new Date()
-      })
-      .where(eq(leaveRequests.id, requestId));
-
-    const balanceYear = new Date(existingRequest.startDate).getFullYear();
-    await db
-      .update(leaveBalances)
-      .set({
-        pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
-        lastUpdated: new Date()
-      })
-      .where(and(
-        eq(leaveBalances.userId, userId),
-        eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-        eq(leaveBalances.year, balanceYear)
-      ));
-
+    await cancelLeave(requestId, userId);
     res.json({ success: true, message: 'Request cancelled successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error cancelling leave request:', error);
+    if (error.message?.includes('Only pending')) return res.status(400).json({ error: error.message });
+    if (error.message?.includes('not found')) return res.status(404).json({ error: error.message });
+    sendError(res, error);
+  }
+});
+
+// Manager/Self: Revoke an approved leave (employee can request, manager approves — here it's self-service for future use)
+router.post('/request/:id/revoke', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req.user as any);
+    const requestId = parseInt(req.params.id);
+    const { reason } = req.body;
+
+    // Only admin / HR / Superuser / GM can revoke
+    const allowedRoles = ['admin', 'hr', 'Superuser', 'General Manager', 'Senior Manager'];
+    const hasAdminPermission = await checkModulePermission(currentUser.id, 'Administration', 'edit');
+    if (!hasAdminPermission && !allowedRoles.includes(currentUser.role)) {
+      return sendPermissionError(res);
+    }
+    if (!reason) return res.status(400).json({ error: 'Reason is required to revoke leave' });
+
+    await revokeApprovedLeave(requestId, currentUser.id, reason);
+    res.json({ success: true, message: 'Leave revoked successfully' });
+  } catch (error: any) {
+    console.error('Error revoking leave:', error);
+    if (error.message?.includes('Only approved')) return res.status(400).json({ error: error.message });
     sendError(res, error);
   }
 });
@@ -617,6 +616,7 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
     const requestId = parseInt(req.params.id);
     const { comments } = req.body;
 
+    // Verify this manager owns the request
     const [existingRequest] = await db
       .select()
       .from(leaveRequests)
@@ -629,80 +629,7 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
       return res.status(404).json({ error: 'Request not found or you are not the manager' });
     }
 
-    if (existingRequest.managerApprovalStatus !== 'pending') {
-      return res.status(400).json({ error: 'Request has already been processed' });
-    }
-
-    await db
-      .update(leaveRequests)
-      .set({
-        status: 'approved',
-        managerApprovalStatus: 'approved',
-        managerApprovalDate: new Date(),
-        managerComments: comments || null,
-        updatedAt: new Date()
-      })
-      .where(eq(leaveRequests.id, requestId));
-
-    const balanceYear = new Date(existingRequest.startDate).getFullYear();
-    const [approvalBalance] = await db.select().from(leaveBalances).where(and(
-      eq(leaveBalances.userId, existingRequest.employeeId),
-      eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-      eq(leaveBalances.year, balanceYear)
-    ));
-    if (!approvalBalance) {
-      await db.insert(leaveBalances).values({
-        userId: existingRequest.employeeId,
-        leaveTypeId: existingRequest.leaveTypeId,
-        year: balanceYear,
-        allocatedDays: '0.00',
-        usedDays: existingRequest.totalDays.toString(),
-        pendingDays: '0.00',
-        carryoverDays: '0.00',
-        lastUpdated: new Date()
-      });
-    } else {
-      await db
-        .update(leaveBalances)
-        .set({
-          pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
-          usedDays: sql`used_days + ${existingRequest.totalDays}`,
-          lastUpdated: new Date()
-        })
-        .where(eq(leaveBalances.id, approvalBalance.id));
-    }
-
-    const leaveStart = new Date(existingRequest.startDate);
-    const leaveEnd = new Date(existingRequest.endDate);
-    for (let d = new Date(leaveStart); d <= leaveEnd; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
-      const leaveStatus = existingRequest.isHalfDay ? 'half_day' : 'on_leave';
-      const [existingAtt] = await db.select({ id: attendanceRecords.id, status: attendanceRecords.status })
-        .from(attendanceRecords)
-        .where(and(
-          eq(attendanceRecords.userId, existingRequest.employeeId),
-          eq(attendanceRecords.date, dateStr)
-        ));
-      if (existingAtt) {
-        if (existingAtt.status !== leaveStatus) {
-          await db.update(attendanceRecords).set({
-            status: leaveStatus,
-            statusSource: 'leave',
-            adminNotes: `Leave approved (request #${requestId})`,
-            updatedAt: new Date(),
-          }).where(eq(attendanceRecords.id, existingAtt.id));
-        }
-      } else {
-        await db.insert(attendanceRecords).values({
-          userId: existingRequest.employeeId,
-          date: dateStr,
-          status: leaveStatus,
-          statusSource: 'leave',
-          source: 'system',
-          adminNotes: `Leave approved (request #${requestId})`,
-        });
-      }
-    }
+    await approveLeave(requestId, managerId, comments);
 
     const manager = req.user as any;
     const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, existingRequest.leaveTypeId));
@@ -719,8 +646,9 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
     });
 
     res.json({ success: true, message: 'Leave request approved successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error approving leave request:', error);
+    if (error.message?.includes('already been processed')) return res.status(409).json({ error: error.message });
     sendError(res, error);
   }
 });
@@ -735,6 +663,7 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
       return res.status(400).json({ error: 'Rejection reason is required' });
     }
 
+    // Verify this manager owns the request
     const [existingRequest] = await db
       .select()
       .from(leaveRequests)
@@ -747,36 +676,7 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
       return res.status(404).json({ error: 'Request not found or you are not the manager' });
     }
 
-    if (existingRequest.managerApprovalStatus !== 'pending') {
-      return res.status(400).json({ error: 'Request has already been processed' });
-    }
-
-    await db
-      .update(leaveRequests)
-      .set({
-        status: 'rejected',
-        managerApprovalStatus: 'rejected',
-        managerApprovalDate: new Date(),
-        managerComments: comments,
-        updatedAt: new Date()
-      })
-      .where(eq(leaveRequests.id, requestId));
-
-    const balanceYear = new Date(existingRequest.startDate).getFullYear();
-    const [rejectionBalance] = await db.select().from(leaveBalances).where(and(
-      eq(leaveBalances.userId, existingRequest.employeeId),
-      eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-      eq(leaveBalances.year, balanceYear)
-    ));
-    if (rejectionBalance) {
-      await db
-        .update(leaveBalances)
-        .set({
-          pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
-          lastUpdated: new Date()
-        })
-        .where(eq(leaveBalances.id, rejectionBalance.id));
-    }
+    await rejectLeave(requestId, managerId, comments);
 
     const manager = req.user as any;
     const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, existingRequest.leaveTypeId));
@@ -793,8 +693,9 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
     });
 
     res.json({ success: true, message: 'Leave request rejected' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error rejecting leave request:', error);
+    if (error.message?.includes('already been processed')) return res.status(409).json({ error: error.message });
     sendError(res, error);
   }
 });
@@ -1202,6 +1103,80 @@ router.patch('/admin/users/:userId/weekly-off', ensureAuthenticated, async (req:
     res.json({ success: true, message: 'Weekly off days updated' });
   } catch (error) {
     console.error('Error updating weekly off days:', error);
+    sendError(res, error);
+  }
+});
+
+// ──────────────────────────────────────────────
+// ADMIN: CL Accrual & Year-End Carryover Trigger
+// ──────────────────────────────────────────────
+
+// POST /api/leave/admin/accrual/monthly?month=YYYY-MM
+// Manually trigger monthly CL accrual for a given month
+router.post('/admin/accrual/monthly', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req.user as any);
+    const hasAdminPermission = await checkModulePermission(currentUser.id, 'Administration', 'edit');
+    if (!hasAdminPermission && !['admin', 'hr', 'Superuser'].includes(currentUser.role)) {
+      return sendPermissionError(res);
+    }
+    const { month } = req.query; // YYYY-MM
+    if (!month || !/^\d{4}-\d{2}$/.test(String(month))) {
+      return res.status(400).json({ error: 'month query param required in YYYY-MM format' });
+    }
+    const result = await runMonthlyClAccrual(String(month));
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('Error running monthly CL accrual:', error);
+    sendError(res, error);
+  }
+});
+
+// POST /api/leave/admin/accrual/year-end?year=YYYY
+// Manually trigger year-end CL carryover for a given year
+router.post('/admin/accrual/year-end', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req.user as any);
+    const hasAdminPermission = await checkModulePermission(currentUser.id, 'Administration', 'edit');
+    if (!hasAdminPermission && !['admin', 'hr', 'Superuser'].includes(currentUser.role)) {
+      return sendPermissionError(res);
+    }
+    const year = parseInt(String(req.query.year ?? ''));
+    if (!year || year < 2020 || year > 2100) {
+      return res.status(400).json({ error: 'year query param required (YYYY)' });
+    }
+    const result = await runYearEndClCarryover(year);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('Error running year-end CL carryover:', error);
+    sendError(res, error);
+  }
+});
+
+// GET /api/leave/admin/accrual-log?userId=&year=
+// Fetch accrual log entries (filtered)
+router.get('/admin/accrual-log', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req.user as any);
+    const hasAdminPermission = await checkModulePermission(currentUser.id, 'Administration', 'view');
+    if (!hasAdminPermission && !['admin', 'hr', 'Superuser', 'General Manager', 'Senior Manager'].includes(currentUser.role)) {
+      return sendPermissionError(res);
+    }
+    const { userId, year } = req.query;
+    let query = db.select().from(leaveAccrualLog);
+    const conditions: any[] = [];
+    if (userId) conditions.push(eq(leaveAccrualLog.userId, parseInt(String(userId))));
+    if (year) {
+      const yr = parseInt(String(year));
+      conditions.push(gte(leaveAccrualLog.accrualMonth, `${yr}-01`));
+      conditions.push(lte(leaveAccrualLog.accrualMonth, `${yr}-12`));
+    }
+    const rows = conditions.length > 0
+      ? await db.select().from(leaveAccrualLog).where(and(...conditions)).orderBy(desc(leaveAccrualLog.createdAt))
+      : await db.select().from(leaveAccrualLog).orderBy(desc(leaveAccrualLog.createdAt));
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching accrual log:', error);
     sendError(res, error);
   }
 });
