@@ -58,6 +58,7 @@ Preferred communication style: Simple, everyday language.
 ## Pointers
 - **GCS Governance**: `docs/gcs-governance-rev4-closure.md`
 - **SolidWorks Agent Baseline**: `docs/slddrw-extraction-agent-baseline-v3.md`
+- **Leave Management Correction Plan**: `docs/leave-management-correction-plan-baseline-v1.0.md`
 - **Drizzle ORM Docs**: `https://orm.drizzle.team/`
 - **Radix UI Docs**: `https://www.radix-ui.com/`
 - **TanStack Query Docs**: `https://tanstack.com/query/latest`
