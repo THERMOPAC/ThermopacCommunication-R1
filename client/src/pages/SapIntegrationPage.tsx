@@ -27,11 +27,20 @@ import { apiRequest } from '@/lib/queryClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ConnectionStatus {
-  status: 'connected' | 'disconnected' | 'unknown';
-  lastChecked: string;
+  status: 'connected' | 'disconnected' | 'configured' | 'error' | 'unknown';
+  lastChecked?: string;
+  lastTestTime?: string;
   version?: string;
   server?: string;
   database?: string;
+  credentialsConfigured?: boolean;
+  activeSessions?: number;
+  details?: {
+    serviceLayerUrl?: string;
+    companyDb?: string;
+    username?: string;
+  };
+  error?: string;
 }
 
 interface SyncStats {
@@ -219,6 +228,15 @@ export default function SapIntegrationPage() {
             </Badge>
           </div>
         );
+      case 'configured':
+        return (
+          <div className="flex items-center">
+            <Database className="h-4 w-4 text-amber-500 mr-1" />
+            <Badge variant="outline" className="border-amber-400 text-amber-700 bg-amber-50">
+              Credentials Ready
+            </Badge>
+          </div>
+        );
       case 'disconnected':
         return (
           <div className="flex items-center">
@@ -226,11 +244,18 @@ export default function SapIntegrationPage() {
             <Badge variant="destructive">Disconnected</Badge>
           </div>
         );
+      case 'error':
+        return (
+          <div className="flex items-center">
+            <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
+            <Badge variant="destructive">Error</Badge>
+          </div>
+        );
       default:
         return (
           <div className="flex items-center">
-            <Database className="h-4 w-4 text-gray-500 mr-1" />
-            <Badge variant="secondary">Unknown</Badge>
+            <Database className="h-4 w-4 text-gray-400 mr-1" />
+            <Badge variant="secondary">Not Configured</Badge>
           </div>
         );
     }
@@ -346,7 +371,7 @@ export default function SapIntegrationPage() {
                   {getConnectionStatusBadge()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Last checked: {connectionStatus?.lastChecked || 'Never'}
+                  Last checked: {connectionStatus?.lastChecked || connectionStatus?.lastTestTime ? new Date(connectionStatus.lastChecked || connectionStatus.lastTestTime!).toLocaleTimeString() : 'Never'}
                 </p>
               </CardContent>
             </Card>
@@ -555,17 +580,33 @@ export default function SapIntegrationPage() {
                     {getConnectionStatusBadge()}
                   </div>
                   
-                  {connectionStatus?.server && (
+                  {(connectionStatus?.details?.serviceLayerUrl || connectionStatus?.server) && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Server:</span>
-                      <span className="text-sm">{connectionStatus.server}</span>
+                      <span className="text-sm font-mono text-xs">59.152.52.58:50000</span>
                     </div>
                   )}
-                  
-                  {connectionStatus?.database && (
+
+                  {(connectionStatus?.details?.companyDb || connectionStatus?.database) && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Database:</span>
-                      <span className="text-sm">{connectionStatus.database}</span>
+                      <span className="text-sm font-medium">Company DB:</span>
+                      <span className="text-sm font-mono text-xs">{connectionStatus?.details?.companyDb || connectionStatus?.database}</span>
+                    </div>
+                  )}
+
+                  {connectionStatus?.details?.username && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">User:</span>
+                      <span className="text-sm font-mono text-xs">{connectionStatus.details.username}</span>
+                    </div>
+                  )}
+
+                  {connectionStatus?.activeSessions !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Active Sessions:</span>
+                      <Badge variant={connectionStatus.activeSessions > 0 ? "default" : "secondary"} className={connectionStatus.activeSessions > 0 ? "bg-green-100 text-green-800" : ""}>
+                        {connectionStatus.activeSessions}
+                      </Badge>
                     </div>
                   )}
 
