@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck, Calendar, TrendingUp, Check, ChevronDown } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck, Calendar, TrendingUp, Check, ChevronDown, ArrowUpRight, ArrowDownRight, Printer, FileText, User } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
@@ -2073,6 +2073,281 @@ function PayrollRunTab() {
   );
 }
 
+// ── Salary Revision Report Component ─────────────────────────────────────────
+type IncrementProposal = {
+  id: number;
+  employeeId: number;
+  employeeName: string;
+  incrementPercentage: string;
+  oldBasicSalary: string;
+  proposedBasicSalary: string;
+  oldCtc: string;
+  proposedCtc: string;
+  effectiveDate: string;
+  status: 'pending' | 'approved' | 'rejected' | 'applied';
+  remarks: string;
+  appliedAt?: string;
+};
+
+const REVISION_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  pending:  { label: 'Pending',  className: 'bg-amber-100 text-amber-800 border-amber-200' },
+  approved: { label: 'Approved', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+  applied:  { label: 'Applied',  className: 'bg-green-100 text-green-800 border-green-200' },
+  rejected: { label: 'Rejected', className: 'bg-red-100 text-red-800 border-red-200' },
+};
+
+function fmtInr(v: string | number) {
+  return `₹${parseFloat(String(v)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function fmtInrRound(v: string | number) {
+  return `₹${parseFloat(String(v)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function SalaryRevisionReport({ isSuperuser }: { isSuperuser: boolean }) {
+  const printRef = useRef<HTMLDivElement>(null);
+  const [statusFilter, setStatusFilter] = React.useState<string>('applied');
+
+  const { data: proposals = [], isLoading } = useQuery<IncrementProposal[]>({
+    queryKey: ['/api/admin/payroll/increment-proposals/all'],
+    enabled: isSuperuser,
+  });
+
+  const rows = statusFilter === 'all'
+    ? proposals
+    : proposals.filter(p => p.status === statusFilter);
+
+  const totalOldBasic = rows.reduce((s, p) => s + parseFloat(p.oldBasicSalary || '0'), 0);
+  const totalNewBasic = rows.reduce((s, p) => s + parseFloat(p.proposedBasicSalary || '0'), 0);
+  const totalOldCtc   = rows.reduce((s, p) => s + parseFloat(p.oldCtc || '0'), 0);
+  const totalNewCtc   = rows.reduce((s, p) => s + parseFloat(p.proposedCtc || '0'), 0);
+
+  const handlePrint = () => {
+    const el = printRef.current;
+    if (!el) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<html><head>
+      <title>Salary Revision Report — THERMOPAC</title>
+      <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:24px}
+        h1{font-size:15px;font-weight:bold;margin-bottom:3px}
+        .sub{font-size:10px;color:#555;margin-bottom:14px}
+        table{width:100%;border-collapse:collapse;margin-top:8px}
+        th{background:#1e40af;color:#fff;text-align:left;padding:6px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+        td{padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10.5px}
+        tr:nth-child(even) td{background:#f9fafb}
+        tfoot td{background:#eff6ff;font-weight:700;border-top:2px solid #93c5fd}
+        .r{text-align:right}.c{text-align:center}
+        .pos{color:#166534;font-weight:600}.neg{color:#991b1b;font-weight:600}
+        .badge{display:inline-block;padding:2px 7px;border-radius:9px;font-size:9px;font-weight:700}
+        .applied{background:#dcfce7;color:#166534}.approved{background:#dbeafe;color:#1e40af}
+        .pending{background:#fef3c7;color:#92400e}.rejected{background:#fee2e2;color:#991b1b}
+        .footer{margin-top:18px;font-size:9px;color:#888;text-align:right}
+      </style>
+    </head><body>
+      <h1>Salary Revision Report — Old Basic vs New Basic</h1>
+      <div class="sub">THERMOPAC · Filter: ${statusFilter === 'all' ? 'All' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} · ${rows.length} employees</div>
+      ${el.innerHTML}
+      <div class="footer">Generated ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})} · THERMOPAC ERP</div>
+    </body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+    win.close();
+  };
+
+  if (!isSuperuser) {
+    return (
+      <Card className="mt-4">
+        <CardContent className="py-16 flex flex-col items-center text-muted-foreground gap-2">
+          <FileText className="h-8 w-8" />
+          <p className="text-sm">Only Superusers can view salary revision data.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4 mt-2">
+      {/* Controls */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-blue-600" />
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Old Basic vs New Basic Report</h2>
+            <p className="text-xs text-muted-foreground">Salary revision history from all increment proposals</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="applied">Applied Only</SelectItem>
+              <SelectItem value="approved">Approved Only</SelectItem>
+              <SelectItem value="pending">Pending Only</SelectItem>
+              <SelectItem value="rejected">Rejected Only</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-8 border-blue-200 text-blue-700 hover:bg-blue-50"
+            onClick={handlePrint}
+            disabled={rows.length === 0}
+          >
+            <Printer className="h-3.5 w-3.5" /> Print / PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      {rows.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="bg-gray-50">
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">Total Old Basic</p>
+              <p className="text-lg font-bold font-mono mt-0.5">{fmtInrRound(totalOldBasic)}</p>
+              <p className="text-[10px] text-muted-foreground">/month · {rows.length} employees</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-3">
+              <p className="text-xs text-green-700">Total New Basic</p>
+              <p className="text-lg font-bold font-mono text-green-800 mt-0.5">{fmtInrRound(totalNewBasic)}</p>
+              <p className="text-[10px] text-green-600 flex items-center gap-0.5">
+                <ArrowUpRight className="h-3 w-3" />
+                +{fmtInrRound(totalNewBasic - totalOldBasic)}/month increase
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-50">
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">Total Old CTC</p>
+              <p className="text-lg font-bold font-mono mt-0.5">{fmtInrRound(totalOldCtc)}</p>
+              <p className="text-[10px] text-muted-foreground">/month</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-3">
+              <p className="text-xs text-green-700">Total New CTC</p>
+              <p className="text-lg font-bold font-mono text-green-800 mt-0.5">{fmtInrRound(totalNewCtc)}</p>
+              <p className="text-[10px] text-green-600 flex items-center gap-0.5">
+                <ArrowUpRight className="h-3 w-3" />
+                +{fmtInrRound(totalNewCtc - totalOldCtc)}/month increase
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Printable table */}
+      <div ref={printRef}>
+        <Card>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : rows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+                <FileText className="h-8 w-8" />
+                <p className="text-sm">No salary revision records for the selected filter</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-blue-800 text-white text-xs uppercase tracking-wide">
+                      <th className="text-left p-3 pl-4">#</th>
+                      <th className="text-left p-3">Employee</th>
+                      <th className="text-right p-3">Old Basic</th>
+                      <th className="text-right p-3">New Basic</th>
+                      <th className="text-right p-3">Difference</th>
+                      <th className="text-center p-3">Increment %</th>
+                      <th className="text-right p-3">Old CTC/mo</th>
+                      <th className="text-right p-3">New CTC/mo</th>
+                      <th className="text-center p-3">Effective Date</th>
+                      <th className="text-center p-3">Status</th>
+                      <th className="text-left p-3">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((p, i) => {
+                      const oldB = parseFloat(p.oldBasicSalary || '0');
+                      const newB = parseFloat(p.proposedBasicSalary || '0');
+                      const diff = newB - oldB;
+                      const pct  = parseFloat(p.incrementPercentage || '0');
+                      const oldC = parseFloat(p.oldCtc || '0');
+                      const newC = parseFloat(p.proposedCtc || '0');
+                      const isNeg = diff < 0;
+                      return (
+                        <tr key={p.id} className={`border-b ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} hover:bg-blue-50/30 transition-colors`}>
+                          <td className="p-3 pl-4 text-xs text-gray-400">{i + 1}</td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-1.5 font-medium text-gray-900">
+                              <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                              {p.employeeName}
+                            </div>
+                            {p.appliedAt && (
+                              <div className="text-[10px] text-gray-400 mt-0.5">Applied {fmtDate(p.appliedAt)}</div>
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-mono text-gray-700">{fmtInr(oldB)}</td>
+                          <td className="p-3 text-right font-mono font-semibold text-green-700">{fmtInr(newB)}</td>
+                          <td className="p-3 text-right font-mono">
+                            <span className={`flex items-center justify-end gap-0.5 font-semibold text-xs ${isNeg ? 'text-red-600' : 'text-green-600'}`}>
+                              {isNeg ? <ArrowDownRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+                              {isNeg ? '-' : '+'}{fmtInr(Math.abs(diff))}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ring-1 ring-inset ${isNeg ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-green-50 text-green-700 ring-green-600/20'}`}>
+                              {isNeg ? '' : '+'}{pct.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="p-3 text-right font-mono text-xs text-gray-600">{fmtInrRound(oldC)}</td>
+                          <td className="p-3 text-right font-mono text-xs font-semibold text-green-700">{fmtInrRound(newC)}</td>
+                          <td className="p-3 text-center text-xs text-gray-700 whitespace-nowrap">{fmtDate(p.effectiveDate)}</td>
+                          <td className="p-3 text-center">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${REVISION_STATUS_CONFIG[p.status]?.className}`}>
+                              {REVISION_STATUS_CONFIG[p.status]?.label}
+                            </span>
+                          </td>
+                          <td className="p-3 text-xs text-gray-500 max-w-[130px] truncate" title={p.remarks}>{p.remarks || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-blue-50 border-t-2 border-blue-200 font-semibold text-sm">
+                      <td className="p-3 pl-4 text-xs text-gray-600" colSpan={2}>Total ({rows.length} employees)</td>
+                      <td className="p-3 text-right font-mono text-gray-800">{fmtInr(totalOldBasic)}</td>
+                      <td className="p-3 text-right font-mono text-green-700">{fmtInr(totalNewBasic)}</td>
+                      <td className="p-3 text-right font-mono text-green-600 text-xs">
+                        +{fmtInr(totalNewBasic - totalOldBasic)}
+                      </td>
+                      <td className="p-3 text-center text-xs text-green-700">
+                        {totalOldBasic > 0 ? `+${(((totalNewBasic - totalOldBasic) / totalOldBasic) * 100).toFixed(1)}%` : '—'}
+                      </td>
+                      <td className="p-3 text-right font-mono text-xs text-gray-700">{fmtInrRound(totalOldCtc)}</td>
+                      <td className="p-3 text-right font-mono text-xs text-green-700">{fmtInrRound(totalNewCtc)}</td>
+                      <td colSpan={3}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function PayrollManagementNew() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -2527,13 +2802,20 @@ export default function PayrollManagementNew() {
 
         {/* Tabs for Salary Configurations, Generated Salaries, and Payroll Run */}
         <Tabs defaultValue="configurations" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="configurations">Salary Configurations</TabsTrigger>
             <TabsTrigger value="generated">Generated Salaries</TabsTrigger>
             <TabsTrigger value="payroll-run">Payroll Run Engine</TabsTrigger>
             <TabsTrigger value="calendar-attendance">Attendance Calendar</TabsTrigger>
             <TabsTrigger value="manual-salary">Manual Salary</TabsTrigger>
             <TabsTrigger value="tds">Income Tax / TDS</TabsTrigger>
+            <TabsTrigger value="salary-revision" className="gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              Salary Revision
+              {pendingIncrementCount > 0 && (
+                <span className="ml-0.5 rounded-full bg-amber-500 text-white text-[9px] font-bold px-1 py-0.5 leading-none">{pendingIncrementCount}</span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="configurations">
@@ -2673,6 +2955,10 @@ export default function PayrollManagementNew() {
 
           <TabsContent value="tds">
             <TdsManagementTab />
+          </TabsContent>
+
+          <TabsContent value="salary-revision">
+            <SalaryRevisionReport isSuperuser={isSuperuserPage} />
           </TabsContent>
         </Tabs>
 
