@@ -2111,10 +2111,10 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
     };
 
     const l3Decision: any = {};
-    const allowedIncrements = ['-10', '-5', '0', '5', '10', '15', '20', '25', '30'];
+    const allowedIncrements = ['-10', '-5', '0', '5', '10', '15', '20', '25', '30', '35', '40'];
     const incVal = req.body.l3IncrementValue !== undefined && req.body.l3IncrementValue !== null ? req.body.l3IncrementValue.toString() : null;
     if (incVal === null || !allowedIncrements.includes(incVal)) {
-      return res.status(400).json({ error: 'Increment % is mandatory. Must be one of: -10, -5, 0, 5, 10, 15, 20, 25, 30' });
+      return res.status(400).json({ error: 'Increment % is mandatory. Must be one of: -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40' });
     }
     l3Decision.l3IncrementType = 'percentage';
     l3Decision.l3IncrementValue = incVal;

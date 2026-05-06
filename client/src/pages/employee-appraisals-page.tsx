@@ -1897,7 +1897,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
         {isL3 && appraisal.status === "l2_reviewed" && (
           <Button className="w-full justify-start bg-green-600 hover:bg-green-700" onClick={() => {
             const mid = sysRec?.incrementRange ? Math.round((sysRec.incrementRange.min + sysRec.incrementRange.max) / 2) : 0;
-            const clamped = Math.min(30, Math.max(-10, mid));
+            const clamped = Math.min(40, Math.max(-10, mid));
             setActionForm(f => ({ ...f, l3EffectiveDate: `${new Date().getFullYear()}-04-01`, l3IncrementValue: String(clamped) }));
             setActionDialog("l3-approve");
           }}>
@@ -2046,7 +2046,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l3IncrementValue} onValueChange={v => setActionForm({ ...actionForm, l3IncrementValue: v })}>
                       <SelectTrigger><SelectValue placeholder="Select increment %" /></SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: 41 }, (_, i) => i - 10).map(n => (
+                        {Array.from({ length: 51 }, (_, i) => i - 10).map(n => (
                           <SelectItem key={n} value={String(n)}>{n > 0 ? `+${n}%` : `${n}%`}</SelectItem>
                         ))}
                       </SelectContent>
