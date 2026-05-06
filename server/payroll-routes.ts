@@ -13,6 +13,7 @@ import {
   attendanceRecords,
   users,
   tasks,
+  leaveRequests,
   payrollLocks,
   payrollLockExceptions,
   taxSlabs,
@@ -29,7 +30,7 @@ import {
   insertEmployeeTaxDeclarationSchema,
   insertEmployeeInvestmentProofSchema,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, asc, sum, avg, count, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sum, avg, count, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   startPayrollRun,
@@ -576,7 +577,17 @@ router.post('/run/reset', async (req, res) => {
   }
 });
 
-router.post('/run/single-user', async (req, res) => {
+router.post('/run/single-user', async (_req, res) => {
+  console.warn('[DEPRECATED] POST /api/payroll/run/single-user called — returning 410');
+  return res.status(410).json({
+    error: 'This endpoint has been deprecated.',
+    migration: 'Use POST /api/payroll/trial/run for trial runs. Use POST /api/payroll/run/start for the official payroll pipeline.',
+    code: 'ENDPOINT_DEPRECATED',
+  });
+});
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+router.post('/run/single-user-REMOVED', async (req, res) => {
   try {
     const executedBy = requirePayrollRole(req, res);
     if (!executedBy) return;
@@ -967,6 +978,143 @@ router.post('/run/single-user', async (req, res) => {
       employer: { pf: emplrPf, esic: emplrEsic, gratuity, groupInsurance: groupIns, ctcMonthly },
       tds: { regime: tdsResult.regime, projectedAnnualIncome: tdsResult.grossSalaryProjected, taxableIncome: tdsResult.taxableIncomeProjected, annualTaxLiability: tdsResult.totalTaxLiabilityAnnual, monthlyTds: tds },
       autoVerification,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/payroll/run/preflight/:periodId
+ * Pre-flight checks before the official Start Run.
+ * Returns blocking issues and drift warnings.
+ * Baseline: docs/payroll-governance-v4.1-baseline.md §11
+ */
+router.get('/run/preflight/:periodId', async (req, res) => {
+  try {
+    const executedBy = requirePayrollRole(req, res);
+    if (!executedBy) return;
+    const periodId = parseInt(req.params.periodId);
+
+    const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
+    if (!period) return res.status(404).json({ error: 'Period not found' });
+
+    // ── Check 1: any trial JEs currently sap_posted? ────────────────────────
+    const activeTrialJes = await db
+      .select({ userId: payrollRecords.userId, trialRunNo: payrollRecords.trialRunNo, sapJeNumber: payrollRecords.sapJeNumber })
+      .from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.recordType as any, 'trial'),
+        eq(payrollRecords.trialStatus as any, 'sap_posted'),
+      ));
+
+    const noActiveTrialJes = activeTrialJes.length === 0;
+
+    // ── Check 2: drift detection for employees with reversed trials ──────────
+    const reversedTrials = await db
+      .select({
+        userId: payrollRecords.userId,
+        trialRunNo: payrollRecords.trialRunNo,
+        createdAt: payrollRecords.createdAt,
+      })
+      .from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.recordType as any, 'trial'),
+        eq(payrollRecords.trialStatus as any, 'reversed'),
+      ))
+      .orderBy(desc(payrollRecords.trialRunNo));
+
+    const latestReversedByUser = new Map<number, { trialRunNo: number; createdAt: Date }>();
+    for (const t of reversedTrials) {
+      if (!latestReversedByUser.has(t.userId)) {
+        latestReversedByUser.set(t.userId, { trialRunNo: t.trialRunNo!, createdAt: t.createdAt! });
+      }
+    }
+
+    const driftEmployees: Array<{
+      userId: number;
+      employeeName: string;
+      latestTrialRunNo: number;
+      trialCreatedAt: string;
+      driftReasons: Array<{ source: string; description: string; changedAt: string }>;
+    }> = [];
+
+    for (const [userId, trialInfo] of latestReversedByUser) {
+      const trialTs = trialInfo.createdAt;
+      const driftReasons: Array<{ source: string; description: string; changedAt: string }> = [];
+
+      const attDrift = await db
+        .select({ date: attendanceRecords.date, updatedAt: attendanceRecords.updatedAt })
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, userId),
+          gte(attendanceRecords.date, period.startDate),
+          lte(attendanceRecords.date, period.endDate),
+          sql`${attendanceRecords.updatedAt} > ${trialTs}`,
+        ))
+        .limit(3);
+
+      for (const a of attDrift) {
+        driftReasons.push({ source: 'attendance', description: `Attendance on ${a.date} updated after trial`, changedAt: String(a.updatedAt) });
+      }
+
+      const leaveDrift = await db
+        .select({ id: leaveRequests.id, updatedAt: leaveRequests.updatedAt, startDate: leaveRequests.startDate })
+        .from(leaveRequests)
+        .where(and(
+          eq(leaveRequests.employeeId, userId),
+          lte(leaveRequests.startDate, period.endDate),
+          gte(leaveRequests.endDate, period.startDate),
+          sql`${leaveRequests.updatedAt} > ${trialTs}`,
+        ))
+        .limit(3);
+
+      for (const lv of leaveDrift) {
+        driftReasons.push({ source: 'leave', description: `Leave record from ${lv.startDate} updated after trial`, changedAt: String(lv.updatedAt) });
+      }
+
+      const [emp] = await db.select({ username: users.username, firstName: users.firstName, lastName: users.lastName })
+        .from(users).where(eq(users.id, userId));
+      const empName = emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : (emp?.username || String(userId));
+
+      if (driftReasons.length > 0) {
+        driftEmployees.push({
+          userId,
+          employeeName: empName,
+          latestTrialRunNo: trialInfo.trialRunNo,
+          trialCreatedAt: trialInfo.createdAt.toISOString(),
+          driftReasons,
+        });
+      }
+    }
+
+    const noDriftSinceTrialReversal = driftEmployees.length === 0;
+
+    const checks = {
+      noActiveTrialJes,
+      noDriftSinceTrialReversal,
+    };
+
+    const blocking: string[] = [];
+    const warnings: string[] = [];
+
+    if (!noActiveTrialJes) blocking.push('noActiveTrialJes');
+    if (!noDriftSinceTrialReversal) warnings.push('noDriftSinceTrialReversal');
+
+    res.json({
+      periodId,
+      periodName: period.periodName,
+      checks,
+      blocking,
+      warnings,
+      canProceed: blocking.length === 0,
+      activeTrialJes: noActiveTrialJes ? [] : activeTrialJes,
+      driftReport: {
+        hasDrift: !noDriftSinceTrialReversal,
+        employees: driftEmployees,
+      },
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

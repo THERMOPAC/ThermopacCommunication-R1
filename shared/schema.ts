@@ -5550,6 +5550,11 @@ export const payrollRecords = pgTable('payroll_records', {
   reversedAt: timestamp('reversed_at'),
   reversalMemo: text('reversal_memo'),
 
+  recordType: varchar('record_type', { length: 10 }).notNull().default('official'),
+  trialRunNo: integer('trial_run_no'),
+  trialStatus: varchar('trial_status', { length: 15 }),
+  calculationEngineVersion: varchar('calculation_engine_version', { length: 20 }).notNull().default('legacy'),
+
   salarySource: varchar('salary_source', { length: 20 }).default('payroll_engine'),
   workerType: varchar('worker_type', { length: 20 }).default('regular'),
   manualSalaryEntryId: integer('manual_salary_entry_id'),

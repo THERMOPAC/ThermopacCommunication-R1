@@ -28,6 +28,7 @@ import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
 import { resolveStatutoryApplicability } from '@shared/statutory-rules';
 import type { EmployeeType } from '@shared/schema';
+import { computeEmployeeSalaryNumbers, PAYROLL_CONSTANTS as CORE_CONSTANTS } from './payroll-salary-core';
 
 const MONTHLY_DIVISOR = 30;
 
@@ -717,72 +718,37 @@ async function stepSalaryCalculation(
 
       const rawPaidDays = attSnap.length > 0 ? parseFloat(attSnap[0].paidDays) : 0;
 
-      let proratedBase: number, overtimePay: number, grossPay: number;
-      let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0, bonusAllow = 0;
-      let paidDays: number;
+      // ── Step A: preliminary gross for statutory resolution ─────────────────
+      const configHra = parseFloat(sal.houseRentAllowance || '0');
+      const configConv = parseFloat(sal.conveyance || '0');
+      const configLta = parseFloat(sal.lta || '0');
+      const configSpec = parseFloat(sal.specialAllowance || '0');
+      const configSupp = parseFloat(sal.supplementaryAllowance || '0');
+      const configKgp = parseFloat(sal.kgpAllowance || '0');
 
-      if (salaryType === 'daily') {
-        paidDays = rawPaidDays;
-        proratedBase = basicSalary * paidDays;
-        overtimePay = 0;
-        bonusAllow = Math.round(proratedBase * 0.0833 * 100) / 100;
-        grossPay = proratedBase;
-      } else {
-        paidDays = Math.min(rawPaidDays, MONTHLY_DIVISOR);
+      const preRatio = salaryType === 'monthly'
+        ? Math.min(rawPaidDays, MONTHLY_DIVISOR) / MONTHLY_DIVISOR
+        : 1;
+      const prelimGross = salaryType === 'daily'
+        ? basicSalary * rawPaidDays
+        : basicSalary * preRatio + configHra * preRatio + configConv * preRatio + configLta * preRatio + configSpec * preRatio + configSupp * preRatio + configKgp * preRatio;
 
-        if (paidDays > MONTHLY_DIVISOR) {
-          exceptions.push({
-            userId: emp.id,
-            type: 'calculation_error',
-            severity: 'error',
-            title: `Paid days exceed ${MONTHLY_DIVISOR} for ${emp.username}`,
-            details: `Paid days: ${paidDays}. Cannot exceed ${MONTHLY_DIVISOR} for monthly salary.`,
-          });
-          skipped++;
-          continue;
-        }
-
-        const ratio = paidDays / MONTHLY_DIVISOR;
-        proratedBase = Math.round(basicSalary * ratio * 100) / 100;
-        overtimePay = 0;
-
-        const configHra = parseFloat(sal.houseRentAllowance || '0');
-        const configConv = parseFloat(sal.conveyance || '0');
-        const configLta = parseFloat(sal.lta || '0');
-        const configSpec = parseFloat(sal.specialAllowance || '0');
-        const configSupp = parseFloat(sal.supplementaryAllowance || '0');
-        const configKgp = parseFloat(sal.kgpAllowance || '0');
-        const configBonus = parseFloat(sal.bonus || '0');
-
-        hra = Math.round(configHra * ratio * 100) / 100;
-        conv = Math.round(configConv * ratio * 100) / 100;
-        ltaVal = Math.round(configLta * ratio * 100) / 100;
-        specAllow = Math.round(configSpec * ratio * 100) / 100;
-        suppAllow = Math.round(configSupp * ratio * 100) / 100;
-        kgpAllow = Math.round(configKgp * ratio * 100) / 100;
-        bonusAllow = configBonus > 0
-          ? Math.round(configBonus * ratio * 100) / 100
-          : Math.round(basicSalary * 0.0833 * ratio * 100) / 100;
-
-        grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow;
-
-        if (paidDays === MONTHLY_DIVISOR) {
-          const fullMonthGross = basicSalary + configHra + configConv + configLta + configSpec + configSupp + configKgp;
-          if (grossPay > fullMonthGross + 1) {
-            exceptions.push({
-              userId: emp.id,
-              type: 'salary_overflow',
-              severity: 'warning',
-              title: `Gross pay exceeds full-month configured salary for ${emp.username}`,
-              details: `Calculated gross: ₹${grossPay.toFixed(2)}, Full-month configured: ₹${fullMonthGross.toFixed(2)}.`,
-            });
-          }
-        }
+      if (salaryType === 'monthly' && Math.min(rawPaidDays, MONTHLY_DIVISOR) > MONTHLY_DIVISOR) {
+        exceptions.push({
+          userId: emp.id,
+          type: 'calculation_error',
+          severity: 'error',
+          title: `Paid days exceed ${MONTHLY_DIVISOR} for ${emp.username}`,
+          details: `Paid days: ${rawPaidDays}. Cannot exceed ${MONTHLY_DIVISOR} for monthly salary.`,
+        });
+        skipped++;
+        continue;
       }
 
+      // ── Step B: resolve statutory applicability ────────────────────────────
       const statutoryResult = resolveStatutoryApplicability({
         employeeType: (emp.employeeType as EmployeeType) || null,
-        grossEarnings: grossPay,
+        grossEarnings: prelimGross,
         hasEpfNumber: !!emp.epfNo,
         hasPfConfigured: true,
         role: emp.role,
@@ -791,111 +757,139 @@ async function stepSalaryCalculation(
       if (statutoryResult.status === 'UNRESOLVED') {
         console.warn(`⚠️ [PayrollRun] Statutory UNRESOLVED for ${emp.username} (${emp.id}): ${statutoryResult.warnings.join('; ')}`);
         exceptions.push({
-          employeeId: emp.id,
-          employeeName: emp.username,
+          userId: emp.id,
           type: 'statutory_unresolved',
-          message: `Statutory applicability unresolved: ${statutoryResult.warnings.join('; ')}`,
           severity: 'warning',
+          title: `Statutory UNRESOLVED for ${emp.username}`,
+          details: `Statutory applicability unresolved: ${statutoryResult.warnings.join('; ')}`,
         });
       }
       statutoryResult.warnings.forEach(w => console.log(`📋 [PayrollRun] ${emp.username}: ${w}`));
 
-      const pfBase = Math.min(proratedBase, 15000);
-      let employeePF = 0;
-      let employerPF = 0;
-      if (statutoryResult.isPFApplicable) {
-        employeePF = pfBase * 0.12;
-        employerPF = pfBase * 0.12;
-      } else {
-        console.log(`📋 [PayrollRun] PF skipped for ${emp.username}: ${statutoryResult.basis.pf}`);
-      }
+      const isFebruary = new Date(period.startDate).getMonth() + 1 === 2;
 
-      let employeeESIC = 0;
-      let employerESIC = 0;
-      if (statutoryResult.isESICApplicable) {
-        employeeESIC = grossPay * 0.0075;
-        employerESIC = grossPay * 0.0325;
-      } else {
-        console.log(`📋 [PayrollRun] ESIC skipped for ${emp.username}: ${statutoryResult.basis.esic}`);
-      }
+      // ── Step C: shared core — single source of all payroll arithmetic ──────
+      const coreResult = computeEmployeeSalaryNumbers({
+        basicSalary,
+        salaryType,
+        houseRentAllowance: configHra,
+        conveyance: configConv,
+        lta: configLta,
+        specialAllowance: configSpec,
+        supplementaryAllowance: configSupp,
+        kgpAllowance: configKgp,
+        configBonus: parseFloat(sal.bonus || '0'),
+        groupInsurance: groupInsuranceAmount,
+        workingHoursPerDay,
+        otRate: parseFloat(sal.otRate || '1.0'),
+        otMultiplier: parseFloat(sal.otMultiplier || '1.0'),
+        paidDays: rawPaidDays,
+        lopDays,
+        totalWorkingDays,
+        overtimeHours,
+        isPFApplicable: !!statutoryResult.isPFApplicable,
+        isESICApplicable: !!statutoryResult.isESICApplicable,
+        isPTApplicable: !!(statutoryResult.isPTApplicable && emp.role !== 'Superuser'),
+        ptMonthly: ptConfig.monthly,
+        ptFebruary: ptConfig.february,
+        isFebruary,
+        activeLoans: [],    // pipeline: handled by stepDeductionCalculation
+        activeAdvances: [], // pipeline: handled by stepDeductionCalculation
+        minimumTakeHome: 10000,
+      });
 
-      const gratuityAmount = (basicSalary * 15 / 26) / 12;
-
-      let professionalTax = 0;
-      if (statutoryResult.isPTApplicable && emp.role !== 'Superuser') {
-        const periodMonth = new Date(period.startDate).getMonth() + 1;
-        professionalTax = periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
-      } else if (!statutoryResult.isPTApplicable) {
-        console.log(`📋 [PayrollRun] PT skipped for ${emp.username}: ${statutoryResult.basis.pt}`);
-      }
-
-      const totalDeductions = employeePF + employeeESIC + professionalTax;
-      const netPay = grossPay - totalDeductions;
-
-      const ctcMonthly = grossPay + employerPF + employerESIC + gratuityAmount + groupInsuranceAmount + bonusAllow;
-      const ctcYearly = ctcMonthly * 12;
+      if (!statutoryResult.isPFApplicable) console.log(`📋 [PayrollRun] PF skipped for ${emp.username}: ${statutoryResult.basis.pf}`);
+      if (!statutoryResult.isESICApplicable) console.log(`📋 [PayrollRun] ESIC skipped for ${emp.username}: ${statutoryResult.basis.esic}`);
+      if (!statutoryResult.isPTApplicable) console.log(`📋 [PayrollRun] PT skipped for ${emp.username}: ${statutoryResult.basis.pt}`);
 
       const calculationSnapshot = {
         basicSalary,
         salaryType,
-        salaryBasis: salaryType === 'daily' ? 'actual_days' : MONTHLY_DIVISOR,
+        salaryBasis: coreResult.salaryBasis,
         totalWorkingDays,
-        paidDays,
+        paidDays: coreResult.paidDays,
         lopDays,
-        proratedBase,
-        allowances: { hra, conveyance: conv, lta: ltaVal, specialAllowance: specAllow, supplementaryAllowance: suppAllow, kgpAllowance: kgpAllow, bonus: bonusAllow },
-        overtime: { hours: overtimeHours, pay: overtimePay },
-        deductions: { employeePF, employerPF, employeeESIC, employerESIC, professionalTax, gratuity: gratuityAmount },
-        employerCosts: { groupInsurance: groupInsuranceAmount, gratuity: gratuityAmount, employerPF, employerESIC },
-        grossPay,
-        totalDeductions,
-        netPay,
-        ctcMonthly,
-        ctcYearly,
+        proratedBase: coreResult.proratedBase,
+        allowances: {
+          hra: coreResult.hra,
+          conveyance: coreResult.conv,
+          lta: coreResult.lta,
+          specialAllowance: coreResult.specialAllowance,
+          supplementaryAllowance: coreResult.supplementaryAllowance,
+          kgpAllowance: coreResult.kgpAllowance,
+          bonus: coreResult.bonusAllowance,
+        },
+        overtime: { hours: overtimeHours, pay: coreResult.overtimePay },
+        deductions: {
+          employeePF: coreResult.employeePF,
+          employerPF: coreResult.employerPF,
+          employeeESIC: coreResult.employeeESIC,
+          employerESIC: coreResult.employerESIC,
+          professionalTax: coreResult.professionalTax,
+          gratuity: coreResult.gratuity,
+        },
+        employerCosts: {
+          groupInsurance: groupInsuranceAmount,
+          gratuity: coreResult.gratuity,
+          employerPF: coreResult.employerPF,
+          employerESIC: coreResult.employerESIC,
+        },
+        grossPay: coreResult.grossPay,
+        totalDeductions: coreResult.totalStatutoryDeductions,
+        netPay: coreResult.netPayPreTds,
+        ctcMonthly: coreResult.ctcMonthly,
+        ctcYearly: coreResult.ctcYearly,
         salaryRecordId: sal.id,
+        engineVersion: coreResult.engineVersion,
         snapshotDate: new Date().toISOString(),
       };
 
+      // ── Step D: query/write official record only (never touches trial rows) ─
       const existingRecord = await db
         .select()
         .from(payrollRecords)
         .where(
           and(
             eq(payrollRecords.periodId, periodId),
-            eq(payrollRecords.userId, emp.id)
+            eq(payrollRecords.userId, emp.id),
+            eq(payrollRecords.recordType, 'official'),
           )
         );
 
       const payrollData = {
         runNumber,
-        baseSalary: proratedBase.toFixed(2),
+        recordType: 'official' as const,
+        trialRunNo: null,
+        trialStatus: null,
+        calculationEngineVersion: coreResult.engineVersion,
+        baseSalary: coreResult.proratedBase.toFixed(2),
         workingDays: totalWorkingDays,
-        paidDays: paidDays.toFixed(2),
+        paidDays: coreResult.paidDays.toFixed(2),
         lopDays: lopDays.toFixed(2),
         presentDays: (attSnap[0]?.presentDays || '0'),
         paidLeaveDays: (attSnap[0]?.paidLeaveDays || '0'),
         unpaidLeaveDays: (attSnap[0]?.unpaidLeaveDays || '0'),
-        hra: hra.toFixed(2),
-        conveyanceAllowance: conv.toFixed(2),
-        ltaAllowance: ltaVal.toFixed(2),
-        specialAllowance: specAllow.toFixed(2),
-        supplementaryAllowance: suppAllow.toFixed(2),
-        kgpAllowance: kgpAllow.toFixed(2),
-        bonus: bonusAllow.toFixed(2),
+        hra: coreResult.hra.toFixed(2),
+        conveyanceAllowance: coreResult.conv.toFixed(2),
+        ltaAllowance: coreResult.lta.toFixed(2),
+        specialAllowance: coreResult.specialAllowance.toFixed(2),
+        supplementaryAllowance: coreResult.supplementaryAllowance.toFixed(2),
+        kgpAllowance: coreResult.kgpAllowance.toFixed(2),
+        bonus: coreResult.bonusAllowance.toFixed(2),
         overtimeHours: overtimeHours.toFixed(2),
-        overtimePay: overtimePay.toFixed(2),
-        grossPay: grossPay.toFixed(2),
-        employeePf: employeePF.toFixed(2),
-        employeeEsic: employeeESIC.toFixed(2),
-        employerPf: employerPF.toFixed(2),
-        employerEsic: employerESIC.toFixed(2),
-        providentFund: employeePF.toFixed(2),
-        esiDeduction: employeeESIC.toFixed(2),
-        professionalTax: professionalTax.toFixed(2),
-        gratuity: gratuityAmount.toFixed(2),
+        overtimePay: coreResult.overtimePay.toFixed(2),
+        grossPay: coreResult.grossPay.toFixed(2),
+        employeePf: coreResult.employeePF.toFixed(2),
+        employeeEsic: coreResult.employeeESIC.toFixed(2),
+        employerPf: coreResult.employerPF.toFixed(2),
+        employerEsic: coreResult.employerESIC.toFixed(2),
+        providentFund: coreResult.employeePF.toFixed(2),
+        esiDeduction: coreResult.employeeESIC.toFixed(2),
+        professionalTax: coreResult.professionalTax.toFixed(2),
+        gratuity: coreResult.gratuity.toFixed(2),
         groupInsurance: groupInsuranceAmount.toFixed(2),
-        totalDeductions: totalDeductions.toFixed(2),
-        netPay: netPay.toFixed(2),
+        totalDeductions: coreResult.totalStatutoryDeductions.toFixed(2),
+        netPay: coreResult.netPayPreTds.toFixed(2),
         calculationSnapshot,
         status: 'draft',
       };

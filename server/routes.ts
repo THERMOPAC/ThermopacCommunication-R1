@@ -737,6 +737,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('Leave routes registered at /api/leave');
   
   // Set up Payroll Management routes
+  const { default: payrollTrialRoutes } = await import('./payroll-trial-routes');
+  app.use('/api/payroll', payrollTrialRoutes);
   app.use('/api/payroll', payrollRoutes);
   app.use('/api/manual-salary', manualSalaryRoutes);
   app.use('/api/calendar-attendance', calendarAttendanceRoutes);

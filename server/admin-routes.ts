@@ -4650,6 +4650,8 @@ function buildSalaryJePayload(
   postingDate: string,   // ReferenceDate — last day of the salary period month (e.g. 2026-04-30)
   glMap: Map<string, string>,
   ptAmountOverride?: number,  // If provided, overrides record.professionalTax (ensures correct monthly/Feb rule)
+  isTrial: boolean = false,
+  trialRunNo?: number,
 ) {
   const jeLines: any[] = [];
   let lineNum = 0;
@@ -4790,12 +4792,14 @@ function buildSalaryJePayload(
   // JournalEntries in SAP B1 Service Layer use ReferenceDate as the posting date.
   // DocDate is NOT a valid field for JEs (only for A/R, A/P documents).
   // ReferenceDate = last day of the salary period month.
+  const memoPrefix = isTrial ? `[TRIAL #${trialRunNo ?? '?'}] ` : '';
   const payload = {
     ReferenceDate: postingDate,
-    Memo: `Salary JE - ${empName} - ${periodLabel}`,
+    Memo: `${memoPrefix}Salary JE - ${empName} - ${periodLabel}`,
     Reference2: employee.cardCode,
-    Reference3: '92B',
+    Reference3: isTrial ? '92B-TRIAL' : '92B',
     U_Employee_Name: empName,
+    U_PayrollRunType: isTrial ? 'TRIAL' : 'OFFICIAL',
     JournalEntryLines: jeLines,
   };
 
@@ -5769,6 +5773,255 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
 
   } catch (error) {
     console.error('Error generating salary slip:', error);
+    sendError(res, error);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Trial Payroll — SAP JE Post, Reversal Confirm, Parity Verification
+// Baseline: docs/payroll-governance-v4.1-baseline.md §6, §10
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * POST /admin/payroll/trial/:recordId/post-sap-je
+ * Post a trial salary JE to SAP B1 (Memo prefix [TRIAL #N], Reference3=92B-TRIAL).
+ * Only records in trial_status='generated' may be posted.
+ * Sets trial_status='sap_posted' on success.
+ */
+router.post('/payroll/trial/:recordId/post-sap-je', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.recordId);
+    const currentUser = req.user as any;
+    if (!['Admin', 'Finance', 'Superuser'].includes(currentUser?.role)) {
+      return res.status(403).json({ error: 'Finance/Admin/Superuser role required to post trial JEs' });
+    }
+
+    const [record] = await db.select().from(payrollRecords).where(and(eq(payrollRecords.id, recordId), eq(payrollRecords.recordType as any, 'trial')));
+    if (!record) return res.status(404).json({ error: 'Trial payroll record not found' });
+    if (record.trialStatus !== 'generated') return res.status(409).json({ error: `Only 'generated' trial records can be SAP-posted. Current: ${record.trialStatus}` });
+
+    const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
+    if (!period) return res.status(400).json({ error: 'Period not found' });
+
+    const [employee] = await db.select({
+      id: users.id, firstName: users.firstName, lastName: users.lastName,
+      username: users.username, cardCode: users.cardCode, cardName: users.cardName,
+      loanCardCode: users.loanCardCode,
+    }).from(users).where(eq(users.id, record.userId));
+    if (!employee) return res.status(400).json({ error: 'Employee not found' });
+
+    const empName = employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : employee.username || 'Unknown';
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const glMap = new Map<string, string>();
+    for (const m of allMappings) {
+      if (m.componentCode && m.postingContext) {
+        const sapCode = m.sapAcctCode && m.sapAcctCode.trim() !== '' ? m.sapAcctCode.trim() : null;
+        if (sapCode && sapCode.startsWith('_SYS')) glMap.set(`${m.componentCode}|${m.postingContext}`, sapCode);
+      }
+    }
+
+    // Compute posting date = last day of period month
+    const periodEnd = new Date(period.endDate);
+    const lastDay = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 0);
+    const postingDate = lastDay.toISOString().slice(0, 10);
+
+    const periodMonth = periodEnd.getMonth() + 1;
+    const ptIsFebruary = periodMonth === 2;
+    const ptRows = await db.select().from(payrollSettings).where(sql`${payrollSettings.settingName} IN ('professional_tax_monthly', 'professional_tax_february')`);
+    let ptMonthly = 200, ptFebruary = 300;
+    for (const r of ptRows) {
+      if (r.settingName === 'professional_tax_monthly') ptMonthly = parseFloat(r.settingValue) || 200;
+      if (r.settingName === 'professional_tax_february') ptFebruary = parseFloat(r.settingValue) || 300;
+    }
+    const ptAmountForPeriod = ptIsFebruary ? ptFebruary : ptMonthly;
+
+    let jePayload: any;
+    try {
+      const built = buildSalaryJePayload(record, employee, empName, period.periodName, postingDate, glMap, ptAmountForPeriod, true, record.trialRunNo ?? undefined);
+      jePayload = built.payload;
+      console.log(`[TrialSapJE] Built payload for trial #${record.trialRunNo}, debit=${built.totalDebit.toFixed(2)}, credit=${built.totalCredit.toFixed(2)}`);
+    } catch (buildErr: any) {
+      return res.status(400).json({ error: `JE payload build failed: ${buildErr.message}` });
+    }
+
+    const sapClient = getSapClient();
+    let lastError = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const session = await sapClient.login();
+        const jeResp = await session.post('/JournalEntries', jePayload);
+        const docEntry = jeResp.data?.DocEntry;
+        const jeNumber = jeResp.data?.JournalEntryLines?.[0]?.LineID !== undefined ? jeResp.data?.JournalEntryNumber ?? docEntry : docEntry;
+
+        await db.update(payrollRecords).set({
+          trialStatus: 'sap_posted',
+          sapPostingStatus: 'posted',
+          sapDocEntry: String(docEntry),
+          sapJeNumber: String(jeNumber ?? docEntry),
+          sapPostedAt: new Date(),
+          sapPostedBy: currentUser.id,
+          updatedAt: new Date(),
+        } as any).where(eq(payrollRecords.id, recordId));
+
+        console.log(`✅ [TrialSapJE] Posted trial #${record.trialRunNo} to SAP. DocEntry=${docEntry}`);
+        return res.json({ success: true, trialRunNo: record.trialRunNo, sapDocEntry: docEntry, sapJeNumber: jeNumber ?? docEntry, message: `Trial #${record.trialRunNo} JE posted to SAP.` });
+      } catch (sapErr: any) {
+        lastError = sapErr.message || String(sapErr);
+        if (attempt === 0) { await new Promise(r => setTimeout(r, 1500)); continue; }
+        await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
+        return res.status(500).json({ error: lastError });
+      }
+    }
+    return res.status(500).json({ error: lastError || 'SAP session retry exhausted' });
+  } catch (error: any) {
+    console.error('Error posting trial JE to SAP:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * POST /admin/payroll/trial/:recordId/confirm-reversal
+ * Mark a trial record as fully reversed (after manual SAP reversal).
+ * Sets trial_status='reversed'. Body: { reversalSapDocEntry, reversalMemo? }
+ */
+router.post('/payroll/trial/:recordId/confirm-reversal', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.recordId);
+    const currentUser = req.user as any;
+    if (!['Admin', 'Finance', 'Superuser'].includes(currentUser?.role)) {
+      return res.status(403).json({ error: 'Finance/Admin/Superuser role required' });
+    }
+
+    const { reversalSapDocEntry, reversalMemo } = req.body;
+    if (!reversalSapDocEntry) return res.status(400).json({ error: 'reversalSapDocEntry is required' });
+
+    const [record] = await db.select().from(payrollRecords).where(and(eq(payrollRecords.id, recordId), eq(payrollRecords.recordType as any, 'trial')));
+    if (!record) return res.status(404).json({ error: 'Trial payroll record not found' });
+    if (record.trialStatus !== 'sap_posted') return res.status(409).json({ error: `Only 'sap_posted' trials can be confirmed-reversed. Current: ${record.trialStatus}` });
+
+    await db.update(payrollRecords).set({
+      trialStatus: 'reversed',
+      reversalSapDocEntry: String(reversalSapDocEntry),
+      reversalMemo: reversalMemo || `Trial #${record.trialRunNo} reversed`,
+      reversedBy: currentUser.id,
+      reversedAt: new Date(),
+      updatedAt: new Date(),
+    } as any).where(eq(payrollRecords.id, recordId));
+
+    console.log(`✅ [TrialReversal] Trial #${record.trialRunNo} (record ${recordId}) confirmed reversed. DocEntry=${reversalSapDocEntry}`);
+    res.json({ success: true, trialRunNo: record.trialRunNo, message: `Trial #${record.trialRunNo} reversal confirmed. Period now clear for next trial or official run.` });
+  } catch (error: any) {
+    console.error('Error confirming trial reversal:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * POST /admin/payroll/verify/trial-vs-official
+ * 21-field parity comparison between latest reversed trial and official record.
+ * Baseline: docs/payroll-governance-v4.1-baseline.md §10
+ * Body: { periodId, userId }
+ */
+router.post('/payroll/verify/trial-vs-official', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user as any;
+    if (!['Admin', 'Finance', 'Superuser', 'HR'].includes(currentUser?.role)) {
+      return res.status(403).json({ error: 'Finance/Admin/HR/Superuser role required' });
+    }
+
+    const { periodId, userId } = req.body;
+    if (!periodId || !userId) return res.status(400).json({ error: 'periodId and userId are required' });
+
+    const [trialRecord] = await db.select().from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.userId, userId),
+        eq(payrollRecords.recordType as any, 'trial'),
+        eq(payrollRecords.trialStatus as any, 'reversed'),
+      ))
+      .orderBy(desc(payrollRecords.trialRunNo))
+      .limit(1);
+
+    if (!trialRecord) return res.status(404).json({ error: 'No reversed trial record found for this employee/period. Run and reverse a trial first.' });
+
+    const [officialRecord] = await db.select().from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.userId, userId),
+        eq(payrollRecords.recordType as any, 'official'),
+      ))
+      .orderBy(desc(payrollRecords.runNumber))
+      .limit(1);
+
+    if (!officialRecord) return res.status(404).json({ error: 'No official payroll record found for this employee/period. Run official payroll first.' });
+
+    type ParityField = {
+      field: string;
+      label: string;
+      trial: string | null;
+      official: string | null;
+      match: boolean;
+      delta?: string;
+    };
+
+    const numF = (v: any) => parseFloat(v || '0');
+    const cmpNum = (a: any, b: any, label: string): ParityField => {
+      const ta = numF(a), tb = numF(b);
+      const delta = Math.abs(ta - tb);
+      return { field: label, label, trial: ta.toFixed(2), official: tb.toFixed(2), match: delta < 0.01, delta: delta.toFixed(2) };
+    };
+    const cmpStr = (a: any, b: any, label: string): ParityField => {
+      return { field: label, label, trial: String(a ?? ''), official: String(b ?? ''), match: String(a ?? '') === String(b ?? '') };
+    };
+
+    const fields: ParityField[] = [
+      cmpNum(trialRecord.grossPay, officialRecord.grossPay, 'grossPay'),
+      cmpNum(trialRecord.baseSalary, officialRecord.baseSalary, 'proratedBase'),
+      cmpNum(trialRecord.hra, officialRecord.hra, 'hra'),
+      cmpNum(trialRecord.conveyanceAllowance, officialRecord.conveyanceAllowance, 'conveyance'),
+      cmpNum(trialRecord.ltaAllowance, officialRecord.ltaAllowance, 'lta'),
+      cmpNum(trialRecord.specialAllowance, officialRecord.specialAllowance, 'specialAllowance'),
+      cmpNum(trialRecord.supplementaryAllowance, officialRecord.supplementaryAllowance, 'supplementaryAllowance'),
+      cmpNum(trialRecord.kgpAllowance, officialRecord.kgpAllowance, 'kgpAllowance'),
+      cmpNum(trialRecord.bonus, officialRecord.bonus, 'bonus'),
+      cmpNum(trialRecord.overtimePay, officialRecord.overtimePay, 'overtimePay'),
+      cmpNum(trialRecord.employeePf, officialRecord.employeePf, 'employeePF'),
+      cmpNum(trialRecord.employerPf, officialRecord.employerPf, 'employerPF'),
+      cmpNum(trialRecord.employeeEsic, officialRecord.employeeEsic, 'employeeESIC'),
+      cmpNum(trialRecord.employerEsic, officialRecord.employerEsic, 'employerESIC'),
+      cmpNum(trialRecord.professionalTax, officialRecord.professionalTax, 'professionalTax'),
+      cmpNum(trialRecord.gratuity, officialRecord.gratuity, 'gratuity'),
+      cmpNum(trialRecord.totalDeductions, officialRecord.totalDeductions, 'totalDeductions'),
+      cmpNum(trialRecord.netPay, officialRecord.netPay, 'netPay'),
+      cmpNum(trialRecord.paidDays, officialRecord.paidDays, 'paidDays'),
+      cmpNum(trialRecord.lopDays, officialRecord.lopDays, 'lopDays'),
+      cmpStr(trialRecord.calculationEngineVersion, officialRecord.calculationEngineVersion, 'calculationEngineVersion'),
+    ];
+
+    const mismatches = fields.filter(f => !f.match);
+    const allMatch = mismatches.length === 0;
+
+    res.json({
+      periodId,
+      userId,
+      trialRecordId: trialRecord.id,
+      trialRunNo: trialRecord.trialRunNo,
+      officialRecordId: officialRecord.id,
+      officialRunNumber: officialRecord.runNumber,
+      totalFields: fields.length,
+      matchCount: fields.filter(f => f.match).length,
+      mismatchCount: mismatches.length,
+      allMatch,
+      parityStatus: allMatch ? 'PASS' : 'FAIL',
+      fields,
+      mismatches,
+      summary: allMatch
+        ? `All 21 fields match between Trial #${trialRecord.trialRunNo} and Official Run #${officialRecord.runNumber}.`
+        : `${mismatches.length} field(s) differ between Trial #${trialRecord.trialRunNo} and Official Run #${officialRecord.runNumber}: ${mismatches.map(m => m.field).join(', ')}`,
+    });
+  } catch (error: any) {
+    console.error('Error in parity verification:', error);
     sendError(res, error);
   }
 });
