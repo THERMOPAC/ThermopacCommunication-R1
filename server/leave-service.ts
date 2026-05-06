@@ -30,6 +30,7 @@ import {
 } from 'drizzle-orm';
 import { computeSandwichLeave } from './sandwich-leave-utils';
 import { createNotification } from './notification-routes';
+import { checkPayrollLock } from './payroll-lock-service';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 export const SANDWICH_EFFECTIVE_DATE = '2026-05-01';
@@ -117,7 +118,7 @@ async function writeAttendanceForLeave(
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split('T')[0];
     const [existing] = await tx
-      .select({ id: attendanceRecords.id, status: attendanceRecords.status })
+      .select({ id: attendanceRecords.id, status: attendanceRecords.status, statusSource: attendanceRecords.statusSource })
       .from(attendanceRecords)
       .where(
         and(
@@ -126,6 +127,8 @@ async function writeAttendanceForLeave(
         )
       );
     if (existing) {
+      // NEVER overwrite admin_override records — baseline Rule (Part 4.2 Step 7)
+      if (existing.statusSource === 'admin_override') continue;
       if (existing.status !== leaveStatus) {
         await tx.update(attendanceRecords).set({
           status: leaveStatus,
@@ -380,11 +383,23 @@ export async function revokeApprovedLeave(
   revokedBy: number,
   reason: string
 ): Promise<void> {
+  // Check payroll lock BEFORE opening the transaction (baseline Part 4.5 Step 3)
+  const lockCheck = await checkPayrollLock('leave', new Date().toISOString().slice(0, 10), revokedBy);
+  if (lockCheck.isLocked) {
+    throw new Error(`PAYROLL_LOCKED: Cannot revoke leave — payroll is locked for this period. ${lockCheck.message}`);
+  }
+
   await db.transaction(async (tx) => {
     const [req] = await tx.select().from(leaveRequests).where(eq(leaveRequests.id, requestId));
 
     if (!req) throw new Error('Leave request not found');
     if (req.status !== 'approved') throw new Error('Only approved leaves can be revoked');
+
+    // Also check payroll lock against the leave's actual date range
+    const leaveLockCheck = await checkPayrollLock('leave', req.startDate, revokedBy);
+    if (leaveLockCheck.isLocked) {
+      throw new Error(`PAYROLL_LOCKED: Cannot revoke leave — payroll period covering ${req.startDate} is locked. ${leaveLockCheck.message}`);
+    }
 
     await tx.update(leaveRequests).set({
       status: 'revoked' as any,

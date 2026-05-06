@@ -443,50 +443,20 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       }
     }
 
-    const [newRequest] = await db
-      .insert(leaveRequests)
-      .values({
-        employeeId: userId,
-        leaveTypeId,
-        startDate,
-        endDate: effectiveEndDate,
-        totalDays: enforcedTotalDays.toString(),
-        isHalfDay: isHalfDay || false,
-        halfDayPeriod: isHalfDay ? halfDayPeriod : null,
-        reason,
-        emergencyContact: emergencyContact || null,
-        workHandoverNotes: workHandoverNotes || null,
-        status: 'pending',
-        managerId,
-        managerApprovalStatus: 'pending'
-      })
-      .returning();
-
-    const [existingBalance] = await db.select().from(leaveBalances).where(and(
-      eq(leaveBalances.userId, userId),
-      eq(leaveBalances.leaveTypeId, leaveTypeId),
-      eq(leaveBalances.year, balanceYear)
-    ));
-    if (!existingBalance) {
-      await db.insert(leaveBalances).values({
-        userId,
-        leaveTypeId,
-        year: balanceYear,
-        allocatedDays: '0.00',
-        usedDays: '0.00',
-        pendingDays: enforcedTotalDays.toString(),
-        carryoverDays: '0.00',
-        lastUpdated: new Date()
-      });
-    } else {
-      await db
-        .update(leaveBalances)
-        .set({
-          pendingDays: sql`pending_days + ${enforcedTotalDays}`,
-          lastUpdated: new Date()
-        })
-        .where(eq(leaveBalances.id, existingBalance.id));
-    }
+    // All DB writes go through the service layer (Rule 1 — single source of truth)
+    const newRequest = await applyLeave({
+      userId,
+      leaveTypeId,
+      startDate,
+      endDate: effectiveEndDate,
+      totalDays: enforcedTotalDays,
+      isHalfDay: isHalfDay || false,
+      halfDayPeriod: isHalfDay ? halfDayPeriod : null,
+      reason,
+      emergencyContact: emergencyContact || null,
+      workHandoverNotes: workHandoverNotes || null,
+      managerId,
+    });
 
     const user = req.user as any;
     const leaveTypeName = leaveType.name;
