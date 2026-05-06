@@ -22,7 +22,7 @@ function getIndianFinancialYearStart(): string {
 // Helper function to get SAP Service Layer login credentials
 function getSapCredentials() {
   return {
-    CompanyDB: process.env.SAP_COMPANY_DB || 'TPEL_LIVE',
+    CompanyDB: process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || 'TPEL_LIVE',
     UserName: process.env.SAP_USERNAME || 'manager',
     Password: process.env.SAP_PASSWORD || 'admin'
   };

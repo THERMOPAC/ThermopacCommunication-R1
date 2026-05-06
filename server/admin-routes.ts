@@ -3485,7 +3485,7 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
+    const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
     if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
@@ -3530,7 +3530,7 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
 
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
+    const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
     if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
@@ -3632,7 +3632,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
+    const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
     if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const results: any = { companyDb: sapDb, sapUser, tests: {} };
@@ -3799,7 +3799,7 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
+    const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
     if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
@@ -4021,7 +4021,7 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
 
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
+    const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
 
     if (!sapUser || !sapPass || !sapDb) {
       return sendError(res, error);
@@ -4594,7 +4594,7 @@ router.post('/payroll/gl-mapping/auto-resolve', ensureAuthenticated, async (req:
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
+    const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
     if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
@@ -4760,7 +4760,7 @@ async function getSapSession(userId: number, forceNew = false): Promise<string> 
 
   const sapUser = process.env.SAP_USERNAME || '';
   const sapPass = process.env.SAP_PASSWORD || '';
-  const sapDb = process.env.SAP_COMPANY_DB || '';
+  const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
   if (!sapUser || !sapPass || !sapDb) throw new Error('SAP credentials not configured');
 
   const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
