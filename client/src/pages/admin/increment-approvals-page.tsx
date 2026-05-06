@@ -88,10 +88,12 @@ export default function IncrementApprovalsPage() {
     return approveDateIso;
   };
 
-  const { data: salarySetup = [] } = useQuery<SalarySetupEntry[]>({
-    queryKey: ['/api/admin/payroll/salary-setup'],
+  const { data: eligibleData } = useQuery<{ cycle: { id: number; financialYear: string } | null; employees: SalarySetupEntry[] }>({
+    queryKey: ['/api/admin/payroll/manual-increment-eligible'],
     enabled: showCreate,
   });
+  const salarySetup = eligibleData?.employees ?? [];
+  const activeCycleLabel = eligibleData?.cycle ? `FY ${eligibleData.cycle.financialYear}` : null;
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -416,10 +418,20 @@ export default function IncrementApprovalsPage() {
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-blue-600" /> New Manual Increment
             </DialogTitle>
+            {activeCycleLabel && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Showing employees with <strong>no appraisal</strong> in {activeCycleLabel}
+              </p>
+            )}
           </DialogHeader>
           <div className="space-y-4 text-sm">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Employee <span className="text-red-500">*</span></Label>
+              {salarySetup.length === 0 && eligibleData ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  All employees with salary records already have an appraisal in {activeCycleLabel ?? 'the current cycle'}.
+                </div>
+              ) : (
               <Select
                 value={createForm.salaryId}
                 onValueChange={v => setCreateForm(f => ({ ...f, salaryId: v }))}
@@ -440,6 +452,7 @@ export default function IncrementApprovalsPage() {
                   })}
                 </SelectContent>
               </Select>
+              )}
             </div>
 
             <div className="space-y-1.5">

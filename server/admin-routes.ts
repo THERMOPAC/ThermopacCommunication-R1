@@ -34,9 +34,11 @@ import {
   attendanceOverrideLog,
   salaryIncrementProposals,
   salaryIncrementAuditLog,
-  notifications
+  notifications,
+  appraisalCycles,
+  employeeAppraisals
 } from '../shared/schema';
-import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, or } from 'drizzle-orm';
+import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, notInArray, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { salaryCalculationEngine } from './salary-calculation-engine';
@@ -442,6 +444,63 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
     res.json(salaryConfigs);
   } catch (error) {
     console.error('Error fetching salary configurations:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * GET /payroll/manual-increment-eligible
+ * Returns employees with an active salary record but NO appraisal in the current active cycle.
+ * Used to populate the "New Manual Increment" dialog dropdown.
+ */
+router.get('/payroll/manual-increment-eligible', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Find the current active (or most recent) appraisal cycle
+    const [activeCycle] = await db
+      .select({ id: appraisalCycles.id, financialYear: appraisalCycles.financialYear })
+      .from(appraisalCycles)
+      .where(eq(appraisalCycles.status, 'active'))
+      .orderBy(desc(appraisalCycles.id))
+      .limit(1);
+
+    // Get all employee IDs that have an appraisal in the current active cycle
+    const appraisedEmployeeIds: number[] = [];
+    if (activeCycle) {
+      const appraisals = await db
+        .select({ employeeId: employeeAppraisals.employeeId })
+        .from(employeeAppraisals)
+        .where(eq(employeeAppraisals.cycleId, activeCycle.id));
+      appraisedEmployeeIds.push(...appraisals.map(a => a.employeeId));
+    }
+
+    // Fetch all active salary configs, excluding already-appraised employees
+    const query = db
+      .select({
+        id: employeeSalaries.id,
+        userId: employeeSalaries.userId,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        basicSalary: employeeSalaries.basicSalary,
+        ctcMonthly: employeeSalaries.ctcMonthly,
+        salaryType: employeeSalaries.salaryType,
+      })
+      .from(employeeSalaries)
+      .leftJoin(users, eq(employeeSalaries.userId, users.id))
+      .where(
+        and(
+          eq(employeeSalaries.isActive, true),
+          appraisedEmployeeIds.length > 0
+            ? notInArray(employeeSalaries.userId, appraisedEmployeeIds)
+            : undefined
+        )
+      )
+      .orderBy(asc(users.firstName));
+
+    const results = await query;
+    res.json({ cycle: activeCycle || null, employees: results });
+  } catch (error) {
+    console.error('Error fetching manual increment eligible employees:', error);
     sendError(res, error);
   }
 });
