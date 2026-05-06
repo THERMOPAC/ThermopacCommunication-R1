@@ -91,6 +91,8 @@ export default function IncrementApprovalsPage() {
   const { data: eligibleData } = useQuery<{ cycle: { id: number; financialYear: string } | null; employees: SalarySetupEntry[] }>({
     queryKey: ['/api/admin/payroll/manual-increment-eligible'],
     enabled: showCreate,
+    staleTime: 0,
+    gcTime: 0,
   });
   const salarySetup = eligibleData?.employees ?? [];
   const activeCycleLabel = eligibleData?.cycle ? `FY ${eligibleData.cycle.financialYear}` : null;
