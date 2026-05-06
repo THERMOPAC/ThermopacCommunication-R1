@@ -91,7 +91,6 @@ export default function AttendanceManagementPage() {
     mutationFn: async ({ recordId, payload }: { recordId: number; payload: any }) =>
       apiRequest('PATCH', `/api/admin/attendance/records/${recordId}/override`, payload),
     onSuccess: async (data: any) => {
-      const json = await data.json();
       queryClient.invalidateQueries({ queryKey: ['/api/admin/attendance/records'] });
       setOverrideTarget(null);
       setOverrideStatus('');
@@ -101,7 +100,7 @@ export default function AttendanceManagementPage() {
       setOverrideLockedAck(false);
       toast({
         title: 'Override Applied',
-        description: json.payrollPeriodWasLocked
+        description: data?.payrollPeriodWasLocked
           ? '⚠ Override saved. Payroll recalculation required for this period.'
           : 'Attendance record overridden successfully.',
       });
