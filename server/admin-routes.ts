@@ -479,15 +479,27 @@ router.get('/payroll/manual-increment-eligible', ensureAuthenticated, async (req
       approvedEmployeeIds.push(...approvedAppraisals.map(a => a.employeeId));
     }
 
-    // Also exclude employees who already have a pending or approved increment proposal
+    // Also exclude employees who already have ANY increment proposal created on or after
+    // the active cycle's start date (covers pending, approved, AND applied statuses)
+    const cycleStartDate = activeCycle
+      ? (await db
+          .select({ startDate: appraisalCycles.startDate })
+          .from(appraisalCycles)
+          .where(eq(appraisalCycles.id, activeCycle.id))
+          .limit(1)
+        )[0]?.startDate
+      : null;
+
     const activeProposalEmployeeIds = (await db
       .select({ employeeId: salaryIncrementProposals.employeeId })
       .from(salaryIncrementProposals)
       .where(
-        or(
-          eq(salaryIncrementProposals.status, 'pending'),
-          eq(salaryIncrementProposals.status, 'approved')
-        )
+        cycleStartDate
+          ? gte(salaryIncrementProposals.proposedAt, new Date(cycleStartDate))
+          : or(
+              eq(salaryIncrementProposals.status, 'pending'),
+              eq(salaryIncrementProposals.status, 'approved')
+            )
       )
     ).map(p => p.employeeId);
 
