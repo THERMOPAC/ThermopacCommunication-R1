@@ -3486,7 +3486,7 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
-    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
+    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
@@ -3531,7 +3531,7 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
-    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
+    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
@@ -3633,7 +3633,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
-    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
+    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const results: any = { companyDb: sapDb, sapUser, tests: {} };
 
@@ -3800,7 +3800,7 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
-    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
+    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
@@ -4024,7 +4024,7 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
     const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
 
     if (!sapUser || !sapPass || !sapDb) {
-      return sendError(res, error);
+      return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || '(empty)'}` });
     }
 
     console.log(`[Test SAP JE] Fresh login to ${sapDb} as ${sapUser}...`);
@@ -4595,7 +4595,7 @@ router.post('/payroll/gl-mapping/auto-resolve', ensureAuthenticated, async (req:
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
-    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
+    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const result = await resolveGlMappingsFromSap(loginResult.sessionId);
