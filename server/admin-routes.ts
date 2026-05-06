@@ -36,7 +36,8 @@ import {
   salaryIncrementAuditLog,
   notifications,
   appraisalCycles,
-  employeeAppraisals
+  employeeAppraisals,
+  payrollSettings
 } from '../shared/schema';
 import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, notInArray, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
@@ -4648,6 +4649,7 @@ function buildSalaryJePayload(
   periodLabel: string,
   postingDate: string,   // ReferenceDate — last day of the salary period month (e.g. 2026-04-30)
   glMap: Map<string, string>,
+  ptAmountOverride?: number,  // If provided, overrides record.professionalTax (ensures correct monthly/Feb rule)
 ) {
   const jeLines: any[] = [];
   let lineNum = 0;
@@ -4707,9 +4709,13 @@ function buildSalaryJePayload(
     }
   }
 
+  // PT: use override (computed from period month rule: 200 for non-Feb, 300 for Feb) rather than stored record value
+  const ptValue = ptAmountOverride !== undefined ? ptAmountOverride : parseFloat(record.professionalTax || '0');
+  // TDS: always include in salary JE — standard Indian payroll accounting (withheld from employee, posted as govt liability)
+  const tdsValue = parseFloat(record.tdsAmount || record.incomeTax || '0');
   const plainDeductions = [
-    { code: 'PT', value: parseFloat(record.professionalTax || '0') },
-    { code: 'TDS', value: parseFloat(record.tdsAmount || record.incomeTax || '0') },
+    { code: 'PT', value: ptValue },
+    { code: 'TDS', value: tdsValue },
   ];
 
   for (const comp of plainDeductions) {
@@ -4743,8 +4749,14 @@ function buildSalaryJePayload(
     }
   }
 
-  const netPayValue = parseFloat(record.netPay || '0');
-  if (netPayValue > 0) {
+  // NET_PAY: compute as the self-balancing amount (totalDebit - all other credits).
+  // This guarantees the JE always balances regardless of stored netPay, and automatically
+  // reflects any PT correction or TDS inclusion without depending on the stored record.netPay.
+  const preNetPayDebit = Math.round(jeLines.reduce((sum: number, l: any) => sum + (l.Debit || 0), 0) * 100) / 100;
+  const preNetPayCredit = Math.round(jeLines.reduce((sum: number, l: any) => sum + (l.Credit || 0), 0) * 100) / 100;
+  const netPayValue = Math.round((preNetPayDebit - preNetPayCredit) * 100) / 100;
+
+  if (netPayValue > 0.005) {
     // NET_PAY: use the employee's SAP Business Partner Card Code (ShortName).
     // SAP B1 automatically routes this through the employee BP's reconciliation/control account.
     // Do NOT use a GL AccountCode here — posting directly to the BP control account is rejected by SAP
@@ -4998,7 +5010,20 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
 
-    const { payload: jePayload, jeLines, totalDebit, totalCredit } = buildSalaryJePayload(record, employee, empName, periodLabel, periodEndDate, glMap);
+    // Compute correct PT override from period month (Rule: ₹200 for all months, ₹300 only for February)
+    // This overrides whatever is stored in record.professionalTax to ensure correctness at JE-build time.
+    const ptSettings = await db.select().from(payrollSettings).where(
+      sql`${payrollSettings.settingName} IN ('professional_tax_monthly', 'professional_tax_february')`
+    );
+    let ptMonthly = 200, ptFebruary = 300;
+    for (const s of ptSettings) {
+      if (s.settingName === 'professional_tax_monthly') ptMonthly = parseFloat(s.settingValue) || 200;
+      if (s.settingName === 'professional_tax_february') ptFebruary = parseFloat(s.settingValue) || 300;
+    }
+    const periodMonth = period?.startDate ? new Date(period.startDate).getMonth() + 1 : new Date().getMonth() + 1;
+    const ptOverride = periodMonth === 2 ? ptFebruary : ptMonthly;
+
+    const { payload: jePayload, jeLines, totalDebit, totalCredit } = buildSalaryJePayload(record, employee, empName, periodLabel, periodEndDate, glMap, ptOverride);
 
     if (jeLines.length === 0) {
       await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: 'No JE lines generated', updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
