@@ -2113,7 +2113,24 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                   <Separator />
                   <p className="text-xs font-semibold text-gray-700">L3 Decision</p>
 
-                  <div><Label>L3 Comments</Label><Textarea value={actionForm.l3Comments} onChange={e => setActionForm({ ...actionForm, l3Comments: e.target.value })} rows={2} /></div>
+                  <div>
+                    <Label>L3 Comments</Label>
+                    <Select value={actionForm.l3Comments} onValueChange={v => setActionForm({ ...actionForm, l3Comments: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select comment" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        <SelectItem value="Performance is in line with expectations">Performance is in line with expectations</SelectItem>
+                        <SelectItem value="Outstanding performance and contribution this cycle">Outstanding performance and contribution this cycle</SelectItem>
+                        <SelectItem value="Good progress noted; further growth expected">Good progress noted; further growth expected</SelectItem>
+                        <SelectItem value="Performance improvement required in key areas">Performance improvement required in key areas</SelectItem>
+                        <SelectItem value="Increment approved as per system recommendation">Increment approved as per system recommendation</SelectItem>
+                        <SelectItem value="Increment adjusted based on business constraints">Increment adjusted based on business constraints</SelectItem>
+                        <SelectItem value="Exceptional year — strong performance and delivery">Exceptional year — strong performance and delivery</SelectItem>
+                        <SelectItem value="Promotion approved based on sustained performance">Promotion approved based on sustained performance</SelectItem>
+                        <SelectItem value="Promotion deferred to next cycle">Promotion deferred to next cycle</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   <div>
                     <Label>Increment %<span className="text-red-500 ml-0.5">*</span></Label>
@@ -2158,7 +2175,20 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
 
                   <div>
                     <Label>Final Remarks</Label>
-                    <Textarea value={actionForm.l3FinalRemarks} onChange={e => setActionForm({ ...actionForm, l3FinalRemarks: e.target.value })} rows={2} placeholder="Final remarks on increment, promotion, and development..." />
+                    <Select value={actionForm.l3FinalRemarks} onValueChange={v => setActionForm({ ...actionForm, l3FinalRemarks: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select final remarks" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        <SelectItem value="Approved as per L1/L2 recommendation">Approved as per L1/L2 recommendation</SelectItem>
+                        <SelectItem value="Approved with increment adjustment from recommendation">Approved with increment adjustment from recommendation</SelectItem>
+                        <SelectItem value="Approved with promotion — new role effective from date above">Approved with promotion — new role effective from date above</SelectItem>
+                        <SelectItem value="Approved — increment only, no promotion this cycle">Approved — increment only, no promotion this cycle</SelectItem>
+                        <SelectItem value="Salary reduction applied and documented">Salary reduction applied and documented</SelectItem>
+                        <SelectItem value="Appraisal closed — record locked">Appraisal closed — record locked</SelectItem>
+                        <SelectItem value="Exceptional performance — increment above standard range">Exceptional performance — increment above standard range</SelectItem>
+                        <SelectItem value="Training plan to be actioned in next quarter">Training plan to be actioned in next quarter</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </>
               )}
