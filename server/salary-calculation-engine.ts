@@ -1,5 +1,5 @@
 import { db } from './db';
-import { users, employeeSalaries, attendanceRecords, leaveRequests, workweekPolicies, companyHolidays, workLocations, leaveBalances, leaveTypes } from '@shared/schema';
+import { users, employeeSalaries, attendanceRecords, leaveRequests, workweekPolicies, companyHolidays, workLocations, leaveBalances, leaveTypes, payrollSettings } from '@shared/schema';
 import { eq, and, between, sql, desc, asc, gte, lte } from 'drizzle-orm';
 import { resolveStatutoryApplicability } from '@shared/statutory-rules';
 import type { EmployeeType } from '@shared/schema';
@@ -779,7 +779,16 @@ export class SalaryCalculationEngine {
 
     let professionalTax = 0;
     if (statutoryResult.isPTApplicable && employee.role !== 'Superuser') {
-      professionalTax = input.month === 2 ? 300 : 200;
+      const ptSettings = await db.select().from(payrollSettings).where(
+        sql`${payrollSettings.settingName} IN ('professional_tax_monthly', 'professional_tax_february')`
+      );
+      let ptMonthly = 200;
+      let ptFebruary = 300;
+      for (const s of ptSettings) {
+        if (s.settingName === 'professional_tax_monthly') ptMonthly = parseFloat(s.settingValue) || 200;
+        if (s.settingName === 'professional_tax_february') ptFebruary = parseFloat(s.settingValue) || 300;
+      }
+      professionalTax = input.month === 2 ? ptFebruary : ptMonthly;
     } else if (!statutoryResult.isPTApplicable) {
       console.log(`📋 [SalaryCalc] PT skipped for user ${input.userId}: ${statutoryResult.basis.pt}`);
     }

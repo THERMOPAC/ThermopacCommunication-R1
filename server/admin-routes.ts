@@ -4744,7 +4744,6 @@ function buildSalaryJePayload(
   }
 
   const netPayValue = parseFloat(record.netPay || '0');
-  console.log(`[buildJE] netPayValue=${netPayValue}, cardCode=${employee.cardCode}, cardCodeOk=${!!(employee.cardCode && employee.cardCode.trim() !== '')}, jeLines.length=${jeLines.length}`);
   if (netPayValue > 0) {
     // NET_PAY: use the employee's SAP Business Partner Card Code (ShortName).
     // SAP B1 automatically routes this through the employee BP's reconciliation/control account.
