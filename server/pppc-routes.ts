@@ -30,6 +30,11 @@ import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { bucketName as GCS_BUCKET } from './utils/storage-config';
 import { isProjectFrozen } from './utils/epc-project-cascade';
 import { getNextDocSeq } from './doc-sequence-service';
+import {
+  RAW_MATERIALS_CODE, isTaggableSubgroup,
+  getNextTagNoInTx, getNextNTagNosInTx, previewNextTagNos,
+  isTagNoUnique, logTagNoChange,
+} from './tag-generation-service';
 
 // ─── Phase 3 helpers ──────────────────────────────────────────────────────────
 const dsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -714,6 +719,41 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     return candidate;
   }
 
+  // ── Tag Number endpoints ─────────────────────────────────────────────────────
+
+  // GET /api/projects/:projectId/next-tag-no?subgroupCode=pressure&qty=1
+  app.get('/api/projects/:projectId/next-tag-no', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const projectId    = parseInt(req.params.projectId);
+      const subgroupCode = (req.query.subgroupCode as string) ?? '';
+      const qty          = Math.max(1, parseInt((req.query.qty as string) ?? '1', 10) || 1);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid projectId');
+      if (!subgroupCode)    return sendValidationError(res, 'subgroupCode is required');
+
+      const tags = await previewNextTagNos(pool, projectId, subgroupCode, qty);
+      if (tags.length === 0) return res.json({ tagNo: null, preview: [] });
+      res.json({ tagNo: tags[0], preview: tags });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // GET /api/projects/:projectId/check-tag-no?tagNo=PT-101&excludeLineId=5
+  app.get('/api/projects/:projectId/check-tag-no', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const projectId    = parseInt(req.params.projectId);
+      const tagNo        = (req.query.tagNo as string) ?? '';
+      const excludeId    = req.query.excludeLineId ? parseInt(req.query.excludeLineId as string) : undefined;
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid projectId');
+      if (!tagNo)           return res.json({ unique: true });
+
+      const unique = await isTagNoUnique(pool, projectId, tagNo, excludeId);
+      if (unique) {
+        res.json({ unique: true });
+      } else {
+        res.json({ unique: false, message: 'Tag No already exists in this project' });
+      }
+    } catch (err) { sendError(res, err); }
+  });
+
   // GET /api/projects/:projectId/buy-lists
   app.get('/api/projects/:projectId/buy-lists', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {
@@ -801,35 +841,59 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         );
         if (pkgCheck.rowCount === 0) return sendNotFound(res, 'Source package', sourcePackageId);
 
-        const hdr = await pool.query(
-          `INSERT INTO project_buy_list_headers
-             (project_id, project_item_id, source_package_id, list_number, created_by)
-           VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-          [projectId, projectItemId, sourcePackageId, listNumber, userId],
-        );
-        insertId = hdr.rows[0].id;
-
+        // Fetch catalog lines with group/subgroup codes for tag generation
         const pkgLines = await pool.query(
-          `SELECT * FROM buy_package_lines WHERE buy_package_header_id = $1 ORDER BY line_number`,
+          `SELECT pl.*, bg.code AS group_code, bs.code AS subgroup_code
+           FROM buy_package_lines pl
+           JOIN buy_groups bg ON bg.id = pl.buy_group_id
+           JOIN buy_subgroups bs ON bs.id = pl.buy_subgroup_id
+           WHERE pl.buy_package_header_id = $1 ORDER BY pl.line_number`,
           [sourcePackageId],
         );
-        for (let i = 0; i < pkgLines.rows.length; i++) {
-          const pl = pkgLines.rows[i];
-          await pool.query(
-            `INSERT INTO project_buy_list_lines
-               (buy_list_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
-                generic_requirement, quantity, specification, technical_attributes,
-                selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, source_package_line_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-            [
-              insertId, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
-              pl.generic_requirement, pl.default_quantity, pl.default_specification,
-              pl.technical_attributes,
-              pl.selection_required, pl.datasheet_required, pl.inspection_required,
-              pl.certificate_required, pl.compliance_required, pl.id,
-            ],
+
+        // Wrap header + line inserts in a transaction with advisory lock
+        const convClient = await pool.connect();
+        try {
+          await convClient.query('BEGIN');
+          await convClient.query('SELECT pg_advisory_xact_lock($1)', [projectId]);
+
+          const hdr = await convClient.query(
+            `INSERT INTO project_buy_list_headers
+               (project_id, project_item_id, source_package_id, list_number, created_by)
+             VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+            [projectId, projectItemId, sourcePackageId, listNumber, userId],
           );
+          insertId = hdr.rows[0].id;
+
+          for (let i = 0; i < pkgLines.rows.length; i++) {
+            const pl = pkgLines.rows[i];
+            const isRaw = pl.group_code === RAW_MATERIALS_CODE;
+            const tagNo = isRaw
+              ? ''
+              : (await getNextTagNoInTx(convClient, projectId, pl.subgroup_code) ?? '');
+            await convClient.query(
+              `INSERT INTO project_buy_list_lines
+                 (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                  generic_requirement, quantity, specification, technical_attributes,
+                  tag_no, selection_required, datasheet_required, inspection_required,
+                  certificate_required, compliance_required, source_package_line_id)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+              [
+                insertId, projectId, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
+                pl.generic_requirement, pl.default_quantity, pl.default_specification,
+                pl.technical_attributes,
+                tagNo,
+                pl.selection_required, pl.datasheet_required, pl.inspection_required,
+                pl.certificate_required, pl.compliance_required, pl.id,
+              ],
+            );
+          }
+          await convClient.query('COMMIT');
+        } catch (e) {
+          await convClient.query('ROLLBACK');
+          throw e;
+        } finally {
+          convClient.release();
         }
       } else {
         const hdr = await pool.query(
@@ -881,17 +945,34 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       );
       if (lineCount.rows[0].n === 0) return sendBusinessError(res, 'Cannot submit: buy list has no lines.');
 
-      // All lines must have tag_no, equipment_reference, service_description
+      // Non-raw-materials lines must have tag_no, equipment_reference, service_description
       const incomplete = await pool.query(
-        `SELECT id, line_number FROM project_buy_list_lines
-         WHERE buy_list_header_id=$1 AND (tag_no='' OR equipment_reference='' OR service_description='')`,
-        [id],
+        `SELECT l.id, l.line_number FROM project_buy_list_lines l
+         JOIN buy_groups bg ON bg.id = l.buy_group_id
+         WHERE l.buy_list_header_id=$1
+           AND bg.code != $2
+           AND (l.tag_no='' OR l.equipment_reference='' OR l.service_description='')`,
+        [id, RAW_MATERIALS_CODE],
       );
       if (incomplete.rowCount! > 0) {
         return sendBusinessError(res,
-          `Cannot submit: ${incomplete.rowCount} line(s) missing tag_no, equipment_reference, or service_description. ` +
+          `Cannot submit: ${incomplete.rowCount} line(s) missing Tag No, Equipment Reference, or Service Description. ` +
           `Lines: ${incomplete.rows.map((r: any) => r.line_number).join(', ')}`,
         );
+      }
+
+      // Project-wide duplicate Tag No check
+      const projectId = hdr.rows[0].project_id as number;
+      const dupTags = await pool.query(
+        `SELECT tag_no, COUNT(*)::int AS n
+         FROM project_buy_list_lines
+         WHERE project_id = $1 AND tag_no <> ''
+         GROUP BY tag_no HAVING COUNT(*) > 1`,
+        [projectId],
+      );
+      if ((dupTags.rowCount ?? 0) > 0) {
+        const tagList = dupTags.rows.map((r: any) => `${r.tag_no} (×${r.n})`).join(', ');
+        return sendBusinessError(res, `Cannot submit: duplicate Tag Nos found in project — ${tagList}`);
       }
 
       const userId = (req.user as any)?.id;
@@ -1064,14 +1145,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       for (const l of lines.rows) {
         await pool.query(
           `INSERT INTO project_buy_list_lines
-             (buy_list_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+             (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
               generic_requirement, quantity, required_date, specification, technical_attributes,
               tag_no, equipment_reference, service_description,
               selection_required, datasheet_required, inspection_required,
               certificate_required, compliance_required, source_package_line_id, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
           [
-            newId, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
+            newId, old.project_id, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
             l.generic_requirement, l.quantity, l.required_date, l.specification, l.technical_attributes,
             l.tag_no, l.equipment_reference, l.service_description,
             l.selection_required, l.datasheet_required, l.inspection_required,
@@ -1117,9 +1198,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (!requireManager(req, res)) return;
       const headerId = parseInt(req.params.id);
       if (isNaN(headerId)) return sendValidationError(res, 'Invalid id');
-      const hdr = await pool.query(`SELECT status FROM project_buy_list_headers WHERE id=$1`, [headerId]);
+
+      const hdr = await pool.query(
+        `SELECT h.status, h.project_id FROM project_buy_list_headers h WHERE h.id=$1`, [headerId],
+      );
       if (hdr.rowCount === 0) return sendNotFound(res, 'Buy list', headerId);
       if (hdr.rows[0].status !== 'draft') return sendBusinessError(res, 'Lines can only be added to draft lists.');
+      const projectId = hdr.rows[0].project_id as number;
 
       const {
         buyGroupId, buySubgroupId, uomId, genericRequirement,
@@ -1134,30 +1219,124 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const valid = await validateSubgroupBelongsToGroup(pool, parseInt(buyGroupId), parseInt(buySubgroupId));
       if (!valid) return sendValidationError(res, 'buySubgroupId does not belong to the specified buyGroupId.');
 
-      const maxLine = await pool.query(
-        `SELECT COALESCE(MAX(line_number),0)::int AS m FROM project_buy_list_lines WHERE buy_list_header_id=$1`, [headerId],
+      // Get group and subgroup codes
+      const codeRow = await pool.query(
+        `SELECT bg.code AS group_code, bs.code AS subgroup_code
+         FROM buy_groups bg, buy_subgroups bs WHERE bg.id=$1 AND bs.id=$2`,
+        [buyGroupId, buySubgroupId],
       );
-      const lineNumber = maxLine.rows[0].m + 1;
+      const groupCode    = (codeRow.rows[0]?.group_code    ?? '') as string;
+      const subgroupCode = (codeRow.rows[0]?.subgroup_code ?? '') as string;
+      const isRaw        = groupCode === RAW_MATERIALS_CODE;
+      const taggable     = !isRaw && isTaggableSubgroup(subgroupCode);
+      const qty          = Math.max(1, Math.round(parseFloat(quantity) || 1));
+      const userTagNo    = (tagNo ?? '').toString().trim();
 
-      const result = await pool.query(
-        `INSERT INTO project_buy_list_lines
-           (buy_list_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
-            generic_requirement, quantity, required_date, specification, technical_attributes,
-            tag_no, equipment_reference, service_description,
-            selection_required, datasheet_required, inspection_required,
-            certificate_required, compliance_required, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-         RETURNING *`,
-        [
-          headerId, lineNumber, buyGroupId, buySubgroupId, uomId,
-          genericRequirement, quantity ?? 1, requiredDate ?? null, specification ?? null,
-          technicalAttributes ? JSON.stringify(technicalAttributes) : null,
-          tagNo ?? '', equipmentReference ?? '', serviceDescription ?? '',
-          selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
-          certificateRequired ?? false, complianceRequired ?? false, notes ?? null,
-        ],
-      );
-      res.status(201).json(result.rows[0]);
+      // Block: taggable + qty>1 + manual tag
+      if (taggable && qty > 1 && userTagNo) {
+        return sendValidationError(res,
+          'Manual Tag No cannot be used with Qty > 1. Leave Tag No blank for auto-generation.');
+      }
+
+      // Block: manual tag uniqueness (qty=1 only)
+      if (taggable && qty === 1 && userTagNo) {
+        const unique = await isTagNoUnique(pool, projectId, userTagNo);
+        if (!unique) return res.status(409).json({ error: 'Tag No already exists in this project' });
+      }
+
+      // All inserts go inside a transaction with advisory lock (per project)
+      const lineClient = await pool.connect();
+      const createdLines: any[] = [];
+      try {
+        await lineClient.query('BEGIN');
+        await lineClient.query('SELECT pg_advisory_xact_lock($1)', [projectId]);
+
+        const maxRow = await lineClient.query(
+          `SELECT COALESCE(MAX(line_number),0)::int AS m FROM project_buy_list_lines WHERE buy_list_header_id=$1`,
+          [headerId],
+        );
+        const baseLine = maxRow.rows[0].m as number;
+        const taJson   = technicalAttributes ? JSON.stringify(technicalAttributes) : null;
+
+        if (!taggable) {
+          // ── Non-taggable: one line, full quantity, no tag ──────────────────
+          const r = await lineClient.query(
+            `INSERT INTO project_buy_list_lines
+               (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                generic_requirement, quantity, required_date, specification, technical_attributes,
+                tag_no, equipment_reference, service_description,
+                selection_required, datasheet_required, inspection_required,
+                certificate_required, compliance_required, notes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+             RETURNING *`,
+            [headerId, projectId, baseLine + 1, buyGroupId, buySubgroupId, uomId,
+             genericRequirement, qty, requiredDate ?? null, specification ?? null, taJson,
+             '', equipmentReference ?? '', serviceDescription ?? '',
+             selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
+             certificateRequired ?? false, complianceRequired ?? false, notes ?? null],
+          );
+          createdLines.push(r.rows[0]);
+
+        } else if (qty === 1) {
+          // ── Taggable qty=1: user tag or auto-generate ──────────────────────
+          const finalTag = userTagNo || (await getNextTagNoInTx(lineClient, projectId, subgroupCode) ?? '');
+          const r = await lineClient.query(
+            `INSERT INTO project_buy_list_lines
+               (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                generic_requirement, quantity, required_date, specification, technical_attributes,
+                tag_no, equipment_reference, service_description,
+                selection_required, datasheet_required, inspection_required,
+                certificate_required, compliance_required, notes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+             RETURNING *`,
+            [headerId, projectId, baseLine + 1, buyGroupId, buySubgroupId, uomId,
+             genericRequirement, 1, requiredDate ?? null, specification ?? null, taJson,
+             finalTag, equipmentReference ?? '', serviceDescription ?? '',
+             selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
+             certificateRequired ?? false, complianceRequired ?? false, notes ?? null],
+          );
+          createdLines.push(r.rows[0]);
+
+        } else {
+          // ── Taggable qty>1: N lines each qty=1 with sequential tags ────────
+          const tags = await getNextNTagNosInTx(lineClient, projectId, subgroupCode, qty);
+          for (let i = 0; i < qty; i++) {
+            const r = await lineClient.query(
+              `INSERT INTO project_buy_list_lines
+                 (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                  generic_requirement, quantity, required_date, specification, technical_attributes,
+                  tag_no, equipment_reference, service_description,
+                  selection_required, datasheet_required, inspection_required,
+                  certificate_required, compliance_required, notes)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+               RETURNING *`,
+              [headerId, projectId, baseLine + 1 + i, buyGroupId, buySubgroupId, uomId,
+               genericRequirement, 1, requiredDate ?? null, specification ?? null, taJson,
+               tags[i] ?? '', equipmentReference ?? '', serviceDescription ?? '',
+               selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
+               certificateRequired ?? false, complianceRequired ?? false, notes ?? null],
+            );
+            createdLines.push(r.rows[0]);
+          }
+        }
+
+        await lineClient.query('COMMIT');
+      } catch (e) {
+        await lineClient.query('ROLLBACK');
+        throw e;
+      } finally {
+        lineClient.release();
+      }
+
+      if (createdLines.length === 1) {
+        res.status(201).json(createdLines[0]);
+      } else {
+        res.status(201).json({
+          linesCreated: createdLines.length,
+          lines: createdLines,
+          tags: createdLines.map(l => l.tag_no).filter(Boolean),
+        });
+      }
     } catch (err) { sendError(res, err); }
   });
 
@@ -1168,12 +1347,35 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid id');
       const line = await pool.query(
-        `SELECT l.id, h.status, l.buy_group_id FROM project_buy_list_lines l
-         JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id WHERE l.id=$1`,
+        `SELECT l.id, l.tag_no AS current_tag_no, l.buy_list_header_id,
+                h.status, h.project_id,
+                bg.code AS group_code, bs.code AS subgroup_code
+         FROM project_buy_list_lines l
+         JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
+         JOIN buy_groups bg ON bg.id = l.buy_group_id
+         JOIN buy_subgroups bs ON bs.id = l.buy_subgroup_id
+         WHERE l.id=$1`,
         [id],
       );
       if (line.rowCount === 0) return sendNotFound(res, 'Buy list line', id);
       if (line.rows[0].status !== 'draft') return sendBusinessError(res, 'Lines can only be edited on draft lists.');
+
+      // ── Tag No change handling ───────────────────────────────────────────────
+      if (req.body.tagNo !== undefined) {
+        const incoming   = (req.body.tagNo ?? '').toString().trim();
+        const currentTag = (line.rows[0].current_tag_no ?? '') as string;
+        const isRaw      = (line.rows[0].group_code as string) === RAW_MATERIALS_CODE;
+
+        if (isRaw) {
+          req.body.tagNo = '';  // force blank for raw materials regardless of input
+        } else if (incoming !== currentTag) {
+          if (incoming) {
+            const unique = await isTagNoUnique(pool, line.rows[0].project_id, incoming, id);
+            if (!unique) return res.status(409).json({ error: 'Tag No already exists in this project' });
+          }
+          // Will log audit after successful UPDATE (below)
+        }
+      }
 
       if (req.body.buySubgroupId && req.body.buyGroupId) {
         const valid = await validateSubgroupBelongsToGroup(pool, parseInt(req.body.buyGroupId), parseInt(req.body.buySubgroupId));
@@ -1204,7 +1406,25 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const result = await pool.query(
         `UPDATE project_buy_list_lines SET ${fields.join(',')} WHERE id=$${idx} RETURNING *`, vals,
       );
-      res.json(result.rows[0]);
+      const updated = result.rows[0];
+
+      // Audit log: record every manual tag change
+      if (req.body.tagNo !== undefined) {
+        const incoming   = (req.body.tagNo ?? '').toString().trim();
+        const currentTag = (line.rows[0].current_tag_no ?? '') as string;
+        const isRaw      = (line.rows[0].group_code as string) === RAW_MATERIALS_CODE;
+        if (!isRaw && incoming !== currentTag) {
+          const changedBy = (req.user as any)?.id as number | undefined;
+          if (changedBy) {
+            logTagNoChange(
+              pool, id, line.rows[0].buy_list_header_id, line.rows[0].project_id,
+              currentTag, incoming, changedBy,
+            ).catch(() => {});
+          }
+        }
+      }
+
+      res.json(updated);
     } catch (err) { sendError(res, err); }
   });
 

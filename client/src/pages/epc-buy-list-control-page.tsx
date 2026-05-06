@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment, useRef } from "react";
+import { useState, useMemo, Fragment, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,14 @@ import {
   ClipboardList, ArrowRight, CheckCircle2, FileText,
   TrendingUp, UserCheck, XOctagon, Upload, Layers,
 } from "lucide-react";
+
+// ── Taggable subgroup codes (must match server/tag-generation-service.ts) ──────
+const TAGGABLE_SUBGROUP_CODES = new Set([
+  'pressure', 'temperature', 'flow', 'level',
+  'isolation', 'control', 'safety', 'on_off',
+  'pump_skid', 'cooling_tower', 'junction_box',
+  'non_flameproof', 'flameproof', 'motors',
+]);
 
 // ── Role helpers ───────────────────────────────────────────────────────────────
 const RL: Record<string, number> = {
@@ -111,6 +119,12 @@ export default function EpcBuyListControlPage() {
 
   // Create form
   const [createForm, setCreateForm] = useState({ projectItemId: "", sourcePackageId: "" });
+
+  // Tag Number control state
+  const [tagDuplicateWarning, setTagDuplicateWarning] = useState<string | null>(null);
+  const [tagFetching, setTagFetching]                 = useState(false);
+  const [tagPreview, setTagPreview]                   = useState<string[]>([]);
+  const [tagAutoFilled, setTagAutoFilled]             = useState(false);
 
   // Phase 4 — procurement chain panel
   const [showProcChain, setShowProcChain] = useState<number | null>(null);
@@ -229,6 +243,18 @@ export default function EpcBuyListControlPage() {
   // Whether bulk ops are available (list is released or locked)
   const bulkAvailable = currentLst && ["released", "locked"].includes(currentLst.status);
 
+  // ── Tag-control derived values ────────────────────────────────────────────────
+  const currentGroupCode    = useMemo(() =>
+    (groups as any[]).find(g => String(g.id) === String(lf.buyGroupId))?.code ?? null,
+    [groups, lf.buyGroupId]);
+  const currentSubgroupCode = useMemo(() =>
+    (subgroups as any[]).find(s => String(s.id) === String(lf.buySubgroupId))?.code ?? null,
+    [subgroups, lf.buySubgroupId]);
+  const isRawMaterials = currentGroupCode === 'raw_materials';
+  const lineQty        = Math.max(1, Math.round(parseFloat(String(lf.quantity || 1)) || 1));
+  const isTaggable     = !isRawMaterials && TAGGABLE_SUBGROUP_CODES.has(currentSubgroupCode ?? '');
+  const isQtySplit     = isTaggable && lineQty > 1;
+
   // ── Invalidation ─────────────────────────────────────────────────────────────
   const invalidateLists = () => queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "buy-lists"] });
   const invalidateLines = (listId: number) => {
@@ -258,7 +284,19 @@ export default function EpcBuyListControlPage() {
   const addLine = useMutation({
     mutationFn: ({ listId, body }: { listId: number; body: any }) =>
       apiRequest("POST", `/api/buy-lists/${listId}/lines`, body),
-    onSuccess: () => { toast({ title: "Line added" }); if (expandedId) invalidateLines(expandedId); setLineDialog(null); },
+    onSuccess: (data: any) => {
+      const count = data?.linesCreated ?? 1;
+      if (count === 1) {
+        toast({ title: "Line added", description: data?.tag_no ? `Tag: ${data.tag_no}` : undefined });
+      } else {
+        toast({
+          title: `${count} tagged lines created`,
+          description: `Tags: ${(data?.tags ?? []).join(' · ')}`,
+        });
+      }
+      if (expandedId) invalidateLines(expandedId);
+      setLineDialog(null);
+    },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -410,6 +448,7 @@ export default function EpcBuyListControlPage() {
 
   function openAddLine(listId: number, status: string) {
     setLf({ ...EMPTY_LINE });
+    setTagDuplicateWarning(null); setTagPreview([]); setTagAutoFilled(false); setTagFetching(false);
     setLineDialog({ open: true, listId, status, editLine: null });
   }
 
@@ -424,6 +463,7 @@ export default function EpcBuyListControlPage() {
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
     });
+    setTagDuplicateWarning(null); setTagPreview([]); setTagAutoFilled(false); setTagFetching(false);
     setLineDialog({ open: true, listId, status, editLine: line });
   }
 
@@ -453,6 +493,49 @@ export default function EpcBuyListControlPage() {
   function toggleProcChain(listId: number) {
     setShowProcChain(prev => prev === listId ? null : listId);
   }
+
+  // ── Tag auto-fetch effect (Add mode only: fires when subgroup or qty changes) ──
+  useEffect(() => {
+    if (!lineDialog || lineDialog.editLine) return;    // Add mode only
+    if (!lf.buySubgroupId || !selectedProjectId) return;
+    if (isRawMaterials) { setLf(f => ({ ...f, tagNo: '' })); setTagPreview([]); return; }
+    if (!isTaggable || !currentSubgroupCode) { setTagPreview([]); return; }
+
+    setTagFetching(true); setTagAutoFilled(false);
+    const url = `/api/projects/${selectedProjectId}/next-tag-no?subgroupCode=${encodeURIComponent(currentSubgroupCode)}&qty=${lineQty}`;
+    fetch(url, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (lineQty === 1) {
+          setLf(f => ({ ...f, tagNo: data.tagNo ?? '' }));
+          setTagPreview([]);
+          setTagAutoFilled(true);
+        } else {
+          setLf(f => ({ ...f, tagNo: '' }));
+          setTagPreview(data.preview ?? []);
+          setTagAutoFilled(false);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTagFetching(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lf.buySubgroupId, lf.quantity, lineDialog?.editLine]);
+
+  // ── Duplicate-check effect (debounced 500ms) ──────────────────────────────────
+  useEffect(() => {
+    setTagDuplicateWarning(null);
+    if (!lf.tagNo || !selectedProjectId || isRawMaterials || isQtySplit) return;
+    const timer = setTimeout(() => {
+      const excludeId = lineDialog?.editLine?.id;
+      const url = `/api/projects/${selectedProjectId}/check-tag-no?tagNo=${encodeURIComponent(lf.tagNo)}${excludeId ? `&excludeLineId=${excludeId}` : ''}`;
+      fetch(url, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => { if (!data.unique) setTagDuplicateWarning(data.message ?? 'Tag No already exists in this project'); })
+        .catch(() => {});
+    }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lf.tagNo, selectedProjectId]);
 
   function toggleSelCard(lineId: number) {
     if (openSelLineId === lineId) {
@@ -1039,7 +1122,10 @@ export default function EpcBuyListControlPage() {
                                           </TableCell>
                                           <TableCell className="text-xs max-w-40 truncate">{line.generic_requirement}</TableCell>
                                           <TableCell className="text-xs font-mono">
-                                            {line.tag_no || <span className="text-amber-600 italic">missing</span>}
+                                            {line.buy_group_code === 'raw_materials'
+                                              ? <span className="text-muted-foreground">—</span>
+                                              : (line.tag_no || <span className="text-amber-600 italic">missing</span>)
+                                            }
                                           </TableCell>
                                           <TableCell className="text-xs truncate max-w-32">
                                             {line.equipment_reference || <span className="text-amber-600 italic">missing</span>}
@@ -1425,10 +1511,53 @@ export default function EpcBuyListControlPage() {
                 <Input placeholder="e.g. Feed Pump, Suction Strainer"
                   value={lf.genericRequirement} onChange={e => setLf(f => ({ ...f, genericRequirement: e.target.value }))} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Tag No</Label>
-                <Input placeholder="e.g. P-101A" value={lf.tagNo} onChange={e => setLf(f => ({ ...f, tagNo: e.target.value }))} />
-              </div>
+              {/* Tag No — hidden for Raw Materials, info box when qty-split */}
+              {!isRawMaterials && !isQtySplit && (
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    Tag No
+                    {tagAutoFilled && (
+                      <span className="text-[10px] font-normal text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">
+                        auto
+                      </span>
+                    )}
+                    {tagFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                  </Label>
+                  <Input
+                    placeholder="e.g. P-101A"
+                    value={lf.tagNo}
+                    onChange={e => { setTagAutoFilled(false); setLf(f => ({ ...f, tagNo: e.target.value })); }}
+                    className={tagDuplicateWarning ? "border-amber-400 focus-visible:ring-amber-400" : ""}
+                  />
+                  {tagDuplicateWarning && (
+                    <p className="text-xs text-amber-600 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                      {tagDuplicateWarning}
+                    </p>
+                  )}
+                </div>
+              )}
+              {!isRawMaterials && isQtySplit && (
+                <div className="space-y-1.5">
+                  <Label>Tag Numbers</Label>
+                  <div className="rounded-md border bg-blue-50 border-blue-200 p-3">
+                    {tagFetching ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Generating preview…
+                      </div>
+                    ) : tagPreview.length > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-blue-800">{lineQty} tagged lines will be created:</p>
+                        <p className="text-xs font-mono text-blue-700">{tagPreview.join(' · ')}</p>
+                        <p className="text-xs text-blue-600 mt-1">Each unit becomes 1 separate line with its own tag, datasheet, and procurement record.</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Tags will be auto-generated for each unit.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {isRawMaterials && <div />}
               <div className="space-y-1.5">
                 <Label>Equipment Reference</Label>
                 <Input placeholder="e.g. EQ-2024-001" value={lf.equipmentReference} onChange={e => setLf(f => ({ ...f, equipmentReference: e.target.value }))} />

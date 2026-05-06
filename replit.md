@@ -53,6 +53,7 @@ Preferred communication style: Simple, everyday language.
 - **SolidWorks Agent**: Requires a dedicated Windows PC with SolidWorks installed to run the local agent for `.slddrw` extraction.
 - **Cost Roll-up Freezing**: Freezing BOM cost roll-up (`POST /api/projects/:id/cost-rollup/freeze`) writes `rolledUpCost` to the database; ensure costs are approved before freezing.
 - **Test Data Visibility**: Test records (`is_test = true`) are hidden by default from UI and API responses unless the "Show/Hide Test Data" toggle is active (Superuser only).
+- **Tag No Control (PPPC)**: Tags auto-generated using `server/tag-generation-service.ts`; prefix map: PT/TT/FT/LT/XV/CV/PSV/P/CT/JB/M. Raw Materials group → no tag. Qty>1 on taggable subgroups → N separate lines each qty=1 with sequential tags. All tag generation uses `pg_advisory_xact_lock(projectId)`. Manual changes audited in `tag_no_audit_log`. Project-wide uniqueness enforced by partial unique index + 409 responses. Taggable subgroup codes defined in both `tag-generation-service.ts` and `TAGGABLE_SUBGROUP_CODES` constant in buy-list-control-page.
 
 ## Pointers
 - **GCS Governance**: `docs/gcs-governance-rev4-closure.md`

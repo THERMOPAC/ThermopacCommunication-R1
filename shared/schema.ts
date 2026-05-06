@@ -13221,6 +13221,7 @@ export type ProjectBuyListHeader = typeof projectBuyListHeaders.$inferSelect;
 export const projectBuyListLines = pgTable('project_buy_list_lines', {
   id:                   serial('id').primaryKey(),
   buyListHeaderId:      integer('buy_list_header_id').notNull().references(() => projectBuyListHeaders.id, { onDelete: 'cascade' }),
+  projectId:            integer('project_id').references(() => projects.id, { onDelete: 'cascade' }),
   lineNumber:           integer('line_number').notNull(),
   buyGroupId:           integer('buy_group_id').notNull().references(() => buyGroups.id, { onDelete: 'restrict' }),
   buySubgroupId:        integer('buy_subgroup_id').notNull().references(() => buySubgroups.id, { onDelete: 'restrict' }),
@@ -13286,3 +13287,16 @@ export const buyListLineSelections = pgTable('buy_list_line_selections', {
 export const insertBuyListLineSelectionSchema = createInsertSchema(buyListLineSelections).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertBuyListLineSelection = z.infer<typeof insertBuyListLineSelectionSchema>;
 export type BuyListLineSelection = typeof buyListLineSelections.$inferSelect;
+
+// ─── Tag No Audit Log ──────────────────────────────────────────────────────────
+export const tagNoAuditLog = pgTable('tag_no_audit_log', {
+  id:        serial('id').primaryKey(),
+  lineId:    integer('line_id').notNull(),
+  headerId:  integer('header_id').notNull(),
+  projectId: integer('project_id').notNull(),
+  oldTagNo:  varchar('old_tag_no', { length: 80 }).notNull().default(''),
+  newTagNo:  varchar('new_tag_no', { length: 80 }).notNull().default(''),
+  changedBy: integer('changed_by').references(() => users.id, { onDelete: 'set null' }),
+  changedAt: timestamp('changed_at').notNull().defaultNow(),
+});
+export type TagNoAuditLog = typeof tagNoAuditLog.$inferSelect;
