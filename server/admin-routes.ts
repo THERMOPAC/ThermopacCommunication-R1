@@ -808,9 +808,12 @@ router.get('/payroll/increment-proposals/all', ensureAuthenticated, async (req: 
       ...proposals.map(p => p.proposedBy),
     ].filter(Boolean))] as number[];
     const allUsers = allUserIds.length
-      ? await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.id, allUserIds))
+      ? await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName }).from(users).where(inArray(users.id, allUserIds))
       : [];
-    const userMap = Object.fromEntries(allUsers.map(u => [u.id, u.username]));
+    const userMap = Object.fromEntries(allUsers.map(u => {
+      const full = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+      return [u.id, full || u.username];
+    }));
 
     res.json(proposals.map(p => ({
       ...p,
