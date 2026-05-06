@@ -528,6 +528,124 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // POST /api/buy-packages/:id/clone — Save As / Clone (Manager+)
+  // Business rule: one active package per Grandparent/Top-level Product.
+  // Creates a new draft on a DIFFERENT top-level product; deep-copies all lines.
+  app.post('/api/buy-packages/:id/clone', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid package id');
+
+      const { targetProductId, name } = req.body;
+      if (!targetProductId) return sendValidationError(res, 'targetProductId is required');
+
+      // Load source package
+      const srcRow = await pool.query(`SELECT * FROM buy_package_headers WHERE id = $1`, [id]);
+      if (srcRow.rowCount === 0) return sendNotFound(res, 'Buy package', id);
+      const src = srcRow.rows[0];
+
+      // Source and target cannot be the same product
+      if (Number(targetProductId) === Number(src.product_id))
+        return sendValidationError(res, 'Source and target products cannot be the same.');
+
+      // Target product must exist and be a Grandparent (top-level) product
+      const tgtProd = await pool.query(
+        `SELECT id, product_code, is_grandparent FROM products WHERE id = $1`,
+        [targetProductId],
+      );
+      if (tgtProd.rowCount === 0) return sendNotFound(res, 'Target product', targetProductId);
+      if (!tgtProd.rows[0].is_grandparent)
+        return sendValidationError(res, 'Target must be a top-level (Grandparent) product.');
+
+      // Business rule: one active package per Grandparent/Top-level Product
+      const activeCheck = await pool.query(
+        `SELECT id FROM buy_package_headers WHERE product_id = $1 AND status = 'active' LIMIT 1`,
+        [targetProductId],
+      );
+      if ((activeCheck.rowCount ?? 0) > 0)
+        return sendBusinessError(res, 'Target product already has an active package. Archive it before cloning.');
+
+      // Auto-generate package code (same logic as /generate-code — fully internal)
+      const rawCode: string = tgtProd.rows[0].product_code ?? '';
+      const slug = rawCode
+        .toUpperCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^A-Z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 22)
+        .replace(/-$/g, '');
+      const countRow = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM buy_package_headers WHERE product_id = $1`,
+        [targetProductId],
+      );
+      let seq = (countRow.rows[0].n ?? 0) + 1;
+      let packageCode = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
+      while (true) {
+        const clash = await pool.query(
+          `SELECT 1 FROM buy_package_headers WHERE package_code = $1`, [packageCode],
+        );
+        if ((clash.rowCount ?? 0) === 0) break;
+        seq++;
+        packageCode = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
+      }
+
+      // Resolve draft name and system-managed version
+      const draftName = (name?.trim()) || `${src.name} - Draft`;
+      const verRow = await pool.query(
+        `SELECT COALESCE(MAX(version), 0) + 1 AS v FROM buy_package_headers WHERE product_id = $1`,
+        [targetProductId],
+      );
+      const version = verRow.rows[0].v;
+      const userId = (req.user as any)?.id ?? null;
+
+      // Transaction: create header + deep-copy all lines
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const newHdr = await client.query(
+          `INSERT INTO buy_package_headers
+             (product_id, package_code, name, version, status, is_active, created_by, updated_at)
+           VALUES ($1, $2, $3, $4, 'draft', false, $5, NOW())
+           RETURNING id, package_code`,
+          [targetProductId, packageCode, draftName, version, userId],
+        );
+        const newId   = newHdr.rows[0].id;
+        const newCode = newHdr.rows[0].package_code;
+
+        const lines = await client.query(
+          `SELECT * FROM buy_package_lines WHERE buy_package_header_id = $1 ORDER BY line_number`, [id],
+        );
+        for (const l of lines.rows) {
+          await client.query(
+            `INSERT INTO buy_package_lines
+               (buy_package_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                generic_requirement, default_quantity, default_specification, technical_attributes,
+                selection_required, datasheet_required, inspection_required,
+                certificate_required, compliance_required, notes, sort_order)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+            [
+              newId, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
+              l.generic_requirement, l.default_quantity, l.default_specification, l.technical_attributes,
+              l.selection_required, l.datasheet_required, l.inspection_required,
+              l.certificate_required, l.compliance_required, l.notes, l.sort_order,
+            ],
+          );
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ id: newId, packageCode: newCode, linesCopied: lines.rowCount ?? 0 });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err) { sendError(res, err); }
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   // PHASE 1 — BUY PACKAGE LINES
   // ═══════════════════════════════════════════════════════════════════════════

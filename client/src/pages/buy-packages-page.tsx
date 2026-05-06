@@ -28,7 +28,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
-  ChevronsUpDown, Check, X, FileSpreadsheet, Printer,
+  ChevronsUpDown, Check, X, FileSpreadsheet, Printer, Copy,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -6193,6 +6193,11 @@ export default function BuyPackagesPage() {
 
   const [datasheetLine, setDatasheetLine] = useState<PackageLine | null>(null);
 
+  // Save As (Clone) dialog state
+  const [saveAsSource,  setSaveAsSource]  = useState<BuyPackage | null>(null);
+  const [saveAsName,    setSaveAsName]    = useState("");
+  const [saveAsTarget,  setSaveAsTarget]  = useState<string>("");
+
   // Header form
   const [hdr, setHdr] = useState({ productId: "", packageCode: "", name: "", description: "" });
   const [codeLoading, setCodeLoading] = useState(false);
@@ -6383,6 +6388,24 @@ export default function BuyPackagesPage() {
     mutationFn: (id: number) => apiRequest("POST", `/api/buy-packages/${id}/archive`, {}),
     onSuccess: () => { toast({ title: "Package archived" }); invalidatePkgs(); },
     onError:   (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const clonePkg = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: object }) =>
+      apiRequest("POST", `/api/buy-packages/${id}/clone`, body),
+    onSuccess: (data: { id: number; packageCode: string; linesCopied: number }) => {
+      toast({ title: "Package cloned", description: `${data.packageCode} — ${data.linesCopied} line(s) copied` });
+      setSaveAsSource(null);
+      setSaveAsName("");
+      setSaveAsTarget("");
+      invalidatePkgs();
+      setStatusFilter("draft");
+      setExpandedId(data.id);
+      setTimeout(() => {
+        document.getElementById(`pkg-row-${data.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 400);
+    },
+    onError: (e: any) => toast({ title: "Clone failed", description: e.message, variant: "destructive" }),
   });
 
   const addLineMutation = useMutation({
@@ -6895,6 +6918,20 @@ export default function BuyPackagesPage() {
                         </TableCell>
                         <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
+                            {canWrite && (
+                              <Button
+                                variant="ghost" size="sm"
+                                title="Save As (Clone to another product)"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSaveAsSource(pkg);
+                                  setSaveAsName("");
+                                  setSaveAsTarget("");
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
                             {canWrite && pkg.status === "draft" && (
                               <Button variant="ghost" size="sm" onClick={() => openEdit(pkg)}>
                                 <Edit2 className="h-4 w-4" />
@@ -8051,6 +8088,108 @@ export default function BuyPackagesPage() {
         open={datasheetLine !== null}
         onClose={() => setDatasheetLine(null)}
       />
+
+      {/* ── Save As (Clone) Dialog ─────────────────────────────────────────── */}
+      <Dialog open={!!saveAsSource} onOpenChange={(o) => { if (!o) { setSaveAsSource(null); setSaveAsName(""); setSaveAsTarget(""); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Save As — Clone Package</DialogTitle>
+            <DialogDescription>
+              Clone this package as a new draft on a different top-level product.
+              All lines will be deep-copied. One active package per top-level product is allowed.
+            </DialogDescription>
+          </DialogHeader>
+
+          {saveAsSource && (
+            <div className="space-y-5 pt-1">
+
+              {/* Source Package — read-only */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source Package</label>
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-mono">
+                  {saveAsSource.packageCode} — {saveAsSource.name}
+                </div>
+              </div>
+
+              {/* Source Grandparent Product — read-only */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source Product</label>
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  {saveAsSource.productCode} · {saveAsSource.productDescription}
+                </div>
+              </div>
+
+              {/* Target Grandparent Product — required searchable dropdown */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium uppercase tracking-wide">
+                  Target Product <span className="text-destructive">*</span>
+                </label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={saveAsTarget}
+                  onChange={(e) => setSaveAsTarget(e.target.value)}
+                >
+                  <option value="">Select target product…</option>
+                  {buyProducts
+                    .filter((p) => p.id !== saveAsSource.productId)
+                    .sort((a, b) => a.productCode.localeCompare(b.productCode))
+                    .map((p) => (
+                      <option key={p.id} value={String(p.id)}>
+                        {p.productCode}
+                      </option>
+                    ))}
+                </select>
+                {saveAsTarget && (() => {
+                  const prod = buyProducts.find((p) => String(p.id) === saveAsTarget);
+                  return prod ? (
+                    <p className="text-xs text-muted-foreground pt-0.5 pl-1">{prod.description ?? prod.productDescription}</p>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Optional Draft Name Override */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium uppercase tracking-wide">
+                  Draft Name <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder={`${saveAsSource.name} - Draft`}
+                  value={saveAsName}
+                  onChange={(e) => setSaveAsName(e.target.value)}
+                  maxLength={200}
+                />
+              </div>
+
+            </div>
+          )}
+
+          <DialogFooter className="pt-4">
+            <Button
+              variant="outline"
+              onClick={() => { setSaveAsSource(null); setSaveAsName(""); setSaveAsTarget(""); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!saveAsTarget || clonePkg.isPending}
+              onClick={() => {
+                if (!saveAsSource || !saveAsTarget) return;
+                clonePkg.mutate({
+                  id: saveAsSource.id,
+                  body: {
+                    targetProductId: Number(saveAsTarget),
+                    ...(saveAsName.trim() ? { name: saveAsName.trim() } : {}),
+                  },
+                });
+              }}
+            >
+              {clonePkg.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Cloning…</> : "Clone Package"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </Layout>
   );
