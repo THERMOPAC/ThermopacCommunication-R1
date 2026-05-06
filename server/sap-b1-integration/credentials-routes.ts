@@ -113,32 +113,35 @@ router.post('/credentials', ensureAuthenticated, async (req, res) => {
 // Get current SAP connection status
 router.get('/connection/status', async (req, res) => {
   try {
-    // Check if credentials are available
-    const hasCredentials = !!(process.env.SAP_USERNAME && process.env.SAP_PASSWORD && process.env.SAP_COMPANY_DB);
-    
-    if (!hasCredentials) {
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb   = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
+
+    if (!sapUser || !sapPass || !sapDb) {
       return res.json({
         success: true,
         status: 'disconnected',
         isConnected: false,
-        error: 'SAP credentials not configured'
+        error: `SAP credentials not configured — SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || '(empty)'}`,
+        details: { companyDb: sapDb, username: sapUser }
       });
     }
 
-    // Test the connection with current credentials using custom HTTPS client
+    console.log(`[SAP Status] Testing login → user=${sapUser} db=${sapDb}`);
+
+    let isConnected = false;
+    let connectionError: string | undefined;
+
     try {
-      const { sessionId } = await sapHttpsClient.login(
-        process.env.SAP_USERNAME!,
-        process.env.SAP_PASSWORD!,
-        process.env.SAP_COMPANY_DB!
-      );
-      var isConnected = true;
-      var connectionError = undefined;
-    } catch (error: any) {
-      var isConnected = false;
-      var connectionError = error.message;
+      await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      isConnected = true;
+      console.log(`[SAP Status] ✅ Login OK — ${sapDb}`);
+    } catch (err: any) {
+      isConnected = false;
+      connectionError = err.message;
+      console.error(`[SAP Status] ❌ Login failed — db=${sapDb} user=${sapUser}: ${err.message}`);
     }
-    
+
     res.json({
       success: true,
       status: isConnected ? 'connected' : 'disconnected',
@@ -147,8 +150,8 @@ router.get('/connection/status', async (req, res) => {
       error: connectionError,
       details: {
         serviceLayerUrl: 'https://59.152.52.58:50000/b1s/v1',
-        companyDb: process.env.SAP_COMPANY_DB,
-        username: process.env.SAP_USERNAME
+        companyDb: sapDb,
+        username: sapUser
       }
     });
 
