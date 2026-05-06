@@ -12,6 +12,7 @@ import {
   leaveTypes,
   leaveDeductions,
   leaveAccrualLog,
+  leaveCarryoverLog,
   lwpExemptionAuditLog,
   attendanceRecords,
   users,
@@ -690,14 +691,43 @@ export async function runMonthlyClAccrual(accrualMonth: string, runBy?: number):
 }
 
 // ─── runYearEndClCarryover ──────────────────────────────────────────────────
-// Runs on Dec 31 (or Jan 1) — carries over eligible unused balance to next year
+// Carries over eligible unused leave balances from FY closing year → opening year.
+// FY is April–March: for April YYYY payroll, fromYear = YYYY-1, toYear = YYYY.
+//
+// IDEMPOTENT — guarded by leave_carryover_log (fromYear, toYear) unique key.
+// Re-running the same transition returns alreadyRan=true with no DB changes.
+//
+// Called by:
+//   1. stepAttendanceSnapshot in payroll-run-engine.ts (April periods — primary)
+//   2. attendance-midnight-processor.ts on April 1 (backup cron)
+//   3. Manual admin trigger via POST /api/admin/leave/run-carryover
 export async function runYearEndClCarryover(fromYear: number, runBy?: number): Promise<{
   processed: number;
+  skipped: number;
   errors: string[];
+  alreadyRan: boolean;
 }> {
-  let processed = 0;
-  const errors: string[] = [];
   const toYear = fromYear + 1;
+
+  // ── Idempotency guard ─────────────────────────────────────────────────────
+  const [existingLog] = await db
+    .select({ id: leaveCarryoverLog.id })
+    .from(leaveCarryoverLog)
+    .where(
+      and(
+        eq(leaveCarryoverLog.fromYear, fromYear),
+        eq(leaveCarryoverLog.toYear, toYear)
+      )
+    );
+
+  if (existingLog) {
+    console.log(`[LeaveCarryover] ${fromYear}→${toYear}: already ran (id=${existingLog.id}), skipping.`);
+    return { processed: 0, skipped: 0, errors: [], alreadyRan: true };
+  }
+
+  let processed = 0;
+  let skipped = 0;
+  const errors: string[] = [];
 
   const carryoverTypes = await db
     .select()
@@ -722,7 +752,7 @@ export async function runYearEndClCarryover(fromYear: number, runBy?: number): P
             )
           );
 
-        if (!fromBal) continue;
+        if (!fromBal) { skipped++; continue; }
 
         const allocated = parseFloat(fromBal.allocatedDays);
         const carryover = parseFloat(fromBal.carryoverDays || '0');
@@ -730,7 +760,7 @@ export async function runYearEndClCarryover(fromYear: number, runBy?: number): P
         const unused = Math.max(0, allocated + carryover - used);
         const toCarry = Math.min(unused, maxCarryover);
 
-        if (toCarry <= 0) continue;
+        if (toCarry <= 0) { skipped++; continue; }
 
         await upsertBalance(db, user.id, lt.id, toYear, { allocatedDays: toCarry });
 
@@ -752,8 +782,19 @@ export async function runYearEndClCarryover(fromYear: number, runBy?: number): P
     }
   }
 
-  console.log(`[LeaveCarryover] ${fromYear}→${toYear}: processed=${processed}, errors=${errors.length}`);
-  return { processed, errors };
+  // ── Write completion log (makes this run idempotent for future calls) ─────
+  await db.insert(leaveCarryoverLog).values({
+    fromYear,
+    toYear,
+    runBy: runBy ?? null,
+    processed,
+    skipped,
+    errors: errors.length > 0 ? errors : null,
+    notes: `FY ${fromYear}-${String(toYear).slice(-2)} carryover: ${processed} balances carried, ${skipped} skipped`,
+  });
+
+  console.log(`[LeaveCarryover] ${fromYear}→${toYear}: processed=${processed}, skipped=${skipped}, errors=${errors.length}`);
+  return { processed, skipped, errors, alreadyRan: false };
 }
 
 // ─── isLwpExempt ────────────────────────────────────────────────────────────

@@ -598,9 +598,28 @@ export const lwpExemptionAuditLog = pgTable('lwp_exemption_audit_log', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+// Year-end leave carryover idempotency log
+// Mirrors leave_accrual_log but for the annual FY→FY carryover run.
+// Unique on (from_year, to_year) — prevents double carryover for the same FY transition.
+export const leaveCarryoverLog = pgTable('leave_carryover_log', {
+  id: serial('id').primaryKey(),
+  fromYear: integer('from_year').notNull(),          // FY closing calendar year (e.g. 2025 for FY 2025-26)
+  toYear: integer('to_year').notNull(),              // FY opening calendar year (e.g. 2026 for FY 2026-27)
+  runAt: timestamp('run_at').notNull().defaultNow(),
+  runBy: integer('run_by').references(() => users.id), // null = system/payroll trigger
+  processed: integer('processed').notNull().default(0),
+  skipped: integer('skipped').notNull().default(0),
+  errors: text('errors').array(),
+  notes: text('notes'),
+});
+
 // ============================================================================
 // LEAVE MANAGEMENT CORRECTION PLAN — INSERT SCHEMAS & TYPES
 // ============================================================================
+
+export const insertLeaveCarryoverLogSchema = createInsertSchema(leaveCarryoverLog)
+  .omit({ id: true, runAt: true });
+export type LeaveCarryoverLog = typeof leaveCarryoverLog.$inferSelect;
 
 export const insertLeaveDeductionSchema = createInsertSchema(leaveDeductions)
   .omit({ id: true, createdAt: true, updatedAt: true });
