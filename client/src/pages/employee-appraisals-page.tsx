@@ -1966,9 +1966,46 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
               {actionDialog === "l1-review" && (
                 <>
                   <div><Label>L1 Comments (Required)</Label><Textarea value={actionForm.l1Comments} onChange={e => setActionForm({ ...actionForm, l1Comments: e.target.value })} rows={3} /></div>
-                  <div><Label>Increment Recommendation</Label><Input value={actionForm.l1IncrementRecommendation} onChange={e => setActionForm({ ...actionForm, l1IncrementRecommendation: e.target.value })} /></div>
-                  <div><Label>Promotion Recommendation</Label><Input value={actionForm.l1PromotionRecommendation} onChange={e => setActionForm({ ...actionForm, l1PromotionRecommendation: e.target.value })} /></div>
-                  <div><Label>Training Recommendation</Label><Input value={actionForm.l1TrainingRecommendation} onChange={e => setActionForm({ ...actionForm, l1TrainingRecommendation: e.target.value })} /></div>
+                  <div>
+                    <Label>Increment Recommendation</Label>
+                    <Select value={actionForm.l1IncrementRecommendation} onValueChange={v => setActionForm({ ...actionForm, l1IncrementRecommendation: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select increment %" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        {Array.from({ length: 51 }, (_, i) => i - 10).map(n => (
+                          <SelectItem key={n} value={String(n)}>{n > 0 ? `+${n}%` : `${n}%`}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Promotion Recommendation</Label>
+                    <Select value={actionForm.l1PromotionRecommendation} onValueChange={v => setActionForm({ ...actionForm, l1PromotionRecommendation: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select recommendation" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        <SelectItem value="Yes">Yes — Recommend Promotion</SelectItem>
+                        <SelectItem value="No">No — Not Recommended</SelectItem>
+                        <SelectItem value="Hold">Hold for Next Cycle</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Training Recommendation</Label>
+                    <Select value={actionForm.l1TrainingRecommendation} onValueChange={v => setActionForm({ ...actionForm, l1TrainingRecommendation: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select training" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Technical Training">Technical Training</SelectItem>
+                        <SelectItem value="Soft Skills">Soft Skills / Communication</SelectItem>
+                        <SelectItem value="Leadership Development">Leadership Development</SelectItem>
+                        <SelectItem value="Safety Training">Safety Training</SelectItem>
+                        <SelectItem value="External Certification">External Certification</SelectItem>
+                        <SelectItem value="On-the-Job Training">On-the-Job Training</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </>
               )}
               {actionDialog === "l2-review" && (
@@ -1979,9 +2016,46 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <div><Label>Override Score (1-5)</Label><Input type="number" min="1" max="5" step="0.1" value={actionForm.l2Score} onChange={e => setActionForm({ ...actionForm, l2Score: e.target.value })} /></div>
                     {actionForm.l2Score && <div><Label>Override Reason (Required)</Label><Textarea value={actionForm.l2OverrideReason} onChange={e => setActionForm({ ...actionForm, l2OverrideReason: e.target.value })} rows={2} /></div>}
                   </div>
-                  <div><Label>Increment Recommendation</Label><Input value={actionForm.l2IncrementRecommendation} onChange={e => setActionForm({ ...actionForm, l2IncrementRecommendation: e.target.value })} /></div>
-                  <div><Label>Promotion Recommendation</Label><Input value={actionForm.l2PromotionRecommendation} onChange={e => setActionForm({ ...actionForm, l2PromotionRecommendation: e.target.value })} /></div>
-                  <div><Label>Training Recommendation</Label><Input value={actionForm.l2TrainingRecommendation} onChange={e => setActionForm({ ...actionForm, l2TrainingRecommendation: e.target.value })} /></div>
+                  <div>
+                    <Label>Increment Recommendation</Label>
+                    <Select value={actionForm.l2IncrementRecommendation} onValueChange={v => setActionForm({ ...actionForm, l2IncrementRecommendation: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select increment %" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        {Array.from({ length: 51 }, (_, i) => i - 10).map(n => (
+                          <SelectItem key={n} value={String(n)}>{n > 0 ? `+${n}%` : `${n}%`}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Promotion Recommendation</Label>
+                    <Select value={actionForm.l2PromotionRecommendation} onValueChange={v => setActionForm({ ...actionForm, l2PromotionRecommendation: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select recommendation" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        <SelectItem value="Yes">Yes — Recommend Promotion</SelectItem>
+                        <SelectItem value="No">No — Not Recommended</SelectItem>
+                        <SelectItem value="Hold">Hold for Next Cycle</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Training Recommendation</Label>
+                    <Select value={actionForm.l2TrainingRecommendation} onValueChange={v => setActionForm({ ...actionForm, l2TrainingRecommendation: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select training" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Not specified —</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Technical Training">Technical Training</SelectItem>
+                        <SelectItem value="Soft Skills">Soft Skills / Communication</SelectItem>
+                        <SelectItem value="Leadership Development">Leadership Development</SelectItem>
+                        <SelectItem value="Safety Training">Safety Training</SelectItem>
+                        <SelectItem value="External Certification">External Certification</SelectItem>
+                        <SelectItem value="On-the-Job Training">On-the-Job Training</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </>
               )}
               {actionDialog === "l3-approve" && (
