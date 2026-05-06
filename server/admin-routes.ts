@@ -4762,6 +4762,14 @@ function isSapSessionTimeout(error: string): boolean {
   return error.includes('session') && (error.includes('timeout') || error.includes('invalid') || error.includes('expired'));
 }
 
+function isSapRetryableError(error: string): boolean {
+  // Session expired → re-authenticate
+  if (isSapSessionTimeout(error)) return true;
+  // Socket-level connection drops → SAP server closed connection, worth one retry
+  if (error.includes('socket hang up') || error.includes('econnreset') || error.includes('econnrefused') || error.includes('etimedout')) return true;
+  return false;
+}
+
 /**
  * Post payroll salary JE to SAP B1
  */
@@ -4951,8 +4959,8 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
           let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
           try { const errParsed = JSON.parse(sapResponse.body); errorMsg = errParsed?.error?.message?.value || errorMsg; } catch (_) {}
 
-          if (attempt === 0 && isSapSessionTimeout(errorMsg.toLowerCase())) {
-            console.log(`[Salary JE] Session timeout for record #${recordId}, re-authenticating...`);
+          if (attempt === 0 && isSapRetryableError(errorMsg.toLowerCase())) {
+            console.log(`[Salary JE] Retryable error for record #${recordId}: ${errorMsg}. Re-authenticating...`);
             continue;
           }
 
@@ -4965,8 +4973,9 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
         }
       } catch (sapErr: any) {
         lastError = `SAP connection error: ${sapErr.message}`;
-        if (attempt === 0 && isSapSessionTimeout(lastError.toLowerCase())) {
-          console.log(`[Salary JE] Session timeout (exception) for record #${recordId}, re-authenticating...`);
+        if (attempt === 0 && isSapRetryableError(lastError.toLowerCase())) {
+          console.log(`[Salary JE] Retryable connection error for record #${recordId}: ${sapErr.message}. Retrying with fresh session...`);
+          await new Promise(r => setTimeout(r, 1500)); // brief pause before retry
           continue;
         }
         await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
