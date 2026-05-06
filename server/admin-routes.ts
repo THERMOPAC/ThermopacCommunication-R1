@@ -3619,6 +3619,7 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
         currency: a.AcctCurrency,
         balance: a.Balance,
         accountType: a.AccountType,
+        controlAccount: a.ControlAccount,   // 'tYES' = SAP blocks direct JE posting
       }));
 
     console.log(`[SAP CoA Search] Found ${matched.length} matching accounts for "${search}"`);
@@ -3970,15 +3971,23 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
       }
 
       if (resolved) {
+        const resolvedAcct = byCode.get(sapAcctCode) || allSapAccounts.find((a: any) => a.Code === sapAcctCode);
+        const accountType = resolvedAcct?.AccountType || '';
+        const controlAccount = resolvedAcct?.ControlAccount || '';
+        const isControlAcct = controlAccount === 'tYES';
         await db.update(glAccountMappings)
           .set({ sapAcctCode, sapValidatedAt: new Date() })
           .where(eq(glAccountMappings.id, mapping.id));
         results.push({
           id: mapping.id, componentCode: mapping.componentCode, componentName: mapping.componentName,
-          category: mapping.category, configuredGL: glCode, status: 'valid',
+          category: mapping.category, configuredGL: glCode, status: isControlAcct ? 'control_account' : 'valid',
           sapAcctCode, sapFormatCode, sapAcctName, updated: sapAcctCode !== glCode,
+          accountType, controlAccount, isControlAcct,
         });
-        validCount++;
+        if (isControlAcct) { invalidCount++; } else { validCount++; }
+        if (isControlAcct) {
+          console.log(`[Validate GL] ⚠️ ${mapping.componentCode} → ${sapAcctCode} (${sapAcctName}) is a CONTROL ACCOUNT — SAP will reject JE posting to this account!`);
+        }
       } else {
         results.push({
           id: mapping.id, componentCode: mapping.componentCode, componentName: mapping.componentName,
@@ -4997,6 +5006,31 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
 
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
       const errMsg = `JE imbalance: Debit=${totalDebit.toFixed(2)} Credit=${totalCredit.toFixed(2)} Diff=${(totalDebit - totalCredit).toFixed(2)}`;
+      await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
+      return res.status(400).json({ error: errMsg });
+    }
+
+    // Pre-posting control account check: look up known control accounts from DB mappings
+    // Any mapping where glAccountCode is a known control account will be caught here
+    const controlAccountIssues: string[] = [];
+    for (const [key, sapCode] of glMap.entries()) {
+      const [compCode, ctx] = key.split('|');
+      const dbMapping = await db.select().from(glAccountMappings)
+        .where(and(eq(glAccountMappings.componentCode, compCode), eq(glAccountMappings.postingContext, ctx as any), eq(glAccountMappings.isActive, true)))
+        .limit(1);
+      if (dbMapping.length > 0) {
+        // Heuristic: "Creditors for Suppliers" (20304020000ARL / _SYS00000000286) is a control/reconciliation
+        // account in SAP B1 — direct JE postings to it are blocked by SAP with "controlling type account" error.
+        const name = (dbMapping[0].glAccountName || '').toLowerCase();
+        const code = (dbMapping[0].glAccountCode || '').toLowerCase();
+        const isKnownControl = name.includes('creditors for suppliers') || code.startsWith('20304020000');
+        if (isKnownControl) {
+          controlAccountIssues.push(`${compCode} (${ctx}): "${dbMapping[0].glAccountName || dbMapping[0].glAccountCode}" [${sapCode}] is a control/reconciliation account — SAP rejects JE postings to this account`);
+        }
+      }
+    }
+    if (controlAccountIssues.length > 0) {
+      const errMsg = `GL mapping error — control accounts cannot receive direct JE postings:\n${controlAccountIssues.join('\n')}\nFix: Finance → GL Account Mapping → find the component → Search SAP CoA → select a non-control "Salary Payable" account.`;
       await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
       return res.status(400).json({ error: errMsg });
     }

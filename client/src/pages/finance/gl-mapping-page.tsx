@@ -754,24 +754,36 @@ export default function GlMappingPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sapSearchResults.map((acct: any) => (
-                    <TableRow key={acct.acctCode} className={sapSearchTarget ? 'cursor-pointer hover:bg-muted/70' : ''}>
+                  {sapSearchResults.map((acct: any) => {
+                    const isControl = acct.controlAccount === 'tYES';
+                    return (
+                    <TableRow key={acct.acctCode} className={`${isControl ? 'bg-red-50' : ''} ${sapSearchTarget && !isControl ? 'cursor-pointer hover:bg-muted/70' : ''}`}>
                       <TableCell className="font-mono text-xs font-bold">{acct.acctCode}</TableCell>
                       <TableCell className="font-mono text-xs">{acct.formatCode}</TableCell>
-                      <TableCell className="text-sm">{acct.acctName}</TableCell>
+                      <TableCell className="text-sm">
+                        <div className="flex items-center gap-2">
+                          {acct.acctName}
+                          {isControl && (
+                            <Badge className="bg-red-100 text-red-700 border-red-300 text-xs shrink-0" variant="outline">
+                              ⛔ Control Account
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {acct.active === 'tYES' ? <CheckCircle className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-red-500" />}
                       </TableCell>
                       <TableCell className="text-xs">{acct.accountType}</TableCell>
                       {sapSearchTarget && (
                         <TableCell>
-                          <Button size="sm" variant="outline" onClick={() => selectSapAccount(acct)}>
-                            <Link2 className="h-3 w-3 mr-1" /> Link
+                          <Button size="sm" variant={isControl ? 'ghost' : 'outline'} disabled={isControl} title={isControl ? 'Control accounts cannot receive JE postings — SAP will reject this.' : ''} onClick={() => !isControl && selectSapAccount(acct)}>
+                            <Link2 className="h-3 w-3 mr-1" /> {isControl ? 'Blocked' : 'Link'}
                           </Button>
                         </TableCell>
                       )}
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -811,15 +823,23 @@ export default function GlMappingPage() {
                       <TableCell className="text-xs">{r.category}</TableCell>
                       <TableCell className="font-mono text-xs">{r.configuredGL || '—'}</TableCell>
                       <TableCell className="font-mono text-xs font-bold">{r.sapAcctCode || '—'}</TableCell>
-                      <TableCell className="text-xs">{r.sapAcctName || '—'}</TableCell>
+                      <TableCell className="text-xs">
+                        <div>{r.sapAcctName || '—'}</div>
+                        {r.isControlAcct && (
+                          <Badge className="bg-red-100 text-red-700 border-red-300 text-xs mt-1" variant="outline">
+                            ⛔ Control Account — JE posting blocked
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {r.status === 'valid' && <Badge className="bg-green-600">Valid</Badge>}
+                        {r.status === 'control_account' && <Badge className="bg-red-600">Control Acct</Badge>}
                         {r.status === 'not_found' && <Badge variant="destructive">Not Found</Badge>}
                         {r.status === 'ambiguous' && <Badge className="bg-amber-600">Ambiguous</Badge>}
                         {r.status === 'empty' && <Badge variant="outline">Empty</Badge>}
                       </TableCell>
                       <TableCell>
-                        {(r.status === 'not_found' || r.status === 'empty' || r.status === 'ambiguous') && (
+                        {(r.status === 'not_found' || r.status === 'empty' || r.status === 'ambiguous' || r.status === 'control_account') && (
                           <Button size="sm" variant="outline" onClick={() => {
                             setShowValidation(false);
                             openSapSearch({ id: r.id, componentName: r.componentName || r.componentCode, debitCredit: 'credit' });
