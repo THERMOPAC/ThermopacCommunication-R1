@@ -4881,15 +4881,14 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       .from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
     const periodLabel = period?.periodName || 'Unknown Period';
 
-    // ReferenceDate = last day of payroll period month (accounting reference).
-    // DocDate = today (actual date of SAP posting — exchange rates are looked up by DocDate).
-    // These intentionally differ when April payroll is posted in May.
+    // DocDate = ReferenceDate = last day of the payroll period month.
+    // e.g. April 2026 → 2026-04-30, February → last day of Feb, March → 31.
+    // SAP exchange rates must be configured in B1 for this date.
     const periodEndDate = period?.startDate
       ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
-    const todayDate = new Date().toISOString().split('T')[0];
 
-    const { payload: jePayload, jeLines, totalDebit, totalCredit } = buildSalaryJePayload(record, employee, empName, periodLabel, periodEndDate, glMap, todayDate);
+    const { payload: jePayload, jeLines, totalDebit, totalCredit } = buildSalaryJePayload(record, employee, empName, periodLabel, periodEndDate, glMap, periodEndDate);
 
     if (jeLines.length === 0) {
       await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: 'No JE lines generated', updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
