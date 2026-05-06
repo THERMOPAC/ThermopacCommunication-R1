@@ -1971,7 +1971,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l1IncrementRecommendation} onValueChange={v => setActionForm({ ...actionForm, l1IncrementRecommendation: v })}>
                       <SelectTrigger><SelectValue placeholder="Select increment %" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         {Array.from({ length: 51 }, (_, i) => i - 10).map(n => (
                           <SelectItem key={n} value={String(n)}>{n > 0 ? `+${n}%` : `${n}%`}</SelectItem>
                         ))}
@@ -1983,7 +1982,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l1PromotionRecommendation} onValueChange={v => setActionForm({ ...actionForm, l1PromotionRecommendation: v })}>
                       <SelectTrigger><SelectValue placeholder="Select recommendation" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         <SelectItem value="Yes">Yes — Recommend Promotion</SelectItem>
                         <SelectItem value="No">No — Not Recommended</SelectItem>
                         <SelectItem value="Hold">Hold for Next Cycle</SelectItem>
@@ -1995,7 +1993,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l1TrainingRecommendation} onValueChange={v => setActionForm({ ...actionForm, l1TrainingRecommendation: v })}>
                       <SelectTrigger><SelectValue placeholder="Select training" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         <SelectItem value="None">None</SelectItem>
                         <SelectItem value="Technical Training">Technical Training</SelectItem>
                         <SelectItem value="Soft Skills">Soft Skills / Communication</SelectItem>
@@ -2021,7 +2018,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l2IncrementRecommendation} onValueChange={v => setActionForm({ ...actionForm, l2IncrementRecommendation: v })}>
                       <SelectTrigger><SelectValue placeholder="Select increment %" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         {Array.from({ length: 51 }, (_, i) => i - 10).map(n => (
                           <SelectItem key={n} value={String(n)}>{n > 0 ? `+${n}%` : `${n}%`}</SelectItem>
                         ))}
@@ -2033,7 +2029,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l2PromotionRecommendation} onValueChange={v => setActionForm({ ...actionForm, l2PromotionRecommendation: v })}>
                       <SelectTrigger><SelectValue placeholder="Select recommendation" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         <SelectItem value="Yes">Yes — Recommend Promotion</SelectItem>
                         <SelectItem value="No">No — Not Recommended</SelectItem>
                         <SelectItem value="Hold">Hold for Next Cycle</SelectItem>
@@ -2045,7 +2040,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l2TrainingRecommendation} onValueChange={v => setActionForm({ ...actionForm, l2TrainingRecommendation: v })}>
                       <SelectTrigger><SelectValue placeholder="Select training" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         <SelectItem value="None">None</SelectItem>
                         <SelectItem value="Technical Training">Technical Training</SelectItem>
                         <SelectItem value="Soft Skills">Soft Skills / Communication</SelectItem>
@@ -2118,7 +2112,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l3Comments} onValueChange={v => setActionForm({ ...actionForm, l3Comments: v })}>
                       <SelectTrigger><SelectValue placeholder="Select comment" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         <SelectItem value="Performance is in line with expectations">Performance is in line with expectations</SelectItem>
                         <SelectItem value="Outstanding performance and contribution this cycle">Outstanding performance and contribution this cycle</SelectItem>
                         <SelectItem value="Good progress noted; further growth expected">Good progress noted; further growth expected</SelectItem>
@@ -2178,7 +2171,6 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                     <Select value={actionForm.l3FinalRemarks} onValueChange={v => setActionForm({ ...actionForm, l3FinalRemarks: v })}>
                       <SelectTrigger><SelectValue placeholder="Select final remarks" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Not specified —</SelectItem>
                         <SelectItem value="Approved as per L1/L2 recommendation">Approved as per L1/L2 recommendation</SelectItem>
                         <SelectItem value="Approved with increment adjustment from recommendation">Approved with increment adjustment from recommendation</SelectItem>
                         <SelectItem value="Approved with promotion — new role effective from date above">Approved with promotion — new role effective from date above</SelectItem>
