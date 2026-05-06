@@ -463,17 +463,23 @@ router.get('/payroll/manual-increment-eligible', ensureAuthenticated, async (req
       .orderBy(desc(appraisalCycles.id))
       .limit(1);
 
-    // Get all employee IDs that have an appraisal in the current active cycle
-    const appraisedEmployeeIds: number[] = [];
+    // Get employee IDs that have a COMPLETED (approved) appraisal in the current active cycle
+    // Open / in-progress appraisals do NOT disqualify — those employees may still need a manual increment
+    const approvedEmployeeIds: number[] = [];
     if (activeCycle) {
-      const appraisals = await db
+      const approvedAppraisals = await db
         .select({ employeeId: employeeAppraisals.employeeId })
         .from(employeeAppraisals)
-        .where(eq(employeeAppraisals.cycleId, activeCycle.id));
-      appraisedEmployeeIds.push(...appraisals.map(a => a.employeeId));
+        .where(
+          and(
+            eq(employeeAppraisals.cycleId, activeCycle.id),
+            eq(employeeAppraisals.status, 'approved')
+          )
+        );
+      approvedEmployeeIds.push(...approvedAppraisals.map(a => a.employeeId));
     }
 
-    // Fetch all active salary configs, excluding already-appraised employees
+    // Fetch all active salary configs for active users, excluding employees with an approved appraisal
     const query = db
       .select({
         id: employeeSalaries.id,
@@ -486,12 +492,13 @@ router.get('/payroll/manual-increment-eligible', ensureAuthenticated, async (req
         salaryType: employeeSalaries.salaryType,
       })
       .from(employeeSalaries)
-      .leftJoin(users, eq(employeeSalaries.userId, users.id))
+      .innerJoin(users, eq(employeeSalaries.userId, users.id))
       .where(
         and(
           eq(employeeSalaries.isActive, true),
-          appraisedEmployeeIds.length > 0
-            ? notInArray(employeeSalaries.userId, appraisedEmployeeIds)
+          eq(users.isActive, true),
+          approvedEmployeeIds.length > 0
+            ? notInArray(employeeSalaries.userId, approvedEmployeeIds)
             : undefined
         )
       )

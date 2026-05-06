@@ -420,7 +420,7 @@ export default function IncrementApprovalsPage() {
             </DialogTitle>
             {activeCycleLabel && (
               <p className="text-xs text-muted-foreground mt-1">
-                Showing employees with <strong>no appraisal</strong> in {activeCycleLabel}
+                Showing active employees with <strong>no completed appraisal</strong> in {activeCycleLabel}
               </p>
             )}
           </DialogHeader>
