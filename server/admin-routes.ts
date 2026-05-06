@@ -4715,7 +4715,17 @@ function buildSalaryJePayload(
   if (netPayValue > 0) {
     const netPayCode = glMap.get('NET_PAY|payroll_liability');
     if (netPayCode) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: netPayCode, ShortName: employee.cardCode, Debit: 0, Credit: netPayValue, LineMemo: `NET_PAY - ${empName} - ${periodLabel}` });
+      // NOTE: Use AccountCode only — do NOT add ShortName (BP code) here.
+      // Adding ShortName forces SAP to do BP-currency reconciliation, which
+      // requires a foreign-currency exchange rate even when all amounts are INR.
+      // BP traceability is preserved via LineMemo and the JE-level Reference2.
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: netPayCode,
+        Debit: 0,
+        Credit: netPayValue,
+        LineMemo: `NET_PAY - ${empName} (${employee.cardCode}) - ${periodLabel}`,
+      });
     }
   }
 
