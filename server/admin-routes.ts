@@ -479,7 +479,21 @@ router.get('/payroll/manual-increment-eligible', ensureAuthenticated, async (req
       approvedEmployeeIds.push(...approvedAppraisals.map(a => a.employeeId));
     }
 
-    // Fetch all active salary configs for active users, excluding employees with an approved appraisal
+    // Also exclude employees who already have a pending or approved increment proposal
+    const activeProposalEmployeeIds = (await db
+      .select({ employeeId: salaryIncrementProposals.employeeId })
+      .from(salaryIncrementProposals)
+      .where(
+        or(
+          eq(salaryIncrementProposals.status, 'pending'),
+          eq(salaryIncrementProposals.status, 'approved')
+        )
+      )
+    ).map(p => p.employeeId);
+
+    const excludedIds = [...new Set([...approvedEmployeeIds, ...activeProposalEmployeeIds])];
+
+    // Fetch all active salary configs for active users, excluding disqualified employees
     const query = db
       .select({
         id: employeeSalaries.id,
@@ -497,8 +511,8 @@ router.get('/payroll/manual-increment-eligible', ensureAuthenticated, async (req
         and(
           eq(employeeSalaries.isActive, true),
           eq(users.isActive, true),
-          approvedEmployeeIds.length > 0
-            ? notInArray(employeeSalaries.userId, approvedEmployeeIds)
+          excludedIds.length > 0
+            ? notInArray(employeeSalaries.userId, excludedIds)
             : undefined
         )
       )
