@@ -4614,8 +4614,9 @@ function buildSalaryJePayload(
   employee: any,
   empName: string,
   periodLabel: string,
-  postingDate: string,
+  postingDate: string,   // ReferenceDate — the period end date (accounting reference)
   glMap: Map<string, string>,
+  docDate?: string,      // DocDate — the actual SAP posting date (used for exchange rate lookup). Defaults to postingDate.
 ) {
   const jeLines: any[] = [];
   let lineNum = 0;
@@ -4722,7 +4723,14 @@ function buildSalaryJePayload(
   const totalDebit = Math.round(jeLines.reduce((sum: number, l: any) => sum + (l.Debit || 0), 0) * 100) / 100;
   const totalCredit = Math.round(jeLines.reduce((sum: number, l: any) => sum + (l.Credit || 0), 0) * 100) / 100;
 
+  // DocDate is what SAP uses to look up exchange rates — must be set explicitly.
+  // ReferenceDate is the accounting reference (period end). They can differ when
+  // payroll for a past period is posted in the current month.
+  const effectiveDocDate = docDate || postingDate;
+
   const payload = {
+    DocDate: effectiveDocDate,
+    TaxDate: effectiveDocDate,
     ReferenceDate: postingDate,
     Memo: `Salary JE - ${empName} - ${periodLabel}`,
     Reference2: employee.cardCode,
@@ -4872,11 +4880,16 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     const [period] = await db.select({ periodName: payrollPeriods.periodName, startDate: payrollPeriods.startDate })
       .from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
     const periodLabel = period?.periodName || 'Unknown Period';
-    const postingDate = period?.startDate
+
+    // ReferenceDate = last day of payroll period month (accounting reference).
+    // DocDate = today (actual date of SAP posting — exchange rates are looked up by DocDate).
+    // These intentionally differ when April payroll is posted in May.
+    const periodEndDate = period?.startDate
       ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
+    const todayDate = new Date().toISOString().split('T')[0];
 
-    const { payload: jePayload, jeLines, totalDebit, totalCredit } = buildSalaryJePayload(record, employee, empName, periodLabel, postingDate, glMap);
+    const { payload: jePayload, jeLines, totalDebit, totalCredit } = buildSalaryJePayload(record, employee, empName, periodLabel, periodEndDate, glMap, todayDate);
 
     if (jeLines.length === 0) {
       await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: 'No JE lines generated', updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
@@ -5025,6 +5038,8 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     if (reversalLines.length === 0) return res.status(400).json({ error: 'No reversal lines generated.' });
 
     const jePayload = {
+      DocDate: postingDate,     // today — reversal always posted on actual date
+      TaxDate: postingDate,
       ReferenceDate: postingDate,
       Memo: `REVERSAL - Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
       Reference2: employee.cardCode || '',
