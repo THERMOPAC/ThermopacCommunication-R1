@@ -63,6 +63,7 @@ type SalarySetupEntry = {
   lastName: string | null;
   basicSalary: string;
   ctcMonthly: string;
+  salaryType: string | null;
 };
 
 const BLANK_CREATE = { salaryId: '', pct: '10', effectiveDateDisplay: april1Display(), effectiveDateIso: april1Iso(), remarks: 'Yearly Increment' };
@@ -429,9 +430,11 @@ export default function IncrementApprovalsPage() {
                 <SelectContent>
                   {salarySetup.map(s => {
                     const displayName = [s.firstName, s.lastName].filter(Boolean).join(' ') || s.username;
+                    const isDaily = s.salaryType === 'daily';
+                    const rateLabel = isDaily ? 'Daily' : 'Basic';
                     return (
                       <SelectItem key={s.id} value={String(s.id)}>
-                        {displayName} — Basic ₹{parseFloat(s.basicSalary).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        {displayName} [{isDaily ? 'Daily' : 'Monthly'}] — {rateLabel} ₹{parseFloat(s.basicSalary).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </SelectItem>
                     );
                   })}
@@ -456,22 +459,30 @@ export default function IncrementApprovalsPage() {
             {createForm.salaryId && (() => {
               const sel = salarySetup.find(s => String(s.id) === createForm.salaryId);
               if (!sel) return null;
+              const isDaily = sel.salaryType === 'daily';
               const pct = parseFloat(createForm.pct) || 0;
               const oldB = parseFloat(sel.basicSalary);
               const newB = parseFloat((oldB * (1 + pct / 100)).toFixed(2));
+              const unit = isDaily ? '/day' : '/mo';
+              const rateLabel = isDaily ? 'Daily Rate' : 'Monthly Basic';
               return (
                 <div className="rounded-lg border bg-blue-50 border-blue-200 px-3 py-2.5 text-xs space-y-1">
+                  {isDaily && (
+                    <div className="flex items-center gap-1 text-amber-700 font-medium mb-1">
+                      <span>⚡</span> Daily salary employee — rate shown per day
+                    </div>
+                  )}
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Current Basic:</span>
-                    <span className="font-mono font-medium">₹{oldB.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    <span className="text-gray-500">Current {rateLabel}:</span>
+                    <span className="font-mono font-medium">₹{oldB.toLocaleString('en-IN', { maximumFractionDigits: 2 })}{unit}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Proposed Basic:</span>
-                    <span className="font-mono font-semibold text-green-700">₹{newB.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    <span className="text-gray-500">Proposed {rateLabel}:</span>
+                    <span className="font-mono font-semibold text-green-700">₹{newB.toLocaleString('en-IN', { maximumFractionDigits: 2 })}{unit}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Difference:</span>
-                    <span className="font-mono text-blue-700">+₹{(newB - oldB).toLocaleString('en-IN', { maximumFractionDigits: 0 })}/mo</span>
+                    <span className="font-mono text-blue-700">+₹{(newB - oldB).toLocaleString('en-IN', { maximumFractionDigits: 2 })}{unit}</span>
                   </div>
                 </div>
               );
