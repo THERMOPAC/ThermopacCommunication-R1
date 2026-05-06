@@ -2193,6 +2193,52 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
       console.error('[Appraisal] HR notification failed (non-blocking):', notifErr.message);
     }
 
+    // Auto-generate salary increment proposal if increment % is non-zero
+    try {
+      const autoIncPct = incNum; // already validated whole number
+      if (autoIncPct !== 0 && !updated.incrementProposalId) {
+        const [salary] = await db.select().from(employeeSalaries)
+          .where(eq(employeeSalaries.userId, appraisal.employeeId));
+        if (salary) {
+          const oldBasic = parseFloat(salary.basicSalary || '0');
+          const proposedBasic = Math.round(oldBasic * (1 + autoIncPct / 100) * 100) / 100;
+          const oldCtc = parseFloat((salary as any).ctcMonthly || (salary as any).ctcYearly || '0');
+          const ctcRatio = oldBasic > 0 && oldCtc > 0 ? (oldCtc / oldBasic) : 0;
+          const proposedCtc = ctcRatio > 0 ? Math.round(proposedBasic * ctcRatio * 100) / 100 : 0;
+          const effectiveDate = l3Decision.l3EffectiveDate || new Date().toISOString().split('T')[0];
+          const [proposal] = await db.insert(salaryIncrementProposals).values({
+            employeeSalaryId: salary.id,
+            employeeId: appraisal.employeeId,
+            incrementPercentage: autoIncPct.toString(),
+            oldBasicSalary: oldBasic.toString(),
+            proposedBasicSalary: proposedBasic.toString(),
+            oldCtc: oldCtc > 0 ? oldCtc.toString() : null,
+            proposedCtc: proposedCtc > 0 ? proposedCtc.toString() : null,
+            effectiveDate,
+            status: 'pending',
+            remarks: `Appraisal-driven increment — ${finalRating} (Score: ${Math.round(effectiveScore * 100) / 100})`,
+            proposedBy: user.id,
+            proposedAt: new Date(),
+            appraisalId,
+            appraisalFinalScore: (Math.round(effectiveScore * 100) / 100).toString(),
+            appraisalRating: finalRating,
+            systemSuggestedIncrementPct: systemSuggestedIncrementPct || '0',
+            minIncrementPct: minIncrementPct || '0',
+            maxIncrementPct: maxIncrementPct || '100',
+            finalProposedIncrementPct: autoIncPct.toString(),
+          }).returning();
+          await db.update(employeeAppraisals).set({
+            incrementProposalId: proposal.id,
+            incrementProposalCreatedAt: new Date(),
+            updatedAt: new Date(),
+          }).where(eq(employeeAppraisals.id, appraisalId));
+          console.log(`[Appraisal] Auto-generated increment proposal ${proposal.id} for appraisal ${appraisalId} (${autoIncPct}%)`);
+        }
+      }
+    } catch (proposalErr: any) {
+      console.error('[Appraisal] Auto-increment proposal generation failed (non-blocking):', proposalErr.message);
+    }
+
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to approve' });
