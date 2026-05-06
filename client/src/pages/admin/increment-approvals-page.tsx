@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { CheckCircle, XCircle, TrendingUp, Clock, History, AlertTriangle, Loader2, User } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, Clock, History, AlertTriangle, Loader2, User, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Redirect } from 'wouter';
 import { fmtDate, april1Display, april1Iso } from '@/lib/date-utils';
@@ -54,6 +55,18 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 const fmt = (v: string | number) =>
   `₹${parseFloat(String(v)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
+type SalarySetupEntry = {
+  id: number;
+  userId: number;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  basicSalary: string;
+  ctcMonthly: string;
+};
+
+const BLANK_CREATE = { salaryId: '', pct: '10', effectiveDateDisplay: april1Display(), effectiveDateIso: april1Iso(), remarks: 'Yearly Increment' };
+
 export default function IncrementApprovalsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -65,12 +78,40 @@ export default function IncrementApprovalsPage() {
   const [approveDateIso, setApproveDateIso] = useState<string>(april1Iso());
   const [rejectTarget, setRejectTarget]   = useState<Proposal | null>(null);
   const [rejectReason, setRejectReason]   = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ ...BLANK_CREATE });
 
   const parseDDMMYYYY = (val: string): string => {
     const p = val.split('/');
     if (p.length === 3 && p[2].length === 4) return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
     return approveDateIso;
   };
+
+  const { data: salarySetup = [] } = useQuery<SalarySetupEntry[]>({
+    queryKey: ['/api/admin/payroll/salary-setup'],
+    enabled: showCreate,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const pct = parseFloat(createForm.pct);
+      if (isNaN(pct) || pct < -10 || pct > 40) throw new Error('Increment % must be between -10 and 40');
+      if (!createForm.salaryId) throw new Error('Please select an employee');
+      return await apiRequest('POST', `/api/admin/payroll/salary-setup/${createForm.salaryId}/increment`, {
+        incrementPercentage: pct,
+        effectiveDate: createForm.effectiveDateIso,
+        remarks: createForm.remarks || 'Yearly Increment',
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Created', description: 'Manual increment proposal created successfully.' });
+      setShowCreate(false);
+      setCreateForm({ ...BLANK_CREATE });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/increment-proposals/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/increment-proposals/pending-count'] });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
 
   if (!user || user.role !== 'Superuser') {
     return <Redirect to="/admin/payroll" />;
@@ -135,18 +176,27 @@ export default function IncrementApprovalsPage() {
             )}
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="applied">Applied</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+              onClick={() => { setCreateForm({ ...BLANK_CREATE }); setShowCreate(true); }}
+            >
+              <Plus className="h-4 w-4" /> New Manual Increment
+            </Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="applied">Applied</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Summary cards */}
@@ -353,6 +403,121 @@ export default function IncrementApprovalsPage() {
             >
               {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
               Confirm Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create Manual Increment dialog ─────────────────────────────────── */}
+      <Dialog open={showCreate} onOpenChange={open => { if (!open) setShowCreate(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-blue-600" /> New Manual Increment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Employee <span className="text-red-500">*</span></Label>
+              <Select
+                value={createForm.salaryId}
+                onValueChange={v => setCreateForm(f => ({ ...f, salaryId: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {salarySetup.map(s => {
+                    const displayName = [s.firstName, s.lastName].filter(Boolean).join(' ') || s.username;
+                    return (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {displayName} — Basic ₹{parseFloat(s.basicSalary).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Increment % <span className="text-red-500">*</span></Label>
+              <Input
+                type="number"
+                min="-10"
+                max="40"
+                step="0.5"
+                value={createForm.pct}
+                onChange={e => setCreateForm(f => ({ ...f, pct: e.target.value }))}
+                placeholder="e.g. 10"
+              />
+              <p className="text-xs text-muted-foreground">Allowed range: −10% to 40%</p>
+            </div>
+
+            {createForm.salaryId && (() => {
+              const sel = salarySetup.find(s => String(s.id) === createForm.salaryId);
+              if (!sel) return null;
+              const pct = parseFloat(createForm.pct) || 0;
+              const oldB = parseFloat(sel.basicSalary);
+              const newB = parseFloat((oldB * (1 + pct / 100)).toFixed(2));
+              return (
+                <div className="rounded-lg border bg-blue-50 border-blue-200 px-3 py-2.5 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Current Basic:</span>
+                    <span className="font-mono font-medium">₹{oldB.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Proposed Basic:</span>
+                    <span className="font-mono font-semibold text-green-700">₹{newB.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Difference:</span>
+                    <span className="font-mono text-blue-700">+₹{(newB - oldB).toLocaleString('en-IN', { maximumFractionDigits: 0 })}/mo</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Effective Date <span className="text-red-500">*</span></Label>
+              <Input
+                type="text"
+                placeholder="DD/MM/YYYY"
+                value={createForm.effectiveDateDisplay}
+                onChange={e => {
+                  const raw = e.target.value;
+                  const p = raw.split('/');
+                  const iso = (p.length === 3 && p[2].length === 4)
+                    ? `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`
+                    : createForm.effectiveDateIso;
+                  setCreateForm(f => ({ ...f, effectiveDateDisplay: raw, effectiveDateIso: iso }));
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Remarks</Label>
+              <Textarea
+                rows={2}
+                placeholder="e.g. Performance-based increment, Ad-hoc revision…"
+                value={createForm.remarks}
+                onChange={e => setCreateForm(f => ({ ...f, remarks: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              This creates a proposal that still requires Superuser approval before taking effect. No appraisal cycle needed.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-1"
+              disabled={createMutation.isPending || !createForm.salaryId}
+              onClick={() => createMutation.mutate()}
+            >
+              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Create Proposal
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -680,8 +680,8 @@ router.post('/payroll/salary-setup/:id/increment', ensureAuthenticated, async (r
     const { incrementPercentage, effectiveDate, remarks } = req.body;
 
     const pct = parseFloat(incrementPercentage);
-    if (isNaN(pct) || pct < -10 || pct > 30) {
-      return res.status(400).json({ error: 'Increment percentage must be between -10 and 30' });
+    if (isNaN(pct) || pct < -10 || pct > 40) {
+      return res.status(400).json({ error: 'Increment percentage must be between -10 and 40' });
     }
     if (!effectiveDate) {
       return res.status(400).json({ error: 'effectiveDate is required' });
