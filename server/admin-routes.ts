@@ -4767,7 +4767,27 @@ function isSapRetryableError(error: string): boolean {
   if (isSapSessionTimeout(error)) return true;
   // Socket-level connection drops → SAP server closed connection, worth one retry
   if (error.includes('socket hang up') || error.includes('econnreset') || error.includes('econnrefused') || error.includes('etimedout')) return true;
+  // HTTP gateway errors → SAP Service Layer backend temporarily unavailable
+  if (error.includes('502') || error.includes('503') || error.includes('bad gateway') || error.includes('service unavailable')) return true;
   return false;
+}
+
+/** Strip HTML tags from SAP error responses and return a clean one-liner. */
+function cleanSapErrorMessage(raw: string, statusCode: number): string {
+  if (!raw) return `SAP posting failed (HTTP ${statusCode})`;
+  // Try JSON first (normal SAP Service Layer error)
+  try {
+    const parsed = JSON.parse(raw);
+    const msg = parsed?.error?.message?.value;
+    if (msg) return msg;
+  } catch (_) {}
+  // Strip HTML tags if SAP returned an HTML page (e.g. 502 IIS error)
+  if (raw.includes('<html') || raw.includes('<!DOCTYPE')) {
+    const stripped = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const meaningful = stripped.substring(0, 200).trim();
+    return `SAP HTTP ${statusCode}: ${meaningful || 'Gateway error — SAP B1 Service Layer unavailable'}`;
+  }
+  return raw.substring(0, 300);
 }
 
 /**
@@ -4956,11 +4976,11 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
             sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
           });
         } else {
-          let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
-          try { const errParsed = JSON.parse(sapResponse.body); errorMsg = errParsed?.error?.message?.value || errorMsg; } catch (_) {}
+          const errorMsg = cleanSapErrorMessage(sapResponse.body, sapResponse.statusCode);
 
           if (attempt === 0 && isSapRetryableError(errorMsg.toLowerCase())) {
-            console.log(`[Salary JE] Retryable error for record #${recordId}: ${errorMsg}. Re-authenticating...`);
+            console.log(`[Salary JE] Retryable error for record #${recordId}: ${errorMsg}. Retrying with fresh session...`);
+            await new Promise(r => setTimeout(r, 1500));
             continue;
           }
 
