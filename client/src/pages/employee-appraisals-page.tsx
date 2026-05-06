@@ -1947,7 +1947,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                 {actionDialog === "self-submit" && "Submit Self-Assessment"}
                 {actionDialog === "l1-review" && "Complete L1 Review"}
                 {actionDialog === "l2-review" && "Complete L2 Review"}
-                {actionDialog === "l3-approve" && "Final Approval"}
+                {actionDialog === "l3-approve" && `Final Approval for ${appraisal.employeeName}`}
                 {actionDialog === "reopen" && "Reopen Appraisal"}
                 {actionDialog === "return-for-resubmission" && "Return for Resubmission"}
                 {actionDialog === "resubmit" && "Resubmit Self-Assessment"}
