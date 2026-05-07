@@ -252,3 +252,9 @@ id = "tAo2joBdDsD5Z5XLmec5Z"
 uri = "file://docs/tds-governance-correction-plan-v1.1.md"
 type = "text"
 title = "TDS Governance Correction Plan v1.1"
+
+[[outputs]]
+id = "g0Ps3OR9DQphuBBBkN7y_"
+uri = "file://docs/tds-governance-correction-plan-v1.2.md"
+type = "text"
+title = "TDS Governance Correction Plan v1.2 — Final"
