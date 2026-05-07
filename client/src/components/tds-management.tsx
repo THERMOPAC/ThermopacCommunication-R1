@@ -12,30 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { Calculator, Settings, FileText, IndianRupee, Shield, CheckCircle, XCircle, Clock, RefreshCw, Users } from 'lucide-react';
+import { Calculator, Settings, FileText, IndianRupee, CheckCircle, XCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
 const FY_OPTIONS = ['2024-25', '2025-26', '2026-27'];
 
+// R5: Old Regime fields removed — only previous employer income and other income retained
 const declarationFormSchema = z.object({
   userId: z.number().min(1),
   financialYear: z.string().min(1),
-  regime: z.enum(['old', 'new']),
-  monthlyRentPaid: z.string().default('0'),
-  isMetroCity: z.boolean().default(false),
-  section80c: z.string().default('0'),
-  section80ccd1b: z.string().default('0'),
-  section80d: z.string().default('0'),
-  section80dParents: z.string().default('0'),
-  section80e: z.string().default('0'),
-  section80g: z.string().default('0'),
-  section80tta: z.string().default('0'),
-  section24b: z.string().default('0'),
-  otherDeductions: z.string().default('0'),
-  otherDeductionsDescription: z.string().optional(),
   previousEmployerIncome: z.string().default('0'),
   previousEmployerTds: z.string().default('0'),
   otherIncome: z.string().default('0'),
@@ -48,6 +34,7 @@ function formatCurrency(val: string | number | null | undefined): string {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
 }
 
+// R6: Old Regime card removed — New Regime only
 function TaxSlabsPanel() {
   const [selectedFy, setSelectedFy] = useState('2025-26');
   const { toast } = useToast();
@@ -66,7 +53,6 @@ function TaxSlabsPanel() {
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
-  const oldSlabs = slabs.filter((s: any) => s.regime === 'old');
   const newSlabs = slabs.filter((s: any) => s.regime === 'new');
 
   return (
@@ -84,7 +70,7 @@ function TaxSlabsPanel() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending || slabs.length > 0} variant="outline" size="sm">
+        <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending || newSlabs.length > 0} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
           Load Default Slabs
         </Button>
@@ -92,87 +78,54 @@ function TaxSlabsPanel() {
 
       {isLoading ? (
         <div className="text-center py-8 text-gray-500">Loading tax slabs...</div>
-      ) : slabs.length === 0 ? (
+      ) : newSlabs.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Settings className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500 mb-4">No tax slabs configured for FY {selectedFy}</p>
             <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
-              Load Indian Tax Slabs (FY {selectedFy})
+              Load New Regime Slabs (FY {selectedFy})
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-50 text-blue-700">New Regime</Badge>
-                Standard Deduction: {formatCurrency(newSlabs[0]?.standardDeduction)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2">Income Range</th>
-                    <th className="text-right py-2">Rate</th>
+        <Card className="max-w-lg">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700">New Regime</Badge>
+              Standard Deduction: {formatCurrency(newSlabs[0]?.standardDeduction)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2">Income Range</th>
+                  <th className="text-right py-2">Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {newSlabs.map((slab: any) => (
+                  <tr key={slab.id} className="border-b last:border-0">
+                    <td className="py-2">
+                      {formatCurrency(slab.minIncome)} – {slab.maxIncome ? formatCurrency(slab.maxIncome) : 'Above'}
+                    </td>
+                    <td className="text-right py-2 font-medium">{slab.rate}%</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {newSlabs.map((slab: any) => (
-                    <tr key={slab.id} className="border-b last:border-0">
-                      <td className="py-2">
-                        {formatCurrency(slab.minIncome)} – {slab.maxIncome ? formatCurrency(slab.maxIncome) : 'Above'}
-                      </td>
-                      <td className="text-right py-2 font-medium">{slab.rate}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mt-3 text-xs text-gray-500">
-                Cess: {newSlabs[0]?.cessRate}% | Rebate u/s 87A: Up to {formatCurrency(newSlabs[0]?.section87aRebateLimit)}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Badge variant="outline" className="bg-orange-50 text-orange-700">Old Regime</Badge>
-                Standard Deduction: {formatCurrency(oldSlabs[0]?.standardDeduction)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2">Income Range</th>
-                    <th className="text-right py-2">Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {oldSlabs.map((slab: any) => (
-                    <tr key={slab.id} className="border-b last:border-0">
-                      <td className="py-2">
-                        {formatCurrency(slab.minIncome)} – {slab.maxIncome ? formatCurrency(slab.maxIncome) : 'Above'}
-                      </td>
-                      <td className="text-right py-2 font-medium">{slab.rate}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mt-3 text-xs text-gray-500">
-                Cess: {oldSlabs[0]?.cessRate}% | Rebate u/s 87A: Up to {formatCurrency(oldSlabs[0]?.section87aRebateLimit)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3 text-xs text-gray-500">
+              Cess: {newSlabs[0]?.cessRate}% &nbsp;|&nbsp; Section 87A rebate: up to ₹60,000 (taxable income ≤ ₹12,00,000)
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
 }
 
+// R5: Regime selector and Old Regime fields removed; approval workflow retained
 function TaxDeclarationsPanel() {
   const [selectedFy, setSelectedFy] = useState('2025-26');
   const [showForm, setShowForm] = useState(false);
@@ -197,19 +150,6 @@ function TaxDeclarationsPanel() {
     defaultValues: {
       userId: 0,
       financialYear: selectedFy,
-      regime: 'new',
-      monthlyRentPaid: '0',
-      isMetroCity: false,
-      section80c: '0',
-      section80ccd1b: '0',
-      section80d: '0',
-      section80dParents: '0',
-      section80e: '0',
-      section80g: '0',
-      section80tta: '0',
-      section24b: '0',
-      otherDeductions: '0',
-      otherDeductionsDescription: '',
       previousEmployerIncome: '0',
       previousEmployerTds: '0',
       otherIncome: '0',
@@ -245,19 +185,6 @@ function TaxDeclarationsPanel() {
     form.reset({
       userId: decl.userId,
       financialYear: decl.financialYear,
-      regime: decl.regime,
-      monthlyRentPaid: decl.monthlyRentPaid || '0',
-      isMetroCity: decl.isMetroCity || false,
-      section80c: decl.section80c || '0',
-      section80ccd1b: decl.section80ccd1b || '0',
-      section80d: decl.section80d || '0',
-      section80dParents: decl.section80dParents || '0',
-      section80e: decl.section80e || '0',
-      section80g: decl.section80g || '0',
-      section80tta: decl.section80tta || '0',
-      section24b: decl.section24b || '0',
-      otherDeductions: decl.otherDeductions || '0',
-      otherDeductionsDescription: decl.otherDeductionsDescription || '',
       previousEmployerIncome: decl.previousEmployerIncome || '0',
       previousEmployerTds: decl.previousEmployerTds || '0',
       otherIncome: decl.otherIncome || '0',
@@ -267,7 +194,7 @@ function TaxDeclarationsPanel() {
 
   const handleNew = () => {
     setEditingId(null);
-    form.reset({ financialYear: selectedFy, regime: 'new', userId: 0 });
+    form.reset({ financialYear: selectedFy, userId: 0 });
     setShowForm(true);
   };
 
@@ -280,8 +207,6 @@ function TaxDeclarationsPanel() {
     };
     return <Badge className={colors[status] || 'bg-gray-100'}>{status}</Badge>;
   };
-
-  const selectedRegime = form.watch('regime');
 
   return (
     <div className="space-y-4">
@@ -317,12 +242,9 @@ function TaxDeclarationsPanel() {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left py-3 px-3">Employee</th>
-                <th className="text-left py-3 px-3">Regime</th>
-                <th className="text-right py-3 px-3">80C</th>
-                <th className="text-right py-3 px-3">80D</th>
-                <th className="text-right py-3 px-3">HRA Rent</th>
-                <th className="text-right py-3 px-3">Sec 24b</th>
-                <th className="text-right py-3 px-3">Prev Emp Income</th>
+                <th className="text-right py-3 px-3">Prev Employer Income</th>
+                <th className="text-right py-3 px-3">Prev Employer TDS</th>
+                <th className="text-right py-3 px-3">Other Income</th>
                 <th className="text-center py-3 px-3">Status</th>
                 <th className="text-center py-3 px-3">Actions</th>
               </tr>
@@ -331,16 +253,9 @@ function TaxDeclarationsPanel() {
               {declarations.map((d: any) => (
                 <tr key={d.id} className="border-b hover:bg-gray-50">
                   <td className="py-2 px-3 font-medium">{d.userName}</td>
-                  <td className="py-2 px-3">
-                    <Badge variant="outline" className={d.regime === 'new' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}>
-                      {d.regime}
-                    </Badge>
-                  </td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(d.section80c)}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(d.section80d)}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(d.monthlyRentPaid)}/mo</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(d.section24b)}</td>
                   <td className="py-2 px-3 text-right">{formatCurrency(d.previousEmployerIncome)}</td>
+                  <td className="py-2 px-3 text-right">{formatCurrency(d.previousEmployerTds)}</td>
+                  <td className="py-2 px-3 text-right">{formatCurrency(d.otherIncome)}</td>
                   <td className="py-2 px-3 text-center">{statusBadge(d.status)}</td>
                   <td className="py-2 px-3 text-center">
                     <div className="flex items-center gap-1 justify-center">
@@ -365,7 +280,7 @@ function TaxDeclarationsPanel() {
       )}
 
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { setShowForm(false); setEditingId(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit Tax Declaration' : 'New Tax Declaration'}</DialogTitle>
           </DialogHeader>
@@ -389,16 +304,17 @@ function TaxDeclarationsPanel() {
                   </FormItem>
                 )} />
 
-                <FormField control={form.control} name="regime" render={({ field }) => (
+                <FormField control={form.control} name="financialYear" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tax Regime</FormLabel>
+                    <FormLabel>Financial Year</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="new">New Regime (Lower rates, fewer deductions)</SelectItem>
-                        <SelectItem value="old">Old Regime (Higher rates, more deductions)</SelectItem>
+                        {FY_OPTIONS.map(fy => (
+                          <SelectItem key={fy} value={fy}>FY {fy}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -407,118 +323,31 @@ function TaxDeclarationsPanel() {
               </div>
 
               <Separator />
-              <h4 className="font-semibold text-sm">Previous Employer & Other Income</h4>
+              <h4 className="font-semibold text-sm">Previous Employer &amp; Other Income</h4>
+              <p className="text-xs text-gray-500">These fields affect projected annual taxable income. Only approved declarations are used in TDS computation.</p>
               <div className="grid grid-cols-3 gap-3">
                 <FormField control={form.control} name="previousEmployerIncome" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prev Employer Income</FormLabel>
+                    <FormLabel>Prev Employer Income (₹)</FormLabel>
                     <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="previousEmployerTds" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prev Employer TDS</FormLabel>
+                    <FormLabel>Prev Employer TDS (₹)</FormLabel>
                     <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="otherIncome" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Other Income</FormLabel>
+                    <FormLabel>Other Income (₹)</FormLabel>
                     <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormMessage />
                   </FormItem>
                 )} />
               </div>
-
-              {selectedRegime === 'old' && (
-                <>
-                  <Separator />
-                  <h4 className="font-semibold text-sm">HRA Exemption</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField control={form.control} name="monthlyRentPaid" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Rent Paid</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="isMetroCity" render={({ field }) => (
-                      <FormItem className="flex items-center gap-3 pt-6">
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                        <FormLabel className="!mt-0">Metro City (50% of Basic)</FormLabel>
-                      </FormItem>
-                    )} />
-                  </div>
-
-                  <Separator />
-                  <h4 className="font-semibold text-sm">Chapter VI-A Deductions</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField control={form.control} name="section80c" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 80C (max 1.5L)</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="section80ccd1b" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 80CCD(1B) - NPS</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="section80d" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 80D - Self/Family</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="section80dParents" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 80D - Parents</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="section80e" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 80E - Education Loan</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="section80g" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 80G - Donations</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="section80tta" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 80TTA - Savings Interest</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="section24b" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Section 24(b) - Home Loan (max 2L)</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField control={form.control} name="otherDeductions" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Other Deductions</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="otherDeductionsDescription" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl><Textarea rows={1} {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                  </div>
-                </>
-              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</Button>
@@ -539,6 +368,7 @@ function TaxDeclarationsPanel() {
   );
 }
 
+// GAP-01: Compute TDS button disabled when period is locked; regime column removed
 function TdsDashboardPanel() {
   const [selectedFy, setSelectedFy] = useState('2025-26');
   const { toast } = useToast();
@@ -570,7 +400,25 @@ function TdsDashboardPanel() {
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
-  const processedPeriods = periods.filter((p: any) => ['processed', 'reviewed', 'approved', 'paid', 'locked'].includes(p.status));
+  const processedPeriods = periods.filter((p: any) =>
+    ['processed', 'reviewed', 'approved', 'paid', 'locked'].includes(p.status)
+  );
+
+  const selectedPeriod = periods.find((p: any) => p.id === selectedPeriodId);
+  const isLocked = selectedPeriod?.status === 'locked';
+
+  const handleComputeTds = () => {
+    if (!selectedPeriodId) return;
+    if (isLocked) {
+      toast({
+        title: 'Period Locked',
+        description: 'TDS cannot be re-computed on a locked period. The challan may already be posted to SAP.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    computeMutation.mutate(selectedPeriodId);
+  };
 
   const totalTdsMonth = tdsRecords.reduce((s: number, r: any) => s + parseFloat(r.tdsActualMonthly || '0'), 0);
   const totalTdsYtd = tdsRecords.reduce((s: number, r: any) => s + parseFloat(r.tdsDeductedYtd || '0'), 0);
@@ -594,15 +442,25 @@ function TdsDashboardPanel() {
         </div>
         {selectedPeriodId && (
           <Button
-            onClick={() => computeMutation.mutate(selectedPeriodId)}
-            disabled={computeMutation.isPending}
+            onClick={handleComputeTds}
+            disabled={computeMutation.isPending || isLocked}
             size="sm"
+            variant={isLocked ? 'outline' : 'default'}
           >
-            <Calculator className="h-4 w-4 mr-2" />
-            {computeMutation.isPending ? 'Computing...' : 'Compute TDS'}
+            {isLocked
+              ? <><AlertTriangle className="h-4 w-4 mr-2 text-amber-500" />Period Locked</>
+              : <><Calculator className="h-4 w-4 mr-2" />{computeMutation.isPending ? 'Computing...' : 'Compute TDS'}</>
+            }
           </Button>
         )}
       </div>
+
+      {isLocked && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>This period is locked. TDS records are final and may be posted to SAP. Re-computation is disabled.</span>
+        </div>
+      )}
 
       {selectedPeriodId && tdsRecords.length > 0 && (
         <div className="grid grid-cols-3 gap-4">
@@ -641,9 +499,11 @@ function TdsDashboardPanel() {
           <CardContent className="py-12 text-center">
             <IndianRupee className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500 mb-4">No TDS records for this period</p>
-            <Button onClick={() => computeMutation.mutate(selectedPeriodId)} disabled={computeMutation.isPending}>
-              Compute TDS Now
-            </Button>
+            {!isLocked && (
+              <Button onClick={handleComputeTds} disabled={computeMutation.isPending}>
+                Compute TDS Now
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -652,7 +512,6 @@ function TdsDashboardPanel() {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left py-3 px-3">Employee</th>
-                <th className="text-center py-3 px-3">Regime</th>
                 <th className="text-right py-3 px-3">Gross Salary</th>
                 <th className="text-right py-3 px-3">Projected Taxable</th>
                 <th className="text-right py-3 px-3">Annual Tax</th>
@@ -664,11 +523,6 @@ function TdsDashboardPanel() {
               {tdsRecords.map((r: any) => (
                 <tr key={r.id} className="border-b hover:bg-gray-50">
                   <td className="py-2 px-3 font-medium">{r.userName}</td>
-                  <td className="py-2 px-3 text-center">
-                    <Badge variant="outline" className={r.regime === 'new' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}>
-                      {r.regime}
-                    </Badge>
-                  </td>
                   <td className="py-2 px-3 text-right">{formatCurrency(r.grossSalaryMonthly)}</td>
                   <td className="py-2 px-3 text-right">{formatCurrency(r.taxableIncomeProjected)}</td>
                   <td className="py-2 px-3 text-right">{formatCurrency(r.totalTaxLiabilityAnnual)}</td>
@@ -679,7 +533,7 @@ function TdsDashboardPanel() {
             </tbody>
             <tfoot>
               <tr className="border-t-2 font-semibold bg-gray-50">
-                <td className="py-2 px-3" colSpan={5}>Total</td>
+                <td className="py-2 px-3" colSpan={4}>Total</td>
                 <td className="py-2 px-3 text-right text-blue-600">{formatCurrency(totalTdsMonth)}</td>
                 <td className="py-2 px-3 text-right">{formatCurrency(totalTdsYtd)}</td>
               </tr>
@@ -697,7 +551,7 @@ export function TdsManagementTab() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IndianRupee className="h-5 w-5" />
-          Income Tax & TDS Management
+          Income Tax &amp; TDS Management
         </CardTitle>
       </CardHeader>
       <CardContent>

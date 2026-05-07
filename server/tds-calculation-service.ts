@@ -3,23 +3,18 @@ import {
   taxSlabs,
   employeeTaxDeclarations,
   tdsMonthlyRecords,
-  employeeSalaries,
   payrollPeriods,
   payrollRecords,
   users,
 } from '@shared/schema';
-import { eq, and, asc, desc, lte, gte, sql } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
+import { getTaxConfig, type TaxSlab } from './tax-config';
 
 interface TaxComputationResult {
   grossSalaryMonthly: number;
   grossSalaryYtd: number;
   grossSalaryProjected: number;
   standardDeduction: number;
-  hraExemption: number;
-  section80cDeduction: number;
-  section80dDeduction: number;
-  otherChapter6aDeductions: number;
-  section24bDeduction: number;
   totalDeductions: number;
   taxableIncomeProjected: number;
   taxOnProjectedIncome: number;
@@ -32,72 +27,40 @@ interface TaxComputationResult {
   tdsRequiredMonthly: number;
   catchUpAdjustment: number;
   tdsActualMonthly: number;
-  regime: string;
+  financialYear: string;
 }
 
+// R3: Retained for Tax Slabs UI display tab — seeds tax_slabs DB table (New Regime only).
+// Not called from computeMonthlyTds(). Only invoked by the seed-defaults endpoint.
 export async function getDefaultSlabs(financialYear: string): Promise<void> {
   const existing = await db.select().from(taxSlabs).where(
     and(eq(taxSlabs.financialYear, financialYear), eq(taxSlabs.isActive, true))
   );
-
   if (existing.length > 0) return;
 
   const newRegimeSlabs = [
-    { regime: 'new', financialYear, slabOrder: 1, minIncome: '0', maxIncome: '400000', rate: '0', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '700000' },
-    { regime: 'new', financialYear, slabOrder: 2, minIncome: '400001', maxIncome: '800000', rate: '5', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '700000' },
-    { regime: 'new', financialYear, slabOrder: 3, minIncome: '800001', maxIncome: '1200000', rate: '10', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '700000' },
-    { regime: 'new', financialYear, slabOrder: 4, minIncome: '1200001', maxIncome: '1600000', rate: '15', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '700000' },
-    { regime: 'new', financialYear, slabOrder: 5, minIncome: '1600001', maxIncome: '2000000', rate: '20', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '700000' },
-    { regime: 'new', financialYear, slabOrder: 6, minIncome: '2000001', maxIncome: '2400000', rate: '25', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '700000' },
-    { regime: 'new', financialYear, slabOrder: 7, minIncome: '2400001', maxIncome: null, rate: '30', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '700000' },
+    { regime: 'new', financialYear, slabOrder: 1, minIncome: '0',        maxIncome: '400000',  rate: '0',  cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '1200000' },
+    { regime: 'new', financialYear, slabOrder: 2, minIncome: '400001',   maxIncome: '800000',  rate: '5',  cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '1200000' },
+    { regime: 'new', financialYear, slabOrder: 3, minIncome: '800001',   maxIncome: '1200000', rate: '10', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '1200000' },
+    { regime: 'new', financialYear, slabOrder: 4, minIncome: '1200001',  maxIncome: '1600000', rate: '15', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '1200000' },
+    { regime: 'new', financialYear, slabOrder: 5, minIncome: '1600001',  maxIncome: '2000000', rate: '20', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '1200000' },
+    { regime: 'new', financialYear, slabOrder: 6, minIncome: '2000001',  maxIncome: '2400000', rate: '25', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '1200000' },
+    { regime: 'new', financialYear, slabOrder: 7, minIncome: '2400001',  maxIncome: null,       rate: '30', cessRate: '4.00', surchargeRate: '0', standardDeduction: '75000', section87aRebateLimit: '1200000' },
   ];
 
-  const oldRegimeSlabs = [
-    { regime: 'old', financialYear, slabOrder: 1, minIncome: '0', maxIncome: '250000', rate: '0', cessRate: '4.00', surchargeRate: '0', standardDeduction: '50000', section87aRebateLimit: '500000' },
-    { regime: 'old', financialYear, slabOrder: 2, minIncome: '250001', maxIncome: '500000', rate: '5', cessRate: '4.00', surchargeRate: '0', standardDeduction: '50000', section87aRebateLimit: '500000' },
-    { regime: 'old', financialYear, slabOrder: 3, minIncome: '500001', maxIncome: '1000000', rate: '20', cessRate: '4.00', surchargeRate: '0', standardDeduction: '50000', section87aRebateLimit: '500000' },
-    { regime: 'old', financialYear, slabOrder: 4, minIncome: '1000001', maxIncome: null, rate: '30', cessRate: '4.00', surchargeRate: '0', standardDeduction: '50000', section87aRebateLimit: '500000' },
-  ];
-
-  for (const slab of [...newRegimeSlabs, ...oldRegimeSlabs]) {
+  for (const slab of newRegimeSlabs) {
     await db.insert(taxSlabs).values(slab as any);
   }
 }
 
-function calculateHraExemption(
-  basicSalaryAnnual: number,
-  hraReceivedAnnual: number,
-  monthlyRentPaid: number,
-  isMetroCity: boolean
-): number {
-  if (monthlyRentPaid <= 0) return 0;
-
-  const annualRentPaid = monthlyRentPaid * 12;
-  const metroPercent = isMetroCity ? 0.5 : 0.4;
-
-  const exemption1 = hraReceivedAnnual;
-  const exemption2 = annualRentPaid - (0.1 * basicSalaryAnnual);
-  const exemption3 = metroPercent * basicSalaryAnnual;
-
-  return Math.max(0, Math.min(exemption1, exemption2, exemption3));
-}
-
-function calculateTaxOnIncome(taxableIncome: number, slabs: any[]): number {
+// N4: In-memory slab arithmetic — uses FyTaxConfig slabs (numbers), not DB string records
+function calculateTaxOnIncome(taxableIncome: number, slabs: TaxSlab[]): number {
   let tax = 0;
-
   for (const slab of slabs) {
-    const min = parseFloat(slab.minIncome);
-    const max = slab.maxIncome ? parseFloat(slab.maxIncome) : Infinity;
-    const rate = parseFloat(slab.rate) / 100;
-
-    if (taxableIncome <= min) break;
-
-    const taxableInSlab = Math.min(taxableIncome, max) - min;
-    if (taxableInSlab > 0) {
-      tax += taxableInSlab * rate;
-    }
+    if (taxableIncome <= slab.min) break;
+    const taxableInSlab = Math.min(taxableIncome, slab.max) - slab.min;
+    if (taxableInSlab > 0) tax += taxableInSlab * slab.rate;
   }
-
   return tax;
 }
 
@@ -115,118 +78,74 @@ export async function computeMonthlyTds(
   const monthsElapsed = currentMonth >= 4 ? currentMonth - 3 : currentMonth + 9;
   const remainingMonths = 12 - monthsElapsed;
 
-  await getDefaultSlabs(financialYear);
+  // N1-N3: in-memory FY config — no DB query for slab arithmetic
+  const config = getTaxConfig(financialYear);
 
+  // C2: approved declarations only; reads previousEmployerIncome, previousEmployerTds, otherIncome
   const [declaration] = await db.select().from(employeeTaxDeclarations)
     .where(and(
       eq(employeeTaxDeclarations.userId, userId),
-      eq(employeeTaxDeclarations.financialYear, financialYear)
+      eq(employeeTaxDeclarations.financialYear, financialYear),
+      eq(employeeTaxDeclarations.status, 'approved')
     ));
 
-  const regime = 'new';
-
-  const slabs = await db.select().from(taxSlabs)
-    .where(and(
-      eq(taxSlabs.financialYear, financialYear),
-      eq(taxSlabs.regime, regime),
-      eq(taxSlabs.isActive, true)
-    ))
-    .orderBy(asc(taxSlabs.slabOrder));
-
-  if (slabs.length === 0) {
-    throw new Error(`No tax slabs found for FY ${financialYear}, regime ${regime}`);
-  }
-
+  // YTD tracking from tds_monthly_records (prior periods in same FY only)
   const allTdsRecords = await db.select().from(tdsMonthlyRecords)
     .where(and(
       eq(tdsMonthlyRecords.userId, userId),
       eq(tdsMonthlyRecords.financialYear, financialYear)
     ));
-
   const previousTdsRecords = allTdsRecords.filter(r => r.periodId !== periodId);
 
   const tdsDeductedYtd = previousTdsRecords.reduce(
     (sum, r) => sum + parseFloat(r.tdsActualMonthly || '0'), 0
   );
-
   const grossSalaryYtd = previousTdsRecords.reduce(
     (sum, r) => sum + parseFloat(r.grossSalaryMonthly || '0'), 0
   ) + grossSalaryThisMonth;
 
+  // Projected annual gross (forward projection from YTD)
   const monthsWithData = previousTdsRecords.length + 1;
-  const annualizedFromCurrent = grossSalaryThisMonth * 12;
   const projectedFromYtd = grossSalaryYtd + (grossSalaryThisMonth * remainingMonths);
+  const annualizedFromCurrent = grossSalaryThisMonth * 12;
   const grossSalaryProjected = monthsWithData < monthsElapsed
     ? Math.max(annualizedFromCurrent, projectedFromYtd)
     : projectedFromYtd;
 
-  const previousEmployerIncome = declaration ? parseFloat(declaration.previousEmployerIncome || '0') : 0;
-  const previousEmployerTds = declaration ? parseFloat(declaration.previousEmployerTds || '0') : 0;
-  const otherIncome = declaration ? parseFloat(declaration.otherIncome || '0') : 0;
+  // Previous employer income and other income (approved declaration only)
+  const previousEmployerIncome = declaration
+    ? parseFloat(declaration.previousEmployerIncome || '0') : 0;
+  const previousEmployerTds = declaration
+    ? parseFloat(declaration.previousEmployerTds || '0') : 0;
+  const otherIncome = declaration
+    ? parseFloat(declaration.otherIncome || '0') : 0;
   const totalGrossProjected = grossSalaryProjected + previousEmployerIncome + otherIncome;
 
-  const standardDeduction = parseFloat(slabs[0].standardDeduction || '50000');
-
-  let hraExemption = 0;
-  let section80cDeduction = 0;
-  let section80dDeduction = 0;
-  let otherChapter6aDeductions = 0;
-  let section24bDeduction = 0;
-
-  if (regime === 'old' && declaration) {
-    const salaryRecords = await db.select().from(employeeSalaries)
-      .where(and(eq(employeeSalaries.userId, userId), eq(employeeSalaries.isActive, true)))
-      .limit(1);
-
-    if (salaryRecords.length > 0) {
-      const sal = salaryRecords[0];
-      const basicAnnual = parseFloat(sal.basicSalary || '0') * 12;
-      const hraAnnual = parseFloat(sal.houseRentAllowance || '0') * 12;
-      hraExemption = calculateHraExemption(
-        basicAnnual,
-        hraAnnual,
-        parseFloat(declaration.monthlyRentPaid || '0'),
-        declaration.isMetroCity || false
-      );
-    }
-
-    section80cDeduction = Math.min(parseFloat(declaration.section80c || '0') + parseFloat(declaration.section80ccd1b || '0'), 200000);
-    section80dDeduction = Math.min(
-      parseFloat(declaration.section80d || '0') + parseFloat(declaration.section80dParents || '0'),
-      100000
-    );
-    otherChapter6aDeductions =
-      parseFloat(declaration.section80e || '0') +
-      parseFloat(declaration.section80g || '0') +
-      parseFloat(declaration.section80tta || '0') +
-      parseFloat(declaration.otherDeductions || '0');
-    section24bDeduction = Math.min(parseFloat(declaration.section24b || '0'), 200000);
-  }
-
-  const totalDeductions = standardDeduction + hraExemption + section80cDeduction +
-    section80dDeduction + otherChapter6aDeductions + section24bDeduction;
-
+  // New Regime: only standard deduction from FY config
+  const standardDeduction = config.standardDeduction;
+  const totalDeductions = standardDeduction;
   const taxableIncomeProjected = Math.max(0, totalGrossProjected - totalDeductions);
-  let taxOnProjectedIncome = calculateTaxOnIncome(taxableIncomeProjected, slabs);
 
-  const cessRate = parseFloat(slabs[0].cessRate || '4') / 100;
-  let cessAmount = taxOnProjectedIncome * cessRate;
-  let surchargeAmount = 0;
+  // Slab tax on projected taxable income — in-memory, no DB query
+  let taxOnProjectedIncome = calculateTaxOnIncome(taxableIncomeProjected, config.slabs);
 
-  const section87aLimit = slabs[0].section87aRebateLimit ? parseFloat(slabs[0].section87aRebateLimit) : 0;
+  // C4: correct Section 87A — eligibility threshold + capped rebate from FY config
   let section87aRebate = 0;
-  if (section87aLimit > 0 && taxableIncomeProjected <= section87aLimit) {
-    section87aRebate = Math.min(taxOnProjectedIncome + cessAmount, taxOnProjectedIncome + cessAmount);
-    taxOnProjectedIncome = 0;
-    cessAmount = 0;
+  if (taxableIncomeProjected <= config.section87aRebateLimit) {
+    section87aRebate = Math.min(taxOnProjectedIncome, config.section87aRebateCap);
+    taxOnProjectedIncome = Math.max(0, taxOnProjectedIncome - section87aRebate);
   }
 
-  const totalTaxLiabilityAnnual = Math.max(0, taxOnProjectedIncome + cessAmount + surchargeAmount - section87aRebate);
+  const cessAmount = taxOnProjectedIncome * config.cessRate;
+  const surchargeAmount = 0; // No THERMOPAC employee currently exceeds ₹50L
+  const totalTaxLiabilityAnnual = Math.max(0, taxOnProjectedIncome + cessAmount + surchargeAmount);
 
+  // Remaining TDS to collect this FY
   const totalTdsRequired = totalTaxLiabilityAnnual - previousEmployerTds;
   const tdsRemaining = Math.max(0, totalTdsRequired - tdsDeductedYtd);
-  const hasNoPriorTds = previousTdsRecords.length === 0 && tdsDeductedYtd === 0;
-  const monthsLeft = hasNoPriorTds ? 12 : Math.max(1, remainingMonths + 1);
+
+  // C6: monthsLeft always uses actual remaining months — no special first-month exception
+  const monthsLeft = Math.max(1, remainingMonths + 1);
   const tdsRequiredMonthly = Math.round((tdsRemaining / monthsLeft) * 100) / 100;
 
   const catchUpAdjustment = 0;
@@ -237,11 +156,6 @@ export async function computeMonthlyTds(
     grossSalaryYtd,
     grossSalaryProjected,
     standardDeduction,
-    hraExemption,
-    section80cDeduction,
-    section80dDeduction,
-    otherChapter6aDeductions,
-    section24bDeduction,
     totalDeductions,
     taxableIncomeProjected,
     taxOnProjectedIncome,
@@ -254,10 +168,11 @@ export async function computeMonthlyTds(
     tdsRequiredMonthly,
     catchUpAdjustment,
     tdsActualMonthly,
-    regime,
+    financialYear,
   };
 }
 
+// R4: Old Regime fields removed — regime column retained for DB schema compatibility
 export async function saveTdsRecord(
   userId: number,
   periodId: number,
@@ -265,9 +180,7 @@ export async function saveTdsRecord(
   year: number,
   computation: TaxComputationResult
 ): Promise<any> {
-  const financialYear = month >= 4
-    ? `${year}-${(year + 1).toString().slice(2)}`
-    : `${year - 1}-${year.toString().slice(2)}`;
+  const financialYear = computation.financialYear;
 
   const existing = await db.select().from(tdsMonthlyRecords)
     .where(and(
@@ -285,11 +198,6 @@ export async function saveTdsRecord(
     grossSalaryYtd: computation.grossSalaryYtd.toFixed(2),
     grossSalaryProjected: computation.grossSalaryProjected.toFixed(2),
     standardDeduction: computation.standardDeduction.toFixed(2),
-    hraExemption: computation.hraExemption.toFixed(2),
-    section80cDeduction: computation.section80cDeduction.toFixed(2),
-    section80dDeduction: computation.section80dDeduction.toFixed(2),
-    otherChapter6aDeductions: computation.otherChapter6aDeductions.toFixed(2),
-    section24bDeduction: computation.section24bDeduction.toFixed(2),
     totalDeductions: computation.totalDeductions.toFixed(2),
     taxableIncomeProjected: computation.taxableIncomeProjected.toFixed(2),
     taxOnProjectedIncome: computation.taxOnProjectedIncome.toFixed(2),
@@ -302,7 +210,7 @@ export async function saveTdsRecord(
     tdsRequiredMonthly: computation.tdsRequiredMonthly.toFixed(2),
     catchUpAdjustment: computation.catchUpAdjustment.toFixed(2),
     tdsActualMonthly: computation.tdsActualMonthly.toFixed(2),
-    regime: computation.regime,
+    regime: 'new', // always New Regime; column retained for DB schema compatibility
     calculationSnapshot: computation,
   };
 
@@ -331,8 +239,12 @@ export async function computeAndSaveTdsForPeriod(
   const month = endDate.getMonth() + 1;
   const year = endDate.getFullYear();
 
+  // C3: official records only — trial records excluded from TDS computation
   const records = await db.select().from(payrollRecords)
-    .where(eq(payrollRecords.periodId, periodId));
+    .where(and(
+      eq(payrollRecords.periodId, periodId),
+      eq(payrollRecords.recordType as any, 'official')
+    ));
 
   let processed = 0;
   let errors = 0;
@@ -364,8 +276,8 @@ export async function computeAndSaveTdsForPeriod(
       details.push({
         userId: record.userId,
         tds: computation.tdsActualMonthly,
-        regime: computation.regime,
         taxableIncome: computation.taxableIncomeProjected,
+        financialYear: computation.financialYear,
       });
     } catch (err: any) {
       errors++;
@@ -407,12 +319,12 @@ export async function getTdsRecordsForPeriod(periodId: number): Promise<any[]> {
     userName: users.username,
     month: tdsMonthlyRecords.month,
     year: tdsMonthlyRecords.year,
+    financialYear: tdsMonthlyRecords.financialYear,
     grossSalaryMonthly: tdsMonthlyRecords.grossSalaryMonthly,
     taxableIncomeProjected: tdsMonthlyRecords.taxableIncomeProjected,
     totalTaxLiabilityAnnual: tdsMonthlyRecords.totalTaxLiabilityAnnual,
     tdsActualMonthly: tdsMonthlyRecords.tdsActualMonthly,
     tdsDeductedYtd: tdsMonthlyRecords.tdsDeductedYtd,
-    regime: tdsMonthlyRecords.regime,
   })
   .from(tdsMonthlyRecords)
   .leftJoin(users, eq(tdsMonthlyRecords.userId, users.id))

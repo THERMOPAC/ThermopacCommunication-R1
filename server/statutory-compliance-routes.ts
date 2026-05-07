@@ -469,11 +469,18 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
     return res.status(409).json({ error: 'A challan already exists for this module and period' });
   }
 
+  // C7: official records only — trial records must not appear in statutory TDS challans
   const records = await db.select().from(payrollRecords)
-    .where(eq(payrollRecords.periodId, payrollPeriodId));
+    .where(and(
+      eq(payrollRecords.periodId, payrollPeriodId),
+      eq(payrollRecords.recordType as any, 'official'),
+      inArray(payrollRecords.status as any, [
+        'generated', 'processed', 'approved', 'paid', 'locked', 'verified', 'transferred',
+      ])
+    ));
 
   if (records.length === 0) {
-    return res.status(400).json({ error: 'No payroll records found for this period' });
+    return res.status(400).json({ error: 'No official payroll records found for this period' });
   }
 
   const startDate = new Date(period.startDate);
@@ -1264,6 +1271,7 @@ router.post('/tds/reconciliation/refresh', async (req: Request, res: Response) =
     const fy = getFinancialYear(month, year);
     const qtr = getTdsQuarter(month);
 
+    // C8: official records only — trial records must not appear in SAP reconciliation
     const records = await db.select({
       pr: payrollRecords,
       u: users,
@@ -1271,6 +1279,7 @@ router.post('/tds/reconciliation/refresh', async (req: Request, res: Response) =
       .innerJoin(users, eq(payrollRecords.userId, users.id))
       .where(and(
         eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.recordType as any, 'official'),
         inArray(payrollRecords.status, ['generated', 'processed', 'approved', 'paid', 'locked', 'verified', 'transferred']),
       ));
 
