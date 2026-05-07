@@ -1180,6 +1180,77 @@ These are correct design differences. They are not bugs or duplications.
 
 ---
 
+---
+
+## 20. Standard Payroll Verification Checklist
+
+This checklist must be completed — and all items confirmed pass — before merging any change that touches TDS, salary, payroll, or tax-config logic.
+
+### 20.1 — When to Run
+
+Run this checklist after any change to:
+
+| Changed file / area | Checklist required |
+|--------------------|--------------------|
+| `server/tax-config/fy-*.ts` | Yes |
+| `server/tax-config/index.ts` | Yes |
+| `server/tds-calculation-service.ts` | Yes |
+| `server/payroll-salary-core.ts` | Yes |
+| `server/payroll-routes.ts` | Yes |
+| `server/payroll-run-engine.ts` | Yes |
+| `server/payroll-trial-routes.ts` | Yes |
+| `server/statutory-compliance-routes.ts` | Yes |
+| DB migration touching `tax_slabs`, `tds_monthly_records`, `payroll_records`, `employee_tax_declarations` | Yes |
+| Any change to slab rates, std deduction, cess, 87A values | Yes |
+
+### 20.2 — Checklist Steps
+
+```
+STEP  COMMAND / ACTION                                       PASS CONDITION
+────  ──────────────────────────────────────────────────────  ──────────────────────────────────────────
+P1    npx tsx server/tax-config/tds-slab-verify.ts           44/44 PASSED, exit code 0
+P2    npm run check                                          0 TypeScript errors in changed files
+P3    grep -c "regime === 'old'" server/tds-calculation-service.ts   0
+P4    grep -c "calculateHraExemption" server/tds-calculation-service.ts  0
+P5    grep -c "calculateDeductions\|calculateBonuses" server/payroll-routes.ts  0
+P6    grep -n "record_type.*official" server/statutory-compliance-routes.ts   ≥2 matches (C7 + C8)
+P7    grep -n "record_type.*official" server/tds-calculation-service.ts    ≥1 match (C3)
+P8    grep -n "section87aRebateCap" server/tds-calculation-service.ts   ≥1 match (C4)
+P9    grep -n "getTaxConfig" server/tds-calculation-service.ts     ≥1 match (N4)
+P10   App starts without error on port 5000 (npm run dev)   No EADDRINUSE or unhandled exceptions in log
+```
+
+### 20.3 — High-Income Slab Test — Expected Values (FY 2025-26)
+
+| Gross Annual | Taxable | Total Annual TDS |
+|-------------|---------|-----------------|
+| ₹30,00,000 | ₹29,25,000 | **₹4,75,800** |
+| ₹50,00,000 | ₹49,25,000 | **₹10,99,800** |
+| ₹1,00,00,000 | ₹99,25,000 | **₹26,59,800** |
+
+These figures are the permanent regression anchors. Any change to slab config that shifts these numbers requires explicit sign-off from the Finance team and a version bump to the affected `fy-*.ts` file.
+
+### 20.4 — Annual FY Config Gate (before first April payroll)
+
+1. Create `server/tax-config/fy-YYYY-YY.ts` with Finance Ministry values
+2. Register in `server/tax-config/index.ts`
+3. Finance team signs off on slab values, std deduction, cess, and 87A figures
+4. Run `npx tsx server/tax-config/tds-slab-verify.ts` — update expected values for new FY if rates changed
+5. Merge to main **before** April payroll is processed
+
+### 20.5 — Governance References
+
+| Document | Governs |
+|----------|---------|
+| `docs/tds-governance-correction-plan-v1.3.md` | TDS arithmetic, regime policy, FY config, test suite |
+| `docs/payroll-governance-v4.1-baseline.md` | Trial/official segregation, payroll core, SAP governance |
+| `server/tax-config/tds-slab-verify.ts` | Permanent 44-test arithmetic verification |
+| `server/tax-config/fy-2025-26.ts` | FY 2025-26 slab constants (source of truth) |
+| `server/tds-calculation-service.ts` | Single TDS arithmetic source |
+| `server/payroll-salary-core.ts` | Single salary arithmetic source |
+
+---
+
 *End of Payroll Governance Baseline v4.1*
 
 *This document is the authoritative implementation reference. All implementation decisions must be traceable to a section of this document. Any deviation requires a versioned amendment approved by THERMOPAC Management.*

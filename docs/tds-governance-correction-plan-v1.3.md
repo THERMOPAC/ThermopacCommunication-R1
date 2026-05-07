@@ -743,3 +743,49 @@ Before the first payroll run of any new financial year:
 5. Merge to main **before** April payroll is processed
 
 If this gate is missed, `getTaxConfig()` will throw on the first TDS compute attempt — a loud, immediate failure rather than a silent wrong-FY computation.
+
+---
+
+## §13 — Permanent Test Suite
+
+### §13.1 — Test Files
+
+| File | Purpose | Run Command |
+|------|---------|-------------|
+| `server/tax-config/tds-slab-verify.ts` | High-income slab arithmetic (₹30L / ₹50L / ₹1Cr), 30% boundary, no upper cap, monotonicity | `npx tsx server/tax-config/tds-slab-verify.ts` |
+
+### §13.2 — What `tds-slab-verify.ts` Covers (44 tests)
+
+| Section | Tests | Assertion |
+|---------|-------|-----------|
+| S1 — Slab structure | 5 | 7 slabs; top slab `max=Infinity`; rate=30%; min=₹24,00,000; all slabs contiguous |
+| S2 — ₹30L gross | 13 | Every slab's rupee contribution; cess; total = **₹4,75,800** |
+| S3 — ₹50L gross | 8 | Slabs 1–6 fixed at ₹3,00,000; 30% portion = ₹7,57,500; total = **₹10,99,800** |
+| S4 — ₹1 Cr gross | 8 | 30% portion = ₹22,57,500; cess = ₹1,02,300; total = **₹26,59,800** |
+| S5 — 30% boundary | 6 | ₹24L gross → zero 30% (std-ded pushes taxable below ₹24L); ₹24.76L gross → first ₹1 into 30% slab = ₹300 |
+| S6 — No upper cap | 3 | ₹10 Cr computes correctly (no NaN, no cap); tax scales linearly above ₹24L |
+| S7 — Monotonicity | 1 | Tax strictly increasing across ₹15L / ₹20L / ₹25L / ₹30L / ₹50L / ₹1Cr |
+
+### §13.3 — Expected Values (FY 2025-26, New Regime)
+
+| Gross Annual | Std Ded | Taxable | Slab Tax | 87A Rebate | Cess (4%) | **Total Annual Tax** | Monthly TDS |
+|-------------|---------|---------|---------|-----------|----------|---------------------|-------------|
+| ₹30,00,000 | ₹75,000 | ₹29,25,000 | ₹4,57,500 | ₹0 | ₹18,300 | **₹4,75,800** | ₹39,650 |
+| ₹50,00,000 | ₹75,000 | ₹49,25,000 | ₹10,57,500 | ₹0 | ₹42,300 | **₹10,99,800** | ₹91,650 |
+| ₹1,00,00,000 | ₹75,000 | ₹99,25,000 | ₹25,57,500 | ₹0 | ₹1,02,300 | **₹26,59,800** | ₹2,21,650 |
+
+Surcharge handling remains future scope (no employee currently earns > ₹50L for surcharge applicability threshold).
+
+### §13.4 — Mandatory Run Triggers
+
+This test suite **must be executed** before merging any change to:
+
+- `server/tax-config/fy-*.ts` (any FY config file)
+- `server/tax-config/index.ts`
+- `server/tds-calculation-service.ts`
+- `server/payroll-salary-core.ts`
+- `server/payroll-routes.ts`
+- `server/statutory-compliance-routes.ts`
+- Any schema migration touching `tax_slabs`, `tds_monthly_records`, or `payroll_records`
+
+Exit code 0 = all pass. Exit code 1 = at least one failure — **block the merge**.
