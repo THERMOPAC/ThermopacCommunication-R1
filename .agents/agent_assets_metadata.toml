@@ -246,3 +246,9 @@ id = "7xVDMPCWiTDuBHXt5NpOj"
 uri = "file://docs/project-procurement-package-control-baseline.md"
 type = "text"
 title = "PPPC Baseline — Tag Number Control v4 CLOSED"
+
+[[outputs]]
+id = "tAo2joBdDsD5Z5XLmec5Z"
+uri = "file://docs/tds-governance-correction-plan-v1.1.md"
+type = "text"
+title = "TDS Governance Correction Plan v1.1"
