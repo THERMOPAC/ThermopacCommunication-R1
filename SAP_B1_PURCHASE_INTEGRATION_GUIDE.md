@@ -26,7 +26,7 @@ Add these to your `.env` file:
 ```env
 # SAP B1 Database Connection
 SAP_SERVER=your-sap-server-ip-or-name
-SAP_DATABASE=your-sap-database-name
+SAP_COMPANY_DB=your-sap-database-name
 SAP_USERNAME=your-sap-username
 SAP_PASSWORD=your-sap-password
 

@@ -123,7 +123,7 @@ router.get('/connection/status', async (req, res) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb   = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
+    const sapDb   = process.env.SAP_COMPANY_DB || '';
 
     if (!sapUser || !sapPass || !sapDb) {
       return res.json({
@@ -171,7 +171,7 @@ router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb   = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
+    const sapDb   = process.env.SAP_COMPANY_DB || '';
 
     if (!sapUser || !sapPass || !sapDb) {
       return res.json({

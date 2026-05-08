@@ -12,17 +12,20 @@ export class SAPB1Connector {
   private isConnected = false;
 
   constructor() {
-    this.initializeConnection();
+    // DISABLED: Direct MSSQL connection is not part of the approved SAP B1 architecture.
+    // All SAP B1 integration goes through the HTTPS Service Layer (sap-https-client.ts).
+    // SAP_COMPANY_DB is the single authorised secret for the company database name.
+    // this.initializeConnection();
   }
 
   /**
-   * Initialize connection to SAP B1 database
+   * Initialize connection to SAP B1 database (DISABLED — not Service Layer architecture)
    */
   private async initializeConnection(): Promise<void> {
     try {
       const config: sql.config = {
         server: process.env.SAP_SERVER || 'localhost',
-        database: process.env.SAP_DATABASE || 'SBODemoUS',
+        database: process.env.SAP_COMPANY_DB,
         user: process.env.SAP_USERNAME || 'sa',
         password: process.env.SAP_PASSWORD || '',
         options: {

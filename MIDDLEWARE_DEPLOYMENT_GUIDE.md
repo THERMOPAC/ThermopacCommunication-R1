@@ -33,7 +33,7 @@ Create `.env` file in `C:\sap-middleware-connector\` with:
 ```env
 # SAP B1 Database Configuration
 SAP_SERVER=localhost
-SAP_DATABASE=TPEL_LIVE
+SAP_COMPANY_DB=TPEL_LIVE
 SAP_USERNAME=sa
 SAP_PASSWORD=sa@2019
 SAP_PORT=1433

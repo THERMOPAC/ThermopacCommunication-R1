@@ -21,8 +21,10 @@ function getIndianFinancialYearStart(): string {
 
 // Helper function to get SAP Service Layer login credentials
 function getSapCredentials() {
+  const companyDb = process.env.SAP_COMPANY_DB;
+  if (!companyDb) throw new Error('SAP_COMPANY_DB environment secret is not configured');
   return {
-    CompanyDB: process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || 'TPEL_LIVE',
+    CompanyDB: companyDb,
     UserName: process.env.SAP_USERNAME || 'manager',
     Password: process.env.SAP_PASSWORD || 'admin'
   };

@@ -30,7 +30,7 @@ router.get('/connection/ssl-bypass-test', (req, res, next) => {
     const serviceLayerUrl = 'https://192.168.1.100:50000/b1s/v1/';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     console.log('🧪 DIRECT SSL BYPASS TEST - Service Layer confirmed accessible');
     console.log('🔑 Testing credentials:', { database: sapCompanyDb, passwordLength: sapPassword?.length });
@@ -391,7 +391,7 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
     const serviceLayerUrl = publicServiceLayerUrl;
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     if (!sapUsername || !sapPassword || !sapCompanyDb) {
       return res.json({
@@ -711,7 +711,7 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
     const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL;
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     res.json({
       success: true,
@@ -767,7 +767,7 @@ router.get('/connection/test', async (req, res) => {
     const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://DESKTOP-NH04TP:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     console.log('🔑 SAP Credentials Check:', {
       serviceLayerUrl,
@@ -1169,7 +1169,7 @@ router.post('/sync/full', ensureAuthenticated, async (req, res) => {
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     // Login to get session with SSL bypass
     const https = await import('https');
@@ -1246,7 +1246,7 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     // Login to get session with SSL bypass
     const https = await import('https');
@@ -1458,7 +1458,7 @@ router.get('/vendors', ensureAuthenticated, async (req, res) => {
     const { sapHttpsClient } = await import('./sap-https-client');
     const sapUsername = process.env.SAP_USERNAME || '';
     const sapPassword = process.env.SAP_PASSWORD || '';
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE || '';
+    const sapCompanyDb = process.env.SAP_COMPANY_DB || '';
 
     const { sessionId } = await sapHttpsClient.login(sapUsername, sapPassword, sapCompanyDb);
 
@@ -1498,7 +1498,7 @@ router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     const https = await import('https');
     const agent = new https.Agent({
@@ -1577,7 +1577,7 @@ router.post('/sync/purchase-orders', ensureAuthenticated, async (req, res) => {
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
     const sapUsername = process.env.SAP_USERNAME;
     const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || process.env.SAP_DATABASE;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     const https = await import('https');
     const agent = new https.Agent({

@@ -43,7 +43,7 @@ class SapSessionManager {
     this.sessions.set(userId, {
       sessionId,
       routeId,
-      companyDb: companyDb || process.env.SAP_COMPANY_DB || 'TPEL_LIVE',
+      companyDb: companyDb || process.env.SAP_COMPANY_DB || '',
       userId,
       expiresAt,
       createdAt: new Date()
