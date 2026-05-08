@@ -17,6 +17,7 @@ export default function AuthPage() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [userNeedsPasswordUpdate, setUserNeedsPasswordUpdate] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordKey, setForgotPasswordKey] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -69,11 +70,17 @@ export default function AuthPage() {
                   verifyBackup2FAMutation={verifyBackup2FAMutation}
                 />
               ) : showForgotPassword ? (
-                <ForgotPasswordForm onBackToLogin={() => setShowForgotPassword(false)} />
+                <ForgotPasswordForm
+                  key={forgotPasswordKey}
+                  onBackToLogin={() => setShowForgotPassword(false)}
+                />
               ) : (
-                <LoginForm 
-                  loginMutation={loginMutation} 
-                  onForgotPassword={() => setShowForgotPassword(true)}
+                <LoginForm
+                  loginMutation={loginMutation}
+                  onForgotPassword={() => {
+                    setForgotPasswordKey(k => k + 1);
+                    setShowForgotPassword(true);
+                  }}
                 />
               )}
             </CardContent>
