@@ -5,6 +5,7 @@ import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations,
 import { createNotification } from './notification-routes';
 import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
+import { requireReauth } from './middleware/require-reauth';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 import { checkPayrollLock } from './payroll-lock-service';
 import { determineAttendanceStatus } from './attendance-status-engine';
@@ -1264,7 +1265,7 @@ router.get('/regularization/pending-approvals', ensureAuthenticated, async (req:
   }
 });
 
-router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+router.post('/regularization/:id/approve', ensureAuthenticated, requireReauth('attendance.approve_regularisation'), async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
     const regId = parseInt(req.params.id);

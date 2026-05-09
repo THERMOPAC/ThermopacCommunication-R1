@@ -5,7 +5,7 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser, passwordChangeSchema, users, twoFactorAuditLog, loginAuditLog } from "@shared/schema";
+import { User as SelectUser, passwordChangeSchema, users, twoFactorAuditLog, loginAuditLog, twoFaGlobalPolicy } from "@shared/schema";
 import { checkDeviceTrustAtLogin } from "./trusted-device-service";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -326,6 +326,53 @@ export function setupAuth(app: Express) {
         }
       }
 
+      // Step B2 — 2FA policy enforcement gate
+      // Blocks users who are in scope but have not enrolled TOTP.
+      // Superuser is always exempt. Only active when SECURITY_2FA_POLICY_ENABLED = true.
+      if (await isFeatureFlagEnabled('SECURITY_2FA_POLICY_ENABLED')) {
+        if (user.role !== 'Superuser') {
+          try {
+            const [twoFaPolicy] = await db.select().from(twoFaGlobalPolicy).limit(1);
+            if (twoFaPolicy) {
+              const scopeRoles: string[] = twoFaPolicy.applyToRoles ?? [];
+              const inScope = scopeRoles.length > 0 && scopeRoles.includes(user.role);
+              if (inScope) {
+                const enforceNow =
+                  twoFaPolicy.enforcementMode === 'required_immediately' ||
+                  (twoFaPolicy.enforcementMode === 'required_from_date' &&
+                    twoFaPolicy.enforcementFromDate !== null &&
+                    new Date() >= new Date(twoFaPolicy.enforcementFromDate));
+                if (enforceNow && !user.twoFactorEnabled) {
+                  if (await isFeatureFlagEnabled('SECURITY_LOGIN_AUDIT_ENABLED')) {
+                    try {
+                      const auditPolicy = await getLoginPolicyForRole(user.role);
+                      await db.insert(loginAuditLog).values({
+                        userId: user.id,
+                        username: user.username,
+                        ipAddress: ip,
+                        userAgent,
+                        outcome: 'blocked_no_totp',
+                        policyLevel: auditPolicy?.policyLevel ?? 'standard',
+                        severity: 'warning',
+                      });
+                    } catch (auditErr) {
+                      console.error('2FA gate audit write failed (C-10):', auditErr);
+                    }
+                  }
+                  return res.status(403).json({
+                    code: 'TOTP_SETUP_REQUIRED',
+                    message: 'Two-factor authentication is required for your role. Please set up your authenticator app.',
+                  });
+                }
+              }
+            }
+          } catch (twoFaPolicyErr) {
+            console.error('2FA policy read error (C-10):', twoFaPolicyErr);
+            return res.status(500).json({ message: 'Security service error' });
+          }
+        }
+      }
+
       if (user.twoFactorEnabled) {
         try {
           const nonce = crypto.randomBytes(16).toString('hex');
@@ -369,29 +416,51 @@ export function setupAuth(app: Express) {
           return next(err);
         }
 
-        // Phase D — Device trust enforcement (fail-closed for high_security roles)
+        // Phase D — Device trust enforcement
+        // T7: Superuser is always exempt.
+        // T8: Role scope guard — only enforce for roles in two_fa_global_policy.apply_to_roles.
         let isTrustedDevice = false;
         if (await isFeatureFlagEnabled('SECURITY_DEVICE_TRUST_ENABLED')) {
-          try {
-            const trustResult = await checkDeviceTrustAtLogin(req, user.id, user.role);
-            if (!trustResult.trusted) {
+          const isDeviceTrustExempt = user.role === 'Superuser';
+          if (!isDeviceTrustExempt) {
+            let roleInDeviceScope = true;
+            try {
+              const [scopePolicy] = await db.select({ applyToRoles: twoFaGlobalPolicy.applyToRoles })
+                .from(twoFaGlobalPolicy).limit(1);
+              if (scopePolicy) {
+                const scopeRoles: string[] = scopePolicy.applyToRoles ?? [];
+                if (scopeRoles.length > 0) {
+                  roleInDeviceScope = scopeRoles.includes(user.role);
+                }
+              }
+            } catch (scopeErr) {
+              console.error('Device trust scope read error (C-10):', scopeErr);
               await new Promise<void>(resolve => req.logout(() => resolve()));
-              return res.status(401).json({
-                code: 'DEVICE_NOT_TRUSTED',
-                message: trustResult.reason === 'NO_COOKIE'
-                  ? 'Access from an unregistered device. Contact your Superuser.'
-                  : 'Device trust token is invalid or has been revoked.',
-              });
+              return res.status(500).json({ message: 'Security service error' });
             }
-            isTrustedDevice = true;
-            req.session.deviceTrusted = true;
-            if (trustResult.deviceId) {
-              req.session.deviceFingerprint = String(trustResult.deviceId);
+            if (roleInDeviceScope) {
+              try {
+                const trustResult = await checkDeviceTrustAtLogin(req, user.id, user.role);
+                if (!trustResult.trusted) {
+                  await new Promise<void>(resolve => req.logout(() => resolve()));
+                  return res.status(401).json({
+                    code: 'DEVICE_NOT_TRUSTED',
+                    message: trustResult.reason === 'NO_COOKIE'
+                      ? 'Access from an unregistered device. Contact your Superuser.'
+                      : 'Device trust token is invalid or has been revoked.',
+                  });
+                }
+                isTrustedDevice = true;
+                req.session.deviceTrusted = true;
+                if (trustResult.deviceId) {
+                  req.session.deviceFingerprint = String(trustResult.deviceId);
+                }
+              } catch (deviceErr) {
+                console.error('Device trust check failed (C-10):', deviceErr);
+                await new Promise<void>(resolve => req.logout(() => resolve()));
+                return res.status(500).json({ message: 'Security service error' });
+              }
             }
-          } catch (deviceErr) {
-            console.error('Device trust check failed (C-10):', deviceErr);
-            await new Promise<void>(resolve => req.logout(() => resolve()));
-            return res.status(500).json({ message: 'Security service error' });
           }
         }
 

@@ -52,7 +52,7 @@ function tokenIsValid(token: { at: number; consumed?: boolean } | undefined, tim
 export function requireReauth(actionKey: string): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!await isFeatureFlagEnabled('SECURITY_REAUTH_ENABLED')) return next();
+      if (!await isFeatureFlagEnabled('SECURITY_ATTENDANCE_PAYROLL_REAUTH_ENABLED')) return next();
 
       const user = req.user as any;
       if (!user?.id) return res.status(401).json({ message: 'Authentication required' });
@@ -100,7 +100,7 @@ export async function checkReauth(
   actionKey: string,
 ): Promise<boolean> {
   try {
-    if (!await isFeatureFlagEnabled('SECURITY_REAUTH_ENABLED')) return true;
+    if (!await isFeatureFlagEnabled('SECURITY_ATTENDANCE_PAYROLL_REAUTH_ENABLED')) return true;
 
     const user = req.user as any;
     if (!user?.id) {

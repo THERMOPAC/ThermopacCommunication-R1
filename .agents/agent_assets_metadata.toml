@@ -276,3 +276,9 @@ id = "TMc75sdU_8PLTWaT_JADd"
 uri = "file://docs/security-phase1-implementation-plan-v1.0.md"
 type = "text"
 title = "Phase 1 Implementation Plan v1.0"
+
+[[outputs]]
+id = "aPfoLjmAuFAS4_q_JHaLv"
+uri = "file://docs/security-phase1-verification-evidence-v1.0.md"
+type = "text"
+title = "Phase 1 Verification Evidence v1.0"

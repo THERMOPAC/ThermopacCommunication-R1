@@ -44,7 +44,7 @@ export interface AttendanceAuditResult {
   spoofingFlags: string[];
   gpsStatus: GpsStatus | null;
   severity: string;
-  blocked: false;
+  blocked: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +188,7 @@ export async function runAttendanceAuditPipeline(
   // Step 0: Feature flag guard
   const flagEnabled = await isFeatureFlagEnabled('SECURITY_ATTENDANCE_AUDIT_ENABLED');
   if (!flagEnabled) return null;
+  const enforcing = await isFeatureFlagEnabled('SECURITY_ATTENDANCE_ENFORCEMENT_ENABLED');
 
   const {
     userId, role, attendanceRecordId, workLocationId,
@@ -325,7 +326,10 @@ export async function runAttendanceAuditPipeline(
     gpsAccuracyOk = gpsAccuracyMeters <= policy.maxGpsAccuracyMeters;
   }
 
-  // Step 8: Outcome determination (advisory — never blocks)
+  // Step 8: Outcome determination
+  // Advisory mode (enforcing = false): all outcomes pass, blocked always false.
+  // Enforced mode (enforcing = true): spoofing/geofence/IP violations set blocked = true.
+  // Low accuracy is never a block condition — advisory only in both modes.
   let outcome: string;
   let severity: string;
 
@@ -346,6 +350,14 @@ export async function runAttendanceAuditPipeline(
     severity = 'info';
   }
 
+  // Enforcement decision — low_accuracy and advisory_ok are never blocked
+  const BLOCKING_OUTCOMES = new Set([
+    'advisory_spoofing_detected',
+    'advisory_outside_geofence',
+    'advisory_ip_unverified',
+  ]);
+  const blocked = enforcing && BLOCKING_OUTCOMES.has(outcome);
+
   // Step 9: Write audit row
   const auditId = await writeAuditRow({
     userId, attendanceRecordId,
@@ -358,6 +370,6 @@ export async function runAttendanceAuditPipeline(
   return {
     auditId, policyMode, outcome,
     distanceToOfficeMeters, spoofingFlags,
-    gpsStatus, severity, blocked: false,
+    gpsStatus, severity, blocked,
   };
 }

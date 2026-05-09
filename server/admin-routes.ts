@@ -1731,7 +1731,7 @@ async function getLockedPayrollPeriod(dateStr: string) {
 }
 
 // ── PATCH /attendance/records/:id/override — Apply override ─────────────────
-router.patch('/attendance/records/:id/override', ensureAuthenticated, async (req: Request, res: Response) => {
+router.patch('/attendance/records/:id/override', ensureAuthenticated, requireReauth('attendance.override_admin'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     if (!await canAdminOverride(user)) {
@@ -1853,7 +1853,7 @@ router.patch('/attendance/records/:id/override', ensureAuthenticated, async (req
 });
 
 // ── DELETE /attendance/records/:id/override — Revert override ───────────────
-router.delete('/attendance/records/:id/override', ensureAuthenticated, async (req: Request, res: Response) => {
+router.delete('/attendance/records/:id/override', ensureAuthenticated, requireReauth('attendance.override_admin'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     if (!await canAdminOverride(user)) {

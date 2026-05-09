@@ -23,7 +23,7 @@ import {
   trustedDevices,
   attendanceSecurityPolicies,
 } from '@shared/schema';
-import { eq, sql, count } from 'drizzle-orm';
+import { eq, sql, count, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { requireReauth } from './middleware/require-reauth';
 import { sendError, sendPermissionError } from './utils/error-response';
@@ -50,13 +50,13 @@ const FLAGS = {
 // ---------------------------------------------------------------------------
 
 async function getFlags(names: string[]): Promise<Record<string, boolean>> {
-  const rows = await db.execute(
-    sql`SELECT flag_name, enabled FROM epc_migration_feature_flags
-        WHERE flag_name = ANY(${names})`
-  );
+  const rows = await db
+    .select({ flagName: epcMigrationFeatureFlags.flagName, enabled: epcMigrationFeatureFlags.enabled })
+    .from(epcMigrationFeatureFlags)
+    .where(inArray(epcMigrationFeatureFlags.flagName, names));
   const map: Record<string, boolean> = {};
-  for (const row of rows.rows as any[]) {
-    map[row.flag_name] = row.enabled === true;
+  for (const row of rows) {
+    map[row.flagName] = row.enabled === true;
   }
   return map;
 }
