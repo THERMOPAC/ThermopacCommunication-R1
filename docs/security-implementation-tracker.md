@@ -12,7 +12,7 @@
 | 2 | Login Security (Lockout, Audit, Session) | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 3 | Re-Authentication Middleware | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 4 | Trusted Device Management | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
-| 5 | Attendance GPS Audit (Advisory) | **PRE-APPROVAL SUBMITTED** | — | — |
+| 5 | Attendance GPS Audit (Advisory) | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 6 | 2FA Administration UI | Not started | — | — |
 | 7 | Attendance Enforcement | Not started | — | — |
 | 8 | Monitoring & Archival | Not started | — | — |
@@ -119,9 +119,41 @@ All 11 security flags: `enabled = false`
 
 ---
 
+## Phase 5 — Attendance GPS Audit (Advisory)
+
+**Status:** COMPLETE ✅  
+**Approved:** 09 May 2026 (Rev 2 pre-approval — GPS degraded state handling)  
+**Completed:** 09 May 2026  
+**Evidence:** `docs/security-phase5-audit-evidence.md`
+
+### Scope
+- `server/attendance-security-service.ts` (NEW) — Core audit pipeline: policy lookup, GPS degraded-state pre-check (6 cases), spoofing detection (4 flags), haversine geofence, audit row write
+- `server/attendance-security-routes.ts` (NEW) — 7 admin routes: location-audit, spoofing-flags, policy management (TOTP-gated), blocked-checkins stub
+- `server/attendance-routes.ts` (MODIFIED) — `gpsAccuracy` + `gpsStatus` body fields; audit pipeline call after check-in record save; `attendanceAudit` in response
+- `server/routes.ts` (MODIFIED) — `registerAttendanceSecurityRoutes(app)` added
+
+### Feature Flags After Phase 5
+- `SECURITY_ATTENDANCE_AUDIT_ENABLED = true` (enabled 2026-05-09 04:38:43 UTC)
+- `SECURITY_ATTENDANCE_ENFORCEMENT_ENABLED = false` (unchanged — Phase 7)
+
+### Approval Gate
+- [x] Pre-approval Rev 2 reviewed (GPS degraded state handling added)
+- [x] Approval granted
+- [x] Implementation completed (4 files: 2 new, 2 modified)
+- [x] Zero new npm packages
+- [x] payroll-salary-core.ts unchanged (0 diff lines from Phase 4 checkpoint)
+- [x] T-B01 through T-B18 — **18/18 PASSED**
+- [x] ZT-P5-01 through ZT-P5-15 — **15/15 PASSED**
+- [x] Immutability trigger confirmed active (UPDATE + DELETE both blocked)
+- [x] Enforcement flag confirmed false
+- [x] Plane isolation confirmed (GPS not in auth; device trust not in attendance)
+- [x] Zero-trust audit evidence submitted → `docs/security-phase5-audit-evidence.md`
+
+---
+
 ## Phase 6 — 2FA Administration UI
 
-**Status:** Not started — blocked on Phase 5 approval
+**Status:** Not started — awaiting Phase 6 pre-approval
 
 ---
 
@@ -152,9 +184,9 @@ All 11 security flags: `enabled = false`
 |---|---|---|---|---|
 | 1 | 18 | 18 | 0 | `docs/security-phase1-audit-evidence.md` |
 | 2 | 22 | 22 | 0 | `docs/security-phase2-audit-evidence.md` |
-| 3 | — | — | — | — |
-| 4 | — | — | — | — |
-| 5 | — | — | — | — |
+| 3 | 18 | 18 | 0 | `docs/security-phase3-audit-evidence.md` |
+| 4 | 18 | 18 | 0 | `docs/security-phase4-audit-evidence.md` |
+| 5 | 18 | 18 | 0 | `docs/security-phase5-audit-evidence.md` |
 | 6 | — | — | — | — |
 | 7 | — | — | — | — |
 | 8 | — | — | — | — |

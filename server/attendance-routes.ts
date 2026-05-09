@@ -9,6 +9,7 @@ import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 import { checkPayrollLock } from './payroll-lock-service';
 import { determineAttendanceStatus } from './attendance-status-engine';
 import { getISTDateString, buildISTDateTime } from './utils/date-ist';
+import { runAttendanceAuditPipeline, GpsStatus } from './attendance-security-service';
 
 const router = Router();
 
@@ -106,7 +107,9 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
       latitude,
       longitude,
       address,
-      deviceInfo
+      deviceInfo,
+      gpsAccuracy,
+      gpsStatus,
     } = req.body;
 
     const today = getISTDateString();
@@ -166,6 +169,8 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
     }
 
     // Create or update attendance record
+    let savedRecord: typeof attendanceRecords.$inferSelect | undefined;
+
     if (existingRecord) {
       const [updatedRecord] = await db
         .update(attendanceRecords)
@@ -183,14 +188,7 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
         })
         .where(eq(attendanceRecords.id, existingRecord.id))
         .returning();
-
-      res.json({
-        success: true,
-        message: 'Checked in successfully',
-        record: updatedRecord,
-        locationVerified: isLocationVerified,
-        ipVerified: isIpVerified
-      });
+      savedRecord = updatedRecord;
     } else {
       const [newRecord] = await db
         .insert(attendanceRecords)
@@ -209,15 +207,37 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
           status: 'present'
         })
         .returning();
-
-      res.json({
-        success: true,
-        message: 'Checked in successfully',
-        record: newRecord,
-        locationVerified: isLocationVerified,
-        ipVerified: isIpVerified
-      });
+      savedRecord = newRecord;
     }
+
+    // Phase 5 — Attendance GPS Audit (Advisory). Non-blocking: errors never fail the check-in.
+    let auditResult: Awaited<ReturnType<typeof runAttendanceAuditPipeline>> = null;
+    try {
+      auditResult = await runAttendanceAuditPipeline({
+        userId,
+        role: req.user!.role,
+        attendanceRecordId: savedRecord?.id ?? null,
+        workLocationId: workLocationId ?? null,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
+        gpsAccuracyMeters: gpsAccuracy ?? null,
+        gpsStatus: (gpsStatus as GpsStatus) ?? null,
+        ipAddress: ipAddress ?? '',
+        isIpVerified,
+        req,
+      });
+    } catch (auditErr) {
+      console.error('Attendance audit pipeline error (non-fatal):', auditErr);
+    }
+
+    res.json({
+      success: true,
+      message: 'Checked in successfully',
+      record: savedRecord,
+      locationVerified: isLocationVerified,
+      ipVerified: isIpVerified,
+      ...(auditResult ? { attendanceAudit: auditResult } : {}),
+    });
   } catch (error) {
     console.error('Error during check-in:', error);
     sendError(res, error);
