@@ -49,7 +49,6 @@ const ALL_ROLES = [
   { value: 'Senior Executive', label: 'Senior Executive' },
   { value: 'Manager',          label: 'Manager' },
   { value: 'Employee',         label: 'Employee' },
-  { value: 'HR',               label: 'HR' },
 ];
 
 const MODE_LABELS: Record<string, string> = {
