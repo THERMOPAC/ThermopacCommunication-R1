@@ -6194,9 +6194,12 @@ export default function BuyPackagesPage() {
   const [datasheetLine, setDatasheetLine] = useState<PackageLine | null>(null);
 
   // Save As (Clone) dialog state
-  const [saveAsSource,  setSaveAsSource]  = useState<BuyPackage | null>(null);
-  const [saveAsName,    setSaveAsName]    = useState("");
-  const [saveAsTarget,  setSaveAsTarget]  = useState<string>("");
+  const [saveAsSource,      setSaveAsSource]      = useState<BuyPackage | null>(null);
+  const [saveAsName,        setSaveAsName]        = useState("");
+  const [saveAsTarget,      setSaveAsTarget]      = useState<string>("");
+  const [saveAsCode,        setSaveAsCode]        = useState("");
+  const [saveAsCodeLoading, setSaveAsCodeLoading] = useState(false);
+  const [saveAsDescription, setSaveAsDescription] = useState("");
 
   // Header form
   const [hdr, setHdr] = useState({ productId: "", packageCode: "", name: "", description: "" });
@@ -6395,9 +6398,7 @@ export default function BuyPackagesPage() {
       apiRequest("POST", `/api/buy-packages/${id}/clone`, body),
     onSuccess: (data: { id: number; packageCode: string; linesCopied: number }) => {
       toast({ title: "Package cloned", description: `${data.packageCode} — ${data.linesCopied} line(s) copied` });
-      setSaveAsSource(null);
-      setSaveAsName("");
-      setSaveAsTarget("");
+      resetSaveAs();
       invalidatePkgs();
       setStatusFilter("draft");
       setExpandedId(data.id);
@@ -6452,6 +6453,21 @@ export default function BuyPackagesPage() {
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
+  const resetSaveAs = useCallback(() => {
+    setSaveAsSource(null); setSaveAsName(""); setSaveAsTarget("");
+    setSaveAsCode(""); setSaveAsDescription("");
+  }, []);
+
+  const fetchSaveAsCode = useCallback(async (productId: string, prod: { description?: string; productDescription?: string } | undefined) => {
+    setSaveAsCode(""); setSaveAsDescription(prod?.description ?? prod?.productDescription ?? "");
+    if (!productId) return;
+    setSaveAsCodeLoading(true);
+    try {
+      const res = await fetch(`/api/buy-packages/generate-code?productId=${productId}`, { credentials: "include" });
+      if (res.ok) { const d = await res.json(); setSaveAsCode(d.packageCode); }
+    } catch { /* ignore */ } finally { setSaveAsCodeLoading(false); }
+  }, []);
+
   const fetchGeneratedCode = useCallback(async (productId: string) => {
     if (!productId) return;
     setCodeLoading(true);
@@ -8109,90 +8125,109 @@ export default function BuyPackagesPage() {
       />
 
       {/* ── Save As (Clone) Dialog ─────────────────────────────────────────── */}
-      <Dialog open={!!saveAsSource} onOpenChange={(o) => { if (!o) { setSaveAsSource(null); setSaveAsName(""); setSaveAsTarget(""); } }}>
+      <Dialog open={!!saveAsSource} onOpenChange={(o) => { if (!o) resetSaveAs(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Save As — Clone Package</DialogTitle>
-            <DialogDescription>
-              Clone this package as a new draft on a different top-level product.
-              All lines will be deep-copied. One active package per top-level product is allowed.
-            </DialogDescription>
+            <DialogTitle>Save As — BUY Package</DialogTitle>
+            <DialogDescription>Copy this package as a new draft linked to a different top-level product. All lines will be copied across.</DialogDescription>
           </DialogHeader>
 
           {saveAsSource && (
-            <div className="space-y-5 pt-1">
+            <div className="space-y-4 py-2">
 
-              {/* Source Package — read-only */}
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source Package</label>
-                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-mono">
-                  {saveAsSource.packageCode} — {saveAsSource.name}
+              {/* Source package info — read-only */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Source Package</Label>
+                  <span className="text-[11px] text-muted-foreground">Read only</span>
                 </div>
+                <Input
+                  value={`${saveAsSource.packageCode} — ${saveAsSource.name}`}
+                  readOnly
+                  className="font-mono bg-muted cursor-not-allowed"
+                />
               </div>
 
-              {/* Source Grandparent Product — read-only */}
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source Product</label>
-                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  {saveAsSource.productCode} · {saveAsSource.productDescription}
-                </div>
-              </div>
-
-              {/* Target Grandparent Product — required searchable dropdown */}
-              <div className="space-y-1">
-                <label className="text-xs font-medium uppercase tracking-wide">
-                  Target Product <span className="text-destructive">*</span>
-                </label>
-                <select
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              {/* Target BUY Product — required, shadcn Select */}
+              <div className="space-y-1.5">
+                <Label>BUY Product <span className="text-red-500">*</span></Label>
+                <Select
                   value={saveAsTarget}
-                  onChange={(e) => setSaveAsTarget(e.target.value)}
+                  onValueChange={(v) => {
+                    setSaveAsTarget(v);
+                    const prod = buyProducts.find((p) => String(p.id) === v);
+                    setSaveAsName(prod?.description ?? prod?.productDescription ?? "");
+                    fetchSaveAsCode(v, prod);
+                  }}
                 >
-                  <option value="">Select target product…</option>
-                  {buyProducts
-                    .filter((p) => p.id !== saveAsSource.productId)
-                    .sort((a, b) => a.productCode.localeCompare(b.productCode))
-                    .map((p) => (
-                      <option key={p.id} value={String(p.id)}>
-                        {p.productCode}
-                      </option>
-                    ))}
-                </select>
-                {saveAsTarget && (() => {
-                  const prod = buyProducts.find((p) => String(p.id) === saveAsTarget);
-                  return prod ? (
-                    <p className="text-xs text-muted-foreground pt-0.5 pl-1">{prod.description ?? prod.productDescription}</p>
-                  ) : null;
-                })()}
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a BUY catalog product…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buyProducts
+                      .filter((p) => p.id !== saveAsSource.productId)
+                      .sort((a, b) => a.productCode.localeCompare(b.productCode))
+                      .map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.productCode} — {p.description ?? p.productDescription}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Optional Draft Name Override */}
-              <div className="space-y-1">
-                <label className="text-xs font-medium uppercase tracking-wide">
-                  Draft Name <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder={`${saveAsSource.name} - Draft`}
+              {/* Package Code — auto-generated, read-only */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Package Code <span className="text-red-500">*</span></Label>
+                  <span className="text-[11px] text-muted-foreground">Auto-generated</span>
+                </div>
+                <div className="relative">
+                  <Input
+                    placeholder={saveAsCodeLoading ? "Generating…" : "Select a product above"}
+                    value={saveAsCode}
+                    readOnly
+                    className="font-mono pr-8 bg-muted cursor-not-allowed select-all"
+                  />
+                  {saveAsCodeLoading && (
+                    <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+
+              {/* Package Name — editable */}
+              <div className="space-y-1.5">
+                <Label>Package Name <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="Select a product above"
                   value={saveAsName}
                   onChange={(e) => setSaveAsName(e.target.value)}
-                  maxLength={200}
+                  maxLength={255}
+                />
+              </div>
+
+              {/* Description — from target product, read-only */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Description</Label>
+                  <span className="text-[11px] text-muted-foreground">From product</span>
+                </div>
+                <Textarea
+                  placeholder="Select a product above"
+                  value={saveAsDescription}
+                  readOnly
+                  rows={3}
+                  className="bg-muted cursor-not-allowed resize-none"
                 />
               </div>
 
             </div>
           )}
 
-          <DialogFooter className="pt-4">
+          <DialogFooter>
+            <Button variant="outline" onClick={resetSaveAs}>Cancel</Button>
             <Button
-              variant="outline"
-              onClick={() => { setSaveAsSource(null); setSaveAsName(""); setSaveAsTarget(""); }}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={!saveAsTarget || clonePkg.isPending}
+              disabled={!saveAsTarget || !saveAsCode || clonePkg.isPending}
               onClick={() => {
                 if (!saveAsSource || !saveAsTarget) return;
                 clonePkg.mutate({
@@ -8204,7 +8239,7 @@ export default function BuyPackagesPage() {
                 });
               }}
             >
-              {clonePkg.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Cloning…</> : "Clone Package"}
+              {clonePkg.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Saving…</> : "Save As"}
             </Button>
           </DialogFooter>
         </DialogContent>
