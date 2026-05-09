@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { WorkLocation, InsertWorkLocation } from "@shared/schema";
 import {
@@ -78,6 +78,64 @@ type LocationUser = {
 };
 
 const CIDR_REGEX = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+
+/**
+ * GpsNumberInput — prevents the type="number" bug where typing "19." causes
+ * e.target.value="" (invalid mid-decimal state), which would set the form
+ * field to null and clear the input.
+ *
+ * Uses a local display string so the user can type freely; only calls
+ * field.onChange when the current input is a valid number.
+ * Syncs display when the form is reset externally (editForm.reset()).
+ */
+function GpsNumberInput({
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+}: {
+  value: number | null | undefined;
+  onChange: (val: number | null) => void;
+  onBlur: () => void;
+  placeholder: string;
+}) {
+  const [display, setDisplay] = useState<string>(
+    value != null ? String(value) : ""
+  );
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    if (prevValue.current !== value) {
+      prevValue.current = value;
+      setDisplay(value != null ? String(value) : "");
+    }
+  }, [value]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      placeholder={placeholder}
+      value={display}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDisplay(raw);
+        if (raw === "" || raw === "-") {
+          onChange(null);
+        } else {
+          const n = parseFloat(raw);
+          if (!isNaN(n)) onChange(n);
+          // partial decimal (e.g. "19.") — keep display, don't update form state
+        }
+      }}
+      onBlur={() => {
+        // normalise display to match form state on blur
+        setDisplay(value != null ? String(value) : "");
+        onBlur();
+      }}
+    />
+  );
+}
 
 function IpTagInput({
   value,
@@ -280,14 +338,11 @@ function LocationForm({
                 <FormItem>
                   <FormLabel>Latitude</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="any"
+                    <GpsNumberInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
                       placeholder="19.0760"
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(e.target.value ? parseFloat(e.target.value) : null)
-                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -301,14 +356,11 @@ function LocationForm({
                 <FormItem>
                   <FormLabel>Longitude</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="any"
+                    <GpsNumberInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
                       placeholder="72.8777"
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(e.target.value ? parseFloat(e.target.value) : null)
-                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -322,13 +374,11 @@ function LocationForm({
                 <FormItem>
                   <FormLabel>Radius (meters)</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
+                    <GpsNumberInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
                       placeholder="100"
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(e.target.value ? parseInt(e.target.value) : null)
-                      }
                     />
                   </FormControl>
                   <FormMessage />
