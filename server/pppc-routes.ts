@@ -673,6 +673,12 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       try {
         await client.query('BEGIN');
 
+        // Archive the source package immediately when revision draft is created
+        await client.query(
+          `UPDATE buy_package_headers SET status='archived', is_active=false, updated_at=NOW() WHERE id=$1`,
+          [id],
+        );
+
         const newHdr = await client.query(
           `INSERT INTO buy_package_headers
              (product_id, package_code, name, description, version, status, is_active, created_by, updated_at)
