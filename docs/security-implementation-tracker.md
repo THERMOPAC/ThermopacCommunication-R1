@@ -9,7 +9,7 @@
 | Phase | Name | Status | Approved By | Date |
 |---|---|---|---|---|
 | 1 | Foundation & Schema Layer | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
-| 2 | Login Security (Lockout, Audit, Session) | Not started | — | — |
+| 2 | Login Security (Lockout, Audit, Session) | **PRE-APPROVAL SUBMITTED** | — | — |
 | 3 | Re-Authentication Middleware | Not started | — | — |
 | 4 | Trusted Device Management | Not started | — | — |
 | 5 | Attendance GPS Audit (Advisory) | Not started | — | — |
@@ -60,7 +60,8 @@ All 11 security flags: `enabled = false`
 
 ## Phase 2 — Login Security
 
-**Status:** Not started — blocked on Phase 1 approval
+**Status:** PRE-APPROVAL SUBMITTED — awaiting approval  
+**Submitted:** 09 May 2026
 
 ### Scope
 - `server/auth.ts` — login handler, password reset, password change
@@ -68,12 +69,12 @@ All 11 security flags: `enabled = false`
 - Feature flags enabled: `SECURITY_LOGIN_AUDIT_ENABLED`, `SECURITY_SESSION_REGISTRY_ENABLED`, then `SECURITY_LOCKOUT_ENABLED`, `SECURITY_SESSION_INVALIDATION_ENABLED`
 
 ### Approval Gate
-- [ ] Pre-approval document submitted (after Phase 1 complete)
+- [x] Pre-approval document submitted → `docs/security-phase2-preapproval.md`
 - [ ] Approval granted
 - [ ] Implementation complete
-- [ ] Pilot verified (Superuser only)
-- [ ] Verification tests passed
-- [ ] Zero-trust audit evidence submitted
+- [ ] Pilot verified (Superuser only — Step 3 flag enabled for Superuser first)
+- [ ] Verification tests passed (T-P2-01 through T-P2-22)
+- [ ] Zero-trust audit evidence submitted → `docs/security-phase2-audit-evidence.md`
 - [ ] Approval to proceed to Phase 3 granted
 
 ---
