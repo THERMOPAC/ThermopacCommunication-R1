@@ -264,3 +264,9 @@ id = "v64AbMZLa1x_qs8z_RXlF"
 uri = "file://docs/tds-governance-correction-plan-v1.3.md"
 type = "text"
 title = "TDS Governance Correction Plan v1.3 — Final"
+
+[[outputs]]
+id = "Igsrz6RjJ7trRfzZevF1B"
+uri = "file://docs/security-enforcement-gap-closure-plan-v1.0.md"
+type = "text"
+title = "Security Enforcement Gap Closure Plan v1.0"
