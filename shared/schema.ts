@@ -171,7 +171,9 @@ export const workLocations = pgTable('work_locations', {
   timezone: text('timezone').notNull().default('Asia/Kolkata'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow()
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  // Attendance Security — Phase 1
+  locationCountryCode: varchar('location_country_code', { length: 5 }),
 });
 
 // Attendance Records table
@@ -235,7 +237,13 @@ export const attendanceRecords = pgTable('attendance_records', {
   
   // Source of attendance data
   source: varchar('source', { length: 30 }).default('biometric'),
-  
+
+  // Attendance Security — Phase 1 (all nullable; no enforcement until Phase 5)
+  checkInGpsAccuracyMeters: doublePrecision('check_in_gps_accuracy_meters'),
+  checkOutGpsAccuracyMeters: doublePrecision('check_out_gps_accuracy_meters'),
+  checkInMode: varchar('check_in_mode', { length: 20 }),
+  attendancePolicyMode: varchar('attendance_policy_mode', { length: 20 }),
+
   // Notes and remarks
   employeeNotes: text('employee_notes'),
   adminNotes: text('admin_notes'),
@@ -1028,6 +1036,13 @@ const userSchema = {
   lwpExemptGrantedBy: integer('lwp_exempt_granted_by'),
   lwpExemptGrantedAt: timestamp('lwp_exempt_granted_at'),
   lwpExemptNextReview: date('lwp_exempt_next_review'),
+
+  // Login Security — Phase 1 (all nullable; no enforcement until Phase 2)
+  failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+  lockedUntil: timestamp('locked_until'),
+  lastLoginAt: timestamp('last_login_at'),
+  lastLoginIp: varchar('last_login_ip', { length: 45 }),
+  lastLoginDevice: text('last_login_device'),
 };
 
 // Create the users table with self-reference after definition
@@ -13412,3 +13427,222 @@ export const tagNoAuditLog = pgTable('tag_no_audit_log', {
   changedAt: timestamp('changed_at').notNull().defaultNow(),
 });
 export type TagNoAuditLog = typeof tagNoAuditLog.$inferSelect;
+
+// =============================================================================
+// SECURITY BASELINE v1.0 — Phase 1: Foundation & Schema Layer
+// Approved: 09 May 2026
+// Baseline: docs/security-baseline-v1.0.md
+// All feature flags remain enabled=false until Phase 2+
+// =============================================================================
+
+// --- Table 1: Login Security Policies (one row per security level) ---
+export const loginSecurityPolicies = pgTable('login_security_policies', {
+  id: serial('id').primaryKey(),
+  policyLevel: varchar('policy_level', { length: 20 }).notNull().unique(), // 'high_security' | 'elevated' | 'standard'
+  applyToRoles: text('apply_to_roles').array().notNull().default(sql`'{}'::text[]`),
+  require2fa: boolean('require_2fa').notNull().default(false),
+  requireDeviceTrust: boolean('require_device_trust').notNull().default(false),
+  maxSessionHours: integer('max_session_hours').notNull().default(24),
+  maxFailedAttempts: integer('max_failed_attempts').notNull().default(5),
+  lockoutMinutes: integer('lockout_minutes').notNull().default(15),
+  reauthTimeoutMinutes: integer('reauth_timeout_minutes').notNull().default(60),
+  allowedNetworks: text('allowed_networks').array(),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export type LoginSecurityPolicy = typeof loginSecurityPolicies.$inferSelect;
+
+// --- Table 2: Login Audit Log (append-only — standard audit log) ---
+export const loginAuditLog = pgTable('login_audit_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  username: varchar('username', { length: 100 }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  outcome: varchar('outcome', { length: 30 }).notNull(), // 'success' | 'failed_password' | 'failed_2fa' | 'locked' | 'success_2fa'
+  policyLevel: varchar('policy_level', { length: 20 }),
+  isTrustedDevice: boolean('is_trusted_device').default(false),
+  networkFlag: boolean('network_flag').default(false),
+  failedAttemptCount: integer('failed_attempt_count'),
+  severity: varchar('severity', { length: 20 }).notNull().default('info'), // 'info' | 'warning' | 'critical' | 'emergency'
+  archivedAt: timestamp('archived_at'),
+  archivePath: text('archive_path'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type LoginAuditLog = typeof loginAuditLog.$inferSelect;
+
+// --- Table 3: User Session Registry ---
+export const userSessionRegistry = pgTable('user_session_registry', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: varchar('session_id', { length: 255 }).notNull().unique(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  deviceFingerprint: text('device_fingerprint'),
+  isActive: boolean('is_active').notNull().default(true),
+  lastActivityAt: timestamp('last_activity_at').notNull().defaultNow(),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type UserSessionRegistry = typeof userSessionRegistry.$inferSelect;
+
+// --- Table 4: Attendance Security Policies (one row per role group) ---
+export const attendanceSecurityPolicies = pgTable('attendance_security_policies', {
+  id: serial('id').primaryKey(),
+  policyName: varchar('policy_name', { length: 50 }).notNull().unique(),
+  applyToRoles: text('apply_to_roles').array().notNull().default(sql`'{}'::text[]`),
+  policyMode: varchar('policy_mode', { length: 20 }).notNull().default('advisory'), // 'enforced' | 'advisory' | 'exempt'
+  requireGps: boolean('require_gps').notNull().default(false),
+  geofenceRadiusOverride: integer('geofence_radius_override'),
+  maxGpsAccuracyMeters: integer('max_gps_accuracy_meters').default(100),
+  requireIpVerification: boolean('require_ip_verification').notNull().default(false),
+  allowRemoteWork: boolean('allow_remote_work').notNull().default(true),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export type AttendanceSecurityPolicy = typeof attendanceSecurityPolicies.$inferSelect;
+
+// --- Table 5: Attendance Location Audit Log (append-only — standard audit log) ---
+export const attendanceLocationAuditLog = pgTable('attendance_location_audit_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  attendanceRecordId: integer('attendance_record_id').references(() => attendanceRecords.id, { onDelete: 'set null' }),
+  attemptType: varchar('attempt_type', { length: 20 }).notNull(), // 'check_in' | 'check_out'
+  policyMode: varchar('policy_mode', { length: 20 }),
+  outcome: varchar('outcome', { length: 40 }).notNull(), // 'allowed' | 'blocked_geofence' | 'blocked_accuracy' | 'advisory_warning' | 'skipped_exempt'
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  gpsAccuracyMeters: doublePrecision('gps_accuracy_meters'),
+  distanceToOfficeMeters: doublePrecision('distance_to_office_meters'),
+  workLocationId: integer('work_location_id').references(() => workLocations.id, { onDelete: 'set null' }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  isIpVerified: boolean('is_ip_verified').default(false),
+  spoofingFlags: text('spoofing_flags').array().notNull().default(sql`'{}'::text[]`),
+  severity: varchar('severity', { length: 20 }).notNull().default('info'),
+  archivedAt: timestamp('archived_at'),
+  archivePath: text('archive_path'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type AttendanceLocationAuditLog = typeof attendanceLocationAuditLog.$inferSelect;
+
+// --- Table 6: Trusted Devices ---
+export const trustedDevices = pgTable('trusted_devices', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceFingerprint: text('device_fingerprint').notNull(),
+  deviceName: varchar('device_name', { length: 100 }),
+  trustToken: varchar('trust_token', { length: 255 }).notNull().unique(),
+  trustTokenExpiresAt: timestamp('trust_token_expires_at'),
+  isActive: boolean('is_active').notNull().default(true),
+  registeredByAdmin: boolean('registered_by_admin').notNull().default(false),
+  registeredBy: integer('registered_by').references(() => users.id),
+  lastUsedAt: timestamp('last_used_at'),
+  revokedAt: timestamp('revoked_at'),
+  revokedBy: integer('revoked_by').references(() => users.id),
+  revokedReason: text('revoked_reason'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type TrustedDevice = typeof trustedDevices.$inferSelect;
+
+// --- Table 7: Trusted Device Audit Log (append-only — standard audit log) ---
+export const trustedDeviceAuditLog = pgTable('trusted_device_audit_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceId: integer('device_id').references(() => trustedDevices.id, { onDelete: 'set null' }),
+  action: varchar('action', { length: 30 }).notNull(), // 'registered' | 'revoked' | 'login_trusted' | 'login_challenged' | 'login_new_device'
+  performedBy: integer('performed_by').references(() => users.id, { onDelete: 'set null' }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  severity: varchar('severity', { length: 20 }).notNull().default('info'),
+  notes: text('notes'),
+  archivedAt: timestamp('archived_at'),
+  archivePath: text('archive_path'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type TrustedDeviceAuditLog = typeof trustedDeviceAuditLog.$inferSelect;
+
+// --- Table 8: Sensitive Action Policies ---
+export const sensitiveActionPolicies = pgTable('sensitive_action_policies', {
+  id: serial('id').primaryKey(),
+  actionKey: varchar('action_key', { length: 80 }).notNull().unique(),
+  actionLabel: text('action_label').notNull(),
+  applyToRoles: text('apply_to_roles').array().notNull().default(sql`'{}'::text[]`),
+  challengeType: varchar('challenge_type', { length: 20 }).notNull().default('any'), // 'any' | 'password' | 'totp'
+  timeoutMinutes: integer('timeout_minutes').notNull().default(30), // 0 = always re-auth regardless of recency
+  isActive: boolean('is_active').notNull().default(true),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export type SensitiveActionPolicy = typeof sensitiveActionPolicies.$inferSelect;
+
+// --- Table 9: Re-Auth Audit Log (append-only — standard audit log) ---
+export const reauthAuditLog = pgTable('reauth_audit_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  actionKey: varchar('action_key', { length: 80 }).notNull(),
+  challengeType: varchar('challenge_type', { length: 20 }),
+  outcome: varchar('outcome', { length: 30 }).notNull(), // 'success_password' | 'success_totp' | 'failed_password' | 'failed_totp' | 'cancelled' | 'reused'
+  ipAddress: varchar('ip_address', { length: 45 }),
+  severity: varchar('severity', { length: 20 }).notNull().default('info'),
+  archivedAt: timestamp('archived_at'),
+  archivePath: text('archive_path'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type ReauthAuditLog = typeof reauthAuditLog.$inferSelect;
+
+// --- Table 10: Security Emergency Log (PERMANENT GOVERNANCE LOG — fully immutable after insert) ---
+// GCS copy written at event time by emergency-recovery.ts script.
+// Never enters archival rotation. Never deleted. Never updated.
+export const securityEmergencyLog = pgTable('security_emergency_log', {
+  id: serial('id').primaryKey(),
+  initiatedBy: varchar('initiated_by', { length: 100 }).notNull(),
+  witnessName: varchar('witness_name', { length: 100 }),
+  scenario: varchar('scenario', { length: 50 }).notNull(),
+  affectedAction: text('affected_action'),
+  targetUserId: integer('target_user_id'),
+  passphraseAttempts: integer('passphrase_attempts').notNull().default(1),
+  outcome: varchar('outcome', { length: 30 }).notNull(), // 'success' | 'failed' | 'aborted'
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type SecurityEmergencyLog = typeof securityEmergencyLog.$inferSelect;
+
+// --- Table 11: 2FA Global Policy (singleton — always exactly 1 row) ---
+export const twoFaGlobalPolicy = pgTable('two_fa_global_policy', {
+  id: serial('id').primaryKey(),
+  enforcementMode: varchar('enforcement_mode', { length: 30 }).notNull().default('optional'), // 'optional' | 'required_from_date' | 'enforced'
+  applyToRoles: text('apply_to_roles').array().notNull().default(sql`'{}'::text[]`),
+  enforcementFromDate: date('enforcement_from_date'),
+  gracePeriodEnabled: boolean('grace_period_enabled').notNull().default(true),
+  gracePeriodDays: integer('grace_period_days').notNull().default(14),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export type TwoFaGlobalPolicy = typeof twoFaGlobalPolicy.$inferSelect;
+
+// --- Table 12: 2FA Policy Audit Log (PERMANENT GOVERNANCE LOG — fully immutable after insert) ---
+// GCS read-only backup copy made after 2 years. PostgreSQL rows permanent. No archived_at/archive_path.
+export const twoFaPolicyAuditLog = pgTable('two_fa_policy_audit_log', {
+  id: serial('id').primaryKey(),
+  changedBy: integer('changed_by').references(() => users.id, { onDelete: 'set null' }),
+  previousMode: varchar('previous_mode', { length: 30 }),
+  newMode: varchar('new_mode', { length: 30 }).notNull(),
+  previousRoles: text('previous_roles').array(),
+  newRoles: text('new_roles').array(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type TwoFaPolicyAuditLog = typeof twoFaPolicyAuditLog.$inferSelect;
+
+// --- Table 13: Security Archival Log (nightly job metadata) ---
+export const securityArchivalLog = pgTable('security_archival_log', {
+  id: serial('id').primaryKey(),
+  jobRunAt: timestamp('job_run_at').notNull().defaultNow(),
+  targetTable: varchar('target_table', { length: 80 }).notNull(),
+  rowsArchived: integer('rows_archived').notNull().default(0),
+  archivePath: text('archive_path'),
+  checksumSha256: varchar('checksum_sha256', { length: 64 }),
+  status: varchar('status', { length: 20 }).notNull().default('success'), // 'success' | 'failed' | 'partial'
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export type SecurityArchivalLog = typeof securityArchivalLog.$inferSelect;

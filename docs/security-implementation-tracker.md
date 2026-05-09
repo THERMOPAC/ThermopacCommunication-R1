@@ -8,7 +8,7 @@
 
 | Phase | Name | Status | Approved By | Date |
 |---|---|---|---|---|
-| 1 | Foundation & Schema Layer | **PRE-APPROVAL SUBMITTED** | — | — |
+| 1 | Foundation & Schema Layer | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 2 | Login Security (Lockout, Audit, Session) | Not started | — | — |
 | 3 | Re-Authentication Middleware | Not started | — | — |
 | 4 | Trusted Device Management | Not started | — | — |
@@ -24,8 +24,9 @@
 
 ## Phase 1 — Foundation & Schema Layer
 
-**Status:** PRE-APPROVAL SUBMITTED — awaiting approval  
-**Submitted:** 09 May 2026
+**Status:** COMPLETE ✅  
+**Submitted:** 09 May 2026  
+**Completed:** 09 May 2026
 
 ### Scope
 - Add 5 login-security columns to `userSchema` in `shared/schema.ts`
@@ -45,14 +46,14 @@
 All 11 security flags: `enabled = false`
 
 ### Approval Gate
-- [ ] Pre-approval document reviewed
-- [ ] Approval granted by authorised personnel
-- [ ] Implementation completed
-- [ ] `drizzle-kit push` succeeded
-- [ ] Seed SQL run and verified
-- [ ] Immutability triggers applied and tested
-- [ ] Phase 1 verification tests passed (T-P1-01 through T-P1-15)
-- [ ] Zero-trust audit evidence submitted
+- [x] Pre-approval document reviewed
+- [x] Approval granted by authorised personnel
+- [x] Implementation completed
+- [x] DDL applied via executeSql (drizzle-kit times out on large schema — executeSql used instead)
+- [x] Seed SQL run and verified
+- [x] Immutability triggers applied and tested
+- [x] Phase 1 verification tests passed (T-P1-01 through T-P1-18 — 18/18 PASSED)
+- [x] Zero-trust audit evidence submitted → `docs/security-phase1-audit-evidence.md`
 - [ ] Approval to proceed to Phase 2 granted
 
 ---
@@ -134,7 +135,7 @@ All 11 security flags: `enabled = false`
 
 | Phase | Tests Run | Passed | Failed | Evidence File |
 |---|---|---|---|---|
-| 1 | — | — | — | — |
+| 1 | 18 | 18 | 0 | `docs/security-phase1-audit-evidence.md` |
 | 2 | — | — | — | — |
 | 3 | — | — | — | — |
 | 4 | — | — | — | — |
