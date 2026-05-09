@@ -344,7 +344,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" },
         { icon: ShieldCheck, label: "Password Compliance", href: "/admin/password-compliance" },
-        ...(user?.role === 'Superuser' ? [{ icon: ShieldAlert, label: "2FA Policy", href: "/admin/2fa-policy" }] : []),
+        ...(user?.role === 'Superuser' ? [{ icon: ShieldAlert, label: "Security Enforcement", href: "/admin/security-enforcement" }] : []),
         { icon: SlidersHorizontal, label: "System Settings", href: "/admin/settings" },
         { icon: Landmark, label: "Loans & Advances", href: "/loans-advances" }
       ]

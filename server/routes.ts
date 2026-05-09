@@ -34,6 +34,7 @@ import { registerSecurityRoutes } from "./security-routes";
 import { registerAdminDeviceRoutes } from "./admin-device-routes";
 import { registerAttendanceSecurityRoutes } from "./attendance-security-routes";
 import { registerAdmin2faRoutes } from "./admin-2fa-routes";
+import { registerSecurityEnforcementRoutes } from "./admin-security-enforcement-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { default as pipelineRoutes } from "./pipeline/pipeline-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
@@ -692,6 +693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminDeviceRoutes(app);
   registerAttendanceSecurityRoutes(app);
   registerAdmin2faRoutes(app);
+  registerSecurityEnforcementRoutes(app);
 
   const { setupEpcMonitoringRoutes } = await import('./epc-monitoring-routes');
   setupEpcMonitoringRoutes(app);
