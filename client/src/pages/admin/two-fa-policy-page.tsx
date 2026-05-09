@@ -83,9 +83,10 @@ export default function TwoFaPolicyPage() {
 
   useEffect(() => {
     if (policy && !initialised) {
-      // feature is "enabled" if mode is anything other than optional, OR if roles are scoped
-      setFeatureEnabled(policy.enforcementMode !== 'optional' || policy.applyToRoles.length > 0);
-      setEnforcementMode(policy.enforcementMode);
+      const enabled = policy.enforcementMode !== 'optional' || policy.applyToRoles.length > 0;
+      setFeatureEnabled(enabled);
+      // When loading optional mode, pre-select 'enforced' so toggling ON shows a sensible default
+      setEnforcementMode(policy.enforcementMode === 'optional' ? 'enforced' : policy.enforcementMode);
       setSelectedRoles(policy.applyToRoles ?? []);
       setEnforcementFromDate(policy.enforcementFromDate ?? '');
       setGracePeriodEnabled(policy.gracePeriodEnabled);
@@ -108,7 +109,8 @@ export default function TwoFaPolicyPage() {
         enforcementMode:    effectiveMode,
         applyToRoles:       effectiveRoles,
         enforcementFromDate: effectiveDate,
-        gracePeriodEnabled: featureEnabled ? gracePeriodEnabled : false,
+        // Grace period only applies to "enforced" (immediate) mode
+        gracePeriodEnabled: featureEnabled && enforcementMode === 'enforced' ? gracePeriodEnabled : false,
         gracePeriodDays,
       };
 
@@ -265,20 +267,6 @@ export default function TwoFaPolicyPage() {
               onValueChange={(v) => setEnforcementMode(v as TwoFaPolicy['enforcementMode'])}
               className="space-y-3"
             >
-              {/* Optional */}
-              <label
-                htmlFor="mode-optional"
-                className="flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer hover:bg-muted/40 transition-colors has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50 dark:has-[:checked]:bg-blue-950/30"
-              >
-                <RadioGroupItem value="optional" id="mode-optional" className="mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Optional</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    2FA is available but not enforced. Users may set it up voluntarily.
-                  </p>
-                </div>
-              </label>
-
               {/* Required Immediately */}
               <label
                 htmlFor="mode-enforced"
@@ -416,9 +404,10 @@ export default function TwoFaPolicyPage() {
         </Card>
 
         {/* ══════════════════════════════════════════════════════════════════
-            SECTION 4 — Grace Period
+            SECTION 4 — Grace Period (only for Required Immediately)
         ══════════════════════════════════════════════════════════════════ */}
-        <Card className={controlsDisabled ? 'opacity-50 pointer-events-none select-none' : ''}>
+        {featureEnabled && enforcementMode === 'enforced' && (
+        <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -473,6 +462,7 @@ export default function TwoFaPolicyPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════
             SAVE ROW
@@ -556,17 +546,19 @@ export default function TwoFaPolicyPage() {
                   )}
                 </div>
 
-                {/* Grace Period */}
-                <div className="flex items-baseline gap-3 text-xs">
-                  <span className="text-muted-foreground w-36 shrink-0">Grace Period</span>
-                  {policy.gracePeriodEnabled ? (
-                    <span className="font-medium">
-                      {policy.gracePeriodDays} days after enforcement begins
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground italic">Disabled — immediate lockout</span>
-                  )}
-                </div>
+                {/* Grace Period — only meaningful for immediate enforcement */}
+                {policy.enforcementMode === 'enforced' && (
+                  <div className="flex items-baseline gap-3 text-xs">
+                    <span className="text-muted-foreground w-36 shrink-0">Grace Period</span>
+                    {policy.gracePeriodEnabled ? (
+                      <span className="font-medium">
+                        {policy.gracePeriodDays} days after enforcement begins
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground italic">Disabled — immediate lockout</span>
+                    )}
+                  </div>
+                )}
 
                 {/* Last updated */}
                 <Separator className="my-1" />
