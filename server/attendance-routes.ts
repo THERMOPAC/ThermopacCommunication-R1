@@ -11,6 +11,7 @@ import { checkPayrollLock } from './payroll-lock-service';
 import { determineAttendanceStatus } from './attendance-status-engine';
 import { getISTDateString, buildISTDateTime } from './utils/date-ist';
 import { runAttendanceAuditPipeline, GpsStatus } from './attendance-security-service';
+import { isIpAllowed } from './utils/cidr-matcher';
 
 const router = Router();
 
@@ -158,14 +159,7 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
           isLocationVerified = distance <= (location.radiusMeters || 100);
         }
 
-        // Verify IP address if restrictions are set
-        if (location.ipRestrictions && location.ipRestrictions.length > 0 && ipAddress) {
-          isIpVerified = location.ipRestrictions.some((allowedIp: string) => 
-            ipAddress.includes(allowedIp) || allowedIp.includes(ipAddress)
-          );
-        } else {
-          isIpVerified = true; // No IP restrictions
-        }
+        isIpVerified = isIpAllowed(ipAddress ?? null, location.ipRestrictions ?? null);
       }
     }
 

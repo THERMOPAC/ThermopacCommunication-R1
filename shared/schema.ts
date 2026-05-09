@@ -174,6 +174,19 @@ export const workLocations = pgTable('work_locations', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   // Attendance Security — Phase 1
   locationCountryCode: varchar('location_country_code', { length: 5 }),
+  // Audit tracking
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+});
+
+export const workLocationAuditLog = pgTable('work_location_audit_log', {
+  id: serial('id').primaryKey(),
+  workLocationId: integer('work_location_id'),
+  action: text('action').notNull(),
+  changedBy: integer('changed_by'),
+  changedAt: timestamp('changed_at').notNull().defaultNow(),
+  previousValues: jsonb('previous_values'),
+  newValues: jsonb('new_values'),
 });
 
 // Attendance Records table
@@ -6957,10 +6970,22 @@ export const monthlyKpiSummaryRelations = relations(monthlyKpiSummary, ({ one })
 
 // Work Location insert schemas and types
 export const insertWorkLocationSchema = createInsertSchema(workLocations)
-  .omit({ id: true, createdAt: true, updatedAt: true });
+  .omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true })
+  .extend({
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
+    radiusMeters: z.number().int().min(10).max(10000).nullable().optional(),
+    ipRestrictions: z.array(
+      z.string().regex(
+        /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/,
+        'Each entry must be a valid IPv4 address or CIDR block (e.g. 192.168.1.0/24)'
+      )
+    ).nullable().optional(),
+  });
 
 export type WorkLocation = typeof workLocations.$inferSelect;
 export type InsertWorkLocation = z.infer<typeof insertWorkLocationSchema>;
+export type WorkLocationAuditLog = typeof workLocationAuditLog.$inferSelect;
 
 // Attendance Records schemas and types
 export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords)
