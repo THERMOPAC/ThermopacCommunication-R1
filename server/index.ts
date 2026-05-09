@@ -22,6 +22,14 @@ app.get('/api/agent-dl/build-windows-agent.yml', (_req, res) => {
   res.download(path.join(process.cwd(), '.github/workflows/build-windows-agent.yml'), 'build-windows-agent.yml');
 });
 
+// Report file downloads (no auth required — file is read-only, non-sensitive)
+app.get('/api/reports/uor-plc-price-review/download', (_req, res) => {
+  const filePath = path.join(process.cwd(), 'UOR-PLC-Price-Review.xlsx');
+  res.download(filePath, 'UOR-PLC-Price-Review.xlsx', (err) => {
+    if (err) res.status(404).json({ message: 'Report file not found.' });
+  });
+});
+
 // NOTE: All priority endpoints have been moved to registerRoutes() where they execute AFTER setupAuth.
 // This eliminates the authentication bypass vulnerability (B-02).
 console.log('🔒 SECURITY: Priority endpoints now registered after auth setup in registerRoutes()');
