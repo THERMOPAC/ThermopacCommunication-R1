@@ -153,7 +153,29 @@ All 11 security flags: `enabled = false`
 
 ## Phase 6 — 2FA Administration UI
 
-**Status:** Not started — awaiting Phase 6 pre-approval
+**Status:** Pre-approval submitted — awaiting approval  
+**Pre-approval document:** `docs/security-phase6-preapproval.md` (Rev 1, 09 May 2026)
+
+### Scope Summary
+- `server/admin-2fa-routes.ts` (NEW) — 7 admin routes: policy read/update, enrollment status, remind, policy audit log, per-user 2FA audit, admin 2FA reset
+- `server/two-factor-routes.ts` (MODIFIED) — Add `storage.invalidateUserSessions()` to `POST /api/2fa/disable` (1 line)
+- `server/routes.ts` (MODIFIED) — Register admin 2FA routes
+
+### Key Governance Points
+- `PUT /api/admin/2fa-policy`: UPDATE + `two_fa_policy_audit_log` INSERT in one transaction (C-07)
+- `two_fa_policy_audit_log` is PERMANENT — immutability trigger must pass ZT-P6-01/02
+- Cross-Superuser admin reset blocked — only break-glass handles Superuser 2FA recovery
+- Zero new npm packages; zero schema changes; zero feature flags
+- `payroll-salary-core.ts` — ZERO changes
+
+### Approval Gate
+- [x] Phase 5 complete ✅
+- [x] Pre-approval document written (`docs/security-phase6-preapproval.md`)
+- [x] T-2F01 through T-2F15 test plan defined (15 tests)
+- [x] ZT-P6-01 through ZT-P6-12 audit plan defined (12 checks)
+- [ ] Approved by THERMOPAC Management
+- [ ] Implementation started
+- [ ] Audit evidence submitted
 
 ---
 
