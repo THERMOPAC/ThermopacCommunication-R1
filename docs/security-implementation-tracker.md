@@ -10,9 +10,9 @@
 |---|---|---|---|---|
 | 1 | Foundation & Schema Layer | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 2 | Login Security (Lockout, Audit, Session) | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
-| 3 | Re-Authentication Middleware | Not started | — | — |
-| 4 | Trusted Device Management | Not started | — | — |
-| 5 | Attendance GPS Audit (Advisory) | Not started | — | — |
+| 3 | Re-Authentication Middleware | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
+| 4 | Trusted Device Management | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
+| 5 | Attendance GPS Audit (Advisory) | **PRE-APPROVAL SUBMITTED** | — | — |
 | 6 | 2FA Administration UI | Not started | — | — |
 | 7 | Attendance Enforcement | Not started | — | — |
 | 8 | Monitoring & Archival | Not started | — | — |
