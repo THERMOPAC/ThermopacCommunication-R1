@@ -13,7 +13,7 @@
 | 3 | Re-Authentication Middleware | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 4 | Trusted Device Management | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 5 | Attendance GPS Audit (Advisory) | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
-| 6 | 2FA Administration UI | Not started | — | — |
+| 6 | 2FA Administration UI | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 7 | Attendance Enforcement | Not started | — | — |
 | 8 | Monitoring & Archival | Not started | — | — |
 
@@ -153,33 +153,35 @@ All 11 security flags: `enabled = false`
 
 ## Phase 6 — 2FA Administration UI
 
-**Status:** Pre-approval submitted — awaiting approval  
-**Pre-approval document:** `docs/security-phase6-preapproval.md` (Rev 2, 09 May 2026 — rate limiting + audit severity added)
+**Status:** COMPLETE ✅  
+**Pre-approval:** `docs/security-phase6-preapproval.md` (Rev 2, 09 May 2026)  
+**Completed:** 09 May 2026  
+**Evidence:** `docs/security-phase6-audit-evidence.md`
 
-### Scope Summary
-- `server/admin-2fa-routes.ts` (NEW) — 7 admin routes: policy read/update, enrollment status, remind, policy audit log, per-user 2FA audit, admin 2FA reset
-- `server/two-factor-routes.ts` (MODIFIED) — Add `storage.invalidateUserSessions()` to `POST /api/2fa/disable` (1 line)
-- `server/routes.ts` (MODIFIED) — Register admin 2FA routes
+### Scope
+- `server/admin-2fa-routes.ts` (NEW, 671 lines) — 7 admin routes: policy read/update, enrollment status, remind, policy audit log, per-user 2FA audit, admin 2FA reset; in-memory sliding-window rate limiter; severity-mapped audit writes; DB-backed per-user remind throttle; cross-Superuser reset guard; Gmail SMTP email
+- `server/two-factor-routes.ts` (MODIFIED) — `storage.invalidateUserSessions(user.id, req.sessionID)` added to POST /api/2fa/disable (1 line)
+- `server/routes.ts` (MODIFIED) — `registerAdmin2faRoutes(app)` added at line 694
 
 ### Key Governance Points
-- `PUT /api/admin/2fa-policy`: UPDATE + `two_fa_policy_audit_log` INSERT in one transaction (C-07)
-- `two_fa_policy_audit_log` is PERMANENT — immutability trigger must pass ZT-P6-01/02
-- Cross-Superuser admin reset blocked — only break-glass handles Superuser 2FA recovery
-- Zero new npm packages; zero schema changes; zero feature flags
-- `payroll-salary-core.ts` — ZERO changes
+- `PUT /api/admin/2fa-policy`: UPDATE + `two_fa_policy_audit_log` INSERT in one transaction (C-07) ✅
+- `two_fa_policy_audit_log` immutability trigger confirmed active: UPDATE + DELETE both blocked ✅
+- Cross-Superuser admin reset blocked (403) — only break-glass handles Superuser 2FA recovery ✅
+- Zero new npm packages; zero schema changes; zero feature flags ✅
+- `payroll-salary-core.ts` — ZERO changes (0 diff lines from Phase 5 checkpoint) ✅
+- Plane isolation — zero Plane B functional code in admin-2fa-routes.ts ✅
 
 ### Approval Gate
 - [x] Phase 5 complete ✅
-- [x] Pre-approval document written (`docs/security-phase6-preapproval.md`)
-- [x] T-2F01 through T-2F22 test plan defined (22 tests — Rev 2: +7)
-- [x] ZT-P6-01 through ZT-P6-17 audit plan defined (17 checks — Rev 2: +5)
-- [x] Rate limiting specified: reset (3/hr/target), policy update (5/hr), remind (3/24h + per-user DB throttle)
-- [x] Audit severity mapping defined: 15-action map + 7-rule policy severity table
-- [x] Anti-spam confirmed: dual-throttle; per-user limit DB-backed
-- [x] Escalating severity: admin_reset_rate_limited → critical; admin_reset_suspicious → critical
-- [ ] Approved by THERMOPAC Management
-- [ ] Implementation started
-- [ ] Audit evidence submitted
+- [x] Pre-approval Rev 2 approved
+- [x] Implementation completed (3 files: 1 new, 2 modified)
+- [x] Zero new npm packages
+- [x] payroll-salary-core.ts unchanged
+- [x] T-2F01 through T-2F22 — **22/22 PASSED**
+- [x] ZT-P6-01 through ZT-P6-17 — **17/17 PASSED**
+- [x] Immutability triggers confirmed on both audit tables
+- [x] Plane isolation confirmed
+- [x] Zero-trust audit evidence submitted → `docs/security-phase6-audit-evidence.md`
 
 ---
 
@@ -213,7 +215,7 @@ All 11 security flags: `enabled = false`
 | 3 | 18 | 18 | 0 | `docs/security-phase3-audit-evidence.md` |
 | 4 | 18 | 18 | 0 | `docs/security-phase4-audit-evidence.md` |
 | 5 | 18 | 18 | 0 | `docs/security-phase5-audit-evidence.md` |
-| 6 | — | — | — | — |
+| 6 | 39 (22 T-2F + 17 ZT-P6) | 39 | 0 | `docs/security-phase6-audit-evidence.md` |
 | 7 | — | — | — | — |
 | 8 | — | — | — | — |
 

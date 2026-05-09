@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireReauth } from './middleware/require-reauth';
 import { db } from './db';
 import { users, twoFactorAuditLog } from '@shared/schema';
+import { storage } from './storage';
 import { eq } from 'drizzle-orm';
 import { encryptSecret, decryptSecret, generateBackupCodes, hashBackupCode, verifyBackupCode } from './utils/two-factor-crypto';
 import * as OTPAuth from 'otpauth';
@@ -189,6 +190,8 @@ router.post('/disable', ensureAuthenticated, requireReauth('user.disable_2fa'), 
     }).where(eq(users.id, user.id));
 
     await logAuditEvent(user.id, 'disabled', req);
+
+    await storage.invalidateUserSessions(user.id, req.sessionID);
 
     res.json({ success: true, message: '2FA has been disabled' });
   } catch (error) {
