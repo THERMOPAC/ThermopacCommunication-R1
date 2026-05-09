@@ -152,10 +152,11 @@ export default function SecurityEnforcementPage() {
   });
 
   // ── Local state ───────────────────────────────────────────────────────────
+  // Global — Role Scope (applies to all layers)
+  const [scopeRoles, setScopeRoles]                   = useState<string[]>([]);
   // Layer 1 — 2FA
   const [twoFaEnabled, setTwoFaEnabled]               = useState(false);
   const [twoFaMode, setTwoFaMode]                     = useState<'enforced' | 'required_from_date'>('enforced');
-  const [twoFaRoles, setTwoFaRoles]                   = useState<string[]>([]);
   const [twoFaFromDate, setTwoFaFromDate]             = useState('');
   // Layer 2 — Trusted Device
   const [trustedDeviceEnabled, setTrustedDeviceEnabled] = useState(false);
@@ -181,9 +182,9 @@ export default function SecurityEnforcementPage() {
     if (scope && !initialised) {
       const { twoFa, trustedDevice, appAccessGpsIp, attendanceGpsIp,
               attendancePayrollReauth, auditLogging, payrollImpactReview } = scope;
+      setScopeRoles(twoFa.applyToRoles ?? []);
       setTwoFaEnabled(twoFa.enabled);
       setTwoFaMode(twoFa.enforcementMode === 'optional' ? 'enforced' : twoFa.enforcementMode);
-      setTwoFaRoles(twoFa.applyToRoles ?? []);
       setTwoFaFromDate(twoFa.enforcementFromDate ?? '');
       setTrustedDeviceEnabled(trustedDevice.enabled);
       setAppAccessEnabled(appAccessGpsIp.enabled);
@@ -198,9 +199,14 @@ export default function SecurityEnforcementPage() {
     }
   }, [scope, initialised]);
 
+  // ── Active layers count (must come before validation) ────────────────────
+  const auditMasterOn = loginAuditEnabled || attendAuditEnabled || archivalEnabled || monitoringEnabled;
+
   // ── Validation ────────────────────────────────────────────────────────────
+  const anyLayerActive = twoFaEnabled || trustedDeviceEnabled || appAccessEnabled ||
+    attendanceGpsEnabled || reauthEnabled || auditMasterOn || payrollReviewEnabled;
   const dateRequired = twoFaEnabled && twoFaMode === 'required_from_date' && !twoFaFromDate;
-  const noRolesWhenRequired = twoFaEnabled && twoFaRoles.length === 0;
+  const noRolesWhenRequired = anyLayerActive && scopeRoles.length === 0;
   const canSave = !dateRequired && !noRolesWhenRequired;
 
   // ── Save mutation ─────────────────────────────────────────────────────────
@@ -210,7 +216,7 @@ export default function SecurityEnforcementPage() {
         twoFa: {
           enabled:            twoFaEnabled,
           enforcementMode:    twoFaMode,
-          applyToRoles:       twoFaRoles,
+          applyToRoles:       scopeRoles,
           enforcementFromDate: twoFaFromDate || null,
           gracePeriodEnabled: false,
           gracePeriodDays:    0,
@@ -254,10 +260,9 @@ export default function SecurityEnforcementPage() {
   });
 
   const toggleRole = (role: string) =>
-    setTwoFaRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
+    setScopeRoles(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]);
 
   // ── Active layers count ───────────────────────────────────────────────────
-  const auditMasterOn = loginAuditEnabled || attendAuditEnabled || archivalEnabled || monitoringEnabled;
   const activeLayers = [
     twoFaEnabled, trustedDeviceEnabled, appAccessEnabled, attendanceGpsEnabled,
     reauthEnabled, auditMasterOn, payrollReviewEnabled,
@@ -315,6 +320,53 @@ export default function SecurityEnforcementPage() {
           </AlertDescription>
         </Alert>
 
+        {/* ══ ROLE SCOPE ══════════════════════════════════════════════════════ */}
+        <Card className={noRolesWhenRequired ? 'border-destructive' : ''}>
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-start gap-4">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 bg-blue-100 dark:bg-blue-900">
+                <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <p className="text-sm font-semibold">Role Scope</p>
+                    <p className="text-xs text-muted-foreground">
+                      Applies to all active enforcement layers — {scopeRoles.length === 0
+                        ? 'no roles selected'
+                        : `${scopeRoles.length} of ${ALL_ROLES.length} roles`}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2"
+                      onClick={() => setScopeRoles([...ALL_ROLES])}>All</Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2"
+                      onClick={() => setScopeRoles([])}>None</Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 mt-3">
+                  {ALL_ROLES.map(role => {
+                    const checked = scopeRoles.includes(role);
+                    return (
+                      <label key={role} htmlFor={`scope-role-${role}`}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors text-sm
+                          ${checked ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/30' : 'bg-muted/20 hover:bg-muted/40'}`}>
+                        <Checkbox id={`scope-role-${role}`} checked={checked} onCheckedChange={() => toggleRole(role)} />
+                        <span className="leading-none">{role}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {noRolesWhenRequired && (
+                  <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> At least one role must be selected when any layer is active
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ══ LAYER 1 — 2-Step Verification ══════════════════════════════════ */}
         <LayerCard
           num={1}
@@ -360,38 +412,6 @@ export default function SecurityEnforcementPage() {
             </label>
           </RadioGroup>
 
-          {/* Role scope */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <Users className="h-3 w-3" /> Role Scope
-              </p>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" className="h-5 text-xs px-2"
-                  onClick={() => setTwoFaRoles([...ALL_ROLES])}>All</Button>
-                <Button variant="ghost" size="sm" className="h-5 text-xs px-2"
-                  onClick={() => setTwoFaRoles([])}>None</Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {ALL_ROLES.map(role => {
-                const checked = twoFaRoles.includes(role);
-                return (
-                  <label key={role} htmlFor={`twofa-role-${role}`}
-                    className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors text-sm
-                      ${checked ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/30' : 'bg-muted/20 hover:bg-muted/40'}`}>
-                    <Checkbox id={`twofa-role-${role}`} checked={checked} onCheckedChange={() => toggleRole(role)} />
-                    <span className="leading-none">{role}</span>
-                  </label>
-                );
-              })}
-            </div>
-            {noRolesWhenRequired && (
-              <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> At least one role must be selected
-              </p>
-            )}
-          </div>
         </LayerCard>
 
         {/* ══ LAYER 2 — Trusted Device Enforcement ═══════════════════════════ */}
@@ -673,7 +693,8 @@ export default function SecurityEnforcementPage() {
             <CardContent className="pt-0 pb-4">
               <div className="space-y-2">
                 {[
-                  { num: 1, label: '2-Step Verification',           active: twoFaEnabled,          detail: twoFaEnabled ? `${twoFaMode === 'enforced' ? 'Required Immediately' : 'Required From Date'} · ${twoFaRoles.length} roles` : 'Off' },
+                  { num: 0, label: 'Role Scope',                     active: scopeRoles.length > 0, detail: scopeRoles.length > 0 ? scopeRoles.join(', ') : 'None selected' },
+                  { num: 1, label: '2-Step Verification',           active: twoFaEnabled,          detail: twoFaEnabled ? `${twoFaMode === 'enforced' ? 'Required Immediately' : 'Required From Date'}` : 'Off' },
                   { num: 2, label: 'Trusted Device Enforcement',    active: trustedDeviceEnabled,   detail: trustedDeviceEnabled ? `${scope?.trustedDevice.activeDevices ?? 0} active devices` : 'Off' },
                   { num: 3, label: 'App Access GPS/IP',             active: appAccessEnabled,       detail: appAccessEnabled ? (scope?.appAccessGpsIp.gpsWarning ? '⚠ No GPS coords set' : 'Enforced') : 'Off' },
                   { num: 4, label: 'Attendance GPS/IP',             active: attendanceGpsEnabled,   detail: attendanceGpsEnabled ? (scope?.attendanceGpsIp.gpsWarning ? '⚠ No GPS coords set' : 'Enforced') : 'Advisory only' },
