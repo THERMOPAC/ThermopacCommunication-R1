@@ -1,0 +1,149 @@
+# THERMOPAC ERP — Security Implementation Tracker
+## Baseline: `docs/security-baseline-v1.0.md`
+## Started: 09 May 2026
+
+---
+
+## Overall Status
+
+| Phase | Name | Status | Approved By | Date |
+|---|---|---|---|---|
+| 1 | Foundation & Schema Layer | **PRE-APPROVAL SUBMITTED** | — | — |
+| 2 | Login Security (Lockout, Audit, Session) | Not started | — | — |
+| 3 | Re-Authentication Middleware | Not started | — | — |
+| 4 | Trusted Device Management | Not started | — | — |
+| 5 | Attendance GPS Audit (Advisory) | Not started | — | — |
+| 6 | 2FA Administration UI | Not started | — | — |
+| 7 | Attendance Enforcement | Not started | — | — |
+| 8 | Monitoring & Archival | Not started | — | — |
+
+**Approval rule:** Each phase requires written approval before implementation begins.  
+**Deviation rule:** No deviation from `docs/security-baseline-v1.0.md` without a new baseline version.
+
+---
+
+## Phase 1 — Foundation & Schema Layer
+
+**Status:** PRE-APPROVAL SUBMITTED — awaiting approval  
+**Submitted:** 09 May 2026
+
+### Scope
+- Add 5 login-security columns to `userSchema` in `shared/schema.ts`
+- Add 1 column to `workLocations` in `shared/schema.ts`
+- Add 4 attendance-security columns to `attendanceRecords` in `shared/schema.ts`
+- Append 13 new tables to `shared/schema.ts`
+- Run `drizzle-kit push` to apply schema to DB
+- Seed 3 + 3 + 13 + 1 = 20 policy rows + 11 feature flag rows
+- Apply 7 immutability triggers
+- All feature flags remain `enabled = false`
+- **Zero user-facing change**
+
+### Files Changed
+- `shared/schema.ts` — only file modified
+
+### Feature Flags After Phase 1
+All 11 security flags: `enabled = false`
+
+### Approval Gate
+- [ ] Pre-approval document reviewed
+- [ ] Approval granted by authorised personnel
+- [ ] Implementation completed
+- [ ] `drizzle-kit push` succeeded
+- [ ] Seed SQL run and verified
+- [ ] Immutability triggers applied and tested
+- [ ] Phase 1 verification tests passed (T-P1-01 through T-P1-15)
+- [ ] Zero-trust audit evidence submitted
+- [ ] Approval to proceed to Phase 2 granted
+
+---
+
+## Phase 2 — Login Security
+
+**Status:** Not started — blocked on Phase 1 approval
+
+### Scope
+- `server/auth.ts` — login handler, password reset, password change
+- `server/storage.ts` — `invalidateUserSessions()` method
+- Feature flags enabled: `SECURITY_LOGIN_AUDIT_ENABLED`, `SECURITY_SESSION_REGISTRY_ENABLED`, then `SECURITY_LOCKOUT_ENABLED`, `SECURITY_SESSION_INVALIDATION_ENABLED`
+
+### Approval Gate
+- [ ] Pre-approval document submitted (after Phase 1 complete)
+- [ ] Approval granted
+- [ ] Implementation complete
+- [ ] Pilot verified (Superuser only)
+- [ ] Verification tests passed
+- [ ] Zero-trust audit evidence submitted
+- [ ] Approval to proceed to Phase 3 granted
+
+---
+
+## Phase 3 — Re-Authentication Middleware
+
+**Status:** Not started — blocked on Phase 2 approval
+
+### Scope
+- `server/middleware/require-reauth.ts` (new file)
+- `server/security-routes.ts` (new file — POST /api/security/reauth)
+- `client/src/components/reauth-dialog.tsx` (new file)
+- `client/src/hooks/use-reauth.ts` (new file)
+- Apply `requireReauth()` to all sensitive routes per baseline Section 2
+- Feature flag enabled: `SECURITY_REAUTH_ENABLED`
+
+---
+
+## Phase 4 — Trusted Device Management
+
+**Status:** Not started — blocked on Phase 3 approval
+
+---
+
+## Phase 5 — Attendance GPS Audit (Advisory)
+
+**Status:** Not started — blocked on Phase 4 approval
+
+---
+
+## Phase 6 — 2FA Administration UI
+
+**Status:** Not started — blocked on Phase 5 approval
+
+---
+
+## Phase 7 — Attendance Enforcement
+
+**Status:** Not started — blocked on Phase 6 approval  
+**High-risk phase** — 7-day advance notice to all employees required before enabling.
+
+---
+
+## Phase 8 — Monitoring & Archival
+
+**Status:** Not started — blocked on Phase 7 approval
+
+---
+
+## Deviation Log
+
+| Date | Phase | Deviation | Reason | Approved By | New Baseline |
+|---|---|---|---|---|---|
+| — | — | None | — | — | — |
+
+---
+
+## Verification Test Results
+
+| Phase | Tests Run | Passed | Failed | Evidence File |
+|---|---|---|---|---|
+| 1 | — | — | — | — |
+| 2 | — | — | — | — |
+| 3 | — | — | — | — |
+| 4 | — | — | — | — |
+| 5 | — | — | — | — |
+| 6 | — | — | — | — |
+| 7 | — | — | — | — |
+| 8 | — | — | — | — |
+
+---
+
+*This tracker is the single source of truth for implementation progress.*  
+*Zero-trust audit evidence: `docs/security-baseline-v1.0-audit-evidence.md` (created after all phases complete)*
