@@ -676,20 +676,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const newVersion = verRow.rows[0].v;
       const userId = (req.user as any)?.id ?? null;
 
-      // New package code: same slug, next sequence
-      const rawCode: string = src.package_code ?? '';
-      const slug = rawCode.replace(/-\d{3}$/, '');
-      const countRow = await pool.query(
-        `SELECT COUNT(*)::int AS n FROM buy_package_headers WHERE product_id = $1`, [src.product_id],
-      );
-      let seq = (countRow.rows[0].n ?? 0) + 1;
-      let newCode = `${slug}-${String(seq).padStart(3, '0')}`;
-      while (true) {
-        const clash = await pool.query(`SELECT 1 FROM buy_package_headers WHERE package_code = $1`, [newCode]);
-        if ((clash.rowCount ?? 0) === 0) break;
-        seq++;
-        newCode = `${slug}-${String(seq).padStart(3, '0')}`;
-      }
+      // Revision keeps the SAME package code — only the version increments
+      const newCode: string = src.package_code ?? '';
 
       const draftName = `${src.name} (Rev ${newVersion})`;
 

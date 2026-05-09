@@ -13286,7 +13286,7 @@ export type UomMaster = typeof uomMaster.$inferSelect;
 export const buyPackageHeaders = pgTable('buy_package_headers', {
   id:          serial('id').primaryKey(),
   productId:   integer('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
-  packageCode: varchar('package_code', { length: 30 }).notNull().unique(),
+  packageCode: varchar('package_code', { length: 30 }).notNull(),
   name:        varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   version:     integer('version').notNull().default(1),
@@ -13296,7 +13296,8 @@ export const buyPackageHeaders = pgTable('buy_package_headers', {
   createdAt:   timestamp('created_at').notNull().defaultNow(),
   updatedAt:   timestamp('updated_at').notNull().defaultNow(),
 }, (t) => ({
-  productVersionUnique: uniqueIndex('buy_package_headers_product_version_unique').on(t.productId, t.version),
+  productVersionUnique:  uniqueIndex('buy_package_headers_product_version_unique').on(t.productId, t.version),
+  codeVersionUnique:     uniqueIndex('buy_package_headers_code_version_unique').on(t.packageCode, t.version),
 }));
 
 export const insertBuyPackageHeaderSchema = createInsertSchema(buyPackageHeaders).omit({ id: true, createdAt: true, updatedAt: true });
