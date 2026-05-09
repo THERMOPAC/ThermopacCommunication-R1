@@ -28,7 +28,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
-  ChevronsUpDown, Check, X, FileSpreadsheet, Printer, Copy,
+  ChevronsUpDown, Check, X, FileSpreadsheet, Printer, Copy, GitBranch,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -6408,6 +6408,20 @@ export default function BuyPackagesPage() {
     onError: (e: any) => toast({ title: "Clone failed", description: e.message, variant: "destructive" }),
   });
 
+  const revisePkg = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/buy-packages/${id}/revise`, {}),
+    onSuccess: (data: { id: number; packageCode: string; version: number; linesCopied: number }) => {
+      toast({ title: "Revision created", description: `${data.packageCode} (v${data.version}) — ${data.linesCopied} line(s) copied. Edit and activate when ready.` });
+      invalidatePkgs();
+      setStatusFilter("draft");
+      setExpandedId(data.id);
+      setTimeout(() => {
+        document.getElementById(`pkg-row-${data.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 400);
+    },
+    onError: (e: any) => toast({ title: "Revise failed", description: e.message, variant: "destructive" }),
+  });
+
   const addLineMutation = useMutation({
     mutationFn: ({ pkgId, body }: { pkgId: number; body: object }) =>
       apiRequest("POST", `/api/buy-packages/${pkgId}/lines`, body),
@@ -6945,6 +6959,20 @@ export default function BuyPackagesPage() {
                                 disabled={activatePkg.isPending}
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" /> Activate
+                              </Button>
+                            )}
+                            {canAction && pkg.status === "active" && (
+                              <Button
+                                variant="outline" size="sm"
+                                className="text-blue-700 border-blue-200 hover:bg-blue-50 gap-1"
+                                title="Create a new draft revision of this package for the same product"
+                                onClick={() => revisePkg.mutate(pkg.id)}
+                                disabled={revisePkg.isPending}
+                              >
+                                {revisePkg.isPending
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <GitBranch className="h-3.5 w-3.5" />}
+                                Revise
                               </Button>
                             )}
                             {canAction && pkg.status === "active" && (

@@ -646,6 +646,98 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // POST /api/buy-packages/:id/revise — Create a new draft revision of an active package for the SAME product (Senior Manager+)
+  // Business rule: only active packages can be revised. Creates version N+1 draft, deep-copies all lines.
+  app.post('/api/buy-packages/:id/revise', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireSeniorManager(req, res)) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid package id');
+
+      const srcRow = await pool.query(`SELECT * FROM buy_package_headers WHERE id = $1`, [id]);
+      if (srcRow.rowCount === 0) return sendNotFound(res, 'Buy package', id);
+      const src = srcRow.rows[0];
+
+      if (src.status !== 'active')
+        return sendBusinessError(res, 'Only active packages can be revised.');
+
+      // Check no draft already exists for this product (one in-flight revision at a time)
+      const draftCheck = await pool.query(
+        `SELECT id FROM buy_package_headers WHERE product_id = $1 AND status = 'draft' LIMIT 1`,
+        [src.product_id],
+      );
+      if ((draftCheck.rowCount ?? 0) > 0)
+        return sendBusinessError(res, 'A draft revision already exists for this product. Complete or delete it before creating another.');
+
+      const verRow = await pool.query(
+        `SELECT COALESCE(MAX(version), 0) + 1 AS v FROM buy_package_headers WHERE product_id = $1`,
+        [src.product_id],
+      );
+      const newVersion = verRow.rows[0].v;
+      const userId = (req.user as any)?.id ?? null;
+
+      // New package code: same slug, next sequence
+      const rawCode: string = src.package_code ?? '';
+      const slug = rawCode.replace(/-\d{3}$/, '');
+      const countRow = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM buy_package_headers WHERE product_id = $1`, [src.product_id],
+      );
+      let seq = (countRow.rows[0].n ?? 0) + 1;
+      let newCode = `${slug}-${String(seq).padStart(3, '0')}`;
+      while (true) {
+        const clash = await pool.query(`SELECT 1 FROM buy_package_headers WHERE package_code = $1`, [newCode]);
+        if ((clash.rowCount ?? 0) === 0) break;
+        seq++;
+        newCode = `${slug}-${String(seq).padStart(3, '0')}`;
+      }
+
+      const draftName = `${src.name} (Rev ${newVersion})`;
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const newHdr = await client.query(
+          `INSERT INTO buy_package_headers
+             (product_id, package_code, name, description, version, status, is_active, created_by, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'draft', false, $6, NOW())
+           RETURNING id, package_code`,
+          [src.product_id, newCode, draftName, src.description, newVersion, userId],
+        );
+        const newId   = newHdr.rows[0].id;
+        const pkgCode = newHdr.rows[0].package_code;
+
+        const lines = await client.query(
+          `SELECT * FROM buy_package_lines WHERE buy_package_header_id = $1 ORDER BY line_number`, [id],
+        );
+        for (const l of lines.rows) {
+          await client.query(
+            `INSERT INTO buy_package_lines
+               (buy_package_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                generic_requirement, default_quantity, default_specification, technical_attributes,
+                selection_required, datasheet_required, inspection_required,
+                certificate_required, compliance_required, notes, sort_order)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+            [
+              newId, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
+              l.generic_requirement, l.default_quantity, l.default_specification, l.technical_attributes,
+              l.selection_required, l.datasheet_required, l.inspection_required,
+              l.certificate_required, l.compliance_required, l.notes, l.sort_order,
+            ],
+          );
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ id: newId, packageCode: pkgCode, version: newVersion, linesCopied: lines.rowCount ?? 0 });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err) { sendError(res, err); }
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   // PHASE 1 — BUY PACKAGE LINES
   // ═══════════════════════════════════════════════════════════════════════════
