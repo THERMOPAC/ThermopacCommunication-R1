@@ -14,3 +14,4 @@ export const MeetingsManagementPage = lazyWithRetry(() => import("@/pages/admin/
 export const PasswordCompliancePage = lazyWithRetry(() => import("@/pages/password-compliance-page"));
 export const WorkLocationsPage = lazyWithRetry(() => import("@/pages/work-locations-page"));
 export const SystemSettingsPage = lazyWithRetry(() => import("@/pages/admin/system-settings-page"));
+export const TwoFaPolicyPage = lazyWithRetry(() => import("@/pages/admin/two-fa-policy-page"));

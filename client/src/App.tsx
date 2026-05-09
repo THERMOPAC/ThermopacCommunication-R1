@@ -167,6 +167,7 @@ function Router() {
       <ProtectedRoute path="/admin/legal-management" component={() => <Layout><Admin.LegalManagementPage /></Layout>} />
       <ProtectedRoute path="/admin/meetings-management" component={() => <Layout><Admin.MeetingsManagementPage /></Layout>} />
       <ProtectedRoute path="/admin/password-compliance" component={() => <Layout><Admin.PasswordCompliancePage /></Layout>} />
+      <SuperuserRoute path="/admin/2fa-policy" component={() => <Admin.TwoFaPolicyPage />} />
       <ProtectedRoute path="/google-calendar-settings" component={() => <Employee.GoogleCalendarSettingsPage />} />
       
       {/* Projects & Production Routes */}
