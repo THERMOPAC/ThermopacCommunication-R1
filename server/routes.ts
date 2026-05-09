@@ -3892,6 +3892,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { setupPppcRoutes } = await import('./pppc-routes');
   await setupPppcRoutes(app);
 
+  // ── One-time report download ─────────────────────────────────────────────────
+  app.get('/api/reports/uor-plc-price-review/download', async (_req, res) => {
+    const { createReadStream, existsSync } = await import('fs');
+    const { resolve } = await import('path');
+    const filePath = resolve('./UOR-PLC-Price-Review.xlsx');
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ message: 'Report file not found. Please regenerate.' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="UOR-PLC-Price-Review.xlsx"');
+    createReadStream(filePath).pipe(res);
+  });
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes
