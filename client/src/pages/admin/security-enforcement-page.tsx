@@ -38,8 +38,6 @@ interface SecurityScope {
     enforcementMode: 'optional' | 'required_from_date' | 'enforced';
     applyToRoles: string[];
     enforcementFromDate: string | null;
-    gracePeriodEnabled: boolean;
-    gracePeriodDays: number;
     updatedAt: string | null;
   };
   trustedDevice: {
@@ -159,8 +157,6 @@ export default function SecurityEnforcementPage() {
   const [twoFaMode, setTwoFaMode]                     = useState<'enforced' | 'required_from_date'>('enforced');
   const [twoFaRoles, setTwoFaRoles]                   = useState<string[]>([]);
   const [twoFaFromDate, setTwoFaFromDate]             = useState('');
-  const [twoFaGraceEnabled, setTwoFaGraceEnabled]     = useState(true);
-  const [twoFaGraceDays, setTwoFaGraceDays]           = useState(14);
   // Layer 2 — Trusted Device
   const [trustedDeviceEnabled, setTrustedDeviceEnabled] = useState(false);
   // Layer 3 — App Access GPS/IP
@@ -189,8 +185,6 @@ export default function SecurityEnforcementPage() {
       setTwoFaMode(twoFa.enforcementMode === 'optional' ? 'enforced' : twoFa.enforcementMode);
       setTwoFaRoles(twoFa.applyToRoles ?? []);
       setTwoFaFromDate(twoFa.enforcementFromDate ?? '');
-      setTwoFaGraceEnabled(twoFa.gracePeriodEnabled);
-      setTwoFaGraceDays(twoFa.gracePeriodDays);
       setTrustedDeviceEnabled(trustedDevice.enabled);
       setAppAccessEnabled(appAccessGpsIp.enabled);
       setAttendanceGpsEnabled(attendanceGpsIp.enabled);
@@ -218,8 +212,8 @@ export default function SecurityEnforcementPage() {
           enforcementMode:    twoFaMode,
           applyToRoles:       twoFaRoles,
           enforcementFromDate: twoFaFromDate || null,
-          gracePeriodEnabled: twoFaGraceEnabled,
-          gracePeriodDays:    twoFaGraceDays,
+          gracePeriodEnabled: false,
+          gracePeriodDays:    0,
         },
         trustedDevice:          { enabled: trustedDeviceEnabled },
         appAccessGpsIp:         { enabled: appAccessEnabled },
@@ -365,30 +359,6 @@ export default function SecurityEnforcementPage() {
               </div>
             </label>
           </RadioGroup>
-
-          {/* Grace period — only for Required From Date */}
-          {twoFaMode === 'required_from_date' && (
-            <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-muted/30">
-              <div>
-                <p className="text-sm font-medium">Grace Period</p>
-                <p className="text-xs text-muted-foreground">
-                  Allow users{' '}
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
-                    {twoFaGraceEnabled ? `${twoFaGraceDays} days` : 'no time'}
-                  </span>{' '}
-                  to set up 2FA before being blocked.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                {twoFaGraceEnabled && (
-                  <Input type="number" min={1} max={90} value={twoFaGraceDays}
-                    onChange={(e) => setTwoFaGraceDays(Math.max(1, Math.min(90, Number(e.target.value))))}
-                    className="h-7 w-16 text-sm text-center" />
-                )}
-                <Switch checked={twoFaGraceEnabled} onCheckedChange={setTwoFaGraceEnabled} />
-              </div>
-            </div>
-          )}
 
           {/* Role scope */}
           <div>
