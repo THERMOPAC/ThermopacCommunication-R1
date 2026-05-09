@@ -667,7 +667,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       // Revision keeps the SAME package code — only the version increments
       const newCode: string = src.package_code ?? '';
 
-      const draftName = `${src.name} (Rev ${newVersion})`;
+      const baseName = src.name.replace(/\s*\(Rev \d+\)$/i, '').trim();
+      const draftName = `${baseName} (Rev ${newVersion})`;
 
       const client = await pool.connect();
       try {
