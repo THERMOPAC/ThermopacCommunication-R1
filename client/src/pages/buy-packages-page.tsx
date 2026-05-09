@@ -6934,8 +6934,9 @@ export default function BuyPackagesPage() {
                           <div className="flex items-center justify-end gap-1">
                             {canWrite && (
                               <Button
-                                variant="ghost" size="sm"
-                                title="Save As (Clone to another product)"
+                                variant="outline" size="sm"
+                                className="gap-1"
+                                title="Save As — clone to another top-level product"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSaveAsSource(pkg);
@@ -6943,7 +6944,7 @@ export default function BuyPackagesPage() {
                                   setSaveAsTarget("");
                                 }}
                               >
-                                <Copy className="h-4 w-4" />
+                                <Copy className="h-3.5 w-3.5" /> Save As
                               </Button>
                             )}
                             {canWrite && pkg.status === "draft" && (
@@ -6973,16 +6974,6 @@ export default function BuyPackagesPage() {
                                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                   : <GitBranch className="h-3.5 w-3.5" />}
                                 Revise
-                              </Button>
-                            )}
-                            {canAction && pkg.status === "active" && (
-                              <Button
-                                variant="outline" size="sm"
-                                className="text-orange-700 border-orange-200 hover:bg-orange-50 gap-1"
-                                onClick={() => archivePkg.mutate(pkg.id)}
-                                disabled={archivePkg.isPending}
-                              >
-                                <Archive className="h-3.5 w-3.5" /> Archive
                               </Button>
                             )}
                           </div>
