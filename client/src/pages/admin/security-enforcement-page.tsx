@@ -366,8 +366,8 @@ export default function SecurityEnforcementPage() {
             </label>
           </RadioGroup>
 
-          {/* Grace period — only for immediate */}
-          {twoFaMode === 'enforced' && (
+          {/* Grace period — only for Required From Date */}
+          {twoFaMode === 'required_from_date' && (
             <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-muted/30">
               <div>
                 <p className="text-sm font-medium">Grace Period</p>

@@ -109,8 +109,8 @@ export default function TwoFaPolicyPage() {
         enforcementMode:    effectiveMode,
         applyToRoles:       effectiveRoles,
         enforcementFromDate: effectiveDate,
-        // Grace period only applies to "enforced" (immediate) mode
-        gracePeriodEnabled: featureEnabled && enforcementMode === 'enforced' ? gracePeriodEnabled : false,
+        // Grace period only applies to "required_from_date" mode
+        gracePeriodEnabled: featureEnabled && enforcementMode === 'required_from_date' ? gracePeriodEnabled : false,
         gracePeriodDays,
       };
 
@@ -404,9 +404,9 @@ export default function TwoFaPolicyPage() {
         </Card>
 
         {/* ══════════════════════════════════════════════════════════════════
-            SECTION 4 — Grace Period (only for Required Immediately)
+            SECTION 4 — Grace Period (only for Required From Date)
         ══════════════════════════════════════════════════════════════════ */}
-        {featureEnabled && enforcementMode === 'enforced' && (
+        {featureEnabled && enforcementMode === 'required_from_date' && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
