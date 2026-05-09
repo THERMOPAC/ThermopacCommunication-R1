@@ -48,7 +48,7 @@ const ALL_ROLES = [
   { value: 'Senior Manager',   label: 'Senior Manager' },
   { value: 'Senior Executive', label: 'Senior Executive' },
   { value: 'Manager',          label: 'Manager' },
-  { value: 'Employee',         label: 'Employees' },
+  { value: 'Employee',         label: 'Employee' },
   { value: 'HR',               label: 'HR' },
 ];
 
