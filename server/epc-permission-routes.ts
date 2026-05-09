@@ -1,4 +1,5 @@
 import { Express, Request, Response } from 'express';
+import { requireReauth } from './middleware/require-reauth';
 import { roleHierarchy } from '@shared/roles';
 import { db } from './db';
 import { sql, eq, and, desc, inArray } from 'drizzle-orm';
@@ -373,7 +374,7 @@ export function registerEpcPermissionRoutes(app: Express) {
     }
   });
 
-  app.post('/api/epc-permissions/change-requests/:id/apply', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-permissions/change-requests/:id/apply', ensureAuthenticated, requireReauth('user.change_permissions'), async (req: Request, res: Response) => {
     try {
       if (!requireDashboardAccess(req, res)) return;
       const meta = getRequestMeta(req);

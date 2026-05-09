@@ -4,6 +4,7 @@ import { eq, and, or } from 'drizzle-orm';
 import { modules, modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users, permissionAuditLog } from '@shared/schema';
 import { checkModulePermission, getUserModulePermissions, resetUserModulePermissions, setUserModulePermission, getAllPagePermissionsForUser } from './utils/permission-utils';
 import { authenticateUser, isAdmin } from './middlewares/auth';
+import { requireReauth } from './middleware/require-reauth';
 import { roleHierarchy } from '@shared/roles';
 
 const router = Router();
@@ -48,7 +49,7 @@ router.get('/api/users/:userId/module-permissions', authenticateUser, async (req
 });
 
 // Set custom permissions for a user on a module
-router.post('/api/users/:userId/module-permissions/:moduleName', authenticateUser, isAdmin, async (req, res) => {
+router.post('/api/users/:userId/module-permissions/:moduleName', authenticateUser, isAdmin, requireReauth('user.change_permissions'), async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const moduleName = req.params.moduleName as any;
@@ -77,7 +78,7 @@ router.post('/api/users/:userId/module-permissions/:moduleName', authenticateUse
 });
 
 // Reset a user's permissions for a module (reverts to role-based defaults)
-router.delete('/api/users/:userId/module-permissions/:moduleName', authenticateUser, isAdmin, async (req, res) => {
+router.delete('/api/users/:userId/module-permissions/:moduleName', authenticateUser, isAdmin, requireReauth('user.change_permissions'), async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const moduleName = req.params.moduleName as any;

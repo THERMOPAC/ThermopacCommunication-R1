@@ -1,6 +1,7 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response, NextFunction } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
+import { requireReauth } from './middleware/require-reauth';
 import { db } from './db';
 import { 
   employeeSalaries, 
@@ -452,7 +453,7 @@ router.get('/pipeline-steps', (_req, res) => {
   res.json(PIPELINE_STEPS);
 });
 
-router.post('/run/start', async (req, res) => {
+router.post('/run/start', requireReauth('payroll.run_official'), async (req, res) => {
   try {
     const executedBy = requirePayrollRole(req, res);
     if (!executedBy) return;

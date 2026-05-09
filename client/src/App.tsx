@@ -15,6 +15,7 @@ import { PageLoader } from "@/loaders/lazy-utils";
 
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
+import { ReauthDialog } from "@/components/reauth-dialog";
 import { Loader2 } from "lucide-react";
 
 import * as Admin from "@/loaders/admin";
@@ -309,6 +310,7 @@ function App() {
           <Router />
         </Suspense>
         <Toaster />
+        <ReauthDialog />
       </AuthProvider>
     </QueryClientProvider>
   );

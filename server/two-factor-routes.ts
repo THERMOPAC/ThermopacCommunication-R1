@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { requireReauth } from './middleware/require-reauth';
 import { db } from './db';
 import { users, twoFactorAuditLog } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -154,7 +155,7 @@ router.post('/verify-setup', ensureAuthenticated, async (req: Request, res: Resp
   }
 });
 
-router.post('/disable', ensureAuthenticated, async (req: Request, res: Response) => {
+router.post('/disable', ensureAuthenticated, requireReauth('user.disable_2fa'), async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
     const { password } = req.body;

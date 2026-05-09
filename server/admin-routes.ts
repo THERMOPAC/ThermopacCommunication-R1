@@ -42,6 +42,7 @@ import {
 import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, notInArray, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
+import { requireReauth, checkReauth } from './middleware/require-reauth';
 import { salaryCalculationEngine } from './salary-calculation-engine';
 import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
 import { applySalaryIncrement, autoApplyDueIncrements } from './salary-increment-service';
@@ -293,6 +294,29 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
     // Validate user ID
     if (isNaN(userId)) {
       return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Conditional re-auth checks based on sensitive fields in payload
+    if (updateData.role !== undefined) {
+      if (!await checkReauth(req, res, 'user.change_role')) return;
+    } else if (
+      updateData.bankAccountNumber !== undefined ||
+      updateData.ifscCode !== undefined ||
+      updateData.bankName !== undefined ||
+      updateData.bank_account_number !== undefined ||
+      updateData.ifsc_code !== undefined ||
+      updateData.bank_name !== undefined
+    ) {
+      if (!await checkReauth(req, res, 'salary.update_bank_details')) return;
+    } else if (
+      updateData.basicSalary !== undefined ||
+      updateData.monthlySalary !== undefined ||
+      updateData.salaryType !== undefined ||
+      updateData.basic_salary !== undefined ||
+      updateData.monthly_salary !== undefined ||
+      updateData.salary_type !== undefined
+    ) {
+      if (!await checkReauth(req, res, 'salary.update_base')) return;
     }
 
     // Check username uniqueness if being changed
@@ -971,7 +995,7 @@ router.get('/payroll/salary-setup/:id/increment-history', ensureAuthenticated, a
 });
 
 // ── POST /payroll/increment-proposals/:id/approve — Superuser only ───────────
-router.post('/payroll/increment-proposals/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+router.post('/payroll/increment-proposals/:id/approve', ensureAuthenticated, requireReauth('payroll.approve_increment'), async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     if (user.role !== 'Superuser') {
