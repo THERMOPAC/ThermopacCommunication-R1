@@ -1,8 +1,17 @@
 # Phase 6 — 2FA Administration UI: Pre-Approval Document
 ## Baseline: `docs/security-baseline-v1.0.md`
 ## Date Submitted: 09 May 2026
-## Revision: Rev 1
+## Revision: Rev 2 — Rate limiting and audit severity added
 ## Status: AWAITING APPROVAL — DO NOT IMPLEMENT UNTIL APPROVED
+
+---
+
+## Revision History
+
+| Rev | Date | Change |
+|---|---|---|
+| Rev 1 | 09 May 2026 | Initial pre-approval document |
+| Rev 2 | 09 May 2026 | Added: rate limiting for reset/policy/remind endpoints; audit severity mapping; anti-spam confirmation for remind; escalating severity for repeated failed reset attempts; T-2F16–T-2F22; ZT-P6-13–ZT-P6-17 |
 
 ---
 
@@ -336,7 +345,182 @@ Exception: a Superuser may reset their own 2FA via this route (self-reset). Howe
 
 ---
 
-## Verification Tests (T-2F01 through T-2F15)
+## Rate Limiting
+
+### Implementation Approach
+
+All rate limits use an **in-memory sliding-window counter** — no new npm packages. A single module-level `Map` keyed by a scoped string stores an array of `Date.now()` timestamps. On each request, timestamps older than the window are pruned and the current timestamp is appended. If the resulting array length exceeds `maxAttempts`, the request is rejected with 429.
+
+```typescript
+// Pseudo-code — exact implementation defined at build time
+const rateLimiter = new Map<string, number[]>();
+
+function checkRateLimit(
+  key: string,
+  windowMs: number,
+  maxAttempts: number
+): { allowed: boolean; attemptsInWindow: number } {
+  const now = Date.now();
+  const timestamps = (rateLimiter.get(key) || []).filter(t => now - t < windowMs);
+  timestamps.push(now);
+  rateLimiter.set(key, timestamps);
+  return { allowed: timestamps.length <= maxAttempts, attemptsInWindow: timestamps.length };
+}
+```
+
+**Durability:** The in-memory store resets on server restart. This is acceptable for admin routes with inherently low legitimate traffic. Per-user remind throttle (described below) is DB-backed and survives restarts.
+
+---
+
+### Rate Limit Specifications
+
+#### `POST /api/admin/users/:userId/2fa/reset` — Admin 2FA Reset
+
+| Parameter | Value |
+|---|---|
+| Key | `'reset:{adminUserId}:{targetUserId}'` |
+| Window | 60 minutes (3,600,000 ms) |
+| Max attempts | 3 per admin per target per window |
+| On breach | 429 `{ error: 'Rate limit exceeded. Max 3 reset attempts per target per hour.' }` |
+| Audit on breach | `two_factor_audit_log` row: `action='admin_reset_rate_limited'`, `severity='critical'`, `metadata: { adminUserId, targetUserId, attemptsInWindow }` |
+| Escalation | If the same admin triggers 3 or more rate-limit breaches (across any target) within a 24-hour window, an additional `two_factor_audit_log` row is written: `action='admin_reset_suspicious'`, `severity='critical'`, `metadata: { adminUserId, breachCount, windowHours: 24 }` |
+
+**Rationale:** Legitimate Superusers reset 2FA rarely and deliberately. Three breaches within an hour on the same target is anomalous and warrants a critical audit event regardless of whether the TOTP challenge was passed.
+
+**Escalation counter key:** `'reset_breach:{adminUserId}'`, window = 24 hours, threshold = 3 breaches.
+
+---
+
+#### `PUT /api/admin/2fa-policy` — Global Policy Update
+
+| Parameter | Value |
+|---|---|
+| Key | `'policy_update:{adminUserId}'` |
+| Window | 60 minutes (3,600,000 ms) |
+| Max attempts | 5 per Superuser per window |
+| On breach | 429 `{ error: 'Rate limit exceeded. Max 5 policy updates per hour.' }` |
+| Audit on breach | `two_fa_policy_audit_log` INSERT is NOT written (the update was not applied). A `two_factor_audit_log` row is written instead: `action='policy_update_rate_limited'`, `severity='warning'`, `metadata: { adminUserId, attemptsInWindow }` |
+
+**Rationale:** Global 2FA policy changes are high-impact governance actions. Five changes per hour represents an absolute ceiling well above any legitimate operational need.
+
+---
+
+#### `POST /api/admin/2fa-policy/remind` — Reminder Broadcast
+
+Two independent throttles apply. Both must pass for the request to proceed.
+
+**Throttle 1 — Per-admin broadcast rate (in-memory):**
+
+| Parameter | Value |
+|---|---|
+| Key | `'remind:{adminUserId}'` |
+| Window | 24 hours (86,400,000 ms) |
+| Max broadcasts | 3 per admin per 24-hour window |
+| On breach | 429 `{ error: 'Rate limit exceeded. Max 3 reminder broadcasts per 24 hours.' }` |
+| Audit on breach | `two_factor_audit_log` row: `action='admin_reminder_rate_limited'`, `severity='warning'`, `metadata: { adminUserId, attemptsInWindow }` — written for the admin user (userId = adminUserId) |
+
+**Throttle 2 — Per-user recipient throttle (DB-backed, survives restarts):**
+
+Before sending each individual reminder email, the route queries `two_factor_audit_log` for:
+```sql
+SELECT id FROM two_factor_audit_log
+WHERE user_id = :targetUserId
+  AND action = 'admin_reminder_sent'
+  AND created_at > NOW() - INTERVAL '24 hours'
+LIMIT 1
+```
+
+If a row is found, that user is **skipped** — no email sent, no new audit row written for them.
+
+**Anti-spam confirmation:**
+- A user can receive at most **1 reminder email per 24 hours** regardless of how many admin broadcasts are triggered.
+- The per-admin throttle caps broadcasts at **3 per 24 hours**.
+- The combined effect: in the worst case (3 broadcasts, all targeting the full non-enrolled population), each individual user receives at most 1 email per 24-hour period.
+- The response body always includes `{ remindedCount, skippedCount, skippedReason: 'per_user_24h_throttle' }` so the admin has full visibility into which users were throttled.
+
+---
+
+## Audit Severity Mapping
+
+Severity is stored as a field within existing columns — **no schema changes required**:
+
+- **`two_factor_audit_log`**: severity is written in `metadata.severity` (JSONB field, already exists)
+- **`two_fa_policy_audit_log`**: severity is written as the first key in the `notes` field, stored as a JSON string: `{"severity":"warning","message":"...human description..."}`
+
+### `two_factor_audit_log` — Action-to-Severity Map
+
+All Phase 6 writes to `two_factor_audit_log` include `metadata.severity`. Existing pre-Phase-6 rows have no `severity` key in `metadata` and are unaffected.
+
+| Action | Severity | Trigger Condition |
+|---|---|---|
+| `setup_initiated` | `info` | User started 2FA setup flow |
+| `activated` | `info` | 2FA successfully enabled |
+| `disabled` | `warning` | User successfully disabled own 2FA |
+| `disable_failed_wrong_password` | `warning` | Incorrect password on self-disable attempt |
+| `verify_success` | `info` | TOTP code accepted at login |
+| `verify_failed` | `info` | TOTP code rejected at login (below lockout) |
+| `lockout` | `warning` | TOTP lockout triggered (5 failed TOTP attempts) |
+| `lockout_backup` | `warning` | Backup-code lockout triggered |
+| `backup_code_used` | `info` | Backup code consumed during login |
+| `backup_codes_regenerated` | `info` | Backup codes regenerated by user |
+| `admin_reset` | `critical` | Superuser force-cleared another user's TOTP secret |
+| `admin_reset_rate_limited` | `critical` | Admin exceeded reset rate limit for a specific target |
+| `admin_reset_suspicious` | `critical` | Admin triggered 3+ rate-limit breaches in 24 hours (across any target) |
+| `admin_reminder_sent` | `info` | Reminder email sent to a non-enrolled user |
+| `admin_reminder_rate_limited` | `warning` | Admin exceeded remind broadcast rate limit |
+| `policy_update_rate_limited` | `warning` | Admin exceeded policy-update rate limit |
+
+**Important:** `admin_reset`, `admin_reset_rate_limited`, and `admin_reset_suspicious` are always `critical`. These three actions are the highest-risk events in Phase 6 and must surface immediately in any monitoring query filtered on `severity='critical'`.
+
+---
+
+### `two_fa_policy_audit_log` — Policy Change Severity
+
+Every `PUT /api/admin/2fa-policy` call that succeeds writes one row to `two_fa_policy_audit_log`. The `notes` field is a JSON string with the structure:
+
+```json
+{ "severity": "info|warning|critical", "message": "...human-readable description..." }
+```
+
+Severity is determined at write time by the following rules, evaluated in order (first match wins):
+
+| Condition | Severity | Example message |
+|---|---|---|
+| New mode is `enforced` | `critical` | `"enforcementMode changed: optional → enforced"` |
+| Previous mode was `enforced` and new is not `enforced` | `critical` | `"enforcementMode downgraded: enforced → optional (enforcement disabled)"` |
+| New mode is `required_from_date` | `warning` | `"enforcementMode changed: optional → required_from_date (effective: 2026-06-01)"` |
+| `required_from_date` → `optional` | `warning` | `"enforcementMode downgraded: required_from_date → optional"` |
+| `applyToRoles` changed — roles removed | `warning` | `"applyToRoles narrowed: removed [Employee, Senior Executive]"` |
+| `applyToRoles` changed — roles added only | `info` | `"applyToRoles expanded: added [Manager]"` |
+| No mode change, no role removal (e.g. grace period days only) | `info` | `"gracePeriodDays changed: 14 → 30"` |
+
+**Enforcement downgrade is always `critical`** — reducing from `enforced` to any lower mode is equivalent in security impact to a full disable and must produce a critical audit event.
+
+---
+
+### Repeated Failed Reset Attempts — Escalation Path
+
+The escalation path for the reset endpoint is:
+
+```
+Attempt 1–3 (within 60 min, same target)
+  └─ requireReauth TOTP verified ✅
+  └─ Route executes normally → action='admin_reset', severity='critical'
+
+Attempt 4 (within 60 min, same target)
+  └─ Rate limit exceeded → 429
+  └─ Audit: action='admin_reset_rate_limited', severity='critical'
+
+3rd rate-limit breach by same admin (within 24 hours, any target)
+  └─ Escalation audit: action='admin_reset_suspicious', severity='critical'
+  └─ This fires IN ADDITION TO the regular rate-limit event
+```
+
+**Note on TOTP failures:** TOTP failures on the reset endpoint are handled by the `requireReauth` middleware, which writes to `reauth_audit_log` (existing Phase 3 behaviour). Phase 6 does not intercept pre-route TOTP failures. The rate limiter above operates at the route level — it tracks request attempts that reach the route handler body (i.e., after TOTP verification passed). This is the correct level: rate-limiting legitimate reset executions is the primary goal. TOTP failures are already captured by the re-auth audit.
+
+---
+
+## Verification Tests (T-2F01 through T-2F22)
 
 All tests run manually against the live development server after implementation. Each test records: input, expected outcome, actual outcome, PASS/FAIL.
 
@@ -357,10 +541,17 @@ All tests run manually against the live development server after implementation.
 | T-2F13 | Self-disable — session invalidation | `POST /api/2fa/disable` as enrolled user, valid TOTP + password | `{ password: '...' }` | 200; other sessions for that user destroyed; current session preserved |
 | T-2F14 | `two_fa_policy_audit_log` UPDATE blocked | Direct SQL: `UPDATE two_fa_policy_audit_log SET notes='x' WHERE id=1` | — | `ERROR: permission denied` or trigger rejection |
 | T-2F15 | `two_fa_policy_audit_log` DELETE blocked | Direct SQL: `DELETE FROM two_fa_policy_audit_log WHERE id=1` | — | `ERROR: permission denied` or trigger rejection |
+| T-2F16 | Reset rate limit — 4th attempt, same target, within 60 min | `POST /api/admin/users/:userId/2fa/reset` as Superuser (valid TOTP) × 4 on same target within 1 hour | `{ reason: '...' }` × 4 | First 3: 200; 4th: 429; `two_factor_audit_log` row with `action='admin_reset_rate_limited'`, `metadata.severity='critical'` |
+| T-2F17 | Reset rate limit escalation — 3 breaches within 24h | Trigger T-2F16 three times within 24h (different targets to accumulate 3 breaches) | — | After 3rd breach: `two_factor_audit_log` row with `action='admin_reset_suspicious'`, `metadata.severity='critical'`; both regular breach row and escalation row present |
+| T-2F18 | Policy update rate limit — 6th attempt within 60 min | `PUT /api/admin/2fa-policy` as Superuser × 6 within 1 hour | `{ enforcementMode:'optional' }` × 6 | First 5: 200 (with audit rows); 6th: 429; `two_factor_audit_log` row with `action='policy_update_rate_limited'`, `metadata.severity='warning'`; `two_fa_policy_audit_log` count does NOT increase on 6th attempt |
+| T-2F19 | Remind broadcast rate limit — 4th attempt within 24h | `POST /api/admin/2fa-policy/remind` × 4 within 24h | — | First 3: 200; 4th: 429; `two_factor_audit_log` row with `action='admin_reminder_rate_limited'`, `metadata.severity='warning'` |
+| T-2F20 | Per-user remind throttle — DB-backed | User A has `admin_reminder_sent` in `two_factor_audit_log` within last 24h; trigger remind broadcast | — | Response `skippedCount ≥ 1`; User A does NOT receive a second email; no new `admin_reminder_sent` row for User A |
+| T-2F21 | Remind response shape | Successful remind broadcast | — | Response body includes `{ success:true, remindedCount: N, skippedCount: M, skippedReason:'per_user_24h_throttle' }` |
+| T-2F22 | Severity in policy audit notes | `PUT /api/admin/2fa-policy` changing `enforcementMode` to `enforced` | Valid TOTP | `two_fa_policy_audit_log.notes` is valid JSON; `notes.severity='critical'`; `notes.message` contains `'enforced'` |
 
 ---
 
-## Zero-Trust Audit Plan (ZT-P6-01 through ZT-P6-12)
+## Zero-Trust Audit Plan (ZT-P6-01 through ZT-P6-17)
 
 Executed after implementation is complete. All results recorded in `docs/security-phase6-audit-evidence.md`.
 
@@ -373,11 +564,16 @@ Executed after implementation is complete. All results recorded in `docs/securit
 | ZT-P6-05 | Non-Superuser cannot call `PUT /api/admin/2fa-policy` | Call as HR (authenticated) | 403 |
 | ZT-P6-06 | Policy update without TOTP → rejected | Call without re-auth token | 403 |
 | ZT-P6-07 | Admin reset without TOTP → rejected | `POST /api/admin/users/:userId/2fa/reset` without TOTP | 403 |
-| ZT-P6-08 | Admin reset writes audit row | Execute successful admin reset; query `two_factor_audit_log` | Row with `action='admin_reset'` present |
+| ZT-P6-08 | Admin reset writes audit row | Execute successful admin reset; query `two_factor_audit_log` | Row with `action='admin_reset'` and `metadata.severity='critical'` present |
 | ZT-P6-09 | Self-disable invalidates other sessions | Login from two browsers; disable 2FA from browser A; attempt request from browser B | Browser B session rejected (401) |
 | ZT-P6-10 | `payroll-salary-core.ts` unchanged | `git diff d0a7748444016698c04208e8ba3a1620ae993575 -- server/payroll-salary-core.ts` | 0 diff lines |
 | ZT-P6-11 | Plane isolation — no Plane B fields in `admin-2fa-routes.ts` | `grep -n "gps\|latitude\|longitude\|attendance_location\|attendance_security_policies" server/admin-2fa-routes.ts` | Zero results |
 | ZT-P6-12 | `auth.ts` login flow unchanged from Phase 5 checkpoint | `git diff d0a7748444016698c04208e8ba3a1620ae993575 -- server/auth.ts` | Zero diff lines |
+| ZT-P6-13 | Rate limiter keys are correctly scoped | Inspect `admin-2fa-routes.ts` for `'reset:{adminUserId}:{targetUserId}'`, `'policy_update:{adminUserId}'`, `'remind:{adminUserId}'`, `'reset_breach:{adminUserId}'` key patterns | All four key patterns confirmed; no global or role-level key |
+| ZT-P6-14 | All Phase 6 audit writes include `metadata.severity` | `grep -n "action='admin_reset'\|action='admin_reset_rate_limited'\|action='admin_reset_suspicious'\|action='admin_reminder_sent'\|action='admin_reminder_rate_limited'\|action='policy_update_rate_limited'" server/admin-2fa-routes.ts` | Every match has `severity` in the surrounding `metadata` object |
+| ZT-P6-15 | Policy audit `notes` field is valid JSON with `severity` key | Execute `PUT /api/admin/2fa-policy`; query `two_fa_policy_audit_log`; parse `notes` | `JSON.parse(notes).severity` is one of `'info'`, `'warning'`, `'critical'`; no parse error |
+| ZT-P6-16 | Enforcement downgrade produces `severity='critical'` | Set `enforcementMode='enforced'`; then set back to `'optional'` (two PUT calls, both with TOTP) | Second `two_fa_policy_audit_log` row has `notes.severity='critical'` and message contains `'downgraded'` |
+| ZT-P6-17 | Per-user remind throttle is DB-backed | Trigger remind broadcast; confirm `admin_reminder_sent` row in `two_factor_audit_log`; restart server; trigger second broadcast | Target user still skipped (DB row persists across restart); `skippedCount ≥ 1` |
 
 ---
 
@@ -432,10 +628,17 @@ No feature flag changes in Phase 6. State after Phase 6:
 | Sensitive fields excluded from all responses | ✅ twoFactorSecret, backupCodes hash, nonce never exposed |
 | Session invalidation on 2FA disable | ✅ One-line addition to existing route |
 | Session invalidation on admin reset | ✅ `storage.invalidateUserSessions(userId, null)` — all sessions |
-| T-2F01 through T-2F15 test plan defined | ✅ 15 tests above |
-| ZT-P6-01 through ZT-P6-12 audit plan defined | ✅ 12 checks above |
+| T-2F01 through T-2F22 test plan defined | ✅ 22 tests (Rev 2: +7 rate limiting and severity tests) |
+| ZT-P6-01 through ZT-P6-17 audit plan defined | ✅ 17 checks (Rev 2: +5 rate limiting and severity checks) |
+| Rate limiting defined for all 3 mutation endpoints | ✅ Reset (3/hr/target), policy update (5/hr), remind (3/24h + per-user DB throttle) |
+| Anti-spam confirmed for remind endpoint | ✅ Per-admin + per-user (DB-backed) dual throttle; skippedCount in response |
+| Audit severity mapping defined | ✅ 15-row action map for two_factor_audit_log; 7-rule table for two_fa_policy_audit_log |
+| Repeated failed reset attempts → critical audit events | ✅ admin_reset_rate_limited (critical) + admin_reset_suspicious (critical) escalation defined |
+| Enforcement downgrade → critical audit event | ✅ enforced → any lower mode always writes severity='critical' |
+| Rate limit audit events are append-only | ✅ Rate limit breaches write to two_factor_audit_log (append); no modify/delete |
+| No new npm packages (Rev 2 additions) | ✅ In-memory Map; DB-backed per-user throttle uses existing db client |
 | Approved by THERMOPAC Management | ⬜ Pending |
 
 ---
 
-*End of Phase 6 Pre-Approval Document Rev 1*
+*End of Phase 6 Pre-Approval Document Rev 2*

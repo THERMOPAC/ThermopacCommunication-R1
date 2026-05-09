@@ -154,7 +154,7 @@ All 11 security flags: `enabled = false`
 ## Phase 6 — 2FA Administration UI
 
 **Status:** Pre-approval submitted — awaiting approval  
-**Pre-approval document:** `docs/security-phase6-preapproval.md` (Rev 1, 09 May 2026)
+**Pre-approval document:** `docs/security-phase6-preapproval.md` (Rev 2, 09 May 2026 — rate limiting + audit severity added)
 
 ### Scope Summary
 - `server/admin-2fa-routes.ts` (NEW) — 7 admin routes: policy read/update, enrollment status, remind, policy audit log, per-user 2FA audit, admin 2FA reset
@@ -171,8 +171,12 @@ All 11 security flags: `enabled = false`
 ### Approval Gate
 - [x] Phase 5 complete ✅
 - [x] Pre-approval document written (`docs/security-phase6-preapproval.md`)
-- [x] T-2F01 through T-2F15 test plan defined (15 tests)
-- [x] ZT-P6-01 through ZT-P6-12 audit plan defined (12 checks)
+- [x] T-2F01 through T-2F22 test plan defined (22 tests — Rev 2: +7)
+- [x] ZT-P6-01 through ZT-P6-17 audit plan defined (17 checks — Rev 2: +5)
+- [x] Rate limiting specified: reset (3/hr/target), policy update (5/hr), remind (3/24h + per-user DB throttle)
+- [x] Audit severity mapping defined: 15-action map + 7-rule policy severity table
+- [x] Anti-spam confirmed: dual-throttle; per-user limit DB-backed
+- [x] Escalating severity: admin_reset_rate_limited → critical; admin_reset_suspicious → critical
 - [ ] Approved by THERMOPAC Management
 - [ ] Implementation started
 - [ ] Audit evidence submitted
