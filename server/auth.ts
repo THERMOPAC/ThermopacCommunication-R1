@@ -5,12 +5,19 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser, passwordChangeSchema, users, twoFactorAuditLog } from "@shared/schema";
+import { User as SelectUser, passwordChangeSchema, users, twoFactorAuditLog, loginAuditLog } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
+import { isFeatureFlagEnabled } from "./utils/epc-migration-helpers";
+import {
+  checkLockoutStatus,
+  recordFailedAttempt,
+  recordSuccessfulLogin,
+  getLoginPolicyForRole,
+} from "./security-login-service";
 import { 
   validatePasswordStrength,
   isPasswordRecentlyUsed,
@@ -260,8 +267,62 @@ export function setupAuth(app: Express) {
         console.error('Authentication error:', err);
         return next(err);
       }
+
+      const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      const attemptedUsername: string = req.body?.username || 'unknown';
+
       if (!user) {
+        // Step A — record failed attempt audit (C-10: failure rolls back on audit error)
+        if (await isFeatureFlagEnabled('SECURITY_LOGIN_AUDIT_ENABLED')) {
+          try {
+            const attemptedUser = await storage.getUserByUsername(attemptedUsername);
+            if (attemptedUser) {
+              await recordFailedAttempt(attemptedUser.id, attemptedUser.role, ip, userAgent, attemptedUsername);
+            } else {
+              await db.insert(loginAuditLog).values({
+                userId: null,
+                username: attemptedUsername,
+                ipAddress: ip,
+                userAgent,
+                outcome: 'failed_unknown_user',
+                severity: 'info',
+              });
+            }
+          } catch (auditErr) {
+            console.error('Login audit write failed (C-10):', auditErr);
+            return res.status(500).json({ message: 'Authentication service error' });
+          }
+        }
         return res.status(401).json({ message: info ? info.message : "Invalid username or password" });
+      }
+
+      // Step B — check lockout before allowing login to proceed
+      if (await isFeatureFlagEnabled('SECURITY_LOCKOUT_ENABLED')) {
+        try {
+          const lockStatus = await checkLockoutStatus(user.id);
+          if (lockStatus.isLocked) {
+            if (await isFeatureFlagEnabled('SECURITY_LOGIN_AUDIT_ENABLED')) {
+              const policy = await getLoginPolicyForRole(user.role);
+              await db.insert(loginAuditLog).values({
+                userId: user.id,
+                username: user.username,
+                ipAddress: ip,
+                userAgent,
+                outcome: 'blocked_lockout',
+                policyLevel: policy?.policyLevel ?? 'standard',
+                severity: 'critical',
+              });
+            }
+            return res.status(423).json({
+              message: `Account locked due to repeated failed login attempts. Try again after ${lockStatus.lockedUntil?.toISOString()}.`,
+              lockedUntil: lockStatus.lockedUntil,
+            });
+          }
+        } catch (lockErr) {
+          console.error('Lockout check error:', lockErr);
+          return res.status(500).json({ message: 'Authentication service error' });
+        }
       }
 
       if (user.twoFactorEnabled) {
@@ -283,12 +344,11 @@ export function setupAuth(app: Express) {
             twoFactorChallengeNonce: nonce,
           }).where(eq(users.id, user.id));
 
-          const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
           await db.insert(twoFactorAuditLog).values({
             userId: user.id,
             action: 'challenge_issued',
-            ipAddress,
-            userAgent: req.headers['user-agent'] || 'unknown',
+            ipAddress: ip,
+            userAgent,
           });
 
           return res.status(200).json({
@@ -302,12 +362,21 @@ export function setupAuth(app: Express) {
         }
       }
 
-      req.login(user, (err) => {
+      req.login(user, async (err) => {
         if (err) {
           console.error('Session creation error:', err);
           return next(err);
         }
-        
+
+        // Step C — record successful login (inside req.login callback so sessionID is available)
+        if (await isFeatureFlagEnabled('SECURITY_LOGIN_AUDIT_ENABLED')) {
+          try {
+            await recordSuccessfulLogin(user.id, user.role, req.sessionID, ip, userAgent, user.username);
+          } catch (auditErr) {
+            console.error('Success audit write failed (C-10):', auditErr);
+          }
+        }
+
         if (user.passwordNeedsUpdate) {
           return res.status(200).json({ 
             ...user, 
@@ -382,6 +451,15 @@ export function setupAuth(app: Express) {
         passwordNeedsUpdate: false,
         lastPasswordChange: new Date()
       });
+
+      // Invalidate all other sessions (keep current session alive)
+      if (await isFeatureFlagEnabled('SECURITY_SESSION_INVALIDATION_ENABLED')) {
+        try {
+          await storage.invalidateUserSessions(user.id, req.sessionID);
+        } catch (sessionErr) {
+          console.error('Session invalidation failed after password change:', sessionErr);
+        }
+      }
 
       console.log(`Password updated successfully for user: ${user.username}`);
 
@@ -603,6 +681,15 @@ export function setupAuth(app: Express) {
 
       // Clear reset token
       await storage.clearUserResetToken(user.id);
+
+      // Invalidate ALL sessions — password was reset externally, full invalidation required
+      if (await isFeatureFlagEnabled('SECURITY_SESSION_INVALIDATION_ENABLED')) {
+        try {
+          await storage.invalidateUserSessions(user.id, null);
+        } catch (sessionErr) {
+          console.error('Session invalidation failed after password reset:', sessionErr);
+        }
+      }
 
       console.log(`Password reset successful for user: ${user.username}`);
 

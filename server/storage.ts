@@ -298,6 +298,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async invalidateUserSessions(userId: number, exceptSessionId?: string | null): Promise<number> {
+    try {
+      let queryText = `
+        DELETE FROM session
+        WHERE (sess::jsonb -> 'passport' ->> 'user')::integer = $1
+      `;
+      const params: (number | string)[] = [userId];
+      if (exceptSessionId) {
+        queryText += ` AND sid != $2`;
+        params.push(exceptSessionId);
+      }
+      const result = await pool.query(queryText, params);
+      const count = result.rowCount ?? 0;
+      console.log(`Invalidated ${count} session(s) for user ${userId}${exceptSessionId ? ' (current session preserved)' : ''}`);
+      return count;
+    } catch (error) {
+      console.error(`Error invalidating sessions for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
   async deleteUser(id: number): Promise<void> {
     console.log(`Deleting user ${id}`);
     await db.delete(users).where(eq(users.id, id));

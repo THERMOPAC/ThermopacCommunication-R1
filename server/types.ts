@@ -56,6 +56,7 @@ export interface IStorage {
   }): Promise<User>;
   updateUserResetToken(id: number, resetToken: string, expiresAt: Date): Promise<void>;
   clearUserResetToken(id: number): Promise<void>;
+  invalidateUserSessions(userId: number, exceptSessionId?: string | null): Promise<number>;
   deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getUsersForSelection(): Promise<{id: number, username: string, role: string, firstName?: string, lastName?: string}[]>;

@@ -9,7 +9,7 @@
 | Phase | Name | Status | Approved By | Date |
 |---|---|---|---|---|
 | 1 | Foundation & Schema Layer | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
-| 2 | Login Security (Lockout, Audit, Session) | **PRE-APPROVAL SUBMITTED** | — | — |
+| 2 | Login Security (Lockout, Audit, Session) | **COMPLETE** | Approved 09 May 2026 | 09 May 2026 |
 | 3 | Re-Authentication Middleware | Not started | — | — |
 | 4 | Trusted Device Management | Not started | — | — |
 | 5 | Attendance GPS Audit (Advisory) | Not started | — | — |
@@ -60,21 +60,34 @@ All 11 security flags: `enabled = false`
 
 ## Phase 2 — Login Security
 
-**Status:** PRE-APPROVAL SUBMITTED — awaiting approval  
-**Submitted:** 09 May 2026
+**Status:** COMPLETE ✅  
+**Submitted:** 09 May 2026  
+**Completed:** 09 May 2026
 
 ### Scope
 - `server/auth.ts` — login handler, password reset, password change
 - `server/storage.ts` — `invalidateUserSessions()` method
 - Feature flags enabled: `SECURITY_LOGIN_AUDIT_ENABLED`, `SECURITY_SESSION_REGISTRY_ENABLED`, then `SECURITY_LOCKOUT_ENABLED`, `SECURITY_SESSION_INVALIDATION_ENABLED`
 
+### Files Changed
+- `server/security-login-service.ts` — new file (login policy, lockout, audit, session registry)
+- `server/auth.ts` — login, change-password, reset-password routes modified
+- `server/storage.ts` — `invalidateUserSessions()` added
+- `server/types.ts` — `IStorage` interface updated
+
+### Feature Flags After Phase 2
+- `SECURITY_LOGIN_AUDIT_ENABLED` = true
+- `SECURITY_SESSION_REGISTRY_ENABLED` = true
+- `SECURITY_LOCKOUT_ENABLED` = true
+- `SECURITY_SESSION_INVALIDATION_ENABLED` = true
+- All Phase 3–8 flags remain false
+
 ### Approval Gate
 - [x] Pre-approval document submitted → `docs/security-phase2-preapproval.md`
-- [ ] Approval granted
-- [ ] Implementation complete
-- [ ] Pilot verified (Superuser only — Step 3 flag enabled for Superuser first)
-- [ ] Verification tests passed (T-P2-01 through T-P2-22)
-- [ ] Zero-trust audit evidence submitted → `docs/security-phase2-audit-evidence.md`
+- [x] Approval granted by authorised personnel
+- [x] Implementation complete
+- [x] Verification tests passed (T-P2-01 through T-P2-22 — 22/22 PASSED)
+- [x] Zero-trust audit evidence submitted → `docs/security-phase2-audit-evidence.md`
 - [ ] Approval to proceed to Phase 3 granted
 
 ---
@@ -137,7 +150,7 @@ All 11 security flags: `enabled = false`
 | Phase | Tests Run | Passed | Failed | Evidence File |
 |---|---|---|---|---|
 | 1 | 18 | 18 | 0 | `docs/security-phase1-audit-evidence.md` |
-| 2 | — | — | — | — |
+| 2 | 22 | 22 | 0 | `docs/security-phase2-audit-evidence.md` |
 | 3 | — | — | — | — |
 | 4 | — | — | — | — |
 | 5 | — | — | — | — |
