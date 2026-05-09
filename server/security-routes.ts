@@ -1,6 +1,7 @@
 import { Express, Request, Response } from 'express';
 import { db } from './db';
 import { users, reauthAuditLog } from '@shared/schema';
+import { registerSecurityDeviceRoutes } from './security-device-routes';
 import { eq } from 'drizzle-orm';
 import { decryptSecret } from './utils/two-factor-crypto';
 import * as OTPAuth from 'otpauth';
@@ -127,4 +128,7 @@ export function registerSecurityRoutes(app: Express) {
       return res.status(500).json({ message: 'Re-authentication service error' });
     }
   });
+
+  // Phase 4 — self-service device routes
+  registerSecurityDeviceRoutes(app);
 }

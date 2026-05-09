@@ -92,6 +92,7 @@ export async function recordSuccessfulLogin(
   ip: string,
   userAgent: string,
   username: string,
+  isTrustedDevice?: boolean,
 ): Promise<void> {
   const policy = await getLoginPolicyForRole(role);
   const policyLevel = policy?.policyLevel ?? 'standard';
@@ -120,6 +121,7 @@ export async function recordSuccessfulLogin(
       policyLevel,
       failedAttemptCount: 0,
       severity: 'info',
+      isTrustedDevice: isTrustedDevice ?? false,
     });
 
     if (sessionRegistryEnabled) {

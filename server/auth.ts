@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser, passwordChangeSchema, users, twoFactorAuditLog, loginAuditLog } from "@shared/schema";
+import { checkDeviceTrustAtLogin } from "./trusted-device-service";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -368,10 +369,36 @@ export function setupAuth(app: Express) {
           return next(err);
         }
 
+        // Phase D — Device trust enforcement (fail-closed for high_security roles)
+        let isTrustedDevice = false;
+        if (await isFeatureFlagEnabled('SECURITY_DEVICE_TRUST_ENABLED')) {
+          try {
+            const trustResult = await checkDeviceTrustAtLogin(req, user.id, user.role);
+            if (!trustResult.trusted) {
+              await new Promise<void>(resolve => req.logout(() => resolve()));
+              return res.status(401).json({
+                code: 'DEVICE_NOT_TRUSTED',
+                message: trustResult.reason === 'NO_COOKIE'
+                  ? 'Access from an unregistered device. Contact your Superuser.'
+                  : 'Device trust token is invalid or has been revoked.',
+              });
+            }
+            isTrustedDevice = true;
+            req.session.deviceTrusted = true;
+            if (trustResult.deviceId) {
+              req.session.deviceFingerprint = String(trustResult.deviceId);
+            }
+          } catch (deviceErr) {
+            console.error('Device trust check failed (C-10):', deviceErr);
+            await new Promise<void>(resolve => req.logout(() => resolve()));
+            return res.status(500).json({ message: 'Security service error' });
+          }
+        }
+
         // Step C — record successful login (inside req.login callback so sessionID is available)
         if (await isFeatureFlagEnabled('SECURITY_LOGIN_AUDIT_ENABLED')) {
           try {
-            await recordSuccessfulLogin(user.id, user.role, req.sessionID, ip, userAgent, user.username);
+            await recordSuccessfulLogin(user.id, user.role, req.sessionID, ip, userAgent, user.username, isTrustedDevice);
           } catch (auditErr) {
             console.error('Success audit write failed (C-10):', auditErr);
           }

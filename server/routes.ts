@@ -31,6 +31,7 @@ import { setupEpcDocumentRoutes } from "./epc-document-routes";
 import { setupDocumentControlRoutes } from "./document-control-routes";
 import { registerEpcPermissionRoutes } from "./epc-permission-routes";
 import { registerSecurityRoutes } from "./security-routes";
+import { registerAdminDeviceRoutes } from "./admin-device-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { default as pipelineRoutes } from "./pipeline/pipeline-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
@@ -686,6 +687,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupDocumentControlRoutes(app);
   registerEpcPermissionRoutes(app);
   registerSecurityRoutes(app);
+  registerAdminDeviceRoutes(app);
 
   const { setupEpcMonitoringRoutes } = await import('./epc-monitoring-routes');
   setupEpcMonitoringRoutes(app);
