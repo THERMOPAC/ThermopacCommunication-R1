@@ -305,34 +305,16 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (prodRow.rowCount === 0) return sendNotFound(res, 'Product', productId);
 
       const rawCode: string = prodRow.rows[0].product_code ?? '';
-      // Clean: uppercase, replace spaces→hyphens, strip non-alphanumeric-non-hyphen, max 18 chars
+      // Code = BPK-{product_code_slug} — fixed forever, no sequence suffix
       const slug = rawCode
         .toUpperCase()
         .replace(/\s+/g, '-')
         .replace(/[^A-Z0-9-]/g, '')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')
-        .slice(0, 22)
+        .slice(0, 25)
         .replace(/-$/g, '');
-
-      // Count how many packages exist for this product already (to compute next seq)
-      const countRow = await pool.query(
-        `SELECT COUNT(*)::int AS n FROM buy_package_headers WHERE product_id = $1`,
-        [productId],
-      );
-      let seq = (countRow.rows[0].n ?? 0) + 1;
-
-      // Find a code that doesn't collide (in case of gaps)
-      let candidate = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
-      while (true) {
-        const clash = await pool.query(
-          `SELECT 1 FROM buy_package_headers WHERE package_code = $1`,
-          [candidate],
-        );
-        if (clash.rowCount === 0) break;
-        seq++;
-        candidate = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
-      }
+      const candidate = `BPK-${slug}`;
 
       res.json({ packageCode: candidate });
     } catch (err) { sendError(res, err); }
@@ -357,29 +339,48 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
       const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+      // Only the latest version per product_id is returned (highest version wins)
       const result = await pool.query(
-        `SELECT
-           bph.id,
-           bph.product_id        AS "productId",
-           bph.package_code      AS "packageCode",
-           bph.name,
-           bph.description,
-           bph.version,
-           bph.status,
-           bph.is_active         AS "isActive",
-           bph.created_by        AS "createdBy",
-           bph.created_at        AS "createdAt",
-           bph.updated_at        AS "updatedAt",
+        `WITH latest AS (
+           SELECT DISTINCT ON (bph.product_id)
+             bph.id,
+             bph.product_id,
+             bph.package_code,
+             bph.name,
+             bph.description,
+             bph.version,
+             bph.status,
+             bph.is_active,
+             bph.created_by,
+             bph.created_at,
+             bph.updated_at
+           FROM buy_package_headers bph
+           ${where}
+           ORDER BY bph.product_id, bph.version DESC
+         )
+         SELECT
+           l.id,
+           l.product_id          AS "productId",
+           l.package_code        AS "packageCode",
+           l.name,
+           l.description,
+           l.version,
+           l.status,
+           l.is_active           AS "isActive",
+           l.created_by          AS "createdBy",
+           l.created_at          AS "createdAt",
+           l.updated_at          AS "updatedAt",
            p.product_code        AS "productCode",
            p.description         AS "productDescription",
            p.item_family         AS "itemFamily",
            COUNT(bpl.id)::int    AS "lineCount"
-         FROM buy_package_headers bph
-         JOIN products p ON p.id = bph.product_id
-         LEFT JOIN buy_package_lines bpl ON bpl.buy_package_header_id = bph.id
-         ${where}
-         GROUP BY bph.id, p.product_code, p.description, p.item_family
-         ORDER BY bph.created_at DESC`,
+         FROM latest l
+         JOIN products p ON p.id = l.product_id
+         LEFT JOIN buy_package_lines bpl ON bpl.buy_package_header_id = l.id
+         GROUP BY l.id, l.product_id, l.package_code, l.name, l.description,
+                  l.version, l.status, l.is_active, l.created_by, l.created_at, l.updated_at,
+                  p.product_code, p.description, p.item_family
+         ORDER BY l.updated_at DESC`,
         values,
       );
       res.json(result.rows);
@@ -566,7 +567,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if ((activeCheck.rowCount ?? 0) > 0)
         return sendBusinessError(res, 'Target product already has an active package. Archive it before cloning.');
 
-      // Auto-generate package code (same logic as /generate-code — fully internal)
+      // Auto-generate package code: BPK-{product_code_slug} — no sequence suffix
       const rawCode: string = tgtProd.rows[0].product_code ?? '';
       const slug = rawCode
         .toUpperCase()
@@ -574,22 +575,9 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         .replace(/[^A-Z0-9-]/g, '')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')
-        .slice(0, 22)
+        .slice(0, 25)
         .replace(/-$/g, '');
-      const countRow = await pool.query(
-        `SELECT COUNT(*)::int AS n FROM buy_package_headers WHERE product_id = $1`,
-        [targetProductId],
-      );
-      let seq = (countRow.rows[0].n ?? 0) + 1;
-      let packageCode = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
-      while (true) {
-        const clash = await pool.query(
-          `SELECT 1 FROM buy_package_headers WHERE package_code = $1`, [packageCode],
-        );
-        if ((clash.rowCount ?? 0) === 0) break;
-        seq++;
-        packageCode = `BPK-${slug}-${String(seq).padStart(3, '0')}`;
-      }
+      const packageCode = `BPK-${slug}`;
 
       // Resolve draft name and system-managed version
       const draftName = (name?.trim()) || `${src.name} - Draft`;
