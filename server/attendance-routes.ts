@@ -231,6 +231,42 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
       console.error('Attendance audit pipeline error (non-fatal):', auditErr);
     }
 
+    // Phase 5 enforcement gate — only active when SECURITY_ATTENDANCE_ENFORCEMENT_ENABLED = true.
+    // blocked is computed by attendance-security-service.ts as:
+    //   blocked = enforcing && BLOCKING_OUTCOMES.has(outcome)
+    // When enforcement flag is false, blocked is always false — this gate is a complete no-op.
+    if (auditResult?.blocked) {
+      let rollbackOk = false;
+      try {
+        if (savedRecord?.id) {
+          await db.delete(attendanceRecords).where(eq(attendanceRecords.id, savedRecord.id));
+        }
+        rollbackOk = true;
+      } catch (rollbackErr) {
+        console.error(
+          '[SECURITY][ERROR] Attendance enforcement rollback failed — record may persist in DB:',
+          rollbackErr,
+          { recordId: savedRecord?.id, userId, auditId: auditResult.auditId }
+        );
+      }
+
+      if (!rollbackOk) {
+        return res.status(500).json({
+          code: 'ATTENDANCE_ENFORCEMENT_ROLLBACK_FAILED',
+          message: 'Attendance security check failed. Please contact your administrator.',
+          auditId: auditResult.auditId,
+        });
+      }
+
+      return res.status(403).json({
+        code: 'ATTENDANCE_BLOCKED',
+        message: 'Check-in blocked by attendance security policy.',
+        reason: auditResult.outcome,
+        severity: auditResult.severity,
+        auditId: auditResult.auditId,
+      });
+    }
+
     res.json({
       success: true,
       message: 'Checked in successfully',

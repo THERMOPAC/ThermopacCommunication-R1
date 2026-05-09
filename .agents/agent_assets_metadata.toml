@@ -288,3 +288,9 @@ id = "msi2CG0jmIZJlDlSWl-1W"
 uri = "file://docs/security-phase2-implementation-plan-v1.0.md"
 type = "text"
 title = "Security Phase 2 Implementation Plan v1.0 (Revised)"
+
+[[outputs]]
+id = "lXR62WedT93GcpVN0Xznw"
+uri = "file://docs/security-phase2-verification-evidence-v1.0.md"
+type = "text"
+title = "Phase 2 Verification Evidence v1.0"
