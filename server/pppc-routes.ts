@@ -1612,7 +1612,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const r = await pool.query(
           `SELECT bph.id FROM buy_package_headers bph
            JOIN products p ON p.id = bph.product_id
-           WHERE p.code = $1 AND bph.status = 'active'
+           WHERE p.product_code = $1 AND bph.status = 'active'
            ORDER BY bph.version DESC LIMIT 1`,
           [pi.product_code],
         );

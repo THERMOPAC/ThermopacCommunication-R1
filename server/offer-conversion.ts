@@ -657,10 +657,12 @@ export async function executeOfferConversion(
          (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
           quantity, estimated_cost, notes, status, source,
           parent_project_item_id,
+          product_code,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, 'Not Started', 'sales_offer',
-          $12, $13, $14, $15, NOW(), NOW())
+          $12, $13,
+          $14, $15, $16, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
            WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
          DO NOTHING
@@ -671,6 +673,7 @@ export async function executeOfferConversion(
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
           parentProjectItemId,
+          offerItem.product_code || null,
           offerId, offerItem.id, orderNumber
         ]
       );
