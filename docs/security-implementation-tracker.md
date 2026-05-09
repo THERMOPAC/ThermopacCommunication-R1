@@ -94,7 +94,8 @@ All 11 security flags: `enabled = false`
 
 ## Phase 3 — Re-Authentication Middleware
 
-**Status:** Not started — blocked on Phase 2 approval
+**Status:** PRE-APPROVAL SUBMITTED — awaiting approval  
+**Submitted:** 09 May 2026
 
 ### Scope
 - `server/middleware/require-reauth.ts` (new file)
