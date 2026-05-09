@@ -3,7 +3,8 @@
  *
  * Rules:
  *  - Database storage stays yyyy-MM-dd (do NOT change)
- *  - HTML <input type="date"> values stay yyyy-MM-dd internally (do NOT change)
+ *  - NEVER use <input type="date"> directly in the UI — it renders in OS locale (wrong).
+ *    Use <DateInput> from '@/components/ui/date-input' instead.
  *  - ALL display in UI, tables, reports, and exports uses fmtDate() or fmtDateTime()
  *
  * Usage:
@@ -11,6 +12,9 @@
  *   fmtDate(offer.createdAt)       → "04/05/2026"
  *   fmtDateTime(record.uploadedAt) → "04/05/2026 14:30"
  *   fmtDate(null)                  → "—"
+ *
+ *   import { DateInput } from '@/components/ui/date-input';
+ *   <DateInput value={isoDate} onChange={setIsoDate} />  → shows DD/MM/YYYY, stores YYYY-MM-DD
  */
 export function fmtDate(date: string | Date | null | undefined): string {
   if (!date) return '—';

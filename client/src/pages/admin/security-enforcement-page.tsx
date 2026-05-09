@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useReauthMutation } from '@/hooks/use-reauth';
+import { DateInput } from '@/components/ui/date-input';
 import { fmtDate, fmtDateTime } from '@/lib/date-utils';
 import {
   Shield, ShieldCheck, ShieldOff, ShieldAlert,
@@ -72,58 +73,6 @@ const ALL_ROLES = [
   'Superuser', 'General Manager', 'Senior Manager',
   'Senior Executive', 'Manager', 'Employee',
 ];
-
-// ── DD/MM/YYYY date input ─────────────────────────────────────────────────────
-// Displays and accepts DD/MM/YYYY but stores internally as YYYY-MM-DD (DB standard).
-function DdMmYyyyDateInput({
-  value,
-  onChange,
-  className,
-}: {
-  value: string;          // YYYY-MM-DD or ""
-  onChange: (v: string) => void;  // emits YYYY-MM-DD or ""
-  className?: string;
-}) {
-  // Convert YYYY-MM-DD → DD/MM/YYYY for display
-  function toDisplay(iso: string): string {
-    if (!iso) return '';
-    const [y, m, d] = iso.split('-');
-    if (!y || !m || !d) return '';
-    return `${d}/${m}/${y}`;
-  }
-  // Convert DD/MM/YYYY → YYYY-MM-DD for storage
-  function toIso(display: string): string {
-    const match = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!match) return '';
-    return `${match[3]}-${match[2]}-${match[1]}`;
-  }
-
-  const [display, setDisplay] = useState(() => toDisplay(value));
-
-  // Sync when external value changes (e.g. page re-initialise after save)
-  useEffect(() => {
-    setDisplay(toDisplay(value));
-  }, [value]);
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value;
-    setDisplay(raw);
-    const iso = toIso(raw);
-    onChange(iso); // empty string when not yet valid — validation catches it
-  }
-
-  return (
-    <Input
-      type="text"
-      inputMode="numeric"
-      placeholder="DD/MM/YYYY"
-      value={display}
-      onChange={handleChange}
-      maxLength={10}
-      className={className}
-    />
-  );
-}
 
 // ── Layer Card wrapper ────────────────────────────────────────────────────────
 
@@ -453,7 +402,7 @@ export default function SecurityEnforcementPage() {
                 {twoFaMode === 'required_from_date' && (
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <DdMmYyyyDateInput
+                    <DateInput
                       value={twoFaFromDate}
                       onChange={setTwoFaFromDate}
                       className={`h-8 text-sm w-36 ${dateRequired ? 'border-destructive' : ''}`}
