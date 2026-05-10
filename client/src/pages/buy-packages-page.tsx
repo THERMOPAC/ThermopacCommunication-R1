@@ -2499,8 +2499,27 @@ function computeSubgroupWarnings(
       }
     }
   } else if (subgroupCode === "on_off") {
+    const oot = ((attrs.valve_type as string) ?? "").toLowerCase();
     if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
     if (missing("body_material"))   w.push("Body material — required for material class datasheet.");
+    if (missing("size_nb"))         w.push("Size (NB) — required for on/off valve datasheet.");
+    if (missing("pressure_rating")) w.push("Pressure rating — required for on/off valve datasheet.");
+    if (oot.includes("ball")) {
+      if (missing("bore_type"))      w.push("Bore type — Full Bore or Reduced Bore required for Ball Valve.");
+      if (missing("seat_material"))  w.push("Seat material — required for Ball Valve datasheet.");
+    } else if (oot.includes("gate")) {
+      if (missing("stem_type"))      w.push("Stem type — OS&Y or Non-Rising required for Gate Valve.");
+      if (missing("wedge_type"))     w.push("Wedge type — required for Gate Valve datasheet.");
+    } else if (oot.includes("butterfly")) {
+      if (missing("valve_design"))   w.push("Valve design — Concentric/Eccentric required for Butterfly Valve.");
+      if (missing("disc_material"))  w.push("Disc material — required for Butterfly Valve datasheet.");
+      if (missing("seat_liner"))     w.push("Seat liner — required for Butterfly Valve datasheet.");
+    } else if (oot.includes("globe")) {
+      if (missing("plug_trim_material")) w.push("Plug/trim material — required for Globe Valve datasheet.");
+    } else if (oot.includes("diaphragm")) {
+      if (missing("diaphragm_material")) w.push("Diaphragm material — required for Diaphragm Valve datasheet.");
+      if (missing("body_design"))        w.push("Body design — Weir/Straight-Through required for Diaphragm Valve.");
+    }
   } else if (subgroupCode === "panels") {
     if (missing("voltage"))         w.push("Supply voltage — required for electrical datasheet.");
     if (missing("ip_rating"))       w.push("IP rating — required for enclosure datasheet.");
@@ -2977,35 +2996,85 @@ function buildDatasheetSections(
   }
 
   if (subgroupCode === "on_off") {
+    const oot     = (v("valve_type") || "").toLowerCase();
+    const isOoBall  = oot.includes("ball");
+    const isOoGate  = oot.includes("gate");
+    const isOoGlobe = oot.includes("globe");
+    const isOoBfly  = oot.includes("butterfly");
+    const isOoPlug  = oot.includes("plug");
+    const isOoDiaph = oot.includes("diaphragm");
+
+    const typeSpecFields: DatasheetField[] = [];
+    if (isOoBall) {
+      typeSpecFields.push(
+        { label: "Bore Type",         value: v("bore_type") },
+        { label: "Body Style",        value: v("body_style") },
+        { label: "Seat Material",     value: v("seat_material") },
+        { label: "Port Config.",      value: v("port_configuration") },
+        { label: "Fire Safe",         value: v("fire_safe") },
+        { label: "Anti-Static Dev.",  value: v("anti_static_device") },
+        { label: "Stem Seal",         value: v("stem_seal") },
+      );
+    } else if (isOoGate) {
+      typeSpecFields.push(
+        { label: "Stem Type",         value: v("stem_type") },
+        { label: "Wedge Type",        value: v("wedge_type") },
+        { label: "Bonnet Type",       value: v("bonnet_type") },
+        { label: "Gate Material",     value: v("gate_material") },
+        { label: "Stem Seal",         value: v("gate_stem_seal") },
+      );
+    } else if (isOoGlobe) {
+      typeSpecFields.push(
+        { label: "Port Type",         value: v("port_type") },
+        { label: "Plug/Trim Mat.",    value: v("plug_trim_material") },
+        { label: "Seat Material",     value: v("seat_material_globe") },
+        { label: "Bonnet Type",       value: v("bonnet_type_globe") },
+        { label: "Flow Direction",    value: v("flow_direction") },
+        { label: "Stem Packing",      value: v("packing") },
+      );
+    } else if (isOoBfly) {
+      typeSpecFields.push(
+        { label: "Valve Design",      value: v("valve_design") },
+        { label: "Disc Material",     value: v("disc_material") },
+        { label: "Seat Liner",        value: v("seat_liner") },
+        { label: "Stem Material",     value: v("stem_material") },
+        { label: "Face-to-Face Std",  value: v("face_to_face_std") },
+      );
+    } else if (isOoPlug) {
+      typeSpecFields.push(
+        { label: "Plug Type",         value: v("plug_type") },
+        { label: "Port Config.",      value: v("plug_port_config") },
+        { label: "Sleeve Material",   value: v("sleeve_material") },
+      );
+    } else if (isOoDiaph) {
+      typeSpecFields.push(
+        { label: "Diaphragm Material",value: v("diaphragm_material") },
+        { label: "Body Design",       value: v("body_design") },
+        { label: "Body Lining",       value: v("body_lining") },
+      );
+    }
+
     return [
       { title: "Valve Details", fields: [
-        { label: "Valve Type",          value: v("valve_type"), highlight: true },
-        { label: "Valve Configuration", value: v("valve_configuration") },
-        { label: "Size (NB)",           value: v("size_nb") },
-        { label: "Pressure Rating",     value: v("pressure_rating") },
-        { label: "Service Type",        value: v("service_type") },
+        { label: "Valve Type",      value: v("valve_type"), highlight: true },
+        { label: "Size (NB)",       value: v("size_nb") },
+        { label: "Pressure Rating", value: v("pressure_rating") },
+        { label: "Service Type",    value: v("service_type") },
       ]},
+      ...(typeSpecFields.length > 0 ? [{ title: "Type-Specific Configuration", fields: typeSpecFields }] : []),
       { title: "Actuation", fields: [
         { label: "Actuation Type", value: v("actuation_type") },
         { label: "Fail Action",    value: v("fail_action") },
       ]},
-      { title: "Process Conditions", fields: [
-        { label: "Process Fluid",         value: v("process_fluid") },
-        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
-        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
-        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
-        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
-      ]},
       { title: "Connection & Material", fields: [
-        { label: "End Connection",     value: v("end_connection") },
-        { label: "Body Material",      value: v("body_material") },
-        { label: "Trim/Disc Material", value: v("trim_disc_material") },
-        { label: "Seat Type",          value: v("seat_type") },
+        { label: "End Connection", value: v("end_connection") },
+        { label: "Body Material",  value: v("body_material") },
       ]},
       { title: "Hazardous Area", fields: [
         { label: "Area Classification", value: v("area_classification") },
         { label: "Certification",       value: v("certification") },
       ]},
+      { title: "Approved Makes", fields: [{ label: "Makes (ranked)", value: vMakes() }]},
     ];
   }
 
@@ -3348,7 +3417,7 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   isolation:    ["Valve Type","Size (NB)","Pressure Rating","End Connection","Body Material","Type-Specific Sealing Field"],
   control:      ["Valve Type","Size (NB)","Pressure Rating","Actuator Type","Fail Action","End Connection","Body Material","Type-Specific Config"],
   safety:       ["Valve Type","Size / Connection","Set Pressure / Vacuum","End Connection","Body Material","Design Standard","Type-Specific Config"],
-  on_off:       ["Valve Type","Size (NB)","End Connection","Body Material"],
+  on_off:       ["Valve Type","Size (NB)","Pressure Rating","End Connection","Body Material","Actuation","Type-Specific Config"],
   panels:       ["Panel Type","Voltage","IP Rating","Enclosure Type"],
   cabling:      ["Cable Type","No. of Cores","Insulation Type","Armour Type","Voltage Grade"],
   junction_box: ["JB Type","IP Rating","No. of Terminals","Terminal Type"],
@@ -6556,39 +6625,229 @@ function SafetyValveAttrsForm({
 }
 
 // ── ON/OFF Valve requirement builder ─────────────────────────────────────────
-const OO_VALVE_TYPE_OPTS  = ["Ball Valve","Gate Valve","Globe Valve","Butterfly Valve","Plug Valve","Diaphragm Valve","Other"];
-const OO_VALVE_CFG_OPTS   = ["Two Way","Three Way","Other"];
-const OO_SIZE_NB_OPTS     = ["15 NB","25 NB","40 NB","50 NB","80 NB","100 NB","150 NB","200 NB","Other"];
-const OO_PR_OPTS          = ["Class 150","Class 300","Class 600","PN10","PN16","PN25","PN40","Other"];
-const OO_SERVICE_OPTS     = ["Isolation","On/Off Control","Emergency Shutdown (ESD)","Bypass","Other"];
-const OO_ACT_OPTS         = ["Manual Lever","Manual Gear","Pneumatic Actuator","Electric Actuator","Hydraulic Actuator","Other"];
-const OO_FAIL_OPTS        = ["Fail Open (FO)","Fail Close (FC)","Fail Last (FL)","Not Applicable"];
-const OO_END_CONN_OPTS    = ["Flanged","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type","Other"];
-const OO_BODY_MAT_OPTS    = ["WCB (CS)","SS304","SS316","Alloy Steel","Duplex","CI","Other"];
-const OO_TRIM_MAT_OPTS    = ["SS304","SS316","Hardened Steel","Stellite","PTFE Lined","Other"];
-const OO_SEAT_OPTS        = ["Metal Seat","Soft Seat (PTFE)","Resilient Seat","Other"];
-const OO_AREA_OPTS        = ["Safe Area","Zone 1","Zone 2"];
-const OO_CERT_OPTS        = ["ATEX","IECEx","PESO","SIL Rated","Other"];
+// ── ON/OFF Valve constants ────────────────────────────────────────────────────
+const OO_VALVE_TYPES = [
+  "Ball Valve","Gate Valve","Globe Valve","Butterfly Valve","Plug Valve","Diaphragm Valve",
+];
 
-const OO_ACTUATED = ["Pneumatic Actuator","Electric Actuator","Hydraulic Actuator"];
+const OO_COMMON_OPTS = {
+  size_nb:             ["15 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB","450 NB","500 NB","600 NB"],
+  pressure_rating_std: ["Class 150","Class 300","Class 600","Class 900","Class 1500"],
+  pressure_rating_pn:  ["PN6","PN10","PN16","PN25","PN40"],
+  actuation_type:      ["Manual Lever","Manual Handwheel","Manual Gear","Pneumatic Actuator","Electric Actuator","Hydraulic Actuator"],
+  fail_action:         ["Fail Open (FO)","Fail Close (FC)","Fail Last (FL)"],
+  end_connection:      ["Flanged","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type"],
+  body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","Alloy Steel (WC6)","Duplex SS","CI (Cast Iron)","Ductile Iron","Hastelloy C"],
+  service_type:        ["Isolation","On-Off Control","Emergency Shutdown (ESD)","Bypass","General"],
+  area_class:          ["Safe Area","Zone 1","Zone 2"],
+  certification:       ["ATEX","IECEx","PESO","SIL Rated","Fire Safe (API 607)"],
+  yes_no:              ["Yes","No"],
+  // Ball Valve
+  bore_type:           ["Full Bore","Reduced Bore"],
+  body_style:          ["Floating Ball","Trunnion Mounted"],
+  seat_material_ball:  ["PTFE","PEEK","Metal Seat (SS316)","Graphite","Devlon"],
+  port_config:         ["2-Way","3-Way (L-Port)","3-Way (T-Port)"],
+  stem_seal:           ["PTFE","Graphite","RPTFE"],
+  // Gate Valve
+  stem_type:           ["OS&Y (Rising Stem)","Non-Rising Stem"],
+  wedge_type:          ["Solid Wedge","Flexible Wedge","Split Wedge"],
+  bonnet_type:         ["Bolted Bonnet","Pressure Seal Bonnet"],
+  gate_material:       ["WCB (CS)","SS316","Hardened Steel","Stellite Faced"],
+  gate_stem_seal:      ["Graphite","PTFE"],
+  // Globe Valve
+  port_type:           ["Single Port","Double Port"],
+  plug_trim_mat:       ["SS316","SS304","Stellite Faced","Hardened"],
+  seat_mat_globe:      ["SS316","SS304","Stellite Faced","Hardened","PTFE Insert"],
+  bonnet_type_globe:   ["Standard","Bellows Sealed","Extended Bonnet"],
+  flow_direction:      ["Flow to Open","Flow to Close"],
+  packing:             ["PTFE","Graphite"],
+  // Butterfly Valve
+  valve_design:        ["Concentric (Centric)","Double Eccentric (High Performance)","Triple Eccentric"],
+  disc_material:       ["SS316","SS304","Ductile Iron","Ni-Al Bronze","Hastelloy C"],
+  seat_liner:          ["EPDM","NBR","PTFE","Viton (FKM)","Silicone"],
+  stem_material:       ["SS304","SS316","Duplex SS"],
+  face_to_face:        ["EN 558-1","ASME B16.10","ISO 5752"],
+  // Plug Valve
+  plug_type:           ["Lubricated","Non-Lubricated (Sleeved)","Eccentric"],
+  plug_port_config:    ["2-Way","3-Way"],
+  sleeve_material:     ["PTFE","RPTFE","Neoprene","Kel-F"],
+  // Diaphragm Valve
+  diaphragm_material:  ["EPDM","Natural Rubber","PTFE","Butyl Rubber","Neoprene"],
+  body_design:         ["Weir Type","Straight-Through"],
+  body_lining:         ["Unlined","PTFE Lined","Rubber Lined","Glass Lined"],
+};
+
+const OO_ALL_FIELD_OPTS: Record<string, string[]> = {
+  size_nb:             OO_COMMON_OPTS.size_nb,
+  pressure_rating:     [...OO_COMMON_OPTS.pressure_rating_std, ...OO_COMMON_OPTS.pressure_rating_pn],
+  actuation_type:      OO_COMMON_OPTS.actuation_type,
+  fail_action:         OO_COMMON_OPTS.fail_action,
+  end_connection:      OO_COMMON_OPTS.end_connection,
+  body_material:       OO_COMMON_OPTS.body_material,
+  service_type:        OO_COMMON_OPTS.service_type,
+  area_classification: OO_COMMON_OPTS.area_class,
+  certification:       OO_COMMON_OPTS.certification,
+  bore_type:           OO_COMMON_OPTS.bore_type,
+  body_style:          OO_COMMON_OPTS.body_style,
+  seat_material:       OO_COMMON_OPTS.seat_material_ball,
+  port_configuration:  OO_COMMON_OPTS.port_config,
+  stem_seal:           OO_COMMON_OPTS.stem_seal,
+  fire_safe:           OO_COMMON_OPTS.yes_no,
+  anti_static_device:  OO_COMMON_OPTS.yes_no,
+  stem_type:           OO_COMMON_OPTS.stem_type,
+  wedge_type:          OO_COMMON_OPTS.wedge_type,
+  bonnet_type:         OO_COMMON_OPTS.bonnet_type,
+  gate_material:       OO_COMMON_OPTS.gate_material,
+  gate_stem_seal:      OO_COMMON_OPTS.gate_stem_seal,
+  port_type:           OO_COMMON_OPTS.port_type,
+  plug_trim_material:  OO_COMMON_OPTS.plug_trim_mat,
+  seat_material_globe: OO_COMMON_OPTS.seat_mat_globe,
+  bonnet_type_globe:   OO_COMMON_OPTS.bonnet_type_globe,
+  flow_direction:      OO_COMMON_OPTS.flow_direction,
+  packing:             OO_COMMON_OPTS.packing,
+  valve_design:        OO_COMMON_OPTS.valve_design,
+  disc_material:       OO_COMMON_OPTS.disc_material,
+  seat_liner:          OO_COMMON_OPTS.seat_liner,
+  stem_material:       OO_COMMON_OPTS.stem_material,
+  face_to_face_std:    OO_COMMON_OPTS.face_to_face,
+  plug_type:           OO_COMMON_OPTS.plug_type,
+  plug_port_config:    OO_COMMON_OPTS.plug_port_config,
+  sleeve_material:     OO_COMMON_OPTS.sleeve_material,
+  diaphragm_material:  OO_COMMON_OPTS.diaphragm_material,
+  body_design:         OO_COMMON_OPTS.body_design,
+  body_lining:         OO_COMMON_OPTS.body_lining,
+};
+
+const OO_VALVE_MAKES = [
+  "Metso","Emerson (Fisher)","Flowserve (BW Valves)","Velan","Neway (Adler)",
+  "KSB","L&T Valves","Crane ChemPharma","AUMA","Rotork",
+];
+
+const OO_ACTUATED_TYPES = ["Pneumatic Actuator","Electric Actuator","Hydraulic Actuator"];
+
+// Keep legacy export for validation block reference
+const OO_ACTUATED = OO_ACTUATED_TYPES;
+
+function buildOnOffValveDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    valve_type: type, makes: [],
+    size_nb: "", pressure_rating: "", actuation_type: "", fail_action: "",
+    end_connection: "Flanged", body_material: "WCB (CS)", service_type: "",
+    area_classification: "", certification: "",
+    bore_type: "", body_style: "", seat_material: "", port_configuration: "",
+    stem_seal: "", fire_safe: "", anti_static_device: "",
+    stem_type: "", wedge_type: "", bonnet_type: "", gate_material: "", gate_stem_seal: "",
+    port_type: "", plug_trim_material: "", seat_material_globe: "", bonnet_type_globe: "",
+    flow_direction: "", packing: "",
+    valve_design: "", disc_material: "", seat_liner: "", stem_material: "", face_to_face_std: "",
+    plug_type: "", plug_port_config: "", sleeve_material: "",
+    diaphragm_material: "", body_design: "", body_lining: "",
+  };
+  switch (type) {
+    case "Ball Valve":
+      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+        body_material: "WCB (CS)", actuation_type: "Pneumatic Actuator",
+        fail_action: "Fail Close (FC)", bore_type: "Full Bore",
+        body_style: "Floating Ball", seat_material: "PTFE",
+        port_configuration: "2-Way", fire_safe: "No", anti_static_device: "No" };
+    case "Gate Valve":
+      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+        body_material: "WCB (CS)", actuation_type: "Manual Gear",
+        stem_type: "OS&Y (Rising Stem)", wedge_type: "Solid Wedge",
+        bonnet_type: "Bolted Bonnet" };
+    case "Globe Valve":
+      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+        body_material: "WCB (CS)", actuation_type: "Manual Handwheel",
+        port_type: "Single Port", plug_trim_material: "SS316",
+        seat_material_globe: "SS316", bonnet_type_globe: "Standard" };
+    case "Butterfly Valve":
+      return { ...base, pressure_rating: "PN16", end_connection: "Wafer",
+        body_material: "CI (Cast Iron)", actuation_type: "Pneumatic Actuator",
+        fail_action: "Fail Close (FC)", valve_design: "Concentric (Centric)",
+        disc_material: "SS316", seat_liner: "EPDM" };
+    case "Plug Valve":
+      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+        body_material: "WCB (CS)", actuation_type: "Manual Lever",
+        plug_type: "Non-Lubricated (Sleeved)", plug_port_config: "2-Way",
+        sleeve_material: "PTFE" };
+    case "Diaphragm Valve":
+      return { ...base, pressure_rating: "PN10", end_connection: "Flanged",
+        body_material: "WCB (CS)", actuation_type: "Manual Handwheel",
+        diaphragm_material: "EPDM", body_design: "Weir Type", body_lining: "Unlined" };
+    default: return base;
+  }
+}
 
 function buildOnOffValveRequirement(attrs: Record<string, unknown>): string {
-  const valveType = (attrs.valve_type      as string)?.trim() || "";
-  const sizeNb    = (attrs.size_nb         as string)?.trim() || "";
-  const pr        = (attrs.pressure_rating as string)?.trim() || "";
-  const act       = (attrs.actuation_type  as string)?.trim() || "";
-  const fail      = (attrs.fail_action     as string)?.trim() || "";
-  const bodyMat   = (attrs.body_material   as string)?.trim() || "";
-  const endConn   = (attrs.end_connection  as string)?.trim() || "";
+  const type    = (attrs.valve_type as string)?.trim() || "";
+  const typeLC  = type.toLowerCase();
+  const sizeNb  = (attrs.size_nb as string)?.trim() || "";
+  const pr      = (attrs.pressure_rating as string)?.trim() || "";
+  const act     = (attrs.actuation_type as string)?.trim() || "";
+  const fail    = (attrs.fail_action as string)?.trim() || "";
+  const bodyMat = (attrs.body_material as string)?.trim() || "";
+  const endConn = (attrs.end_connection as string)?.trim() || "";
+  const bodyStr = bodyMat ? `${bodyMat} Body` : "";
+
+  let typeSpecific = "";
+  if (typeLC.includes("ball")) {
+    const bore  = (attrs.bore_type as string)?.trim() || "";
+    const style = (attrs.body_style as string)?.trim() || "";
+    const seat  = (attrs.seat_material as string)?.trim() || "";
+    const p2: string[] = [];
+    if (bore)  p2.push(bore);
+    if (style) p2.push(style);
+    if (seat)  p2.push(`${seat} Seat`);
+    typeSpecific = p2.join(", ");
+  } else if (typeLC.includes("gate")) {
+    const stemT = (attrs.stem_type as string)?.trim() || "";
+    const wedge = (attrs.wedge_type as string)?.trim() || "";
+    const p2: string[] = [];
+    if (stemT) p2.push(stemT);
+    if (wedge) p2.push(wedge);
+    typeSpecific = p2.join(", ");
+  } else if (typeLC.includes("globe")) {
+    const portT = (attrs.port_type as string)?.trim() || "";
+    const trim  = (attrs.plug_trim_material as string)?.trim() || "";
+    const p2: string[] = [];
+    if (portT) p2.push(portT);
+    if (trim)  p2.push(`${trim} Trim`);
+    typeSpecific = p2.join(", ");
+  } else if (typeLC.includes("butterfly")) {
+    const design = (attrs.valve_design as string)?.trim() || "";
+    const disc   = (attrs.disc_material as string)?.trim() || "";
+    const liner  = (attrs.seat_liner as string)?.trim() || "";
+    const p2: string[] = [];
+    if (design) p2.push(design.split(" ")[0]);
+    if (disc)   p2.push(`${disc} Disc`);
+    if (liner)  p2.push(`${liner} Liner`);
+    typeSpecific = p2.join(", ");
+  } else if (typeLC.includes("plug")) {
+    const plugT = (attrs.plug_type as string)?.trim() || "";
+    const portC = (attrs.plug_port_config as string)?.trim() || "";
+    const p2: string[] = [];
+    if (plugT) p2.push(plugT);
+    if (portC) p2.push(portC);
+    typeSpecific = p2.join(", ");
+  } else if (typeLC.includes("diaphragm")) {
+    const diagMat = (attrs.diaphragm_material as string)?.trim() || "";
+    const design  = (attrs.body_design as string)?.trim() || "";
+    const p2: string[] = [];
+    if (diagMat) p2.push(`${diagMat} Diaphragm`);
+    if (design)  p2.push(design);
+    typeSpecific = p2.join(", ");
+  }
+
+  const isActuated = OO_ACTUATED_TYPES.includes(act);
   const parts: string[] = [];
-  if (valveType) parts.push(valveType);
-  if (sizeNb)    parts.push(sizeNb);
-  if (pr)        parts.push(pr);
-  const isActuated = OO_ACTUATED.includes(act);
-  if (act)       parts.push(isActuated ? act : act);
-  if (isActuated && fail && fail !== "Not Applicable") parts.push(fail);
-  if (bodyMat)   parts.push(`${bodyMat} Body`);
-  if (endConn)   parts.push(endConn);
+  if (type)         parts.push(type);
+  if (sizeNb)       parts.push(sizeNb);
+  if (pr)           parts.push(pr);
+  if (typeSpecific) parts.push(typeSpecific);
+  if (act)          parts.push(act);
+  if (isActuated && fail) parts.push(fail);
+  if (bodyStr)      parts.push(bodyStr);
+  if (endConn)      parts.push(endConn);
   return parts.join(", ");
 }
 
@@ -6600,20 +6859,100 @@ function OnOffValveAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (k: string, v: unknown) => onChange({ ...attrs, [k]: v });
-  const actuation = (attrs.actuation_type as string) ?? "";
-  const isActuated = OO_ACTUATED.includes(actuation);
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(OO_ALL_FIELD_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
 
-  const sec = (title: string) => (
-    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-2 border-b pb-1 mt-1">{title}</p>
-  );
-  const ss = (key: string, label: string, opts: string[], required = false) => (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
-      <SearchableSelect options={opts} value={(attrs[key] as string) ?? ""}
-        onSelect={(v) => set(key, v === "__other__" ? "" : v)}
-        placeholder={`Select ${label}…`} />
-    </div>
+  function handleTypeChange(type: string) {
+    const defaults = buildOnOffValveDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(OO_ALL_FIELD_OPTS)) {
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+  }
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      onChange({ ...attrs, [key]: "" });
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      onChange({ ...attrs, [key]: val });
+    }
+  }
+
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  function addMake(make: string) {
+    if (!make.trim() || makes.includes(make.trim())) return;
+    const next = [...makes, make.trim()];
+    setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) {
+    const next = makes.filter((x) => x !== m);
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+
+  const valveType   = (attrs.valve_type as string) ?? "";
+  const isBall      = valveType === "Ball Valve";
+  const isGate      = valveType === "Gate Valve";
+  const isGlobe     = valveType === "Globe Valve";
+  const isBfly      = valveType === "Butterfly Valve";
+  const isPlug      = valveType === "Plug Valve";
+  const isDiaphragm = valveType === "Diaphragm Valve";
+  const hasType     = isBall || isGate || isGlobe || isBfly || isPlug || isDiaphragm;
+
+  const actuationType = (attrs.actuation_type as string) ?? "";
+  const isActuated    = OO_ACTUATED_TYPES.includes(actuationType);
+  const plugType      = (attrs.plug_type as string) ?? "";
+  const isSleeved     = plugType === "Non-Lubricated (Sleeved)";
+  const isLubricated  = plugType === "Lubricated";
+
+  const filteredMakes = OO_VALVE_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
   );
 
   return (
@@ -6621,47 +6960,173 @@ function OnOffValveAttrsForm({
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">ON/OFF Valve Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
+        {/* ── Valve Type ─────────────────────────────────────────────────── */}
         {sec("Valve Type")}
-        {ss("valve_type",        "Valve Type",        OO_VALVE_TYPE_OPTS, true)}
-        {ss("valve_configuration","Valve Configuration",OO_VALVE_CFG_OPTS)}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={OO_VALVE_TYPES.includes(valveType) ? valveType : ""}
+            options={OO_VALVE_TYPES}
+            placeholder="Select valve type first…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
+        </div>
 
-        {sec("Size & Rating")}
-        {ss("size_nb",           "Size (NB)",          OO_SIZE_NB_OPTS, true)}
-        {ss("pressure_rating",   "Pressure Rating",    OO_PR_OPTS, true)}
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a valve type above to configure specifications
+          </div>
+        )}
 
-        {sec("Service")}
-        {ss("service_type",      "Service Type",       OO_SERVICE_OPTS)}
-        <div />
+        {/* ── Size & Pressure Rating ────────────────────────────────────── */}
+        {hasType && (<>
+          {sec("Size & Pressure Rating")}
+          {renderField("size_nb",         "Size (NB)",       OO_COMMON_OPTS.size_nb, true)}
+          {renderField("pressure_rating", "Pressure Rating",
+            isBfly      ? OO_COMMON_OPTS.pressure_rating_pn :
+            isDiaphragm ? OO_COMMON_OPTS.pressure_rating_pn :
+            OO_COMMON_OPTS.pressure_rating_std, true)}
+        </>)}
 
-        {sec("Actuation")}
-        {ss("actuation_type",    "Actuation Type",     OO_ACT_OPTS, true)}
-        {isActuated
-          ? ss("fail_action",    "Fail Action",        OO_FAIL_OPTS, true)
-          : <div />}
+        {/* ── Ball Valve sub-panel ─────────────────────────────────────── */}
+        {isBall && (<>
+          {sec("Ball Valve Configuration")}
+          {renderField("bore_type",         "Bore Type",           OO_COMMON_OPTS.bore_type,         true)}
+          {renderField("body_style",        "Body Style",          OO_COMMON_OPTS.body_style,         true)}
+          {renderField("seat_material",     "Seat Material",       OO_COMMON_OPTS.seat_material_ball, true)}
+          {renderField("port_configuration","Port Configuration",  OO_COMMON_OPTS.port_config)}
+          {renderField("fire_safe",         "Fire Safe",           OO_COMMON_OPTS.yes_no)}
+          {renderField("anti_static_device","Anti-Static Device",  OO_COMMON_OPTS.yes_no)}
+          {renderField("stem_seal",         "Stem Seal / Packing", OO_COMMON_OPTS.stem_seal)}
+          <div />
+        </>)}
 
-        {sec("Connection")}
-        {ss("end_connection",    "End Connection",     OO_END_CONN_OPTS)}
-        <div />
+        {/* ── Gate Valve sub-panel ─────────────────────────────────────── */}
+        {isGate && (<>
+          {sec("Gate Valve Configuration")}
+          {renderField("stem_type",     "Stem Type",          OO_COMMON_OPTS.stem_type,     true)}
+          {renderField("wedge_type",    "Wedge Type",         OO_COMMON_OPTS.wedge_type,    true)}
+          {renderField("bonnet_type",   "Bonnet Type",        OO_COMMON_OPTS.bonnet_type)}
+          {renderField("gate_material", "Gate/Wedge Material",OO_COMMON_OPTS.gate_material)}
+          {renderField("gate_stem_seal","Stem Seal / Packing",OO_COMMON_OPTS.gate_stem_seal)}
+          <div />
+        </>)}
 
-        {sec("Material")}
-        {ss("body_material",     "Body Material",      OO_BODY_MAT_OPTS)}
-        {ss("trim_disc_material","Trim / Disc Material",OO_TRIM_MAT_OPTS)}
+        {/* ── Globe Valve sub-panel ────────────────────────────────────── */}
+        {isGlobe && (<>
+          {sec("Globe Valve Configuration")}
+          {renderField("port_type",          "Port Type",           OO_COMMON_OPTS.port_type,         true)}
+          {renderField("plug_trim_material", "Plug / Trim Material",OO_COMMON_OPTS.plug_trim_mat,     true)}
+          {renderField("seat_material_globe","Seat Material",       OO_COMMON_OPTS.seat_mat_globe,    true)}
+          {renderField("bonnet_type_globe",  "Bonnet Type",         OO_COMMON_OPTS.bonnet_type_globe)}
+          {renderField("flow_direction",     "Flow Direction",      OO_COMMON_OPTS.flow_direction)}
+          {renderField("packing",            "Stem Packing",        OO_COMMON_OPTS.packing)}
+        </>)}
 
-        {sec("Seat")}
-        {ss("seat_type",         "Seat Type",          OO_SEAT_OPTS)}
-        <div />
+        {/* ── Butterfly Valve sub-panel ────────────────────────────────── */}
+        {isBfly && (<>
+          {sec("Butterfly Valve Configuration")}
+          {renderField("valve_design",  "Valve Design",     OO_COMMON_OPTS.valve_design,  true)}
+          {renderField("disc_material", "Disc Material",    OO_COMMON_OPTS.disc_material, true)}
+          {renderField("seat_liner",    "Seat Liner",       OO_COMMON_OPTS.seat_liner,    true)}
+          {renderField("stem_material", "Stem Material",    OO_COMMON_OPTS.stem_material)}
+          {renderField("face_to_face_std","Face-to-Face Std",OO_COMMON_OPTS.face_to_face)}
+          <div />
+        </>)}
 
-        {sec("Hazardous Area")}
-        {ss("area_classification","Area Classification",OO_AREA_OPTS)}
-        {ss("certification",      "Certification",      OO_CERT_OPTS)}
+        {/* ── Plug Valve sub-panel ─────────────────────────────────────── */}
+        {isPlug && (<>
+          {sec("Plug Valve Configuration")}
+          {renderField("plug_type",       "Plug Type",         OO_COMMON_OPTS.plug_type,       true)}
+          {renderField("plug_port_config","Port Configuration", OO_COMMON_OPTS.plug_port_config, true)}
+          {isSleeved
+            ? renderField("sleeve_material","Sleeve Material", OO_COMMON_OPTS.sleeve_material)
+            : <div />}
+          {isLubricated
+            ? renderField("anti_static_device","Injection Fitting",OO_COMMON_OPTS.yes_no)
+            : <div />}
+        </>)}
 
-        {sec("Quantity")}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="1" step="1"
+        {/* ── Diaphragm Valve sub-panel ────────────────────────────────── */}
+        {isDiaphragm && (<>
+          {sec("Diaphragm Valve Configuration")}
+          {renderField("diaphragm_material","Diaphragm Material",OO_COMMON_OPTS.diaphragm_material, true)}
+          {renderField("body_design",       "Body Design",       OO_COMMON_OPTS.body_design,        true)}
+          {renderField("body_lining",       "Body Lining",       OO_COMMON_OPTS.body_lining)}
+          <div />
+        </>)}
+
+        {/* ── Shared: Service, Actuation, Connection, Material ─────────── */}
+        {hasType && (<>
+          {sec("Service (Optional)")}
+          {renderField("service_type","Service Type",OO_COMMON_OPTS.service_type)}
+          <div />
+
+          {sec("Actuation")}
+          {renderField("actuation_type","Actuation Type",OO_COMMON_OPTS.actuation_type, true)}
+          {isActuated
+            ? renderField("fail_action","Fail Action",OO_COMMON_OPTS.fail_action, true)
+            : <div />}
+
+          {sec("Connection & Material")}
+          {renderField("end_connection","End Connection",OO_COMMON_OPTS.end_connection, true)}
+          {renderField("body_material", "Body Material", OO_COMMON_OPTS.body_material,  true)}
+
+          {sec("Hazardous Area (Optional)")}
+          {renderField("area_classification","Area Classification",OO_COMMON_OPTS.area_class)}
+          {renderField("certification",      "Certification",      OO_COMMON_OPTS.certification)}
+        </>)}
+
+        {/* ── Approved Makes ────────────────────────────────────────────── */}
+        {hasType && (<>
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
+                onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch.trim()); }} />
+              <Button type="button" size="sm" className="h-8"
+                onClick={() => { if (makeSearch.trim()) addMake(makeSearch.trim()); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button"
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted"
+                    onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)}
+                      className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── Quantity ─────────────────────────────────────────────────── */}
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
             value={qty} onChange={(e) => onQtyChange(e.target.value)} />
         </div>
-        <div />
 
       </div>
     </div>
@@ -8623,8 +9088,9 @@ export default function BuyPackagesPage() {
         if (!(ta.weir_type          as string)?.trim()) { toast({ title: "Weir Type is required for Diaphragm Valve",          variant: "destructive" }); return; }
       }
     } else if (isOnOffValveMode) {
-      const ta = lf.technicalAttributes;
-      if (!(ta.valve_type as string)?.trim()) {
+      const ta     = lf.technicalAttributes;
+      const ooType = ((ta.valve_type as string) ?? "").trim().toLowerCase();
+      if (!ooType) {
         toast({ title: "Valve Type is required", variant: "destructive" }); return;
       }
       if (!(ta.size_nb as string)?.trim()) {
@@ -8637,8 +9103,51 @@ export default function BuyPackagesPage() {
         toast({ title: "Actuation Type is required", variant: "destructive" }); return;
       }
       const act = (ta.actuation_type as string)?.trim();
-      if (OO_ACTUATED.includes(act) && !(ta.fail_action as string)?.trim()) {
+      if (OO_ACTUATED_TYPES.includes(act) && !(ta.fail_action as string)?.trim()) {
         toast({ title: "Fail Action is required for actuated valves", variant: "destructive" }); return;
+      }
+      if (!(ta.end_connection as string)?.trim()) {
+        toast({ title: "End Connection is required", variant: "destructive" }); return;
+      }
+      if (!(ta.body_material as string)?.trim()) {
+        toast({ title: "Body Material is required", variant: "destructive" }); return;
+      }
+      if (ooType.includes("ball")) {
+        if (!(ta.bore_type as string)?.trim())
+          { toast({ title: "Bore Type is required for Ball Valve", variant: "destructive" }); return; }
+        if (!(ta.body_style as string)?.trim())
+          { toast({ title: "Body Style is required for Ball Valve", variant: "destructive" }); return; }
+        if (!(ta.seat_material as string)?.trim())
+          { toast({ title: "Seat Material is required for Ball Valve", variant: "destructive" }); return; }
+      } else if (ooType.includes("gate")) {
+        if (!(ta.stem_type as string)?.trim())
+          { toast({ title: "Stem Type is required for Gate Valve", variant: "destructive" }); return; }
+        if (!(ta.wedge_type as string)?.trim())
+          { toast({ title: "Wedge Type is required for Gate Valve", variant: "destructive" }); return; }
+      } else if (ooType.includes("globe")) {
+        if (!(ta.port_type as string)?.trim())
+          { toast({ title: "Port Type is required for Globe Valve", variant: "destructive" }); return; }
+        if (!(ta.plug_trim_material as string)?.trim())
+          { toast({ title: "Plug/Trim Material is required for Globe Valve", variant: "destructive" }); return; }
+        if (!(ta.seat_material_globe as string)?.trim())
+          { toast({ title: "Seat Material is required for Globe Valve", variant: "destructive" }); return; }
+      } else if (ooType.includes("butterfly")) {
+        if (!(ta.valve_design as string)?.trim())
+          { toast({ title: "Valve Design is required for Butterfly Valve", variant: "destructive" }); return; }
+        if (!(ta.disc_material as string)?.trim())
+          { toast({ title: "Disc Material is required for Butterfly Valve", variant: "destructive" }); return; }
+        if (!(ta.seat_liner as string)?.trim())
+          { toast({ title: "Seat Liner is required for Butterfly Valve", variant: "destructive" }); return; }
+      } else if (ooType.includes("plug")) {
+        if (!(ta.plug_type as string)?.trim())
+          { toast({ title: "Plug Type is required for Plug Valve", variant: "destructive" }); return; }
+        if (!(ta.plug_port_config as string)?.trim())
+          { toast({ title: "Port Configuration is required for Plug Valve", variant: "destructive" }); return; }
+      } else if (ooType.includes("diaphragm")) {
+        if (!(ta.diaphragm_material as string)?.trim())
+          { toast({ title: "Diaphragm Material is required", variant: "destructive" }); return; }
+        if (!(ta.body_design as string)?.trim())
+          { toast({ title: "Body Design is required for Diaphragm Valve", variant: "destructive" }); return; }
       }
     } else if (isBoughtOutMode) {
       const ta = lf.technicalAttributes;
