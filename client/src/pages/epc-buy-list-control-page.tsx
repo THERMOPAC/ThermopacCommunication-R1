@@ -32,6 +32,332 @@ const TAGGABLE_SUBGROUP_CODES = new Set([
   'non_flameproof', 'flameproof', 'motors',
 ]);
 
+// ── Technical attribute field definitions per subgroup ────────────────────────
+type TaField = { key: string; label: string; type: "text" | "number" | "select"; opts?: string[]; colSpan?: boolean };
+const _ISOLATION_FIELDS: TaField[] = [
+  { key: "valve_type",            label: "Valve Type",            type: "select", opts: ["Ball Valve","Gate Valve","Globe Valve","Butterfly Valve","Check Valve","Needle Valve","Plug Valve"] },
+  { key: "size_nb",               label: "Size (NB)",             type: "select", opts: ["15","20","25","32","40","50","65","80","100","150","200","250","300"] },
+  { key: "pressure_rating",       label: "Pressure Rating",       type: "select", opts: ["Class 150","Class 300","Class 600","Class 900","Class 1500","PN10","PN16","PN25","PN40"] },
+  { key: "end_connection",        label: "End Connection",        type: "select", opts: ["Flanged","Screwed","Socket Weld","Butt Weld","Wafer","Lug"] },
+  { key: "body_material",         label: "Body Material",         type: "select", opts: ["CI","CS","SS304","SS316","Duplex","WCB","LCB"] },
+  { key: "trim_material",         label: "Trim Material",         type: "select", opts: ["SS304","SS316","Stellite","Hard Facing","13% Cr"] },
+  { key: "seat_type",             label: "Seat Type",             type: "select", opts: ["Soft Seat (PTFE)","Metal Seat","Soft Seat (NBR)"] },
+  { key: "operation_type",        label: "Operation Type",        type: "select", opts: ["Manual","Pneumatic (DA)","Pneumatic (SA)","Electric Actuator","Hand Wheel"] },
+  { key: "design_pressure",       label: "Design Pressure (bar)", type: "text" },
+  { key: "operating_pressure",    label: "Oper. Pressure (bar)",  type: "text" },
+  { key: "design_temperature",    label: "Design Temp (°C)",      type: "text" },
+  { key: "operating_temperature", label: "Oper. Temp (°C)",       type: "text" },
+  { key: "process_fluid",         label: "Process Fluid",         type: "text" },
+  { key: "area_classification",   label: "Area Classification",   type: "select", opts: ["Zone 0","Zone 1","Zone 2","Safe Area"] },
+];
+const _MOTOR_FIELDS: TaField[] = [
+  { key: "motor_type",         label: "Motor Type",          type: "select", opts: ["Induction","Synchronous","BLDC"] },
+  { key: "power",              label: "Power (kW)",          type: "number" },
+  { key: "voltage",            label: "Voltage",             type: "select", opts: ["415 V","690 V","3300 V","6600 V","11000 V"] },
+  { key: "speed",              label: "Speed (RPM)",         type: "number" },
+  { key: "frequency",         label: "Frequency (Hz)",      type: "select", opts: ["50 Hz","60 Hz"] },
+  { key: "duty",               label: "Duty",                type: "select", opts: ["S1 (Continuous)","S2","S3","S4"] },
+  { key: "mounting",           label: "Mounting",            type: "select", opts: ["Horizontal (B3)","Flange Mounted (B5)","Vertical (V1)"] },
+  { key: "ip_rating",          label: "IP Rating",           type: "select", opts: ["IP44","IP55","IP65","IP66"] },
+  { key: "efficiency_class",   label: "Efficiency Class",    type: "select", opts: ["IE2","IE3","IE4"] },
+  { key: "cooling_type",       label: "Cooling Type",        type: "select", opts: ["TEFC","TEAAC","Open","Forced Ventilation"] },
+  { key: "material",           label: "Frame Material",      type: "select", opts: ["Cast Iron","Aluminium","Fabricated Steel"] },
+  { key: "area_classification",label: "Area Classification", type: "select", opts: ["Zone 0","Zone 1","Zone 2","Safe Area"] },
+  { key: "vfd_compatible",     label: "VFD Compatible",      type: "select", opts: ["Yes","No"] },
+  { key: "approved_makes",     label: "Approved Makes",      type: "text",   colSpan: true },
+];
+const _PRESSURE_INSTR_FIELDS: TaField[] = [
+  { key: "instrument_type",     label: "Instrument Type",      type: "select", opts: ["Pressure Transmitter (PT)","Pressure Switch (PS)","Pressure Gauge (PG)","Pressure Indicator (PI)","Differential Pressure Transmitter (DPT)"] },
+  { key: "measurement_type",    label: "Measurement Type",     type: "select", opts: ["Gauge Pressure","Absolute Pressure","Differential Pressure"] },
+  { key: "range_min",           label: "Range Min",            type: "text" },
+  { key: "range_max",           label: "Range Max",            type: "text" },
+  { key: "range_unit",          label: "Range Unit",           type: "select", opts: ["bar","mbar","kPa","MPa","psi","mmHg","inH2O"] },
+  { key: "process_fluid",       label: "Process Fluid",        type: "text" },
+  { key: "wetted_material",     label: "Wetted Material",      type: "select", opts: ["SS316","SS304","Hastelloy","Titanium","PTFE lined"] },
+  { key: "connection_size",     label: "Connection Size",      type: "select", opts: ['1/4"','1/2"','3/4"','1"',"1.5\"","2\""] },
+  { key: "connection_type",     label: "Connection Type",      type: "select", opts: ["BSP","NPT","Flanged","Tri-clamp"] },
+  { key: "output_signal",       label: "Output Signal",        type: "select", opts: ["4–20 mA","0–10 V","HART","Profibus","Modbus","NO/NC Contact","Digital"] },
+  { key: "enclosure_type",      label: "Enclosure",            type: "select", opts: ["IP65","IP66","IP67","Weatherproof","Flameproof"] },
+  { key: "operating_temp",      label: "Process Temp",         type: "text" },
+  { key: "area_classification", label: "Area Classification",  type: "select", opts: ["Zone 0","Zone 1","Zone 2","Safe Area"] },
+  { key: "explosion_protection",label: "Explosion Protection", type: "select", opts: ["Flameproof Ex d","Intrinsically Safe Ex i","Non-Flameproof","Ex e","Ex n"] },
+  { key: "certification",       label: "Certification",        type: "select", opts: ["ATEX","IECEx","PESO","NA"] },
+  { key: "gas_group",           label: "Gas Group",            type: "select", opts: ["IIA","IIB","IIC"] },
+  { key: "temperature_class",   label: "Temperature Class",    type: "select", opts: ["T1","T2","T3","T4","T5","T6"] },
+];
+const SUBGROUP_TA_FIELDS: Record<string, TaField[]> = {
+  // Pumps
+  centrifugal: [
+    { key: "pump_type",      label: "Pump Type",      type: "select", opts: ["End Suction","Split Case","Multistage","Vertical Inline","Vertical Turbine"] },
+    { key: "mounting",       label: "Mounting",       type: "select", opts: ["Base Mounted","Inline","Vertical"] },
+    { key: "drive_type",     label: "Drive Type",     type: "select", opts: ["Motor Driven","Engine Driven"] },
+    { key: "service_type",   label: "Service Type",   type: "select", opts: ["Continuous","Intermittent","Standby"] },
+    { key: "seal_type",      label: "Seal Type",      type: "select", opts: ["Single Mechanical Seal","Double Mechanical Seal","Gland Packing"] },
+    { key: "material_class", label: "Material Class", type: "select", opts: ["CI","CS","SS304","SS316","Duplex"] },
+    { key: "flow_rate",      label: "Flow Rate",      type: "text" },
+    { key: "head",           label: "Head",           type: "text" },
+    { key: "operating_temp", label: "Operating Temp", type: "text" },
+    { key: "fluid",          label: "Fluid",          type: "text" },
+    { key: "approved_makes", label: "Approved Makes", type: "text", colSpan: true },
+  ],
+  gear: [
+    { key: "gear_type",      label: "Gear Type",       type: "select", opts: ["External Gear","Internal Gear"] },
+    { key: "mounting",       label: "Mounting",        type: "select", opts: ["Base Mounted","Skid Mounted","Vertical"] },
+    { key: "drive_type",     label: "Drive Type",      type: "select", opts: ["Motor Driven","Engine Driven"] },
+    { key: "service_type",   label: "Service Type",    type: "select", opts: ["Continuous","Intermittent","Standby"] },
+    { key: "seal_type",      label: "Seal Type",       type: "select", opts: ["Mechanical Seal","Gland Packing","Magnetic Drive"] },
+    { key: "material_class", label: "Material Class",  type: "select", opts: ["CI","CS","SS304","SS316"] },
+    { key: "flow_rate",      label: "Flow Rate",       type: "text" },
+    { key: "pressure",       label: "Discharge Press", type: "text" },
+    { key: "fluid",          label: "Fluid",           type: "text" },
+    { key: "operating_temp", label: "Operating Temp",  type: "text" },
+    { key: "approved_makes", label: "Approved Makes",  type: "text", colSpan: true },
+  ],
+  screw: [
+    { key: "screw_type",     label: "Screw Type",     type: "text" },
+    { key: "flow_rate",      label: "Flow Rate",      type: "text" },
+    { key: "pressure",       label: "Pressure",       type: "text" },
+    { key: "fluid",          label: "Fluid",          type: "text" },
+    { key: "material_class", label: "Material Class", type: "text" },
+    { key: "operating_temp", label: "Operating Temp", type: "text" },
+    { key: "approved_makes", label: "Approved Makes", type: "text", colSpan: true },
+  ],
+  vacuum_boosters: [
+    { key: "vacuum_type",        label: "Vacuum Type",       type: "text" },
+    { key: "capacity",           label: "Capacity",          type: "text" },
+    { key: "suction_pressure",   label: "Suction Pressure",  type: "text" },
+    { key: "discharge_pressure", label: "Discharge Pressure",type: "text" },
+    { key: "fluid",              label: "Process Gas",       type: "text" },
+    { key: "material_class",     label: "Material Class",    type: "text" },
+    { key: "operating_temp",     label: "Operating Temp",    type: "text" },
+    { key: "approved_makes",     label: "Approved Makes",    type: "text", colSpan: true },
+  ],
+  multistage: [
+    { key: "multistage_type", label: "Multistage Type", type: "text" },
+    { key: "flow_rate",       label: "Flow Rate",        type: "text" },
+    { key: "head",            label: "Head",             type: "text" },
+    { key: "fluid",           label: "Fluid",            type: "text" },
+    { key: "material_class",  label: "Material Class",   type: "text" },
+    { key: "operating_temp",  label: "Operating Temp",   type: "text" },
+    { key: "approved_makes",  label: "Approved Makes",   type: "text", colSpan: true },
+  ],
+  dosing_metering: [
+    { key: "pump_type",      label: "Pump Type",      type: "text" },
+    { key: "flow_rate",      label: "Flow Rate",      type: "text" },
+    { key: "pressure",       label: "Pressure",       type: "text" },
+    { key: "fluid",          label: "Fluid",          type: "text" },
+    { key: "material_class", label: "Material Class", type: "text" },
+    { key: "approved_makes", label: "Approved Makes", type: "text", colSpan: true },
+  ],
+  pump_skid: [
+    { key: "description", label: "Description", type: "text", colSpan: true },
+    { key: "fluid",       label: "Fluid",       type: "text" },
+    { key: "capacity",    label: "Capacity",    type: "text" },
+  ],
+  // Motors
+  flameproof:     _MOTOR_FIELDS,
+  non_flameproof: _MOTOR_FIELDS,
+  // Instruments
+  pressure: _PRESSURE_INSTR_FIELDS,
+  temperature: [
+    { key: "instrument_type",     label: "Instrument Type",      type: "select", opts: ["Thermocouple (TC)","RTD","Temperature Transmitter (TT)","Temperature Switch (TS)","Temperature Indicator (TI)"] },
+    { key: "sensor_type",         label: "Sensor Type",          type: "select", opts: ["Type K","Type J","Type T","Type E","PT100","PT1000"] },
+    { key: "range_min",           label: "Range Min",            type: "text" },
+    { key: "range_max",           label: "Range Max",            type: "text" },
+    { key: "range_unit",          label: "Range Unit",           type: "select", opts: ["°C","°F","K"] },
+    { key: "wetted_material",     label: "Wetted Material",      type: "select", opts: ["SS316","SS304","Inconel","Hastelloy"] },
+    { key: "connection_size",     label: "Connection Size",      type: "select", opts: ['1/4"','1/2"','3/4"','1"'] },
+    { key: "connection_type",     label: "Connection Type",      type: "select", opts: ["BSP","NPT","Flanged"] },
+    { key: "output_signal",       label: "Output Signal",        type: "select", opts: ["4–20 mA","0–10 V","HART","Resistance (RTD)","Thermocouple mV"] },
+    { key: "enclosure",           label: "Enclosure",            type: "select", opts: ["IP65","IP66","Weatherproof","Flameproof"] },
+    { key: "area_classification", label: "Area Classification",  type: "select", opts: ["Zone 0","Zone 1","Zone 2","Safe Area"] },
+    { key: "explosion_protection",label: "Explosion Protection", type: "select", opts: ["Ex d (Flameproof)","Ex i (Intrinsically Safe)","Non-Flameproof","Ex e"] },
+    { key: "certification",       label: "Certification",        type: "select", opts: ["ATEX","IECEx","PESO","NA"] },
+    { key: "gas_group",           label: "Gas Group",            type: "select", opts: ["IIA","IIB","IIC"] },
+    { key: "temperature_class",   label: "Temperature Class",    type: "select", opts: ["T1","T2","T3","T4","T5","T6"] },
+  ],
+  flow: [
+    { key: "instrument_type",     label: "Instrument Type",      type: "select", opts: ["Flow Transmitter (FT)","Flow Switch (FS)","Flow Indicator (FI)","Rotameter","Orifice Plate","Vortex Flow Meter","Electromagnetic Flow Meter"] },
+    { key: "measurement_type",    label: "Measurement Type",     type: "select", opts: ["Volumetric Flow","Mass Flow","Velocity"] },
+    { key: "range_min",           label: "Range Min",            type: "text" },
+    { key: "range_max",           label: "Range Max",            type: "text" },
+    { key: "range_unit",          label: "Range Unit",           type: "select", opts: ["m³/hr","L/hr","L/min","kg/hr"] },
+    { key: "process_fluid",       label: "Process Fluid",        type: "text" },
+    { key: "line_size",           label: "Line Size (NB)",       type: "text" },
+    { key: "connection_type",     label: "Connection Type",      type: "select", opts: ["Flanged","Wafer","Insertion","Inline"] },
+    { key: "output_signal",       label: "Output Signal",        type: "select", opts: ["4–20 mA","Pulse","HART","Profibus","Modbus"] },
+    { key: "area_classification", label: "Area Classification",  type: "select", opts: ["Zone 0","Zone 1","Zone 2","Safe Area"] },
+    { key: "explosion_protection",label: "Explosion Protection", type: "select", opts: ["Flameproof Ex d","Intrinsically Safe Ex i","Non-Flameproof"] },
+  ],
+  level: [
+    { key: "instrument_type",     label: "Instrument Type",      type: "select", opts: ["Level Transmitter (LT)","Level Switch (LS)","Level Gauge (LG)","Guided Wave Radar (GWR)","Ultrasonic","Float","Displacer"] },
+    { key: "measurement_type",    label: "Measurement Type",     type: "select", opts: ["Continuous","Point Level","Interface"] },
+    { key: "range_min",           label: "Range Min",            type: "text" },
+    { key: "range_max",           label: "Range Max",            type: "text" },
+    { key: "range_unit",          label: "Range Unit",           type: "select", opts: ["mm","m","inch","cm","%"] },
+    { key: "process_fluid",       label: "Process Fluid",        type: "text" },
+    { key: "connection_size",     label: "Connection Size (NB)", type: "text" },
+    { key: "connection_type",     label: "Connection Type",      type: "select", opts: ["Flanged","NPT","BSP","Tri-clamp"] },
+    { key: "output_signal",       label: "Output Signal",        type: "select", opts: ["4–20 mA","HART","Relay","Profibus","Modbus"] },
+    { key: "area_classification", label: "Area Classification",  type: "select", opts: ["Zone 0","Zone 1","Zone 2","Safe Area"] },
+    { key: "explosion_protection",label: "Explosion Protection", type: "select", opts: ["Flameproof Ex d","Intrinsically Safe Ex i","Non-Flameproof"] },
+  ],
+  // Valves
+  isolation: _ISOLATION_FIELDS,
+  control:   _ISOLATION_FIELDS,
+  on_off:    _ISOLATION_FIELDS,
+  safety: [
+    { key: "valve_type",         label: "Valve Type",           type: "select", opts: ["Safety Relief Valve (SRV)","Pressure Safety Valve (PSV)","Rupture Disc"] },
+    { key: "size_nb",            label: "Size (NB)",            type: "select", opts: ["15","20","25","32","40","50","65","80","100","150","200"] },
+    { key: "set_pressure",       label: "Set Pressure (bar)",   type: "text" },
+    { key: "back_pressure",      label: "Back Pressure (bar)",  type: "text" },
+    { key: "relieving_capacity", label: "Relieving Capacity",   type: "text" },
+    { key: "end_connection",     label: "End Connection",       type: "select", opts: ["Flanged","Screwed","Socket Weld"] },
+    { key: "body_material",      label: "Body Material",        type: "select", opts: ["CI","CS","SS304","SS316","WCB"] },
+    { key: "process_fluid",      label: "Process Fluid",        type: "text" },
+  ],
+  // Raw Materials
+  plates: [
+    { key: "plate_type",     label: "Plate Type",     type: "select", opts: ["MS","SS 304","SS 316","Chequered","Boiler Quality Plate"] },
+    { key: "material_grade", label: "Material Grade", type: "select", opts: ["IS 2062 E250","IS 2062 E350","SA 516 Gr 60","SA 516 Gr 70","ASTM A36","SS 304","SS 316"] },
+    { key: "thickness_mm",   label: "Thickness (mm)", type: "select", opts: ["3","5","6","8","10","12","16","20","25","32","40"] },
+    { key: "width_mm",       label: "Width (mm)",     type: "select", opts: ["1000","1250","1500","2000","2500"] },
+    { key: "length_mm",      label: "Length (mm)",    type: "select", opts: ["2000","2500","3000","6000"] },
+    { key: "standard",       label: "Standard",       type: "select", opts: ["IS 2062","ASTM A36","ASTM A516","ASME SA-516","DIN","EN"] },
+  ],
+  pipes: [
+    { key: "section_type",   label: "Pipe / Section Type", type: "select", opts: ["Round Pipe","Square Pipe","Rectangular Pipe","Seamless","ERW","GI","MS","SS"] },
+    { key: "material_grade", label: "Material Grade",      type: "select", opts: ["ASTM A106 Gr B","ASTM A53","IS 1239","IS 3589","SS 304","SS 316"] },
+    { key: "nb_mm",          label: "Nominal Bore (NB)",   type: "select", opts: ["15","20","25","32","40","50","65","80","100","150","200","250","300"] },
+    { key: "schedule",       label: "Schedule",            type: "select", opts: ["Sch 10","Sch 20","Sch 40","Sch 80","Sch 160","XS","XXS"] },
+    { key: "length",         label: "Length",              type: "select", opts: ["3m","6m","12m","Random"] },
+    { key: "standard",       label: "Standard",            type: "select", opts: ["ASTM","ASME","IS","DIN","EN","JIS"] },
+  ],
+  fittings: [
+    { key: "fitting_type", label: "Fitting Type",   type: "select", opts: ["Elbow","Tee","Reducer","Union","Coupling","Cap","Cross","Nipple"] },
+    { key: "end_type",     label: "End Type",        type: "select", opts: ["Threaded","Socket Weld","Butt Weld","Flanged"] },
+    { key: "size_nb",      label: "Size (NB)",       type: "select", opts: ["15","20","25","32","40","50","65","80","100","150","200"] },
+    { key: "rating",       label: "Rating / Class",  type: "select", opts: ["Class 150","Class 300","Class 600","PN10","PN16","PN25","PN40"] },
+    { key: "material",     label: "Material",        type: "select", opts: ["MS","CS","SS 304","SS 316","GI","Alloy Steel"] },
+    { key: "standard",     label: "Standard",        type: "select", opts: ["ASME B16.9","ASME B16.11","IS","DIN","EN"] },
+  ],
+  flanges: [
+    { key: "flange_type", label: "Flange Type",    type: "select", opts: ["Weld Neck (WN)","Slip-On (SO)","Blind (BL)","Socket Weld (SW)","Threaded (THD)","Lap Joint (LJ)","Orifice"] },
+    { key: "size_nb",     label: "Size (NB)",       type: "select", opts: ["15","20","25","32","40","50","65","80","100","150","200","250","300"] },
+    { key: "pressure",    label: "Pressure Class",  type: "select", opts: ["Class 150","Class 300","Class 600","Class 900","Class 1500","PN10","PN16","PN25","PN40"] },
+    { key: "facing",      label: "Facing",          type: "select", opts: ["RF (Raised Face)","FF (Flat Face)","RTJ (Ring Type Joint)"] },
+    { key: "material",    label: "Material",        type: "select", opts: ["CS","ASTM A105","ASTM A182 F304","ASTM A182 F316","Alloy Steel"] },
+    { key: "standard",    label: "Standard",        type: "select", opts: ["ASME B16.5","ASME B16.47","IS","DIN","EN"] },
+  ],
+  fasteners: [
+    { key: "fastener_type", label: "Fastener Type",  type: "select", opts: ["Stud Bolt","Hex Bolt","Socket Head Cap Screw","Nut","Washer"] },
+    { key: "size_dia",      label: "Size (dia)",     type: "select", opts: ["M8","M10","M12","M16","M20","M24","M30"] },
+    { key: "grade",         label: "Grade / Class",  type: "select", opts: ["2H/B7","A2-70","A4-80","8.8","10.9","12.9"] },
+    { key: "length",        label: "Length (mm)",    type: "text" },
+    { key: "standard",      label: "Standard",       type: "select", opts: ["ASME B18.2","ISO","IS","DIN"] },
+  ],
+  gaskets: [
+    { key: "gasket_type", label: "Gasket Type",    type: "select", opts: ["Spiral Wound","Ring Type Joint (RTJ)","Full Face (FF)","Raised Face (RF)","Sheet Gasket"] },
+    { key: "size_nb",     label: "Size (NB)",       type: "select", opts: ["15","20","25","32","40","50","65","80","100","150","200","250","300"] },
+    { key: "pressure",    label: "Pressure Class",  type: "select", opts: ["Class 150","Class 300","Class 600","PN10","PN16","PN25","PN40"] },
+    { key: "thickness",   label: "Thickness (mm)",  type: "select", opts: ["1.5","2","3","4","5","6"] },
+    { key: "material",    label: "Material",        type: "select", opts: ["Spiral Wound SS316+Graphite","PTFE","Graphite","NBR","EPDM","Viton"] },
+    { key: "standard",    label: "Standard",        type: "select", opts: ["ASME B16.20","ASME B16.21","IS","DIN"] },
+  ],
+  structural_steel: [
+    { key: "section_type",   label: "Section Type",   type: "text" },
+    { key: "size",           label: "Size",           type: "text" },
+    { key: "thickness_mm",   label: "Thickness (mm)", type: "text" },
+    { key: "material_grade", label: "Material Grade", type: "select", opts: ["IS 2062 E250","IS 2062 E350","ASTM A36"] },
+    { key: "length",         label: "Length",         type: "select", opts: ["3m","6m","12m","Random"] },
+    { key: "standard",       label: "Standard",       type: "select", opts: ["IS","ASTM","EN","DIN"] },
+  ],
+};
+
+// ── Technical attributes section component ────────────────────────────────────
+function TechnicalAttrsSection({
+  subgroupCode, attrs, onChange,
+}: {
+  subgroupCode: string | null;
+  attrs: Record<string, unknown>;
+  onChange: (a: Record<string, unknown>) => void;
+}) {
+  const fields = subgroupCode ? (SUBGROUP_TA_FIELDS[subgroupCode] ?? []) : [];
+
+  // Collect any extra keys already in attrs that aren't in the field list
+  const knownKeys = new Set(fields.map(f => f.key));
+  const extraKeys = Object.keys(attrs).filter(k => !knownKeys.has(k) && attrs[k] !== undefined && attrs[k] !== null && attrs[k] !== "");
+
+  if (fields.length === 0 && extraKeys.length === 0) return null;
+
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  function renderField(f: TaField) {
+    const raw = attrs[f.key];
+    // Arrays (e.g. approved_makes) → comma-separated string
+    const strVal = Array.isArray(raw) ? (raw as string[]).join(", ") : String(raw ?? "");
+    const inOpts  = f.opts?.includes(strVal) ?? false;
+    const isCustom = strVal !== "" && f.opts && !inOpts;
+
+    return (
+      <div key={f.key} className={`space-y-1.5${f.colSpan ? " col-span-2" : ""}`}>
+        <Label className="text-xs">{f.label}</Label>
+        {f.type === "select" && f.opts ? (
+          <Select
+            value={inOpts ? strVal : (strVal ? "__custom__" : "")}
+            onValueChange={(v) => {
+              if (v !== "__custom__") set(f.key, v);
+            }}
+          >
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+            <SelectContent>
+              {f.opts.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              <SelectItem value="__custom__">Other (type below)…</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : null}
+        {(f.type !== "select" || isCustom) && (
+          <Input
+            className="h-8 text-sm"
+            type={f.type === "number" ? "number" : "text"}
+            value={strVal}
+            placeholder={f.type === "select" ? "Custom value…" : `Enter ${f.label.toLowerCase()}…`}
+            onChange={e => {
+              const v = e.target.value;
+              // Restore array for approved_makes
+              if (f.key === "approved_makes") {
+                set(f.key, v.split(",").map(s => s.trim()).filter(Boolean));
+              } else {
+                set(f.key, v);
+              }
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="col-span-2 space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Technical Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        {fields.map(f => renderField(f))}
+        {extraKeys.map(key => {
+          const raw = attrs[key];
+          const strVal = Array.isArray(raw) ? (raw as string[]).join(", ") : String(raw ?? "");
+          return (
+            <div key={key} className="space-y-1.5">
+              <Label className="text-xs capitalize">{key.replace(/_/g, " ")}</Label>
+              <Input className="h-8 text-sm" value={strVal}
+                onChange={e => set(key, e.target.value)} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Role helpers ───────────────────────────────────────────────────────────────
 const RL: Record<string, number> = {
   Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, "Senior Executive": 4, Employee: 5,
@@ -93,6 +419,7 @@ const EMPTY_LINE = {
   selectionRequired: true, datasheetRequired: false,
   inspectionRequired: false, certificateRequired: false, complianceRequired: false,
   notes: "",
+  technicalAttributes: {} as Record<string, unknown>,
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -586,6 +913,7 @@ export default function EpcBuyListControlPage() {
       selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
+      technicalAttributes: (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setTagDuplicateWarning(null); setTagPreview([]); setTagAutoFilled(false); setTagFetching(false);
     setLineDialog({ open: true, listId, status, editLine: line });
@@ -606,6 +934,7 @@ export default function EpcBuyListControlPage() {
       selectionRequired: lf.selectionRequired, datasheetRequired: lf.datasheetRequired,
       inspectionRequired: lf.inspectionRequired, certificateRequired: lf.certificateRequired,
       complianceRequired: lf.complianceRequired, notes: lf.notes || null,
+      technicalAttributes: Object.keys(lf.technicalAttributes).length > 0 ? lf.technicalAttributes : undefined,
     };
     if (lineDialog.editLine) {
       patchLine.mutate({ lineId: lineDialog.editLine.id, body });
@@ -1657,6 +1986,11 @@ export default function EpcBuyListControlPage() {
                 <Input placeholder="e.g. Feed Pump, Suction Strainer"
                   value={lf.genericRequirement} onChange={e => setLf(f => ({ ...f, genericRequirement: e.target.value }))} />
               </div>
+              <TechnicalAttrsSection
+                subgroupCode={currentSubgroupCode}
+                attrs={lf.technicalAttributes}
+                onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+              />
               {/* Tag No — hidden for Raw Materials, info box when qty-split */}
               {!isRawMaterials && !isQtySplit && (
                 <div className="space-y-1.5">
