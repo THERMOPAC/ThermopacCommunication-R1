@@ -26,7 +26,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Plus, ChevronRight, ChevronDown, Package, Layers,
+  Plus, ChevronRight, ChevronUp, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
   ChevronsUpDown, Check, X, FileSpreadsheet, Printer, Copy, GitBranch,
 } from "lucide-react";
@@ -3388,62 +3388,153 @@ function ProcessDesignConditionsBlock({
   );
 }
 
-// ── Pressure Instrument requirement builder ───────────────────────────────────
-function buildPressureRequirement(attrs: Record<string, unknown>): string {
-  const instrType   = (attrs.instrument_type    as string)?.trim() || "";
-  const rangeMin    = (attrs.range_min          as string)?.trim() || "";
-  const rangeMax    = (attrs.range_max          as string)?.trim() || "";
-  const rangeUnit   = (attrs.range_unit         as string)?.trim() || "";
-  const outputSig   = (attrs.output_signal      as string)?.trim() || "";
-  const wettedMat   = (attrs.wetted_material    as string)?.trim() || "";
-  const connSize    = (attrs.connection_size    as string)?.trim() || "";
-  const connType    = (attrs.connection_type    as string)?.trim() || "";
-  const areaClass   = (attrs.area_classification as string)?.trim() || "";
-  const exProt      = (attrs.explosion_protection as string)?.trim() || "";
-
-  const rangeStr  = rangeMin && rangeMax && rangeUnit
-    ? `${rangeMin}–${rangeMax} ${rangeUnit}`
-    : rangeMax && rangeUnit ? `0–${rangeMax} ${rangeUnit}` : "";
-  const connStr   = connSize && connType ? `${connSize} ${connType}` : connSize || connType;
-  const exStr     = exProt && exProt !== "Non-Flameproof" ? exProt.replace("Flameproof ", "").replace("Intrinsically Safe ", "") : "";
-
-  const parts: string[] = [];
-  if (instrType)  parts.push(instrType);
-  if (rangeStr)   parts.push(rangeStr);
-  if (outputSig && outputSig !== "Not Applicable") parts.push(outputSig);
-  if (wettedMat)  parts.push(wettedMat);
-  if (connStr)    parts.push(connStr);
-  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  if (exStr)      parts.push(exStr);
-  return parts.join(", ");
-}
-
-// ── Pressure Instrument option lists ─────────────────────────────────────────
-const PRESSURE_OPTS: Record<string, string[]> = {
-  instrument_type:       ["Pressure Gauge (PG)", "Pressure Transmitter (PT)", "Differential Pressure Transmitter (DPT)", "Pressure Switch (PS)", "Vacuum Gauge"],
-  measurement_type:      ["Gauge Pressure", "Absolute Pressure", "Differential Pressure", "Vacuum"],
-  range_unit:            ["bar", "kg/cm²", "psi", "kPa", "mmWC"],
-  process_fluid:         ["Air", "Water", "Steam", "Oil", "Gas", "Chemical"],
-  operating_temp:        ["Ambient", "50°C", "100°C", "150°C", "250°C"],
-  connection_size:       ['1/4"', '1/2"', '3/4"', '1"'],
-  connection_type:       ["NPT", "BSP", "Flanged"],
-  wetted_material:       ["SS316", "SS304", "Brass"],
-  enclosure_type:        ["IP65", "IP66", "Flameproof", "Weatherproof"],
-  area_classification:   ["Safe Area", "Zone 1", "Zone 2"],
-  explosion_protection:  ["Non-Flameproof", "Flameproof Ex d", "Intrinsically Safe Ex ia", "Intrinsically Safe Ex ib", "Increased Safety Ex e"],
-  certification:         ["ATEX", "IECEx", "PESO", "UL", "FM"],
-  gas_group:             ["IIA", "IIB", "IIC"],
-  temperature_class:     ["T1", "T2", "T3", "T4", "T5", "T6"],
+// ── Pressure instrument constants ─────────────────────────────────────────────
+const PRESSURE_INSTR_TYPES = [
+  "Pressure Gauge (PG)",
+  "Pressure Transmitter (PT)",
+  "Differential Pressure Transmitter (DPT)",
+  "Pressure Switch (PS)",
+];
+const PRESSURE_COMMON_OPTS = {
+  connection_size:      ['1/4"', '1/2"', '3/4"', '1"', '1.5"', '2"'],
+  connection_type:      ["BSP", "NPT", "Flanged (ANSI 150#)", "Flanged (ANSI 300#)", "DIN Flanged"],
+  wetted_material:      ["SS316L", "SS316", "SS304", "Hastelloy C-276", "Monel", "Titanium", "Brass"],
+  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
+  explosion_protection: ["Flameproof Ex d", "Intrinsically Safe Ex ia", "Intrinsically Safe Ex ib", "Increased Safety Ex e"],
+  certification:        ["ATEX", "IECEx", "PESO", "UL", "FM"],
+  gas_group:            ["IIA", "IIB", "IIC"],
+  temperature_class:    ["T1", "T2", "T3", "T4", "T5", "T6"],
+  ip_rating:            ["IP65", "IP66", "IP67", "IP68"],
+  housing_material:     ["Aluminium", "SS316", "Carbon Steel", "GI"],
+  conn_orientation:     ["Bottom Entry", "Back Entry", "Remote Seal"],
+  process_fluid:        ["Air", "Water", "Steam", "Oil", "Gas", "Chemical", "Slurry", "Corrosive"],
+  sil_requirement:      ["None", "SIL 1", "SIL 2", "SIL 3"],
+  range_unit_bar:       ["bar", "kg/cm²", "psi", "kPa", "MPa"],
+  range_unit_dp:        ["mmWC", "Pa", "mbar", "bar", "kPa", "inH₂O"],
 };
+const PRESSURE_PG_OPTS = {
+  measurement_type: ["Gauge Pressure", "Absolute Pressure", "Vacuum"],
+  accuracy_class:   ["1.0%", "1.6%", "2.5%"],
+  dial_size:        ["63 mm", "100 mm", "150 mm"],
+  dial_type:        ["Glycerine Filled", "Dry", "Oil Filled (Silicone)"],
+  bourdon_material: ["SS316L", "SS316", "SS304", "Phosphor Bronze", "Hastelloy C-276"],
+  window_material:  ["Glass", "Polycarbonate", "Laminated Safety Glass"],
+};
+const PRESSURE_PT_DPT_OPTS = {
+  accuracy_class:   ["0.1%", "0.2%", "0.5%"],
+  pt_meas_type:     ["Gauge Pressure", "Absolute Pressure"],
+  output_signal:    ["4–20 mA", "4–20 mA + HART", "Foundation Fieldbus", "PROFIBUS PA"],
+  power_supply:     ["24V DC (Loop)", "24V DC (Separate)", "110V AC", "230V AC"],
+  comm_protocol:    ["HART 5", "HART 7", "Foundation Fieldbus", "PROFIBUS PA"],
+  display:          ["Integral LCD", "No Display"],
+  remote_seal_type: ["Diaphragm Seal", "Flush Diaphragm", "Capillary Remote Seal", "Extended Diaphragm"],
+  application:      ["Flow", "Level", "Pressure (DP)"],
+  manifold_type:    ["3-Valve", "5-Valve", "Integral", "Remote Seal"],
+  lp_connection:    ["Same as HP", '1/4"', '1/2"', '3/4"'],
+};
+const PRESSURE_PS_OPTS = {
+  measurement_type: ["Gauge Pressure", "Differential Pressure", "Vacuum"],
+  switching_action: ["NO", "NC", "SPDT", "DPDT"],
+  contact_rating:   ["5A 250V AC", "10A 250V AC", "1A 24V DC", "2A 24V DC"],
+  cable_entry:      ["M20", '1/2" NPT', '3/4" NPT'],
+  reset_type:       ["Auto Reset", "Manual Reset"],
+};
+const PRESSURE_ALL_FIELD_OPTS: Record<string, string[]> = {
+  measurement_type:     ["Gauge Pressure", "Absolute Pressure", "Vacuum", "Differential Pressure"],
+  accuracy_class:       ["0.1%", "0.2%", "0.5%", "1.0%", "1.6%", "2.5%"],
+  dial_size:            PRESSURE_PG_OPTS.dial_size,
+  dial_type:            PRESSURE_PG_OPTS.dial_type,
+  bourdon_material:     PRESSURE_PG_OPTS.bourdon_material,
+  window_material:      PRESSURE_PG_OPTS.window_material,
+  output_signal:        PRESSURE_PT_DPT_OPTS.output_signal,
+  power_supply:         PRESSURE_PT_DPT_OPTS.power_supply,
+  comm_protocol:        PRESSURE_PT_DPT_OPTS.comm_protocol,
+  display:              PRESSURE_PT_DPT_OPTS.display,
+  remote_seal_type:     PRESSURE_PT_DPT_OPTS.remote_seal_type,
+  application:          PRESSURE_PT_DPT_OPTS.application,
+  manifold_type:        PRESSURE_PT_DPT_OPTS.manifold_type,
+  lp_connection:        PRESSURE_PT_DPT_OPTS.lp_connection,
+  switching_action:     PRESSURE_PS_OPTS.switching_action,
+  contact_rating:       PRESSURE_PS_OPTS.contact_rating,
+  cable_entry:          PRESSURE_PS_OPTS.cable_entry,
+  reset_type:           PRESSURE_PS_OPTS.reset_type,
+  connection_size:      PRESSURE_COMMON_OPTS.connection_size,
+  connection_type:      PRESSURE_COMMON_OPTS.connection_type,
+  wetted_material:      PRESSURE_COMMON_OPTS.wetted_material,
+  area_classification:  PRESSURE_COMMON_OPTS.area_classification,
+  explosion_protection: PRESSURE_COMMON_OPTS.explosion_protection,
+  certification:        PRESSURE_COMMON_OPTS.certification,
+  gas_group:            PRESSURE_COMMON_OPTS.gas_group,
+  temperature_class:    PRESSURE_COMMON_OPTS.temperature_class,
+  ip_rating:            PRESSURE_COMMON_OPTS.ip_rating,
+  housing_material:     PRESSURE_COMMON_OPTS.housing_material,
+  conn_orientation:     PRESSURE_COMMON_OPTS.conn_orientation,
+  process_fluid:        PRESSURE_COMMON_OPTS.process_fluid,
+  sil_requirement:      PRESSURE_COMMON_OPTS.sil_requirement,
+  range_unit:           ["bar", "kg/cm²", "psi", "kPa", "MPa", "mmWC", "Pa", "mbar", "inH₂O"],
+};
+const PRESSURE_PG_MAKES     = ["Wika", "Bourdon", "Ashcroft", "Baumer", "H.Guru", "Fiebig", "Nuova Fima", "Winters"];
+const PRESSURE_PT_DPT_MAKES = ["Endress+Hauser", "Yokogawa", "Emerson (Rosemount)", "ABB", "Honeywell", "Wika", "Siemens", "Dwyer"];
+const PRESSURE_PS_MAKES     = ["Danfoss", "Wika", "United Electric", "Barksdale", "Honeywell", "Dwyer", "Nuova Fima", "Bourdon"];
 
-// Output signal options depend on instrument_type
-function pressureOutputOpts(instrType: string): string[] | null {
-  if (!instrType) return null;
-  const t = instrType.toLowerCase();
-  if (t.includes("gauge") || t.includes("vacuum gauge")) return null; // N/A for gauges
-  if (t.includes("transmitter")) return ["4–20 mA", "HART"];
-  if (t.includes("switch")) return ["NO/NC Contact"];
-  return null;
+function buildPressureRequirement(attrs: Record<string, unknown>): string {
+  const instrType = (attrs.instrument_type as string)?.trim() || "";
+  if (!instrType) return "";
+  const t         = instrType.toLowerCase();
+  const rangeMin  = (attrs.range_min  as string)?.trim() || "";
+  const rangeMax  = (attrs.range_max  as string)?.trim() || "";
+  const rangeUnit = (attrs.range_unit as string)?.trim() || "";
+  const rangeStr  = rangeMax ? `${rangeMin || "0"}–${rangeMax} ${rangeUnit}`.trim() : "";
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
+  const connSize  = (attrs.connection_size as string)?.trim() || "";
+  const connType  = (attrs.connection_type as string)?.trim() || "";
+  const connStr   = [connSize, connType].filter(Boolean).join(" ");
+  const wetted    = (attrs.wetted_material as string)?.trim() || "";
+  const ipRating  = (attrs.ip_rating as string)?.trim() || "";
+  const zoneStr   = (areaClass && areaClass !== "Safe Area") ? areaClass : "";
+  const parts: string[] = [instrType];
+  if (t.includes("gauge")) {
+    const dialSize = (attrs.dial_size as string)?.trim() || "";
+    const dialType = (attrs.dial_type as string)?.trim() || "";
+    if (rangeStr)                       parts.push(rangeStr);
+    if (dialType && dialType !== "Dry") parts.push(dialType);
+    if (dialSize)                       parts.push(dialSize);
+    if (connStr)                        parts.push(connStr);
+    if (wetted)                         parts.push(wetted);
+    if (ipRating)                       parts.push(ipRating);
+  } else if (t.includes("differential")) {
+    const app      = (attrs.application   as string)?.trim() || "";
+    const output   = (attrs.output_signal as string)?.trim() || "";
+    const manifold = (attrs.manifold_type as string)?.trim() || "";
+    if (app)      parts.push(app);
+    if (rangeStr) parts.push(rangeStr);
+    if (output)   parts.push(output);
+    if (manifold) parts.push(manifold);
+    if (wetted)   parts.push(wetted);
+    if (ipRating) parts.push(ipRating);
+  } else if (t.includes("transmitter")) {
+    const output = (attrs.output_signal as string)?.trim() || "";
+    const supply = (attrs.power_supply  as string)?.trim() || "";
+    if (rangeStr) parts.push(rangeStr);
+    if (output)   parts.push(output);
+    if (supply)   parts.push(supply);
+    if (connStr)  parts.push(connStr);
+    if (wetted)   parts.push(wetted);
+    if (ipRating) parts.push(ipRating);
+  } else if (t.includes("switch")) {
+    const setpoint  = (attrs.trip_setpoint   as string)?.trim() || "";
+    const switching = (attrs.switching_action as string)?.trim() || "";
+    const contact   = (attrs.contact_rating   as string)?.trim() || "";
+    if (rangeStr)  parts.push(rangeStr);
+    if (setpoint)  parts.push(`SP: ${setpoint}${rangeUnit ? " " + rangeUnit : ""}`);
+    if (switching) parts.push(switching);
+    if (contact)   parts.push(contact);
+    if (connStr)   parts.push(connStr);
+    if (wetted)    parts.push(wetted);
+    if (ipRating)  parts.push(ipRating);
+  }
+  if (zoneStr) parts.push(zoneStr);
+  return parts.join(", ");
 }
 
 // ── Pressure Instrument structured form ──────────────────────────────────────
@@ -3455,36 +3546,94 @@ function PressureAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-
-  const singleKeys = Object.keys(PRESSURE_OPTS);
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = PRESSURE_OPTS[key] ?? [];
+    for (const [key, opts] of Object.entries(PRESSURE_ALL_FIELD_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const [makesOpen,      setMakesOpen]      = useState(false);
+  const [makesQuery,     setMakesQuery]     = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const [customMakeVal,  setCustomMakeVal]  = useState("");
+
+  const instrType     = (attrs.instrument_type as string) ?? "";
+  const t             = instrType.toLowerCase();
+  const isPG          = t.includes("gauge");
+  const isPT          = t.includes("transmitter") && !t.includes("differential");
+  const isDPT         = t.includes("differential");
+  const isPS          = t.includes("switch");
+  const areaClass     = (attrs.area_classification as string) ?? "";
+  const isZone        = areaClass === "Zone 1" || areaClass === "Zone 2";
+  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
+  const makesList     = isPG ? PRESSURE_PG_MAKES : isPS ? PRESSURE_PS_MAKES : PRESSURE_PT_DPT_MAKES;
+  const filteredMakes = makesList.filter(o => o.toLowerCase().includes(makesQuery.toLowerCase()));
+
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
+      setCustom(c => ({ ...c, [key]: true }));
       set(key, "");
     } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      // Clear dependent fields when instrument_type changes
-      if (key === "instrument_type") {
-        onChange({ ...attrs, instrument_type: val, output_signal: "" });
-      } else {
-        set(key, val);
-      }
+      setCustom(c => ({ ...c, [key]: false }));
+      set(key, val);
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean, overrideOpts?: string[]) {
-    const opts      = overrideOpts ?? PRESSURE_OPTS[key] ?? [];
+  function handleTypeChange(newType: string) {
+    const t2 = newType.toLowerCase();
+    const base: Record<string, unknown> = {
+      instrument_type:     newType,
+      area_classification: (attrs.area_classification as string) || "Safe Area",
+      approved_makes:      attrs.approved_makes ?? [],
+      connection_size:     '1/2"',
+      connection_type:     "BSP",
+      conn_orientation:    "Bottom Entry",
+      wetted_material:     "SS316L",
+      ip_rating:           t2.includes("gauge") ? "IP65" : "IP66",
+    };
+    if (t2.includes("gauge")) {
+      base.measurement_type = "Gauge Pressure";
+      base.accuracy_class   = "1.6%";
+      base.dial_size        = "100 mm";
+      base.dial_type        = "Glycerine Filled";
+      base.range_unit       = "bar";
+    } else if (t2.includes("differential")) {
+      base.application      = "Pressure (DP)";
+      base.accuracy_class   = "0.2%";
+      base.output_signal    = "4–20 mA + HART";
+      base.power_supply     = "24V DC (Loop)";
+      base.comm_protocol    = "HART 7";
+      base.display          = "Integral LCD";
+      base.manifold_type    = "5-Valve";
+      base.lp_connection    = "Same as HP";
+      base.range_unit       = "mmWC";
+      base.housing_material = "Aluminium";
+    } else if (t2.includes("transmitter")) {
+      base.measurement_type = "Gauge Pressure";
+      base.accuracy_class   = "0.2%";
+      base.output_signal    = "4–20 mA + HART";
+      base.power_supply     = "24V DC (Loop)";
+      base.comm_protocol    = "HART 7";
+      base.display          = "Integral LCD";
+      base.range_unit       = "bar";
+      base.housing_material = "Aluminium";
+    } else if (t2.includes("switch")) {
+      base.measurement_type = "Gauge Pressure";
+      base.switching_action = "SPDT";
+      base.contact_rating   = "5A 250V AC";
+      base.reset_type       = "Auto Reset";
+      base.range_unit       = "bar";
+      base.housing_material = "Aluminium";
+    }
+    setCustom({});
+    onChange(base);
+  }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
@@ -3501,12 +3650,23 @@ function PressureAttrsForm({
     );
   }
 
-  function renderNumeric(key: string, label: string) {
+  function renderNumeric(key: string, label: string, required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">{label}</Label>
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <Input className="h-8 text-sm" type="number" placeholder="0"
+          value={curVal} onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
+  }
+
+  function renderText(key: string, label: string, required?: boolean, placeholder?: string) {
+    const curVal = (attrs[key] as string) ?? "";
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" placeholder={placeholder ?? `Enter ${label.toLowerCase()}…`}
           value={curVal} onChange={(e) => set(key, e.target.value)} />
       </div>
     );
@@ -3520,88 +3680,347 @@ function PressureAttrsForm({
     );
   }
 
-  const instrType   = (attrs.instrument_type as string) ?? "";
-  const areaClass   = (attrs.area_classification as string) ?? "";
-  const outputOpts  = pressureOutputOpts(instrType);
-  const isGaugeType = instrType.toLowerCase().includes("gauge");
-  const isZone      = areaClass === "Zone 1" || areaClass === "Zone 2";
+  function toggleMake(make: string) {
+    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
+      ? approvedMakes.filter(m => m !== make)
+      : [...approvedMakes, make] });
+  }
+  function addCustomMake() {
+    const v = customMakeVal.trim();
+    if (v && !approvedMakes.includes(v)) onChange({ ...attrs, approved_makes: [...approvedMakes, v] });
+    setCustomMakeVal(""); setShowCustomMake(false);
+  }
+  function moveMakeUp(idx: number) {
+    if (idx <= 0) return;
+    const arr = [...approvedMakes];
+    [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+    onChange({ ...attrs, approved_makes: arr });
+  }
+  function moveMakeDown(idx: number) {
+    if (idx >= approvedMakes.length - 1) return;
+    const arr = [...approvedMakes];
+    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+    onChange({ ...attrs, approved_makes: arr });
+  }
+
+  function renderHazardousBlock() {
+    return (
+      <>
+        {sectionHeader("Hazardous Area / Classification")}
+        {renderField("area_classification", "Area Classification", PRESSURE_COMMON_OPTS.area_classification, true)}
+        {isPG && isZone && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Explosion Protection</Label>
+            <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">
+              Non-Electrical / Passive Device
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight mt-1">
+              Pressure gauges are non-electrical — no Ex certification required. Ensure IP66+ enclosure for Zone 1/2.
+            </p>
+          </div>
+        )}
+        {!isPG && isZone && renderField("explosion_protection", "Explosion Protection", PRESSURE_COMMON_OPTS.explosion_protection, true)}
+        {!isPG && isZone && (
+          <>
+            {renderField("certification",    "Certification",     PRESSURE_COMMON_OPTS.certification,     true)}
+            {renderField("gas_group",        "Gas Group",         PRESSURE_COMMON_OPTS.gas_group,         true)}
+            {renderField("temperature_class","Temperature Class", PRESSURE_COMMON_OPTS.temperature_class, true)}
+            <div />
+          </>
+        )}
+      </>
+    );
+  }
+
+  const RANK_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
+
+  function renderMakesBlock() {
+    return (
+      <>
+        {sectionHeader("Vendor / Approved Makes")}
+        <div className="col-span-2 space-y-2">
+          <Label className="text-xs">
+            Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
+            <span className="text-red-500"> *</span>
+          </Label>
+          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
+                {approvedMakes.length > 0
+                  ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected`
+                  : "Select approved makes…"}
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                <CommandList>
+                  <CommandEmpty>No results.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredMakes.map(opt => (
+                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
+                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
+                        {opt}
+                      </CommandItem>
+                    ))}
+                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                      <Plus className="mr-2 h-4 w-4" />Add custom make…
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {approvedMakes.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {approvedMakes.map((make, idx) => (
+                <div key={make} className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-medium text-muted-foreground w-7 shrink-0 text-right">
+                    {RANK_LABELS[idx] ?? `${idx + 1}.`}
+                  </span>
+                  <Badge variant="secondary" className="text-xs flex-1 flex items-center justify-between pr-1 gap-1">
+                    <span className="truncate">{make}</span>
+                    <span className="flex items-center gap-0.5 shrink-0">
+                      <button type="button" onClick={() => moveMakeUp(idx)} disabled={idx === 0}
+                        className="disabled:opacity-30 hover:text-foreground transition-opacity">
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button type="button" onClick={() => moveMakeDown(idx)} disabled={idx === approvedMakes.length - 1}
+                        className="disabled:opacity-30 hover:text-foreground transition-opacity">
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      <button type="button"
+                        onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter(m => m !== make) })}
+                        className="hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+          {showCustomMake && (
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
+                autoFocus />
+              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
+              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pressure Instrument Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
+        {/* ── Always shown: Instrument Type ── */}
         {sectionHeader("Instrument Type")}
         <div className="col-span-2">
-          {renderField("instrument_type", "Instrument Type", true)}
-        </div>
-
-        {sectionHeader("Measurement")}
-        {renderField("measurement_type", "Measurement Type")}
-        {renderField("range_unit",       "Range Unit")}
-        {renderNumeric("range_min",      "Range Min")}
-        {renderNumeric("range_max",      "Range Max")}
-
-        {sectionHeader("Process Conditions")}
-        {renderField("process_fluid",   "Process Fluid")}
-        {renderField("operating_temp",  "Operating Temperature")}
-
-        {sectionHeader("Connection Details")}
-        {renderField("connection_size", "Connection Size")}
-        {renderField("connection_type", "Connection Type")}
-
-        {sectionHeader("Signal / Output")}
-        {isGaugeType ? (
           <div className="space-y-1.5">
-            <Label className="text-xs">Output Signal</Label>
-            <div className="h-8 px-3 flex items-center text-sm bg-muted rounded-md border text-muted-foreground">Not Applicable</div>
+            <Label className="text-xs">Instrument Type <span className="text-red-500">*</span></Label>
+            <Select value={instrType} onValueChange={(v) => { if (v !== instrType) handleTypeChange(v); }}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select instrument type…" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRESSURE_INSTR_TYPES.map(opt => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ) : outputOpts ? (
-          renderField("output_signal", "Output Signal", false, [...outputOpts, "Other"])
-        ) : (
-          renderField("output_signal", "Output Signal")
+        </div>
+
+        {/* ── No type yet: placeholder ── */}
+        {!instrType && (
+          <div className="col-span-2 flex items-center justify-center py-8 text-sm text-muted-foreground">
+            Select an instrument type above to configure specifications.
+          </div>
         )}
-        <div /> {/* spacer */}
 
-        {sectionHeader("Construction")}
-        {renderField("wetted_material", "Wetted Parts Material")}
-        {renderField("enclosure_type",  "Enclosure Type")}
+        {/* ═══════════════ PRESSURE GAUGE (PG) ════════════════════════════ */}
+        {isPG && (<>
+          {sectionHeader("Measurement")}
+          {renderField("measurement_type", "Measurement Type",   PRESSURE_PG_OPTS.measurement_type, true)}
+          {renderField("range_unit",       "Range Unit",         PRESSURE_COMMON_OPTS.range_unit_bar, true)}
+          {renderNumeric("range_min",      "Range Min")}
+          {renderNumeric("range_max",      "Range Max",          true)}
+          {renderField("accuracy_class",   "Accuracy Class",     PRESSURE_PG_OPTS.accuracy_class, true)}
+          <div />
 
-        {sectionHeader("Hazardous Area / Certification")}
-        {renderField("area_classification",   "Area Classification")}
-        {renderField("explosion_protection",  "Explosion Protection")}
-        <div className="space-y-1.5">
-          <Label className="text-xs">
-            Certification
-            {isZone && <span className="text-red-500"> *</span>}
-            {!isZone && <span className="text-[10px] font-normal text-muted-foreground ml-1">(optional for Safe Area)</span>}
-          </Label>
-          {(() => {
-            const key     = "certification";
-            const opts    = PRESSURE_OPTS[key];
-            const curVal  = (attrs[key] as string) ?? "";
-            const isCustom= custom[key] ?? false;
-            const selVal  = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
-            return (
-              <>
-                <SearchableSelect value={selVal} options={opts} placeholder="Select…"
-                  onSelect={(v) => handleSelect(key, v)} />
-                {isCustom && (
-                  <Input className="h-8 text-sm" placeholder="Enter custom value…"
-                    value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
-                )}
-              </>
-            );
-          })()}
-        </div>
-        {renderField("gas_group",          "Gas Group")}
-        {renderField("temperature_class",  "Temperature Class")}
+          {sectionHeader("Physical")}
+          {renderField("dial_size",        "Dial Size",          PRESSURE_PG_OPTS.dial_size, true)}
+          {renderField("dial_type",        "Fill Type",          PRESSURE_PG_OPTS.dial_type, true)}
+          {renderField("bourdon_material", "Bourdon Tube Material", PRESSURE_PG_OPTS.bourdon_material)}
+          {renderField("window_material",  "Window Material",    PRESSURE_PG_OPTS.window_material)}
 
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-        </div>
+          {sectionHeader("Process Connection")}
+          {renderField("connection_size",  "Connection Size",    PRESSURE_COMMON_OPTS.connection_size,  true)}
+          {renderField("connection_type",  "Connection Type",    PRESSURE_COMMON_OPTS.connection_type,  true)}
+          {renderField("conn_orientation", "Orientation",        PRESSURE_COMMON_OPTS.conn_orientation, true)}
+          <div />
+
+          {sectionHeader("Process Conditions")}
+          {renderField("process_fluid",    "Process Fluid",      PRESSURE_COMMON_OPTS.process_fluid)}
+          {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
+
+          {sectionHeader("Construction")}
+          {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
+          {renderField("ip_rating",        "IP Rating",          PRESSURE_COMMON_OPTS.ip_rating, true)}
+        </>)}
+
+        {/* ═══════════════ PRESSURE TRANSMITTER (PT) ══════════════════════ */}
+        {isPT && (<>
+          {sectionHeader("Measurement")}
+          {renderField("measurement_type", "Measurement Type",   PRESSURE_PT_DPT_OPTS.pt_meas_type, true)}
+          {renderField("range_unit",       "Range Unit",         PRESSURE_COMMON_OPTS.range_unit_bar, true)}
+          {renderNumeric("range_min",      "Range Min")}
+          {renderNumeric("range_max",      "Range Max",          true)}
+          {renderField("accuracy_class",   "Accuracy Class",     PRESSURE_PT_DPT_OPTS.accuracy_class, true)}
+          <div />
+
+          {sectionHeader("Electrical / Signal")}
+          {renderField("output_signal",    "Output Signal",          PRESSURE_PT_DPT_OPTS.output_signal,  true)}
+          {renderField("power_supply",     "Power Supply",           PRESSURE_PT_DPT_OPTS.power_supply,   true)}
+          {renderField("comm_protocol",    "Communication Protocol", PRESSURE_PT_DPT_OPTS.comm_protocol)}
+          {renderField("display",          "Display",                PRESSURE_PT_DPT_OPTS.display)}
+
+          {sectionHeader("Process Connection")}
+          {renderField("connection_size",  "Connection Size",    PRESSURE_COMMON_OPTS.connection_size,  true)}
+          {renderField("connection_type",  "Connection Type",    PRESSURE_COMMON_OPTS.connection_type,  true)}
+          {renderField("conn_orientation", "Orientation",        PRESSURE_COMMON_OPTS.conn_orientation, true)}
+          <div />
+
+          {sectionHeader("Remote Seal (Optional)")}
+          {renderField("remote_seal_type", "Remote Seal Type",   PRESSURE_PT_DPT_OPTS.remote_seal_type)}
+          {renderText("capillary_length",  "Capillary Length",   false, "e.g. 2 m, 5 m")}
+
+          {sectionHeader("Process Conditions")}
+          {renderField("process_fluid",    "Process Fluid",      PRESSURE_COMMON_OPTS.process_fluid)}
+          {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
+
+          {sectionHeader("Construction")}
+          {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
+          {renderField("housing_material", "Housing Material",      PRESSURE_COMMON_OPTS.housing_material)}
+          {renderField("ip_rating",        "IP Rating",          PRESSURE_COMMON_OPTS.ip_rating, true)}
+          <div />
+
+          {sectionHeader("Safety Integrity")}
+          {renderField("sil_requirement",  "SIL Requirement",    PRESSURE_COMMON_OPTS.sil_requirement)}
+          <div />
+        </>)}
+
+        {/* ═══════════════ DIFFERENTIAL PRESSURE TRANSMITTER (DPT) ════════ */}
+        {isDPT && (<>
+          {sectionHeader("Measurement")}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Measurement Type</Label>
+            <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">
+              Differential Pressure
+            </div>
+          </div>
+          {renderField("application",      "Application",        PRESSURE_PT_DPT_OPTS.application, true)}
+          {renderField("range_unit",       "Range Unit",         PRESSURE_COMMON_OPTS.range_unit_dp, true)}
+          {renderNumeric("range_min",      "Range Min")}
+          {renderNumeric("range_max",      "Range Max",          true)}
+          {renderField("accuracy_class",   "Accuracy Class",     PRESSURE_PT_DPT_OPTS.accuracy_class, true)}
+          <div />
+
+          {sectionHeader("Electrical / Signal")}
+          {renderField("output_signal",    "Output Signal",          PRESSURE_PT_DPT_OPTS.output_signal,  true)}
+          {renderField("power_supply",     "Power Supply",           PRESSURE_PT_DPT_OPTS.power_supply,   true)}
+          {renderField("comm_protocol",    "Communication Protocol", PRESSURE_PT_DPT_OPTS.comm_protocol)}
+          {renderField("display",          "Display",                PRESSURE_PT_DPT_OPTS.display)}
+
+          {sectionHeader("Process Connection")}
+          {renderField("connection_size",  "HP Connection Size", PRESSURE_COMMON_OPTS.connection_size,  true)}
+          {renderField("connection_type",  "HP Connection Type", PRESSURE_COMMON_OPTS.connection_type,  true)}
+          {renderField("conn_orientation", "HP Orientation",     PRESSURE_COMMON_OPTS.conn_orientation, true)}
+          {renderField("lp_connection",    "LP Connection",      PRESSURE_PT_DPT_OPTS.lp_connection)}
+
+          {sectionHeader("Manifold")}
+          {renderField("manifold_type",    "Manifold Type",      PRESSURE_PT_DPT_OPTS.manifold_type, true)}
+          <div />
+
+          {sectionHeader("Remote Seal (Optional)")}
+          {renderField("remote_seal_type", "Remote Seal Type",   PRESSURE_PT_DPT_OPTS.remote_seal_type)}
+          {renderText("capillary_length",  "Capillary Length",   false, "e.g. 2 m, 5 m")}
+
+          {sectionHeader("Process Conditions")}
+          {renderField("process_fluid",    "Process Fluid",      PRESSURE_COMMON_OPTS.process_fluid)}
+          {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
+
+          {sectionHeader("Construction")}
+          {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
+          {renderField("housing_material", "Housing Material",      PRESSURE_COMMON_OPTS.housing_material)}
+          {renderField("ip_rating",        "IP Rating",          PRESSURE_COMMON_OPTS.ip_rating, true)}
+          <div />
+
+          {sectionHeader("Safety Integrity")}
+          {renderField("sil_requirement",  "SIL Requirement",    PRESSURE_COMMON_OPTS.sil_requirement)}
+          <div />
+        </>)}
+
+        {/* ═══════════════ PRESSURE SWITCH (PS) ══════════════════════════ */}
+        {isPS && (<>
+          {sectionHeader("Measurement & Range")}
+          {renderField("measurement_type", "Measurement Type",     PRESSURE_PS_OPTS.measurement_type, true)}
+          {renderField("range_unit",       "Range Unit",           PRESSURE_COMMON_OPTS.range_unit_bar, true)}
+          {renderNumeric("range_min",      "Adjustable Range Min")}
+          {renderNumeric("range_max",      "Adjustable Range Max", true)}
+
+          {sectionHeader("Setpoint")}
+          {renderText("trip_setpoint",     "Trip Setpoint",        true,  "e.g. 8.0 bar")}
+          {renderText("deadband",          "Deadband / Hysteresis",false, "e.g. 0.5 bar")}
+
+          {sectionHeader("Switching")}
+          {renderField("switching_action", "Switching Action",     PRESSURE_PS_OPTS.switching_action, true)}
+          {renderField("contact_rating",   "Contact Rating",       PRESSURE_PS_OPTS.contact_rating,   true)}
+          {renderField("reset_type",       "Reset Type",           PRESSURE_PS_OPTS.reset_type,       true)}
+          <div />
+
+          {sectionHeader("Process Connection")}
+          {renderField("connection_size",  "Connection Size",      PRESSURE_COMMON_OPTS.connection_size, true)}
+          {renderField("connection_type",  "Connection Type",      PRESSURE_COMMON_OPTS.connection_type, true)}
+
+          {sectionHeader("Process Conditions")}
+          {renderField("process_fluid",    "Process Fluid",        PRESSURE_COMMON_OPTS.process_fluid)}
+          {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
+
+          {sectionHeader("Construction")}
+          {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
+          {renderField("housing_material", "Housing Material",      PRESSURE_COMMON_OPTS.housing_material)}
+          {renderField("cable_entry",      "Cable Entry",           PRESSURE_PS_OPTS.cable_entry)}
+          {renderField("ip_rating",        "IP Rating",             PRESSURE_COMMON_OPTS.ip_rating, true)}
+          <div />
+
+          {sectionHeader("Safety Integrity")}
+          {renderField("sil_requirement",  "SIL Requirement",      PRESSURE_COMMON_OPTS.sil_requirement)}
+          <div />
+        </>)}
+
+        {/* ═══════════════ SHARED: HAZARDOUS AREA + MAKES + QTY ═══════════ */}
+        {instrType && (<>
+          {renderHazardousBlock()}
+          {renderMakesBlock()}
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          </div>
+        </>)}
+
       </div>
     </div>
   );
@@ -6751,13 +7170,69 @@ export default function BuyPackagesPage() {
       if (!(ta.vfd_compatible as string)?.trim()) { toast({ title: "VFD Compatible is required", variant: "destructive" }); return; }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isPressureMode) {
-      const ta = lf.technicalAttributes;
-      if (!(ta.instrument_type as string)?.trim()) {
-        toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      const ta    = lf.technicalAttributes;
+      const iType = (ta.instrument_type as string)?.trim();
+      if (!iType) { toast({ title: "Instrument Type is required", variant: "destructive" }); return; }
+      const pt      = iType.toLowerCase();
+      const isPG_v  = pt.includes("gauge");
+      const isPT_v  = pt.includes("transmitter") && !pt.includes("differential");
+      const isDPT_v = pt.includes("differential");
+      const isPS_v  = pt.includes("switch");
+      // Mandatory across all types
+      if (!(ta.range_max           as string)?.trim()) { toast({ title: "Range Max is required",             variant: "destructive" }); return; }
+      if (!(ta.range_unit          as string)?.trim()) { toast({ title: "Range Unit is required",            variant: "destructive" }); return; }
+      if (!(ta.wetted_material     as string)?.trim()) { toast({ title: "Wetted Parts Material is required", variant: "destructive" }); return; }
+      if (!(ta.ip_rating           as string)?.trim()) { toast({ title: "IP Rating is required",             variant: "destructive" }); return; }
+      if (!(ta.area_classification as string)?.trim()) { toast({ title: "Area Classification is required",   variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+      // PG-specific mandatory
+      if (isPG_v) {
+        if (!(ta.measurement_type as string)?.trim()) { toast({ title: "Measurement Type is required", variant: "destructive" }); return; }
+        if (!(ta.accuracy_class   as string)?.trim()) { toast({ title: "Accuracy Class is required",   variant: "destructive" }); return; }
+        if (!(ta.dial_size        as string)?.trim()) { toast({ title: "Dial Size is required",        variant: "destructive" }); return; }
+        if (!(ta.dial_type        as string)?.trim()) { toast({ title: "Fill Type is required",        variant: "destructive" }); return; }
+        if (!(ta.connection_size  as string)?.trim()) { toast({ title: "Connection Size is required",  variant: "destructive" }); return; }
+        if (!(ta.connection_type  as string)?.trim()) { toast({ title: "Connection Type is required",  variant: "destructive" }); return; }
+        if (!(ta.conn_orientation as string)?.trim()) { toast({ title: "Connection Orientation is required", variant: "destructive" }); return; }
       }
+      // PT-specific mandatory
+      if (isPT_v) {
+        if (!(ta.measurement_type as string)?.trim()) { toast({ title: "Measurement Type is required", variant: "destructive" }); return; }
+        if (!(ta.accuracy_class   as string)?.trim()) { toast({ title: "Accuracy Class is required",   variant: "destructive" }); return; }
+        if (!(ta.output_signal    as string)?.trim()) { toast({ title: "Output Signal is required",    variant: "destructive" }); return; }
+        if (!(ta.power_supply     as string)?.trim()) { toast({ title: "Power Supply is required",     variant: "destructive" }); return; }
+        if (!(ta.connection_size  as string)?.trim()) { toast({ title: "Connection Size is required",  variant: "destructive" }); return; }
+        if (!(ta.connection_type  as string)?.trim()) { toast({ title: "Connection Type is required",  variant: "destructive" }); return; }
+        if (!(ta.conn_orientation as string)?.trim()) { toast({ title: "Connection Orientation is required", variant: "destructive" }); return; }
+      }
+      // DPT-specific mandatory
+      if (isDPT_v) {
+        if (!(ta.application      as string)?.trim()) { toast({ title: "Application is required",        variant: "destructive" }); return; }
+        if (!(ta.accuracy_class   as string)?.trim()) { toast({ title: "Accuracy Class is required",     variant: "destructive" }); return; }
+        if (!(ta.output_signal    as string)?.trim()) { toast({ title: "Output Signal is required",      variant: "destructive" }); return; }
+        if (!(ta.power_supply     as string)?.trim()) { toast({ title: "Power Supply is required",       variant: "destructive" }); return; }
+        if (!(ta.connection_size  as string)?.trim()) { toast({ title: "HP Connection Size is required", variant: "destructive" }); return; }
+        if (!(ta.connection_type  as string)?.trim()) { toast({ title: "HP Connection Type is required", variant: "destructive" }); return; }
+        if (!(ta.conn_orientation as string)?.trim()) { toast({ title: "HP Orientation is required",     variant: "destructive" }); return; }
+        if (!(ta.manifold_type    as string)?.trim()) { toast({ title: "Manifold Type is required",      variant: "destructive" }); return; }
+      }
+      // PS-specific mandatory
+      if (isPS_v) {
+        if (!(ta.measurement_type as string)?.trim()) { toast({ title: "Measurement Type is required",  variant: "destructive" }); return; }
+        if (!(ta.trip_setpoint    as string)?.trim()) { toast({ title: "Trip Setpoint is required",     variant: "destructive" }); return; }
+        if (!(ta.switching_action as string)?.trim()) { toast({ title: "Switching Action is required",  variant: "destructive" }); return; }
+        if (!(ta.contact_rating   as string)?.trim()) { toast({ title: "Contact Rating is required",    variant: "destructive" }); return; }
+        if (!(ta.reset_type       as string)?.trim()) { toast({ title: "Reset Type is required",        variant: "destructive" }); return; }
+        if (!(ta.connection_size  as string)?.trim()) { toast({ title: "Connection Size is required",   variant: "destructive" }); return; }
+        if (!(ta.connection_type  as string)?.trim()) { toast({ title: "Connection Type is required",   variant: "destructive" }); return; }
+      }
+      // Hazardous area checks (non-PG only — PG is non-electrical)
       const areaClass = (ta.area_classification as string)?.trim();
-      if ((areaClass === "Zone 1" || areaClass === "Zone 2") && !(ta.certification as string)?.trim()) {
-        toast({ title: "Certification is required for Zone 1 / Zone 2", variant: "destructive" }); return;
+      if (!isPG_v && (areaClass === "Zone 1" || areaClass === "Zone 2")) {
+        if (!(ta.explosion_protection as string)?.trim()) { toast({ title: "Explosion Protection is required for Zone 1 / Zone 2", variant: "destructive" }); return; }
+        if (!(ta.certification        as string)?.trim()) { toast({ title: "Certification is required for Zone 1 / Zone 2",        variant: "destructive" }); return; }
+        if (!(ta.gas_group            as string)?.trim()) { toast({ title: "Gas Group is required for Zone 1 / Zone 2",            variant: "destructive" }); return; }
+        if (!(ta.temperature_class    as string)?.trim()) { toast({ title: "Temperature Class is required for Zone 1 / Zone 2",    variant: "destructive" }); return; }
       }
     } else if (isTemperatureMode) {
       const ta = lf.technicalAttributes;
