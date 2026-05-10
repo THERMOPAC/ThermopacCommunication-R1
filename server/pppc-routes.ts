@@ -1378,7 +1378,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
          LEFT JOIN item_planning_records ipr ON ipr.id = l.planning_record_id
          LEFT JOIN master_items mi ON mi.id = l.selected_master_item_id
          WHERE l.buy_list_header_id=$1
-         ORDER BY l.line_number`,
+         ORDER BY bg.sort_order, bg.code, bs.sort_order, bs.code, l.tag_no, l.line_number`,
         [id],
       );
       res.json(result.rows);
@@ -3006,7 +3006,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
          JOIN uom_master u ON u.id = l.uom_id
          LEFT JOIN buy_package_lines bpl ON bpl.id = l.source_package_line_id
          WHERE l.buy_list_header_id = $1
-         ORDER BY l.line_number`,
+         ORDER BY bg.sort_order, bg.code, bs.sort_order, bs.code, l.tag_no, l.line_number`,
         [id],
       );
 
