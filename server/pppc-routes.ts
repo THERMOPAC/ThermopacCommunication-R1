@@ -2695,9 +2695,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid projectId');
 
-      // Find all project items with a bp_code (matching buy package code)
+      // Find all project items and match to active buy package via bp_code (direct) OR
+      // via product_code → products → buy_package_headers.product_id (fallback when bp_code is null)
       const itemsRes = await pool.query(
-        `SELECT pi.id, pi.item_code, pi.description, pi.bp_code,
+        `SELECT pi.id, pi.item_code, pi.description, pi.bp_code, pi.product_code,
                 bph_latest.id AS latest_pkg_id, bph_latest.version AS latest_pkg_version,
                 bph_latest.package_code AS latest_pkg_code,
                 bph_latest.name AS latest_pkg_name,
@@ -2723,7 +2724,17 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
          LEFT JOIN LATERAL (
            SELECT bph.id, bph.version, bph.package_code, bph.name, bph.product_id
            FROM buy_package_headers bph
-           WHERE bph.package_code = pi.bp_code AND bph.status = 'active'
+           LEFT JOIN products p ON p.id = bph.product_id
+           WHERE bph.status = 'active'
+             AND (
+               (pi.bp_code IS NOT NULL AND pi.bp_code != '' AND bph.package_code = pi.bp_code)
+               OR
+               (
+                 (pi.bp_code IS NULL OR pi.bp_code = '')
+                 AND pi.product_code IS NOT NULL AND pi.product_code != ''
+                 AND p.product_code = pi.product_code
+               )
+             )
            ORDER BY bph.version DESC LIMIT 1
          ) bph_latest ON true
          WHERE pi.project_id = $1
@@ -2732,10 +2743,9 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       );
 
       const rows = itemsRes.rows;
-      const withBpCode         = rows.filter((r: any) => r.bp_code);
-      const withoutBpCode      = rows.filter((r: any) => !r.bp_code);
-      const matchedWithPkg     = withBpCode.filter((r: any) => r.latest_pkg_id);
-      const noPackageMatch     = withBpCode.filter((r: any) => !r.latest_pkg_id);
+      // An item is "package-eligible" if we found an active package via either match path
+      const matchedWithPkg     = rows.filter((r: any) => r.latest_pkg_id);
+      const noPackageMatch     = rows.filter((r: any) => !r.latest_pkg_id);
 
       const alreadyHasLists    = matchedWithPkg.filter((r: any) => r.has_current_list);
       const missingLists       = matchedWithPkg.filter((r: any) => !r.has_current_list);
@@ -2783,8 +2793,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       res.json({
         scenario,
         totalProjectItems: rows.length,
-        withBpCode: withBpCode.length,
-        withoutBpCode: withoutBpCode.length,
+        withBpCode: matchedWithPkg.length,
+        withoutBpCode: noPackageMatch.length,
         matchedWithPackage: matchedWithPkg.length,
         noPackageMatch: noPackageMatch.length,
         alreadyHasLists: alreadyHasLists.length,
@@ -2812,15 +2822,25 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const dryRun = req.body.dryRun === true;
       const userId = (req.user as any)?.id as number;
 
-      // Find all items with bp_code that have no current buy list
+      // Find all items with an active package match (via bp_code OR product_code) that have no current buy list
       const missingRes = await pool.query(
-        `SELECT pi.id AS project_item_id, pi.item_code, pi.description, pi.bp_code,
+        `SELECT pi.id AS project_item_id, pi.item_code, pi.description, pi.bp_code, pi.product_code,
                 bph.id AS pkg_id, bph.version AS pkg_version, bph.package_code
          FROM project_items pi
          JOIN LATERAL (
            SELECT bph2.id, bph2.version, bph2.package_code
            FROM buy_package_headers bph2
-           WHERE bph2.package_code = pi.bp_code AND bph2.status = 'active'
+           LEFT JOIN products p ON p.id = bph2.product_id
+           WHERE bph2.status = 'active'
+             AND (
+               (pi.bp_code IS NOT NULL AND pi.bp_code != '' AND bph2.package_code = pi.bp_code)
+               OR
+               (
+                 (pi.bp_code IS NULL OR pi.bp_code = '')
+                 AND pi.product_code IS NOT NULL AND pi.product_code != ''
+                 AND p.product_code = pi.product_code
+               )
+             )
            ORDER BY bph2.version DESC LIMIT 1
          ) bph ON true
          WHERE pi.project_id = $1

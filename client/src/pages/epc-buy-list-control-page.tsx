@@ -981,7 +981,7 @@ export default function EpcBuyListControlPage() {
             {pppcCurrentBanner && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium animate-pulse">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                PPPC Current — all buy lists match latest active package
+                PPPC Current — all package-matched items have up-to-date buy lists
               </div>
             )}
             {canWrite && selectedProjectId && (
