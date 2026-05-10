@@ -1698,20 +1698,138 @@ function CentrifugalPumpAttrsForm({
   );
 }
 
-// ── Gear Pump requirement builder ────────────────────────────────────────────
+// ── Gear Pump constants ───────────────────────────────────────────────────────
+const GEAR_PUMP_TYPES = [
+  "External Gear","Internal Gear (Crescent)","Helical Gear","Bi-Helical / Herringbone",
+];
+
+const GEAR_COMMON_OPTS = {
+  mounting:            ["Base Mounted","Skid Mounted","Vertical","Close-Coupled"],
+  drive_type:          ["Motor Driven","Engine Driven","Variable Speed Drive (VSD)"],
+  service_type:        ["Continuous","Intermittent","Standby","Duty-Standby"],
+  flow_rate:           ["0.1 m³/hr","0.2 m³/hr","0.5 m³/hr","1 m³/hr","2 m³/hr","5 m³/hr",
+                        "10 m³/hr","15 m³/hr","20 m³/hr","30 m³/hr","50 m³/hr",
+                        "75 m³/hr","100 m³/hr","150 m³/hr","200 m³/hr"],
+  diff_pressure:       ["2 bar","5 bar","8 bar","10 bar","15 bar","20 bar","25 bar","30 bar","40 bar","50 bar"],
+  fluid:               ["Fuel Oil","Lube Oil","Thermal Oil","Bitumen","Asphalt","Chemical",
+                        "Resin","Molasses","Crude Oil","Water","Other"],
+  operating_temp:      ["Ambient","60°C","80°C","100°C","120°C","150°C","200°C","250°C","300°C"],
+  material_class:      ["CI","CS","SS304","SS316","Alloy Steel","Hastelloy"],
+  seal_type:           ["Mechanical Seal","Gland Packing","Magnetic Drive","Lip Seal"],
+  yes_no:              ["Yes","No"],
+  heating_medium:      ["Steam","Hot Water","Thermal Oil"],
+  api_676:             ["API 676","Non-API"],
+  area_class:          ["Safe Area","Zone 1","Zone 2"],
+  certification:       ["ATEX","IECEx","PESO"],
+  speed_rpm:           ["960 RPM","1450 RPM","1750 RPM","2900 RPM","Variable"],
+  motor_power_kw:      ["0.37 kW","0.55 kW","0.75 kW","1.1 kW","1.5 kW","2.2 kW","3.7 kW",
+                        "5.5 kW","7.5 kW","11 kW","15 kW","18.5 kW","22 kW","30 kW","37 kW",
+                        "45 kW","55 kW","75 kW"],
+  spare_parts:         ["Seal Kit","Full Rotating Element","None"],
+  port_conn:           ["Flanged","NPT","BSP","DIN"],
+  gear_material:       ["Cast Iron","Carbon Steel","SS304","SS316","Bronze","Alloy Steel"],
+  crescent_type:       ["Fixed Crescent","Adjustable Crescent"],
+  idler_pin_type:      ["Fixed Pin","Floating Pin"],
+  helix_angle:         ["15°","20°","30°","Custom"],
+  noise_class:         ["Standard","Low Noise","Silent"],
+  bearing_type:        ["Sleeve","Rolling Element","Hydrodynamic"],
+  lube_system:         ["Self-Lubricated","Forced Lubrication"],
+};
+
+const GEAR_ALL_FIELD_OPTS: Record<string, string[]> = {
+  gear_type:            GEAR_PUMP_TYPES,
+  mounting:             GEAR_COMMON_OPTS.mounting,
+  drive_type:           GEAR_COMMON_OPTS.drive_type,
+  service_type:         GEAR_COMMON_OPTS.service_type,
+  flow_rate:            GEAR_COMMON_OPTS.flow_rate,
+  diff_pressure:        GEAR_COMMON_OPTS.diff_pressure,
+  fluid:                GEAR_COMMON_OPTS.fluid,
+  operating_temp:       GEAR_COMMON_OPTS.operating_temp,
+  material_class:       GEAR_COMMON_OPTS.material_class,
+  seal_type:            GEAR_COMMON_OPTS.seal_type,
+  heating_jacket:       GEAR_COMMON_OPTS.yes_no,
+  heating_medium:       GEAR_COMMON_OPTS.heating_medium,
+  insulation:           GEAR_COMMON_OPTS.yes_no,
+  builtin_relief_valve: GEAR_COMMON_OPTS.yes_no,
+  api_standard:         GEAR_COMMON_OPTS.api_676,
+  area_classification:  GEAR_COMMON_OPTS.area_class,
+  certification:        GEAR_COMMON_OPTS.certification,
+  speed_rpm:            GEAR_COMMON_OPTS.speed_rpm,
+  motor_power_kw:       GEAR_COMMON_OPTS.motor_power_kw,
+  spare_parts:          GEAR_COMMON_OPTS.spare_parts,
+  port_connection:      GEAR_COMMON_OPTS.port_conn,
+  gear_material:        GEAR_COMMON_OPTS.gear_material,
+  crescent_type:        GEAR_COMMON_OPTS.crescent_type,
+  idler_pin_type:       GEAR_COMMON_OPTS.idler_pin_type,
+  helix_angle:          GEAR_COMMON_OPTS.helix_angle,
+  noise_class:          GEAR_COMMON_OPTS.noise_class,
+  bearing_type:         GEAR_COMMON_OPTS.bearing_type,
+  lube_system:          GEAR_COMMON_OPTS.lube_system,
+};
+
+const GEAR_PUMP_MAKES = [
+  "Viking Pump","Varisco","SPX Flow","Roper Pump","Tuthill","Leistritz",
+  "Maag","Bosch Rexroth","Colfax","Gorman-Rupp","IMO Pump","Desmi",
+];
+
+function buildGearPumpDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    gear_type: type, approved_makes: [],
+    mounting: "Base Mounted", drive_type: "Motor Driven",
+    service_type: "Continuous", flow_rate: "", diff_pressure: "",
+    fluid: "", operating_temp: "", material_class: "CI", seal_type: "Mechanical Seal",
+    heating_jacket: "No", heating_medium: "", insulation: "No",
+    builtin_relief_valve: "No", relief_pressure_setting: "",
+    api_standard: "", area_classification: "", certification: "",
+    speed_rpm: "", motor_power_kw: "", spare_parts: "",
+    port_connection: "", port_size: "", gear_material: "",
+    crescent_type: "", idler_pin_type: "",
+    helix_angle: "", noise_class: "",
+    bearing_type: "", lube_system: "", max_diff_pressure: "",
+  };
+  switch (type) {
+    case "External Gear":
+      return { ...base, gear_material: "Cast Iron", builtin_relief_valve: "Yes" };
+    case "Internal Gear (Crescent)":
+      return { ...base, gear_material: "Cast Iron", crescent_type: "Fixed Crescent",
+        idler_pin_type: "Fixed Pin", heating_jacket: "Yes", heating_medium: "Steam" };
+    case "Helical Gear":
+      return { ...base, gear_material: "Carbon Steel", noise_class: "Standard",
+        builtin_relief_valve: "Yes" };
+    case "Bi-Helical / Herringbone":
+      return { ...base, gear_material: "Alloy Steel", bearing_type: "Sleeve",
+        lube_system: "Self-Lubricated" };
+    default: return base;
+  }
+}
+
 function buildGearPumpRequirement(attrs: Record<string, unknown>): string {
-  const gearType  = (attrs.gear_type     as string)?.trim() || "";
-  const flowRate  = (attrs.flow_rate     as string)?.trim() || "";
-  const pressure  = (attrs.pressure      as string)?.trim() || "";
-  const matClass  = (attrs.material_class as string)?.trim() || "";
-  const fluid     = (attrs.fluid         as string)?.trim() || "";
+  const gearType = (attrs.gear_type as string)?.trim() || "";
+  const flowRate = (attrs.flow_rate as string)?.trim() || "";
+  const pressure = (attrs.diff_pressure as string)?.trim() || "";
+  const matClass = (attrs.material_class as string)?.trim() || "";
+  const fluid    = (attrs.fluid as string)?.trim() || "";
+  const typeLC   = gearType.toLowerCase();
+
+  let typeSpec = "";
+  if (typeLC.includes("internal") || typeLC.includes("crescent")) {
+    const crescent = (attrs.crescent_type as string)?.trim() || "";
+    if (crescent) typeSpec = crescent;
+  } else if (typeLC.includes("helical") && !typeLC.includes("bi")) {
+    const noise = (attrs.noise_class as string)?.trim() || "";
+    if (noise && noise !== "Standard") typeSpec = `${noise} Noise`;
+  } else if (typeLC.includes("bi-helical") || typeLC.includes("herringbone")) {
+    const bearing = (attrs.bearing_type as string)?.trim() || "";
+    if (bearing) typeSpec = `${bearing} Bearing`;
+  }
 
   const parts: string[] = ["Gear Pump"];
   if (gearType) parts.push(gearType);
+  if (typeSpec)  parts.push(typeSpec);
 
   const opCond: string[] = [];
   if (flowRate) opCond.push(flowRate);
-  if (pressure) opCond.push(`${pressure} pressure`);
+  if (pressure) opCond.push(`${pressure} DP`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
 
@@ -1719,24 +1837,6 @@ function buildGearPumpRequirement(attrs: Record<string, unknown>): string {
   if (fluid)    parts.push(`${fluid} Service`);
   return parts.join(", ");
 }
-
-// ── Gear Pump option lists ────────────────────────────────────────────────────
-const GEAR_PUMP_OPTS: Record<string, string[]> = {
-  gear_type:      ["External Gear", "Internal Gear"],
-  mounting:       ["Base Mounted", "Skid Mounted", "Vertical"],
-  drive_type:     ["Motor Driven", "Engine Driven"],
-  service_type:   ["Continuous", "Intermittent", "Standby"],
-  flow_rate:      ["1 m³/hr", "2 m³/hr", "5 m³/hr", "10 m³/hr", "20 m³/hr",
-                   "30 m³/hr", "50 m³/hr", "75 m³/hr", "100 m³/hr"],
-  pressure:       ["2 bar", "5 bar", "10 bar", "15 bar", "20 bar", "25 bar"],
-  fluid:          ["Oil", "Fuel", "Chemical", "Viscous Liquid", "Bitumen"],
-  viscosity:      ["Low", "Medium", "High", "Very High"],
-  operating_temp: ["Ambient", "50°C", "80°C", "120°C", "150°C"],
-  material_class: ["CI", "CS", "SS304", "SS316", "Alloy Steel"],
-  seal_type:      ["Mechanical Seal", "Gland Packing", "Magnetic Drive"],
-};
-
-const GEAR_PUMP_MAKES = ["Viking Pump", "Varisco", "SPX Flow", "Roper Pump", "Tuthill", "Leistritz", "Maag", "Bosch Rexroth", "Colfax"];
 
 // ── Gear Pump structured form ─────────────────────────────────────────────────
 function GearPumpAttrsForm({
@@ -1747,31 +1847,46 @@ function GearPumpAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-
-  const singleKeys = Object.keys(GEAR_PUMP_OPTS);
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = GEAR_PUMP_OPTS[key] ?? [];
+    for (const [key, opts] of Object.entries(GEAR_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
 
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.approved_makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
+
+  function handleTypeChange(type: string) {
+    const defaults = buildGearPumpDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(GEAR_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    setCustom(c); setMakes([]); onChange({ ...defaults, approved_makes: [] });
+  }
+
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
+      onChange({ ...attrs, [key]: "" });
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      onChange({ ...attrs, [key]: val });
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = GEAR_PUMP_OPTS[key];
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
@@ -1781,33 +1896,25 @@ function GearPumpAttrsForm({
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
           onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
-          <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
         )}
       </div>
     );
   }
 
-  // ── Makes multi-select ──
-  const [makesOpen, setMakesOpen] = useState(false);
-  const [makesQuery, setMakesQuery] = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal, setCustomMakeVal] = useState("");
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter((m) => m !== make)
-      : [...approvedMakes, make] });
+  function renderFreeText(key: string, label: string, placeholder?: string, required?: boolean) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" placeholder={placeholder ?? `Enter ${label}…`}
+          value={(attrs[key] as string) ?? ""}
+          onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
   }
-  function addCustomMake() {
-    const t = customMakeVal.trim();
-    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  const filteredMakes = GEAR_PUMP_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
 
-  function sectionHeader(label: string) {
+  function sec(label: string) {
     return (
       <div className="col-span-2 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
@@ -1815,85 +1922,186 @@ function GearPumpAttrsForm({
     );
   }
 
+  function addMake(make: string) {
+    const t = make.trim();
+    if (!t || makes.includes(t)) return;
+    const next = [...makes, t];
+    setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) {
+    const next = makes.filter((x) => x !== m);
+    setMakes(next); onChange({ ...attrs, approved_makes: next });
+  }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setMakes(next); onChange({ ...attrs, approved_makes: next });
+  }
+
+  const gearType    = (attrs.gear_type as string) ?? "";
+  const isExternal  = gearType === "External Gear";
+  const isInternal  = gearType === "Internal Gear (Crescent)";
+  const isHelical   = gearType === "Helical Gear";
+  const isBiHelical = gearType === "Bi-Helical / Herringbone";
+  const hasType     = isExternal || isInternal || isHelical || isBiHelical;
+  const hasJacket   = (attrs.heating_jacket as string) === "Yes";
+  const hasRelief   = (attrs.builtin_relief_valve as string) === "Yes";
+  const filteredMakes = GEAR_PUMP_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Gear Pump Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
-        {sectionHeader("Pump Specifications")}
-        {renderField("gear_type",    "Gear Type",    true)}
-        {renderField("mounting",     "Mounting",     true)}
-        {renderField("drive_type",   "Drive Type",   true)}
-        {renderField("service_type", "Service Type", true)}
-
-        {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate",     true)}
-        {renderField("pressure",       "Pressure"           )}
-        {renderField("fluid",          "Fluid",         true)}
-        {renderField("viscosity",      "Viscosity"          )}
-        {renderField("operating_temp", "Operating Temp", true)}
-
-        {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class", true)}
-        {renderField("seal_type",      "Seal Type",      true)}
-
-        {sectionHeader("Vendor / Make")}
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredMakes.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {approvedMakes.map((make) => (
-                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
-                  {make}
-                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {showCustomMake && (
-            <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+        {/* ── Gear Type (type-first) ──────────────────────────────── */}
+        {sec("Gear Type")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Gear Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={GEAR_PUMP_TYPES.includes(gearType) ? gearType : ""}
+            options={GEAR_PUMP_TYPES}
+            placeholder="Select gear type first…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
         </div>
 
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a gear type above to configure specifications
+          </div>
+        )}
+
+        {/* ── External Gear sub-panel ─────────────────────────────── */}
+        {isExternal && (<>
+          {sec("External Gear Configuration")}
+          {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
+          {renderField("port_connection",     "Port Connection",       GEAR_COMMON_OPTS.port_conn,     true)}
+          {renderFreeText("port_size",        "Port Size (DN/NPS)",    "e.g. DN50, 2\"")}
+          {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
+          {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 12 bar")}
+          {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
+          {hasJacket  && renderField("heating_medium","Heating Medium",GEAR_COMMON_OPTS.heating_medium)}
+          {!hasJacket && <div />}
+        </>)}
+
+        {/* ── Internal Gear (Crescent) sub-panel ─────────────────── */}
+        {isInternal && (<>
+          {sec("Internal Gear (Crescent) Configuration")}
+          {renderField("gear_material",   "Gear Material",       GEAR_COMMON_OPTS.gear_material,  true)}
+          {renderField("crescent_type",   "Crescent Type",       GEAR_COMMON_OPTS.crescent_type,  true)}
+          {renderField("idler_pin_type",  "Idler Pin Type",      GEAR_COMMON_OPTS.idler_pin_type, true)}
+          {renderField("port_connection", "Port Connection",     GEAR_COMMON_OPTS.port_conn,      true)}
+          {renderFreeText("port_size",    "Port Size (DN/NPS)",  "e.g. DN50, 2\"")}
+          {renderField("heating_jacket",  "Heating Jacket",      GEAR_COMMON_OPTS.yes_no,         true)}
+          {hasJacket  && renderField("heating_medium","Heating Medium",GEAR_COMMON_OPTS.heating_medium)}
+          {!hasJacket && <div />}
+          {renderField("insulation",      "Insulation Required", GEAR_COMMON_OPTS.yes_no)}
+          <div />
+        </>)}
+
+        {/* ── Helical Gear sub-panel ──────────────────────────────── */}
+        {isHelical && (<>
+          {sec("Helical Gear Configuration")}
+          {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
+          {renderField("helix_angle",         "Helix Angle",           GEAR_COMMON_OPTS.helix_angle)}
+          {renderField("noise_class",         "Noise Class",           GEAR_COMMON_OPTS.noise_class)}
+          {renderField("port_connection",     "Port Connection",       GEAR_COMMON_OPTS.port_conn)}
+          {renderFreeText("port_size",        "Port Size (DN/NPS)",    "e.g. DN50, 2\"")}
+          {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
+          {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 12 bar")}
+          {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
+          {hasJacket  && renderField("heating_medium","Heating Medium",GEAR_COMMON_OPTS.heating_medium)}
+          {!hasJacket && <div />}
+        </>)}
+
+        {/* ── Bi-Helical / Herringbone sub-panel ─────────────────── */}
+        {isBiHelical && (<>
+          {sec("Bi-Helical / Herringbone Configuration")}
+          {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
+          {renderField("bearing_type",        "Bearing Type",          GEAR_COMMON_OPTS.bearing_type,  true)}
+          {renderFreeText("max_diff_pressure","Max Diff. Pressure",    "e.g. 40 bar",                  true)}
+          {renderField("lube_system",         "Lubrication System",    GEAR_COMMON_OPTS.lube_system)}
+          {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
+          {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 40 bar")}
+          {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
+          {hasJacket  && renderField("heating_medium","Heating Medium",GEAR_COMMON_OPTS.heating_medium)}
+          {!hasJacket && <div />}
+        </>)}
+
+        {/* ── Common: Operating Conditions ─────────────────────── */}
+        {hasType && (<>
+          {sec("Operating Conditions")}
+          {renderField("flow_rate",      "Flow Rate",             GEAR_COMMON_OPTS.flow_rate,      true)}
+          {renderField("diff_pressure",  "Differential Pressure", GEAR_COMMON_OPTS.diff_pressure,  true)}
+          {renderField("fluid",          "Fluid",                 GEAR_COMMON_OPTS.fluid,          true)}
+          {renderFreeText("viscosity",   "Viscosity (cSt)",       "e.g. 100 cSt")}
+          {renderField("operating_temp", "Operating Temp",        GEAR_COMMON_OPTS.operating_temp)}
+          <div />
+
+          {sec("Pump Configuration")}
+          {renderField("mounting",       "Mounting",              GEAR_COMMON_OPTS.mounting,       true)}
+          {renderField("drive_type",     "Drive Type",            GEAR_COMMON_OPTS.drive_type,     true)}
+          {renderField("service_type",   "Service Type",          GEAR_COMMON_OPTS.service_type,   true)}
+          {renderField("material_class", "Material Class",        GEAR_COMMON_OPTS.material_class, true)}
+          {renderField("seal_type",      "Seal Type",             GEAR_COMMON_OPTS.seal_type,      true)}
+          <div />
+
+          {sec("Optional — Performance & Area")}
+          {renderField("speed_rpm",          "Speed (RPM)",          GEAR_COMMON_OPTS.speed_rpm)}
+          {renderField("motor_power_kw",     "Motor Power (kW)",     GEAR_COMMON_OPTS.motor_power_kw)}
+          {renderField("api_standard",       "API Standard",         GEAR_COMMON_OPTS.api_676)}
+          {renderField("area_classification","Area Classification",  GEAR_COMMON_OPTS.area_class)}
+          {renderField("certification",      "Certification",        GEAR_COMMON_OPTS.certification)}
+          {renderField("spare_parts",        "Spare Parts Package",  GEAR_COMMON_OPTS.spare_parts)}
+
+          {/* ── Approved Makes (ranked) ─────────────────────────── */}
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Approved Makes (ranked) <span className="text-red-500">*</span>
+            </p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
+                value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch); }} />
+              <Button type="button" size="sm" className="h-8"
+                onClick={() => { if (makeSearch.trim()) addMake(makeSearch); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button"
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted"
+                    onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)}
+                      className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── Quantity ─────────────────────────────────────────── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -2857,6 +3065,25 @@ function computeSubgroupWarnings(
     }
     if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
       w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
+  } else if (subgroupCode === "gear") {
+    if (missing("gear_type"))       w.push("Gear Type — required to configure gear pump datasheet.");
+    if (missing("flow_rate"))       w.push("Flow Rate — critical operating condition for pump selection.");
+    if (missing("diff_pressure"))   w.push("Differential Pressure — required for pump sizing.");
+    if (missing("fluid"))           w.push("Fluid — required for material and seal selection.");
+    if (missing("material_class"))  w.push("Material Class — required for wetted parts datasheet.");
+    if (missing("seal_type"))       w.push("Seal Type — required for mechanical seal datasheet.");
+    const gpt = ((attrs.gear_type as string) ?? "").toLowerCase();
+    if (gpt.includes("internal") || gpt.includes("crescent")) {
+      if (missing("crescent_type"))  w.push("Crescent Type — required for Internal Gear pump datasheet.");
+      if (missing("idler_pin_type")) w.push("Idler Pin Type — required for Internal Gear pump datasheet.");
+      if (missing("heating_jacket")) w.push("Heating Jacket — critical for viscous fluid service.");
+    } else if (gpt.includes("bi-helical") || gpt.includes("herringbone")) {
+      if (missing("bearing_type"))      w.push("Bearing Type — required for Bi-Helical pump datasheet.");
+      if (missing("max_diff_pressure")) w.push("Max Diff. Pressure — required for Bi-Helical pump datasheet.");
+    }
+    if (missing("gear_material"))   w.push("Gear Material — required for construction datasheet.");
+    if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
+      w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
   } else if (subgroupCode === "on_off") {
     const oot = ((attrs.valve_type as string) ?? "").toLowerCase();
     if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
@@ -3447,6 +3674,82 @@ function buildDatasheetSections(
     ];
   }
 
+  if (subgroupCode === "gear") {
+    const gearT    = v("gear_type") || "";
+    const gearTL   = gearT.toLowerCase();
+    const isIntG   = gearTL.includes("internal") || gearTL.includes("crescent");
+    const isHelG   = gearTL.includes("helical") && !gearTL.includes("bi");
+    const isBiH    = gearTL.includes("bi-helical") || gearTL.includes("herringbone");
+    const hasJkt   = v("heating_jacket") === "Yes";
+    const hasRelV  = v("builtin_relief_valve") === "Yes";
+
+    const typeConfigFields: DatasheetField[] = [
+      { label: "Gear Material", value: v("gear_material") },
+    ];
+    if (isIntG) {
+      typeConfigFields.push(
+        { label: "Crescent Type",   value: v("crescent_type")   },
+        { label: "Idler Pin Type",  value: v("idler_pin_type")  },
+        { label: "Insulation",      value: v("insulation")      },
+      );
+    } else if (isHelG) {
+      typeConfigFields.push(
+        { label: "Helix Angle",  value: v("helix_angle")  },
+        { label: "Noise Class",  value: v("noise_class")  },
+      );
+    } else if (isBiH) {
+      typeConfigFields.push(
+        { label: "Bearing Type",         value: v("bearing_type")         },
+        { label: "Lubrication System",   value: v("lube_system")          },
+        { label: "Max Diff. Pressure",   value: v("max_diff_pressure")    },
+      );
+    }
+    typeConfigFields.push(
+      { label: "Port Connection",  value: v("port_connection") },
+      { label: "Port Size",        value: v("port_size")       },
+    );
+    if (hasRelV) typeConfigFields.push({ label: "Relief Pressure Setting", value: v("relief_pressure_setting") });
+    if (hasJkt)  typeConfigFields.push(
+      { label: "Heating Jacket",  value: v("heating_jacket")  },
+      { label: "Heating Medium",  value: v("heating_medium")  },
+    );
+
+    const gMakes = Array.isArray(attrs.approved_makes) ? (attrs.approved_makes as string[]) : [];
+    const vMakesStr = gMakes.length > 0 ? gMakes.map((m, i) => `${i + 1}. ${m}`).join(" | ") : "—";
+
+    return [
+      { title: "Gear Pump Type", fields: [
+        { label: "Gear Type",     value: gearT,                  highlight: true },
+        { label: "Mounting",      value: v("mounting")                           },
+        { label: "Drive Type",    value: v("drive_type")                         },
+        { label: "Service Type",  value: v("service_type")                       },
+        { label: "API Standard",  value: v("api_standard")                       },
+      ]},
+      { title: "Type-Specific Configuration", fields: typeConfigFields },
+      { title: "Operating Conditions", fields: [
+        { label: "Flow Rate",             value: v("flow_rate"),      highlight: true },
+        { label: "Differential Pressure", value: v("diff_pressure"),  highlight: true },
+        { label: "Fluid",                 value: v("fluid"),          highlight: true },
+        { label: "Viscosity (cSt)",       value: v("viscosity")                       },
+        { label: "Operating Temp",        value: v("operating_temp")                  },
+      ]},
+      { title: "Materials & Sealing", fields: [
+        { label: "Material Class",  value: v("material_class"), highlight: true },
+        { label: "Seal Type",       value: v("seal_type"),      highlight: true },
+      ]},
+      { title: "Performance & Area", fields: [
+        { label: "Speed (RPM)",        value: v("speed_rpm")           },
+        { label: "Motor Power (kW)",   value: v("motor_power_kw")      },
+        { label: "Area Classification",value: v("area_classification") },
+        { label: "Certification",      value: v("certification")       },
+        { label: "Spare Parts",        value: v("spare_parts")         },
+      ]},
+      { title: "Approved Makes (ranked)", fields: [
+        { label: "Makes", value: vMakesStr, highlight: vMakesStr !== "—" },
+      ]},
+    ];
+  }
+
   if (subgroupCode === "on_off") {
     const oot     = (v("valve_type") || "").toLowerCase();
     const isOoBall  = oot.includes("ball");
@@ -3877,6 +4180,7 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   motor:        ["Motor Type","Power (kW)","Voltage","IP Rating","Efficiency Class","Mounting","Cooling Type"],
   pump_skid:    ["Package Type","Pump Type","Flow Rate / Flow (m³/hr)","Head / Pressure","Fluid / Process Fluid"],
   centrifugal:  ["Pump Type","Flow Rate","Head / TDH","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
+  gear:         ["Gear Type","Flow Rate","Differential Pressure","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
 };
 
 function computeDatasheetCompleteness(
@@ -9235,14 +9539,23 @@ export default function BuyPackagesPage() {
     } else if (isGearPumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.gear_type as string)?.trim()) { toast({ title: "Gear Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.diff_pressure as string)?.trim()) { toast({ title: "Differential Pressure is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
       if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
       if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
       if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
-      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
-      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
-      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
-      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
-      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
+      if (!(ta.gear_material as string)?.trim()) { toast({ title: "Gear Material is required", variant: "destructive" }); return; }
+      const gTL = ((ta.gear_type as string) ?? "").toLowerCase();
+      if (gTL.includes("internal") || gTL.includes("crescent")) {
+        if (!(ta.crescent_type as string)?.trim()) { toast({ title: "Crescent Type is required for Internal Gear", variant: "destructive" }); return; }
+        if (!(ta.idler_pin_type as string)?.trim()) { toast({ title: "Idler Pin Type is required for Internal Gear", variant: "destructive" }); return; }
+      } else if (gTL.includes("bi-helical") || gTL.includes("herringbone")) {
+        if (!(ta.bearing_type as string)?.trim()) { toast({ title: "Bearing Type is required for Bi-Helical pump", variant: "destructive" }); return; }
+        if (!(ta.max_diff_pressure as string)?.trim()) { toast({ title: "Max Diff. Pressure is required for Bi-Helical pump", variant: "destructive" }); return; }
+      }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isScrewPumpMode) {
       const ta = lf.technicalAttributes;
