@@ -2479,9 +2479,25 @@ function computeSubgroupWarnings(
     if (cvType.includes("angle") && missing("leakage_class"))
       w.push("Leakage class — required for Angle CV datasheet.");
   } else if (subgroupCode === "safety") {
-    if (missing("set_pressure"))    w.push("Set pressure — critical for PSV datasheet and SIL compliance.");
-    if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
-    if (missing("body_material"))   w.push("Body material — required for material class datasheet.");
+    const svt = ((attrs.valve_type as string) ?? "").toLowerCase();
+    if (svt.includes("breather")) {
+      if (missing("connection_size"))       w.push("Connection size — required for Breather Valve datasheet.");
+      if (missing("pressure_setting_mbar")) w.push("Pressure setting (mbar) — required for Breather Valve datasheet.");
+      if (missing("vacuum_setting_mbar"))   w.push("Vacuum setting (mbar) — required for Breather Valve datasheet.");
+      if (missing("flame_arrestor"))        w.push("Flame arrestor type — required for Breather Valve datasheet.");
+    } else if (svt.includes("vacuum")) {
+      if (missing("connection_size"))       w.push("Connection size — required for VRV datasheet.");
+      if (missing("set_vacuum"))            w.push("Set vacuum (mbar) — required for VRV datasheet.");
+    } else {
+      if (missing("set_pressure"))          w.push("Set pressure — critical for PSV/PRV/SRV datasheet and SIL compliance.");
+      if (missing("end_connection"))        w.push("End connection — needed for piping interface.");
+      if (missing("body_material"))         w.push("Body material — required for material class datasheet.");
+      if (missing("design_standard"))       w.push("Design standard — required for PSV/PRV/SRV datasheet.");
+      if (missing("discharge_type"))        w.push("Discharge type — required for process safety documentation.");
+      if (svt.includes("psv") || svt.includes("safety relief") || svt.includes("srv")) {
+        if (missing("api_orifice"))         w.push("API orifice — required for PSV/SRV sizing datasheet.");
+      }
+    }
   } else if (subgroupCode === "on_off") {
     if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
     if (missing("body_material"))   w.push("Body material — required for material class datasheet.");
@@ -2876,32 +2892,87 @@ function buildDatasheetSections(
   }
 
   if (subgroupCode === "safety") {
+    const svt = (v("valve_type") || "").toLowerCase();
+    const isSvPSV = svt.includes("psv") || svt.includes("pressure safety");
+    const isSvPRV = svt.includes("prv") || svt.includes("pressure relief");
+    const isSvSRV = svt.includes("srv") || svt.includes("safety relief");
+    const isSvVRV = svt.includes("vrv") || svt.includes("vacuum relief");
+    const isSvBV  = svt.includes("breather");
+
+    const typeSpecificFields: DatasheetField[] = [];
+    if (isSvPSV) {
+      typeSpecificFields.push(
+        { label: "Operation Type",    value: v("operation_type") },
+        { label: "API Orifice",       value: v("api_orifice") },
+        { label: "Bonnet Type",       value: v("bonnet_type") },
+        { label: "Discharge Type",    value: v("discharge_type") },
+        { label: "Back Pressure Type",value: v("back_pressure_type") },
+        { label: "Overpressure",      value: v("overpressure") },
+      );
+    } else if (isSvPRV) {
+      typeSpecificFields.push(
+        { label: "Discharge Type",    value: v("discharge_type") },
+        { label: "Bonnet Type",       value: v("bonnet_type") },
+        { label: "API Orifice",       value: v("api_orifice") },
+        { label: "Back Pressure Type",value: v("back_pressure_type") },
+        { label: "Overpressure",      value: v("overpressure") },
+      );
+    } else if (isSvSRV) {
+      typeSpecificFields.push(
+        { label: "Operation Type",    value: v("operation_type") },
+        { label: "API Orifice",       value: v("api_orifice") },
+        { label: "Service Phase",     value: v("service_phase") },
+        { label: "Bonnet Type",       value: v("bonnet_type") },
+        { label: "Discharge Type",    value: v("discharge_type") },
+        { label: "Back Pressure Type",value: v("back_pressure_type") },
+        { label: "Overpressure",      value: v("overpressure") },
+      );
+    } else if (isSvVRV) {
+      typeSpecificFields.push(
+        { label: "Connection Size",    value: v("connection_size") },
+        { label: "Set Vacuum (mbar)",  value: v("set_vacuum") },
+        { label: "Flow Capacity",      value: v("flow_capacity") },
+        { label: "Re-seal Pressure",   value: v("reseal_pressure") },
+        { label: "Service Fluid",      value: v("service_fluid") },
+      );
+    } else if (isSvBV) {
+      typeSpecificFields.push(
+        { label: "Connection Size",        value: v("connection_size") },
+        { label: "Pressure Setting (mbar)",value: v("pressure_setting_mbar") },
+        { label: "Vacuum Setting (mbar)",  value: v("vacuum_setting_mbar") },
+        { label: "Flame Arrestor",         value: v("flame_arrestor") },
+        { label: "Flow Capacity",          value: v("flow_capacity") },
+        { label: "Service Fluid",          value: v("service_fluid") },
+      );
+    }
+
+    const sizeFields: DatasheetField[] = (isSvVRV || isSvBV)
+      ? [{ label: "Connection Size", value: v("connection_size") }]
+      : [
+          { label: "Inlet Size",      value: v("inlet_size") },
+          { label: "Outlet Size",     value: v("outlet_size") },
+          { label: "Pressure Rating", value: v("pressure_rating") },
+          { label: "Set Pressure",    value: v("set_pressure") },
+          { label: "Relieving Cap.",  value: v("relieving_capacity") },
+        ];
+
     return [
       { title: "Valve Details", fields: [
-        { label: "Valve Type",      value: v("valve_type"), highlight: true },
-        { label: "Size (NB)",       value: v("size_nb") },
-        { label: "Pressure Rating", value: v("pressure_rating") },
-        { label: "Set Pressure",    value: v("set_pressure") },
-        { label: "API Orifice",     value: v("api_orifice") },
+        { label: "Valve Type",        value: v("valve_type"), highlight: true },
+        ...sizeFields,
       ]},
-      { title: "Process Conditions", fields: [
-        { label: "Process Fluid",         value: v("process_fluid") },
-        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
-        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
-        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
-        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
+      ...(typeSpecificFields.length > 0 ? [{ title: "Type-Specific Configuration", fields: typeSpecificFields }] : []),
+      { title: "Material & Connection", fields: [
+        { label: "Body Material",   value: v("body_material") },
+        { label: "Trim Material",   value: v("trim_material") },
+        { label: "End Connection",  value: v("end_connection") },
+        { label: "Operating Temp.", value: v("operating_temp") },
       ]},
-      { title: "Connection & Material", fields: [
-        { label: "End Connection", value: v("end_connection") },
-        { label: "Body Material",  value: v("body_material") },
-        { label: "Trim Material",  value: v("trim_material") },
-        { label: "Bonnet Type",    value: v("bonnet_type") },
+      { title: "Standard & Certification", fields: [
+        { label: "Design Standard", value: v("design_standard") },
+        { label: "Certification",   value: v("certification") },
       ]},
-      { title: "Hazardous Area", fields: [
-        { label: "Area Classification", value: v("area_classification") },
-        { label: "Certification",       value: v("certification") },
-      ]},
-      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+      { title: "Approved Makes", fields: [{ label: "Makes (ranked)", value: vMakes() }]},
     ];
   }
 
@@ -3276,7 +3347,7 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   level:        ["Instrument Type","Output Signal","Range Min","Range Max"],
   isolation:    ["Valve Type","Size (NB)","Pressure Rating","End Connection","Body Material","Type-Specific Sealing Field"],
   control:      ["Valve Type","Size (NB)","Pressure Rating","Actuator Type","Fail Action","End Connection","Body Material","Type-Specific Config"],
-  safety:       ["Valve Type","Size (NB)","Set Pressure","End Connection","Body Material"],
+  safety:       ["Valve Type","Size / Connection","Set Pressure / Vacuum","End Connection","Body Material","Design Standard","Type-Specific Config"],
   on_off:       ["Valve Type","Size (NB)","End Connection","Body Material"],
   panels:       ["Panel Type","Voltage","IP Rating","Enclosure Type"],
   cabling:      ["Cable Type","No. of Cores","Insulation Type","Armour Type","Voltage Grade"],
@@ -6046,51 +6117,155 @@ function ControlValveAttrsForm({
   );
 }
 
-// ── Safety Valve requirement builder ─────────────────────────────────────────
-function buildSafetyValveRequirement(attrs: Record<string, unknown>): string {
-  const valveType   = (attrs.valve_type     as string)?.trim() || "";
-  const inletSize   = (attrs.inlet_size     as string)?.trim() || "";
-  const outletSize  = (attrs.outlet_size    as string)?.trim() || "";
-  const setPressure = (attrs.set_pressure   as string)?.trim() || "";
-  const bodyMat     = (attrs.body_material  as string)?.trim() || "";
-  const trimMat     = (attrs.trim_material  as string)?.trim() || "";
-  const endConn     = (attrs.end_connection as string)?.trim() || "";
-  const standard    = (attrs.design_standard as string)?.trim() || "";
+// ── Safety Valve constants ────────────────────────────────────────────────────
+const SAFETY_VALVE_TYPES = [
+  "Pressure Safety Valve (PSV)",
+  "Pressure Relief Valve (PRV)",
+  "Safety Relief Valve (SRV)",
+  "Vacuum Relief Valve (VRV)",
+  "Breather Valve (Conservation Vent)",
+];
 
-  const typeAbbr = valveType.match(/\(([^)]+)\)/)?.[ 1] || valveType.split(" ").map(w => w[0]).join("") || valveType;
-  const sizeStr   = inletSize && outletSize ? `${inletSize} x ${outletSize}` : inletSize || outletSize;
-  const pressStr  = setPressure ? `Set @ ${setPressure}` : "";
-  const bodyStr   = bodyMat ? `${bodyMat} Body` : "";
-  const trimStr   = trimMat ? `${trimMat} Trim` : "";
+const API_ORIFICE_OPTS = ["D","E","F","G","H","J","K","L","M","N","P","Q","R","T"];
 
-  const parts: string[] = [];
-  if (typeAbbr)  parts.push(typeAbbr);
-  if (sizeStr)   parts.push(sizeStr);
-  if (pressStr)  parts.push(pressStr);
-  if (bodyStr)   parts.push(bodyStr);
-  if (trimStr)   parts.push(trimStr);
-  if (endConn)   parts.push(endConn);
-  if (standard)  parts.push(standard);
-  return parts.join(", ");
+const SAFETY_COMMON_OPTS = {
+  inlet_outlet_size:  ["15 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB"],
+  pressure_rating:    ["Class 150","Class 300","Class 600","Class 900","Class 1500"],
+  end_connection:     ["Flanged","Threaded","Screwed"],
+  end_conn_bv:        ["Flanged","NPT","BSP"],
+  body_material:      ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","Alloy Steel (WC6)","Duplex SS","Hastelloy C"],
+  body_material_bv:   ["Al Alloy","CS","SS304","SS316","FRP"],
+  trim_material:      ["SS304","SS316","Hardened Trim","Stellite"],
+  bonnet_type:        ["Open Bonnet","Closed Bonnet"],
+  back_pressure_type: ["Conventional","Balanced Bellows","Pilot-Operated"],
+  overpressure:       ["10%","16%","21%"],
+  discharge_type:     ["Open Discharge","Closed Discharge","To Flare Line","Vent to Atmosphere"],
+  design_std_psv:     ["API 526","API 520","ASME Section VIII","EN ISO 4126"],
+  design_std_tank:    ["API 2000","ISO 28300","EN 14123"],
+  certification:      ["IBR","ATEX","IECEx","PESO","CE","SIL Rated"],
+  operation_type:     ["Spring-Loaded","Pilot-Operated"],
+  service_phase:      ["Gas / Vapour","Liquid","Two-Phase"],
+  service_fluid_psv:  ["Steam","Gas / Vapour","Hydrocarbon Vapour","Air","Chemical Vapour","LPG"],
+  service_fluid_prv:  ["Water","Oil","Chemical","Hydraulic Fluid","LPG"],
+  service_fluid_tank: ["Hydrocarbons","Inert Gas (N₂)","Chemical Vapour","LPG","Air"],
+  connection_size:    ["25 NB","50 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB"],
+  flame_arrestor:     ["Integrated","Separate","None"],
+};
+
+const SAFETY_ALL_FIELD_OPTS: Record<string, string[]> = {
+  inlet_size:        SAFETY_COMMON_OPTS.inlet_outlet_size,
+  outlet_size:       SAFETY_COMMON_OPTS.inlet_outlet_size,
+  pressure_rating:   SAFETY_COMMON_OPTS.pressure_rating,
+  end_connection:    [...SAFETY_COMMON_OPTS.end_connection, ...SAFETY_COMMON_OPTS.end_conn_bv],
+  body_material:     [...SAFETY_COMMON_OPTS.body_material, ...SAFETY_COMMON_OPTS.body_material_bv],
+  trim_material:     SAFETY_COMMON_OPTS.trim_material,
+  bonnet_type:       SAFETY_COMMON_OPTS.bonnet_type,
+  back_pressure_type:SAFETY_COMMON_OPTS.back_pressure_type,
+  overpressure:      SAFETY_COMMON_OPTS.overpressure,
+  discharge_type:    SAFETY_COMMON_OPTS.discharge_type,
+  design_standard:   [...SAFETY_COMMON_OPTS.design_std_psv, ...SAFETY_COMMON_OPTS.design_std_tank],
+  certification:     SAFETY_COMMON_OPTS.certification,
+  operation_type:    SAFETY_COMMON_OPTS.operation_type,
+  service_phase:     SAFETY_COMMON_OPTS.service_phase,
+  service_fluid:     [...SAFETY_COMMON_OPTS.service_fluid_psv, ...SAFETY_COMMON_OPTS.service_fluid_prv, ...SAFETY_COMMON_OPTS.service_fluid_tank],
+  connection_size:   SAFETY_COMMON_OPTS.connection_size,
+  flame_arrestor:    SAFETY_COMMON_OPTS.flame_arrestor,
+  api_orifice:       API_ORIFICE_OPTS,
+};
+
+const SAFETY_VALVE_MAKES = [
+  "Crosby (Emerson)","Leser","Anderson Greenwood (Baker Hughes)","Consolidated (Emerson)",
+  "Pentair (Varec)","Tyco / Bharat Valves","PROTEGO","OPW","Cashco","Aquatrol",
+];
+
+function buildSafetyValveDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    valve_type: type, body_material: "WCB (CS)", end_connection: "Flanged", makes: [],
+    inlet_size: "", outlet_size: "", pressure_rating: "", set_pressure: "",
+    api_orifice: "", bonnet_type: "", back_pressure_type: "", overpressure: "",
+    discharge_type: "", design_standard: "", certification: "", service_fluid: "",
+    operating_temp: "", trim_material: "", operation_type: "", service_phase: "",
+    set_vacuum: "", flow_capacity: "", reseal_pressure: "",
+    connection_size: "", pressure_setting_mbar: "", vacuum_setting_mbar: "",
+    flame_arrestor: "", relieving_capacity: "",
+  };
+  switch (type) {
+    case "Pressure Safety Valve (PSV)":
+      return { ...base, design_standard: "API 526", inlet_size: "50 NB", outlet_size: "80 NB",
+        pressure_rating: "Class 300", operation_type: "Spring-Loaded", bonnet_type: "Closed Bonnet",
+        discharge_type: "To Flare Line", back_pressure_type: "Conventional",
+        overpressure: "10%", service_fluid: "Steam" };
+    case "Pressure Relief Valve (PRV)":
+      return { ...base, design_standard: "API 520", inlet_size: "50 NB", outlet_size: "80 NB",
+        pressure_rating: "Class 150", bonnet_type: "Closed Bonnet",
+        discharge_type: "Closed Discharge", back_pressure_type: "Conventional",
+        overpressure: "10%", service_fluid: "Water" };
+    case "Safety Relief Valve (SRV)":
+      return { ...base, design_standard: "API 526", inlet_size: "50 NB", outlet_size: "80 NB",
+        pressure_rating: "Class 150", operation_type: "Spring-Loaded",
+        service_phase: "Gas / Vapour", bonnet_type: "Open Bonnet",
+        discharge_type: "Open Discharge", back_pressure_type: "Conventional", overpressure: "10%" };
+    case "Vacuum Relief Valve (VRV)":
+      return { ...base, design_standard: "API 2000", body_material: "CS",
+        connection_size: "50 NB", service_fluid: "Air" };
+    case "Breather Valve (Conservation Vent)":
+      return { ...base, design_standard: "API 2000", body_material: "Al Alloy",
+        connection_size: "80 NB", flame_arrestor: "Integrated" };
+    default: return base;
+  }
 }
 
-const SAFETY_VALVE_OPTS: Record<string, string[]> = {
-  valve_type:           ["Pressure Safety Valve (PSV)", "Pressure Relief Valve (PRV)", "Safety Relief Valve (SRV)", "Vacuum Relief Valve (VRV)", "Breather Valve"],
-  inlet_size:           ["15 NB", "25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB"],
-  outlet_size:          ["25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB", "200 NB"],
-  pressure_rating:      ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
-  set_pressure:         ["2 bar", "5 bar", "10 bar", "15 bar", "20 bar", "25 bar"],
-  overpressure:         ["10%", "16%", "21%"],
-  service_fluid:        ["Steam", "Air", "Gas", "Water", "Oil", "Chemical"],
-  operating_temp:       ["Ambient", "50°C", "100°C", "150°C", "250°C"],
-  end_connection:       ["Flanged", "Threaded"],
-  body_material:        ["WCB (CS)", "SS304", "SS316", "Alloy Steel"],
-  trim_material:        ["SS304", "SS316", "Hardened Trim"],
-  discharge_type:       ["Open Discharge", "Closed Discharge", "Vent to Atmosphere", "To Flare Line"],
-  design_standard:      ["API 520", "API 526", "ASME", "ISO"],
-  certification:        ["IBR", "ATEX", "IECEx", "PESO"],
-  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
-};
+function buildSafetyValveRequirement(attrs: Record<string, unknown>): string {
+  const type     = (attrs.valve_type as string)?.trim() || "";
+  const typeLC   = type.toLowerCase();
+  const typeAbbr = type.match(/\(([^)]+)\)/)?.[1] || type.split(" ").map(w => w[0]).join("") || type;
+  const bodyMat  = (attrs.body_material as string)?.trim() || "";
+  const endConn  = (attrs.end_connection as string)?.trim() || "";
+  const standard = (attrs.design_standard as string)?.trim() || "";
+  const bodyStr  = bodyMat ? `${bodyMat} Body` : "";
+
+  let sizeStr = ""; let pressStr = ""; let typeSpecific = "";
+
+  if (typeLC.includes("breather")) {
+    const connSize = (attrs.connection_size as string)?.trim() || "";
+    const presMbar = (attrs.pressure_setting_mbar as string)?.trim() || "";
+    const vacMbar  = (attrs.vacuum_setting_mbar as string)?.trim() || "";
+    const flame    = (attrs.flame_arrestor as string)?.trim() || "";
+    sizeStr = connSize;
+    const p2: string[] = [];
+    if (presMbar) p2.push(`P:${presMbar} mbar`);
+    if (vacMbar)  p2.push(`V:${vacMbar} mbar`);
+    if (flame && flame !== "None") p2.push(`${flame} Arrestor`);
+    typeSpecific = p2.join(", ");
+  } else if (typeLC.includes("vacuum")) {
+    const connSize = (attrs.connection_size as string)?.trim() || "";
+    const setVac   = (attrs.set_vacuum as string)?.trim() || "";
+    sizeStr  = connSize;
+    pressStr = setVac ? `Set Vacuum: ${setVac} mbar` : "";
+  } else {
+    const inletSize  = (attrs.inlet_size as string)?.trim() || "";
+    const outletSize = (attrs.outlet_size as string)?.trim() || "";
+    const setPressure = (attrs.set_pressure as string)?.trim() || "";
+    const orifice    = (attrs.api_orifice as string)?.trim() || "";
+    const opType     = (attrs.operation_type as string)?.trim() || "";
+    sizeStr  = inletSize && outletSize ? `${inletSize} x ${outletSize}` : inletSize || outletSize;
+    pressStr = setPressure ? `Set @ ${setPressure}` : "";
+    const p2: string[] = [];
+    if (opType && opType !== "Spring-Loaded") p2.push(opType);
+    if (orifice) p2.push(`Orifice ${orifice}`);
+    typeSpecific = p2.join(", ");
+  }
+
+  const parts: string[] = [];
+  if (typeAbbr)     parts.push(typeAbbr);
+  if (sizeStr)      parts.push(sizeStr);
+  if (pressStr)     parts.push(pressStr);
+  if (typeSpecific) parts.push(typeSpecific);
+  if (bodyStr)      parts.push(bodyStr);
+  if (endConn)      parts.push(endConn);
+  if (standard)     parts.push(standard);
+  return parts.join(", ");
+}
 
 function SafetyValveAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -6100,30 +6275,43 @@ function SafetyValveAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-  const singleKeys = Object.keys(SAFETY_VALVE_OPTS);
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = SAFETY_VALVE_OPTS[key] ?? [];
+    for (const [key, opts] of Object.entries(SAFETY_ALL_FIELD_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
+
+  function handleTypeChange(type: string) {
+    const defaults = buildSafetyValveDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(SAFETY_ALL_FIELD_OPTS)) {
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+  }
 
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
+      onChange({ ...attrs, [key]: "" });
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      onChange({ ...attrs, [key]: val });
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = SAFETY_VALVE_OPTS[key] ?? [];
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
@@ -6139,6 +6327,17 @@ function SafetyValveAttrsForm({
     );
   }
 
+  function renderText(key: string, label: string, placeholder: string, required?: boolean) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" placeholder={placeholder}
+          value={(attrs[key] as string) ?? ""}
+          onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
+  }
+
   function sec(label: string) {
     return (
       <div className="col-span-2 mt-1 pb-0.5 border-b">
@@ -6147,53 +6346,205 @@ function SafetyValveAttrsForm({
     );
   }
 
+  function addMake(make: string) {
+    if (!make.trim() || makes.includes(make.trim())) return;
+    const next = [...makes, make.trim()];
+    setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) {
+    const next = makes.filter((x) => x !== m);
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+
+  const valveType    = (attrs.valve_type as string) ?? "";
+  const isPSV        = valveType === "Pressure Safety Valve (PSV)";
+  const isPRV        = valveType === "Pressure Relief Valve (PRV)";
+  const isSRV        = valveType === "Safety Relief Valve (SRV)";
+  const isVRV        = valveType === "Vacuum Relief Valve (VRV)";
+  const isBV         = valveType === "Breather Valve (Conservation Vent)";
+  const hasType      = isPSV || isPRV || isSRV || isVRV || isBV;
+  const isSpringBased = isPSV || isPRV || isSRV;
+
+  const filteredMakes = SAFETY_VALVE_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
+  );
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Safety Valve (PSV/PRV) Specifications</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Safety / Relief Valve Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
+        {/* ── Valve Type ─────────────────────────────────────────────────── */}
         {sec("Valve Type")}
-        <div className="col-span-2">{renderField("valve_type", "Safety Valve Type", true)}</div>
-
-        {sec("Size & Rating")}
-        {renderField("inlet_size",      "Inlet Size (NB)",  true)}
-        {renderField("outlet_size",     "Outlet Size (NB)")}
-        <div className="col-span-2">{renderField("pressure_rating", "Pressure Rating")}</div>
-
-        {sec("Pressure Settings")}
-        {renderField("set_pressure", "Set Pressure", true)}
-        {renderField("overpressure", "Overpressure (%)")}
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Relieving Capacity (optional)</Label>
-          <Input className="h-8 text-sm" placeholder="e.g. 500 kg/h"
-            value={(attrs.relieving_capacity as string) ?? ""}
-            onChange={(e) => set("relieving_capacity", e.target.value)} />
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Safety Valve Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={SAFETY_VALVE_TYPES.includes(valveType) ? valveType : ""}
+            options={SAFETY_VALVE_TYPES}
+            placeholder="Select valve type first…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
         </div>
 
-        {sec("Service Conditions")}
-        {renderField("service_fluid",  "Service Fluid")}
-        {renderField("operating_temp", "Operating Temperature")}
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a valve type above to configure specifications
+          </div>
+        )}
 
-        {sec("Connection")}
-        {renderField("end_connection", "End Connection")}
-        <div />
+        {/* ── PSV / PRV / SRV: shared Size + Pressure Settings ─────────── */}
+        {isSpringBased && (<>
+          {sec("Size & Pressure Rating")}
+          {renderField("inlet_size",      "Inlet Size (NB)",  SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
+          {renderField("outlet_size",     "Outlet Size (NB)", SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
+          <div className="col-span-2">
+            {renderField("pressure_rating","Pressure Rating",  SAFETY_COMMON_OPTS.pressure_rating,  true)}
+          </div>
 
-        {sec("Material")}
-        {renderField("body_material", "Body Material")}
-        {renderField("trim_material", "Trim Material")}
+          {sec("Pressure Settings")}
+          <div className="col-span-2">{renderText("set_pressure", "Set Pressure", "e.g. 10 barg", true)}</div>
+          {renderField("overpressure",       "Overpressure (%)",    SAFETY_COMMON_OPTS.overpressure)}
+          {renderText( "relieving_capacity", "Relieving Capacity",  "e.g. 500 kg/h")}
+        </>)}
 
-        {sec("Discharge Type")}
-        {renderField("discharge_type", "Discharge Type")}
-        <div />
+        {/* ── PSV sub-panel ─────────────────────────────────────────────── */}
+        {isPSV && (<>
+          {sec("PSV Configuration")}
+          {renderField("operation_type",    "Operation Type",    SAFETY_COMMON_OPTS.operation_type,    true)}
+          {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                     true)}
+          {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
+          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
+          <div />
+        </>)}
 
-        {sec("Certification / Standard")}
-        {renderField("design_standard", "Design Standard")}
-        {renderField("certification",   "Certification")}
+        {/* ── PRV sub-panel ─────────────────────────────────────────────── */}
+        {isPRV && (<>
+          {sec("PRV Configuration")}
+          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
+          {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type)}
+          {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS)}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
+        </>)}
 
-        {sec("Hazardous Area (Optional)")}
-        {renderField("area_classification", "Area Classification")}
-        <div />
+        {/* ── SRV sub-panel ─────────────────────────────────────────────── */}
+        {isSRV && (<>
+          {sec("SRV Configuration")}
+          {renderField("operation_type",    "Operation Type",    SAFETY_COMMON_OPTS.operation_type,    true)}
+          {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                     true)}
+          {renderField("service_phase",     "Service Phase",     SAFETY_COMMON_OPTS.service_phase,     true)}
+          {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
+          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
+        </>)}
 
+        {/* ── PSV/PRV/SRV: shared Service, Material, Standard ───────────── */}
+        {isSpringBased && (<>
+          {sec("Service Conditions (Optional)")}
+          {renderField("service_fluid",  "Service Fluid",
+            isPRV ? SAFETY_COMMON_OPTS.service_fluid_prv : SAFETY_COMMON_OPTS.service_fluid_psv)}
+          {renderText( "operating_temp", "Operating Temperature", "e.g. 150°C")}
+
+          {sec("Material & Connection")}
+          {renderField("body_material",  "Body Material",  SAFETY_COMMON_OPTS.body_material,  true)}
+          {renderField("trim_material",  "Trim Material",  SAFETY_COMMON_OPTS.trim_material)}
+          {renderField("end_connection", "End Connection", SAFETY_COMMON_OPTS.end_connection, true)}
+          <div />
+
+          {sec("Standard & Certification")}
+          {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_psv, true)}
+          {renderField("certification",  "Certification",  SAFETY_COMMON_OPTS.certification)}
+        </>)}
+
+        {/* ── VRV sub-panel ─────────────────────────────────────────────── */}
+        {isVRV && (<>
+          {sec("VRV Configuration")}
+          {renderField("connection_size","Connection Size (NB)", SAFETY_COMMON_OPTS.connection_size,  true)}
+          {renderText( "set_vacuum",     "Set Vacuum (mbar)",    "e.g. 10 mbar",                      true)}
+          {renderText( "flow_capacity",  "Flow Capacity (m³/h)", "e.g. 200 m³/h")}
+          {renderText( "reseal_pressure","Re-seal Pressure (mbar)", "e.g. 5 mbar")}
+          {renderField("service_fluid",  "Service Fluid",        SAFETY_COMMON_OPTS.service_fluid_tank)}
+          {renderText( "operating_temp", "Operating Temperature","e.g. 65°C")}
+          {renderField("body_material",  "Body Material",        SAFETY_COMMON_OPTS.body_material)}
+          {renderField("end_connection", "End Connection",       SAFETY_COMMON_OPTS.end_connection)}
+          {renderField("certification",  "Certification",        SAFETY_COMMON_OPTS.certification)}
+          <div />
+
+          {sec("Standard")}
+          {renderField("design_standard","Design Standard",      SAFETY_COMMON_OPTS.design_std_tank,  true)}
+          <div />
+        </>)}
+
+        {/* ── Breather Valve sub-panel ──────────────────────────────────── */}
+        {isBV && (<>
+          {sec("Breather Valve Configuration")}
+          {renderField("connection_size",       "Connection Size (NB)",    SAFETY_COMMON_OPTS.connection_size,  true)}
+          {renderText( "pressure_setting_mbar", "Pressure Setting (mbar)", "e.g. 14 mbar",                      true)}
+          {renderText( "vacuum_setting_mbar",   "Vacuum Setting (mbar)",   "e.g. 3.5 mbar",                     true)}
+          {renderField("flame_arrestor",        "Flame Arrestor",          SAFETY_COMMON_OPTS.flame_arrestor,   true)}
+          {renderText( "flow_capacity",         "Flow Capacity (m³/h)",    "e.g. 500 m³/h")}
+          {renderField("service_fluid",         "Service Fluid",           SAFETY_COMMON_OPTS.service_fluid_tank)}
+          {renderText( "operating_temp",        "Operating Temperature",   "e.g. 60°C")}
+          {renderField("body_material",         "Body Material",           SAFETY_COMMON_OPTS.body_material_bv)}
+          {renderField("end_connection",        "End Connection",          SAFETY_COMMON_OPTS.end_conn_bv)}
+          {renderField("certification",         "Certification",           SAFETY_COMMON_OPTS.certification)}
+
+          {sec("Standard")}
+          {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_tank, true)}
+          <div />
+        </>)}
+
+        {/* ── Approved Makes ────────────────────────────────────────────── */}
+        {hasType && (<>
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
+                onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch.trim()); }} />
+              <Button type="button" size="sm" className="h-8"
+                onClick={() => { if (makeSearch.trim()) addMake(makeSearch.trim()); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button"
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted"
+                    onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)}
+                      className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── Quantity ─────────────────────────────────────────────────── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -8122,15 +8473,60 @@ export default function BuyPackagesPage() {
         toast({ title: "Area Classification is required for Flameproof enclosure", variant: "destructive" }); return;
       }
     } else if (isSafetyValveMode) {
-      const ta = lf.technicalAttributes;
-      if (!(ta.valve_type as string)?.trim()) {
+      const ta    = lf.technicalAttributes;
+      const svType = ((ta.valve_type as string) ?? "").trim().toLowerCase();
+      if (!svType) {
         toast({ title: "Safety Valve Type is required", variant: "destructive" }); return;
       }
-      if (!(ta.inlet_size as string)?.trim()) {
-        toast({ title: "Inlet Size is required", variant: "destructive" }); return;
+      if (!(ta.design_standard as string)?.trim()) {
+        toast({ title: "Design Standard is required", variant: "destructive" }); return;
       }
-      if (!(ta.set_pressure as string)?.trim()) {
-        toast({ title: "Set Pressure is required", variant: "destructive" }); return;
+      if (svType.includes("breather")) {
+        if (!(ta.connection_size as string)?.trim())
+          { toast({ title: "Connection Size is required", variant: "destructive" }); return; }
+        if (!(ta.pressure_setting_mbar as string)?.trim())
+          { toast({ title: "Pressure Setting (mbar) is required", variant: "destructive" }); return; }
+        if (!(ta.vacuum_setting_mbar as string)?.trim())
+          { toast({ title: "Vacuum Setting (mbar) is required", variant: "destructive" }); return; }
+        if (!(ta.flame_arrestor as string)?.trim())
+          { toast({ title: "Flame Arrestor is required", variant: "destructive" }); return; }
+      } else if (svType.includes("vacuum")) {
+        if (!(ta.connection_size as string)?.trim())
+          { toast({ title: "Connection Size is required for VRV", variant: "destructive" }); return; }
+        if (!(ta.set_vacuum as string)?.trim())
+          { toast({ title: "Set Vacuum (mbar) is required", variant: "destructive" }); return; }
+      } else {
+        if (!(ta.inlet_size as string)?.trim())
+          { toast({ title: "Inlet Size is required", variant: "destructive" }); return; }
+        if (!(ta.outlet_size as string)?.trim())
+          { toast({ title: "Outlet Size is required", variant: "destructive" }); return; }
+        if (!(ta.pressure_rating as string)?.trim())
+          { toast({ title: "Pressure Rating is required", variant: "destructive" }); return; }
+        if (!(ta.set_pressure as string)?.trim())
+          { toast({ title: "Set Pressure is required", variant: "destructive" }); return; }
+        if (!(ta.body_material as string)?.trim())
+          { toast({ title: "Body Material is required", variant: "destructive" }); return; }
+        if (!(ta.end_connection as string)?.trim())
+          { toast({ title: "End Connection is required", variant: "destructive" }); return; }
+        if (!(ta.discharge_type as string)?.trim())
+          { toast({ title: "Discharge Type is required", variant: "destructive" }); return; }
+        if (svType.includes("psv") || svType.includes("pressure safety")) {
+          if (!(ta.operation_type as string)?.trim())
+            { toast({ title: "Operation Type is required for PSV", variant: "destructive" }); return; }
+          if (!(ta.api_orifice as string)?.trim())
+            { toast({ title: "API Orifice is required for PSV", variant: "destructive" }); return; }
+          if (!(ta.bonnet_type as string)?.trim())
+            { toast({ title: "Bonnet Type is required for PSV", variant: "destructive" }); return; }
+        } else if (svType.includes("srv") || svType.includes("safety relief")) {
+          if (!(ta.operation_type as string)?.trim())
+            { toast({ title: "Operation Type is required for SRV", variant: "destructive" }); return; }
+          if (!(ta.api_orifice as string)?.trim())
+            { toast({ title: "API Orifice is required for SRV", variant: "destructive" }); return; }
+          if (!(ta.service_phase as string)?.trim())
+            { toast({ title: "Service Phase is required for SRV", variant: "destructive" }); return; }
+          if (!(ta.bonnet_type as string)?.trim())
+            { toast({ title: "Bonnet Type is required for SRV", variant: "destructive" }); return; }
+        }
       }
     } else if (isControlValveMode) {
       const ta     = lf.technicalAttributes;
