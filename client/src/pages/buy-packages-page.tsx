@@ -2112,20 +2112,137 @@ function GearPumpAttrsForm({
   );
 }
 
-// ── Screw Pump requirement builder ───────────────────────────────────────────
+// ── Screw Pump constants ──────────────────────────────────────────────────────
+const SCREW_PUMP_TYPES = [
+  "Single Screw","Twin Screw","Triple Screw","Progressive Cavity",
+];
+
+const SCREW_COMMON_OPTS = {
+  mounting:         ["Base Mounted","Skid Mounted","Vertical","Close-Coupled"],
+  drive_type:       ["Motor Driven","Engine Driven","Variable Speed Drive (VSD)"],
+  service_type:     ["Continuous","Intermittent","Standby","Duty-Standby"],
+  flow_rate:        ["0.5 m³/hr","1 m³/hr","2 m³/hr","5 m³/hr","10 m³/hr","15 m³/hr",
+                     "20 m³/hr","30 m³/hr","50 m³/hr","75 m³/hr","100 m³/hr","150 m³/hr","200 m³/hr"],
+  diff_pressure:    ["2 bar","5 bar","8 bar","10 bar","15 bar","20 bar","25 bar","30 bar","40 bar"],
+  fluid:            ["Fuel Oil","Lube Oil","Thermal Oil","Bitumen","Crude Oil","Chemical",
+                     "Slurry","Sludge","Water","Other"],
+  operating_temp:   ["Ambient","60°C","80°C","100°C","120°C","150°C","200°C","250°C"],
+  material_class:   ["CI","CS","SS304","SS316","Alloy Steel","Hastelloy"],
+  seal_type:        ["Mechanical Seal","Gland Packing","Cartridge Seal","Lip Seal"],
+  yes_no:           ["Yes","No"],
+  heating_medium:   ["Steam","Hot Water","Thermal Oil"],
+  api_676:          ["API 676","Non-API"],
+  area_class:       ["Safe Area","Zone 1","Zone 2"],
+  certification:    ["ATEX","IECEx","PESO"],
+  speed_rpm:        ["960 RPM","1450 RPM","Variable"],
+  motor_power_kw:   ["0.37 kW","0.55 kW","0.75 kW","1.1 kW","1.5 kW","2.2 kW","3.7 kW",
+                     "5.5 kW","7.5 kW","11 kW","15 kW","18.5 kW","22 kW","30 kW","37 kW","45 kW","55 kW","75 kW"],
+  spare_parts:      ["Seal Kit","Rotor-Stator Set","Full Rotating Element","None"],
+  port_conn:        ["Flanged","NPT","BSP"],
+  screw_mat_s:      ["Cast Iron","Carbon Steel","SS316","Bronze"],
+  liner_material:   ["Cast Iron","SS316","Alloy Steel"],
+  screw_mat_tw:     ["Carbon Steel","SS316","Alloy Steel"],
+  timing_gears:     ["Yes (Non-Contacting)","No (Contacting)"],
+  noise_level:      ["Standard","Low Noise"],
+  rotor_material:   ["Chrome Steel","SS316","Alloy Steel"],
+  stator_elastomer: ["NBR","EPDM","Viton","Natural Rubber","Neoprene"],
+  speed_control:    ["Fixed Speed","Variable Speed Drive (VSD)"],
+};
+
+const SCREW_ALL_FIELD_OPTS: Record<string, string[]> = {
+  screw_type:         SCREW_PUMP_TYPES,
+  mounting:           SCREW_COMMON_OPTS.mounting,
+  drive_type:         SCREW_COMMON_OPTS.drive_type,
+  service_type:       SCREW_COMMON_OPTS.service_type,
+  flow_rate:          SCREW_COMMON_OPTS.flow_rate,
+  diff_pressure:      SCREW_COMMON_OPTS.diff_pressure,
+  fluid:              SCREW_COMMON_OPTS.fluid,
+  operating_temp:     SCREW_COMMON_OPTS.operating_temp,
+  material_class:     SCREW_COMMON_OPTS.material_class,
+  seal_type:          SCREW_COMMON_OPTS.seal_type,
+  heating_jacket:     SCREW_COMMON_OPTS.yes_no,
+  heating_medium:     SCREW_COMMON_OPTS.heating_medium,
+  api_standard:       SCREW_COMMON_OPTS.api_676,
+  area_classification:SCREW_COMMON_OPTS.area_class,
+  certification:      SCREW_COMMON_OPTS.certification,
+  speed_rpm:          SCREW_COMMON_OPTS.speed_rpm,
+  motor_power_kw:     SCREW_COMMON_OPTS.motor_power_kw,
+  spare_parts:        SCREW_COMMON_OPTS.spare_parts,
+  port_connection:    SCREW_COMMON_OPTS.port_conn,
+  screw_material:     [...new Set([...SCREW_COMMON_OPTS.screw_mat_s, ...SCREW_COMMON_OPTS.screw_mat_tw])],
+  liner_material:     SCREW_COMMON_OPTS.liner_material,
+  timing_gears:       SCREW_COMMON_OPTS.timing_gears,
+  self_priming:       SCREW_COMMON_OPTS.yes_no,
+  noise_level:        SCREW_COMMON_OPTS.noise_level,
+  rotor_material:     SCREW_COMMON_OPTS.rotor_material,
+  stator_elastomer:   SCREW_COMMON_OPTS.stator_elastomer,
+  speed_control:      SCREW_COMMON_OPTS.speed_control,
+  dry_run_protection: SCREW_COMMON_OPTS.yes_no,
+};
+
+const SCREW_PUMP_MAKES = [
+  "Allweiler","Leistritz","IMO Pump","Bornemann","NETZSCH","Mono Pumps",
+  "Roto","PCM","Seepex","Hugo Vogel","CIRCOR","Desmi",
+];
+
+function buildScrewPumpDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    screw_type: type, approved_makes: [],
+    mounting: "Base Mounted", drive_type: "Motor Driven",
+    service_type: "Continuous", flow_rate: "", diff_pressure: "",
+    fluid: "", operating_temp: "", material_class: "CI", seal_type: "Mechanical Seal",
+    heating_jacket: "No", heating_medium: "",
+    api_standard: "", area_classification: "", certification: "",
+    speed_rpm: "", motor_power_kw: "", spare_parts: "",
+    port_connection: "", port_size: "", screw_material: "",
+    liner_material: "", timing_gears: "", self_priming: "",
+    noise_level: "", rotor_material: "", stator_elastomer: "",
+    speed_control: "", dry_run_protection: "",
+  };
+  switch (type) {
+    case "Single Screw":
+      return { ...base, screw_material: "Cast Iron", liner_material: "Cast Iron" };
+    case "Twin Screw":
+      return { ...base, screw_material: "Carbon Steel",
+        timing_gears: "Yes (Non-Contacting)", self_priming: "Yes" };
+    case "Triple Screw":
+      return { ...base, screw_material: "Alloy Steel",
+        noise_level: "Standard", api_standard: "Non-API" };
+    case "Progressive Cavity":
+      return { ...base, material_class: "CS", rotor_material: "Chrome Steel",
+        stator_elastomer: "NBR", speed_control: "Variable Speed Drive (VSD)",
+        self_priming: "Yes", dry_run_protection: "Yes" };
+    default: return base;
+  }
+}
+
 function buildScrewPumpRequirement(attrs: Record<string, unknown>): string {
   const screwType = (attrs.screw_type    as string)?.trim() || "";
   const flowRate  = (attrs.flow_rate     as string)?.trim() || "";
-  const pressure  = (attrs.pressure      as string)?.trim() || "";
+  const pressure  = (attrs.diff_pressure as string)?.trim() || "";
   const matClass  = (attrs.material_class as string)?.trim() || "";
   const fluid     = (attrs.fluid         as string)?.trim() || "";
+  const stL = screwType.toLowerCase();
+
+  let typeSpec = "";
+  if (stL.includes("progressive") || stL.includes("cavity")) {
+    const stator = (attrs.stator_elastomer as string)?.trim() || "";
+    if (stator) typeSpec = `${stator} Stator`;
+  } else if (stL.includes("twin")) {
+    const tg = (attrs.timing_gears as string)?.trim() || "";
+    if (tg.includes("Non-Contacting")) typeSpec = "Non-Contacting";
+  } else if (stL.includes("triple")) {
+    const nl = (attrs.noise_level as string)?.trim() || "";
+    if (nl && nl !== "Standard") typeSpec = nl;
+  }
 
   const parts: string[] = ["Screw Pump"];
   if (screwType) parts.push(screwType);
+  if (typeSpec)  parts.push(typeSpec);
 
   const opCond: string[] = [];
   if (flowRate) opCond.push(flowRate);
-  if (pressure) opCond.push(`${pressure} pressure`);
+  if (pressure) opCond.push(`${pressure} DP`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
 
@@ -2133,24 +2250,6 @@ function buildScrewPumpRequirement(attrs: Record<string, unknown>): string {
   if (fluid)    parts.push(`${fluid} Service`);
   return parts.join(", ");
 }
-
-// ── Screw Pump option lists ───────────────────────────────────────────────────
-const SCREW_PUMP_OPTS: Record<string, string[]> = {
-  screw_type:     ["Single Screw", "Twin Screw", "Triple Screw", "Progressive Cavity"],
-  mounting:       ["Base Mounted", "Skid Mounted", "Vertical"],
-  drive_type:     ["Motor Driven", "Engine Driven"],
-  service_type:   ["Continuous", "Intermittent", "Standby"],
-  flow_rate:      ["1 m³/hr", "5 m³/hr", "10 m³/hr", "20 m³/hr", "30 m³/hr",
-                   "50 m³/hr", "75 m³/hr", "100 m³/hr"],
-  pressure:       ["2 bar", "5 bar", "10 bar", "15 bar", "20 bar", "25 bar"],
-  fluid:          ["Oil", "Fuel", "Chemical", "Slurry", "Viscous Liquid", "Bitumen"],
-  viscosity:      ["Low", "Medium", "High", "Very High"],
-  operating_temp: ["Ambient", "50°C", "80°C", "120°C", "150°C"],
-  material_class: ["CI", "CS", "SS304", "SS316", "Alloy Steel"],
-  seal_type:      ["Mechanical Seal", "Gland Packing", "Cartridge Seal"],
-};
-
-const SCREW_PUMP_MAKES = ["Allweiler", "Leistritz", "IMO Pump", "Bornemann", "NETZSCH", "Mono Pumps", "Roto", "PCM"];
 
 // ── Screw Pump structured form ────────────────────────────────────────────────
 function ScrewPumpAttrsForm({
@@ -2161,152 +2260,216 @@ function ScrewPumpAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-
-  const singleKeys = Object.keys(SCREW_PUMP_OPTS);
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = SCREW_PUMP_OPTS[key] ?? [];
+    for (const [key, opts] of Object.entries(SCREW_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.approved_makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
 
-  function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+  function handleTypeChange(type: string) {
+    const defaults = buildScrewPumpDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(SCREW_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
     }
+    setCustom(c); setMakes([]); onChange({ ...defaults, approved_makes: [] });
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = SCREW_PUMP_OPTS[key];
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") { setCustom((c) => ({ ...c, [key]: true })); onChange({ ...attrs, [key]: "" }); }
+    else { setCustom((c) => ({ ...c, [key]: false })); onChange({ ...attrs, [key]: val }); }
+  }
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
-        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)} />
-        {isCustom && (
-          <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
-        )}
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />}
       </div>
     );
   }
-
-  // ── Makes multi-select ──
-  const [makesOpen, setMakesOpen] = useState(false);
-  const [makesQuery, setMakesQuery] = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal, setCustomMakeVal] = useState("");
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter((m) => m !== make)
-      : [...approvedMakes, make] });
+  function renderFreeText(key: string, label: string, placeholder?: string, required?: boolean) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" placeholder={placeholder ?? `Enter ${label}…`}
+          value={(attrs[key] as string) ?? ""} onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
   }
-  function addCustomMake() {
-    const t = customMakeVal.trim();
-    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  const filteredMakes = SCREW_PUMP_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
-
-  function sectionHeader(label: string) {
+  function sec(label: string) {
     return (
       <div className="col-span-2 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
   }
+  function addMake(make: string) {
+    const t = make.trim(); if (!t || makes.includes(t)) return;
+    const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]]; setMakes(next); onChange({ ...attrs, approved_makes: next });
+  }
+
+  const screwType  = (attrs.screw_type as string) ?? "";
+  const isSingle   = screwType === "Single Screw";
+  const isTwin     = screwType === "Twin Screw";
+  const isTriple   = screwType === "Triple Screw";
+  const isPC       = screwType === "Progressive Cavity";
+  const hasType    = isSingle || isTwin || isTriple || isPC;
+  const hasJacket  = (attrs.heating_jacket as string) === "Yes";
+  const filteredMakes = SCREW_PUMP_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Screw Pump Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
-        {sectionHeader("Pump Specifications")}
-        {renderField("screw_type",   "Screw Type",   true)}
-        {renderField("mounting",     "Mounting",     true)}
-        {renderField("drive_type",   "Drive Type",   true)}
-        {renderField("service_type", "Service Type", true)}
-
-        {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate",     true)}
-        {renderField("pressure",       "Pressure"           )}
-        {renderField("fluid",          "Fluid",         true)}
-        {renderField("viscosity",      "Viscosity"          )}
-        {renderField("operating_temp", "Operating Temp", true)}
-
-        {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class", true)}
-        {renderField("seal_type",      "Seal Type",      true)}
-
-        {sectionHeader("Vendor / Make")}
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredMakes.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {approvedMakes.map((make) => (
-                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
-                  {make}
-                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {showCustomMake && (
-            <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+        {sec("Screw Type")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Screw Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect value={SCREW_PUMP_TYPES.includes(screwType) ? screwType : ""}
+            options={SCREW_PUMP_TYPES} placeholder="Select screw type first…"
+            onSelect={(v) => handleTypeChange(v)} />
         </div>
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a screw type above to configure specifications
+          </div>
+        )}
+
+        {/* ── Single Screw sub-panel ──────────────────────────────── */}
+        {isSingle && (<>
+          {sec("Single Screw Configuration")}
+          {renderField("screw_material", "Screw Material",   SCREW_COMMON_OPTS.screw_mat_s, true)}
+          {renderField("liner_material", "Liner / Casing",   SCREW_COMMON_OPTS.liner_material, true)}
+          {renderField("port_connection","Port Connection",  SCREW_COMMON_OPTS.port_conn, true)}
+          {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN50")}
+          {renderField("heating_jacket", "Heating Jacket",   SCREW_COMMON_OPTS.yes_no)}
+          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+        </>)}
+
+        {/* ── Twin Screw sub-panel ────────────────────────────────── */}
+        {isTwin && (<>
+          {sec("Twin Screw Configuration")}
+          {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
+          {renderField("timing_gears",   "Timing Gears",      SCREW_COMMON_OPTS.timing_gears, true)}
+          {renderField("self_priming",   "Self-Priming",      SCREW_COMMON_OPTS.yes_no, true)}
+          {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn, true)}
+          {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN80")}
+          {renderField("api_standard",   "API Standard",      SCREW_COMMON_OPTS.api_676)}
+          {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
+          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+        </>)}
+
+        {/* ── Triple Screw sub-panel ──────────────────────────────── */}
+        {isTriple && (<>
+          {sec("Triple Screw Configuration")}
+          {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
+          {renderField("noise_level",    "Noise Level",       SCREW_COMMON_OPTS.noise_level)}
+          {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn, true)}
+          {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN50")}
+          {renderField("api_standard",   "API Standard",      SCREW_COMMON_OPTS.api_676)}
+          {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
+          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+        </>)}
+
+        {/* ── Progressive Cavity sub-panel ───────────────────────── */}
+        {isPC && (<>
+          {sec("Progressive Cavity Configuration")}
+          {renderField("rotor_material",   "Rotor Material",    SCREW_COMMON_OPTS.rotor_material,   true)}
+          {renderField("stator_elastomer", "Stator Elastomer",  SCREW_COMMON_OPTS.stator_elastomer, true)}
+          {renderField("speed_control",    "Speed Control",     SCREW_COMMON_OPTS.speed_control,    true)}
+          {renderField("self_priming",     "Self-Priming",      SCREW_COMMON_OPTS.yes_no,           true)}
+          {renderField("dry_run_protection","Dry Run Protection",SCREW_COMMON_OPTS.yes_no,          true)}
+          {renderField("port_connection",  "Port Connection",   SCREW_COMMON_OPTS.port_conn,        true)}
+          {renderFreeText("port_size",     "Port Size (DN/NPS)","e.g. DN50")}
+          {renderField("heating_jacket",   "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
+          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+        </>)}
+
+        {/* ── Common: Operating Conditions ─────────────────────── */}
+        {hasType && (<>
+          {sec("Operating Conditions")}
+          {renderField("flow_rate",      "Flow Rate",             SCREW_COMMON_OPTS.flow_rate,     true)}
+          {renderField("diff_pressure",  "Differential Pressure", SCREW_COMMON_OPTS.diff_pressure, true)}
+          {renderField("fluid",          "Fluid",                 SCREW_COMMON_OPTS.fluid,         true)}
+          {renderFreeText("viscosity",   "Viscosity (cSt)",       "e.g. 500 cSt")}
+          {renderField("operating_temp", "Operating Temp",        SCREW_COMMON_OPTS.operating_temp)}
+          <div />
+
+          {sec("Pump Configuration")}
+          {renderField("mounting",       "Mounting",       SCREW_COMMON_OPTS.mounting,       true)}
+          {renderField("drive_type",     "Drive Type",     SCREW_COMMON_OPTS.drive_type,     true)}
+          {renderField("service_type",   "Service Type",   SCREW_COMMON_OPTS.service_type,   true)}
+          {renderField("material_class", "Material Class", SCREW_COMMON_OPTS.material_class, true)}
+          {renderField("seal_type",      "Seal Type",      SCREW_COMMON_OPTS.seal_type,      true)}
+          <div />
+
+          {sec("Optional — Performance & Area")}
+          {renderField("speed_rpm",          "Speed (RPM)",         SCREW_COMMON_OPTS.speed_rpm)}
+          {renderField("motor_power_kw",     "Motor Power (kW)",    SCREW_COMMON_OPTS.motor_power_kw)}
+          {renderField("area_classification","Area Classification", SCREW_COMMON_OPTS.area_class)}
+          {renderField("certification",      "Certification",       SCREW_COMMON_OPTS.certification)}
+          {renderField("spare_parts",        "Spare Parts Package", SCREW_COMMON_OPTS.spare_parts)}
+          <div />
+
+          {/* ── Approved Makes (ranked) ─────────────────────────── */}
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Approved Makes (ranked) <span className="text-red-500">*</span>
+            </p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
+                value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch); }} />
+              <Button type="button" size="sm" className="h-8" onClick={() => { if (makeSearch.trim()) addMake(makeSearch); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button" className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted" onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
 
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
@@ -2522,21 +2685,139 @@ function MultistagePumpAttrsForm({
   );
 }
 
-// ── Dosing/Metering Pump requirement builder ──────────────────────────────────
-function buildDosingPumpRequirement(attrs: Record<string, unknown>): string {
-  const pumpType  = (attrs.pump_type        as string)?.trim() || "";
-  const flowRate  = (attrs.flow_rate        as string)?.trim() || "";
-  const pressure  = (attrs.pressure         as string)?.trim() || "";
-  const diaphragm = (attrs.diaphragm_material as string)?.trim() || "";
-  const fluid     = (attrs.fluid            as string)?.trim() || "";
+// ── Dosing/Metering Pump constants ───────────────────────────────────────────
+const DOSING_PUMP_TYPES = [
+  "Diaphragm Pump","Plunger Pump","Piston Pump","Peristaltic Pump","Solenoid Dosing Pump",
+];
 
-  // "Diaphragm Pump" → "Diaphragm Type"; "Peristaltic Pump" → "Peristaltic Type", etc.
-  const typeLabel = pumpType.endsWith(" Pump")
-    ? pumpType.replace(/ Pump$/, " Type")
-    : pumpType;
+const DOSING_COMMON_OPTS = {
+  mounting:           ["Base Mounted","Skid Mounted","Wall Mounted","Panel Mounted"],
+  drive_type:         ["Motor Driven","Solenoid Driven","Pneumatic"],
+  service_type:       ["Continuous","Intermittent","Batch"],
+  flow_rate:          ["1 LPH","5 LPH","10 LPH","20 LPH","50 LPH","100 LPH",
+                       "200 LPH","500 LPH","1000 LPH","1 m³/hr","2 m³/hr","5 m³/hr"],
+  discharge_pressure: ["2 bar","5 bar","8 bar","10 bar","15 bar","20 bar","25 bar"],
+  dosing_accuracy:    ["±0.5%","±1%","±2%","±3%","±5%"],
+  fluid:              ["Chemical","Acid","Alkali","Solvent","Polymer","Scale Inhibitor",
+                       "Biocide","Water","Slurry","Other"],
+  operating_temp:     ["Ambient","40°C","60°C","80°C","100°C"],
+  wetted_material:    ["PP","PVC","SS304","SS316","PVDF","Hastelloy"],
+  area_class:         ["Safe Area","Zone 1","Zone 2"],
+  certification:      ["ATEX","IECEx","PESO"],
+  yes_no:             ["Yes","No"],
+  spare_parts:        ["Seal Kit","Diaphragm Kit","Hose Kit","Valve Kit","None"],
+  diaphragm_material: ["PTFE","EPDM","Nitrile","Viton","PVDF"],
+  diaphragm_design:   ["Single","Double","Sandwich"],
+  ctrl_dp:            ["Manual","4-20mA","Pulse Input","PROFIBUS","HART"],
+  plunger_material:   ["SS316","Ceramic","Tungsten Carbide","Hastelloy"],
+  packing_material:   ["PTFE","Graphite","PEEK"],
+  num_heads:          ["Simplex","Duplex","Triplex"],
+  ctrl_pl:            ["Manual Stroke","Variable Speed Drive (VSD)","Stroke Length","Both (VSD + Stroke)"],
+  piston_material:    ["SS316","Cast Iron","PTFE-lined"],
+  packing_seal_type:  ["O-Ring","Cup Seal","Gland Packing"],
+  ctrl_pn:            ["Manual","4-20mA","Pulse Input"],
+  hose_material:      ["Natural Rubber","EPDM","Viton","Neoprene","Norprene"],
+  speed_control:      ["Fixed Speed","Variable Speed Drive (VSD)"],
+  ip_rating:          ["IP54","IP55","IP65","IP66","IP67"],
+  ctrl_sol:           ["Manual","4-20mA","Pulse Input","Batch"],
+};
+
+const DOSING_ALL_FIELD_OPTS: Record<string, string[]> = {
+  pump_type:           DOSING_PUMP_TYPES,
+  mounting:            DOSING_COMMON_OPTS.mounting,
+  drive_type:          DOSING_COMMON_OPTS.drive_type,
+  service_type:        DOSING_COMMON_OPTS.service_type,
+  flow_rate:           DOSING_COMMON_OPTS.flow_rate,
+  discharge_pressure:  DOSING_COMMON_OPTS.discharge_pressure,
+  dosing_accuracy:     DOSING_COMMON_OPTS.dosing_accuracy,
+  fluid:               DOSING_COMMON_OPTS.fluid,
+  operating_temp:      DOSING_COMMON_OPTS.operating_temp,
+  wetted_material:     DOSING_COMMON_OPTS.wetted_material,
+  area_classification: DOSING_COMMON_OPTS.area_class,
+  certification:       DOSING_COMMON_OPTS.certification,
+  control_panel:       ["Integral","Remote","None"],
+  pulsation_dampener:  DOSING_COMMON_OPTS.yes_no,
+  safety_valve:        DOSING_COMMON_OPTS.yes_no,
+  spare_parts:         DOSING_COMMON_OPTS.spare_parts,
+  diaphragm_material:  DOSING_COMMON_OPTS.diaphragm_material,
+  diaphragm_design:    DOSING_COMMON_OPTS.diaphragm_design,
+  control_type:        [...new Set([...DOSING_COMMON_OPTS.ctrl_dp, ...DOSING_COMMON_OPTS.ctrl_pl])],
+  back_pressure_valve: DOSING_COMMON_OPTS.yes_no,
+  leak_detection:      DOSING_COMMON_OPTS.yes_no,
+  degassing_valve:     DOSING_COMMON_OPTS.yes_no,
+  plunger_material:    DOSING_COMMON_OPTS.plunger_material,
+  packing_material:    DOSING_COMMON_OPTS.packing_material,
+  num_heads:           DOSING_COMMON_OPTS.num_heads,
+  piston_material:     DOSING_COMMON_OPTS.piston_material,
+  packing_seal_type:   DOSING_COMMON_OPTS.packing_seal_type,
+  hose_material:       DOSING_COMMON_OPTS.hose_material,
+  reversible:          DOSING_COMMON_OPTS.yes_no,
+  speed_control:       DOSING_COMMON_OPTS.speed_control,
+  ip_rating:           DOSING_COMMON_OPTS.ip_rating,
+};
+
+const DOSING_PUMP_MAKES = [
+  "ProMinent","Grundfos Alldos","Milton Roy","Sera","SEKO","Emec",
+  "Pulsafeeder","Watson-Marlow","LEWA","Iwaki","Verder","IDEX",
+];
+
+function buildDosingPumpDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    pump_type: type, approved_makes: [],
+    mounting: "Base Mounted", drive_type: "Motor Driven",
+    service_type: "Continuous", flow_rate: "", discharge_pressure: "",
+    dosing_accuracy: "±1%", fluid: "", operating_temp: "", wetted_material: "SS316",
+    area_classification: "", certification: "",
+    control_panel: "None", pulsation_dampener: "No", safety_valve: "No", spare_parts: "",
+    diaphragm_material: "", diaphragm_design: "", control_type: "",
+    back_pressure_valve: "No", leak_detection: "", degassing_valve: "No",
+    plunger_material: "", packing_material: "", num_heads: "",
+    piston_material: "", packing_seal_type: "",
+    hose_material: "", reversible: "", speed_control: "",
+    ip_rating: "", max_stroke_rate: "", motor_power: "",
+  };
+  switch (type) {
+    case "Diaphragm Pump":
+      return { ...base, diaphragm_material: "PTFE", diaphragm_design: "Single",
+        control_type: "4-20mA", back_pressure_valve: "No" };
+    case "Plunger Pump":
+      return { ...base, plunger_material: "SS316", packing_material: "PTFE",
+        num_heads: "Simplex", control_type: "Manual Stroke" };
+    case "Piston Pump":
+      return { ...base, piston_material: "SS316", packing_seal_type: "O-Ring",
+        num_heads: "Simplex", control_type: "4-20mA" };
+    case "Peristaltic Pump":
+      return { ...base, hose_material: "EPDM",
+        speed_control: "Variable Speed Drive (VSD)", reversible: "Yes" };
+    case "Solenoid Dosing Pump":
+      return { ...base, drive_type: "Solenoid Driven", diaphragm_material: "PTFE",
+        wetted_material: "PP", control_type: "Manual", service_type: "Batch" };
+    default: return base;
+  }
+}
+
+function buildDosingPumpRequirement(attrs: Record<string, unknown>): string {
+  const pumpType = (attrs.pump_type        as string)?.trim() || "";
+  const flowRate = (attrs.flow_rate        as string)?.trim() || "";
+  const pressure = (attrs.discharge_pressure as string)?.trim() || "";
+  const fluid    = (attrs.fluid            as string)?.trim() || "";
+  const typeLC   = pumpType.toLowerCase();
+
+  let typeSpec = "";
+  if (typeLC.includes("diaphragm") || typeLC.includes("solenoid")) {
+    const design = (attrs.diaphragm_design as string)?.trim() || "";
+    if (design) typeSpec = `${design} Diaphragm`;
+  } else if (typeLC.includes("plunger") || typeLC.includes("piston")) {
+    const heads = (attrs.num_heads as string)?.trim() || "";
+    if (heads) typeSpec = heads;
+  } else if (typeLC.includes("peristaltic")) {
+    const hose = (attrs.hose_material as string)?.trim() || "";
+    if (hose) typeSpec = `${hose} Hose`;
+  }
 
   const parts: string[] = ["Dosing Pump"];
-  if (typeLabel) parts.push(typeLabel);
+  if (pumpType) parts.push(pumpType);
+  if (typeSpec) parts.push(typeSpec);
 
   const opCond: string[] = [];
   if (flowRate) opCond.push(flowRate);
@@ -2544,27 +2825,9 @@ function buildDosingPumpRequirement(attrs: Record<string, unknown>): string {
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
 
-  if (diaphragm) parts.push(`${diaphragm} Diaphragm`);
-  if (fluid)     parts.push(`${fluid} Service`);
+  if (fluid) parts.push(`${fluid} Service`);
   return parts.join(", ");
 }
-
-// ── Dosing/Metering Pump option lists ─────────────────────────────────────────
-const DOSING_PUMP_OPTS: Record<string, string[]> = {
-  pump_type:          ["Diaphragm Pump", "Plunger Pump", "Piston Pump", "Peristaltic Pump", "Solenoid Dosing Pump"],
-  mounting:           ["Base Mounted", "Skid Mounted", "Wall Mounted", "Panel Mounted"],
-  drive_type:         ["Motor Driven", "Solenoid Driven", "Pneumatic"],
-  service_type:       ["Continuous", "Intermittent", "Batch"],
-  flow_rate:          ["1 LPH", "5 LPH", "10 LPH", "20 LPH", "50 LPH", "100 LPH", "200 LPH", "500 LPH"],
-  pressure:           ["2 bar", "5 bar", "10 bar", "15 bar", "20 bar", "25 bar"],
-  dosing_accuracy:    ["±1%", "±2%", "±5%"],
-  fluid:              ["Chemical", "Acid", "Alkali", "Solvent", "Water"],
-  operating_temp:     ["Ambient", "40°C", "60°C", "80°C"],
-  material_class:     ["PP", "PVC", "SS304", "SS316", "PVDF"],
-  diaphragm_material: ["PTFE", "EPDM", "Nitrile", "Viton"],
-};
-
-const DOSING_PUMP_MAKES = ["ProMinent", "Grundfos Alldos", "Milton Roy", "Sera", "SEKO", "Emec", "Pulsafeeder", "Watson-Marlow", "LEWA"];
 
 // ── Dosing/Metering Pump structured form ──────────────────────────────────────
 function DosingPumpAttrsForm({
@@ -2575,152 +2838,217 @@ function DosingPumpAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-
-  const singleKeys = Object.keys(DOSING_PUMP_OPTS);
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = DOSING_PUMP_OPTS[key] ?? [];
+    for (const [key, opts] of Object.entries(DOSING_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.approved_makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
 
-  function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+  function handleTypeChange(type: string) {
+    const defaults = buildDosingPumpDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(DOSING_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
     }
+    setCustom(c); setMakes([]); onChange({ ...defaults, approved_makes: [] });
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = DOSING_PUMP_OPTS[key];
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") { setCustom((c) => ({ ...c, [key]: true })); onChange({ ...attrs, [key]: "" }); }
+    else { setCustom((c) => ({ ...c, [key]: false })); onChange({ ...attrs, [key]: val }); }
+  }
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
-        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)} />
-        {isCustom && (
-          <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
-        )}
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />}
       </div>
     );
   }
-
-  // ── Makes multi-select ──
-  const [makesOpen, setMakesOpen] = useState(false);
-  const [makesQuery, setMakesQuery] = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal, setCustomMakeVal] = useState("");
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter((m) => m !== make)
-      : [...approvedMakes, make] });
+  function renderFreeText(key: string, label: string, placeholder?: string, required?: boolean) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" placeholder={placeholder ?? `Enter ${label}…`}
+          value={(attrs[key] as string) ?? ""} onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
   }
-  function addCustomMake() {
-    const t = customMakeVal.trim();
-    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  const filteredMakes = DOSING_PUMP_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
-
-  function sectionHeader(label: string) {
+  function sec(label: string) {
     return (
       <div className="col-span-2 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
   }
+  function addMake(make: string) {
+    const t = make.trim(); if (!t || makes.includes(t)) return;
+    const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]]; setMakes(next); onChange({ ...attrs, approved_makes: next });
+  }
+
+  const pumpType     = (attrs.pump_type as string) ?? "";
+  const isDiaphragm  = pumpType === "Diaphragm Pump";
+  const isPlunger    = pumpType === "Plunger Pump";
+  const isPiston     = pumpType === "Piston Pump";
+  const isPeris      = pumpType === "Peristaltic Pump";
+  const isSolenoid   = pumpType === "Solenoid Dosing Pump";
+  const hasType      = isDiaphragm || isPlunger || isPiston || isPeris || isSolenoid;
+  const isDoubleD    = (attrs.diaphragm_design as string) === "Double";
+  const filteredMakes = DOSING_PUMP_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dosing / Metering Pump Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
-        {sectionHeader("Pump Specifications")}
-        {renderField("pump_type",    "Pump Type",    true)}
-        {renderField("mounting",     "Mounting",     true)}
-        {renderField("drive_type",   "Drive Type",   true)}
-        {renderField("service_type", "Service Type", true)}
-
-        {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",       "Flow Rate (LPH)",  true)}
-        {renderField("pressure",        "Pressure"              )}
-        {renderField("dosing_accuracy", "Dosing Accuracy"       )}
-        {renderField("fluid",           "Fluid",            true)}
-        {renderField("operating_temp",  "Operating Temp",   true)}
-
-        {sectionHeader("Construction")}
-        {renderField("material_class",     "Material Class",     true)}
-        {renderField("diaphragm_material", "Diaphragm Material"      )}
-
-        {sectionHeader("Vendor / Make")}
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredMakes.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {approvedMakes.map((make) => (
-                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
-                  {make}
-                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {showCustomMake && (
-            <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+        {sec("Pump Type")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Pump Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect value={DOSING_PUMP_TYPES.includes(pumpType) ? pumpType : ""}
+            options={DOSING_PUMP_TYPES} placeholder="Select pump type first…"
+            onSelect={(v) => handleTypeChange(v)} />
         </div>
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a pump type above to configure specifications
+          </div>
+        )}
+
+        {/* ── Diaphragm Pump sub-panel ────────────────────────────── */}
+        {isDiaphragm && (<>
+          {sec("Diaphragm Pump Configuration")}
+          {renderField("diaphragm_material", "Diaphragm Material",   DOSING_COMMON_OPTS.diaphragm_material, true)}
+          {renderField("diaphragm_design",   "Diaphragm Design",     DOSING_COMMON_OPTS.diaphragm_design,   true)}
+          {renderField("control_type",       "Control Type",         DOSING_COMMON_OPTS.ctrl_dp,            true)}
+          {renderField("back_pressure_valve","Back Pressure Valve",  DOSING_COMMON_OPTS.yes_no)}
+          {isDoubleD ? renderField("leak_detection","Leak Detection",DOSING_COMMON_OPTS.yes_no) : <div />}
+          {renderField("degassing_valve",    "Degassing Valve",      DOSING_COMMON_OPTS.yes_no)}
+          <div />
+        </>)}
+
+        {/* ── Plunger Pump sub-panel ──────────────────────────────── */}
+        {isPlunger && (<>
+          {sec("Plunger Pump Configuration")}
+          {renderField("plunger_material", "Plunger Material",   DOSING_COMMON_OPTS.plunger_material, true)}
+          {renderField("packing_material", "Packing Material",   DOSING_COMMON_OPTS.packing_material, true)}
+          {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,        true)}
+          {renderField("control_type",     "Control Type",       DOSING_COMMON_OPTS.ctrl_pl,          true)}
+        </>)}
+
+        {/* ── Piston Pump sub-panel ───────────────────────────────── */}
+        {isPiston && (<>
+          {sec("Piston Pump Configuration")}
+          {renderField("piston_material",  "Piston Material",    DOSING_COMMON_OPTS.piston_material,   true)}
+          {renderField("packing_seal_type","Packing / Seal Type",DOSING_COMMON_OPTS.packing_seal_type, true)}
+          {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,         true)}
+          {renderField("control_type",     "Control Type",       DOSING_COMMON_OPTS.ctrl_pn,           true)}
+        </>)}
+
+        {/* ── Peristaltic Pump sub-panel ──────────────────────────── */}
+        {isPeris && (<>
+          {sec("Peristaltic Pump Configuration")}
+          {renderField("hose_material",  "Hose / Tube Material", DOSING_COMMON_OPTS.hose_material,  true)}
+          {renderField("reversible",     "Reversible",           DOSING_COMMON_OPTS.yes_no,         true)}
+          {renderField("speed_control",  "Speed Control",        DOSING_COMMON_OPTS.speed_control,  true)}
+          {renderField("ip_rating",      "IP Rating",            DOSING_COMMON_OPTS.ip_rating)}
+        </>)}
+
+        {/* ── Solenoid Dosing Pump sub-panel ─────────────────────── */}
+        {isSolenoid && (<>
+          {sec("Solenoid Dosing Pump Configuration")}
+          {renderField("diaphragm_material","Diaphragm Material", DOSING_COMMON_OPTS.diaphragm_material, true)}
+          {renderField("wetted_material",   "Wetted Material",    DOSING_COMMON_OPTS.wetted_material,    true)}
+          {renderField("control_type",      "Control Type",       DOSING_COMMON_OPTS.ctrl_sol,           true)}
+          {renderFreeText("max_stroke_rate","Max Stroke Rate (spm)","e.g. 120 spm")}
+          {renderField("ip_rating",         "IP Rating",          DOSING_COMMON_OPTS.ip_rating)}
+          <div />
+        </>)}
+
+        {/* ── Common: Operating Conditions ─────────────────────── */}
+        {hasType && (<>
+          {sec("Operating Conditions")}
+          {renderField("flow_rate",           "Flow Rate",           DOSING_COMMON_OPTS.flow_rate,           true)}
+          {renderField("discharge_pressure",  "Discharge Pressure",  DOSING_COMMON_OPTS.discharge_pressure,  true)}
+          {renderField("dosing_accuracy",     "Dosing Accuracy",     DOSING_COMMON_OPTS.dosing_accuracy,     true)}
+          {renderField("fluid",               "Fluid",               DOSING_COMMON_OPTS.fluid,               true)}
+          {renderField("operating_temp",      "Operating Temp",      DOSING_COMMON_OPTS.operating_temp)}
+          {renderField("wetted_material",     "Wetted / Body Mat.",  DOSING_COMMON_OPTS.wetted_material,     true)}
+
+          {sec("Pump Configuration")}
+          {renderField("mounting",     "Mounting",     DOSING_COMMON_OPTS.mounting,     true)}
+          {renderField("drive_type",   "Drive Type",   DOSING_COMMON_OPTS.drive_type,   true)}
+          {renderField("service_type", "Service Type", DOSING_COMMON_OPTS.service_type, true)}
+          <div />
+
+          {sec("Optional — Controls & Area")}
+          {renderFreeText("motor_power",     "Motor Power",          "e.g. 0.37 kW")}
+          {renderField("control_panel",      "Control Panel",        DOSING_COMMON_OPTS.yes_no.map ? ["Integral","Remote","None"] : ["Integral","Remote","None"])}
+          {renderField("pulsation_dampener", "Pulsation Dampener",   DOSING_COMMON_OPTS.yes_no)}
+          {renderField("safety_valve",       "Safety / Relief Valve",DOSING_COMMON_OPTS.yes_no)}
+          {renderField("area_classification","Area Classification",  DOSING_COMMON_OPTS.area_class)}
+          {renderField("certification",      "Certification",        DOSING_COMMON_OPTS.certification)}
+          {renderField("spare_parts",        "Spare Parts Package",  DOSING_COMMON_OPTS.spare_parts)}
+          <div />
+
+          {/* ── Approved Makes (ranked) ─────────────────────────── */}
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Approved Makes (ranked) <span className="text-red-500">*</span>
+            </p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
+                value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch); }} />
+              <Button type="button" size="sm" className="h-8" onClick={() => { if (makeSearch.trim()) addMake(makeSearch); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button" className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted" onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
 
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
@@ -3082,6 +3410,47 @@ function computeSubgroupWarnings(
       if (missing("max_diff_pressure")) w.push("Max Diff. Pressure — required for Bi-Helical pump datasheet.");
     }
     if (missing("gear_material"))   w.push("Gear Material — required for construction datasheet.");
+    if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
+      w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
+  } else if (subgroupCode === "screw") {
+    if (missing("screw_type"))      w.push("Screw Type — required to configure screw pump datasheet.");
+    if (missing("flow_rate"))       w.push("Flow Rate — critical operating condition for pump selection.");
+    if (missing("diff_pressure"))   w.push("Differential Pressure — required for pump sizing.");
+    if (missing("fluid"))           w.push("Fluid — required for material and seal selection.");
+    if (missing("material_class"))  w.push("Material Class — required for wetted parts datasheet.");
+    if (missing("seal_type"))       w.push("Seal Type — required for mechanical seal datasheet.");
+    const stL = ((attrs.screw_type as string) ?? "").toLowerCase();
+    if (stL.includes("progressive") || stL.includes("cavity")) {
+      if (missing("rotor_material"))   w.push("Rotor Material — required for PC pump datasheet.");
+      if (missing("stator_elastomer")) w.push("Stator Elastomer — required for PC pump datasheet.");
+      if (missing("dry_run_protection")) w.push("Dry Run Protection — required for PC pump datasheet.");
+    } else if (stL.includes("twin")) {
+      if (missing("timing_gears"))  w.push("Timing Gears — required for Twin Screw pump datasheet.");
+    }
+    if (missing("screw_material"))  w.push("Screw Material — required for construction datasheet.");
+    if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
+      w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
+  } else if (subgroupCode === "dosing" || subgroupCode === "dosing_metering") {
+    if (missing("pump_type"))           w.push("Pump Type — required to configure dosing pump datasheet.");
+    if (missing("flow_rate"))           w.push("Flow Rate — critical dosing condition.");
+    if (missing("discharge_pressure"))  w.push("Discharge Pressure — required for pump sizing.");
+    if (missing("dosing_accuracy"))     w.push("Dosing Accuracy — required for dosing datasheet.");
+    if (missing("fluid"))               w.push("Fluid — required for wetted material selection.");
+    if (missing("wetted_material"))     w.push("Wetted / Body Material — required for chemical compatibility.");
+    const ptL = ((attrs.pump_type as string) ?? "").toLowerCase();
+    if (ptL.includes("diaphragm") || ptL.includes("solenoid")) {
+      if (missing("diaphragm_material")) w.push("Diaphragm Material — required for diaphragm pump datasheet.");
+      if (missing("diaphragm_design"))   w.push("Diaphragm Design — required for diaphragm pump datasheet.");
+    } else if (ptL.includes("plunger")) {
+      if (missing("plunger_material")) w.push("Plunger Material — required for plunger pump datasheet.");
+      if (missing("packing_material")) w.push("Packing Material — required for plunger pump datasheet.");
+      if (missing("num_heads"))        w.push("Number of Heads — required for plunger pump datasheet.");
+    } else if (ptL.includes("piston")) {
+      if (missing("piston_material"))  w.push("Piston Material — required for piston pump datasheet.");
+      if (missing("num_heads"))        w.push("Number of Heads — required for piston pump datasheet.");
+    } else if (ptL.includes("peristaltic")) {
+      if (missing("hose_material"))    w.push("Hose / Tube Material — required for peristaltic pump datasheet.");
+    }
     if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
       w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
   } else if (subgroupCode === "on_off") {
@@ -3750,6 +4119,170 @@ function buildDatasheetSections(
     ];
   }
 
+  if (subgroupCode === "screw") {
+    const screwType = v("screw_type") || "";
+    const stL       = screwType.toLowerCase();
+    const isSingleS = stL === "single screw";
+    const isTwinS   = stL === "twin screw";
+    const isTripleS = stL === "triple screw";
+    const isPC      = stL.includes("progressive") || stL.includes("cavity");
+
+    const typeSpecFields: DatasheetField[] = [];
+    if (isSingleS) {
+      typeSpecFields.push(
+        { label: "Screw Material",  value: v("screw_material") },
+        { label: "Liner / Casing", value: v("liner_material")  },
+        { label: "Port Connection", value: v("port_connection") },
+        { label: "Port Size",       value: v("port_size")      },
+        { label: "Heating Jacket",  value: v("heating_jacket") },
+        { label: "Heating Medium",  value: v("heating_medium") },
+      );
+    } else if (isTwinS) {
+      typeSpecFields.push(
+        { label: "Screw Material",  value: v("screw_material")  },
+        { label: "Timing Gears",    value: v("timing_gears"),   highlight: true },
+        { label: "Self-Priming",    value: v("self_priming")    },
+        { label: "Port Connection", value: v("port_connection") },
+        { label: "Port Size",       value: v("port_size")       },
+        { label: "API Standard",    value: v("api_standard")    },
+        { label: "Heating Jacket",  value: v("heating_jacket")  },
+        { label: "Heating Medium",  value: v("heating_medium")  },
+      );
+    } else if (isTripleS) {
+      typeSpecFields.push(
+        { label: "Screw Material",  value: v("screw_material")  },
+        { label: "Noise Level",     value: v("noise_level")     },
+        { label: "Port Connection", value: v("port_connection") },
+        { label: "Port Size",       value: v("port_size")       },
+        { label: "API Standard",    value: v("api_standard")    },
+        { label: "Heating Jacket",  value: v("heating_jacket")  },
+        { label: "Heating Medium",  value: v("heating_medium")  },
+      );
+    } else if (isPC) {
+      typeSpecFields.push(
+        { label: "Rotor Material",    value: v("rotor_material"),    highlight: true },
+        { label: "Stator Elastomer",  value: v("stator_elastomer"),  highlight: true },
+        { label: "Speed Control",     value: v("speed_control")      },
+        { label: "Self-Priming",      value: v("self_priming")       },
+        { label: "Dry Run Protection",value: v("dry_run_protection") },
+        { label: "Port Connection",   value: v("port_connection")    },
+        { label: "Port Size",         value: v("port_size")          },
+        { label: "Heating Jacket",    value: v("heating_jacket")     },
+        { label: "Heating Medium",    value: v("heating_medium")     },
+      );
+    }
+
+    const sMakes    = Array.isArray(attrs.approved_makes) ? (attrs.approved_makes as string[]) : [];
+    const sMakesStr = sMakes.length > 0 ? sMakes.map((m, i) => `${i + 1}. ${m}`).join(" | ") : "—";
+
+    return [
+      { title: "Screw Pump Type", fields: [
+        { label: "Screw Type",   value: v("screw_type"),   highlight: true },
+        { label: "Mounting",     value: v("mounting")                      },
+        { label: "Drive Type",   value: v("drive_type")                    },
+        { label: "Service Type", value: v("service_type")                  },
+      ]},
+      { title: "Type-Specific Configuration", fields: typeSpecFields },
+      { title: "Operating Conditions", fields: [
+        { label: "Flow Rate",             value: v("flow_rate"),     highlight: true },
+        { label: "Differential Pressure", value: v("diff_pressure"), highlight: true },
+        { label: "Fluid",                 value: v("fluid"),         highlight: true },
+        { label: "Viscosity (cSt)",       value: v("viscosity")                      },
+        { label: "Operating Temp",        value: v("operating_temp")                 },
+      ]},
+      { title: "Materials & Sealing", fields: [
+        { label: "Material Class",  value: v("material_class"), highlight: true },
+        { label: "Seal Type",       value: v("seal_type"),      highlight: true },
+      ]},
+      { title: "Performance & Area", fields: [
+        { label: "Speed (RPM)",         value: v("speed_rpm")            },
+        { label: "Motor Power (kW)",    value: v("motor_power_kw")       },
+        { label: "API Standard",        value: v("api_standard")         },
+        { label: "Area Classification", value: v("area_classification")  },
+        { label: "Certification",       value: v("certification")        },
+        { label: "Spare Parts",         value: v("spare_parts")          },
+      ]},
+      { title: "Approved Makes (ranked)", fields: [
+        { label: "Makes", value: sMakesStr, highlight: sMakesStr !== "—" },
+      ]},
+    ];
+  }
+
+  if (subgroupCode === "dosing" || subgroupCode === "dosing_metering") {
+    const pumpType = v("pump_type") || "";
+    const ptL      = pumpType.toLowerCase();
+    const isDiaph  = ptL.includes("diaphragm") || ptL.includes("solenoid");
+    const isPlngr  = ptL.includes("plunger");
+    const isPiston = ptL.includes("piston");
+    const isPeris  = ptL.includes("peristaltic");
+
+    const typeSpecFields: DatasheetField[] = [];
+    if (isDiaph) {
+      typeSpecFields.push(
+        { label: "Diaphragm Material",  value: v("diaphragm_material"), highlight: true },
+        { label: "Diaphragm Design",    value: v("diaphragm_design"),   highlight: true },
+        { label: "Control Type",        value: v("control_type")                        },
+        { label: "Back Pressure Valve", value: v("back_pressure_valve")                 },
+        { label: "Leak Detection",      value: v("leak_detection")                      },
+        { label: "Degassing Valve",     value: v("degassing_valve")                     },
+      );
+    } else if (isPlngr) {
+      typeSpecFields.push(
+        { label: "Plunger Material",  value: v("plunger_material"),  highlight: true },
+        { label: "Packing Material",  value: v("packing_material"),  highlight: true },
+        { label: "Number of Heads",   value: v("num_heads")                          },
+        { label: "Control Type",      value: v("control_type")                       },
+      );
+    } else if (isPiston) {
+      typeSpecFields.push(
+        { label: "Piston Material",    value: v("piston_material"),   highlight: true },
+        { label: "Packing / Seal",     value: v("packing_seal_type"), highlight: true },
+        { label: "Number of Heads",    value: v("num_heads")                          },
+        { label: "Control Type",       value: v("control_type")                       },
+      );
+    } else if (isPeris) {
+      typeSpecFields.push(
+        { label: "Hose Material",  value: v("hose_material"),  highlight: true },
+        { label: "Reversible",     value: v("reversible")                      },
+        { label: "Speed Control",  value: v("speed_control")                   },
+        { label: "IP Rating",      value: v("ip_rating")                       },
+      );
+    }
+
+    const dMakes    = Array.isArray(attrs.approved_makes) ? (attrs.approved_makes as string[]) : [];
+    const dMakesStr = dMakes.length > 0 ? dMakes.map((m, i) => `${i + 1}. ${m}`).join(" | ") : "—";
+
+    return [
+      { title: "Dosing Pump Type", fields: [
+        { label: "Pump Type",    value: v("pump_type"),    highlight: true },
+        { label: "Mounting",     value: v("mounting")                      },
+        { label: "Drive Type",   value: v("drive_type")                    },
+        { label: "Service Type", value: v("service_type")                  },
+      ]},
+      { title: "Type-Specific Configuration", fields: typeSpecFields },
+      { title: "Operating Conditions", fields: [
+        { label: "Flow Rate",          value: v("flow_rate"),          highlight: true },
+        { label: "Discharge Pressure", value: v("discharge_pressure"), highlight: true },
+        { label: "Dosing Accuracy",    value: v("dosing_accuracy"),    highlight: true },
+        { label: "Fluid",              value: v("fluid"),              highlight: true },
+        { label: "Operating Temp",     value: v("operating_temp")                      },
+        { label: "Wetted / Body Mat.", value: v("wetted_material"),    highlight: true },
+      ]},
+      { title: "Controls & Options", fields: [
+        { label: "Motor Power",         value: v("motor_power")          },
+        { label: "Control Panel",       value: v("control_panel")        },
+        { label: "Pulsation Dampener",  value: v("pulsation_dampener")   },
+        { label: "Safety Valve",        value: v("safety_valve")         },
+        { label: "Area Classification", value: v("area_classification")  },
+        { label: "Certification",       value: v("certification")        },
+        { label: "Spare Parts",         value: v("spare_parts")          },
+      ]},
+      { title: "Approved Makes (ranked)", fields: [
+        { label: "Makes", value: dMakesStr, highlight: dMakesStr !== "—" },
+      ]},
+    ];
+  }
+
   if (subgroupCode === "on_off") {
     const oot     = (v("valve_type") || "").toLowerCase();
     const isOoBall  = oot.includes("ball");
@@ -4181,6 +4714,9 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   pump_skid:    ["Package Type","Pump Type","Flow Rate / Flow (m³/hr)","Head / Pressure","Fluid / Process Fluid"],
   centrifugal:  ["Pump Type","Flow Rate","Head / TDH","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
   gear:         ["Gear Type","Flow Rate","Differential Pressure","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
+  screw:        ["Screw Type","Flow Rate","Differential Pressure","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
+  dosing:       ["Pump Type","Flow Rate","Discharge Pressure","Dosing Accuracy","Fluid","Wetted / Body Mat.","Approved Makes (ranked)"],
+  dosing_metering:["Pump Type","Flow Rate","Discharge Pressure","Dosing Accuracy","Fluid","Wetted / Body Mat.","Approved Makes (ranked)"],
 };
 
 function computeDatasheetCompleteness(
@@ -9560,14 +10096,20 @@ export default function BuyPackagesPage() {
     } else if (isScrewPumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.screw_type as string)?.trim()) { toast({ title: "Screw Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.diff_pressure as string)?.trim()) { toast({ title: "Differential Pressure is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
       if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
       if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
       if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
-      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
-      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
-      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
-      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
-      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
+      if (!(ta.screw_material as string)?.trim()) { toast({ title: "Screw Material is required", variant: "destructive" }); return; }
+      const sTL = ((ta.screw_type as string) ?? "").toLowerCase();
+      if (sTL.includes("progressive") || sTL.includes("cavity")) {
+        if (!(ta.rotor_material as string)?.trim()) { toast({ title: "Rotor Material is required for Progressive Cavity", variant: "destructive" }); return; }
+        if (!(ta.stator_elastomer as string)?.trim()) { toast({ title: "Stator Elastomer is required for Progressive Cavity", variant: "destructive" }); return; }
+      }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isMultistagePumpMode) {
       const ta = lf.technicalAttributes;
@@ -9585,13 +10127,27 @@ export default function BuyPackagesPage() {
     } else if (isDosingPumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.pump_type as string)?.trim()) { toast({ title: "Pump Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.discharge_pressure as string)?.trim()) { toast({ title: "Discharge Pressure is required", variant: "destructive" }); return; }
+      if (!(ta.dosing_accuracy as string)?.trim()) { toast({ title: "Dosing Accuracy is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!(ta.wetted_material as string)?.trim()) { toast({ title: "Wetted / Body Material is required", variant: "destructive" }); return; }
       if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
       if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
-      if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
-      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
-      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
-      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
-      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      const dTL = ((ta.pump_type as string) ?? "").toLowerCase();
+      if (dTL.includes("diaphragm") || dTL.includes("solenoid")) {
+        if (!(ta.diaphragm_material as string)?.trim()) { toast({ title: "Diaphragm Material is required", variant: "destructive" }); return; }
+        if (!(ta.diaphragm_design as string)?.trim()) { toast({ title: "Diaphragm Design is required", variant: "destructive" }); return; }
+      } else if (dTL.includes("plunger")) {
+        if (!(ta.plunger_material as string)?.trim()) { toast({ title: "Plunger Material is required", variant: "destructive" }); return; }
+        if (!(ta.packing_material as string)?.trim()) { toast({ title: "Packing Material is required for Plunger pump", variant: "destructive" }); return; }
+        if (!(ta.num_heads as string)?.trim()) { toast({ title: "Number of Heads is required for Plunger pump", variant: "destructive" }); return; }
+      } else if (dTL.includes("piston")) {
+        if (!(ta.piston_material as string)?.trim()) { toast({ title: "Piston Material is required", variant: "destructive" }); return; }
+        if (!(ta.num_heads as string)?.trim()) { toast({ title: "Number of Heads is required for Piston pump", variant: "destructive" }); return; }
+      } else if (dTL.includes("peristaltic")) {
+        if (!(ta.hose_material as string)?.trim()) { toast({ title: "Hose Material is required for Peristaltic pump", variant: "destructive" }); return; }
+      }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isVacuumBoosterMode) {
       const ta = lf.technicalAttributes;
