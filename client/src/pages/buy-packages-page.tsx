@@ -2452,8 +2452,14 @@ function computeSubgroupWarnings(
     if (missing("output_signal"))   w.push("Output signal — needed for control system interface.");
     if (missing("wetted_material")) w.push("Wetted material — required for material selection.");
   } else if (subgroupCode === "isolation") {
-    if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
-    if (missing("body_material"))   w.push("Body material — required for material class datasheet.");
+    const isoType = ((attrs.valve_type as string) ?? "").toLowerCase();
+    if (missing("end_connection")) w.push("End connection — needed for piping interface.");
+    if (missing("body_material"))  w.push("Body material — required for material class datasheet.");
+    if (isoType.includes("ball") && missing("seat_material"))        w.push("Seat material — required for Ball Valve datasheet.");
+    if (isoType.includes("gate") && !isoType.includes("knife") && missing("trim_material")) w.push("Trim material — required for Gate Valve datasheet.");
+    if (isoType.includes("globe") && missing("trim_material"))       w.push("Trim material — required for Globe Valve datasheet.");
+    if (isoType.includes("butterfly") && missing("disc_material"))   w.push("Disc material — required for Butterfly Valve datasheet.");
+    if (isoType.includes("diaphragm") && missing("diaphragm_material")) w.push("Diaphragm material — required for Diaphragm Valve datasheet.");
   } else if (subgroupCode === "control") {
     if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
     if (missing("trim_material"))   w.push("Trim material — required for valve datasheet.");
@@ -2699,32 +2705,76 @@ function buildDatasheetSections(
   }
 
   if (subgroupCode === "isolation") {
-    return [
-      { title: "Valve Details", fields: [
+    const iType_iso = ((attrs.valve_type as string) ?? "").toLowerCase();
+    const isBall_d      = iType_iso.includes("ball");
+    const isGate_d      = iType_iso.includes("gate") && !iType_iso.includes("knife");
+    const isGlobe_d     = iType_iso.includes("globe");
+    const isButterfly_d = iType_iso.includes("butterfly");
+    const isPlug_d      = iType_iso.includes("plug");
+    const isKnife_d     = iType_iso.includes("knife");
+    const isDiaphragm_d = iType_iso.includes("diaphragm");
+    const isoRows: ReturnType<typeof buildLineDetailSections> = [
+      { title: "Valve", fields: [
         { label: "Valve Type",      value: v("valve_type"), highlight: true },
         { label: "Size (NB)",       value: v("size_nb") },
         { label: "Pressure Rating", value: v("pressure_rating") },
-        { label: "Operation Type",  value: v("operation_type") },
+        { label: "End Connection",  value: v("end_connection") },
+        { label: "Body Material",   value: v("body_material") },
       ]},
-      { title: "Process Conditions", fields: [
-        { label: "Process Fluid",         value: v("process_fluid") },
-        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
-        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
-        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
-        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
-      ]},
-      { title: "Connection & Material", fields: [
-        { label: "End Connection", value: v("end_connection") },
-        { label: "Body Material",  value: v("body_material") },
-        { label: "Trim Material",  value: v("trim_material") },
-        { label: "Seat Type",      value: v("seat_type") },
-      ]},
-      { title: "Hazardous Area", fields: [
-        { label: "Area Classification", value: v("area_classification") },
-        { label: "Certification",       value: v("certification") },
-      ]},
-      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
     ];
+    if (isBall_d) isoRows.push({ title: "Ball & Seat", fields: [
+      { label: "Bore Type",      value: v("bore_type") },
+      { label: "Seat Material",  value: v("seat_material") },
+      { label: "Ball Material",  value: v("ball_material") },
+      { label: "Stem Packing",   value: v("stem_packing") },
+      { label: "Locking Device", value: v("locking_device") },
+    ]});
+    if (isGate_d) isoRows.push({ title: "Wedge & Stem", fields: [
+      { label: "Wedge Type",    value: v("wedge_type") },
+      { label: "Stem Type",     value: v("stem_type") },
+      { label: "Trim Material", value: v("trim_material") },
+    ]});
+    if (isGlobe_d) isoRows.push({ title: "Disc & Port", fields: [
+      { label: "Port Type",     value: v("port_type") },
+      { label: "Disc Type",     value: v("disc_type") },
+      { label: "Trim Material", value: v("trim_material") },
+      { label: "Bonnet Type",   value: v("bonnet_type") },
+    ]});
+    if (isButterfly_d) isoRows.push({ title: "Disc & Seat", fields: [
+      { label: "Disc Material",        value: v("disc_material") },
+      { label: "Seat / Liner Material",value: v("seat_material") },
+      { label: "Disc Mounting",        value: v("disc_mounting") },
+      { label: "Lining Type",          value: v("lining_type") },
+    ]});
+    if (isPlug_d) isoRows.push({ title: "Port & Lubrication", fields: [
+      { label: "Port Pattern",    value: v("port_pattern") },
+      { label: "Lubrication",     value: v("lubrication") },
+      { label: "Plug Material",   value: v("plug_material") },
+      { label: "Sleeve Material", value: v("sleeve_material") },
+    ]});
+    if (isKnife_d) isoRows.push({ title: "Gate & Packing", fields: [
+      { label: "Gate Material",   value: v("gate_material") },
+      { label: "Packing Type",    value: v("packing_type") },
+      { label: "Seat Type",       value: v("seat_type") },
+      { label: "Flow Direction",  value: v("flow_direction") },
+    ]});
+    if (isDiaphragm_d) isoRows.push({ title: "Diaphragm & Lining", fields: [
+      { label: "Diaphragm Material", value: v("diaphragm_material") },
+      { label: "Body Lining",        value: v("body_lining") },
+      { label: "Weir Type",          value: v("weir_type") },
+    ]});
+    isoRows.push({ title: "Process Conditions", fields: [
+      { label: "Process Fluid",         value: v("process_fluid") },
+      { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
+      { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
+      { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
+      { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
+    ]});
+    isoRows.push({ title: "Area", fields: [
+      { label: "Area Classification", value: v("area_classification") },
+    ]});
+    isoRows.push({ title: "Approved Makes", fields: [{ label: "Makes (ranked)", value: vMakes() }]});
+    return isoRows;
   }
 
   if (subgroupCode === "control") {
@@ -3161,7 +3211,7 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   temperature:  ["Instrument Type","Range Min","Range Max","Range Unit"],
   flow:         ["Instrument Type","Line Size","Liner Material","End Connection","Output Signal"],
   level:        ["Instrument Type","Output Signal","Range Min","Range Max"],
-  isolation:    ["Valve Type","Size (NB)","Pressure Rating","End Connection","Body Material"],
+  isolation:    ["Valve Type","Size (NB)","Pressure Rating","End Connection","Body Material","Type-Specific Sealing Field"],
   control:      ["Valve Type","Size (NB)","Pressure Rating","Actuation Type","Fail Action","End Connection"],
   safety:       ["Valve Type","Size (NB)","Set Pressure","End Connection","Body Material"],
   on_off:       ["Valve Type","Size (NB)","End Connection","Body Material"],
@@ -5887,41 +5937,187 @@ function OnOffValveAttrsForm({
 
 // ── Isolation Valve requirement builder ──────────────────────────────────────
 function buildIsolationValveRequirement(attrs: Record<string, unknown>): string {
-  const valveType   = (attrs.valve_type        as string)?.trim() || "";
-  const sizeNb      = (attrs.size_nb           as string)?.trim() || "";
-  const rating      = (attrs.pressure_rating   as string)?.trim() || "";
-  const bodyMat     = (attrs.body_material     as string)?.trim() || "";
-  const trimMat     = (attrs.trim_material     as string)?.trim() || "";
-  const endConn     = (attrs.end_connection    as string)?.trim() || "";
-  const operation   = (attrs.operation_type   as string)?.trim() || "";
-
-  const bodyStr  = bodyMat  ? `${bodyMat} Body`  : "";
-  const trimStr  = trimMat  ? `${trimMat} Trim`  : "";
-
+  const valveType = (attrs.valve_type      as string)?.trim() || "";
+  const sizeNb    = (attrs.size_nb         as string)?.trim() || "";
+  const rating    = (attrs.pressure_rating as string)?.trim() || "";
+  const bodyMat   = (attrs.body_material   as string)?.trim() || "";
+  const endConn   = (attrs.end_connection  as string)?.trim() || "";
+  const vt        = valveType.toLowerCase();
   const parts: string[] = [];
   if (valveType) parts.push(valveType);
   if (sizeNb)    parts.push(sizeNb);
   if (rating)    parts.push(rating);
-  if (bodyStr)   parts.push(bodyStr);
-  if (trimStr)   parts.push(trimStr);
+  if (bodyMat)   parts.push(`${bodyMat} Body`);
   if (endConn)   parts.push(endConn);
-  if (operation) parts.push(operation);
+  if (vt.includes("ball")) {
+    const bore = (attrs.bore_type     as string)?.trim() || "";
+    const seat = (attrs.seat_material as string)?.trim() || "";
+    if (bore) parts.push(bore);
+    if (seat) parts.push(`${seat} Seat`);
+  } else if (vt.includes("gate") && !vt.includes("knife")) {
+    const wedge = (attrs.wedge_type    as string)?.trim() || "";
+    const trim  = (attrs.trim_material as string)?.trim() || "";
+    if (wedge) parts.push(wedge);
+    if (trim)  parts.push(`${trim} Trim`);
+  } else if (vt.includes("globe")) {
+    const disc = (attrs.disc_type      as string)?.trim() || "";
+    const trim = (attrs.trim_material  as string)?.trim() || "";
+    if (disc) parts.push(disc);
+    if (trim) parts.push(`${trim} Trim`);
+  } else if (vt.includes("butterfly")) {
+    const discMat  = (attrs.disc_material as string)?.trim() || "";
+    const seatMat  = (attrs.seat_material as string)?.trim() || "";
+    const mounting = (attrs.disc_mounting as string)?.trim() || "";
+    if (discMat)  parts.push(`${discMat} Disc`);
+    if (seatMat)  parts.push(`${seatMat} Seat`);
+    if (mounting) parts.push(mounting);
+  } else if (vt.includes("plug")) {
+    const port = (attrs.port_pattern as string)?.trim() || "";
+    const lube = (attrs.lubrication  as string)?.trim() || "";
+    if (port) parts.push(port);
+    if (lube) parts.push(lube);
+  } else if (vt.includes("knife")) {
+    const gate    = (attrs.gate_material as string)?.trim() || "";
+    const packing = (attrs.packing_type  as string)?.trim() || "";
+    if (gate)    parts.push(`${gate} Gate`);
+    if (packing) parts.push(packing);
+  } else if (vt.includes("diaphragm")) {
+    const diaphMat = (attrs.diaphragm_material as string)?.trim() || "";
+    const lining   = (attrs.body_lining        as string)?.trim() || "";
+    if (diaphMat) parts.push(`${diaphMat} Diaphragm`);
+    if (lining)   parts.push(lining);
+  }
   return parts.join(", ");
 }
 
-// ── Isolation Valve option lists ──────────────────────────────────────────────
-const ISOLATION_VALVE_OPTS: Record<string, string[]> = {
-  valve_type:       ["Gate Valve", "Ball Valve", "Butterfly Valve", "Plug Valve", "Knife Gate Valve"],
-  size_nb:          ["15 NB", "25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB", "200 NB", "250 NB", "300 NB"],
-  pressure_rating:  ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
-  end_connection:   ["Flanged", "Threaded", "Socket Weld", "Butt Weld", "Wafer", "Lug Type"],
-  body_material:    ["CI", "CS (WCB)", "SS304", "SS316", "Alloy Steel", "Duplex"],
-  trim_material:    ["SS304", "SS316", "Hard Facing", "Alloy Steel"],
-  operation_type:   ["Manual", "Gear Operated", "Pneumatic Actuated", "Electric Actuated", "Hydraulic"],
-  seat_type:        ["Metal Seat", "Soft Seat (PTFE)", "Resilient Seat"],
+// ── Isolation Valve constants ─────────────────────────────────────────────────
+const ISOLATION_VALVE_TYPES = [
+  "Ball Valve", "Gate Valve", "Globe Valve", "Butterfly Valve",
+  "Plug Valve", "Knife Gate Valve", "Diaphragm Valve",
+];
+
+const ISOLATION_COMMON_OPTS = {
+  size_nb:          ["15 NB", "20 NB", "25 NB", "32 NB", "40 NB", "50 NB", "65 NB", "80 NB",
+                     "100 NB", "125 NB", "150 NB", "200 NB", "250 NB", "300 NB", "350 NB", "400 NB"],
+  pressure_rating:  ["Class 150", "Class 300", "Class 600", "Class 900", "PN6", "PN10", "PN16", "PN25", "PN40"],
+  end_connection:   ["Flanged", "Threaded (BSP)", "Threaded (NPT)", "Socket Weld", "Butt Weld"],
+  end_conn_bfly:    ["Wafer", "Lug Type", "Flanged"],
+  end_conn_knife:   ["Wafer", "Flanged"],
+  body_material:    ["CI", "CS (WCB)", "SS304", "SS316", "SS316L", "Alloy Steel", "Duplex SS", "Hastelloy C"],
   area_classification: ["Safe Area", "Zone 1", "Zone 2"],
-  certification:    ["ATEX", "IECEx", "PESO"],
 };
+
+const ISOLATION_BALL_OPTS = {
+  bore_type:      ["Full Bore", "Reduced Bore"],
+  seat_material:  ["PTFE", "PEEK", "Metal (SS316)", "Nylon"],
+  ball_material:  ["SS304", "SS316", "CS+ENP", "Duplex SS"],
+  stem_packing:   ["PTFE", "Graphite"],
+  locking_device: ["Yes", "No"],
+};
+const ISOLATION_GATE_OPTS = {
+  wedge_type:    ["Solid Wedge", "Flexible Wedge", "Split Wedge"],
+  stem_type:     ["Rising Stem (OS&Y)", "Non-Rising Stem"],
+  trim_material: ["SS304", "SS316", "13Cr", "Hard Facing (Stellite)"],
+};
+const ISOLATION_GLOBE_OPTS = {
+  port_type:     ["Single Port", "Double Port"],
+  disc_type:     ["Plug Disc", "Needle Disc", "Globe Disc"],
+  trim_material: ["SS304", "SS316", "Hard Facing (Stellite)", "Alloy Steel"],
+  bonnet_type:   ["Bolted Bonnet", "Pressure Seal Bonnet", "Welded Bonnet"],
+};
+const ISOLATION_BUTTERFLY_OPTS = {
+  disc_material: ["CI", "CS", "SS304", "SS316", "Duplex SS"],
+  seat_material: ["EPDM", "NBR", "PTFE", "Metal (SS316)"],
+  disc_mounting: ["Concentric", "Single Offset", "Double Offset", "Triple Offset"],
+  lining_type:   ["Lined", "Unlined"],
+};
+const ISOLATION_PLUG_OPTS = {
+  port_pattern:    ["Single Port", "3-Way Multi-Port", "4-Way Multi-Port"],
+  lubrication:     ["Non-Lubricated", "Lubricated"],
+  plug_material:   ["CS", "SS304", "SS316"],
+  sleeve_material: ["PTFE", "Nylon", "Metal"],
+};
+const ISOLATION_KNIFE_OPTS = {
+  gate_material:  ["SS304", "SS316", "Hardened SS"],
+  packing_type:   ["PTFE Stuffing Box", "O-Ring"],
+  seat_type:      ["Metal Seat", "Soft Seat (EPDM)", "Scraper Type"],
+  flow_direction: ["Bidirectional", "Unidirectional"],
+};
+const ISOLATION_DIAPHRAGM_OPTS = {
+  diaphragm_material: ["EPDM", "NBR", "PTFE", "Butyl"],
+  body_lining:        ["Rubber Lined", "PTFE Lined", "Unlined"],
+  weir_type:          ["Weir Type", "Straightway", "Full Bore"],
+};
+
+const ISOLATION_VALVE_MAKES = [
+  "L&T Valves", "Neway", "KSB", "KITZ", "Crane", "Velan", "Flowserve",
+  "Metso", "Audco (L&T)", "AVK", "Bray", "ORBINOX", "GF Piping Systems", "GEMU", "IMI",
+];
+
+const ISOLATION_ALL_FIELD_OPTS: Record<string, string[]> = {
+  size_nb:            ISOLATION_COMMON_OPTS.size_nb,
+  pressure_rating:    ISOLATION_COMMON_OPTS.pressure_rating,
+  body_material:      ISOLATION_COMMON_OPTS.body_material,
+  area_classification: ISOLATION_COMMON_OPTS.area_classification,
+  end_connection:     [...ISOLATION_COMMON_OPTS.end_connection, "Wafer", "Lug Type"],
+  bore_type:          ISOLATION_BALL_OPTS.bore_type,
+  seat_material:      [...ISOLATION_BALL_OPTS.seat_material, ...ISOLATION_BUTTERFLY_OPTS.seat_material],
+  ball_material:      ISOLATION_BALL_OPTS.ball_material,
+  stem_packing:       ISOLATION_BALL_OPTS.stem_packing,
+  locking_device:     ISOLATION_BALL_OPTS.locking_device,
+  wedge_type:         ISOLATION_GATE_OPTS.wedge_type,
+  stem_type:          ISOLATION_GATE_OPTS.stem_type,
+  trim_material:      [...ISOLATION_GATE_OPTS.trim_material, ...ISOLATION_GLOBE_OPTS.trim_material],
+  port_type:          ISOLATION_GLOBE_OPTS.port_type,
+  disc_type:          ISOLATION_GLOBE_OPTS.disc_type,
+  bonnet_type:        ISOLATION_GLOBE_OPTS.bonnet_type,
+  disc_material:      ISOLATION_BUTTERFLY_OPTS.disc_material,
+  disc_mounting:      ISOLATION_BUTTERFLY_OPTS.disc_mounting,
+  lining_type:        ISOLATION_BUTTERFLY_OPTS.lining_type,
+  port_pattern:       ISOLATION_PLUG_OPTS.port_pattern,
+  lubrication:        ISOLATION_PLUG_OPTS.lubrication,
+  plug_material:      ISOLATION_PLUG_OPTS.plug_material,
+  sleeve_material:    ISOLATION_PLUG_OPTS.sleeve_material,
+  gate_material:      ISOLATION_KNIFE_OPTS.gate_material,
+  packing_type:       ISOLATION_KNIFE_OPTS.packing_type,
+  seat_type:          ISOLATION_KNIFE_OPTS.seat_type,
+  flow_direction:     ISOLATION_KNIFE_OPTS.flow_direction,
+  diaphragm_material: ISOLATION_DIAPHRAGM_OPTS.diaphragm_material,
+  body_lining:        ISOLATION_DIAPHRAGM_OPTS.body_lining,
+  weir_type:          ISOLATION_DIAPHRAGM_OPTS.weir_type,
+};
+
+function buildIsolationDefaults(valveType: string, prev: Record<string, unknown>): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    valve_type:          valveType,
+    area_classification: (prev.area_classification as string) || "Safe Area",
+    approved_makes:      prev.approved_makes ?? [],
+  };
+  const vt = valveType.toLowerCase();
+  if (vt.includes("ball")) {
+    return { ...base, size_nb: "50 NB", pressure_rating: "Class 150", end_connection: "Flanged",
+      body_material: "CS (WCB)", bore_type: "Full Bore", seat_material: "PTFE" };
+  } else if (vt.includes("gate")) {
+    return { ...base, size_nb: "50 NB", pressure_rating: "Class 150", end_connection: "Flanged",
+      body_material: "CS (WCB)", wedge_type: "Solid Wedge", stem_type: "Rising Stem (OS&Y)", trim_material: "SS304" };
+  } else if (vt.includes("globe")) {
+    return { ...base, size_nb: "50 NB", pressure_rating: "Class 150", end_connection: "Flanged",
+      body_material: "CS (WCB)", port_type: "Single Port", disc_type: "Plug Disc", trim_material: "SS316" };
+  } else if (vt.includes("butterfly")) {
+    return { ...base, size_nb: "100 NB", pressure_rating: "PN16", end_connection: "Wafer",
+      body_material: "CI", disc_material: "SS316", seat_material: "EPDM", disc_mounting: "Double Offset" };
+  } else if (vt.includes("plug")) {
+    return { ...base, size_nb: "50 NB", pressure_rating: "Class 150", end_connection: "Flanged",
+      body_material: "CS (WCB)", port_pattern: "Single Port", lubrication: "Non-Lubricated" };
+  } else if (vt.includes("knife")) {
+    return { ...base, size_nb: "100 NB", pressure_rating: "PN10", end_connection: "Wafer",
+      body_material: "CI", gate_material: "SS304", packing_type: "PTFE Stuffing Box" };
+  } else if (vt.includes("diaphragm")) {
+    return { ...base, size_nb: "50 NB", pressure_rating: "PN10", end_connection: "Flanged",
+      body_material: "CI", diaphragm_material: "EPDM", body_lining: "Rubber Lined", weir_type: "Weir Type" };
+  }
+  return base;
+}
 
 // ── Isolation Valve structured form ──────────────────────────────────────────
 function IsolationValveAttrsForm({
@@ -5932,31 +6128,63 @@ function IsolationValveAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const set       = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const valveType = (attrs.valve_type as string) ?? "";
+  const vt        = valveType.toLowerCase();
+  const isBall      = vt.includes("ball");
+  const isGate      = vt.includes("gate") && !vt.includes("knife");
+  const isGlobe     = vt.includes("globe");
+  const isButterfly = vt.includes("butterfly");
+  const isPlug      = vt.includes("plug");
+  const isKnife     = vt.includes("knife");
+  const isDiaphragm = vt.includes("diaphragm");
 
-  const singleKeys = Object.keys(ISOLATION_VALVE_OPTS);
+  const endConnOpts = isButterfly
+    ? ISOLATION_COMMON_OPTS.end_conn_bfly
+    : isKnife
+      ? ISOLATION_COMMON_OPTS.end_conn_knife
+      : ISOLATION_COMMON_OPTS.end_connection;
+
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = ISOLATION_VALVE_OPTS[key] ?? [];
+    for (const [key, opts] of Object.entries(ISOLATION_ALL_FIELD_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
 
+  const [makesOpen,      setMakesOpen]      = useState(false);
+  const [makesQuery,     setMakesQuery]     = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const [customMakeVal,  setCustomMakeVal]  = useState("");
+  const approvedMakes  = (attrs.approved_makes as string[]) ?? [];
+  const filteredMakes  = ISOLATION_VALVE_MAKES.filter(o => o.toLowerCase().includes(makesQuery.toLowerCase()));
+
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
+      setCustom(c => ({ ...c, [key]: true }));
       set(key, "");
     } else {
-      setCustom((c) => ({ ...c, [key]: false }));
+      setCustom(c => ({ ...c, [key]: false }));
       set(key, val);
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = ISOLATION_VALVE_OPTS[key] ?? [];
+  function handleTypeChange(newType: string) {
+    const next = buildIsolationDefaults(newType, attrs);
+    setCustom(() => {
+      const c: Record<string, boolean> = {};
+      for (const [key, opts] of Object.entries(ISOLATION_ALL_FIELD_OPTS)) {
+        const val = (next[key] as string) ?? "";
+        c[key] = val !== "" && !opts.includes(val);
+      }
+      return c;
+    });
+    onChange(next);
+  }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
@@ -5981,40 +6209,229 @@ function IsolationValveAttrsForm({
     );
   }
 
+  function toggleMake(make: string) {
+    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
+      ? approvedMakes.filter(m => m !== make)
+      : [...approvedMakes, make] });
+  }
+  function addCustomMake() {
+    const v = customMakeVal.trim();
+    if (v && !approvedMakes.includes(v)) onChange({ ...attrs, approved_makes: [...approvedMakes, v] });
+    setCustomMakeVal(""); setShowCustomMake(false);
+  }
+  function moveMakeUp(idx: number) {
+    if (idx <= 0) return;
+    const arr = [...approvedMakes];
+    [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+    onChange({ ...attrs, approved_makes: arr });
+  }
+  function moveMakeDown(idx: number) {
+    if (idx >= approvedMakes.length - 1) return;
+    const arr = [...approvedMakes];
+    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+    onChange({ ...attrs, approved_makes: arr });
+  }
+
+  const RANK_LABELS_ISO = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Isolation Valve Specifications</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Manual Isolation Valve Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
+        {/* ── Valve Type (always first) ── */}
         {sectionHeader("Valve Type")}
         <div className="col-span-2">
-          {renderField("valve_type", "Valve Type", true)}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
+            <Select value={valveType} onValueChange={(v) => { if (v !== valveType) handleTypeChange(v); }}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Select valve type…" />
+              </SelectTrigger>
+              <SelectContent>
+                {ISOLATION_VALVE_TYPES.map(opt => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {sectionHeader("Size & Rating")}
-        {renderField("size_nb",         "Size (NB)",       true)}
-        {renderField("pressure_rating",  "Pressure Rating", true)}
+        {!valveType && (
+          <div className="col-span-2 flex items-center justify-center py-8 text-sm text-muted-foreground">
+            Select a valve type above to configure specifications.
+          </div>
+        )}
 
-        {sectionHeader("Connection")}
-        {renderField("end_connection", "End Connection")}
-        <div /> {/* spacer */}
+        {/* ── Common: Size, Rating, End Connection, Body Material ── */}
+        {valveType && (<>
+          {sectionHeader("Size & Rating")}
+          {renderField("size_nb",         "Size (NB)",       ISOLATION_COMMON_OPTS.size_nb,         true)}
+          {renderField("pressure_rating",  "Pressure Rating", ISOLATION_COMMON_OPTS.pressure_rating,  true)}
 
-        {sectionHeader("Material")}
-        {renderField("body_material", "Body Material")}
-        {renderField("trim_material", "Trim Material")}
+          {sectionHeader("Connection")}
+          {renderField("end_connection", "End Connection", endConnOpts, true)}
+          <div />
 
-        {sectionHeader("Operation")}
-        {renderField("operation_type", "Operation Type")}
-        <div />
+          {sectionHeader("Body Material")}
+          {renderField("body_material", "Body Material", ISOLATION_COMMON_OPTS.body_material, true)}
+          <div />
+        </>)}
 
-        {sectionHeader("Seat / Seal")}
-        {renderField("seat_type", "Seat Type")}
-        <div />
+        {/* ════════════════ BALL VALVE ════════════════════════════════════ */}
+        {isBall && (<>
+          {sectionHeader("Ball & Seat")}
+          {renderField("bore_type",     "Bore Type",     ISOLATION_BALL_OPTS.bore_type,     true)}
+          {renderField("seat_material", "Seat Material", ISOLATION_BALL_OPTS.seat_material, true)}
+          {renderField("ball_material", "Ball Material", ISOLATION_BALL_OPTS.ball_material)}
+          {renderField("stem_packing",  "Stem Packing",  ISOLATION_BALL_OPTS.stem_packing)}
+          {renderField("locking_device", "Locking Device", ISOLATION_BALL_OPTS.locking_device)}
+          <div />
+        </>)}
 
-        {sectionHeader("Hazardous Area (Optional)")}
-        {renderField("area_classification", "Area Classification")}
-        {renderField("certification",       "Certification")}
+        {/* ════════════════ GATE VALVE ════════════════════════════════════ */}
+        {isGate && (<>
+          {sectionHeader("Wedge & Stem")}
+          {renderField("wedge_type",    "Wedge Type",    ISOLATION_GATE_OPTS.wedge_type,    true)}
+          {renderField("stem_type",     "Stem Type",     ISOLATION_GATE_OPTS.stem_type,     true)}
+          {renderField("trim_material", "Trim Material", ISOLATION_GATE_OPTS.trim_material, true)}
+          <div />
+        </>)}
 
+        {/* ════════════════ GLOBE VALVE ═══════════════════════════════════ */}
+        {isGlobe && (<>
+          {sectionHeader("Disc & Port")}
+          {renderField("port_type",     "Port Type",     ISOLATION_GLOBE_OPTS.port_type,     true)}
+          {renderField("disc_type",     "Disc Type",     ISOLATION_GLOBE_OPTS.disc_type,     true)}
+          {renderField("trim_material", "Trim Material", ISOLATION_GLOBE_OPTS.trim_material, true)}
+          {renderField("bonnet_type",   "Bonnet Type",   ISOLATION_GLOBE_OPTS.bonnet_type)}
+        </>)}
+
+        {/* ════════════════ BUTTERFLY VALVE ═══════════════════════════════ */}
+        {isButterfly && (<>
+          {sectionHeader("Disc & Seat")}
+          {renderField("disc_material", "Disc Material",       ISOLATION_BUTTERFLY_OPTS.disc_material, true)}
+          {renderField("seat_material", "Seat / Liner Material", ISOLATION_BUTTERFLY_OPTS.seat_material, true)}
+          {renderField("disc_mounting", "Disc Mounting",       ISOLATION_BUTTERFLY_OPTS.disc_mounting, true)}
+          {renderField("lining_type",   "Lining Type",         ISOLATION_BUTTERFLY_OPTS.lining_type)}
+        </>)}
+
+        {/* ════════════════ PLUG VALVE ════════════════════════════════════ */}
+        {isPlug && (<>
+          {sectionHeader("Port & Lubrication")}
+          {renderField("port_pattern",    "Port Pattern",    ISOLATION_PLUG_OPTS.port_pattern,    true)}
+          {renderField("lubrication",     "Lubrication",     ISOLATION_PLUG_OPTS.lubrication,     true)}
+          {renderField("plug_material",   "Plug Material",   ISOLATION_PLUG_OPTS.plug_material)}
+          {renderField("sleeve_material", "Sleeve Material", ISOLATION_PLUG_OPTS.sleeve_material)}
+        </>)}
+
+        {/* ════════════════ KNIFE GATE VALVE ══════════════════════════════ */}
+        {isKnife && (<>
+          {sectionHeader("Gate & Packing")}
+          {renderField("gate_material",  "Gate Material",   ISOLATION_KNIFE_OPTS.gate_material,  true)}
+          {renderField("packing_type",   "Packing Type",    ISOLATION_KNIFE_OPTS.packing_type,   true)}
+          {renderField("seat_type",      "Seat Type",       ISOLATION_KNIFE_OPTS.seat_type)}
+          {renderField("flow_direction", "Flow Direction",  ISOLATION_KNIFE_OPTS.flow_direction)}
+        </>)}
+
+        {/* ════════════════ DIAPHRAGM VALVE ═══════════════════════════════ */}
+        {isDiaphragm && (<>
+          {sectionHeader("Diaphragm & Lining")}
+          {renderField("diaphragm_material", "Diaphragm Material", ISOLATION_DIAPHRAGM_OPTS.diaphragm_material, true)}
+          {renderField("body_lining",        "Body Lining",        ISOLATION_DIAPHRAGM_OPTS.body_lining,        true)}
+          {renderField("weir_type",          "Weir Type",          ISOLATION_DIAPHRAGM_OPTS.weir_type,          true)}
+          <div />
+        </>)}
+
+        {/* ── Area Classification (optional, all types) ── */}
+        {valveType && (<>
+          {sectionHeader("Area Classification")}
+          {renderField("area_classification", "Area Classification", ISOLATION_COMMON_OPTS.area_classification)}
+          <div />
+        </>)}
+
+        {/* ── Approved Makes ── */}
+        {valveType && (<>
+          {sectionHeader("Vendor / Approved Makes")}
+          <div className="col-span-2 space-y-2">
+            <Label className="text-xs">
+              Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
+            </Label>
+            <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
+                  {approvedMakes.length > 0
+                    ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected`
+                    : "Select approved makes…"}
+                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                  <CommandList>
+                    <CommandEmpty>No results.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredMakes.map(opt => (
+                        <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
+                          <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
+                          {opt}
+                        </CommandItem>
+                      ))}
+                      <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                        <Plus className="mr-2 h-4 w-4" />Add custom make…
+                      </CommandItem>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {approvedMakes.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {approvedMakes.map((make, idx) => (
+                  <div key={make} className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium text-muted-foreground w-7 shrink-0 text-right">
+                      {RANK_LABELS_ISO[idx] ?? `${idx + 1}.`}
+                    </span>
+                    <Badge variant="secondary" className="text-xs flex-1 flex items-center justify-between pr-1 gap-1">
+                      <span className="truncate">{make}</span>
+                      <span className="flex items-center gap-0.5 shrink-0">
+                        <button type="button" onClick={() => moveMakeUp(idx)} disabled={idx === 0}
+                          className="disabled:opacity-30 hover:text-foreground transition-opacity">
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                        <button type="button" onClick={() => moveMakeDown(idx)} disabled={idx === approvedMakes.length - 1}
+                          className="disabled:opacity-30 hover:text-foreground transition-opacity">
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                        <button type="button"
+                          onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter(m => m !== make) })}
+                          className="hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showCustomMake && (
+              <div className="flex gap-2">
+                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
+                  autoFocus />
+                <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                  onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── Quantity ── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -7354,8 +7771,9 @@ export default function BuyPackagesPage() {
         toast({ title: "Fail Action is required", variant: "destructive" }); return;
       }
     } else if (isIsolationValveMode) {
-      const ta = lf.technicalAttributes;
-      if (!(ta.valve_type as string)?.trim()) {
+      const ta  = lf.technicalAttributes;
+      const vt2 = ((ta.valve_type as string) ?? "").toLowerCase();
+      if (!vt2) {
         toast({ title: "Valve Type is required", variant: "destructive" }); return;
       }
       if (!(ta.size_nb as string)?.trim()) {
@@ -7363,6 +7781,38 @@ export default function BuyPackagesPage() {
       }
       if (!(ta.pressure_rating as string)?.trim()) {
         toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
+      }
+      if (!(ta.end_connection as string)?.trim()) {
+        toast({ title: "End Connection is required", variant: "destructive" }); return;
+      }
+      if (!(ta.body_material as string)?.trim()) {
+        toast({ title: "Body Material is required", variant: "destructive" }); return;
+      }
+      if (vt2.includes("ball")) {
+        if (!(ta.bore_type     as string)?.trim()) { toast({ title: "Bore Type is required for Ball Valve",     variant: "destructive" }); return; }
+        if (!(ta.seat_material as string)?.trim()) { toast({ title: "Seat Material is required for Ball Valve",  variant: "destructive" }); return; }
+      } else if (vt2.includes("gate") && !vt2.includes("knife")) {
+        if (!(ta.wedge_type    as string)?.trim()) { toast({ title: "Wedge Type is required for Gate Valve",    variant: "destructive" }); return; }
+        if (!(ta.stem_type     as string)?.trim()) { toast({ title: "Stem Type is required for Gate Valve",     variant: "destructive" }); return; }
+        if (!(ta.trim_material as string)?.trim()) { toast({ title: "Trim Material is required for Gate Valve", variant: "destructive" }); return; }
+      } else if (vt2.includes("globe")) {
+        if (!(ta.port_type     as string)?.trim()) { toast({ title: "Port Type is required for Globe Valve",    variant: "destructive" }); return; }
+        if (!(ta.disc_type     as string)?.trim()) { toast({ title: "Disc Type is required for Globe Valve",    variant: "destructive" }); return; }
+        if (!(ta.trim_material as string)?.trim()) { toast({ title: "Trim Material is required for Globe Valve",variant: "destructive" }); return; }
+      } else if (vt2.includes("butterfly")) {
+        if (!(ta.disc_material as string)?.trim()) { toast({ title: "Disc Material is required for Butterfly Valve",       variant: "destructive" }); return; }
+        if (!(ta.seat_material as string)?.trim()) { toast({ title: "Seat/Liner Material is required for Butterfly Valve", variant: "destructive" }); return; }
+        if (!(ta.disc_mounting as string)?.trim()) { toast({ title: "Disc Mounting is required for Butterfly Valve",       variant: "destructive" }); return; }
+      } else if (vt2.includes("plug")) {
+        if (!(ta.port_pattern  as string)?.trim()) { toast({ title: "Port Pattern is required for Plug Valve",  variant: "destructive" }); return; }
+        if (!(ta.lubrication   as string)?.trim()) { toast({ title: "Lubrication is required for Plug Valve",   variant: "destructive" }); return; }
+      } else if (vt2.includes("knife")) {
+        if (!(ta.gate_material as string)?.trim()) { toast({ title: "Gate Material is required for Knife Gate Valve",  variant: "destructive" }); return; }
+        if (!(ta.packing_type  as string)?.trim()) { toast({ title: "Packing Type is required for Knife Gate Valve",   variant: "destructive" }); return; }
+      } else if (vt2.includes("diaphragm")) {
+        if (!(ta.diaphragm_material as string)?.trim()) { toast({ title: "Diaphragm Material is required for Diaphragm Valve", variant: "destructive" }); return; }
+        if (!(ta.body_lining        as string)?.trim()) { toast({ title: "Body Lining is required for Diaphragm Valve",        variant: "destructive" }); return; }
+        if (!(ta.weir_type          as string)?.trim()) { toast({ title: "Weir Type is required for Diaphragm Valve",          variant: "destructive" }); return; }
       }
     } else if (isOnOffValveMode) {
       const ta = lf.technicalAttributes;
