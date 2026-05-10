@@ -304,7 +304,7 @@ function TechnicalAttrsSection({
         <Label className="text-xs">{f.label}</Label>
         {f.type === "select" && f.opts ? (
           <Select
-            value={inOpts ? strVal : (strVal ? "__custom__" : "")}
+            value={inOpts ? strVal : (strVal ? "__custom__" : undefined)}
             onValueChange={(v) => {
               if (v !== "__custom__") set(f.key, v);
             }}
