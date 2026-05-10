@@ -2430,11 +2430,14 @@ function computeSubgroupWarnings(
   }
 
   if (subgroupCode === "pressure") {
+    const iType = ((attrs.instrument_type as string) ?? "").toLowerCase();
+    const isElec = iType.includes("transmitter") || iType.includes("differential") || iType.includes("switch");
     if (missing("range_min") && missing("range_max")) w.push("Pressure range — critical for instrument datasheet.");
     if (missing("range_unit"))      w.push("Range unit — needed for datasheet completeness.");
     if (missing("connection_type")) w.push("Connection type — needed for piping interface.");
     if (missing("wetted_material")) w.push("Wetted material — required for material selection datasheet.");
-    if (missing("output_signal"))   w.push("Output signal — needed for control system interface.");
+    if (isElec && missing("output_signal")) w.push("Output signal — needed for control system interface (PT/DPT/PS).");
+    if (isElec && missing("power_supply"))  w.push("Power supply — needed for loop design (PT/DPT).");
   } else if (subgroupCode === "temperature") {
     if (missing("sensor_type"))     w.push("Sensor type (TC/RTD) — required for instrument datasheet.");
     if (missing("range_min") && missing("range_max")) w.push("Temperature range — critical for instrument datasheet.");
@@ -2542,38 +2545,71 @@ function buildDatasheetSections(
   }
 
   if (subgroupCode === "pressure") {
-    return [
-      { title: "Instrument Details", fields: [
-        { label: "Instrument Type",  value: v("instrument_type"), highlight: true },
-        { label: "Measurement Type", value: v("measurement_type") },
-        { label: "Output Signal",    value: v("output_signal") },
+    const iType = ((attrs.instrument_type as string) ?? "").toLowerCase();
+    const isPG_d  = iType.includes("gauge");
+    const isPT_d  = iType.includes("transmitter") && !iType.includes("differential");
+    const isDPT_d = iType.includes("differential");
+    const isPS_d  = iType.includes("switch");
+    const rows: ReturnType<typeof buildLineDetailSections> = [
+      { title: "Instrument", fields: [
+        { label: "Instrument Type",   value: v("instrument_type"), highlight: true },
+        ...(isPG_d  ? [{ label: "Measurement Type", value: v("measurement_type") }] : []),
+        ...(isPT_d  ? [{ label: "Measurement Type", value: v("measurement_type") }] : []),
+        ...(isPS_d  ? [{ label: "Measurement Type", value: v("measurement_type") }] : []),
+        ...(isDPT_d ? [{ label: "Application",      value: v("application") }] : []),
+        { label: "Accuracy Class", value: v("accuracy_class") },
       ]},
-      { title: "Measurement Range", fields: [
+      { title: "Range", fields: [
         { label: "Range Min",  value: v("range_min") },
         { label: "Range Max",  value: v("range_max") },
         { label: "Range Unit", value: v("range_unit") },
       ]},
-      { title: "Process Conditions", fields: [
-        { label: "Process Fluid",       value: v("process_fluid") },
-        { label: "Operating Temp",      value: v("operating_temp") },
-        { label: "Design Pressure",     value: vUnit("design_pressure", "design_pressure_unit") },
-        { label: "Design Temperature",  value: vUnit("design_temperature", "design_temperature_unit") },
-      ]},
-      { title: "Connection", fields: [
-        { label: "Connection Size", value: v("connection_size") },
-        { label: "Connection Type", value: v("connection_type") },
-      ]},
-      { title: "Construction", fields: [
-        { label: "Wetted Material", value: v("wetted_material") },
-        { label: "Enclosure Type",  value: v("enclosure_type") },
-      ]},
-      { title: "Hazardous Area", fields: [
-        { label: "Area Classification",  value: v("area_classification") },
-        { label: "Explosion Protection", value: v("explosion_protection") },
-        { label: "Certification",        value: v("certification") },
-      ]},
-      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
     ];
+    if (isPG_d) rows.push({ title: "Physical", fields: [
+      { label: "Dial Size",         value: v("dial_size") },
+      { label: "Fill Type",         value: v("dial_type") },
+      { label: "Bourdon Material",  value: v("bourdon_material") },
+      { label: "Window Material",   value: v("window_material") },
+    ]});
+    if (isPT_d || isDPT_d) rows.push({ title: "Electrical / Signal", fields: [
+      { label: "Output Signal",  value: v("output_signal") },
+      { label: "Power Supply",   value: v("power_supply") },
+      { label: "Protocol",       value: v("comm_protocol") },
+      { label: "Display",        value: v("display") },
+    ]});
+    if (isDPT_d) rows.push({ title: "Manifold", fields: [
+      { label: "Manifold Type", value: v("manifold_type") },
+      { label: "LP Connection", value: v("lp_connection") },
+    ]});
+    if (isPS_d) rows.push({ title: "Switching", fields: [
+      { label: "Trip Setpoint",    value: v("trip_setpoint") },
+      { label: "Switching Action", value: v("switching_action") },
+      { label: "Contact Rating",   value: v("contact_rating") },
+      { label: "Reset Type",       value: v("reset_type") },
+    ]});
+    rows.push({ title: "Process Connection", fields: [
+      { label: "Connection Size",   value: v("connection_size") },
+      { label: "Connection Type",   value: v("connection_type") },
+      { label: "Orientation",       value: v("conn_orientation") },
+      ...(isPT_d || isDPT_d ? [{ label: "Remote Seal Type", value: v("remote_seal_type") }] : []),
+    ]});
+    rows.push({ title: "Construction", fields: [
+      { label: "Wetted Material",  value: v("wetted_material") },
+      { label: "Housing Material", value: v("housing_material") },
+      { label: "IP Rating",        value: v("ip_rating") },
+    ]});
+    rows.push({ title: "Hazardous Area", fields: [
+      { label: "Area Classification",  value: v("area_classification") },
+      { label: "Explosion Protection", value: v("explosion_protection") },
+      { label: "Certification",        value: v("certification") },
+      { label: "Gas Group",            value: v("gas_group") },
+      { label: "Temperature Class",    value: v("temperature_class") },
+    ]});
+    if (isPT_d || isDPT_d || isPS_d) rows.push({ title: "Safety", fields: [
+      { label: "SIL Requirement", value: v("sil_requirement") },
+    ]});
+    rows.push({ title: "Approved Makes", fields: [{ label: "Makes (ranked)", value: vMakes() }]});
+    return rows;
   }
 
   if (subgroupCode === "temperature") {
@@ -3579,7 +3615,18 @@ function PressureAttrsForm({
       set(key, "");
     } else {
       setCustom(c => ({ ...c, [key]: false }));
-      set(key, val);
+      // When area_classification reverts to Safe Area, purge hazardous fields so
+      // they are not persisted as stale data in the DB payload.
+      if (key === "area_classification" && val === "Safe Area") {
+        const next = { ...attrs, area_classification: val };
+        delete (next as Record<string, unknown>).explosion_protection;
+        delete (next as Record<string, unknown>).certification;
+        delete (next as Record<string, unknown>).gas_group;
+        delete (next as Record<string, unknown>).temperature_class;
+        onChange(next);
+      } else {
+        set(key, val);
+      }
     }
   }
 
