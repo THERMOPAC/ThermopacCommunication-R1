@@ -5895,8 +5895,34 @@ const MOTOR_OPTS: Record<string, string[]> = {
   material:         ["Cast Iron", "Aluminium"],
 };
 
-const MOTOR_AREA_SAFE      = ["Safe Area"];
+const MOTOR_AREA_SAFE      = ["Safe Area", "Other"];
 const MOTOR_AREA_HAZARDOUS = ["Zone 1", "Zone 2", "Hazardous Area"];
+
+const NON_FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
+  motor_type:          "Induction",
+  mounting:            "Horizontal (B3)",
+  cooling_type:        "TEFC",
+  voltage:             "415 V",
+  phase:               "Three Phase",
+  frequency:           "50 Hz",
+  duty:                "S1 (Continuous)",
+  area_classification: "Other",
+  ip_rating:           "IP55",
+  efficiency_class:    "IE4",
+  vfd_compatible:      "Yes",
+  material:            "Cast Iron",
+};
+
+function applyNonFlameproofMotorDefaults(existing: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...existing };
+  for (const [key, val] of Object.entries(NON_FLAMEPROOF_MOTOR_DEFAULTS)) {
+    const cur = result[key];
+    if (cur === undefined || cur === null || (typeof cur === "string" && !cur.trim())) {
+      result[key] = val;
+    }
+  }
+  return result;
+}
 
 const MOTOR_MAKES = ["ABB", "Siemens", "WEG", "Crompton", "Kirloskar", "Bharat Bijlee", "Havells", "Leroy Somer", "TECO"];
 
@@ -5987,29 +6013,29 @@ function MotorAttrsForm({
       <div className="grid grid-cols-2 gap-3">
 
         {sectionHeader("Motor Specifications")}
-        {renderField("motor_type",   "Motor Type", MOTOR_OPTS.motor_type,   true)}
-        {renderField("mounting",     "Mounting",   MOTOR_OPTS.mounting          )}
-        {renderField("cooling_type", "Cooling Type", MOTOR_OPTS.cooling_type    )}
+        {renderField("motor_type",   "Motor Type",   MOTOR_OPTS.motor_type,   true)}
+        {renderField("mounting",     "Mounting",     MOTOR_OPTS.mounting,     true)}
+        {renderField("cooling_type", "Cooling Type", MOTOR_OPTS.cooling_type, true)}
         <div /> {/* spacer */}
 
         {sectionHeader("Electrical Data")}
-        {renderField("power",     "Power (kW)",    MOTOR_OPTS.power    )}
-        {renderField("voltage",   "Voltage",        MOTOR_OPTS.voltage  )}
+        {renderField("power",     "Power (kW)",    MOTOR_OPTS.power,     true)}
+        {renderField("voltage",   "Voltage",       MOTOR_OPTS.voltage,   true)}
         {/* Phase: Three Phase only — static display */}
         <div className="space-y-1.5">
-          <Label className="text-xs">Phase</Label>
+          <Label className="text-xs">Phase <span className="text-red-500">*</span></Label>
           <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">Three Phase</div>
         </div>
-        {renderField("frequency", "Frequency",      MOTOR_OPTS.frequency)}
-        {renderField("speed",     "Speed (RPM)",    MOTOR_OPTS.speed    )}
+        {renderField("frequency", "Frequency",   MOTOR_OPTS.frequency, true)}
+        {renderField("speed",     "Speed (RPM)", MOTOR_OPTS.speed,     true)}
         <div /> {/* spacer */}
 
         {sectionHeader("Operating Conditions")}
-        {renderField("duty",             "Duty",               MOTOR_OPTS.duty            )}
-        {renderField("area_classification", "Area Classification", areaOpts)}
-        {renderField("ip_rating",        "IP Rating",          MOTOR_OPTS.ip_rating       )}
-        {renderField("efficiency_class", "Efficiency Class",   MOTOR_OPTS.efficiency_class)}
-        {renderField("vfd_compatible",   "VFD Compatible",     MOTOR_OPTS.vfd_compatible)}
+        {renderField("duty",                "Duty",                MOTOR_OPTS.duty,             true)}
+        {renderField("area_classification", "Area Classification", areaOpts,                    true)}
+        {renderField("ip_rating",           "IP Rating",           MOTOR_OPTS.ip_rating,        true)}
+        {renderField("efficiency_class",    "Efficiency Class",    MOTOR_OPTS.efficiency_class, true)}
+        {renderField("vfd_compatible",      "VFD Compatible",      MOTOR_OPTS.vfd_compatible,   true)}
         <div /> {/* spacer */}
 
         {sectionHeader("Construction")}
@@ -6018,7 +6044,7 @@ function MotorAttrsForm({
 
         {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <Popover open={makesOpen} onOpenChange={setMakesOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
@@ -6504,7 +6530,9 @@ export default function BuyPackagesPage() {
     groupId: number, groupCode: string, groupLabel: string,
     subgroupId: number, subgroupCode: string, subgroupLabel: string,
   ) {
-    setLf({ ...EMPTY_LINE, buyGroupId: String(groupId), buySubgroupId: String(subgroupId) });
+    const initAttrs: Record<string, unknown> =
+      subgroupCode === "non_flameproof" ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } : {};
+    setLf({ ...EMPTY_LINE, buyGroupId: String(groupId), buySubgroupId: String(subgroupId), technicalAttributes: initAttrs });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null,
       lock: { groupId: String(groupId), groupCode, groupLabel, subgroupId: String(subgroupId), subgroupCode, subgroupLabel },
@@ -6519,7 +6547,9 @@ export default function BuyPackagesPage() {
       selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
-      technicalAttributes: (line.technical_attributes ?? {}) as Record<string, unknown>,
+      technicalAttributes: line.buy_subgroup_code === "non_flameproof"
+        ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
+        : (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: line,
@@ -6658,9 +6688,19 @@ export default function BuyPackagesPage() {
       }
     } else if (isMotorMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.motor_type as string)?.trim()) {
-        toast({ title: "Motor Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.motor_type as string)?.trim()) { toast({ title: "Motor Type is required", variant: "destructive" }); return; }
+      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
+      if (!(ta.cooling_type as string)?.trim()) { toast({ title: "Cooling Type is required", variant: "destructive" }); return; }
+      if (!(ta.power as string)?.trim()) { toast({ title: "Power (kW) is required", variant: "destructive" }); return; }
+      if (!(ta.voltage as string)?.trim()) { toast({ title: "Voltage is required", variant: "destructive" }); return; }
+      if (!(ta.frequency as string)?.trim()) { toast({ title: "Frequency is required", variant: "destructive" }); return; }
+      if (!(ta.speed as string)?.trim()) { toast({ title: "Speed (RPM) is required", variant: "destructive" }); return; }
+      if (!(ta.duty as string)?.trim()) { toast({ title: "Duty is required", variant: "destructive" }); return; }
+      if (!(ta.area_classification as string)?.trim()) { toast({ title: "Area Classification is required", variant: "destructive" }); return; }
+      if (!(ta.ip_rating as string)?.trim()) { toast({ title: "IP Rating is required", variant: "destructive" }); return; }
+      if (!(ta.efficiency_class as string)?.trim()) { toast({ title: "Efficiency Class is required", variant: "destructive" }); return; }
+      if (!(ta.vfd_compatible as string)?.trim()) { toast({ title: "VFD Compatible is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isPressureMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.instrument_type as string)?.trim()) {
@@ -7328,7 +7368,14 @@ export default function BuyPackagesPage() {
                   ) : (
                     <Select
                       value={lf.buySubgroupId}
-                      onValueChange={(v) => setLf((f) => ({ ...f, buySubgroupId: v, technicalAttributes: {}, genericRequirement: "" }))}
+                      onValueChange={(v) => {
+                        const sg = subgroups.find((s) => String(s.id) === v);
+                        const isNFP = sg?.code === "non_flameproof" && selectedGroupCode === "motors";
+                        setLf((f) => ({
+                          ...f, buySubgroupId: v, genericRequirement: "",
+                          technicalAttributes: isNFP ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } : {},
+                        }));
+                      }}
                       disabled={!lf.buyGroupId}
                     >
                       <SelectTrigger><SelectValue placeholder={lf.buyGroupId ? "Select…" : "Pick group first"} /></SelectTrigger>
