@@ -1325,21 +1325,21 @@ function CentrifugalPumpAttrsForm({
 
         {sectionHeader("Pump Specifications")}
         {renderField("pump_type",      "Pump Type",      CENTRIFUGAL_OPTS.pump_type,      true)}
-        {renderField("mounting",       "Mounting",       CENTRIFUGAL_OPTS.mounting             )}
-        {renderField("drive_type",     "Drive Type",     CENTRIFUGAL_OPTS.drive_type           )}
-        {renderField("service_type",   "Service Type",   CENTRIFUGAL_OPTS.service_type         )}
-        {renderField("seal_type",      "Seal Type",      CENTRIFUGAL_OPTS.seal_type            )}
-        {renderField("material_class", "Material Class", CENTRIFUGAL_OPTS.material_class       )}
+        {renderField("mounting",       "Mounting",       CENTRIFUGAL_OPTS.mounting,       true)}
+        {renderField("drive_type",     "Drive Type",     CENTRIFUGAL_OPTS.drive_type,     true)}
+        {renderField("service_type",   "Service Type",   CENTRIFUGAL_OPTS.service_type,   true)}
+        {renderField("seal_type",      "Seal Type",      CENTRIFUGAL_OPTS.seal_type,      true)}
+        {renderField("material_class", "Material Class", CENTRIFUGAL_OPTS.material_class, true)}
 
         {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate",      CENTRIFUGAL_OPTS.flow_rate            )}
-        {renderField("head",           "Head",           CENTRIFUGAL_OPTS.head                 )}
-        {renderField("operating_temp", "Operating Temp", CENTRIFUGAL_OPTS.operating_temp       )}
-        {renderField("fluid",          "Fluid",          CENTRIFUGAL_OPTS.fluid                )}
+        {renderField("flow_rate",      "Flow Rate",      CENTRIFUGAL_OPTS.flow_rate,      true)}
+        {renderField("head",           "Head",           CENTRIFUGAL_OPTS.head,           true)}
+        {renderField("operating_temp", "Operating Temp", CENTRIFUGAL_OPTS.operating_temp, true)}
+        {renderField("fluid",          "Fluid",          CENTRIFUGAL_OPTS.fluid,          true)}
 
         {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <ApprovedMakesField
             values={approvedMakes}
             onChange={(v) => onChange({ ...attrs, approved_makes: v, preferred_series: "" })}
@@ -1492,24 +1492,24 @@ function GearPumpAttrsForm({
 
         {sectionHeader("Pump Specifications")}
         {renderField("gear_type",    "Gear Type",    true)}
-        {renderField("mounting",     "Mounting"          )}
-        {renderField("drive_type",   "Drive Type"        )}
-        {renderField("service_type", "Service Type"      )}
+        {renderField("mounting",     "Mounting",     true)}
+        {renderField("drive_type",   "Drive Type",   true)}
+        {renderField("service_type", "Service Type", true)}
 
         {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate"       )}
-        {renderField("pressure",       "Pressure"        )}
-        {renderField("fluid",          "Fluid"           )}
-        {renderField("viscosity",      "Viscosity"       )}
-        {renderField("operating_temp", "Operating Temp"  )}
+        {renderField("flow_rate",      "Flow Rate",     true)}
+        {renderField("pressure",       "Pressure"           )}
+        {renderField("fluid",          "Fluid",         true)}
+        {renderField("viscosity",      "Viscosity"          )}
+        {renderField("operating_temp", "Operating Temp", true)}
 
         {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class"  )}
-        {renderField("seal_type",      "Seal Type"       )}
+        {renderField("material_class", "Material Class", true)}
+        {renderField("seal_type",      "Seal Type",      true)}
 
         {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <Popover open={makesOpen} onOpenChange={setMakesOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
@@ -1698,24 +1698,24 @@ function ScrewPumpAttrsForm({
 
         {sectionHeader("Pump Specifications")}
         {renderField("screw_type",   "Screw Type",   true)}
-        {renderField("mounting",     "Mounting"          )}
-        {renderField("drive_type",   "Drive Type"        )}
-        {renderField("service_type", "Service Type"      )}
+        {renderField("mounting",     "Mounting",     true)}
+        {renderField("drive_type",   "Drive Type",   true)}
+        {renderField("service_type", "Service Type", true)}
 
         {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate"      )}
-        {renderField("pressure",       "Pressure"       )}
-        {renderField("fluid",          "Fluid"          )}
-        {renderField("viscosity",      "Viscosity"      )}
-        {renderField("operating_temp", "Operating Temp" )}
+        {renderField("flow_rate",      "Flow Rate",     true)}
+        {renderField("pressure",       "Pressure"           )}
+        {renderField("fluid",          "Fluid",         true)}
+        {renderField("viscosity",      "Viscosity"          )}
+        {renderField("operating_temp", "Operating Temp", true)}
 
         {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class" )}
-        {renderField("seal_type",      "Seal Type"      )}
+        {renderField("material_class", "Material Class", true)}
+        {renderField("seal_type",      "Seal Type",      true)}
 
         {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <Popover open={makesOpen} onOpenChange={setMakesOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
@@ -1903,23 +1903,23 @@ function MultistagePumpAttrsForm({
 
         {sectionHeader("Pump Specifications")}
         {renderField("multistage_type", "Multistage Type", true)}
-        {renderField("mounting",        "Mounting"             )}
-        {renderField("drive_type",      "Drive Type"           )}
-        {renderField("service_type",    "Service Type"         )}
+        {renderField("mounting",        "Mounting",        true)}
+        {renderField("drive_type",      "Drive Type",      true)}
+        {renderField("service_type",    "Service Type",    true)}
 
         {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate"      )}
-        {renderField("head_mlc",       "Head (mLC)"     )}
-        {renderField("fluid",          "Fluid"          )}
-        {renderField("operating_temp", "Operating Temp" )}
+        {renderField("flow_rate",      "Flow Rate",     true)}
+        {renderField("head_mlc",       "Head (mLC)",    true)}
+        {renderField("fluid",          "Fluid",         true)}
+        {renderField("operating_temp", "Operating Temp", true)}
 
         {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class" )}
-        {renderField("seal_type",      "Seal Type"      )}
+        {renderField("material_class", "Material Class", true)}
+        {renderField("seal_type",      "Seal Type",      true)}
 
         {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <Popover open={makesOpen} onOpenChange={setMakesOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
@@ -2112,24 +2112,24 @@ function DosingPumpAttrsForm({
 
         {sectionHeader("Pump Specifications")}
         {renderField("pump_type",    "Pump Type",    true)}
-        {renderField("mounting",     "Mounting"          )}
-        {renderField("drive_type",   "Drive Type"        )}
-        {renderField("service_type", "Service Type"      )}
+        {renderField("mounting",     "Mounting",     true)}
+        {renderField("drive_type",   "Drive Type",   true)}
+        {renderField("service_type", "Service Type", true)}
 
         {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",       "Flow Rate (LPH)"  )}
-        {renderField("pressure",        "Pressure"         )}
-        {renderField("dosing_accuracy", "Dosing Accuracy"  )}
-        {renderField("fluid",           "Fluid"            )}
-        {renderField("operating_temp",  "Operating Temp"   )}
+        {renderField("flow_rate",       "Flow Rate (LPH)",  true)}
+        {renderField("pressure",        "Pressure"              )}
+        {renderField("dosing_accuracy", "Dosing Accuracy"       )}
+        {renderField("fluid",           "Fluid",            true)}
+        {renderField("operating_temp",  "Operating Temp",   true)}
 
         {sectionHeader("Construction")}
-        {renderField("material_class",     "Material Class"     )}
-        {renderField("diaphragm_material", "Diaphragm Material" )}
+        {renderField("material_class",     "Material Class",     true)}
+        {renderField("diaphragm_material", "Diaphragm Material"      )}
 
         {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <Popover open={makesOpen} onOpenChange={setMakesOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
@@ -2316,18 +2316,18 @@ function VacuumBoosterAttrsForm({
         <div /> {/* spacer */}
 
         {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",          "Flow Rate (m³/hr)"   )}
-        {renderField("suction_pressure",   "Suction Pressure"    )}
-        {renderField("discharge_pressure", "Discharge Pressure"  )}
-        {renderField("gas_type",           "Gas Type"            )}
+        {renderField("flow_rate",          "Flow Rate (m³/hr)",  true)}
+        {renderField("suction_pressure",   "Suction Pressure"       )}
+        {renderField("discharge_pressure", "Discharge Pressure"     )}
+        {renderField("gas_type",           "Gas Type"               )}
 
         {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class" )}
-        {renderField("cooling_type",   "Cooling Type"   )}
+        {renderField("material_class", "Material Class", true)}
+        {renderField("cooling_type",   "Cooling Type"       )}
 
         {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <Popover open={makesOpen} onOpenChange={setMakesOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
@@ -6586,34 +6586,71 @@ export default function BuyPackagesPage() {
       }
     } else if (isCentrifugalPumpMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.pump_type as string)?.trim()) {
-        toast({ title: "Pump Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.pump_type as string)?.trim()) { toast({ title: "Pump Type is required", variant: "destructive" }); return; }
+      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
+      if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
+      if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
+      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.head as string)?.trim()) { toast({ title: "Head is required", variant: "destructive" }); return; }
+      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isGearPumpMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.gear_type as string)?.trim()) {
-        toast({ title: "Gear Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.gear_type as string)?.trim()) { toast({ title: "Gear Type is required", variant: "destructive" }); return; }
+      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
+      if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
+      if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isScrewPumpMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.screw_type as string)?.trim()) {
-        toast({ title: "Screw Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.screw_type as string)?.trim()) { toast({ title: "Screw Type is required", variant: "destructive" }); return; }
+      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
+      if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
+      if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isMultistagePumpMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.multistage_type as string)?.trim()) {
-        toast({ title: "Multistage Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.multistage_type as string)?.trim()) { toast({ title: "Multistage Type is required", variant: "destructive" }); return; }
+      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
+      if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
+      if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.head_mlc as string)?.trim()) { toast({ title: "Head is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isDosingPumpMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.pump_type as string)?.trim()) {
-        toast({ title: "Pump Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.pump_type as string)?.trim()) { toast({ title: "Pump Type is required", variant: "destructive" }); return; }
+      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
+      if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
+      if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isVacuumBoosterMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.booster_type as string)?.trim()) {
-        toast({ title: "Booster Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.booster_type as string)?.trim()) { toast({ title: "Booster Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isPumpSkidMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.package_type as string)?.trim()) {
