@@ -2617,20 +2617,62 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
   async function lineHasActivity(lineId: number): Promise<{ blocked: boolean; reason: string }> {
     const r = await pool.query(
       `SELECT
+         -- 1. Selection approved or datasheet uploaded
          EXISTS(
            SELECT 1 FROM buy_list_line_selections s
            WHERE s.buy_list_line_id = $1
              AND (s.approval_status = 'approved' OR s.datasheet_uploaded = true)
          ) AS has_selection_activity,
+
+         -- 2. Active procurement execution record (RFQ / vendor selection)
          EXISTS(
            SELECT 1 FROM item_planning_records ipr
            JOIN procurement_execution_records per ON per.planning_record_id = ipr.id
-           WHERE ipr.source_buy_list_line_id = $1 AND per.status != 'cancelled'
-         ) AS has_pr_activity`,
+           WHERE ipr.source_buy_list_line_id = $1
+             AND per.status NOT IN ('cancelled','superseded')
+         ) AS has_per_activity,
+
+         -- 3. PO preparation record active (vendor finalized / technical review)
+         EXISTS(
+           SELECT 1 FROM item_planning_records ipr
+           JOIN po_preparation_records ppr ON ppr.planning_record_id = ipr.id
+           WHERE ipr.source_buy_list_line_id = $1
+             AND ppr.status NOT IN ('cancelled','superseded')
+         ) AS has_po_prep_activity,
+
+         -- 4. EPC Purchase Order created / issued / approved / on-hold
+         EXISTS(
+           SELECT 1 FROM item_planning_records ipr
+           JOIN epc_purchase_orders epo ON epo.planning_record_id = ipr.id
+           WHERE ipr.source_buy_list_line_id = $1
+             AND epo.status NOT IN ('cancelled','superseded')
+         ) AS has_epc_po_activity,
+
+         -- 5. Quality planning record active (technical quality approval)
+         EXISTS(
+           SELECT 1 FROM item_planning_records ipr
+           JOIN quality_planning_records qpr ON qpr.planning_record_id = ipr.id
+           WHERE ipr.source_buy_list_line_id = $1
+             AND qpr.status NOT IN ('cancelled','superseded')
+         ) AS has_quality_plan_activity,
+
+         -- 6. Inspection execution record active (scheduled / in-progress / completed)
+         EXISTS(
+           SELECT 1 FROM item_planning_records ipr
+           JOIN inspection_execution_records ier ON ier.planning_record_id = ipr.id
+           WHERE ipr.source_buy_list_line_id = $1
+             AND ier.status NOT IN ('cancelled','superseded')
+         ) AS has_inspection_activity`,
       [lineId],
     );
-    if (r.rows[0].has_pr_activity)        return { blocked: true, reason: 'PR/PO raised' };
-    if (r.rows[0].has_selection_activity) return { blocked: true, reason: 'selection approved / datasheet uploaded' };
+    const row = r.rows[0];
+    // Ordered by severity: most irreversible first
+    if (row.has_epc_po_activity)       return { blocked: true, reason: 'EPC Purchase Order created / issued / approved' };
+    if (row.has_inspection_activity)   return { blocked: true, reason: 'Inspection record active (scheduled / in-progress / completed)' };
+    if (row.has_po_prep_activity)      return { blocked: true, reason: 'PO preparation active — vendor finalized / technical review in progress' };
+    if (row.has_per_activity)          return { blocked: true, reason: 'Procurement execution record active (RFQ / vendor selection)' };
+    if (row.has_quality_plan_activity) return { blocked: true, reason: 'Quality plan active' };
+    if (row.has_selection_activity)    return { blocked: true, reason: 'Selection approved / datasheet uploaded' };
     return { blocked: false, reason: '' };
   }
 
