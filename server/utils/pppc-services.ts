@@ -99,11 +99,8 @@ export const PPPC_SEED_GROUPS: SeedGroup[] = [
   {
     code: 'motors', label: 'Motors', sortOrder: 3,
     subgroups: [
-      { code: 'non_flameproof',      label: 'Non-Flameproof',       sortOrder: 1 },
-      { code: 'flameproof',          label: 'Flameproof',           sortOrder: 2 },
-      { code: 'vertical_horizontal', label: 'Vertical / Horizontal', sortOrder: 3 },
-      { code: 'high_efficiency',     label: 'IE3/IE4',                 sortOrder: 4 },
-      { code: 'vfd_compatible',      label: 'VFD Compatible',       sortOrder: 5 },
+      { code: 'non_flameproof', label: 'Non-Flameproof', sortOrder: 1 },
+      { code: 'flameproof',     label: 'Flameproof',     sortOrder: 2 },
     ],
   },
   {
@@ -171,6 +168,13 @@ export const PPPC_SEED_UOMS: Array<{
 
 export async function seedPppcMasterData(pool: Pool): Promise<void> {
   try {
+    // Remove retired motor subgroups (superseded by spec fields on Non-Flameproof / Flameproof forms)
+    await pool.query(`
+      DELETE FROM buy_subgroups
+      WHERE code IN ('vertical_horizontal', 'high_efficiency', 'vfd_compatible')
+        AND buy_group_id = (SELECT id FROM buy_groups WHERE code = 'motors')
+    `);
+
     for (const grp of PPPC_SEED_GROUPS) {
       await pool.query(
         `INSERT INTO buy_groups (code, label, sort_order, is_active)
