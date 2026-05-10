@@ -5924,6 +5924,32 @@ function applyNonFlameproofMotorDefaults(existing: Record<string, unknown>): Rec
   return result;
 }
 
+const FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
+  motor_type:          "Induction",
+  mounting:            "Horizontal (B3)",
+  cooling_type:        "TEFC",
+  voltage:             "415 V",
+  phase:               "Three Phase",
+  frequency:           "50 Hz",
+  duty:                "S1 (Continuous)",
+  area_classification: "Zone 1",
+  ip_rating:           "IP55",
+  efficiency_class:    "IE4",
+  vfd_compatible:      "Yes",
+  material:            "Cast Iron",
+};
+
+function applyFlameproofMotorDefaults(existing: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...existing };
+  for (const [key, val] of Object.entries(FLAMEPROOF_MOTOR_DEFAULTS)) {
+    const cur = result[key];
+    if (cur === undefined || cur === null || (typeof cur === "string" && !cur.trim())) {
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
 const MOTOR_MAKES = ["ABB", "Siemens", "WEG", "Crompton", "Kirloskar", "Bharat Bijlee", "Havells", "Leroy Somer", "TECO"];
 
 // ── Motor structured form ─────────────────────────────────────────────────────
@@ -6531,7 +6557,8 @@ export default function BuyPackagesPage() {
     subgroupId: number, subgroupCode: string, subgroupLabel: string,
   ) {
     const initAttrs: Record<string, unknown> =
-      subgroupCode === "non_flameproof" ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } : {};
+      subgroupCode === "non_flameproof" ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } :
+      subgroupCode === "flameproof"     ? { ...FLAMEPROOF_MOTOR_DEFAULTS }     : {};
     setLf({ ...EMPTY_LINE, buyGroupId: String(groupId), buySubgroupId: String(subgroupId), technicalAttributes: initAttrs });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null,
@@ -6549,7 +6576,9 @@ export default function BuyPackagesPage() {
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
       technicalAttributes: line.buy_subgroup_code === "non_flameproof"
         ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
-        : (line.technical_attributes ?? {}) as Record<string, unknown>,
+        : line.buy_subgroup_code === "flameproof"
+          ? applyFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
+          : (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: line,
@@ -7370,10 +7399,14 @@ export default function BuyPackagesPage() {
                       value={lf.buySubgroupId}
                       onValueChange={(v) => {
                         const sg = subgroups.find((s) => String(s.id) === v);
-                        const isNFP = sg?.code === "non_flameproof" && selectedGroupCode === "motors";
+                        const isMotors = selectedGroupCode === "motors";
+                        const isNFP = isMotors && sg?.code === "non_flameproof";
+                        const isFP  = isMotors && sg?.code === "flameproof";
                         setLf((f) => ({
                           ...f, buySubgroupId: v, genericRequirement: "",
-                          technicalAttributes: isNFP ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } : {},
+                          technicalAttributes: isNFP ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS }
+                                             : isFP  ? { ...FLAMEPROOF_MOTOR_DEFAULTS }
+                                             : {},
                         }));
                       }}
                       disabled={!lf.buyGroupId}
