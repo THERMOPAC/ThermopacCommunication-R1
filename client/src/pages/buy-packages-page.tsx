@@ -2461,8 +2461,23 @@ function computeSubgroupWarnings(
     if (isoType.includes("butterfly") && missing("disc_material"))   w.push("Disc material — required for Butterfly Valve datasheet.");
     if (isoType.includes("diaphragm") && missing("diaphragm_material")) w.push("Diaphragm material — required for Diaphragm Valve datasheet.");
   } else if (subgroupCode === "control") {
+    const cvType = ((attrs.valve_type as string) ?? "").toLowerCase();
     if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
-    if (missing("trim_material"))   w.push("Trim material — required for valve datasheet.");
+    if (missing("body_material"))   w.push("Body material — required for valve datasheet.");
+    if ((cvType.includes("globe") || cvType.includes("angle")) && missing("trim_material"))
+      w.push("Trim material — required for Globe/Angle CV datasheet.");
+    if (cvType.includes("globe") && missing("leakage_class"))
+      w.push("Leakage class — required for Globe CV datasheet.");
+    if (cvType.includes("ball") && missing("ball_trim_material"))
+      w.push("Ball/Trim material — required for Ball CV datasheet.");
+    if (cvType.includes("butterfly") && missing("disc_material"))
+      w.push("Disc material — required for Butterfly CV datasheet.");
+    if ((cvType.includes("eccentric") || cvType.includes("rotary")) && missing("plug_trim_material"))
+      w.push("Plug/Trim material — required for Eccentric Plug CV datasheet.");
+    if (cvType.includes("angle") && missing("service_application"))
+      w.push("Service application — required for Angle CV datasheet.");
+    if (cvType.includes("angle") && missing("leakage_class"))
+      w.push("Leakage class — required for Angle CV datasheet.");
   } else if (subgroupCode === "safety") {
     if (missing("set_pressure"))    w.push("Set pressure — critical for PSV datasheet and SIL compliance.");
     if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
@@ -2778,37 +2793,85 @@ function buildDatasheetSections(
   }
 
   if (subgroupCode === "control") {
+    const cvt = (v("valve_type") || "").toLowerCase();
+    const isGlobeCV = cvt.includes("globe");
+    const isBallCV  = cvt.includes("ball");
+    const isBflyCV  = cvt.includes("butterfly");
+    const isPlugCV  = cvt.includes("eccentric") || cvt.includes("rotary");
+    const isAngleCV = cvt.includes("angle");
+
+    const typeSpecificFields: DatasheetField[] = [];
+    if (isGlobeCV) {
+      typeSpecificFields.push(
+        { label: "Valve Configuration",  value: v("valve_config") },
+        { label: "Trim Style",           value: v("trim_style") },
+        { label: "Flow Characteristic",  value: v("flow_characteristic") },
+        { label: "Trim Material",        value: v("trim_material") },
+        { label: "Seat Material",        value: v("seat_material") },
+        { label: "Leakage Class",        value: v("leakage_class") },
+        { label: "Bonnet Type",          value: v("bonnet_type") },
+        { label: "Packing Material",     value: v("packing_material") },
+        { label: "Noise / Cavitation",   value: v("noise_cavitation") },
+      );
+    } else if (isBallCV) {
+      typeSpecificFields.push(
+        { label: "Ball Type",            value: v("ball_type") },
+        { label: "Flow Characteristic",  value: v("flow_characteristic") },
+        { label: "Ball / Trim Material", value: v("ball_trim_material") },
+        { label: "Seat Material",        value: v("seat_material") },
+        { label: "Leakage Class",        value: v("leakage_class") },
+        { label: "Packing Material",     value: v("packing_material") },
+      );
+    } else if (isBflyCV) {
+      typeSpecificFields.push(
+        { label: "Disc Mounting",         value: v("disc_mounting") },
+        { label: "Disc Material",         value: v("disc_material") },
+        { label: "Seat / Liner Material", value: v("seat_liner_material") },
+        { label: "Leakage Class",         value: v("leakage_class") },
+        { label: "Flow Characteristic",   value: v("flow_characteristic") },
+      );
+    } else if (isPlugCV) {
+      typeSpecificFields.push(
+        { label: "Plug Style",           value: v("plug_style") },
+        { label: "Plug / Trim Material", value: v("plug_trim_material") },
+        { label: "Seat Material",        value: v("seat_material") },
+        { label: "Leakage Class",        value: v("leakage_class") },
+        { label: "Packing Material",     value: v("packing_material") },
+      );
+    } else if (isAngleCV) {
+      typeSpecificFields.push(
+        { label: "Service Application",  value: v("service_application") },
+        { label: "Flow Direction",       value: v("flow_direction") },
+        { label: "Trim Style",           value: v("trim_style") },
+        { label: "Trim Material",        value: v("trim_material") },
+        { label: "Seat Material",        value: v("seat_material") },
+        { label: "Leakage Class",        value: v("leakage_class") },
+        { label: "Outlet Reducer",       value: v("outlet_reducer") },
+      );
+    }
+
     return [
       { title: "Valve Details", fields: [
-        { label: "Valve Type",          value: v("valve_type"), highlight: true },
-        { label: "Size (NB)",           value: v("size_nb") },
-        { label: "Pressure Rating",     value: v("pressure_rating") },
-        { label: "Flow Characteristic", value: v("flow_characteristic") },
+        { label: "Valve Type",      value: v("valve_type"), highlight: true },
+        { label: "Size (NB)",       value: v("size_nb") },
+        { label: "Pressure Rating", value: v("pressure_rating") },
+        { label: "End Connection",  value: v("end_connection") },
+        { label: "Body Material",   value: v("body_material") },
       ]},
+      ...(typeSpecificFields.length > 0 ? [{ title: "Type-Specific Configuration", fields: typeSpecificFields }] : []),
       { title: "Actuation", fields: [
-        { label: "Actuation Type", value: v("actuation_type") },
+        { label: "Actuator Type",  value: v("actuator_type") },
         { label: "Fail Action",    value: v("fail_action") },
         { label: "Input Signal",   value: v("input_signal") },
         { label: "Positioner",     value: v("positioner") },
+        { label: "Handwheel",      value: v("handwheel") },
+        { label: "Bypass Valve",   value: v("bypass_valve") },
       ]},
-      { title: "Process Conditions", fields: [
-        { label: "Process Fluid",         value: v("process_fluid") },
-        { label: "Operating Pressure",    value: vUnit("operating_pressure", "operating_pressure_unit") },
-        { label: "Operating Temperature", value: vUnit("operating_temperature", "operating_temperature_unit") },
-        { label: "Design Pressure",       value: vUnit("design_pressure", "design_pressure_unit") },
-        { label: "Design Temperature",    value: vUnit("design_temperature", "design_temperature_unit") },
-      ]},
-      { title: "Connection & Material", fields: [
-        { label: "End Connection", value: v("end_connection") },
-        { label: "Body Material",  value: v("body_material") },
-        { label: "Trim Material",  value: v("trim_material") },
-        { label: "Seat Type",      value: v("seat_type") },
-      ]},
-      { title: "Hazardous Area", fields: [
+      { title: "Area Classification", fields: [
         { label: "Area Classification", value: v("area_classification") },
         { label: "Certification",       value: v("certification") },
       ]},
-      { title: "Approved Makes", fields: [{ label: "Makes", value: vMakes() }]},
+      { title: "Approved Makes", fields: [{ label: "Makes (ranked)", value: vMakes() }]},
     ];
   }
 
@@ -3212,7 +3275,7 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   flow:         ["Instrument Type","Line Size","Liner Material","End Connection","Output Signal"],
   level:        ["Instrument Type","Output Signal","Range Min","Range Max"],
   isolation:    ["Valve Type","Size (NB)","Pressure Rating","End Connection","Body Material","Type-Specific Sealing Field"],
-  control:      ["Valve Type","Size (NB)","Pressure Rating","Actuation Type","Fail Action","End Connection"],
+  control:      ["Valve Type","Size (NB)","Pressure Rating","Actuator Type","Fail Action","End Connection","Body Material","Type-Specific Config"],
   safety:       ["Valve Type","Size (NB)","Set Pressure","End Connection","Body Material"],
   on_off:       ["Valve Type","Size (NB)","End Connection","Body Material"],
   panels:       ["Panel Type","Voltage","IP Rating","Enclosure Type"],
@@ -5506,53 +5569,218 @@ function BoughtOutAttrsForm({
   );
 }
 
-// ── Control Valve requirement builder ────────────────────────────────────────
-function buildControlValveRequirement(attrs: Record<string, unknown>): string {
-  const valveType   = (attrs.valve_type        as string)?.trim() || "";
-  const config      = (attrs.valve_config      as string)?.trim() || "";
-  const sizeNb      = (attrs.size_nb           as string)?.trim() || "";
-  const rating      = (attrs.pressure_rating   as string)?.trim() || "";
-  const actuator    = (attrs.actuator_type     as string)?.trim() || "";
-  const failAction  = (attrs.fail_action       as string)?.trim() || "";
-  const trimMat     = (attrs.trim_material     as string)?.trim() || "";
-  const flowChar    = (attrs.flow_characteristic as string)?.trim() || "";
-  const signal      = (attrs.input_signal      as string)?.trim() || "";
-  const endConn     = (attrs.end_connection    as string)?.trim() || "";
+// ── Control Valve constants ──────────────────────────────────────────────────
+const CONTROL_VALVE_TYPES = [
+  "Globe Control Valve",
+  "Ball Control Valve",
+  "Butterfly Control Valve",
+  "Eccentric Plug / Rotary Control Valve",
+  "Angle Control Valve",
+];
 
-  const trimStr = trimMat ? `${trimMat} Trim` : "";
-  const parts: string[] = [];
-  if (valveType)  parts.push(valveType);
-  if (config)     parts.push(config);
-  if (sizeNb)     parts.push(sizeNb);
-  if (rating)     parts.push(rating);
-  if (actuator)   parts.push(actuator);
-  if (failAction) parts.push(failAction);
-  if (trimStr)    parts.push(trimStr);
-  if (flowChar)   parts.push(flowChar);
-  if (signal)     parts.push(signal);
-  if (endConn)    parts.push(endConn);
-  return parts.join(", ");
+const CONTROL_COMMON_OPTS = {
+  size_nb:             ["15 NB","20 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB"],
+  pressure_rating:     ["Class 150","Class 300","Class 600","Class 900","PN10","PN16","PN25","PN40"],
+  end_connection:      ["Flanged","Threaded","Butt Weld","Socket Weld"],
+  end_conn_bfly:       ["Wafer","Flanged","Lug"],
+  body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","Alloy Steel (WC6)","Duplex SS","Hastelloy C"],
+  actuator_type:       ["Pneumatic Diaphragm","Pneumatic Piston","Electric Actuator","Hydraulic Actuator"],
+  fail_action:         ["Fail Open (FO)","Fail Close (FC)","Fail Last (FL)"],
+  input_signal:        ["4–20 mA","4–20 mA with HART","0–10 V","Digital / Fieldbus"],
+  positioner:          ["With Positioner","Without Positioner"],
+  handwheel:           ["Yes","No"],
+  bypass_valve:        ["Yes","No"],
+  area_classification: ["Safe Area","Zone 1","Zone 2"],
+  certification:       ["ATEX","IECEx","PESO"],
+};
+
+const GLOBE_CV_OPTS = {
+  valve_config:        ["Two Way","Three Way (Mixing)","Three Way (Diverting)"],
+  trim_style:          ["Single Seated","Double Seated","Cage Guided","Balanced Trim"],
+  flow_characteristic: ["Linear","Equal Percentage","Quick Opening"],
+  trim_material:       ["SS304","SS316","Hardened SS","Stellite Overlay","SS316 + Stellite"],
+  seat_material:       ["Metal Seat","Soft Seat (PTFE)","Graphite"],
+  leakage_class:       ["Class II","Class III","Class IV","Class V","Class VI"],
+  bonnet_type:         ["Standard","Extended (Low Temp)","Bellows Sealed (High Temp)"],
+  packing_material:    ["PTFE","Graphite","PTFE V-Ring"],
+  noise_cavitation:    ["Standard","Anti-Cavitation Trim","Low-Noise Trim","Multi-Stage Cage"],
+};
+
+const BALL_CV_OPTS = {
+  ball_type:           ["Segmented Ball","V-Port Ball","Characterized Ball"],
+  flow_characteristic: ["Equal Percentage","Modified Linear"],
+  ball_trim_material:  ["SS316","Hardened SS","Stellite Overlay","Duplex SS"],
+  seat_material:       ["PTFE","PEEK","Metal (SS316)","Metal (Hardened)"],
+  leakage_class:       ["Class IV","Class V","Class VI"],
+  packing_material:    ["PTFE","Graphite"],
+};
+
+const BFLY_CV_OPTS = {
+  disc_mounting:       ["Double Offset","Triple Offset (High Performance)"],
+  disc_material:       ["CI","CS","SS304","SS316","Duplex SS"],
+  seat_liner_material: ["EPDM","PTFE","Metal (SS316)","Graphite"],
+  leakage_class:       ["Class II","Class III","Class IV"],
+  flow_characteristic: ["Inherent Equal %","Linear"],
+};
+
+const PLUG_CV_OPTS = {
+  plug_style:          ["Contoured Plug","Characterized Plug"],
+  plug_trim_material:  ["SS304","SS316","Hardened SS","Stellite"],
+  seat_material:       ["Metal Seat","Resilient Seat (PTFE)"],
+  leakage_class:       ["Class IV","Class V","Class VI"],
+  packing_material:    ["PTFE","Graphite"],
+};
+
+const ANGLE_CV_OPTS = {
+  service_application: ["High ΔP / Flash","Cavitation","Steam-Condensate","Erosive Slurry","General High ΔP"],
+  flow_direction:      ["Flow-to-Open","Flow-to-Close"],
+  trim_style:          ["Standard","Anti-Cavitation","Low-Noise","Multi-Stage Cage","Perforated Cage"],
+  trim_material:       ["SS316","Hardened Trim","Stellite","Tungsten Carbide"],
+  seat_material:       ["Metal Seat","Hard-Faced Metal"],
+  leakage_class:       ["Class II","Class III","Class IV","Class V"],
+  outlet_reducer:      ["Yes","No"],
+};
+
+const CONTROL_ALL_FIELD_OPTS: Record<string, string[]> = {
+  ...CONTROL_COMMON_OPTS,
+  valve_config:        GLOBE_CV_OPTS.valve_config,
+  trim_style:          [...GLOBE_CV_OPTS.trim_style,         ...ANGLE_CV_OPTS.trim_style],
+  flow_characteristic: [...GLOBE_CV_OPTS.flow_characteristic,...BALL_CV_OPTS.flow_characteristic,...BFLY_CV_OPTS.flow_characteristic],
+  trim_material:       [...GLOBE_CV_OPTS.trim_material,      ...ANGLE_CV_OPTS.trim_material],
+  ball_trim_material:  BALL_CV_OPTS.ball_trim_material,
+  plug_trim_material:  PLUG_CV_OPTS.plug_trim_material,
+  disc_material:       BFLY_CV_OPTS.disc_material,
+  seat_material:       [...GLOBE_CV_OPTS.seat_material,...BALL_CV_OPTS.seat_material,...PLUG_CV_OPTS.seat_material,...ANGLE_CV_OPTS.seat_material],
+  seat_liner_material: BFLY_CV_OPTS.seat_liner_material,
+  leakage_class:       GLOBE_CV_OPTS.leakage_class,
+  bonnet_type:         GLOBE_CV_OPTS.bonnet_type,
+  packing_material:    GLOBE_CV_OPTS.packing_material,
+  noise_cavitation:    GLOBE_CV_OPTS.noise_cavitation,
+  ball_type:           BALL_CV_OPTS.ball_type,
+  disc_mounting:       BFLY_CV_OPTS.disc_mounting,
+  plug_style:          PLUG_CV_OPTS.plug_style,
+  service_application: ANGLE_CV_OPTS.service_application,
+  flow_direction:      ANGLE_CV_OPTS.flow_direction,
+  outlet_reducer:      ANGLE_CV_OPTS.outlet_reducer,
+};
+
+const CONTROL_VALVE_MAKES = [
+  "Flowserve","Fisher (Emerson)","Samson","Metso Neles","Spirax Sarco",
+  "Rotork","AUMA","KMC","KOSO","Crane","IMI CCI","L&T Valves","Bray","Belimo",
+];
+
+function buildControlValveDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    valve_type: type,
+    size_nb: "50 NB", pressure_rating: "Class 150", end_connection: "Flanged",
+    body_material: "WCB (CS)", actuator_type: "Pneumatic Diaphragm",
+    fail_action: "Fail Close (FC)", input_signal: "4–20 mA",
+    positioner: "With Positioner", handwheel: "No", bypass_valve: "No",
+    area_classification: "Safe Area", makes: [],
+    valve_config: "", trim_style: "", flow_characteristic: "", trim_material: "",
+    seat_material: "", leakage_class: "", bonnet_type: "", packing_material: "", noise_cavitation: "",
+    ball_type: "", ball_trim_material: "",
+    disc_mounting: "", disc_material: "", seat_liner_material: "",
+    plug_style: "", plug_trim_material: "",
+    service_application: "", flow_direction: "", outlet_reducer: "",
+  };
+  switch (type) {
+    case "Globe Control Valve":
+      return { ...base, valve_config: "Two Way", trim_style: "Cage Guided",
+        flow_characteristic: "Equal Percentage", trim_material: "SS316",
+        seat_material: "Metal Seat", leakage_class: "Class IV",
+        bonnet_type: "Standard", packing_material: "PTFE", noise_cavitation: "Standard" };
+    case "Ball Control Valve":
+      return { ...base, ball_type: "Segmented Ball", flow_characteristic: "Equal Percentage",
+        ball_trim_material: "SS316", seat_material: "PTFE", leakage_class: "Class IV",
+        packing_material: "PTFE" };
+    case "Butterfly Control Valve":
+      return { ...base, end_connection: "Wafer", pressure_rating: "PN16", body_material: "CI",
+        disc_mounting: "Double Offset", disc_material: "SS316",
+        seat_liner_material: "Metal (SS316)", leakage_class: "Class III",
+        flow_characteristic: "Inherent Equal %" };
+    case "Eccentric Plug / Rotary Control Valve":
+      return { ...base, plug_style: "Contoured Plug", plug_trim_material: "SS316",
+        seat_material: "Metal Seat", leakage_class: "Class IV", packing_material: "PTFE" };
+    case "Angle Control Valve":
+      return { ...base, pressure_rating: "Class 300", service_application: "High ΔP / Flash",
+        flow_direction: "Flow-to-Open", trim_style: "Anti-Cavitation",
+        trim_material: "Stellite", seat_material: "Metal Seat",
+        leakage_class: "Class IV", outlet_reducer: "No" };
+    default:
+      return base;
+  }
 }
 
-const CONTROL_VALVE_OPTS: Record<string, string[]> = {
-  valve_type:           ["Globe Control Valve", "Ball Control Valve", "Butterfly Control Valve", "Eccentric Plug Valve"],
-  valve_config:         ["Two Way", "Three Way (Mixing)", "Three Way (Diverting)"],
-  size_nb:              ["15 NB", "25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB", "200 NB"],
-  pressure_rating:      ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
-  service_type:         ["Flow Control", "Pressure Control", "Level Control", "Temperature Control"],
-  flow_characteristic:  ["Linear", "Equal Percentage", "Quick Opening"],
-  actuator_type:        ["Pneumatic Diaphragm", "Pneumatic Piston", "Electric Actuator", "Hydraulic"],
-  fail_action:          ["Fail Open (FO)", "Fail Close (FC)", "Fail Last (FL)"],
-  end_connection:       ["Flanged", "Threaded", "Butt Weld", "Wafer"],
-  body_material:        ["WCB (CS)", "SS304", "SS316", "Alloy Steel", "Duplex"],
-  trim_material:        ["SS304", "SS316", "Hardened Trim", "Stellite"],
-  seat_type:            ["Metal Seat", "Soft Seat (PTFE)", "Balanced Trim", "Unbalanced Trim"],
-  leakage_class:        ["Class II", "Class III", "Class IV", "Class V", "Class VI"],
-  input_signal:         ["4–20 mA", "0–10 V", "Digital"],
-  positioner:           ["With Positioner", "Without Positioner"],
-  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
-  certification:        ["ATEX", "IECEx", "PESO"],
-};
+function buildControlValveRequirement(attrs: Record<string, unknown>): string {
+  const type     = (attrs.valve_type      as string)?.trim() || "";
+  const sizeNb   = (attrs.size_nb         as string)?.trim() || "";
+  const rating   = (attrs.pressure_rating as string)?.trim() || "";
+  const actuator = (attrs.actuator_type   as string)?.trim() || "";
+  const failAct  = (attrs.fail_action     as string)?.trim() || "";
+  const endConn  = (attrs.end_connection  as string)?.trim() || "";
+  const bodyMat  = (attrs.body_material   as string)?.trim() || "";
+  const typeLC   = type.toLowerCase();
+
+  let typeSpecific = "";
+  if (typeLC.includes("globe")) {
+    const trimStyle = (attrs.trim_style as string)?.trim() || "";
+    const trimMat   = (attrs.trim_material as string)?.trim() || "";
+    const flowChar  = (attrs.flow_characteristic as string)?.trim() || "";
+    const p: string[] = [];
+    if (trimStyle) p.push(trimStyle);
+    if (trimMat)   p.push(`${trimMat} Trim`);
+    if (flowChar)  p.push(flowChar);
+    typeSpecific = p.join(", ");
+  } else if (typeLC.includes("angle")) {
+    const trimStyle = (attrs.trim_style as string)?.trim() || "";
+    const trimMat   = (attrs.trim_material as string)?.trim() || "";
+    const svc       = (attrs.service_application as string)?.trim() || "";
+    const p: string[] = [];
+    if (svc)       p.push(svc);
+    if (trimStyle) p.push(trimStyle);
+    if (trimMat)   p.push(`${trimMat} Trim`);
+    typeSpecific = p.join(", ");
+  } else if (typeLC.includes("ball")) {
+    const ballType = (attrs.ball_type as string)?.trim() || "";
+    const ballMat  = (attrs.ball_trim_material as string)?.trim() || "";
+    const seatMat  = (attrs.seat_material as string)?.trim() || "";
+    const p: string[] = [];
+    if (ballType) p.push(ballType);
+    if (ballMat)  p.push(`${ballMat} Ball`);
+    if (seatMat)  p.push(`${seatMat} Seat`);
+    typeSpecific = p.join(", ");
+  } else if (typeLC.includes("butterfly")) {
+    const discMount = (attrs.disc_mounting as string)?.trim() || "";
+    const discMat   = (attrs.disc_material as string)?.trim() || "";
+    const seatMat   = (attrs.seat_liner_material as string)?.trim() || "";
+    const p: string[] = [];
+    if (discMount) p.push(discMount);
+    if (discMat)   p.push(`${discMat} Disc`);
+    if (seatMat)   p.push(`${seatMat} Seat`);
+    typeSpecific = p.join(", ");
+  } else if (typeLC.includes("eccentric") || typeLC.includes("rotary")) {
+    const plugStyle = (attrs.plug_style as string)?.trim() || "";
+    const plugMat   = (attrs.plug_trim_material as string)?.trim() || "";
+    const seatMat   = (attrs.seat_material as string)?.trim() || "";
+    const p: string[] = [];
+    if (plugStyle) p.push(plugStyle);
+    if (plugMat)   p.push(`${plugMat} Plug`);
+    if (seatMat)   p.push(`${seatMat} Seat`);
+    typeSpecific = p.join(", ");
+  }
+
+  const parts: string[] = [];
+  if (type)         parts.push(type);
+  if (sizeNb)       parts.push(sizeNb);
+  if (rating)       parts.push(rating);
+  if (typeSpecific) parts.push(typeSpecific);
+  if (actuator)     parts.push(actuator);
+  if (failAct)      parts.push(failAct);
+  if (bodyMat)      parts.push(`${bodyMat} Body`);
+  if (endConn)      parts.push(endConn);
+  return parts.join(", ");
+}
 
 function ControlValveAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -5562,30 +5790,45 @@ function ControlValveAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-  const singleKeys = Object.keys(CONTROL_VALVE_OPTS);
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = CONTROL_VALVE_OPTS[key] ?? [];
+    for (const [key, opts] of Object.entries(CONTROL_ALL_FIELD_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
+
+  function handleTypeChange(type: string) {
+    const defaults = buildControlValveDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(CONTROL_ALL_FIELD_OPTS)) {
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    setCustom(c);
+    setMakes([]);
+    onChange({ ...defaults, makes: [] });
+  }
 
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
+      onChange({ ...attrs, [key]: "" });
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      onChange({ ...attrs, [key]: val });
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = CONTROL_VALVE_OPTS[key] ?? [];
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
@@ -5609,51 +5852,190 @@ function ControlValveAttrsForm({
     );
   }
 
+  function addMake(make: string) {
+    if (!make.trim() || makes.includes(make.trim())) return;
+    const next = [...makes, make.trim()];
+    setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) {
+    const next = makes.filter((x) => x !== m);
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+
+  const valveType = (attrs.valve_type as string) ?? "";
   const areaClass = (attrs.area_classification as string) ?? "";
+  const isGlobe   = valveType === "Globe Control Valve";
+  const isBall    = valveType === "Ball Control Valve";
+  const isBfly    = valveType === "Butterfly Control Valve";
+  const isPlug    = valveType === "Eccentric Plug / Rotary Control Valve";
+  const isAngle   = valveType === "Angle Control Valve";
+  const hasType   = isGlobe || isBall || isBfly || isPlug || isAngle;
+
+  const filteredMakes = CONTROL_VALVE_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
+  );
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Control Valve Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
+        {/* ── Valve Type ─────────────────────────────────────────────────── */}
         {sec("Valve Type")}
-        {renderField("valve_type",   "Control Valve Type", true)}
-        {renderField("valve_config", "Valve Configuration", true)}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Control Valve Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={CONTROL_VALVE_TYPES.includes(valveType) ? valveType : ""}
+            options={CONTROL_VALVE_TYPES}
+            placeholder="Select valve type first…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
+        </div>
 
-        {sec("Size & Rating")}
-        {renderField("size_nb",         "Size (NB)",       true)}
-        {renderField("pressure_rating",  "Pressure Rating", true)}
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a valve type above to configure specifications
+          </div>
+        )}
 
-        {sec("Flow / Service")}
-        {renderField("service_type",       "Service Type")}
-        {renderField("flow_characteristic","Flow Characteristic")}
+        {/* ── Globe Sub-Panel ────────────────────────────────────────────── */}
+        {isGlobe && (<>
+          {sec("Globe Configuration")}
+          {renderField("valve_config",        "Valve Configuration",  GLOBE_CV_OPTS.valve_config,        true)}
+          {renderField("trim_style",          "Trim Style",           GLOBE_CV_OPTS.trim_style,          true)}
+          {renderField("flow_characteristic", "Flow Characteristic",  GLOBE_CV_OPTS.flow_characteristic, true)}
+          {renderField("trim_material",       "Trim Material",        GLOBE_CV_OPTS.trim_material,       true)}
+          {renderField("seat_material",       "Seat Material",        GLOBE_CV_OPTS.seat_material,       true)}
+          {renderField("leakage_class",       "Leakage Class",        GLOBE_CV_OPTS.leakage_class,       true)}
+          {renderField("bonnet_type",         "Bonnet Type",          GLOBE_CV_OPTS.bonnet_type)}
+          {renderField("packing_material",    "Packing Material",     GLOBE_CV_OPTS.packing_material)}
+          {renderField("noise_cavitation",    "Noise / Cavitation",   GLOBE_CV_OPTS.noise_cavitation)}
+          <div />
+        </>)}
 
-        {sec("Actuation")}
-        {renderField("actuator_type", "Actuator Type", true)}
-        {renderField("fail_action",   "Fail Action",   true)}
+        {/* ── Ball Sub-Panel ─────────────────────────────────────────────── */}
+        {isBall && (<>
+          {sec("Ball Configuration")}
+          {renderField("ball_type",           "Ball Type",            BALL_CV_OPTS.ball_type,            true)}
+          {renderField("flow_characteristic", "Flow Characteristic",  BALL_CV_OPTS.flow_characteristic,  true)}
+          {renderField("ball_trim_material",  "Ball / Trim Material", BALL_CV_OPTS.ball_trim_material,   true)}
+          {renderField("seat_material",       "Seat Material",        BALL_CV_OPTS.seat_material,        true)}
+          {renderField("leakage_class",       "Leakage Class",        BALL_CV_OPTS.leakage_class)}
+          {renderField("packing_material",    "Packing Material",     BALL_CV_OPTS.packing_material)}
+        </>)}
 
-        {sec("Connection")}
-        {renderField("end_connection", "End Connection")}
-        <div />
+        {/* ── Butterfly Sub-Panel ────────────────────────────────────────── */}
+        {isBfly && (<>
+          {sec("Butterfly Configuration")}
+          {renderField("disc_mounting",       "Disc Mounting",          BFLY_CV_OPTS.disc_mounting,       true)}
+          {renderField("disc_material",       "Disc Material",          BFLY_CV_OPTS.disc_material,       true)}
+          {renderField("seat_liner_material", "Seat / Liner Material",  BFLY_CV_OPTS.seat_liner_material, true)}
+          {renderField("leakage_class",       "Leakage Class",          BFLY_CV_OPTS.leakage_class)}
+          {renderField("flow_characteristic", "Flow Characteristic",    BFLY_CV_OPTS.flow_characteristic)}
+          <div />
+        </>)}
 
-        {sec("Material")}
-        {renderField("body_material", "Body Material")}
-        {renderField("trim_material", "Trim Material")}
+        {/* ── Eccentric Plug Sub-Panel ───────────────────────────────────── */}
+        {isPlug && (<>
+          {sec("Eccentric Plug Configuration")}
+          {renderField("plug_style",          "Plug Style",            PLUG_CV_OPTS.plug_style,          true)}
+          {renderField("plug_trim_material",  "Plug / Trim Material",  PLUG_CV_OPTS.plug_trim_material,  true)}
+          {renderField("seat_material",       "Seat Material",         PLUG_CV_OPTS.seat_material,       true)}
+          {renderField("leakage_class",       "Leakage Class",         PLUG_CV_OPTS.leakage_class)}
+          {renderField("packing_material",    "Packing Material",      PLUG_CV_OPTS.packing_material)}
+          <div />
+        </>)}
 
-        {sec("Seat / Leakage")}
-        {renderField("seat_type",     "Seat Type")}
-        {renderField("leakage_class", "Leakage Class")}
+        {/* ── Angle Sub-Panel ────────────────────────────────────────────── */}
+        {isAngle && (<>
+          {sec("Angle Valve Configuration")}
+          {renderField("service_application", "Service Application",  ANGLE_CV_OPTS.service_application, true)}
+          {renderField("flow_direction",      "Flow Direction",       ANGLE_CV_OPTS.flow_direction,      true)}
+          {renderField("trim_style",          "Trim Style",           ANGLE_CV_OPTS.trim_style,          true)}
+          {renderField("trim_material",       "Trim Material",        ANGLE_CV_OPTS.trim_material,       true)}
+          {renderField("seat_material",       "Seat Material",        ANGLE_CV_OPTS.seat_material,       true)}
+          {renderField("leakage_class",       "Leakage Class",        ANGLE_CV_OPTS.leakage_class,       true)}
+          {renderField("outlet_reducer",      "Outlet Reducer",       ANGLE_CV_OPTS.outlet_reducer)}
+          <div />
+        </>)}
 
-        {sec("Signal / Control")}
-        {renderField("input_signal", "Input Signal")}
-        {renderField("positioner",   "Positioner")}
+        {/* ── Common: Size, Rating, End Connection, Body ─────────────────── */}
+        {hasType && (<>
+          {sec("Size & Rating")}
+          {renderField("size_nb",         "Size (NB)",       CONTROL_COMMON_OPTS.size_nb,         true)}
+          {renderField("pressure_rating", "Pressure Rating", CONTROL_COMMON_OPTS.pressure_rating,  true)}
+          {renderField("end_connection",  "End Connection",
+            isBfly ? CONTROL_COMMON_OPTS.end_conn_bfly : CONTROL_COMMON_OPTS.end_connection,      true)}
+          {renderField("body_material",   "Body Material",   CONTROL_COMMON_OPTS.body_material,    true)}
 
-        {sec("Hazardous Area (Optional)")}
-        {renderField("area_classification", "Area Classification")}
-        {(areaClass === "Zone 1" || areaClass === "Zone 2")
-          ? renderField("certification", "Certification")
-          : <div />}
+          {sec("Actuation")}
+          {renderField("actuator_type",   "Actuator Type",   CONTROL_COMMON_OPTS.actuator_type,    true)}
+          {renderField("fail_action",     "Fail Action",     CONTROL_COMMON_OPTS.fail_action,      true)}
 
+          {sec("Signal & Control (Optional)")}
+          {renderField("input_signal",    "Input Signal",    CONTROL_COMMON_OPTS.input_signal)}
+          {renderField("positioner",      "Positioner",      CONTROL_COMMON_OPTS.positioner)}
+          {renderField("handwheel",       "Handwheel Override", CONTROL_COMMON_OPTS.handwheel)}
+          {renderField("bypass_valve",    "Bypass Valve",    CONTROL_COMMON_OPTS.bypass_valve)}
+
+          {sec("Area Classification (Optional)")}
+          {renderField("area_classification", "Area Classification", CONTROL_COMMON_OPTS.area_classification)}
+          {(areaClass === "Zone 1" || areaClass === "Zone 2")
+            ? renderField("certification", "Certification", CONTROL_COMMON_OPTS.certification)
+            : <div />}
+        </>)}
+
+        {/* ── Approved Makes ─────────────────────────────────────────────── */}
+        {hasType && (<>
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
+                onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch.trim()); }} />
+              <Button type="button" size="sm" className="h-8"
+                onClick={() => { if (makeSearch.trim()) addMake(makeSearch.trim()); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button"
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted"
+                    onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)}
+                      className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── Quantity ───────────────────────────────────────────────────── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -7751,12 +8133,10 @@ export default function BuyPackagesPage() {
         toast({ title: "Set Pressure is required", variant: "destructive" }); return;
       }
     } else if (isControlValveMode) {
-      const ta = lf.technicalAttributes;
-      if (!(ta.valve_type as string)?.trim()) {
+      const ta     = lf.technicalAttributes;
+      const cvType = ((ta.valve_type as string) ?? "").trim().toLowerCase();
+      if (!cvType) {
         toast({ title: "Control Valve Type is required", variant: "destructive" }); return;
-      }
-      if (!(ta.valve_config as string)?.trim()) {
-        toast({ title: "Valve Configuration is required", variant: "destructive" }); return;
       }
       if (!(ta.size_nb as string)?.trim()) {
         toast({ title: "Size (NB) is required", variant: "destructive" }); return;
@@ -7764,11 +8144,43 @@ export default function BuyPackagesPage() {
       if (!(ta.pressure_rating as string)?.trim()) {
         toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
       }
+      if (!(ta.end_connection as string)?.trim()) {
+        toast({ title: "End Connection is required", variant: "destructive" }); return;
+      }
+      if (!(ta.body_material as string)?.trim()) {
+        toast({ title: "Body Material is required", variant: "destructive" }); return;
+      }
       if (!(ta.actuator_type as string)?.trim()) {
         toast({ title: "Actuator Type is required", variant: "destructive" }); return;
       }
       if (!(ta.fail_action as string)?.trim()) {
         toast({ title: "Fail Action is required", variant: "destructive" }); return;
+      }
+      if (cvType.includes("globe")) {
+        if (!(ta.trim_style as string)?.trim())          { toast({ title: "Trim Style is required for Globe CV",          variant: "destructive" }); return; }
+        if (!(ta.flow_characteristic as string)?.trim()) { toast({ title: "Flow Characteristic is required for Globe CV", variant: "destructive" }); return; }
+        if (!(ta.trim_material as string)?.trim())       { toast({ title: "Trim Material is required for Globe CV",       variant: "destructive" }); return; }
+        if (!(ta.seat_material as string)?.trim())       { toast({ title: "Seat Material is required for Globe CV",       variant: "destructive" }); return; }
+        if (!(ta.leakage_class as string)?.trim())       { toast({ title: "Leakage Class is required for Globe CV",       variant: "destructive" }); return; }
+      } else if (cvType.includes("ball")) {
+        if (!(ta.ball_type as string)?.trim())           { toast({ title: "Ball Type is required for Ball CV",            variant: "destructive" }); return; }
+        if (!(ta.ball_trim_material as string)?.trim())  { toast({ title: "Ball/Trim Material is required for Ball CV",  variant: "destructive" }); return; }
+        if (!(ta.seat_material as string)?.trim())       { toast({ title: "Seat Material is required for Ball CV",        variant: "destructive" }); return; }
+      } else if (cvType.includes("butterfly")) {
+        if (!(ta.disc_mounting as string)?.trim())        { toast({ title: "Disc Mounting is required for Butterfly CV",        variant: "destructive" }); return; }
+        if (!(ta.disc_material as string)?.trim())        { toast({ title: "Disc Material is required for Butterfly CV",        variant: "destructive" }); return; }
+        if (!(ta.seat_liner_material as string)?.trim())  { toast({ title: "Seat/Liner Material is required for Butterfly CV", variant: "destructive" }); return; }
+      } else if (cvType.includes("eccentric") || cvType.includes("rotary")) {
+        if (!(ta.plug_style as string)?.trim())           { toast({ title: "Plug Style is required for Eccentric Plug CV",        variant: "destructive" }); return; }
+        if (!(ta.plug_trim_material as string)?.trim())   { toast({ title: "Plug/Trim Material is required for Eccentric Plug CV",variant: "destructive" }); return; }
+        if (!(ta.seat_material as string)?.trim())        { toast({ title: "Seat Material is required for Eccentric Plug CV",     variant: "destructive" }); return; }
+      } else if (cvType.includes("angle")) {
+        if (!(ta.service_application as string)?.trim())  { toast({ title: "Service Application is required for Angle CV",  variant: "destructive" }); return; }
+        if (!(ta.flow_direction as string)?.trim())       { toast({ title: "Flow Direction is required for Angle CV",       variant: "destructive" }); return; }
+        if (!(ta.trim_style as string)?.trim())           { toast({ title: "Trim Style is required for Angle CV",           variant: "destructive" }); return; }
+        if (!(ta.trim_material as string)?.trim())        { toast({ title: "Trim Material is required for Angle CV",        variant: "destructive" }); return; }
+        if (!(ta.seat_material as string)?.trim())        { toast({ title: "Seat Material is required for Angle CV",        variant: "destructive" }); return; }
+        if (!(ta.leakage_class as string)?.trim())        { toast({ title: "Leakage Class is required for Angle CV",        variant: "destructive" }); return; }
       }
     } else if (isIsolationValveMode) {
       const ta  = lf.technicalAttributes;
