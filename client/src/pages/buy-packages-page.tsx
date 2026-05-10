@@ -5895,6 +5895,11 @@ const MOTOR_OPTS: Record<string, string[]> = {
   material:         ["Cast Iron", "Aluminium"],
 };
 
+const MOTOR_SPEED_BY_FREQ: Record<string, string[]> = {
+  "50 Hz": ["3000", "1500", "1000", "750"],
+  "60 Hz": ["3600", "1800", "1200", "900"],
+};
+
 const MOTOR_AREA_SAFE      = ["Safe Area", "Other"];
 const MOTOR_AREA_HAZARDOUS = ["Zone 1", "Zone 2", "Hazardous Area"];
 
@@ -5966,18 +5971,33 @@ function MotorAttrsForm({
 
   const areaOpts = isFlameproof ? MOTOR_AREA_HAZARDOUS : MOTOR_AREA_SAFE;
 
+  // Speed options depend on currently selected frequency
+  const currentFreq = (attrs.frequency as string) ?? "";
+  const speedOpts   = MOTOR_SPEED_BY_FREQ[currentFreq] ?? MOTOR_SPEED_BY_FREQ["50 Hz"];
+
   const singleKeys = [...Object.keys(MOTOR_OPTS), "area_classification"];
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
     for (const key of singleKeys) {
       const val  = (attrs[key] as string) ?? "";
-      const opts = key === "area_classification" ? areaOpts : (MOTOR_OPTS[key] ?? []);
+      const opts = key === "area_classification" ? areaOpts
+                 : key === "speed"               ? speedOpts
+                 : (MOTOR_OPTS[key] ?? []);
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
 
   function handleSelect(key: string, val: string) {
+    if (key === "frequency" && val !== "__other__") {
+      // When frequency changes, clear speed if it's no longer valid for the new frequency
+      const newSpeedOpts = MOTOR_SPEED_BY_FREQ[val] ?? [];
+      const currentSpeed = (attrs.speed as string) ?? "";
+      const speedStillValid = newSpeedOpts.includes(currentSpeed);
+      setCustom((c) => ({ ...c, [key]: false, speed: speedStillValid ? c.speed : false }));
+      onChange({ ...attrs, frequency: val, speed: speedStillValid ? currentSpeed : "" });
+      return;
+    }
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
       set(key, "");
@@ -6053,7 +6073,7 @@ function MotorAttrsForm({
           <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">Three Phase</div>
         </div>
         {renderField("frequency", "Frequency",   MOTOR_OPTS.frequency, true)}
-        {renderField("speed",     "Speed (RPM)", MOTOR_OPTS.speed,     true)}
+        {renderField("speed",     "Speed (RPM)", speedOpts,            true)}
         <div /> {/* spacer */}
 
         {sectionHeader("Operating Conditions")}
