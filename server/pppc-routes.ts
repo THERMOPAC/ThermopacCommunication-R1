@@ -2729,11 +2729,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
              AND (
                (pi.bp_code IS NOT NULL AND pi.bp_code != '' AND bph.package_code = pi.bp_code)
                OR
-               (
-                 (pi.bp_code IS NULL OR pi.bp_code = '')
-                 AND pi.product_code IS NOT NULL AND pi.product_code != ''
-                 AND p.product_code = pi.product_code
-               )
+               (pi.product_code IS NOT NULL AND pi.product_code != '' AND p.product_code = pi.product_code)
              )
            ORDER BY bph.version DESC LIMIT 1
          ) bph_latest ON true
@@ -2835,11 +2831,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
              AND (
                (pi.bp_code IS NOT NULL AND pi.bp_code != '' AND bph2.package_code = pi.bp_code)
                OR
-               (
-                 (pi.bp_code IS NULL OR pi.bp_code = '')
-                 AND pi.product_code IS NOT NULL AND pi.product_code != ''
-                 AND p.product_code = pi.product_code
-               )
+               (pi.product_code IS NOT NULL AND pi.product_code != '' AND p.product_code = pi.product_code)
              )
            ORDER BY bph2.version DESC LIMIT 1
          ) bph ON true
