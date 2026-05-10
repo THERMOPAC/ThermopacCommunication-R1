@@ -19,6 +19,8 @@ import {
   GitBranch, Edit2, Trash2, AlertCircle, Package,
   ClipboardList, ArrowRight, CheckCircle2, FileText,
   TrendingUp, UserCheck, XOctagon, Upload, Layers,
+  RefreshCw, Zap, ArrowUpCircle, MinusCircle, PlusCircle,
+  AlertTriangle, ShieldAlert, Info,
 } from "lucide-react";
 
 // ── Taggable subgroup codes (must match server/tag-generation-service.ts) ──────
@@ -53,6 +55,7 @@ const LINE_STATUS: Record<string, { label: string; cls: string }> = {
   datasheet_submitted: { label: "DS Submitted", cls: "bg-amber-100 text-amber-800" },
   approved:            { label: "Approved",     cls: "bg-emerald-100 text-emerald-800" },
   canceled:            { label: "Cancelled",    cls: "bg-red-100 text-red-700" },
+  obsolete:            { label: "Obsolete",     cls: "bg-slate-200 text-slate-500 line-through" },
 };
 
 const PLN_STATUS: Record<string, { label: string; cls: string }> = {
@@ -142,6 +145,25 @@ export default function EpcBuyListControlPage() {
 
   // Datasheet upload ref
   const dsInputRef = useRef<HTMLInputElement>(null);
+
+  // ── PPPC Smart Action state ───────────────────────────────────────────────────
+  const [pppcStatusLoading, setPppcStatusLoading] = useState(false);
+  const [pppcStatusData, setPppcStatusData]       = useState<any | null>(null);
+  const [pppcCurrentBanner, setPppcCurrentBanner] = useState(false);
+
+  // Scenario 1 — Backfill dialog
+  const [showBackfillDialog, setShowBackfillDialog] = useState(false);
+  const [backfillRunning, setBackfillRunning]       = useState(false);
+
+  // Scenario 2 — Diff sheet
+  const [pppcDiffListId, setPppcDiffListId]     = useState<number | null>(null);
+  const [pppcDiffData, setPppcDiffData]         = useState<any | null>(null);
+  const [pppcDiffLoading, setPppcDiffLoading]   = useState(false);
+  const [pppcDriftIdx, setPppcDriftIdx]         = useState(0);
+
+  // Diff actions
+  const [replaceConfirmText, setReplaceConfirmText] = useState("");
+  const [replaceNote, setReplaceNote]               = useState("");
 
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
@@ -427,6 +449,107 @@ export default function EpcBuyListControlPage() {
     },
     onError: (e: any) => toast({ title: "Bulk raise-pr error", description: e.message, variant: "destructive" }),
   });
+
+  // ── PPPC Smart Action mutations ───────────────────────────────────────────────
+  const doBackfill = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/projects/${selectedProjectId}/buy-lists/backfill`, { dryRun: false }),
+    onSuccess: (data: any) => {
+      toast({ title: `Buy lists generated`, description: `${data.created} created, ${data.errors} skipped/errors` });
+      setShowBackfillDialog(false); setPppcStatusData(null);
+      invalidateLists();
+    },
+    onError: (e: any) => toast({ title: "Backfill error", description: e.message, variant: "destructive" }),
+  });
+
+  const doSyncAdditions = useMutation({
+    mutationFn: (listId: number) => apiRequest("POST", `/api/buy-lists/${listId}/sync-additions`, {}),
+    onSuccess: (data: any) => {
+      toast({ title: "Sync complete", description: `${data.addedLines} new line(s) added from ${data.latestPackageCode}` });
+      setPppcDiffData(null); setPppcDiffListId(null);
+      invalidateLists();
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Sync error", description: e.message, variant: "destructive" }),
+  });
+
+  const doMarkObsolete = useMutation({
+    mutationFn: (lineId: number) => apiRequest("POST", `/api/buy-list-lines/${lineId}/mark-obsolete`, {}),
+    onSuccess: (_, lineId) => {
+      toast({ title: "Line marked obsolete" });
+      if (pppcDiffListId) {
+        // Refresh diff
+        loadDiff(pppcDiffListId);
+      }
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const doSyncCatalogChange = useMutation({
+    mutationFn: ({ lineId, newPackageLineId }: { lineId: number; newPackageLineId: number }) =>
+      apiRequest("POST", `/api/buy-list-lines/${lineId}/sync-catalog-change`, { newPackageLineId }),
+    onSuccess: () => {
+      toast({ title: "Catalog change applied" });
+      if (pppcDiffListId) loadDiff(pppcDiffListId);
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Sync error", description: e.message, variant: "destructive" }),
+  });
+
+  const doReplaceFromPackage = useMutation({
+    mutationFn: (listId: number) =>
+      apiRequest("POST", `/api/buy-lists/${listId}/replace-from-package`, {
+        confirmationText: replaceConfirmText, note: replaceNote,
+      }),
+    onSuccess: (data: any) => {
+      toast({ title: "Full replacement done", description: `${data.linesSeeded} lines re-seeded from latest package` });
+      setPppcDiffData(null); setPppcDiffListId(null); setReplaceConfirmText(""); setReplaceNote("");
+      invalidateLists();
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Replace error", description: e.message, variant: "destructive" }),
+  });
+
+  // ── PPPC Smart Action handlers ────────────────────────────────────────────────
+  async function checkPppcStatus() {
+    if (!selectedProjectId) return;
+    setPppcStatusLoading(true);
+    try {
+      const r = await fetch(`/api/projects/${selectedProjectId}/pppc-status`, { credentials: "include" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      setPppcStatusData(data);
+      if (data.scenario === "current") {
+        setPppcCurrentBanner(true);
+        setTimeout(() => setPppcCurrentBanner(false), 4000);
+      } else if (data.scenario === "backfill") {
+        setShowBackfillDialog(true);
+      } else if (data.scenario === "sync" && data.driftedLists?.length > 0) {
+        setPppcDriftIdx(0);
+        loadDiff(data.driftedLists[0].listId);
+      }
+    } catch (e: any) {
+      toast({ title: "PPPC check failed", description: e.message, variant: "destructive" });
+    } finally {
+      setPppcStatusLoading(false);
+    }
+  }
+
+  async function loadDiff(listId: number) {
+    setPppcDiffLoading(true);
+    setPppcDiffListId(listId);
+    try {
+      const r = await fetch(`/api/buy-lists/${listId}/package-diff`, { credentials: "include" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      setPppcDiffData(data);
+    } catch (e: any) {
+      toast({ title: "Diff load failed", description: e.message, variant: "destructive" });
+      setPppcDiffData(null);
+    } finally {
+      setPppcDiffLoading(false);
+    }
+  }
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
   function openAction(listId: number, action: string) {
@@ -853,11 +976,33 @@ export default function EpcBuyListControlPage() {
             <h1 className="text-2xl font-bold text-foreground">BUY List Control</h1>
             <p className="text-sm text-muted-foreground mt-0.5">Project procurement buy lists · Phase 5 · PPPC</p>
           </div>
-          {canWrite && selectedProjectId && (
-            <Button onClick={() => { setCreateForm({ projectItemId: "", sourcePackageId: "" }); setShowCreate(true); }}>
-              <Plus className="h-4 w-4 mr-2" />New Buy List
-            </Button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* PPPC Current banner */}
+            {pppcCurrentBanner && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium animate-pulse">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                PPPC Current — all buy lists match latest active package
+              </div>
+            )}
+            {canWrite && selectedProjectId && (
+              <Button
+                variant="outline"
+                className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                disabled={pppcStatusLoading || !selectedProjectId}
+                onClick={checkPppcStatus}
+              >
+                {pppcStatusLoading
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Zap className="h-4 w-4" />}
+                Generate / Sync PPPC
+              </Button>
+            )}
+            {canWrite && selectedProjectId && (
+              <Button onClick={() => { setCreateForm({ projectItemId: "", sourcePackageId: "" }); setShowCreate(true); }}>
+                <Plus className="h-4 w-4 mr-2" />New Buy List
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Filters card */}
@@ -1691,6 +1836,384 @@ export default function EpcBuyListControlPage() {
             >
               {bulkSelect.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Apply to {checkedLines.size} Line{checkedLines.size > 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── PPPC Backfill Dialog (Scenario 1) ──────────────────────────────────── */}
+      <Dialog open={showBackfillDialog} onOpenChange={(o) => { if (!o) { setShowBackfillDialog(false); setPppcStatusData(null); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-amber-600" />
+              Generate Missing PPPC Buy Lists
+            </DialogTitle>
+            <DialogDescription>
+              The system detected project items without procurement buy lists.
+              Matching will use the latest active Buy Package.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Summary badges */}
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+                {pppcStatusData?.missingLists ?? 0} eligible for generation
+              </span>
+              <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
+                {pppcStatusData?.alreadyHasLists ?? 0} already have buy lists (will be skipped)
+              </span>
+              <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">
+                {pppcStatusData?.noPackageMatch ?? 0} no matching active package (will be skipped)
+              </span>
+            </div>
+
+            {/* Preview table */}
+            {pppcStatusData?.preview?.length > 0 && (
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs">Project Item</TableHead>
+                      <TableHead className="text-xs">Description</TableHead>
+                      <TableHead className="text-xs">Matched Package</TableHead>
+                      <TableHead className="text-xs text-center">Lines</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pppcStatusData.preview.map((item: any) => (
+                      <TableRow key={item.projectItemId}>
+                        <TableCell className="font-mono text-xs">{item.projectItemCode ?? `#${item.projectItemId}`}</TableCell>
+                        <TableCell className="text-xs max-w-48 truncate">{item.description ?? "—"}</TableCell>
+                        <TableCell className="text-xs">
+                          <span className="font-mono text-blue-700">{item.matchedPackageCode}</span>
+                          {item.matchedPackageName && <div className="text-muted-foreground truncate max-w-36">{item.matchedPackageName}</div>}
+                        </TableCell>
+                        <TableCell className="text-xs text-center">{item.lineCount}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground border-l-2 border-amber-400 pl-3">
+              This will create {pppcStatusData?.missingLists ?? 0} new buy list(s).
+              No existing data will be overwritten. Generated lists will be in Draft status.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowBackfillDialog(false); setPppcStatusData(null); }}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+              disabled={doBackfill.isPending || (pppcStatusData?.missingLists ?? 0) === 0}
+              onClick={() => doBackfill.mutate()}
+            >
+              {doBackfill.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Generate {pppcStatusData?.missingLists ?? 0} Buy List(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── PPPC Package Diff Sheet (Scenario 2) ──────────────────────────────── */}
+      <Dialog
+        open={pppcDiffListId !== null}
+        onOpenChange={(o) => { if (!o) { setPppcDiffListId(null); setPppcDiffData(null); setReplaceConfirmText(""); setReplaceNote(""); } }}
+      >
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpCircle className="h-5 w-5 text-blue-600" />
+              Package Sync — Review Changes
+            </DialogTitle>
+            {pppcDiffData && !pppcDiffData.upToDate && (
+              <DialogDescription>
+                <span className="font-mono text-xs">{pppcDiffData.currentPackageCode}</span>
+                {" "}v{pppcDiffData.currentPackageVersion} → v{pppcDiffData.latestPackageVersion}
+                {" "}· {pppcDiffData.latestPackageCode && <span className="font-mono">{pppcDiffData.latestPackageCode}</span>}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {/* Multi-list navigation (if multiple drifted lists) */}
+          {pppcStatusData?.driftedLists?.length > 1 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground border-b pb-2 mb-2">
+              <Info className="h-3.5 w-3.5" />
+              Showing drift for list {pppcDriftIdx + 1} of {pppcStatusData.driftedLists.length}
+              {pppcDriftIdx < pppcStatusData.driftedLists.length - 1 && (
+                <button
+                  className="text-blue-600 underline ml-2"
+                  onClick={() => {
+                    const next = pppcDriftIdx + 1;
+                    setPppcDriftIdx(next);
+                    loadDiff(pppcStatusData.driftedLists[next].listId);
+                  }}
+                >
+                  View next drifted list →
+                </button>
+              )}
+            </div>
+          )}
+
+          {pppcDiffLoading && (
+            <div className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
+          )}
+
+          {!pppcDiffLoading && pppcDiffData?.upToDate && (
+            <div className="py-8 text-center text-muted-foreground flex flex-col items-center gap-2">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+              This buy list is already aligned with the latest active package.
+            </div>
+          )}
+
+          {!pppcDiffLoading && pppcDiffData && !pppcDiffData.upToDate && (() => {
+            const s = pppcDiffData.summary ?? {};
+            const blocked = pppcDiffData.activityBlocked;
+            const isSuperuser = (user as any)?.role === "Superuser";
+            return (
+              <div className="space-y-4">
+                {/* Summary bar */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {s.new > 0      && <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 font-medium flex items-center gap-1"><PlusCircle className="h-3 w-3" />{s.new} New</span>}
+                  {s.removed > 0  && <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium flex items-center gap-1"><MinusCircle className="h-3 w-3" />{s.removed} Removed</span>}
+                  {s.changed > 0  && <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">{s.changed} Changed</span>}
+                  {s.userModified > 0 && <span className="px-2 py-1 rounded-full bg-orange-100 text-orange-700 font-medium flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{s.userModified} User-Modified</span>}
+                  <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-500 font-medium">{s.unchanged} Unchanged</span>
+                </div>
+
+                {/* Activity warning */}
+                {blocked && (
+                  <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold mb-1">Some lines have active procurement data (selection approved / PR raised). Destructive actions are blocked for those lines.</div>
+                      <ul className="list-disc list-inside space-y-0.5">
+                        {pppcDiffData.activityDetails?.map((d: any) => (
+                          <li key={d.lineId}>Line #{d.lineId}: {d.reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── NEW LINES ─── */}
+                {pppcDiffData.newLines?.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-emerald-700 mb-1 flex items-center gap-1">
+                      <PlusCircle className="h-3.5 w-3.5" /> New Lines (in latest package, not in project list)
+                    </div>
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-emerald-50">
+                            <TableHead className="text-xs">Group</TableHead>
+                            <TableHead className="text-xs">Subgroup</TableHead>
+                            <TableHead className="text-xs">Requirement</TableHead>
+                            <TableHead className="text-xs text-center">Qty</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pppcDiffData.newLines.map((nl: any) => (
+                            <TableRow key={nl.id} className="bg-emerald-50/40">
+                              <TableCell className="text-xs">{nl.buy_group_code}</TableCell>
+                              <TableCell className="text-xs">{nl.buy_subgroup_code}</TableCell>
+                              <TableCell className="text-xs">{nl.generic_requirement}</TableCell>
+                              <TableCell className="text-xs text-center">{nl.default_quantity}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        disabled={doSyncAdditions.isPending}
+                        onClick={() => pppcDiffListId && doSyncAdditions.mutate(pppcDiffListId)}
+                      >
+                        {doSyncAdditions.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlusCircle className="h-3.5 w-3.5" />}
+                        Add {pppcDiffData.newLines.length} New Line(s) Only
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── REMOVED LINES ─── */}
+                {pppcDiffData.removedLines?.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-red-700 mb-1 flex items-center gap-1">
+                      <MinusCircle className="h-3.5 w-3.5" /> Removed Lines (in project list, gone from latest package)
+                    </div>
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-red-50">
+                            <TableHead className="text-xs">Group</TableHead>
+                            <TableHead className="text-xs">Subgroup</TableHead>
+                            <TableHead className="text-xs">Requirement</TableHead>
+                            <TableHead className="text-xs">Status</TableHead>
+                            <TableHead className="text-xs">Activity</TableHead>
+                            <TableHead className="text-xs">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pppcDiffData.removedLines.map((l: any) => (
+                            <TableRow key={l.id} className="bg-red-50/40">
+                              <TableCell className="text-xs">{l.buy_group_code}</TableCell>
+                              <TableCell className="text-xs">{l.buy_subgroup_code}</TableCell>
+                              <TableCell className="text-xs">{l.generic_requirement}</TableCell>
+                              <TableCell className="text-xs">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${LINE_STATUS[l.status]?.cls ?? ""}`}>
+                                  {LINE_STATUS[l.status]?.label ?? l.status}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {l.activityBlocked
+                                  ? <span className="flex items-center gap-1 text-amber-700"><ShieldAlert className="h-3 w-3" />{l.activityReason}</span>
+                                  : <span className="text-muted-foreground">None</span>}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {l.status !== "obsolete" && !l.activityBlocked && (
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="h-6 text-[10px] px-2 border-red-300 text-red-700 hover:bg-red-50"
+                                    disabled={doMarkObsolete.isPending}
+                                    onClick={() => doMarkObsolete.mutate(l.id)}
+                                  >
+                                    Mark Obsolete
+                                  </Button>
+                                )}
+                                {l.status === "obsolete" && <span className="text-muted-foreground italic text-[10px]">Already obsolete</span>}
+                                {l.activityBlocked && <span className="text-amber-600 text-[10px]">🔒 Blocked</span>}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── CHANGED LINES ─── */}
+                {pppcDiffData.changedLines?.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1">
+                      <RefreshCw className="h-3.5 w-3.5" /> Changed Lines (catalog values differ from project list)
+                    </div>
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-amber-50">
+                            <TableHead className="text-xs">Group</TableHead>
+                            <TableHead className="text-xs">Requirement</TableHead>
+                            <TableHead className="text-xs text-center">Catalog Qty</TableHead>
+                            <TableHead className="text-xs text-center">Project Qty</TableHead>
+                            <TableHead className="text-xs">Flags</TableHead>
+                            <TableHead className="text-xs">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pppcDiffData.changedLines.map((l: any) => (
+                            <TableRow key={l.id} className="bg-amber-50/40">
+                              <TableCell className="text-xs">{l.buy_group_code} / {l.buy_subgroup_code}</TableCell>
+                              <TableCell className="text-xs max-w-36 truncate">{l.generic_requirement}</TableCell>
+                              <TableCell className="text-xs text-center font-mono">{l.catalogQty}</TableCell>
+                              <TableCell className="text-xs text-center font-mono">{l.quantity}</TableCell>
+                              <TableCell className="text-xs">
+                                {l.is_user_modified && (
+                                  <span className="flex items-center gap-1 text-orange-700 font-medium">
+                                    <AlertTriangle className="h-3 w-3" /> User-modified
+                                  </span>
+                                )}
+                                {l.activityBlocked && (
+                                  <span className="flex items-center gap-1 text-amber-700">
+                                    <ShieldAlert className="h-3 w-3" />{l.activityReason}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {!l.is_user_modified && !l.activityBlocked ? (
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="h-6 text-[10px] px-2 border-amber-300 text-amber-800 hover:bg-amber-50"
+                                    disabled={doSyncCatalogChange.isPending}
+                                    onClick={() => doSyncCatalogChange.mutate({ lineId: l.id, newPackageLineId: l.newPackageLineId })}
+                                  >
+                                    Apply Catalog Value
+                                  </Button>
+                                ) : l.is_user_modified ? (
+                                  <span className="text-muted-foreground text-[10px] italic">Protected (user-modified)</span>
+                                ) : (
+                                  <span className="text-amber-600 text-[10px]">🔒 Blocked</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── ADMIN FULL REPLACEMENT ─── */}
+                {isSuperuser && (
+                  <div className="border border-red-200 rounded-md p-4 space-y-3 bg-red-50/30">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-red-700">
+                      <ShieldAlert className="h-4 w-4" />
+                      Superuser: Full Replacement (Destructive)
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Deletes all current lines and re-seeds from the latest active package.
+                      A full snapshot is saved before deletion.
+                      {blocked && " Blocked because some lines have active procurement data."}
+                    </p>
+                    {!blocked && (
+                      <div className="space-y-2">
+                        <Textarea
+                          className="text-xs h-16"
+                          placeholder="Reason / note for replacement (required for audit)…"
+                          value={replaceNote}
+                          onChange={e => setReplaceNote(e.target.value)}
+                        />
+                        <div className="space-y-1">
+                          <Label className="text-[10px] text-red-700">Type "REPLACE" to confirm</Label>
+                          <Input
+                            className="h-8 text-xs font-mono"
+                            placeholder="REPLACE"
+                            value={replaceConfirmText}
+                            onChange={e => setReplaceConfirmText(e.target.value)}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                          disabled={replaceConfirmText !== "REPLACE" || !replaceNote.trim() || doReplaceFromPackage.isPending}
+                          onClick={() => pppcDiffListId && doReplaceFromPackage.mutate(pppcDiffListId)}
+                        >
+                          {doReplaceFromPackage.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                          Full Replacement
+                        </Button>
+                      </div>
+                    )}
+                    {blocked && (
+                      <div className="text-xs text-amber-700 flex items-center gap-1.5">
+                        <ShieldAlert className="h-3.5 w-3.5" /> Full replacement blocked due to active procurement lines above.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPppcDiffListId(null); setPppcDiffData(null); setReplaceConfirmText(""); setReplaceNote(""); }}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

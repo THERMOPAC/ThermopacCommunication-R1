@@ -609,13 +609,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         for (const l of lines.rows) {
           await client.query(
             `INSERT INTO buy_package_lines
-               (buy_package_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+               (buy_package_header_id, line_uid, line_number, buy_group_id, buy_subgroup_id, uom_id,
                 generic_requirement, default_quantity, default_specification, technical_attributes,
                 selection_required, datasheet_required, inspection_required,
                 certificate_required, compliance_required, notes, sort_order)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
             [
-              newId, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
+              newId, l.line_uid, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
               l.generic_requirement, l.default_quantity, l.default_specification, l.technical_attributes,
               l.selection_required, l.datasheet_required, l.inspection_required,
               l.certificate_required, l.compliance_required, l.notes, l.sort_order,
@@ -696,13 +696,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         for (const l of lines.rows) {
           await client.query(
             `INSERT INTO buy_package_lines
-               (buy_package_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+               (buy_package_header_id, line_uid, line_number, buy_group_id, buy_subgroup_id, uom_id,
                 generic_requirement, default_quantity, default_specification, technical_attributes,
                 selection_required, datasheet_required, inspection_required,
                 certificate_required, compliance_required, notes, sort_order)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
             [
-              newId, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
+              newId, l.line_uid, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
               l.generic_requirement, l.default_quantity, l.default_specification, l.technical_attributes,
               l.selection_required, l.datasheet_required, l.inspection_required,
               l.certificate_required, l.compliance_required, l.notes, l.sort_order,
@@ -1541,6 +1541,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (isNaN(id)) return sendValidationError(res, 'Invalid id');
       const line = await pool.query(
         `SELECT l.id, l.tag_no AS current_tag_no, l.buy_list_header_id,
+                l.source_package_line_id,
                 h.status, h.project_id,
                 bg.code AS group_code, bs.code AS subgroup_code
          FROM project_buy_list_lines l
@@ -1594,6 +1595,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         }
       }
       if (fields.length === 0) return sendValidationError(res, 'No updatable fields provided.');
+
+      // ── is_user_modified: auto-flag when user edits a catalog-seeded line ────
+      const CATALOG_SENSITIVE = new Set(['genericRequirement', 'quantity', 'specification', 'technicalAttributes']);
+      const hasCatalogEdit = Object.keys(req.body).some(k => CATALOG_SENSITIVE.has(k));
+      if (hasCatalogEdit && line.rows[0].source_package_line_id != null) {
+        fields.push(`is_user_modified=true`);
+      }
+
       fields.push(`updated_at=NOW()`);
       vals.push(id);
       const result = await pool.query(
@@ -2600,10 +2609,830 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 6 — PPPC SMART ACTION: Generate / Sync PPPC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── Shared helper: check execution activity for a buy list line ─────────────
+  async function lineHasActivity(lineId: number): Promise<{ blocked: boolean; reason: string }> {
+    const r = await pool.query(
+      `SELECT
+         EXISTS(
+           SELECT 1 FROM buy_list_line_selections s
+           WHERE s.buy_list_line_id = $1
+             AND (s.approval_status = 'approved' OR s.datasheet_uploaded = true)
+         ) AS has_selection_activity,
+         EXISTS(
+           SELECT 1 FROM item_planning_records ipr
+           JOIN procurement_execution_records per ON per.planning_record_id = ipr.id
+           WHERE ipr.source_buy_list_line_id = $1 AND per.status != 'cancelled'
+         ) AS has_pr_activity`,
+      [lineId],
+    );
+    if (r.rows[0].has_pr_activity)        return { blocked: true, reason: 'PR/PO raised' };
+    if (r.rows[0].has_selection_activity) return { blocked: true, reason: 'selection approved / datasheet uploaded' };
+    return { blocked: false, reason: '' };
+  }
+
+  // ── Shared helper: find latest active package for a product ─────────────────
+  async function latestActivePackageForProduct(productId: number) {
+    const r = await pool.query(
+      `SELECT id, version, package_code, name
+       FROM buy_package_headers
+       WHERE product_id = $1 AND status = 'active'
+       ORDER BY version DESC LIMIT 1`,
+      [productId],
+    );
+    return r.rows[0] ?? null;
+  }
+
+  // ─── GET /api/projects/:projectId/pppc-status ─────────────────────────────
+  app.get('/api/projects/:projectId/pppc-status', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid projectId');
+
+      // Find all project items with a bp_code (matching buy package code)
+      const itemsRes = await pool.query(
+        `SELECT pi.id, pi.item_code, pi.description, pi.bp_code,
+                bph_latest.id AS latest_pkg_id, bph_latest.version AS latest_pkg_version,
+                bph_latest.package_code AS latest_pkg_code,
+                bph_latest.name AS latest_pkg_name,
+                (SELECT COUNT(*)::int FROM buy_package_lines WHERE buy_package_header_id = bph_latest.id) AS latest_pkg_line_count,
+                EXISTS(
+                  SELECT 1 FROM project_buy_list_headers h
+                  WHERE h.project_item_id = pi.id AND h.is_current = true
+                    AND h.status NOT IN ('canceled','superseded')
+                ) AS has_current_list,
+                (
+                  SELECT h.id FROM project_buy_list_headers h
+                  WHERE h.project_item_id = pi.id AND h.is_current = true
+                    AND h.status NOT IN ('canceled','superseded')
+                  LIMIT 1
+                ) AS current_list_id,
+                (
+                  SELECT h.source_package_id FROM project_buy_list_headers h
+                  WHERE h.project_item_id = pi.id AND h.is_current = true
+                    AND h.status NOT IN ('canceled','superseded')
+                  LIMIT 1
+                ) AS current_source_pkg_id
+         FROM project_items pi
+         LEFT JOIN LATERAL (
+           SELECT bph.id, bph.version, bph.package_code, bph.name, bph.product_id
+           FROM buy_package_headers bph
+           WHERE bph.package_code = pi.bp_code AND bph.status = 'active'
+           ORDER BY bph.version DESC LIMIT 1
+         ) bph_latest ON true
+         WHERE pi.project_id = $1
+         ORDER BY pi.item_code`,
+        [projectId],
+      );
+
+      const rows = itemsRes.rows;
+      const withBpCode         = rows.filter((r: any) => r.bp_code);
+      const withoutBpCode      = rows.filter((r: any) => !r.bp_code);
+      const matchedWithPkg     = withBpCode.filter((r: any) => r.latest_pkg_id);
+      const noPackageMatch     = withBpCode.filter((r: any) => !r.latest_pkg_id);
+
+      const alreadyHasLists    = matchedWithPkg.filter((r: any) => r.has_current_list);
+      const missingLists       = matchedWithPkg.filter((r: any) => !r.has_current_list);
+
+      // Detect drift on existing lists (Scenario 2)
+      const driftedLists: any[] = [];
+      for (const item of alreadyHasLists) {
+        if (!item.current_source_pkg_id || !item.latest_pkg_id) continue;
+        // Get source package product_id
+        const srcPkgRes = await pool.query(
+          `SELECT product_id, version, package_code FROM buy_package_headers WHERE id = $1`,
+          [item.current_source_pkg_id],
+        );
+        if (!srcPkgRes.rows[0]) continue;
+        const srcPkg = srcPkgRes.rows[0];
+        // Get latest active package for that product
+        const latestPkg = await latestActivePackageForProduct(srcPkg.product_id);
+        if (!latestPkg) continue;
+        if (latestPkg.id !== item.current_source_pkg_id) {
+          driftedLists.push({
+            listId: item.current_list_id,
+            projectItemId: item.id,
+            projectItemCode: item.item_code,
+            projectItemDescription: item.description,
+            currentPackageId: item.current_source_pkg_id,
+            currentPackageVersion: srcPkg.version,
+            currentPackageCode: srcPkg.package_code,
+            latestPackageId: latestPkg.id,
+            latestPackageVersion: latestPkg.version,
+            latestPackageCode: latestPkg.package_code,
+          });
+        }
+      }
+
+      // Determine scenario
+      let scenario: 'backfill' | 'sync' | 'current';
+      if (missingLists.length > 0) {
+        scenario = 'backfill';
+      } else if (driftedLists.length > 0) {
+        scenario = 'sync';
+      } else {
+        scenario = 'current';
+      }
+
+      res.json({
+        scenario,
+        totalProjectItems: rows.length,
+        withBpCode: withBpCode.length,
+        withoutBpCode: withoutBpCode.length,
+        matchedWithPackage: matchedWithPkg.length,
+        noPackageMatch: noPackageMatch.length,
+        alreadyHasLists: alreadyHasLists.length,
+        missingLists: missingLists.length,
+        preview: missingLists.map((r: any) => ({
+          projectItemId: r.id,
+          projectItemCode: r.item_code,
+          description: r.description,
+          matchedPackageId: r.latest_pkg_id,
+          matchedPackageCode: r.latest_pkg_code,
+          matchedPackageName: r.latest_pkg_name,
+          lineCount: r.latest_pkg_line_count,
+        })),
+        driftedLists,
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/projects/:projectId/buy-lists/backfill ────────────────────
+  app.post('/api/projects/:projectId/buy-lists/backfill', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid projectId');
+      const dryRun = req.body.dryRun === true;
+      const userId = (req.user as any)?.id as number;
+
+      // Find all items with bp_code that have no current buy list
+      const missingRes = await pool.query(
+        `SELECT pi.id AS project_item_id, pi.item_code, pi.description, pi.bp_code,
+                bph.id AS pkg_id, bph.version AS pkg_version, bph.package_code
+         FROM project_items pi
+         JOIN LATERAL (
+           SELECT bph2.id, bph2.version, bph2.package_code
+           FROM buy_package_headers bph2
+           WHERE bph2.package_code = pi.bp_code AND bph2.status = 'active'
+           ORDER BY bph2.version DESC LIMIT 1
+         ) bph ON true
+         WHERE pi.project_id = $1
+           AND NOT EXISTS (
+             SELECT 1 FROM project_buy_list_headers h
+             WHERE h.project_item_id = pi.id AND h.is_current = true
+               AND h.status NOT IN ('canceled','superseded')
+           )
+         ORDER BY pi.item_code`,
+        [projectId],
+      );
+
+      const eligible = missingRes.rows;
+      if (dryRun) {
+        return res.json({
+          dryRun: true,
+          eligible: eligible.length,
+          preview: eligible.map((r: any) => ({
+            projectItemId: r.project_item_id,
+            projectItemCode: r.item_code,
+            description: r.description,
+            matchedPackageId: r.pkg_id,
+            matchedPackageCode: r.package_code,
+          })),
+        });
+      }
+
+      const created: any[] = [];
+      const errors: any[] = [];
+
+      for (const item of eligible) {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query('SELECT pg_advisory_xact_lock($1)', [projectId]);
+
+          // Re-validate: package still latest active
+          const revalidate = await client.query(
+            `SELECT id FROM buy_package_headers WHERE id = $1 AND status = 'active'`,
+            [item.pkg_id],
+          );
+          if (!revalidate.rows[0]) {
+            await client.query('ROLLBACK');
+            errors.push({ projectItemId: item.project_item_id, error: 'Package no longer active' });
+            continue;
+          }
+
+          // Re-check no list exists (guard against race)
+          const existsCheck = await client.query(
+            `SELECT 1 FROM project_buy_list_headers
+             WHERE project_item_id = $1 AND is_current = true AND status NOT IN ('canceled','superseded')`,
+            [item.project_item_id],
+          );
+          if ((existsCheck.rowCount ?? 0) > 0) {
+            await client.query('ROLLBACK');
+            errors.push({ projectItemId: item.project_item_id, error: 'List already exists (race condition)' });
+            continue;
+          }
+
+          const listNumber = await generateListNumber(projectId);
+
+          const pkgLines = await client.query(
+            `SELECT pl.*, bg.code AS group_code, bs.code AS subgroup_code
+             FROM buy_package_lines pl
+             JOIN buy_groups bg ON bg.id = pl.buy_group_id
+             JOIN buy_subgroups bs ON bs.id = pl.buy_subgroup_id
+             WHERE pl.buy_package_header_id = $1 ORDER BY pl.line_number`,
+            [item.pkg_id],
+          );
+
+          const hdrRes = await client.query(
+            `INSERT INTO project_buy_list_headers
+               (project_id, project_item_id, source_package_id, list_number, created_by)
+             VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+            [projectId, item.project_item_id, item.pkg_id, listNumber, userId],
+          );
+          const headerId = hdrRes.rows[0].id;
+
+          for (let i = 0; i < pkgLines.rows.length; i++) {
+            const pl = pkgLines.rows[i];
+            const isRaw = pl.group_code === RAW_MATERIALS_CODE;
+            const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, projectId, pl.subgroup_code) ?? '');
+            await client.query(
+              `INSERT INTO project_buy_list_lines
+                 (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                  generic_requirement, quantity, specification, technical_attributes,
+                  tag_no, selection_required, datasheet_required, inspection_required,
+                  certificate_required, compliance_required, source_package_line_id)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+              [
+                headerId, projectId, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
+                pl.generic_requirement, pl.default_quantity, pl.default_specification,
+                pl.technical_attributes, tagNo,
+                pl.selection_required, pl.datasheet_required, pl.inspection_required,
+                pl.certificate_required, pl.compliance_required, pl.id,
+              ],
+            );
+          }
+
+          // Audit event
+          await client.query(
+            `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+             VALUES ($1, 'buy_list_backfill', $2, $3, NOW(), true)`,
+            [
+              projectId,
+              JSON.stringify({
+                listId: headerId, listNumber, projectItemId: item.project_item_id,
+                sourcePackageId: item.pkg_id, sourcePackageCode: item.package_code,
+                recovery: true, triggeredBy: userId,
+              }),
+              userId,
+            ],
+          );
+
+          await client.query('COMMIT');
+          created.push({ projectItemId: item.project_item_id, listId: headerId, listNumber, sourcePackageId: item.pkg_id });
+        } catch (e: any) {
+          await client.query('ROLLBACK');
+          errors.push({ projectItemId: item.project_item_id, error: e.message });
+        } finally {
+          client.release();
+        }
+      }
+
+      res.json({ dryRun: false, created: created.length, errors: errors.length, details: created, errorDetails: errors });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── GET /api/buy-lists/:id/package-diff ─────────────────────────────────
+  app.get('/api/buy-lists/:id/package-diff', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid id');
+
+      const hdrRes = await pool.query(
+        `SELECT h.*, bph.product_id AS source_product_id, bph.version AS source_pkg_version,
+                bph.package_code AS source_pkg_code
+         FROM project_buy_list_headers h
+         LEFT JOIN buy_package_headers bph ON bph.id = h.source_package_id
+         WHERE h.id = $1`,
+        [id],
+      );
+      if (!hdrRes.rows[0]) return sendNotFound(res, 'Buy list', id);
+      const hdr = hdrRes.rows[0];
+
+      if (!hdr.source_package_id || !hdr.source_product_id) {
+        return res.json({ upToDate: true, reason: 'No source package linked to this list' });
+      }
+
+      const latestPkg = await latestActivePackageForProduct(hdr.source_product_id);
+      if (!latestPkg) {
+        return res.json({ upToDate: true, reason: 'No active package found for source product' });
+      }
+      if (latestPkg.id === hdr.source_package_id) {
+        return res.json({ upToDate: true, currentPackageId: hdr.source_package_id, latestPackageId: latestPkg.id });
+      }
+
+      // Load project lines with their source line_uid
+      const projLinesRes = await pool.query(
+        `SELECT l.*,
+                bg.code AS buy_group_code, bg.label AS buy_group_label,
+                bs.code AS buy_subgroup_code, bs.label AS buy_subgroup_label,
+                u.code AS uom_code,
+                bpl.line_uid AS source_line_uid,
+                bpl.default_quantity AS catalog_default_qty,
+                bpl.default_specification AS catalog_default_spec
+         FROM project_buy_list_lines l
+         JOIN buy_groups bg ON bg.id = l.buy_group_id
+         JOIN buy_subgroups bs ON bs.id = l.buy_subgroup_id
+         JOIN uom_master u ON u.id = l.uom_id
+         LEFT JOIN buy_package_lines bpl ON bpl.id = l.source_package_line_id
+         WHERE l.buy_list_header_id = $1
+         ORDER BY l.line_number`,
+        [id],
+      );
+
+      // Load new package lines
+      const newPkgLinesRes = await pool.query(
+        `SELECT pl.*,
+                bg.code AS buy_group_code, bg.label AS buy_group_label,
+                bs.code AS buy_subgroup_code, bs.label AS buy_subgroup_label,
+                u.code AS uom_code
+         FROM buy_package_lines pl
+         JOIN buy_groups bg ON bg.id = pl.buy_group_id
+         JOIN buy_subgroups bs ON bs.id = pl.buy_subgroup_id
+         JOIN uom_master u ON u.id = pl.uom_id
+         WHERE pl.buy_package_header_id = $1
+         ORDER BY pl.line_number`,
+        [latestPkg.id],
+      );
+
+      const projLines = projLinesRes.rows;
+      const newPkgLines = newPkgLinesRes.rows;
+
+      // Build map: line_uid → new package line
+      const newByUid = new Map<string, any>();
+      for (const nl of newPkgLines) { newByUid.set(nl.line_uid, nl); }
+
+      // Build set of line_uids that exist in the project list (via source)
+      const projSourceUids = new Set<string>();
+      for (const pl of projLines) { if (pl.source_line_uid) projSourceUids.add(pl.source_line_uid); }
+
+      const newLines:       any[] = [];
+      const removedLines:   any[] = [];
+      const changedLines:   any[] = [];
+      const unchangedLines: any[] = [];
+
+      // Classify project lines
+      for (const pl of projLines) {
+        if (!pl.source_package_line_id || !pl.source_line_uid) continue; // user-added, skip in diff
+
+        const matchedNewLine = newByUid.get(pl.source_line_uid);
+        if (!matchedNewLine) {
+          // Removed from new package
+          const activity = await lineHasActivity(pl.id);
+          removedLines.push({ ...pl, activityBlocked: activity.blocked, activityReason: activity.reason });
+        } else {
+          const qtyChanged  = parseFloat(matchedNewLine.default_quantity) !== parseFloat(pl.quantity);
+          const specChanged = (matchedNewLine.default_specification ?? '') !== (pl.specification ?? '');
+          if (qtyChanged || specChanged) {
+            const activity = await lineHasActivity(pl.id);
+            changedLines.push({
+              ...pl,
+              newPackageLineId: matchedNewLine.id,
+              catalogQty: matchedNewLine.default_quantity,
+              catalogSpec: matchedNewLine.default_specification,
+              qtyChanged, specChanged,
+              activityBlocked: activity.blocked,
+              activityReason: activity.reason,
+            });
+          } else {
+            unchangedLines.push({ ...pl, newPackageLineId: matchedNewLine.id });
+          }
+        }
+      }
+
+      // New lines: in new package, not in project (by line_uid)
+      for (const nl of newPkgLines) {
+        if (!projSourceUids.has(nl.line_uid)) {
+          newLines.push(nl);
+        }
+      }
+
+      const activityDetails = [
+        ...removedLines.filter((l: any) => l.activityBlocked).map((l: any) => ({ lineId: l.id, reason: l.activityReason })),
+        ...changedLines.filter((l: any) => l.activityBlocked).map((l: any) => ({ lineId: l.id, reason: l.activityReason })),
+      ];
+
+      res.json({
+        upToDate: false,
+        currentPackageId:      hdr.source_package_id,
+        currentPackageVersion: hdr.source_pkg_version,
+        currentPackageCode:    hdr.source_pkg_code,
+        latestPackageId:       latestPkg.id,
+        latestPackageVersion:  latestPkg.version,
+        latestPackageCode:     latestPkg.package_code,
+        summary: {
+          new: newLines.length,
+          removed: removedLines.length,
+          changed: changedLines.length,
+          userModified: changedLines.filter((l: any) => l.is_user_modified).length,
+          unchanged: unchangedLines.length,
+        },
+        newLines,
+        removedLines,
+        changedLines,
+        unchangedLines,
+        activityBlocked: activityDetails.length > 0,
+        activityDetails,
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-lists/:id/sync-additions ───────────────────────────────
+  app.post('/api/buy-lists/:id/sync-additions', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid id');
+      const userId = (req.user as any)?.id as number;
+      const note: string = req.body.note ?? '';
+
+      const hdrRes = await pool.query(
+        `SELECT h.*, bph.product_id AS source_product_id, bph.version AS source_pkg_version
+         FROM project_buy_list_headers h
+         LEFT JOIN buy_package_headers bph ON bph.id = h.source_package_id
+         WHERE h.id = $1`,
+        [id],
+      );
+      if (!hdrRes.rows[0]) return sendNotFound(res, 'Buy list', id);
+      const hdr = hdrRes.rows[0];
+      if (!['draft', 'under_review', 'released'].includes(hdr.status))
+        return sendBusinessError(res, 'Cannot sync additions to a locked, superseded or cancelled list.');
+      if (!hdr.source_package_id || !hdr.source_product_id)
+        return sendBusinessError(res, 'This buy list has no source package linked.');
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [hdr.project_id]);
+
+        // Revalidate: latest active package still correct
+        const latestRes = await client.query(
+          `SELECT id, version, package_code FROM buy_package_headers
+           WHERE product_id = $1 AND status = 'active'
+           ORDER BY version DESC LIMIT 1`,
+          [hdr.source_product_id],
+        );
+        const latestPkg = latestRes.rows[0];
+        if (!latestPkg) {
+          await client.query('ROLLBACK');
+          return sendBusinessError(res, 'No active package found for source product. Cannot sync.');
+        }
+        if (latestPkg.id === hdr.source_package_id) {
+          await client.query('ROLLBACK');
+          return res.json({ message: 'Already up to date. No additions needed.' });
+        }
+
+        // Load project lines' source line_uids
+        const projUidsRes = await client.query(
+          `SELECT bpl.line_uid
+           FROM project_buy_list_lines l
+           JOIN buy_package_lines bpl ON bpl.id = l.source_package_line_id
+           WHERE l.buy_list_header_id = $1`,
+          [id],
+        );
+        const existingUids = new Set(projUidsRes.rows.map((r: any) => r.line_uid));
+
+        // New package lines not yet in project list
+        const newLinesRes = await client.query(
+          `SELECT pl.*, bg.code AS group_code, bs.code AS subgroup_code
+           FROM buy_package_lines pl
+           JOIN buy_groups bg ON bg.id = pl.buy_group_id
+           JOIN buy_subgroups bs ON bs.id = pl.buy_subgroup_id
+           WHERE pl.buy_package_header_id = $1
+           ORDER BY pl.line_number`,
+          [latestPkg.id],
+        );
+        const toAdd = newLinesRes.rows.filter((pl: any) => !existingUids.has(pl.line_uid));
+
+        // Get current max line_number
+        const maxLineRes = await client.query(
+          `SELECT COALESCE(MAX(line_number),0)::int AS m FROM project_buy_list_lines WHERE buy_list_header_id=$1`,
+          [id],
+        );
+        let lineNum = maxLineRes.rows[0].m as number;
+
+        let addedLines = 0;
+        for (const pl of toAdd) {
+          const isRaw = pl.group_code === RAW_MATERIALS_CODE;
+          const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code) ?? '');
+          await client.query(
+            `INSERT INTO project_buy_list_lines
+               (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                generic_requirement, quantity, specification, technical_attributes,
+                tag_no, selection_required, datasheet_required, inspection_required,
+                certificate_required, compliance_required, source_package_line_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+            [
+              id, hdr.project_id, ++lineNum, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
+              pl.generic_requirement, pl.default_quantity, pl.default_specification,
+              pl.technical_attributes, tagNo,
+              pl.selection_required, pl.datasheet_required, pl.inspection_required,
+              pl.certificate_required, pl.compliance_required, pl.id,
+            ],
+          );
+          addedLines++;
+        }
+
+        // Update latest_synced_package_id (source_package_id stays immutable)
+        await client.query(
+          `UPDATE project_buy_list_headers SET latest_synced_package_id=$1, updated_at=NOW() WHERE id=$2`,
+          [latestPkg.id, id],
+        );
+
+        // Audit event
+        await client.query(
+          `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+           VALUES ($1,'buy_list_sync_additions',$2,$3,NOW(),true)`,
+          [
+            hdr.project_id,
+            JSON.stringify({
+              listId: id, fromPackageId: hdr.source_package_id,
+              fromPackageVersion: hdr.source_pkg_version,
+              toPackageId: latestPkg.id, toPackageVersion: latestPkg.version,
+              toPackageCode: latestPkg.package_code,
+              syncMode: 'additions_only', addedLines, skippedLines: toAdd.length - addedLines,
+              triggeredBy: userId, note,
+            }),
+            userId,
+          ],
+        );
+
+        await client.query('COMMIT');
+        res.json({ addedLines, latestPackageId: latestPkg.id, latestPackageCode: latestPkg.package_code });
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-list-lines/:id/mark-obsolete ──────────────────────────
+  app.post('/api/buy-list-lines/:id/mark-obsolete', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid id');
+      const userId = (req.user as any)?.id as number;
+
+      const lineRes = await pool.query(
+        `SELECT l.id, l.status, l.buy_list_header_id, h.project_id, h.status AS list_status
+         FROM project_buy_list_lines l
+         JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
+         WHERE l.id = $1`,
+        [id],
+      );
+      if (!lineRes.rows[0]) return sendNotFound(res, 'Buy list line', id);
+      const line = lineRes.rows[0];
+      if (line.status === 'obsolete') return res.json({ message: 'Already obsolete' });
+      if (line.list_status === 'locked') return sendBusinessError(res, 'Cannot mark lines obsolete on a locked list.');
+
+      const activity = await lineHasActivity(id);
+      if (activity.blocked) return sendBusinessError(res, `Cannot mark obsolete: ${activity.reason}`);
+
+      await pool.query(
+        `UPDATE project_buy_list_lines SET status='obsolete', updated_at=NOW() WHERE id=$1`,
+        [id],
+      );
+
+      await pool.query(
+        `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+         VALUES ($1,'buy_list_line_mark_obsolete',$2,$3,NOW(),true)`,
+        [line.project_id, JSON.stringify({ lineId: id, listId: line.buy_list_header_id, triggeredBy: userId }), userId],
+      );
+
+      res.json({ success: true, lineId: id, status: 'obsolete' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-list-lines/:id/sync-catalog-change ────────────────────
+  app.post('/api/buy-list-lines/:id/sync-catalog-change', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid id');
+      const { newPackageLineId } = req.body;
+      if (!newPackageLineId) return sendValidationError(res, 'newPackageLineId is required');
+      const userId = (req.user as any)?.id as number;
+
+      const lineRes = await pool.query(
+        `SELECT l.*, h.project_id, h.status AS list_status
+         FROM project_buy_list_lines l
+         JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
+         WHERE l.id = $1`,
+        [id],
+      );
+      if (!lineRes.rows[0]) return sendNotFound(res, 'Buy list line', id);
+      const line = lineRes.rows[0];
+
+      if (line.is_user_modified)
+        return sendBusinessError(res, 'This line has user modifications. Catalog sync cannot override user changes.');
+      if (line.list_status === 'locked')
+        return sendBusinessError(res, 'Cannot sync changes on a locked list.');
+
+      const activity = await lineHasActivity(id);
+      if (activity.blocked) return sendBusinessError(res, `Cannot sync: ${activity.reason}`);
+
+      const newLineRes = await pool.query(
+        `SELECT * FROM buy_package_lines WHERE id = $1`, [newPackageLineId],
+      );
+      if (!newLineRes.rows[0]) return sendNotFound(res, 'Buy package line', newPackageLineId);
+      const nl = newLineRes.rows[0];
+
+      await pool.query(
+        `UPDATE project_buy_list_lines
+         SET quantity=$1, specification=$2, technical_attributes=$3,
+             source_package_line_id=$4, updated_at=NOW()
+         WHERE id=$5`,
+        [nl.default_quantity, nl.default_specification, nl.technical_attributes, nl.id, id],
+      );
+
+      await pool.query(
+        `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+         VALUES ($1,'buy_list_line_sync_catalog_change',$2,$3,NOW(),true)`,
+        [
+          line.project_id,
+          JSON.stringify({ lineId: id, oldSourceLineId: line.source_package_line_id, newSourceLineId: nl.id, triggeredBy: userId }),
+          userId,
+        ],
+      );
+
+      res.json({ success: true, lineId: id });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ─── POST /api/buy-lists/:id/replace-from-package (Superuser only) ────────
+  app.post('/api/buy-lists/:id/replace-from-package', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const role = (req.user as any)?.role;
+      if (role !== 'Superuser') return sendPermissionError(res, 'Superuser only.');
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid id');
+      const { confirmationText, note } = req.body;
+      if (confirmationText !== 'REPLACE') return sendValidationError(res, 'Type "REPLACE" to confirm full replacement.');
+      const userId = (req.user as any)?.id as number;
+
+      const hdrRes = await pool.query(
+        `SELECT h.*, bph.product_id AS source_product_id
+         FROM project_buy_list_headers h
+         LEFT JOIN buy_package_headers bph ON bph.id = h.source_package_id
+         WHERE h.id = $1`,
+        [id],
+      );
+      if (!hdrRes.rows[0]) return sendNotFound(res, 'Buy list', id);
+      const hdr = hdrRes.rows[0];
+      if (!hdr.source_product_id) return sendBusinessError(res, 'No source package linked to this list.');
+      if (hdr.status === 'locked') return sendBusinessError(res, 'Cannot replace a locked buy list.');
+
+      // Check all lines for activity
+      const allLinesRes = await pool.query(
+        `SELECT id FROM project_buy_list_lines WHERE buy_list_header_id = $1 AND status != 'canceled'`,
+        [id],
+      );
+      const blockedLines: any[] = [];
+      for (const l of allLinesRes.rows) {
+        const a = await lineHasActivity(l.id);
+        if (a.blocked) blockedLines.push({ lineId: l.id, reason: a.reason });
+      }
+      if (blockedLines.length > 0)
+        return res.status(409).json({ error: 'Full replacement blocked', blockedLines });
+
+      const latestPkg = await latestActivePackageForProduct(hdr.source_product_id);
+      if (!latestPkg) return sendBusinessError(res, 'No active package found. Cannot replace.');
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [hdr.project_id]);
+
+        // Revalidate still latest
+        const revalRes = await client.query(
+          `SELECT id FROM buy_package_headers WHERE id = $1 AND status = 'active'`,
+          [latestPkg.id],
+        );
+        if (!revalRes.rows[0]) {
+          await client.query('ROLLBACK');
+          return sendBusinessError(res, 'Package is no longer active. Cannot replace.');
+        }
+
+        // FULL SNAPSHOT: header + lines + selections
+        const snapLinesRes = await client.query(
+          `SELECT l.*, s.id AS sel_id, s.master_item_id, s.item_code, s.item_description,
+                  s.item_specification, s.drawing_number, s.drawing_revision,
+                  s.approval_status, s.datasheet_uploaded, s.datasheet_gcs_object_path,
+                  s.datasheet_original_filename, s.notes AS sel_notes
+           FROM project_buy_list_lines l
+           LEFT JOIN buy_list_line_selections s ON s.buy_list_line_id = l.id
+           WHERE l.buy_list_header_id = $1`,
+          [id],
+        );
+
+        await client.query(
+          `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+           VALUES ($1,'buy_list_full_replacement_snapshot',$2,$3,NOW(),true)`,
+          [
+            hdr.project_id,
+            JSON.stringify({
+              listId: id, listNumber: hdr.list_number, status: hdr.status,
+              sourcePackageId: hdr.source_package_id,
+              latestSyncedPackageId: hdr.latest_synced_package_id,
+              headerSnapshot: hdr,
+              linesSnapshot: snapLinesRes.rows,
+              replacedWithPackageId: latestPkg.id,
+              replacedWithPackageCode: latestPkg.package_code,
+              note, triggeredBy: userId,
+            }),
+            userId,
+          ],
+        );
+
+        // Delete selections then lines
+        await client.query(
+          `DELETE FROM buy_list_line_selections
+           WHERE buy_list_line_id IN (
+             SELECT id FROM project_buy_list_lines WHERE buy_list_header_id = $1
+           )`,
+          [id],
+        );
+        await client.query(
+          `DELETE FROM project_buy_list_lines WHERE buy_list_header_id = $1`, [id],
+        );
+
+        // Re-seed from latest package
+        const pkgLines = await client.query(
+          `SELECT pl.*, bg.code AS group_code, bs.code AS subgroup_code
+           FROM buy_package_lines pl
+           JOIN buy_groups bg ON bg.id = pl.buy_group_id
+           JOIN buy_subgroups bs ON bs.id = pl.buy_subgroup_id
+           WHERE pl.buy_package_header_id = $1 ORDER BY pl.line_number`,
+          [latestPkg.id],
+        );
+
+        for (let i = 0; i < pkgLines.rows.length; i++) {
+          const pl = pkgLines.rows[i];
+          const isRaw = pl.group_code === RAW_MATERIALS_CODE;
+          const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code) ?? '');
+          await client.query(
+            `INSERT INTO project_buy_list_lines
+               (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
+                generic_requirement, quantity, specification, technical_attributes,
+                tag_no, selection_required, datasheet_required, inspection_required,
+                certificate_required, compliance_required, source_package_line_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+            [
+              id, hdr.project_id, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
+              pl.generic_requirement, pl.default_quantity, pl.default_specification,
+              pl.technical_attributes, tagNo,
+              pl.selection_required, pl.datasheet_required, pl.inspection_required,
+              pl.certificate_required, pl.compliance_required, pl.id,
+            ],
+          );
+        }
+
+        // Update header: latest_synced_package_id only — source_package_id is immutable
+        await client.query(
+          `UPDATE project_buy_list_headers
+           SET latest_synced_package_id=$1, status='draft', updated_at=NOW()
+           WHERE id=$2`,
+          [latestPkg.id, id],
+        );
+
+        await client.query(
+          `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+           VALUES ($1,'buy_list_full_replacement',$2,$3,NOW(),true)`,
+          [
+            hdr.project_id,
+            JSON.stringify({
+              listId: id, newPackageId: latestPkg.id, newPackageCode: latestPkg.package_code,
+              linesSeeded: pkgLines.rows.length, note, triggeredBy: userId,
+            }),
+            userId,
+          ],
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, linesSeeded: pkgLines.rows.length, latestPackageId: latestPkg.id });
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
   console.log('[PPPC] ✅ Phase 0 routes registered (buy-groups · buy-subgroups · uom-master)');
   console.log('[PPPC] ✅ Phase 1 routes registered (buy-packages · buy-package-lines)');
   console.log('[PPPC] ✅ Phase 2 routes registered (project buy lists · buy list lines)');
   console.log('[PPPC] ✅ Phase 2 hook registered (offer→project buy list auto-creation)');
   console.log('[PPPC] ✅ Phase 3 routes registered (selection · upload-datasheet · approve · reject · delete)');
+  console.log('[PPPC] ✅ Phase 6 routes registered (pppc-status · backfill · package-diff · sync-additions · mark-obsolete · sync-catalog-change · replace-from-package)');
   console.log('[PPPC] ✅ Phase 4 routes registered (raise-pr · procurement-status)');
 }

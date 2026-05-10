@@ -13306,6 +13306,7 @@ export type BuyPackageHeader = typeof buyPackageHeaders.$inferSelect;
 
 export const buyPackageLines = pgTable('buy_package_lines', {
   id:                   serial('id').primaryKey(),
+  lineUid:              uuid('line_uid').notNull().defaultRandom(),
   buyPackageHeaderId:   integer('buy_package_header_id').notNull().references(() => buyPackageHeaders.id, { onDelete: 'cascade' }),
   lineNumber:           integer('line_number').notNull(),
   buyGroupId:           integer('buy_group_id').notNull().references(() => buyGroups.id, { onDelete: 'restrict' }),
@@ -13336,10 +13337,11 @@ export type BuyPackageLine = typeof buyPackageLines.$inferSelect;
 // =============================================================================
 
 export const projectBuyListHeaders = pgTable('project_buy_list_headers', {
-  id:                   serial('id').primaryKey(),
-  projectId:            integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  projectItemId:        integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
-  sourcePackageId:      integer('source_package_id').references(() => buyPackageHeaders.id, { onDelete: 'set null' }),
+  id:                     serial('id').primaryKey(),
+  projectId:              integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId:          integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  sourcePackageId:        integer('source_package_id').references(() => buyPackageHeaders.id, { onDelete: 'set null' }),
+  latestSyncedPackageId:  integer('latest_synced_package_id').references(() => buyPackageHeaders.id, { onDelete: 'set null' }),
   listNumber:           varchar('list_number', { length: 35 }).notNull().unique(),
   revisionCode:         varchar('revision_code', { length: 5 }).notNull().default('A'),
   isCurrent:            boolean('is_current').notNull().default(true),
@@ -13396,6 +13398,7 @@ export const projectBuyListLines = pgTable('project_buy_list_lines', {
   selectedMasterItemId: integer('selected_master_item_id').references(() => masterItems.id, { onDelete: 'set null' }),
   sourcePackageLineId:  integer('source_package_line_id').references(() => buyPackageLines.id, { onDelete: 'set null' }),
   planningRecordId:     integer('planning_record_id'),
+  isUserModified:       boolean('is_user_modified').notNull().default(false),
   notes:                text('notes'),
   createdAt:            timestamp('created_at').notNull().defaultNow(),
   updatedAt:            timestamp('updated_at').notNull().defaultNow(),
