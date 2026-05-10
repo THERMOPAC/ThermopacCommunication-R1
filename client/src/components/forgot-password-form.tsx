@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, ArrowLeft, AlertCircle, Check } from 'lucide-react';
+import { Mail, User, ArrowLeft, AlertCircle, Check } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface ForgotPasswordFormProps {
@@ -13,6 +13,7 @@ interface ForgotPasswordFormProps {
 
 export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{
     type: 'success' | 'error' | null;
@@ -21,12 +22,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email) {
-      setStatus({
-        type: 'error',
-        message: 'Please enter your email address'
-      });
+
+    if (!email || !username) {
+      setStatus({ type: 'error', message: 'Please enter both your email address and username.' });
       return;
     }
 
@@ -34,19 +32,17 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     setStatus({ type: null, message: '' });
 
     try {
-      const response = await apiRequest('POST', '/api/forgot-password', { email });
-      
+      await apiRequest('POST', '/api/forgot-password', { email, username });
       setStatus({
         type: 'success',
-        message: 'If an account with this email exists, you will receive a password reset link shortly.'
+        message: 'Password reset link has been sent to your registered email.',
       });
-      
-      // Clear the form
       setEmail('');
+      setUsername('');
     } catch (error: any) {
       setStatus({
         type: 'error',
-        message: error.message || 'An error occurred. Please try again.'
+        message: error.message || 'An error occurred. Please try again.',
       });
     } finally {
       setIsLoading(false);
@@ -58,13 +54,13 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold text-blue-600">Reset Password</CardTitle>
         <CardDescription>
-          Enter your email address and we'll send you a link to reset your password.
+          Enter your registered company email and username to receive a reset link.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email">Company Email</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -77,6 +73,24 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
                 required
                 disabled={isLoading}
                 autoComplete="email"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="username">Username</Label>
+            <div className="relative">
+              <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="username"
+                type="text"
+                placeholder="Your login username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="pl-10"
+                required
+                disabled={isLoading}
+                autoComplete="username"
               />
             </div>
           </div>
@@ -94,8 +108,8 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             </Alert>
           )}
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700"
             disabled={isLoading}
           >
@@ -104,8 +118,8 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         </form>
 
         <div className="text-center">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={onBackToLogin}
             className="text-blue-600 hover:text-blue-700"
           >

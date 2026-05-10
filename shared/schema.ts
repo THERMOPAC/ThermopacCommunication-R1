@@ -13672,3 +13672,18 @@ export const securityArchivalLog = pgTable('security_archival_log', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 export type SecurityArchivalLog = typeof securityArchivalLog.$inferSelect;
+
+// --- Password Reset Audit Log ---
+export const passwordResetAuditLog = pgTable('password_reset_audit_log', {
+  id:                serial('id').primaryKey(),
+  userId:            integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  emailAttempted:    text('email_attempted').notNull(),
+  usernameAttempted: text('username_attempted').notNull().default(''),
+  eventType:         varchar('event_type', { length: 30 }).notNull(),
+  failureReason:     text('failure_reason'),
+  ipAddress:         text('ip_address'),
+  userAgent:         text('user_agent'),
+  requestSource:     varchar('request_source', { length: 50 }),
+  createdAt:         timestamp('created_at').notNull().defaultNow(),
+});
+export type PasswordResetAuditLog = typeof passwordResetAuditLog.$inferSelect;

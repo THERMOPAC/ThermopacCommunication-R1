@@ -7,7 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser, passwordChangeSchema, users, twoFactorAuditLog, loginAuditLog, twoFaGlobalPolicy } from "@shared/schema";
 import { checkDeviceTrustAtLogin } from "./trusted-device-service";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
@@ -31,7 +31,9 @@ import {
   isResetTokenValid,
   sendPasswordResetEmail,
   validatePasswordHistory,
-  validatePassword
+  validatePassword,
+  hashToken,
+  isValidTokenFormat,
 } from "./utils/password-security";
 
 // Email notification service
@@ -634,175 +636,313 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Request password reset
-  app.post("/api/forgot-password", async (req, res) => {
+  // ── Rate limiters for password reset endpoints ──────────────────────────────
+  const forgotPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { message: 'Too many password reset requests. Please try again in 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false, default: true },
+  });
+
+  const validateTokenLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { message: 'Too many token validation requests. Please try again in 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false, default: true },
+  });
+
+  const resetPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { message: 'Too many password reset attempts. Please try again in 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false, default: true },
+  });
+
+  // ── Helper: get client IP ────────────────────────────────────────────────────
+  function getClientIp(req: any): string {
+    return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || 'unknown';
+  }
+
+  // ── POST /api/forgot-password ────────────────────────────────────────────────
+  app.post("/api/forgot-password", forgotPasswordLimiter, async (req, res) => {
+    const ip = getClientIp(req);
+    const ua = (req.headers['user-agent'] as string) || '';
+    const src = 'forgot-password';
+
     try {
-      const { email } = req.body;
-      
-      if (!email) {
-        return res.status(400).json({ message: "Email is required" });
+      const rawEmail: string = (req.body.email ?? '').toString().trim().toLowerCase();
+      const rawUsername: string = (req.body.username ?? '').toString().trim();
+      const normUsername: string = rawUsername.toLowerCase();
+
+      // 1. Both fields required
+      if (!rawEmail || !normUsername) {
+        return res.status(400).json({ message: 'Email and username are required.' });
       }
 
-      console.log(`Password reset request for email: ${email}`);
-      
-      // Find user by email
-      const user = await storage.getUserByEmail(email);
+      // 2. Look up user by email
+      const user = await storage.getUserByEmail(rawEmail);
+
       if (!user) {
-        // Don't reveal if email exists or not for security
-        return res.status(200).json({ 
-          message: "If an account with this email exists, you will receive a password reset link shortly." 
+        await storage.logPasswordResetAudit({
+          userId: null, emailAttempted: rawEmail, usernameAttempted: rawUsername,
+          eventType: 'request_not_found', failureReason: 'email not registered',
+          ipAddress: ip, userAgent: ua, requestSource: src,
         });
+        return res.status(400).json({ message: 'Email not found. Please enter your registered company email.' });
       }
 
-      // Generate reset token
-      const resetToken = generateResetToken();
+      if (!user.isActive) {
+        await storage.logPasswordResetAudit({
+          userId: user.id, emailAttempted: rawEmail, usernameAttempted: rawUsername,
+          eventType: 'request_inactive', failureReason: 'account disabled',
+          ipAddress: ip, userAgent: ua, requestSource: src,
+        });
+        return res.status(403).json({ message: 'This user account is inactive. Please contact administrator.' });
+      }
+
+      // 3. Username verification (case-insensitive, trimmed)
+      if (user.username.trim().toLowerCase() !== normUsername) {
+        await storage.logPasswordResetAudit({
+          userId: user.id, emailAttempted: rawEmail, usernameAttempted: rawUsername,
+          eventType: 'request_mismatch', failureReason: 'username mismatch',
+          ipAddress: ip, userAgent: ua, requestSource: src,
+        });
+        return res.status(400).json({ message: 'Verification failed. Please check your username and try again.' });
+      }
+
+      // 4. Invalidate previous token + write new token in a single transaction
+      const rawToken = generateResetToken();           // 64-char hex, never stored
+      const tokenHash = hashToken(rawToken);           // SHA-256 hash stored in DB
       const expiresAt = getResetTokenExpiry();
 
-      // Store reset token in database
-      await storage.updateUserResetToken(user.id, resetToken, expiresAt);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Invalidate any existing token for this user first
+        await client.query(
+          `UPDATE users SET reset_token = NULL, reset_token_expires_at = NULL WHERE id = $1`,
+          [user.id],
+        );
+        // Write new hashed token
+        await client.query(
+          `UPDATE users SET reset_token = $1, reset_token_expires_at = $2 WHERE id = $3`,
+          [tokenHash, expiresAt, user.id],
+        );
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
-      // Send reset email
-      await sendPasswordResetEmail(user.email, user.username, resetToken);
+      // 5. Send email with raw token — never stored, never returned in response
+      try {
+        await sendPasswordResetEmail(user.email, user.username, rawToken);
+      } catch (emailErr) {
+        console.error('[ForgotPassword] Email send failed:', emailErr);
+        // Clear token so a corrupt state isn't left in DB
+        await storage.clearUserResetToken(user.id);
+        return res.status(500).json({ message: 'Failed to send reset email. Please try again.' });
+      }
 
-      console.log(`Password reset email sent to ${email}`);
-      
-      res.status(200).json({ 
-        message: "If an account with this email exists, you will receive a password reset link shortly." 
+      await storage.logPasswordResetAudit({
+        userId: user.id, emailAttempted: rawEmail, usernameAttempted: rawUsername,
+        eventType: 'request_success',
+        ipAddress: ip, userAgent: ua, requestSource: src,
       });
+
+      console.log(`[ForgotPassword] Reset email sent to user ${user.id} from IP ${ip}`);
+      return res.status(200).json({ message: 'Password reset link has been sent to your registered email.' });
+
     } catch (error) {
-      console.error('Password reset request error:', error);
-      res.status(500).json({ message: "Internal server error" });
+      console.error('[ForgotPassword] Error:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
     }
   });
 
-  // Validate reset token endpoint
-  app.get("/api/validate-reset-token", async (req, res) => {
+  // ── GET /api/validate-reset-token ────────────────────────────────────────────
+  app.get("/api/validate-reset-token", validateTokenLimiter, async (req, res) => {
+    const ip = getClientIp(req);
+    const ua = (req.headers['user-agent'] as string) || '';
+    const src = 'validate-token';
+
     try {
-      const { token } = req.query;
-      
-      if (!token || typeof token !== 'string') {
-        return res.status(400).json({ 
-          valid: false, 
-          message: "Token is required" 
+      const token = (req.query.token ?? '').toString().trim();
+
+      // 1. Format check before hashing
+      if (!isValidTokenFormat(token)) {
+        await storage.logPasswordResetAudit({
+          userId: null, emailAttempted: '', usernameAttempted: '',
+          eventType: 'validate_invalid', failureReason: 'malformed token format',
+          ipAddress: ip, userAgent: ua, requestSource: src,
         });
+        return res.status(400).json({ valid: false, message: 'Invalid reset token.' });
       }
 
-      console.log(`Token validation attempt for: ${token.substring(0, 8)}...`);
-      
-      // Find user by reset token
-      const user = await storage.getUserByResetToken(token);
+      const tokenHash = hashToken(token);
+      const user = await storage.getUserByResetTokenHash(tokenHash);
+
       if (!user) {
-        return res.status(400).json({ 
-          valid: false, 
-          message: "Invalid reset token" 
+        await storage.logPasswordResetAudit({
+          userId: null, emailAttempted: '', usernameAttempted: '',
+          eventType: 'validate_invalid', failureReason: 'token not found in DB',
+          ipAddress: ip, userAgent: ua, requestSource: src,
         });
+        return res.status(400).json({ valid: false, message: 'Invalid reset token.' });
       }
 
-      // Check token expiration
-      if (!isResetTokenValid(user.resetTokenExpiresAt)) {
-        return res.status(400).json({ 
-          valid: false, 
-          message: "Reset token has expired" 
+      // 2. Active check
+      if (!user.isActive) {
+        await storage.clearUserResetToken(user.id);
+        await storage.logPasswordResetAudit({
+          userId: user.id, emailAttempted: user.email, usernameAttempted: user.username,
+          eventType: 'validate_inactive', failureReason: 'account disabled',
+          ipAddress: ip, userAgent: ua, requestSource: src,
         });
+        return res.status(403).json({ valid: false, message: 'This user account is inactive.' });
       }
 
-      console.log(`Token validation successful for user: ${user.username}`);
-      
-      res.status(200).json({ 
-        valid: true,
-        userId: user.id,
-        username: user.username,
-        expiresAt: user.resetTokenExpiresAt,
-        message: "Token is valid"
+      // 3. Expiry check — clear expired token from DB
+      if (!isResetTokenValid(user.resetTokenExpiresAt!)) {
+        await storage.clearUserResetToken(user.id);
+        await storage.logPasswordResetAudit({
+          userId: user.id, emailAttempted: user.email, usernameAttempted: user.username,
+          eventType: 'validate_expired', failureReason: 'token expired',
+          ipAddress: ip, userAgent: ua, requestSource: src,
+        });
+        return res.status(400).json({ valid: false, message: 'Reset token has expired. Please request a new one.' });
+      }
+
+      await storage.logPasswordResetAudit({
+        userId: user.id, emailAttempted: user.email, usernameAttempted: user.username,
+        eventType: 'validate_success',
+        ipAddress: ip, userAgent: ua, requestSource: src,
       });
+
+      // Return ONLY username — no userId, no expiresAt
+      return res.status(200).json({ valid: true, username: user.username });
+
     } catch (error) {
-      console.error('Token validation error:', error);
-      res.status(500).json({ 
-        valid: false, 
-        message: "Internal server error" 
-      });
+      console.error('[ValidateToken] Error:', error);
+      return res.status(500).json({ valid: false, message: 'Internal server error.' });
     }
   });
 
-  // Reset password with token
-  app.post("/api/reset-password", async (req, res) => {
+  // ── POST /api/reset-password ──────────────────────────────────────────────────
+  app.post("/api/reset-password", resetPasswordLimiter, async (req, res) => {
+    const ip = getClientIp(req);
+    const ua = (req.headers['user-agent'] as string) || '';
+    const src = 'reset-password';
+
     try {
-      const { token, newPassword } = req.body;
-      
+      const token = (req.body.token ?? '').toString().trim();
+      const { newPassword } = req.body;
+
       if (!token || !newPassword) {
-        return res.status(400).json({ message: "Token and new password are required" });
+        return res.status(400).json({ message: 'Token and new password are required.' });
       }
 
-      console.log(`Password reset attempt with token: ${token.substring(0, 8)}...`);
-      
-      // Find user by reset token
-      const user = await storage.getUserByResetToken(token);
+      // 1. Format check
+      if (!isValidTokenFormat(token)) {
+        await storage.logPasswordResetAudit({
+          userId: null, emailAttempted: '', usernameAttempted: '',
+          eventType: 'reset_invalid', failureReason: 'malformed token format',
+          ipAddress: ip, userAgent: ua, requestSource: src,
+        });
+        return res.status(400).json({ message: 'Invalid reset token.' });
+      }
+
+      const tokenHash = hashToken(token);
+      const user = await storage.getUserByResetTokenHash(tokenHash);
+
       if (!user) {
-        return res.status(400).json({ message: "Invalid or expired reset token" });
+        await storage.logPasswordResetAudit({
+          userId: null, emailAttempted: '', usernameAttempted: '',
+          eventType: 'reset_invalid', failureReason: 'token not found in DB',
+          ipAddress: ip, userAgent: ua, requestSource: src,
+        });
+        return res.status(400).json({ message: 'Invalid or expired reset token.' });
       }
 
-      // Check token expiration
-      if (!isResetTokenValid(user.resetTokenExpiresAt)) {
-        return res.status(400).json({ message: "Reset token has expired" });
+      // 2. Active check
+      if (!user.isActive) {
+        await storage.clearUserResetToken(user.id);
+        await storage.logPasswordResetAudit({
+          userId: user.id, emailAttempted: user.email, usernameAttempted: user.username,
+          eventType: 'reset_inactive', failureReason: 'account disabled',
+          ipAddress: ip, userAgent: ua, requestSource: src,
+        });
+        return res.status(403).json({ message: 'This user account is inactive. Please contact administrator.' });
       }
 
-      // Validate new password
+      // 3. Expiry check — clear expired token
+      if (!isResetTokenValid(user.resetTokenExpiresAt!)) {
+        await storage.clearUserResetToken(user.id);
+        await storage.logPasswordResetAudit({
+          userId: user.id, emailAttempted: user.email, usernameAttempted: user.username,
+          eventType: 'reset_expired', failureReason: 'token expired',
+          ipAddress: ip, userAgent: ua, requestSource: src,
+        });
+        return res.status(400).json({ message: 'Reset token has expired. Please request a new one.' });
+      }
+
+      // 4. Password strength + history
       const passwordValidationErrors = validatePasswordStrength(newPassword);
       if (passwordValidationErrors.length > 0) {
-        return res.status(400).json({
-          message: "Password validation failed",
-          errors: passwordValidationErrors
-        });
+        return res.status(400).json({ message: 'Password validation failed', errors: passwordValidationErrors });
       }
-
-      // Check password history
       if (await isPasswordRecentlyUsed(newPassword, user.passwordHistory || [])) {
-        return res.status(400).json({
-          message: "Password validation failed",
-          errors: ["Cannot reuse any of your last 5 passwords"]
-        });
+        return res.status(400).json({ message: 'Password validation failed', errors: ['Cannot reuse any of your last 5 passwords'] });
       }
 
-      // Hash new password and update history
+      // 5. Hash + update + clear token
       const hashedPassword = await secureHashPassword(newPassword);
       const updatedHistory = updatePasswordHistory(user.password, user.passwordHistory || []);
 
-      // Update user password and clear reset token
       await storage.updateUserPassword(user.id, {
         password: hashedPassword,
         passwordHistory: updatedHistory,
         passwordNeedsUpdate: false,
-        lastPasswordChange: new Date()
+        lastPasswordChange: new Date(),
       });
-
-      // Clear reset token
       await storage.clearUserResetToken(user.id);
 
-      // Invalidate ALL sessions — password was reset externally, full invalidation required
+      // 6. Session invalidation
       if (await isFeatureFlagEnabled('SECURITY_SESSION_INVALIDATION_ENABLED')) {
         try {
           await storage.invalidateUserSessions(user.id, null);
         } catch (sessionErr) {
-          console.error('Session invalidation failed after password reset:', sessionErr);
+          console.error('[ResetPassword] Session invalidation failed:', sessionErr);
         }
       }
 
-      console.log(`Password reset successful for user: ${user.username}`);
+      await storage.logPasswordResetAudit({
+        userId: user.id, emailAttempted: user.email, usernameAttempted: user.username,
+        eventType: 'reset_success',
+        ipAddress: ip, userAgent: ua, requestSource: src,
+      });
 
-      // Send email notification
+      console.log(`[ResetPassword] Successful for user ${user.id} from IP ${ip}`);
+
+      // 7. Confirmation email (non-critical)
       try {
         await sendPasswordUpdateNotification(user.email, user.username);
-      } catch (emailError) {
-        console.error('Failed to send password update email:', emailError);
-        // Don't fail the password reset if email fails
+      } catch (emailErr) {
+        console.error('[ResetPassword] Confirmation email failed:', emailErr);
       }
 
-      res.status(200).json({ 
-        message: "Password reset successful. You can now login with your new password." 
-      });
+      return res.status(200).json({ message: 'Password reset successful. You can now log in with your new password.' });
+
     } catch (error) {
-      console.error('Password reset error:', error);
-      res.status(500).json({ message: "Internal server error" });
+      console.error('[ResetPassword] Error:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
     }
   });
 

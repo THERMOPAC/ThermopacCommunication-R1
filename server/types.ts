@@ -46,6 +46,17 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByResetToken(resetToken: string): Promise<User | undefined>;
+  getUserByResetTokenHash(tokenHash: string): Promise<User | undefined>;
+  logPasswordResetAudit(entry: {
+    userId?: number | null;
+    emailAttempted: string;
+    usernameAttempted: string;
+    eventType: string;
+    failureReason?: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    requestSource?: string | null;
+  }): Promise<void>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updateData: UserUpdate): Promise<User>;
   updateUserPassword(id: number, passwordUpdateData: {

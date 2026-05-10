@@ -68,10 +68,24 @@ export async function comparePassword(plainPassword: string, hashedPassword: str
 }
 
 /**
- * Generates a secure reset token
+ * Generates a secure reset token (32 bytes = 64-char hex)
  */
 export function generateResetToken(): string {
-  return crypto.randomBytes(RESET_TOKEN_LENGTH).toString('hex');
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * SHA-256 hash of a raw reset token — stored in DB, never the raw token
+ */
+export function hashToken(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
+
+/**
+ * Validates token format: must be exactly 64 lowercase hex characters
+ */
+export function isValidTokenFormat(token: string): boolean {
+  return /^[0-9a-f]{64}$/.test(token);
 }
 
 /**

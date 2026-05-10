@@ -260,6 +260,42 @@ export class DatabaseStorage implements IStorage {
     return result[0] as User | undefined;
   }
 
+  async getUserByResetTokenHash(tokenHash: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.resetToken, tokenHash));
+    return result[0] as User | undefined;
+  }
+
+  async logPasswordResetAudit(entry: {
+    userId?: number | null;
+    emailAttempted: string;
+    usernameAttempted: string;
+    eventType: string;
+    failureReason?: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    requestSource?: string | null;
+  }): Promise<void> {
+    try {
+      await pool.query(
+        `INSERT INTO password_reset_audit_log
+           (user_id, email_attempted, username_attempted, event_type, failure_reason, ip_address, user_agent, request_source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [
+          entry.userId ?? null,
+          entry.emailAttempted,
+          entry.usernameAttempted,
+          entry.eventType,
+          entry.failureReason ?? null,
+          entry.ipAddress ?? null,
+          entry.userAgent ?? null,
+          entry.requestSource ?? null,
+        ],
+      );
+    } catch (err) {
+      console.error('[PasswordResetAudit] Failed to write audit log:', err);
+    }
+  }
+
   async updateUserResetToken(id: number, resetToken: string, expiresAt: Date): Promise<void> {
     console.log(`Updating reset token for user ${id}`);
     
