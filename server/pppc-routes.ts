@@ -1138,18 +1138,18 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       );
       if (lineCount.rows[0].n === 0) return sendBusinessError(res, 'Cannot submit: buy list has no lines.');
 
-      // Non-raw-materials lines must have tag_no, equipment_reference, service_description
+      // Non-raw-materials lines must have tag_no
       const incomplete = await pool.query(
         `SELECT l.id, l.line_number FROM project_buy_list_lines l
          JOIN buy_groups bg ON bg.id = l.buy_group_id
          WHERE l.buy_list_header_id=$1
            AND bg.code != $2
-           AND (l.tag_no='' OR l.equipment_reference='' OR l.service_description='')`,
+           AND (l.tag_no IS NULL OR l.tag_no='')`,
         [id, RAW_MATERIALS_CODE],
       );
       if (incomplete.rowCount! > 0) {
         return sendBusinessError(res,
-          `Cannot submit: ${incomplete.rowCount} line(s) missing Tag No, Equipment Reference, or Service Description. ` +
+          `Cannot submit: ${incomplete.rowCount} line(s) missing Tag No. ` +
           `Lines: ${incomplete.rows.map((r: any) => r.line_number).join(', ')}`,
         );
       }
