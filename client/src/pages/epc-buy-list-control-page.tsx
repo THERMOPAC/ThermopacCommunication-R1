@@ -1603,10 +1603,15 @@ export default function EpcBuyListControlPage() {
                                             }
                                           </TableCell>
                                           <TableCell className="text-xs truncate max-w-32">
-                                            {line.equipment_reference || <span className="text-amber-600 italic">missing</span>}
+                                            {line.equipment_reference || <span className="text-muted-foreground">—</span>}
                                           </TableCell>
                                           <TableCell className="text-xs truncate max-w-32">
-                                            {line.service_description || <span className="text-amber-600 italic">missing</span>}
+                                            {line.service_description
+                                              ? line.service_description
+                                              : line.generic_requirement
+                                                ? <span className="text-muted-foreground italic">{line.generic_requirement}</span>
+                                                : <span className="text-muted-foreground">—</span>
+                                            }
                                           </TableCell>
                                           <TableCell className="text-xs text-center">{line.quantity} {line.uom_code}</TableCell>
                                           <TableCell>
