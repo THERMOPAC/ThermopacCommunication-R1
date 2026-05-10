@@ -1327,11 +1327,6 @@ export default function EpcBuyListControlPage() {
                 Generate / Sync PPPC
               </Button>
             )}
-            {canWrite && selectedProjectId && (
-              <Button onClick={() => { setCreateForm({ projectItemId: "", sourcePackageId: "" }); setShowCreate(true); }}>
-                <Plus className="h-4 w-4 mr-2" />New Buy List
-              </Button>
-            )}
           </div>
         </div>
 
