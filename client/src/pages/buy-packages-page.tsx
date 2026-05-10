@@ -1123,40 +1123,183 @@ function StructuralSteelAttrsForm({
   );
 }
 
-// ── Centrifugal Pump requirement builder ──────────────────────────────────────
+// ── Centrifugal Pump constants ─────────────────────────────────────────────────
+const CENTRIFUGAL_PUMP_TYPES = [
+  "End Suction","Split Case","Multistage","Vertical Inline","Vertical Turbine",
+];
+
+const CENTRIFUGAL_COMMON_OPTS = {
+  mounting:              ["Base Mounted","Skid Mounted","Inline","Sump"],
+  drive_type:            ["Motor Driven","Engine Driven","Variable Speed Drive (VSD)"],
+  service_type:          ["Continuous","Intermittent","Standby","Duty-Standby"],
+  seal_type:             ["Single Mechanical Seal","Double Mechanical Seal","Cartridge Seal (Back-to-Back)","Gland Packing"],
+  material_class:        ["CI","CS","SS304","SS316","Duplex SS","CD4MCu","Super Duplex"],
+  flow_rate:             ["1 m³/hr","2 m³/hr","5 m³/hr","10 m³/hr","20 m³/hr","30 m³/hr","50 m³/hr",
+                          "75 m³/hr","100 m³/hr","150 m³/hr","200 m³/hr","300 m³/hr","500 m³/hr",
+                          "750 m³/hr","1000 m³/hr","1500 m³/hr","2000 m³/hr"],
+  head:                  ["5 m","10 m","20 m","30 m","40 m","50 m","75 m","100 m","150 m","200 m",
+                          "250 m","300 m","400 m","500 m","600 m"],
+  fluid:                 ["Water","Hot Water","Cooling Water","Oil","Chemical","Slurry","Effluent","Hydrocarbons","Acid","Alkali"],
+  operating_temp:        ["Ambient","50°C","80°C","100°C","120°C","150°C","200°C","250°C"],
+  area_class:            ["Safe Area","Zone 1","Zone 2"],
+  certification:         ["ATEX","IECEx","PESO"],
+  speed_rpm:             ["960 RPM","1450 RPM","1750 RPM","2900 RPM","2950 RPM","3500 RPM","Variable"],
+  motor_power_kw:        ["1.5 kW","2.2 kW","3.7 kW","5.5 kW","7.5 kW","11 kW","15 kW","18.5 kW",
+                          "22 kW","30 kW","37 kW","45 kW","55 kW","75 kW","90 kW","110 kW",
+                          "132 kW","160 kW","200 kW","250 kW","315 kW","400 kW"],
+  spare_parts:           ["Seal + Bearing Kit","Full Rotating Element","Impeller Only","None"],
+  api_610:               ["OH1","OH2","OH3","OH4","OH5","BB1","BB2","BB3","BB4","BB5",
+                          "VS1","VS2","VS3","VS4","VS5","VS6","VS7","Non-API"],
+  yes_no:                ["Yes","No"],
+  // End Suction
+  casing_type:           ["Back Pull-Out (BPO)","Close-Coupled","Monobloc"],
+  impeller_type:         ["Open","Semi-Open","Closed"],
+  coupling_type:         ["Flexible Coupling","Direct Drive","V-Belt","Spacer Coupling"],
+  // Split Case
+  impeller_type_sc:      ["Double Suction","Single Suction"],
+  orientation:           ["Horizontal","Vertical"],
+  coupling_type_sc:      ["Flexible Coupling","Spacer Coupling","Direct Drive"],
+  // Multistage
+  num_stages:            ["2","3","4","5","6","7","8","9","10+"],
+  balance_method:        ["Hydraulic Balancing Disc","Back-to-Back Staging","Balance Drum"],
+  coupling_type_ms:      ["Flexible Coupling","Spacer Coupling","Direct Drive"],
+  // Vertical Turbine
+  num_bowl_stages:       ["1","2","3","4","5","6+"],
+  column_length:         ["1 m","2 m","3 m","4 m","5 m","6 m","7 m","8 m","10 m","12 m","Custom"],
+  discharge_head_type:   ["Open Discharge Head","Enclosed Discharge Head","Elbow Head"],
+  lineshaft_lubrication: ["Water Lubricated","Oil Lubricated","Grease Lubricated"],
+  bowl_diameter:         ["4\"","6\"","8\"","10\"","12\"","14\""],
+  motor_platform:        ["Standard","Extended"],
+  coupling_type_vi:      ["Close-Coupled","Flexible Coupling"],
+};
+
+const CENTRIFUGAL_ALL_FIELD_OPTS: Record<string, string[]> = {
+  pump_type:             CENTRIFUGAL_PUMP_TYPES,
+  mounting:              CENTRIFUGAL_COMMON_OPTS.mounting,
+  drive_type:            CENTRIFUGAL_COMMON_OPTS.drive_type,
+  service_type:          CENTRIFUGAL_COMMON_OPTS.service_type,
+  seal_type:             CENTRIFUGAL_COMMON_OPTS.seal_type,
+  material_class:        CENTRIFUGAL_COMMON_OPTS.material_class,
+  flow_rate:             CENTRIFUGAL_COMMON_OPTS.flow_rate,
+  head:                  CENTRIFUGAL_COMMON_OPTS.head,
+  fluid:                 CENTRIFUGAL_COMMON_OPTS.fluid,
+  operating_temp:        CENTRIFUGAL_COMMON_OPTS.operating_temp,
+  area_classification:   CENTRIFUGAL_COMMON_OPTS.area_class,
+  certification:         CENTRIFUGAL_COMMON_OPTS.certification,
+  speed_rpm:             CENTRIFUGAL_COMMON_OPTS.speed_rpm,
+  motor_power_kw:        CENTRIFUGAL_COMMON_OPTS.motor_power_kw,
+  spare_parts:           CENTRIFUGAL_COMMON_OPTS.spare_parts,
+  api_610_category:      CENTRIFUGAL_COMMON_OPTS.api_610,
+  strainer_fitted:       CENTRIFUGAL_COMMON_OPTS.yes_no,
+  casing_type:           CENTRIFUGAL_COMMON_OPTS.casing_type,
+  impeller_type:         CENTRIFUGAL_COMMON_OPTS.impeller_type,
+  coupling_type:         CENTRIFUGAL_COMMON_OPTS.coupling_type,
+  impeller_type_sc:      CENTRIFUGAL_COMMON_OPTS.impeller_type_sc,
+  orientation:           CENTRIFUGAL_COMMON_OPTS.orientation,
+  coupling_type_sc:      CENTRIFUGAL_COMMON_OPTS.coupling_type_sc,
+  num_stages:            CENTRIFUGAL_COMMON_OPTS.num_stages,
+  balance_method:        CENTRIFUGAL_COMMON_OPTS.balance_method,
+  coupling_type_ms:      CENTRIFUGAL_COMMON_OPTS.coupling_type_ms,
+  orientation_ms:        CENTRIFUGAL_COMMON_OPTS.orientation,
+  coupling_type_vi:      CENTRIFUGAL_COMMON_OPTS.coupling_type_vi,
+  num_bowl_stages:       CENTRIFUGAL_COMMON_OPTS.num_bowl_stages,
+  column_length:         CENTRIFUGAL_COMMON_OPTS.column_length,
+  discharge_head_type:   CENTRIFUGAL_COMMON_OPTS.discharge_head_type,
+  lineshaft_lubrication: CENTRIFUGAL_COMMON_OPTS.lineshaft_lubrication,
+  bowl_diameter:         CENTRIFUGAL_COMMON_OPTS.bowl_diameter,
+  motor_platform:        CENTRIFUGAL_COMMON_OPTS.motor_platform,
+};
+
+function buildCentrifugalPumpDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    pump_type: type, approved_makes: [], preferred_series: "",
+    mounting: "Base Mounted", drive_type: "Motor Driven",
+    service_type: "Continuous", seal_type: "Single Mechanical Seal",
+    material_class: "CI", flow_rate: "", head: "", fluid: "",
+    operating_temp: "", motor_power_kw: "", speed_rpm: "", npsha: "",
+    api_610_category: "", area_classification: "", certification: "", spare_parts: "",
+    casing_type: "", impeller_type: "", coupling_type: "",
+    impeller_type_sc: "", orientation: "", coupling_type_sc: "",
+    num_stages: "", balance_method: "", coupling_type_ms: "", orientation_ms: "",
+    coupling_type_vi: "",
+    num_bowl_stages: "", column_length: "", discharge_head_type: "",
+    lineshaft_lubrication: "", bowl_diameter: "", strainer_fitted: "", motor_platform: "",
+  };
+  switch (type) {
+    case "End Suction":
+      return { ...base, casing_type: "Back Pull-Out (BPO)", impeller_type: "Closed",
+        coupling_type: "Flexible Coupling" };
+    case "Split Case":
+      return { ...base, impeller_type_sc: "Double Suction", orientation: "Horizontal",
+        coupling_type_sc: "Flexible Coupling" };
+    case "Multistage":
+      return { ...base, num_stages: "3", impeller_type: "Closed",
+        coupling_type_ms: "Flexible Coupling" };
+    case "Vertical Inline":
+      return { ...base, mounting: "Inline", impeller_type: "Closed",
+        coupling_type_vi: "Close-Coupled" };
+    case "Vertical Turbine":
+      return { ...base, mounting: "Sump", num_bowl_stages: "2",
+        column_length: "3 m", discharge_head_type: "Open Discharge Head",
+        lineshaft_lubrication: "Water Lubricated" };
+    default: return base;
+  }
+}
+
 function buildCentrifugalPumpRequirement(attrs: Record<string, unknown>): string {
-  const pumpType  = (attrs.pump_type      as string)?.trim() || "";
-  const flowRate  = (attrs.flow_rate      as string)?.trim() || "";
-  const head      = (attrs.head           as string)?.trim() || "";
-  const matClass  = (attrs.material_class as string)?.trim() || "";
+  const pumpType = (attrs.pump_type as string)?.trim() || "";
+  const flowRate = (attrs.flow_rate as string)?.trim() || "";
+  const head     = (attrs.head as string)?.trim() || "";
+  const matClass = (attrs.material_class as string)?.trim() || "";
+  const typeLC   = pumpType.toLowerCase();
+
+  let typeSpec = "";
+  if (typeLC.includes("end suction")) {
+    const casing   = (attrs.casing_type as string)?.trim() || "";
+    const impeller = (attrs.impeller_type as string)?.trim() || "";
+    const p2: string[] = [];
+    if (casing)   p2.push(casing);
+    if (impeller) p2.push(`${impeller} Impeller`);
+    typeSpec = p2.join(", ");
+  } else if (typeLC.includes("split case")) {
+    const orient = (attrs.orientation as string)?.trim() || "";
+    const imp    = (attrs.impeller_type_sc as string)?.trim() || "";
+    const p2: string[] = [];
+    if (orient) p2.push(orient);
+    if (imp)    p2.push(`${imp} Impeller`);
+    typeSpec = p2.join(", ");
+  } else if (typeLC.includes("multistage")) {
+    const stages = (attrs.num_stages as string)?.trim() || "";
+    const imp    = (attrs.impeller_type as string)?.trim() || "";
+    const p2: string[] = [];
+    if (stages) p2.push(`${stages}-Stage`);
+    if (imp)    p2.push(`${imp} Impeller`);
+    typeSpec = p2.join(", ");
+  } else if (typeLC.includes("vertical turbine")) {
+    const stages = (attrs.num_bowl_stages as string)?.trim() || "";
+    const col    = (attrs.column_length as string)?.trim() || "";
+    const p2: string[] = [];
+    if (stages) p2.push(`${stages}-Bowl`);
+    if (col)    p2.push(`${col} Column`);
+    typeSpec = p2.join(", ");
+  } else if (typeLC.includes("vertical inline")) {
+    const imp = (attrs.impeller_type as string)?.trim() || "";
+    if (imp) typeSpec = `${imp} Impeller`;
+  }
 
   const parts: string[] = ["Centrifugal Pump"];
-  if (pumpType) parts.push(pumpType);
+  if (pumpType)  parts.push(pumpType);
+  if (typeSpec)  parts.push(typeSpec);
 
   const opCond: string[] = [];
   if (flowRate) opCond.push(flowRate);
-  if (head)     opCond.push(`${head} head`);
+  if (head)     opCond.push(`${head} TDH`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
 
   if (matClass) parts.push(matClass);
   return parts.join(", ");
 }
-
-// ── Centrifugal Pump option lists ─────────────────────────────────────────────
-const CENTRIFUGAL_OPTS: Record<string, string[]> = {
-  pump_type:      ["End Suction", "Split Case", "Multistage", "Vertical Inline", "Vertical Turbine"],
-  mounting:       ["Base Mounted", "Inline", "Vertical"],
-  drive_type:     ["Motor Driven", "Engine Driven"],
-  service_type:   ["Continuous", "Intermittent", "Standby"],
-  seal_type:      ["Single Mechanical Seal", "Double Mechanical Seal", "Gland Packing"],
-  material_class: ["CI", "CS", "SS304", "SS316", "Duplex"],
-  flow_rate:      ["5 m³/hr", "10 m³/hr", "20 m³/hr", "30 m³/hr", "50 m³/hr",
-                   "75 m³/hr", "100 m³/hr", "150 m³/hr", "200 m³/hr", "300 m³/hr", "500 m³/hr"],
-  head:           ["5 m", "10 m", "20 m", "30 m", "40 m", "50 m", "75 m", "100 m", "150 m", "200 m"],
-  operating_temp: ["Ambient", "50°C", "80°C", "100°C", "150°C", "200°C"],
-  fluid:          ["Water", "Hot Water", "Oil", "Chemical", "Slurry", "Effluent"],
-};
 
 const PUMP_MAKES = ["KSB", "Grundfos", "SPX Flow", "Flowserve", "Sulzer", "Kirloskar", "WILO", "CNP", "ITT", "Armstrong"];
 const PUMP_SERIES_BY_MAKE: Record<string, string[]> = {
@@ -1261,56 +1404,74 @@ function CentrifugalPumpAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-
-  const singleKeys = ["pump_type", "mounting", "drive_type", "service_type", "seal_type",
-    "material_class", "flow_rate", "head", "operating_temp", "fluid", "preferred_series"];
-
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val  = (attrs[key] as string) ?? "";
-      const opts = key === "preferred_series" ? [] : (CENTRIFUGAL_OPTS[key] ?? []);
+    for (const [key, opts] of Object.entries(CENTRIFUGAL_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (attrs[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
 
-  function handleSelect(key: string, val: string, opts: string[]) {
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.approved_makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
+
+  function handleTypeChange(type: string) {
+    const defaults = buildCentrifugalPumpDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(CENTRIFUGAL_ALL_FIELD_OPTS)) {
+      if (opts.length === 0) continue;
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    setCustom(c); setMakes([]); onChange({ ...defaults, approved_makes: [] });
+  }
+
+  function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
+      onChange({ ...attrs, [key]: "" });
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      onChange({ ...attrs, [key]: val });
     }
   }
 
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
   function renderField(key: string, label: string, opts: string[], required?: boolean) {
-    const curVal   = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v, opts)} />
+          onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
-          <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
         )}
       </div>
     );
   }
 
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-  // Preferred series options: union of all selected makes' series
-  const seriesOpts = Array.from(new Set(approvedMakes.flatMap((m) => PUMP_SERIES_BY_MAKE[m] ?? [])));
-  const preferredSeries = (attrs.preferred_series as string) ?? "";
-  const isSeriesCustom = custom["preferred_series"] ?? false;
-  const seriesSelectVal = isSeriesCustom ? "__other__" : (seriesOpts.includes(preferredSeries) ? preferredSeries : "");
+  function renderFreeText(key: string, label: string, placeholder?: string) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}</Label>
+        <Input className="h-8 text-sm" placeholder={placeholder ?? `Enter ${label}…`}
+          value={(attrs[key] as string) ?? ""}
+          onChange={(e) => set(key, e.target.value)} />
+      </div>
+    );
+  }
 
-  function sectionHeader(label: string) {
+  function sec(label: string) {
     return (
       <div className="col-span-2 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
@@ -1318,46 +1479,215 @@ function CentrifugalPumpAttrsForm({
     );
   }
 
+  function addMake(make: string) {
+    const t = make.trim();
+    if (!t || makes.includes(t)) return;
+    const next = [...makes, t];
+    setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) {
+    const next = makes.filter((x) => x !== m);
+    setMakes(next); onChange({ ...attrs, approved_makes: next });
+  }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setMakes(next); onChange({ ...attrs, approved_makes: next });
+  }
+
+  const pumpType      = (attrs.pump_type as string) ?? "";
+  const isEndSuction  = pumpType === "End Suction";
+  const isSplitCase   = pumpType === "Split Case";
+  const isMultistage  = pumpType === "Multistage";
+  const isVertInline  = pumpType === "Vertical Inline";
+  const isVertTurbine = pumpType === "Vertical Turbine";
+  const hasType = isEndSuction || isSplitCase || isMultistage || isVertInline || isVertTurbine;
+
+  const seriesOpts      = Array.from(new Set(makes.flatMap((m) => PUMP_SERIES_BY_MAKE[m] ?? [])));
+  const preferredSeries = (attrs.preferred_series as string) ?? "";
+  const isSeriesCustom  = custom["preferred_series"] ?? false;
+  const seriesSelectVal = isSeriesCustom ? "__other__" : (seriesOpts.includes(preferredSeries) ? preferredSeries : "");
+  const filteredMakes   = PUMP_MAKES.filter((m) =>
+    m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Centrifugal Pump Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
-        {sectionHeader("Pump Specifications")}
-        {renderField("pump_type",      "Pump Type",      CENTRIFUGAL_OPTS.pump_type,      true)}
-        {renderField("mounting",       "Mounting",       CENTRIFUGAL_OPTS.mounting,       true)}
-        {renderField("drive_type",     "Drive Type",     CENTRIFUGAL_OPTS.drive_type,     true)}
-        {renderField("service_type",   "Service Type",   CENTRIFUGAL_OPTS.service_type,   true)}
-        {renderField("seal_type",      "Seal Type",      CENTRIFUGAL_OPTS.seal_type,      true)}
-        {renderField("material_class", "Material Class", CENTRIFUGAL_OPTS.material_class, true)}
-
-        {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate",      CENTRIFUGAL_OPTS.flow_rate,      true)}
-        {renderField("head",           "Head",           CENTRIFUGAL_OPTS.head,           true)}
-        {renderField("operating_temp", "Operating Temp", CENTRIFUGAL_OPTS.operating_temp, true)}
-        {renderField("fluid",          "Fluid",          CENTRIFUGAL_OPTS.fluid,          true)}
-
-        {sectionHeader("Vendor / Make")}
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
-          <ApprovedMakesField
-            values={approvedMakes}
-            onChange={(v) => onChange({ ...attrs, approved_makes: v, preferred_series: "" })}
+        {/* ── Pump Type (type-first) ───────────────────────────────── */}
+        {sec("Pump Type")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Pump Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={CENTRIFUGAL_PUMP_TYPES.includes(pumpType) ? pumpType : ""}
+            options={CENTRIFUGAL_PUMP_TYPES}
+            placeholder="Select pump type first…"
+            onSelect={(v) => handleTypeChange(v)}
           />
         </div>
 
-        {seriesOpts.length > 0 && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Preferred Series <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
-            <SearchableSelect value={seriesSelectVal} options={seriesOpts} placeholder="Select series…"
-              onSelect={(v) => handleSelect("preferred_series", v, seriesOpts)} />
-            {isSeriesCustom && (
-              <Input className="h-8 text-sm" placeholder="Enter custom series…"
-                value={preferredSeries} onChange={(e) => set("preferred_series", e.target.value)} autoFocus />
-            )}
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a pump type above to configure specifications
           </div>
         )}
 
+        {/* ── End Suction sub-panel ──────────────────────────────── */}
+        {isEndSuction && (<>
+          {sec("End Suction Configuration")}
+          {renderField("casing_type",    "Casing Type",       CENTRIFUGAL_COMMON_OPTS.casing_type,   true)}
+          {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type, true)}
+          {renderField("coupling_type",  "Coupling Type",     CENTRIFUGAL_COMMON_OPTS.coupling_type, true)}
+          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+          {renderFreeText("npsha",       "NPSHa (m)",         "e.g. 4.5 m")}
+          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+          <div />
+        </>)}
+
+        {/* ── Split Case sub-panel ──────────────────────────────── */}
+        {isSplitCase && (<>
+          {sec("Split Case Configuration")}
+          {renderField("impeller_type_sc","Impeller Type",    CENTRIFUGAL_COMMON_OPTS.impeller_type_sc, true)}
+          {renderField("orientation",    "Orientation",       CENTRIFUGAL_COMMON_OPTS.orientation,     true)}
+          {renderField("coupling_type_sc","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_sc,true)}
+          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+          {renderFreeText("npsha",       "NPSHa (m)",         "e.g. 4.5 m")}
+          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+          <div />
+        </>)}
+
+        {/* ── Multistage sub-panel ──────────────────────────────── */}
+        {isMultistage && (<>
+          {sec("Multistage Configuration")}
+          {renderField("num_stages",     "Number of Stages",  CENTRIFUGAL_COMMON_OPTS.num_stages,     true)}
+          {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,  true)}
+          {renderField("coupling_type_ms","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_ms,true)}
+          {renderField("orientation_ms", "Orientation",       CENTRIFUGAL_COMMON_OPTS.orientation)}
+          {renderField("balance_method", "Balancing Method",  CENTRIFUGAL_COMMON_OPTS.balance_method)}
+          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+        </>)}
+
+        {/* ── Vertical Inline sub-panel ─────────────────────────── */}
+        {isVertInline && (<>
+          {sec("Vertical Inline Configuration")}
+          {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,   true)}
+          {renderField("coupling_type_vi","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_vi,true)}
+          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+          <div />
+        </>)}
+
+        {/* ── Vertical Turbine sub-panel ────────────────────────── */}
+        {isVertTurbine && (<>
+          {sec("Vertical Turbine Configuration")}
+          {renderField("num_bowl_stages",      "No. of Bowl Stages",    CENTRIFUGAL_COMMON_OPTS.num_bowl_stages,         true)}
+          {renderField("column_length",        "Column Length",          CENTRIFUGAL_COMMON_OPTS.column_length,           true)}
+          {renderField("discharge_head_type",  "Discharge Head Type",    CENTRIFUGAL_COMMON_OPTS.discharge_head_type,     true)}
+          {renderField("lineshaft_lubrication","Lineshaft Lubrication",  CENTRIFUGAL_COMMON_OPTS.lineshaft_lubrication,   true)}
+          {renderField("bowl_diameter",        "Bowl Diameter",          CENTRIFUGAL_COMMON_OPTS.bowl_diameter)}
+          {renderField("api_610_category",     "API 610 Category",       CENTRIFUGAL_COMMON_OPTS.api_610)}
+          {renderField("strainer_fitted",      "Strainer Fitted",        CENTRIFUGAL_COMMON_OPTS.yes_no)}
+          {renderField("motor_platform",       "Motor Platform",         CENTRIFUGAL_COMMON_OPTS.motor_platform)}
+          {renderField("motor_power_kw",       "Motor Power (kW)",       CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+          <div />
+        </>)}
+
+        {/* ── Common: Operating Conditions ─────────────────────── */}
+        {hasType && (<>
+          {sec("Operating Conditions")}
+          {renderField("flow_rate",      "Flow Rate",         CENTRIFUGAL_COMMON_OPTS.flow_rate,      true)}
+          {renderField("head",           "Head / TDH",        CENTRIFUGAL_COMMON_OPTS.head,           true)}
+          {renderField("fluid",          "Fluid",             CENTRIFUGAL_COMMON_OPTS.fluid,          true)}
+          {renderField("operating_temp", "Operating Temp",    CENTRIFUGAL_COMMON_OPTS.operating_temp)}
+
+          {sec("Pump Configuration")}
+          {renderField("mounting",       "Mounting",          CENTRIFUGAL_COMMON_OPTS.mounting,       true)}
+          {renderField("drive_type",     "Drive Type",        CENTRIFUGAL_COMMON_OPTS.drive_type,     true)}
+          {renderField("service_type",   "Service Type",      CENTRIFUGAL_COMMON_OPTS.service_type,   true)}
+          {renderField("seal_type",      "Seal Type",         CENTRIFUGAL_COMMON_OPTS.seal_type,      true)}
+          {renderField("material_class", "Material Class",    CENTRIFUGAL_COMMON_OPTS.material_class, true)}
+          <div />
+
+          {sec("Optional — Area & Spares")}
+          {renderField("area_classification","Area Classification", CENTRIFUGAL_COMMON_OPTS.area_class)}
+          {renderField("certification",  "Certification",     CENTRIFUGAL_COMMON_OPTS.certification)}
+          {renderField("spare_parts",    "Spare Parts Package",CENTRIFUGAL_COMMON_OPTS.spare_parts)}
+          <div />
+
+          {/* ── Approved Makes ranked ───────────────────────────── */}
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Approved Makes (ranked) <span className="text-red-500">*</span>
+            </p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
+                value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch); }} />
+              <Button type="button" size="sm" className="h-8"
+                onClick={() => { if (makeSearch.trim()) addMake(makeSearch); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button"
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted"
+                    onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)}
+                      className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Preferred Series */}
+          {seriesOpts.length > 0 && (
+            <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs">Preferred Series <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
+              <SearchableSelect value={seriesSelectVal} options={seriesOpts} placeholder="Select series…"
+                onSelect={(v) => {
+                  if (v === "__other__") {
+                    setCustom((c) => ({ ...c, preferred_series: true }));
+                    set("preferred_series", "");
+                  } else {
+                    setCustom((c) => ({ ...c, preferred_series: false }));
+                    set("preferred_series", v);
+                  }
+                }} />
+              {isSeriesCustom && (
+                <Input className="h-8 text-sm" placeholder="Enter custom series…"
+                  value={preferredSeries} onChange={(e) => set("preferred_series", e.target.value)} autoFocus />
+              )}
+            </div>
+          )}
+        </>)}
+
+        {/* ── Quantity ─────────────────────────────────────────── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -2498,6 +2828,35 @@ function computeSubgroupWarnings(
         if (missing("api_orifice"))         w.push("API orifice — required for PSV/SRV sizing datasheet.");
       }
     }
+  } else if (subgroupCode === "centrifugal") {
+    if (missing("pump_type"))       w.push("Pump Type — required to configure centrifugal pump datasheet.");
+    if (missing("flow_rate"))       w.push("Flow Rate — critical operating condition for pump selection.");
+    if (missing("head"))            w.push("Head / TDH — critical for pump performance and sizing.");
+    if (missing("fluid"))           w.push("Fluid — required for material and seal selection.");
+    if (missing("material_class"))  w.push("Material Class — required for wetted parts datasheet.");
+    if (missing("seal_type"))       w.push("Seal Type — required for mechanical seal datasheet.");
+    const cpt = ((attrs.pump_type as string) ?? "").toLowerCase();
+    if (cpt.includes("end suction")) {
+      if (missing("casing_type"))   w.push("Casing Type — required for End Suction pump datasheet.");
+      if (missing("impeller_type")) w.push("Impeller Type — required for End Suction pump datasheet.");
+      if (missing("coupling_type")) w.push("Coupling Type — required for End Suction pump datasheet.");
+    } else if (cpt.includes("split case")) {
+      if (missing("impeller_type_sc")) w.push("Impeller Type — required for Split Case pump datasheet.");
+      if (missing("orientation"))   w.push("Orientation — Horizontal/Vertical required for Split Case.");
+    } else if (cpt.includes("multistage")) {
+      if (missing("num_stages"))    w.push("Number of Stages — required for Multistage pump datasheet.");
+      if (missing("impeller_type")) w.push("Impeller Type — required for Multistage pump datasheet.");
+    } else if (cpt.includes("vertical turbine")) {
+      if (missing("num_bowl_stages"))       w.push("No. of Bowl Stages — required for VTP datasheet.");
+      if (missing("column_length"))         w.push("Column Length — required for Vertical Turbine Pump.");
+      if (missing("discharge_head_type"))   w.push("Discharge Head Type — required for VTP datasheet.");
+      if (missing("lineshaft_lubrication")) w.push("Lineshaft Lubrication — required for VTP datasheet.");
+    } else if (cpt.includes("vertical inline")) {
+      if (missing("impeller_type"))  w.push("Impeller Type — required for Vertical Inline pump datasheet.");
+      if (missing("coupling_type_vi")) w.push("Coupling Type — required for Vertical Inline pump datasheet.");
+    }
+    if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
+      w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
   } else if (subgroupCode === "on_off") {
     const oot = ((attrs.valve_type as string) ?? "").toLowerCase();
     if (missing("end_connection"))  w.push("End connection — needed for piping interface.");
@@ -2995,6 +3354,99 @@ function buildDatasheetSections(
     ];
   }
 
+  if (subgroupCode === "centrifugal") {
+    const cpt = (v("pump_type") || "").toLowerCase();
+    const isES  = cpt.includes("end suction");
+    const isSC  = cpt.includes("split case");
+    const isMS  = cpt.includes("multistage");
+    const isVI  = cpt.includes("vertical inline");
+    const isVTP = cpt.includes("vertical turbine");
+
+    const typeSpecFields: DatasheetField[] = [];
+    if (isES) {
+      typeSpecFields.push(
+        { label: "Casing Type",    value: v("casing_type") },
+        { label: "Impeller Type",  value: v("impeller_type") },
+        { label: "Coupling Type",  value: v("coupling_type") },
+        { label: "API 610",        value: v("api_610_category") },
+        { label: "Speed",          value: v("speed_rpm") },
+        { label: "NPSHa",          value: v("npsha") !== "—" ? `${v("npsha")} m` : "—" },
+        { label: "Motor Power",    value: v("motor_power_kw") },
+      );
+    } else if (isSC) {
+      typeSpecFields.push(
+        { label: "Impeller Type",  value: v("impeller_type_sc") },
+        { label: "Orientation",    value: v("orientation") },
+        { label: "Coupling Type",  value: v("coupling_type_sc") },
+        { label: "API 610",        value: v("api_610_category") },
+        { label: "Speed",          value: v("speed_rpm") },
+        { label: "NPSHa",          value: v("npsha") !== "—" ? `${v("npsha")} m` : "—" },
+        { label: "Motor Power",    value: v("motor_power_kw") },
+      );
+    } else if (isMS) {
+      typeSpecFields.push(
+        { label: "No. of Stages",   value: v("num_stages") },
+        { label: "Impeller Type",   value: v("impeller_type") },
+        { label: "Coupling Type",   value: v("coupling_type_ms") },
+        { label: "Orientation",     value: v("orientation_ms") },
+        { label: "Balancing Method",value: v("balance_method") },
+        { label: "API 610",         value: v("api_610_category") },
+        { label: "Speed",           value: v("speed_rpm") },
+        { label: "Motor Power",     value: v("motor_power_kw") },
+      );
+    } else if (isVI) {
+      typeSpecFields.push(
+        { label: "Impeller Type",  value: v("impeller_type") },
+        { label: "Coupling Type",  value: v("coupling_type_vi") },
+        { label: "API 610",        value: v("api_610_category") },
+        { label: "Speed",          value: v("speed_rpm") },
+        { label: "Motor Power",    value: v("motor_power_kw") },
+      );
+    } else if (isVTP) {
+      typeSpecFields.push(
+        { label: "No. of Bowl Stages",    value: v("num_bowl_stages") },
+        { label: "Column Length",         value: v("column_length") },
+        { label: "Discharge Head Type",   value: v("discharge_head_type") },
+        { label: "Lineshaft Lubrication", value: v("lineshaft_lubrication") },
+        { label: "Bowl Diameter",         value: v("bowl_diameter") },
+        { label: "API 610",               value: v("api_610_category") },
+        { label: "Strainer Fitted",       value: v("strainer_fitted") },
+        { label: "Motor Platform",        value: v("motor_platform") },
+        { label: "Motor Power",           value: v("motor_power_kw") },
+      );
+    }
+
+    const makes = attrs["approved_makes"];
+    const makesStr = Array.isArray(makes) ? (makes as string[]).join(", ") || "—" : "—";
+
+    return [
+      { title: "Pump Details", fields: [
+        { label: "Pump Type",      value: v("pump_type"), highlight: true },
+        { label: "Mounting",       value: v("mounting") },
+        { label: "Drive Type",     value: v("drive_type") },
+        { label: "Service Type",   value: v("service_type") },
+        { label: "Seal Type",      value: v("seal_type") },
+        { label: "Material Class", value: v("material_class") },
+      ]},
+      ...(typeSpecFields.length > 0 ? [{ title: "Type-Specific Configuration", fields: typeSpecFields }] : []),
+      { title: "Operating Conditions", fields: [
+        { label: "Flow Rate",      value: v("flow_rate"), highlight: true },
+        { label: "Head / TDH",     value: v("head") },
+        { label: "Fluid",          value: v("fluid") },
+        { label: "Operating Temp", value: v("operating_temp") },
+      ]},
+      { title: "Area & Spares", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+        { label: "Spare Parts",         value: v("spare_parts") },
+      ]},
+      { title: "Approved Makes (ranked)", fields: [
+        { label: "Makes",           value: makesStr },
+        { label: "Preferred Series",value: v("preferred_series") },
+      ]},
+    ];
+  }
+
   if (subgroupCode === "on_off") {
     const oot     = (v("valve_type") || "").toLowerCase();
     const isOoBall  = oot.includes("ball");
@@ -3424,6 +3876,7 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   cooling_tower:["Type","Circulation Rate","Casing Material","Fan Type"],
   motor:        ["Motor Type","Power (kW)","Voltage","IP Rating","Efficiency Class","Mounting","Cooling Type"],
   pump_skid:    ["Package Type","Pump Type","Flow Rate / Flow (m³/hr)","Head / Pressure","Fluid / Process Fluid"],
+  centrifugal:  ["Pump Type","Flow Rate","Head / TDH","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
 };
 
 function computeDatasheetCompleteness(
@@ -8746,16 +9199,38 @@ export default function BuyPackagesPage() {
       }
     } else if (isCentrifugalPumpMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.pump_type as string)?.trim()) { toast({ title: "Pump Type is required", variant: "destructive" }); return; }
+      const cPT = (ta.pump_type as string)?.trim() ?? "";
+      if (!cPT) { toast({ title: "Pump Type is required", variant: "destructive" }); return; }
+      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.head as string)?.trim()) { toast({ title: "Head / TDH is required", variant: "destructive" }); return; }
+      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
       if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
       if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
       if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
       if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
       if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
-      if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
-      if (!(ta.head as string)?.trim()) { toast({ title: "Head is required", variant: "destructive" }); return; }
-      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
-      if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
+      const cPTl = cPT.toLowerCase();
+      if (cPTl.includes("end suction")) {
+        if (!(ta.casing_type as string)?.trim()) { toast({ title: "Casing Type is required for End Suction", variant: "destructive" }); return; }
+        if (!(ta.impeller_type as string)?.trim()) { toast({ title: "Impeller Type is required for End Suction", variant: "destructive" }); return; }
+        if (!(ta.coupling_type as string)?.trim()) { toast({ title: "Coupling Type is required for End Suction", variant: "destructive" }); return; }
+      } else if (cPTl.includes("split case")) {
+        if (!(ta.impeller_type_sc as string)?.trim()) { toast({ title: "Impeller Type is required for Split Case", variant: "destructive" }); return; }
+        if (!(ta.orientation as string)?.trim()) { toast({ title: "Orientation is required for Split Case", variant: "destructive" }); return; }
+        if (!(ta.coupling_type_sc as string)?.trim()) { toast({ title: "Coupling Type is required for Split Case", variant: "destructive" }); return; }
+      } else if (cPTl.includes("multistage")) {
+        if (!(ta.num_stages as string)?.trim()) { toast({ title: "Number of Stages is required for Multistage", variant: "destructive" }); return; }
+        if (!(ta.impeller_type as string)?.trim()) { toast({ title: "Impeller Type is required for Multistage", variant: "destructive" }); return; }
+        if (!(ta.coupling_type_ms as string)?.trim()) { toast({ title: "Coupling Type is required for Multistage", variant: "destructive" }); return; }
+      } else if (cPTl.includes("vertical turbine")) {
+        if (!(ta.num_bowl_stages as string)?.trim()) { toast({ title: "No. of Bowl Stages is required for VTP", variant: "destructive" }); return; }
+        if (!(ta.column_length as string)?.trim()) { toast({ title: "Column Length is required for VTP", variant: "destructive" }); return; }
+        if (!(ta.discharge_head_type as string)?.trim()) { toast({ title: "Discharge Head Type is required for VTP", variant: "destructive" }); return; }
+        if (!(ta.lineshaft_lubrication as string)?.trim()) { toast({ title: "Lineshaft Lubrication is required for VTP", variant: "destructive" }); return; }
+      } else if (cPTl.includes("vertical inline")) {
+        if (!(ta.impeller_type as string)?.trim()) { toast({ title: "Impeller Type is required for Vertical Inline", variant: "destructive" }); return; }
+        if (!(ta.coupling_type_vi as string)?.trim()) { toast({ title: "Coupling Type is required for Vertical Inline", variant: "destructive" }); return; }
+      }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isGearPumpMode) {
       const ta = lf.technicalAttributes;
