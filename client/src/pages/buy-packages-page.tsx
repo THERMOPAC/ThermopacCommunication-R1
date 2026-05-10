@@ -3302,42 +3302,90 @@ function DosingPumpAttrsForm({
   );
 }
 
-// ── Vacuum Booster requirement builder ───────────────────────────────────────
-function buildVacuumBoosterRequirement(attrs: Record<string, unknown>): string {
-  const boosterType    = (attrs.booster_type     as string)?.trim() || "";
-  const flowRate       = (attrs.flow_rate        as string)?.trim() || "";
-  const suctionPres    = (attrs.suction_pressure as string)?.trim() || "";
-  const gasType        = (attrs.gas_type         as string)?.trim() || "";
+// ── Vacuum Booster constants ───────────────────────────────────────────────────
+const VB_TYPES = [
+  "Roots Blower","Vacuum Booster","Twin Lobe","Tri-Lobe",
+];
 
-  // "Roots Blower" → "Roots Type", "Vacuum Booster" → "Vacuum Type", "Twin Lobe" → "Twin Lobe Type"
-  const typeLabel = boosterType
-    ? boosterType.replace(/ (Blower|Booster)$/, "") + " Type"
-    : "";
+const VB_ALL_FIELD_OPTS: Record<string, string[]> = {
+  booster_type:              VB_TYPES,
+  flow_rate:                 ["250 m³/hr","500 m³/hr","1000 m³/hr","2000 m³/hr",
+                               "4000 m³/hr","6000 m³/hr","10000 m³/hr"],
+  suction_pressure:          ["1000 mbar (Atmospheric)","500 mbar","200 mbar",
+                               "100 mbar","50 mbar","10 mbar","1 mbar","0.1 mbar"],
+  discharge_pressure:        ["Atmospheric","Slight Positive","0.1 bar(g)","0.2 bar(g)",
+                               "0.5 bar(g)","1.0 bar(g)"],
+  gas_type:                  ["Air","Nitrogen","Hydrocarbon Vapors","Process Gas",
+                               "Inert Gas","Water Vapour"],
+  material_class:            ["CI","CS","SS304","SS316","Duplex SS"],
+  cooling_type:              ["Air Cooled","Water Cooled"],
+  drive_type:                ["Direct Drive","Belt Drive","Gear Drive","VFD Drive"],
+  rotor_profile:             ["Involute","Cycloidal"],
+  pressure_differential:     ["0.1 bar","0.2 bar","0.3 bar","0.5 bar","0.7 bar","1.0 bar"],
+  synchronizing_gears:       ["Yes","No"],
+  oil_sealed:                ["Oil Sealed","Dry Running"],
+  silencer_included:         ["Yes","No"],
+  bypass_valve:              ["Internal Bypass","External Bypass","None"],
+  backing_pump_type:         ["Oil Sealed Rotary Vane","Dry Rotary Screw","Liquid Ring"],
+  booster_compression_ratio: ["2:1","3:1","4:1","5:1"],
+  motor_power_kw:            ["1.1 kW","1.5 kW","2.2 kW","3.7 kW","5.5 kW","7.5 kW",
+                               "11 kW","15 kW","18.5 kW","22 kW","30 kW","37 kW","45 kW","55 kW","75 kW"],
+  speed_rpm:                 ["960 RPM","1450 RPM","1500 RPM","2900 RPM","3000 RPM","Variable"],
+  area_classification:       ["Safe Area","Zone 1","Zone 2"],
+  atex_rating:               ["Ex d","Ex e","Ex n","Non-ATEX"],
+  ip_rating_motor:           ["IP44","IP54","IP55","IP65"],
+  operating_temp:            ["Ambient","50°C","80°C","100°C","120°C","150°C"],
+};
+
+const VACUUM_BOOSTER_MAKES = [
+  "MD-Kinney","Busch","Pfeiffer","Atlas Copco","Leybold",
+  "Edwards","Elmo Rietschle","Tuthill","Agilent",
+];
+
+function buildVacuumBoosterDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    booster_type: type, approved_makes: [],
+    flow_rate: "", suction_pressure: "", discharge_pressure: "",
+    gas_type: "", material_class: "CI", cooling_type: "Air Cooled",
+    drive_type: "Direct Drive", rotor_profile: "", pressure_differential: "",
+    synchronizing_gears: "", oil_sealed: "", silencer_included: "",
+    bypass_valve: "", backing_pump_type: "", booster_compression_ratio: "",
+    motor_power_kw: "", speed_rpm: "", area_classification: "",
+    atex_rating: "", ip_rating_motor: "", operating_temp: "",
+    noise_level: "", inlet_size: "",
+  };
+  switch (type) {
+    case "Roots Blower":
+      return { ...base, rotor_profile: "Involute", drive_type: "Direct Drive",
+        synchronizing_gears: "Yes", oil_sealed: "Oil Sealed" };
+    case "Vacuum Booster":
+      return { ...base, drive_type: "Direct Drive",
+        bypass_valve: "Internal Bypass", backing_pump_type: "Oil Sealed Rotary Vane",
+        booster_compression_ratio: "3:1" };
+    case "Twin Lobe":
+      return { ...base, rotor_profile: "Involute", drive_type: "Direct Drive",
+        silencer_included: "Yes" };
+    case "Tri-Lobe":
+      return { ...base, drive_type: "Direct Drive", silencer_included: "Yes" };
+    default: return base;
+  }
+}
+
+function buildVacuumBoosterRequirement(attrs: Record<string, unknown>): string {
+  const boosterType = (attrs.booster_type     as string)?.trim() || "";
+  const flowRate    = (attrs.flow_rate        as string)?.trim() || "";
+  const suctionPres = (attrs.suction_pressure as string)?.trim() || "";
+  const gasType     = (attrs.gas_type         as string)?.trim() || "";
 
   const parts: string[] = ["Vacuum Booster"];
-  if (typeLabel)    parts.push(typeLabel);
-  if (flowRate)     parts.push(flowRate);
-  if (suctionPres)  parts.push(`${suctionPres} suction`);
-  if (gasType)      parts.push(`${gasType} Service`);
+  if (boosterType) parts.push(boosterType);
+  if (flowRate)    parts.push(flowRate);
+  if (suctionPres) parts.push(`${suctionPres} suction`);
+  if (gasType)     parts.push(`${gasType} Service`);
   return parts.join(", ");
 }
 
-// ── Vacuum Booster option lists ───────────────────────────────────────────────
-const VACUUM_BOOSTER_OPTS: Record<string, string[]> = {
-  booster_type:      ["Roots Blower", "Vacuum Booster", "Twin Lobe", "Tri-Lobe"],
-  flow_rate:         ["250 m³/hr", "500 m³/hr", "1000 m³/hr", "2000 m³/hr",
-                      "4000 m³/hr", "6000 m³/hr", "10000 m³/hr"],
-  suction_pressure:  ["1000 mbar (Atmospheric)", "500 mbar", "200 mbar",
-                      "100 mbar", "50 mbar", "10 mbar", "1 mbar"],
-  discharge_pressure:["Atmospheric", "Slight Positive", "0.2 bar(g)", "0.5 bar(g)"],
-  gas_type:          ["Air", "Nitrogen", "Hydrocarbon Vapors", "Process Gas"],
-  material_class:    ["CI", "CS", "SS304", "SS316"],
-  cooling_type:      ["Air Cooled", "Water Cooled"],
-};
-
-const VACUUM_BOOSTER_MAKES = ["MD-Kinney", "Busch", "Pfeiffer", "Atlas Copco", "Leybold", "Edwards", "Elmo Rietschle", "Tuthill"];
-
-// ── Vacuum Booster structured form ───────────────────────────────────────────
+// ── Vacuum Booster structured form ────────────────────────────────────────────
 function VacuumBoosterAttrsForm({
   attrs, qty, onChange, onQtyChange,
 }: {
@@ -3346,14 +3394,17 @@ function VacuumBoosterAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const vbType = (attrs.booster_type as string) ?? "";
 
-  const singleKeys = Object.keys(VACUUM_BOOSTER_OPTS);
+  function handleTypeChange(newType: string) {
+    onChange({ ...buildVacuumBoosterDefaults(newType), approved_makes: [] });
+  }
+
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
+    for (const key of Object.keys(VB_ALL_FIELD_OPTS)) {
       const val  = (attrs[key] as string) ?? "";
-      const opts = VACUUM_BOOSTER_OPTS[key] ?? [];
+      const opts = VB_ALL_FIELD_OPTS[key] ?? [];
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
@@ -3362,16 +3413,25 @@ function VacuumBoosterAttrsForm({
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
+      onChange({ ...attrs, [key]: "" });
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      onChange({ ...attrs, [key]: val });
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = VACUUM_BOOSTER_OPTS[key];
-    const curVal    = (attrs[key] as string) ?? "";
+  function renderField(key: string, label: string, required?: boolean, freeText?: boolean) {
+    const curVal = (attrs[key] as string) ?? "";
+    if (freeText) {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+          <Input className="h-8 text-sm" placeholder="Enter value…"
+            value={curVal} onChange={(e) => onChange({ ...attrs, [key]: e.target.value })} />
+        </div>
+      );
+    }
+    const opts      = VB_ALL_FIELD_OPTS[key] ?? [];
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
@@ -3381,30 +3441,11 @@ function VacuumBoosterAttrsForm({
           onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
           <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+            value={curVal} onChange={(e) => onChange({ ...attrs, [key]: e.target.value })} autoFocus />
         )}
       </div>
     );
   }
-
-  // ── Makes multi-select ──
-  const [makesOpen, setMakesOpen] = useState(false);
-  const [makesQuery, setMakesQuery] = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal, setCustomMakeVal] = useState("");
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter((m) => m !== make)
-      : [...approvedMakes, make] });
-  }
-  function addCustomMake() {
-    const t = customMakeVal.trim();
-    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  const filteredMakes = VACUUM_BOOSTER_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
 
   function sectionHeader(label: string) {
     return (
@@ -3414,82 +3455,189 @@ function VacuumBoosterAttrsForm({
     );
   }
 
+  // ── Ranked makes ──────────────────────────────────────────────────────────
+  const [makesQuery, setMakesQuery]       = useState("");
+  const [makesOpen, setMakesOpen]         = useState(false);
+  const [customMakeVal, setCustomMakeVal] = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
+
+  function moveMake(idx: number, dir: -1 | 1) {
+    const next = [...approvedMakes];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange({ ...attrs, approved_makes: next });
+  }
+  function removeMake(idx: number) {
+    onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) });
+  }
+  function addMake(make: string) {
+    if (!make.trim() || approvedMakes.includes(make.trim())) return;
+    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+  }
+  function addCustomMakeConfirm() {
+    addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false);
+  }
+  const filteredMakes = VACUUM_BOOSTER_MAKES.filter(
+    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase())
+  );
+
+  const isRoots   = vbType === "Roots Blower";
+  const isBooster = vbType === "Vacuum Booster";
+  const isTwin    = vbType === "Twin Lobe";
+  const isTri     = vbType === "Tri-Lobe";
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vacuum Booster Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
-        {sectionHeader("Equipment Type")}
-        {renderField("booster_type", "Booster Type", true)}
-        <div /> {/* spacer */}
-
-        {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",          "Flow Rate (m³/hr)",  true)}
-        {renderField("suction_pressure",   "Suction Pressure"       )}
-        {renderField("discharge_pressure", "Discharge Pressure"     )}
-        {renderField("gas_type",           "Gas Type"               )}
-
-        {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class", true)}
-        {renderField("cooling_type",   "Cooling Type"       )}
-
-        {sectionHeader("Vendor / Make")}
+        {/* ── Type Selector ── */}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredMakes.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {approvedMakes.map((make) => (
-                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
-                  {make}
-                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {showCustomMake && (
-            <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <Label className="text-xs">Booster Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={VB_TYPES.includes(vbType) ? vbType : ""}
+            options={VB_TYPES}
+            placeholder="Select booster type…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
         </div>
 
+        {/* ── Type sub-panel: Roots Blower ── */}
+        {isRoots && (<>
+          {sectionHeader("Roots Blower — Configuration")}
+          {renderField("rotor_profile",        "Rotor Profile")}
+          {renderField("drive_type",           "Drive Type")}
+          {renderField("pressure_differential","Pressure Differential")}
+          {renderField("synchronizing_gears",  "Synchronizing Gears")}
+          {renderField("oil_sealed",           "Sealing Type")}
+          {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
+        </>)}
+
+        {/* ── Type sub-panel: Vacuum Booster ── */}
+        {isBooster && (<>
+          {sectionHeader("Vacuum Booster — Configuration")}
+          {renderField("booster_compression_ratio","Compression Ratio")}
+          {renderField("bypass_valve",             "Bypass Valve")}
+          {renderField("backing_pump_type",        "Backing Pump Type")}
+          {renderField("drive_type",               "Drive Type")}
+          {renderField("inlet_size",               "Inlet Size (DN/NPS)", false, true)}
+        </>)}
+
+        {/* ── Type sub-panel: Twin Lobe ── */}
+        {isTwin && (<>
+          {sectionHeader("Twin Lobe — Configuration")}
+          {renderField("rotor_profile",        "Rotor Profile")}
+          {renderField("drive_type",           "Drive Type")}
+          {renderField("pressure_differential","Pressure Differential")}
+          {renderField("silencer_included",    "Silencer Included")}
+          {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
+        </>)}
+
+        {/* ── Type sub-panel: Tri-Lobe ── */}
+        {isTri && (<>
+          {sectionHeader("Tri-Lobe — Configuration")}
+          {renderField("drive_type",           "Drive Type")}
+          {renderField("pressure_differential","Pressure Differential")}
+          {renderField("silencer_included",    "Silencer Included")}
+          {renderField("noise_level",          "Noise Level Target", false, true)}
+          {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
+        </>)}
+
+        {/* ── Common mandatory fields ── */}
+        {vbType && (<>
+          {sectionHeader("Operating Conditions")}
+          {renderField("flow_rate",          "Flow Rate (m³/hr)",  true)}
+          {renderField("suction_pressure",   "Suction Pressure",   true)}
+          {renderField("discharge_pressure", "Discharge Pressure", true)}
+          {renderField("gas_type",           "Gas Type",           true)}
+          {renderField("material_class",     "Material Class",     true)}
+          {renderField("cooling_type",       "Cooling Type",       true)}
+
+          {/* ── Optional ── */}
+          {sectionHeader("Optional / Additional")}
+          {renderField("motor_power_kw",    "Motor Power (kW)")}
+          {renderField("speed_rpm",         "Speed (RPM)")}
+          {renderField("operating_temp",    "Operating Temp")}
+          {renderField("area_classification","Area Classification")}
+          {renderField("atex_rating",       "ATEX Rating")}
+          {renderField("ip_rating_motor",   "IP Rating (Motor)")}
+
+          {/* ── Ranked makes ── */}
+          {sectionHeader("Approved Makes (Ranked)")}
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Plus className="h-3.5 w-3.5" />Add Make
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                    <CommandList>
+                      <CommandEmpty>No results.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredMakes.map((opt) => (
+                          <CommandItem key={opt} value={opt} onSelect={() => { addMake(opt); setMakesOpen(false); setMakesQuery(""); }}>
+                            {opt}
+                          </CommandItem>
+                        ))}
+                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                          <Plus className="mr-2 h-4 w-4" />Add custom make…
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {approvedMakes.length === 0 && (
+                <span className="text-[11px] text-muted-foreground self-center">No makes added yet</span>
+              )}
+            </div>
+            {showCustomMake && (
+              <div className="flex gap-2">
+                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMakeConfirm(); } }}
+                  autoFocus />
+                <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMakeConfirm}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                  onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {approvedMakes.length > 0 && (
+              <div className="space-y-1">
+                {approvedMakes.map((make, idx) => (
+                  <div key={make} className="flex items-center gap-2 rounded border bg-background px-2 py-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground w-4 shrink-0">{idx + 1}.</span>
+                    <span className="text-xs flex-1">{make}</span>
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button"
+                        onClick={() => moveMake(idx, -1)} disabled={idx === 0}>
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button"
+                        onClick={() => moveMake(idx, 1)} disabled={idx === approvedMakes.length - 1}>
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" type="button"
+                        onClick={() => removeMake(idx)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── Quantity ── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -3754,6 +3902,21 @@ function computeSubgroupWarnings(
   } else if (subgroupCode === "cooling_tower") {
     if (missing("casing_material")) w.push("Casing material — required for CT datasheet.");
     if (missing("fan_type"))        w.push("Fan type — required for fan selection datasheet.");
+  } else if (subgroupCode === "vacuum_boosters" || subgroupCode === "vacuum") {
+    if (missing("booster_type"))       w.push("Booster Type — required to configure vacuum booster datasheet.");
+    if (missing("flow_rate"))          w.push("Flow Rate — critical capacity parameter.");
+    if (missing("suction_pressure"))   w.push("Suction Pressure — required for vacuum system design.");
+    if (missing("discharge_pressure")) w.push("Discharge Pressure — required for vacuum system design.");
+    if (missing("gas_type"))           w.push("Gas Type — required for material and seal selection.");
+    if (missing("material_class"))     w.push("Material Class — required for wetted parts datasheet.");
+    if (missing("cooling_type"))       w.push("Cooling Type — required for utility datasheet.");
+    if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
+      w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
+  } else if (subgroupCode === "pump_skid" || subgroupCode === "pump_skid_packages") {
+    if (missing("package_type"))  w.push("Package Type — required to configure pump skid datasheet.");
+    if (missing("pump_type"))     w.push("Pump Type — required for pump selection datasheet.");
+    if (missing("flow_rate"))     w.push("Flow Rate — indicative capacity required.");
+    if (missing("fluid"))         w.push("Process Fluid — required for material selection.");
   }
 
   return w;
@@ -4834,26 +4997,95 @@ function buildDatasheetSections(
     ];
   }
 
-  if (subgroupCode === "pump_skid" || subgroupCode === "pump_skid_packages") {
+  if (subgroupCode === "vacuum_boosters" || subgroupCode === "vacuum") {
+    const vbType  = v("booster_type") || "";
+    const vbTL    = vbType.toLowerCase();
+    const typeSpecFields: DatasheetField[] = [];
+    if (vbTL === "roots blower") {
+      typeSpecFields.push(
+        { label: "Rotor Profile",         value: v("rotor_profile"),            highlight: true },
+        { label: "Pressure Differential", value: v("pressure_differential") },
+        { label: "Synchronizing Gears",   value: v("synchronizing_gears") },
+        { label: "Sealing Type",          value: v("oil_sealed") },
+      );
+    } else if (vbTL === "vacuum booster") {
+      typeSpecFields.push(
+        { label: "Compression Ratio",     value: v("booster_compression_ratio"), highlight: true },
+        { label: "Bypass Valve",          value: v("bypass_valve") },
+        { label: "Backing Pump Type",     value: v("backing_pump_type"),         highlight: true },
+      );
+    } else if (vbTL === "twin lobe") {
+      typeSpecFields.push(
+        { label: "Rotor Profile",         value: v("rotor_profile"),            highlight: true },
+        { label: "Pressure Differential", value: v("pressure_differential") },
+        { label: "Silencer Included",     value: v("silencer_included") },
+      );
+    } else if (vbTL === "tri-lobe") {
+      typeSpecFields.push(
+        { label: "Pressure Differential", value: v("pressure_differential") },
+        { label: "Silencer Included",     value: v("silencer_included") },
+        { label: "Noise Level",           value: v("noise_level") },
+      );
+    }
+    const vbMakes    = (attrs.approved_makes as string[]) ?? [];
+    const vbMakesStr = vbMakes.length > 0 ? vbMakes.map((m, i) => `${i + 1}. ${m}`).join("  ") : "—";
     return [
-      { title: "Package Details", fields: [
-        { label: "Package Type",   value: v("package_type"), highlight: true },
-        { label: "Pump Type",      value: vFirst("pump_type") },
-        { label: "No. of Pumps",   value: v("num_pumps") },
-        { label: "Standby Config", value: v("standby_config") },
-        { label: "Mounting",       value: v("mounting") },
-        { label: "Material Class", value: v("material_class") },
+      { title: "Booster Identity", fields: [
+        { label: "Booster Type",  value: vbType,         highlight: true },
+        { label: "Drive Type",    value: v("drive_type") },
+        { label: "Inlet Size",    value: v("inlet_size") },
+        ...typeSpecFields,
       ]},
       { title: "Operating Conditions", fields: [
-        { label: "Flow Rate / Flow (m³/hr)", value: vFirst("flow_rate", "flow_m3hr"), highlight: true },
-        { label: "Head / Pressure",          value: vFirst("head", "head_m", "head_pressure") },
-        { label: "Fluid / Process Fluid",    value: vFirst("fluid", "process_fluid") },
-        { label: "Operating Temperature",    value: vFirst("operating_temp", "operating_temp_c") },
-        { label: "Design Pressure",          value: vUnit("design_pressure", "design_pressure_unit") },
+        { label: "Flow Rate (m³/hr)",  value: v("flow_rate"),         highlight: true },
+        { label: "Suction Pressure",   value: v("suction_pressure"),  highlight: true },
+        { label: "Discharge Pressure", value: v("discharge_pressure") },
+        { label: "Gas Type",           value: v("gas_type"),          highlight: true },
+        { label: "Operating Temp",     value: v("operating_temp") },
       ]},
-      { title: "Components", fields: [
+      { title: "Construction", fields: [
+        { label: "Material Class",   value: v("material_class"),     highlight: true },
+        { label: "Cooling Type",     value: v("cooling_type") },
+        { label: "Motor Power (kW)", value: v("motor_power_kw") },
+        { label: "Speed (RPM)",      value: v("speed_rpm") },
+        { label: "IP Rating",        value: v("ip_rating_motor") },
+      ]},
+      { title: "Classification", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "ATEX Rating",         value: v("atex_rating") },
+      ]},
+      { title: "Approved Makes (Ranked)", fields: [
+        { label: "Makes", value: vbMakesStr, highlight: vbMakesStr !== "—" },
+      ]},
+    ];
+  }
+
+  if (subgroupCode === "pump_skid" || subgroupCode === "pump_skid_packages") {
+    const psMakes    = (attrs.approved_makes as string[]) ?? [];
+    const psMakesStr = psMakes.length > 0 ? psMakes.map((m, i) => `${i + 1}. ${m}`).join("  ") : "—";
+    return [
+      { title: "Package Details", fields: [
+        { label: "Package Type",     value: v("package_type"),    highlight: true },
+        { label: "Pump Type",        value: v("pump_type"),       highlight: true },
+        { label: "No. of Pumps",     value: v("num_pumps") },
+        { label: "Standby Config",   value: v("standby_config") },
+        { label: "Driver Type",      value: v("driver_type") },
+        { label: "Mounting",         value: v("mounting") },
+        { label: "Material Class",   value: v("material_class") },
+        { label: "Testing Standard", value: v("testing_standard") },
+        { label: "Pipeline Class",   value: v("pipeline_class") },
+      ]},
+      { title: "Operating Conditions", fields: [
+        { label: "Flow Rate (m³/hr)", value: v("flow_rate"),      highlight: true },
+        { label: "Head / Pressure",   value: v("head_pressure") },
+        { label: "Process Fluid",     value: v("fluid"),          highlight: true },
+      ]},
+      { title: "Scope of Supply", fields: [
         { label: "Included Components",
           value: ((attrs.included_components as string[]) ?? []).join(", ") || "—" },
+      ]},
+      { title: "Approved Makes (Ranked)", fields: [
+        { label: "Makes", value: psMakesStr, highlight: psMakesStr !== "—" },
       ]},
     ];
   }
@@ -5063,7 +5295,10 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   junction_box: ["JB Type","IP Rating","No. of Terminals","Terminal Type"],
   cooling_tower:["Type","Circulation Rate","Casing Material","Fan Type"],
   motor:        ["Motor Type","Power (kW)","Voltage","IP Rating","Efficiency Class","Mounting","Cooling Type"],
-  pump_skid:    ["Package Type","Pump Type","Flow Rate / Flow (m³/hr)","Head / Pressure","Fluid / Process Fluid"],
+  pump_skid:        ["Package Type","Pump Type","Flow Rate / Flow (m³/hr)","Head / Pressure","Fluid / Process Fluid"],
+  pump_skid_packages:["Package Type","Pump Type","Flow Rate / Flow (m³/hr)","Head / Pressure","Fluid / Process Fluid"],
+  vacuum_boosters:  ["Booster Type","Flow Rate","Suction Pressure","Gas Type","Material Class","Approved Makes (ranked)"],
+  vacuum:           ["Booster Type","Flow Rate","Suction Pressure","Gas Type","Material Class","Approved Makes (ranked)"],
   centrifugal:  ["Pump Type","Flow Rate","Head / TDH","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
   gear:         ["Gear Type","Flow Rate","Differential Pressure","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
   screw:        ["Screw Type","Flow Rate","Differential Pressure","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
@@ -9286,19 +9521,68 @@ function IsolationValveAttrsForm({
   );
 }
 
-// ── Pump Skid requirement builder ────────────────────────────────────────────
-function buildPumpSkidRequirement(attrs: Record<string, unknown>): string {
-  const pkgType    = (attrs.package_type         as string)?.trim()   || "";
-  const pumpType   = (attrs.pump_type            as string)?.trim()   || "";
-  const flowRate   = (attrs.flow_rate            as string)?.trim()   || "";
-  const standby    = (attrs.standby_config       as string)?.trim()   || "";
-  const components = (attrs.included_components  as string[])         ?? [];
+// ── Pump Skid constants ────────────────────────────────────────────────────────
+const PUMP_SKID_PKG_TYPES = [
+  "Single Pump Skid","Duplex Pump Skid (1W + 1S)","Triplex Pump Skid (2W + 1S)","Custom Package",
+];
 
-  // "Duplex Pump Skid (1W + 1S)" → "Duplex Pump Skid"
-  const pkgLabel   = pkgType.replace(/\s*\(.*\)$/, "");
-  // "Centrifugal" → "Centrifugal Pumps"
-  const pumpLabel  = pumpType ? `${pumpType} Pumps` : "";
-  // "1 Working + 1 Standby" → "1W+1S"
+const PS_ALL_FIELD_OPTS: Record<string, string[]> = {
+  package_type:     PUMP_SKID_PKG_TYPES,
+  pump_type:        ["Centrifugal","Multistage","Gear","Screw","Dosing / Metering","Vacuum Booster","Reciprocating"],
+  flow_rate:        ["1 m³/hr","2 m³/hr","5 m³/hr","10 m³/hr","20 m³/hr","50 m³/hr",
+                     "100 m³/hr","200 m³/hr","500 m³/hr"],
+  head_pressure:    ["10 m","20 m","50 m","100 m","150 m","200 m",
+                     "1 bar","2 bar","5 bar","10 bar","20 bar","50 bar"],
+  num_pumps:        ["1","2","3","4"],
+  standby_config:   ["No Standby","1 Working + 1 Standby","2 Working + 1 Standby","3 Working + 0 Standby"],
+  mounting:         ["Base Mounted","Skid Mounted","Containerized"],
+  fluid:            ["Water","Boiler Feed Water","Oil","Chemical","Sea Water","Process Gas","Other"],
+  material_class:   ["CS","SS304","SS316","Duplex SS"],
+  driver_type:      ["Electric Motor","Diesel Engine","Gas Turbine","Steam Turbine"],
+  testing_standard: ["API 610","Hydrostatic Only","Third Party Witnessing","No Testing Required"],
+  pipeline_class:   ["ASME B16.5","DIN 2501","BS 4504","Not Specified"],
+};
+
+const PUMP_SKID_COMPONENT_OPTS = [
+  "Pumps","Motor","Base Frame","Coupling","Control Panel",
+  "VFD","Instrumentation","Piping","Valves","NRV",
+  "Pressure Gauges","Flow Meter","Strainer","Relief Valve","Expansion Joints",
+];
+
+const PUMP_SKID_MAKES = [
+  "Flowserve","KSB","Grundfos","Sulzer","Ebara",
+  "Ruhrpumpen","SPX","Peerless","Kirloskar","WILO",
+];
+
+function buildPumpSkidDefaults(pkgType: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    package_type: pkgType, approved_makes: [], included_components: [],
+    pump_type: "", flow_rate: "", head_pressure: "",
+    num_pumps: "", standby_config: "No Standby", mounting: "Skid Mounted",
+    fluid: "", material_class: "CS", driver_type: "Electric Motor",
+    testing_standard: "", pipeline_class: "Not Specified",
+  };
+  switch (pkgType) {
+    case "Single Pump Skid":
+      return { ...base, num_pumps: "1", standby_config: "No Standby" };
+    case "Duplex Pump Skid (1W + 1S)":
+      return { ...base, num_pumps: "2", standby_config: "1 Working + 1 Standby" };
+    case "Triplex Pump Skid (2W + 1S)":
+      return { ...base, num_pumps: "3", standby_config: "2 Working + 1 Standby" };
+    default: return base;
+  }
+}
+
+function buildPumpSkidRequirement(attrs: Record<string, unknown>): string {
+  const pkgType    = (attrs.package_type        as string)?.trim()   || "";
+  const pumpType   = (attrs.pump_type           as string)?.trim()   || "";
+  const flowRate   = (attrs.flow_rate           as string)?.trim()   || "";
+  const standby    = (attrs.standby_config      as string)?.trim()   || "";
+  const fluid      = (attrs.fluid               as string)?.trim()   || "";
+  const components = (attrs.included_components as string[])         ?? [];
+
+  const pkgLabel     = pkgType.replace(/\s*\(.*\)$/, "");
+  const pumpLabel    = pumpType ? `${pumpType} Pumps` : "";
   const standbyLabel = standby
     .replace("1 Working + 1 Standby", "1W+1S")
     .replace("2 Working + 1 Standby", "2W+1S");
@@ -9307,30 +9591,11 @@ function buildPumpSkidRequirement(attrs: Record<string, unknown>): string {
   if (pkgLabel)  parts.push(pkgLabel);
   if (pumpLabel) parts.push(pumpLabel);
   if (flowRate)  parts.push(flowRate);
+  if (fluid)     parts.push(`${fluid} Service`);
   if (standbyLabel && standbyLabel !== "No Standby") parts.push(standbyLabel);
-  if (components.length > 0) parts.push(`Complete with ${components.slice(0, 4).join(", ")}`);
+  if (components.length > 0) parts.push(`Complete with ${components.slice(0, 3).join(", ")}`);
   return parts.join(", ");
 }
-
-// ── Pump Skid option lists ────────────────────────────────────────────────────
-const PUMP_SKID_OPTS: Record<string, string[]> = {
-  package_type:     ["Single Pump Skid", "Duplex Pump Skid (1W + 1S)", "Triplex Pump Skid (2W + 1S)", "Custom Package"],
-  pump_type:        ["Centrifugal", "Multistage", "Gear", "Screw", "Dosing / Metering", "Vacuum Booster"],
-  flow_rate:        ["5 m³/hr", "10 m³/hr", "20 m³/hr", "50 m³/hr", "100 m³/hr", "200 m³/hr"],
-  head_pressure:    ["10", "20", "50", "100", "150", "200"],
-  num_pumps:        ["1", "2", "3", "4"],
-  standby_config:   ["No Standby", "1 Working + 1 Standby", "2 Working + 1 Standby"],
-  mounting:         ["Base Mounted", "Skid Mounted", "Containerized"],
-  material_class:   ["CS", "SS304", "SS316", "Duplex"],
-};
-
-const PUMP_SKID_COMPONENT_OPTS = [
-  "Pumps", "Motor", "Base Frame", "Coupling", "Control Panel",
-  "VFD", "Instrumentation", "Piping", "Valves", "NRV",
-  "Pressure Gauges", "Flow Meter",
-];
-
-const PUMP_SKID_MAKES = ["Flowserve", "KSB", "Grundfos", "Sulzer", "Ebara", "Ruhrpumpen", "SPX", "Peerless", "Kirloskar"];
 
 // ── Pump Skid structured form ─────────────────────────────────────────────────
 function PumpSkidAttrsForm({
@@ -9341,14 +9606,17 @@ function PumpSkidAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const pkgType = (attrs.package_type as string) ?? "";
 
-  const singleKeys = Object.keys(PUMP_SKID_OPTS);
+  function handleTypeChange(newPkgType: string) {
+    onChange({ ...buildPumpSkidDefaults(newPkgType), approved_makes: [], included_components: [] });
+  }
+
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
+    for (const key of Object.keys(PS_ALL_FIELD_OPTS)) {
       const val  = (attrs[key] as string) ?? "";
-      const opts = PUMP_SKID_OPTS[key] ?? [];
+      const opts = PS_ALL_FIELD_OPTS[key] ?? [];
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
@@ -9357,15 +9625,15 @@ function PumpSkidAttrsForm({
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
+      onChange({ ...attrs, [key]: "" });
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      onChange({ ...attrs, [key]: val });
     }
   }
 
   function renderField(key: string, label: string, required?: boolean) {
-    const opts      = PUMP_SKID_OPTS[key];
+    const opts      = PS_ALL_FIELD_OPTS[key] ?? [];
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
@@ -9376,49 +9644,11 @@ function PumpSkidAttrsForm({
           onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
           <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+            value={curVal} onChange={(e) => onChange({ ...attrs, [key]: e.target.value })} autoFocus />
         )}
       </div>
     );
   }
-
-  // ── Included Components multi-select ──
-  const [compOpen, setCompOpen] = useState(false);
-  const [compQuery, setCompQuery] = useState("");
-  const [showCustomComp, setShowCustomComp] = useState(false);
-  const [customCompVal, setCustomCompVal] = useState("");
-  const includedComponents = (attrs.included_components as string[]) ?? [];
-
-  function toggleComp(comp: string) {
-    onChange({ ...attrs, included_components: includedComponents.includes(comp)
-      ? includedComponents.filter((c) => c !== comp)
-      : [...includedComponents, comp] });
-  }
-  function addCustomComp() {
-    const t = customCompVal.trim();
-    if (t && !includedComponents.includes(t)) onChange({ ...attrs, included_components: [...includedComponents, t] });
-    setCustomCompVal(""); setShowCustomComp(false);
-  }
-  const filteredComps = PUMP_SKID_COMPONENT_OPTS.filter((o) => o.toLowerCase().includes(compQuery.toLowerCase()));
-
-  // ── Makes multi-select ──
-  const [makesOpen, setMakesOpen] = useState(false);
-  const [makesQuery, setMakesQuery] = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal, setCustomMakeVal] = useState("");
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter((m) => m !== make)
-      : [...approvedMakes, make] });
-  }
-  function addCustomMake() {
-    const t = customMakeVal.trim();
-    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  const filteredMakes = PUMP_SKID_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
 
   function sectionHeader(label: string) {
     return (
@@ -9428,142 +9658,223 @@ function PumpSkidAttrsForm({
     );
   }
 
+  // ── Components multi-select (badge style) ─────────────────────────────────
+  const [compOpen, setCompOpen]       = useState(false);
+  const [compQuery, setCompQuery]     = useState("");
+  const [showCustomComp, setShowCustomComp] = useState(false);
+  const [customCompVal, setCustomCompVal]   = useState("");
+  const includedComponents: string[] = (attrs.included_components as string[]) ?? [];
+
+  function addComp(comp: string) {
+    if (!comp.trim() || includedComponents.includes(comp.trim())) return;
+    onChange({ ...attrs, included_components: [...includedComponents, comp.trim()] });
+  }
+  function removeComp(comp: string) {
+    onChange({ ...attrs, included_components: includedComponents.filter((c) => c !== comp) });
+  }
+  function addCustomCompConfirm() {
+    addComp(customCompVal); setCustomCompVal(""); setShowCustomComp(false);
+  }
+  const filteredComps = PUMP_SKID_COMPONENT_OPTS.filter(
+    (o) => !includedComponents.includes(o) && o.toLowerCase().includes(compQuery.toLowerCase())
+  );
+
+  // ── Ranked makes ──────────────────────────────────────────────────────────
+  const [makesQuery, setMakesQuery]       = useState("");
+  const [makesOpen, setMakesOpen]         = useState(false);
+  const [customMakeVal, setCustomMakeVal] = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
+
+  function moveMake(idx: number, dir: -1 | 1) {
+    const next = [...approvedMakes];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange({ ...attrs, approved_makes: next });
+  }
+  function removeMake(idx: number) {
+    onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) });
+  }
+  function addMake(make: string) {
+    if (!make.trim() || approvedMakes.includes(make.trim())) return;
+    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+  }
+  function addCustomMakeConfirm() {
+    addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false);
+  }
+  const filteredMakes = PUMP_SKID_MAKES.filter(
+    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pump Skid Package Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
-        {sectionHeader("Package Type")}
-        {renderField("package_type", "Package Type", true)}
-        {renderField("pump_type",    "Pump Type"        )}
-
-        {sectionHeader("Capacity (Indicative)")}
-        {renderField("flow_rate",     "Flow Rate (m³/hr)"          )}
-        {renderField("head_pressure", "Head / Pressure (m or bar)" )}
-
-        {sectionHeader("Package Configuration")}
-        {renderField("num_pumps",      "Number of Pumps"      )}
-        {renderField("standby_config", "Standby Configuration")}
-        {renderField("mounting",       "Mounting"             )}
-
-        {sectionHeader("Scope of Supply")}
+        {/* ── Package Type (type-first) ── */}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Included Components <span className="text-[10px] font-normal text-muted-foreground">(multi-select)</span></Label>
-          <Popover open={compOpen} onOpenChange={setCompOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {includedComponents.length > 0 ? `${includedComponents.length} item${includedComponents.length > 1 ? "s" : ""} selected` : "Select components…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search…" value={compQuery} onValueChange={setCompQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredComps.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleComp(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", includedComponents.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom_comp__" onSelect={() => { setShowCustomComp(true); setCompOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {includedComponents.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {includedComponents.map((comp) => (
-                <Badge key={comp} variant="secondary" className="text-xs pr-1 gap-1">
-                  {comp}
-                  <button type="button" onClick={() => onChange({ ...attrs, included_components: includedComponents.filter((c) => c !== comp) })} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {showCustomComp && (
-            <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter component…"
-                value={customCompVal} onChange={(e) => setCustomCompVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomComp(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomComp}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomComp(false); setCustomCompVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <Label className="text-xs">Package Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={PUMP_SKID_PKG_TYPES.includes(pkgType) ? pkgType : ""}
+            options={PUMP_SKID_PKG_TYPES}
+            placeholder="Select package type…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
         </div>
 
-        {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class")}
-        <div /> {/* spacer */}
+        {pkgType && (<>
+          {sectionHeader("Pump Details")}
+          {renderField("pump_type",     "Pump Type",     true)}
+          {renderField("num_pumps",     "Number of Pumps")}
+          {renderField("standby_config","Standby Config")}
+          {renderField("driver_type",   "Driver Type")}
 
-        {sectionHeader("Vendor / Make")}
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredMakes.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {approvedMakes.map((make) => (
-                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
-                  {make}
-                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
+          {sectionHeader("Capacity (Indicative)")}
+          {renderField("flow_rate",     "Flow Rate (m³/hr)")}
+          {renderField("head_pressure", "Head / Pressure")}
+          {renderField("fluid",         "Process Fluid")}
+
+          {sectionHeader("Package Configuration")}
+          {renderField("mounting",          "Mounting")}
+          {renderField("material_class",    "Material Class")}
+          {renderField("testing_standard",  "Testing Standard")}
+          {renderField("pipeline_class",    "Pipeline Class")}
+
+          {/* ── Included Components ── */}
+          {sectionHeader("Scope of Supply")}
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2 flex-wrap">
+              <Popover open={compOpen} onOpenChange={setCompOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Plus className="h-3.5 w-3.5" />Add Component
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search…" value={compQuery} onValueChange={setCompQuery} />
+                    <CommandList>
+                      <CommandEmpty>No results.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredComps.map((opt) => (
+                          <CommandItem key={opt} value={opt} onSelect={() => { addComp(opt); setCompOpen(false); setCompQuery(""); }}>
+                            {opt}
+                          </CommandItem>
+                        ))}
+                        <CommandItem value="__custom_comp__" onSelect={() => { setShowCustomComp(true); setCompOpen(false); }}>
+                          <Plus className="mr-2 h-4 w-4" />Add custom…
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {includedComponents.length === 0 && (
+                <span className="text-[11px] text-muted-foreground self-center">No components added</span>
+              )}
             </div>
-          )}
-          {showCustomMake && (
+            {showCustomComp && (
+              <div className="flex gap-2">
+                <Input className="h-8 text-sm flex-1" placeholder="Enter component…"
+                  value={customCompVal} onChange={(e) => setCustomCompVal(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomCompConfirm(); } }}
+                  autoFocus />
+                <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomCompConfirm}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                  onClick={() => { setShowCustomComp(false); setCustomCompVal(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {includedComponents.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {includedComponents.map((comp) => (
+                  <Badge key={comp} variant="secondary" className="text-xs pr-1 gap-1">
+                    {comp}
+                    <button type="button" onClick={() => removeComp(comp)} className="hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Ranked makes ── */}
+          {sectionHeader("Approved Makes (Ranked)")}
+          <div className="col-span-2 space-y-2">
             <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
+              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Plus className="h-3.5 w-3.5" />Add Make
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                    <CommandList>
+                      <CommandEmpty>No results.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredMakes.map((opt) => (
+                          <CommandItem key={opt} value={opt} onSelect={() => { addMake(opt); setMakesOpen(false); setMakesQuery(""); }}>
+                            {opt}
+                          </CommandItem>
+                        ))}
+                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                          <Plus className="mr-2 h-4 w-4" />Add custom make…
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {approvedMakes.length === 0 && (
+                <span className="text-[11px] text-muted-foreground self-center">Optional — add preferred makes</span>
+              )}
             </div>
-          )}
-        </div>
+            {showCustomMake && (
+              <div className="flex gap-2">
+                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMakeConfirm(); } }}
+                  autoFocus />
+                <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMakeConfirm}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                  onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {approvedMakes.length > 0 && (
+              <div className="space-y-1">
+                {approvedMakes.map((make, idx) => (
+                  <div key={make} className="flex items-center gap-2 rounded border bg-background px-2 py-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground w-4 shrink-0">{idx + 1}.</span>
+                    <span className="text-xs flex-1">{make}</span>
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button"
+                        onClick={() => moveMake(idx, -1)} disabled={idx === 0}>
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button"
+                        onClick={() => moveMake(idx, 1)} disabled={idx === approvedMakes.length - 1}>
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" type="button"
+                        onClick={() => removeMake(idx)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
 
+        {/* ── Quantity ── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -10515,13 +10826,15 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.booster_type as string)?.trim()) { toast({ title: "Booster Type is required", variant: "destructive" }); return; }
       if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
+      if (!(ta.suction_pressure as string)?.trim()) { toast({ title: "Suction Pressure is required", variant: "destructive" }); return; }
+      if (!(ta.gas_type as string)?.trim()) { toast({ title: "Gas Type is required", variant: "destructive" }); return; }
       if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
+      if (!(ta.cooling_type as string)?.trim()) { toast({ title: "Cooling Type is required", variant: "destructive" }); return; }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isPumpSkidMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.package_type as string)?.trim()) {
-        toast({ title: "Package Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.package_type as string)?.trim()) { toast({ title: "Package Type is required", variant: "destructive" }); return; }
+      if (!(ta.pump_type as string)?.trim()) { toast({ title: "Pump Type is required", variant: "destructive" }); return; }
     } else if (isMotorMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.motor_type as string)?.trim()) { toast({ title: "Motor Type is required", variant: "destructive" }); return; }
