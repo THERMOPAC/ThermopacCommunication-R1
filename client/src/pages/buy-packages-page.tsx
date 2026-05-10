@@ -2481,16 +2481,141 @@ function ScrewPumpAttrsForm({
   );
 }
 
-// ── Multistage Pump requirement builder ──────────────────────────────────────
+// ── Multistage Pump constants ─────────────────────────────────────────────────
+const MULTISTAGE_PUMP_TYPES = [
+  "Horizontal Multistage","Vertical Multistage","Ring Section","Barrel Type",
+];
+
+const MS_COMMON_OPTS = {
+  mounting:          ["Base Mounted","Skid Mounted","Vertical"],
+  drive_type:        ["Motor Driven","Engine Driven","Variable Speed Drive (VSD)","Steam Turbine Driven"],
+  service_type:      ["Continuous","Intermittent","Standby","Duty-Standby"],
+  flow_rate:         ["1 m³/hr","2 m³/hr","5 m³/hr","10 m³/hr","15 m³/hr","20 m³/hr","30 m³/hr",
+                      "50 m³/hr","75 m³/hr","100 m³/hr","150 m³/hr","200 m³/hr","300 m³/hr","500 m³/hr"],
+  head_mlc:          ["50","75","100","150","200","300","400","500","600","800","1000","1500","2000"],
+  fluid:             ["Water","Hot Water","Boiler Feed Water","Condensate","Sea Water","Chemical",
+                      "Oil","Hydrocarbons","Cryogenic Fluid","Other"],
+  operating_temp:    ["Ambient","60°C","80°C","100°C","120°C","150°C","200°C","250°C","300°C","350°C"],
+  material_class:    ["CI","CS","SS304","SS316","Duplex SS","Super Duplex","Hastelloy"],
+  seal_type:         ["Single Mechanical Seal","Double Mechanical Seal","Tandem Seal",
+                      "Cartridge Seal","Gland Packing","Labyrinth Seal"],
+  yes_no:            ["Yes","No"],
+  api_standard:      ["API 610","Non-API"],
+  area_class:        ["Safe Area","Zone 1","Zone 2"],
+  certification:     ["ATEX","IECEx","PESO"],
+  speed_rpm:         ["960 RPM","1450 RPM","1500 RPM","2900 RPM","3000 RPM","3500 RPM","Variable"],
+  motor_power_kw:    ["1.1 kW","1.5 kW","2.2 kW","3.7 kW","5.5 kW","7.5 kW","11 kW","15 kW","18.5 kW",
+                      "22 kW","30 kW","37 kW","45 kW","55 kW","75 kW","90 kW","110 kW","132 kW",
+                      "160 kW","200 kW","250 kW"],
+  spare_parts:       ["Seal Kit","Full Rotating Element","Bearing Kit","Impeller Set","None"],
+  port_conn:         ["Flanged","NPT","BSP"],
+  num_stages:        ["2-stage","3-stage","4-stage","5-stage","6-stage","7-stage","8-stage","10-stage","12-stage"],
+  impeller_type:     ["Closed","Semi-Closed","Open","Double Suction"],
+  shaft_material:    ["CS","SS316","Duplex SS","Alloy Steel"],
+  impeller_material: ["CI","CS","SS304","SS316","Duplex SS","Bronze"],
+  bearing_type:      ["Anti-Friction (Ball/Roller)","Sleeve","Rolling Element","Tilting Pad"],
+  casing_split:      ["Radial Split","Axial Split"],
+  coupling_type:     ["Direct Coupled","Flexible Coupled","Close Coupled"],
+  lineshaft_type:    ["Open (water-lubricated)","Enclosed (oil-lubricated)"],
+  discharge_type:    ["Above Ground","Below Ground (Submersible Motor)"],
+  motor_type:        ["Hollow Shaft","Solid Shaft","Submersible Motor"],
+  rotor_type:        ["Between Bearings","Overhung"],
+  inner_casing:      ["Radially Split","Axially Split"],
+};
+
+const MS_ALL_FIELD_OPTS: Record<string, string[]> = {
+  multistage_type:    MULTISTAGE_PUMP_TYPES,
+  mounting:           MS_COMMON_OPTS.mounting,
+  drive_type:         MS_COMMON_OPTS.drive_type,
+  service_type:       MS_COMMON_OPTS.service_type,
+  flow_rate:          MS_COMMON_OPTS.flow_rate,
+  head_mlc:           MS_COMMON_OPTS.head_mlc,
+  fluid:              MS_COMMON_OPTS.fluid,
+  operating_temp:     MS_COMMON_OPTS.operating_temp,
+  material_class:     MS_COMMON_OPTS.material_class,
+  seal_type:          MS_COMMON_OPTS.seal_type,
+  api_standard:       MS_COMMON_OPTS.api_standard,
+  area_classification:MS_COMMON_OPTS.area_class,
+  certification:      MS_COMMON_OPTS.certification,
+  speed_rpm:          MS_COMMON_OPTS.speed_rpm,
+  motor_power_kw:     MS_COMMON_OPTS.motor_power_kw,
+  spare_parts:        MS_COMMON_OPTS.spare_parts,
+  port_connection:    MS_COMMON_OPTS.port_conn,
+  num_stages:         MS_COMMON_OPTS.num_stages,
+  impeller_type:      MS_COMMON_OPTS.impeller_type,
+  shaft_material:     MS_COMMON_OPTS.shaft_material,
+  impeller_material:  MS_COMMON_OPTS.impeller_material,
+  bearing_type:       MS_COMMON_OPTS.bearing_type,
+  casing_split:       MS_COMMON_OPTS.casing_split,
+  coupling_type:      MS_COMMON_OPTS.coupling_type,
+  balance_drum:       MS_COMMON_OPTS.yes_no,
+  lineshaft_type:     MS_COMMON_OPTS.lineshaft_type,
+  discharge_type:     MS_COMMON_OPTS.discharge_type,
+  motor_type:         MS_COMMON_OPTS.motor_type,
+  rotor_type:         MS_COMMON_OPTS.rotor_type,
+  back_to_back:       MS_COMMON_OPTS.yes_no,
+  inner_casing_type:  MS_COMMON_OPTS.inner_casing,
+};
+
+const MULTISTAGE_PUMP_MAKES = [
+  "Grundfos","KSB","Sulzer","Flowserve","Ebara","WILO","CNP",
+  "Caprari","Lowara","Torishima","Ruhrpumpen","ITT (Goulds Pumps)","Xylem",
+];
+
+function buildMultistagePumpDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    multistage_type: type, approved_makes: [],
+    mounting: "Base Mounted", drive_type: "Motor Driven",
+    service_type: "Continuous", flow_rate: "", head_mlc: "",
+    fluid: "", operating_temp: "", material_class: "CI",
+    seal_type: "Single Mechanical Seal", api_standard: "",
+    area_classification: "", certification: "",
+    speed_rpm: "", motor_power_kw: "", spare_parts: "",
+    specific_gravity: "", npsh_available: "",
+    port_connection: "Flanged", port_size: "",
+    num_stages: "", impeller_type: "", shaft_material: "",
+    impeller_material: "", bearing_type: "",
+    casing_split: "", coupling_type: "", balance_drum: "",
+    lineshaft_type: "", discharge_type: "", motor_type: "",
+    column_length: "", rotor_type: "", back_to_back: "",
+    inner_casing_type: "", design_pressure: "", design_temp: "",
+  };
+  switch (type) {
+    case "Horizontal Multistage":
+      return { ...base, num_stages: "2-stage", impeller_type: "Closed",
+        casing_split: "Radial Split", coupling_type: "Flexible Coupled",
+        bearing_type: "Anti-Friction (Ball/Roller)", shaft_material: "CS",
+        impeller_material: "CS", api_standard: "Non-API", balance_drum: "No" };
+    case "Vertical Multistage":
+      return { ...base, mounting: "Vertical", num_stages: "4-stage",
+        impeller_type: "Closed", lineshaft_type: "Open (water-lubricated)",
+        discharge_type: "Above Ground", motor_type: "Hollow Shaft",
+        shaft_material: "CS", impeller_material: "CS", api_standard: "Non-API" };
+    case "Ring Section":
+      return { ...base, material_class: "CS", num_stages: "4-stage",
+        impeller_type: "Closed", rotor_type: "Between Bearings",
+        bearing_type: "Sleeve", shaft_material: "CS", impeller_material: "CS",
+        api_standard: "Non-API", back_to_back: "No" };
+    case "Barrel Type":
+      return { ...base, material_class: "CS", seal_type: "Double Mechanical Seal",
+        num_stages: "6-stage", impeller_type: "Closed",
+        inner_casing_type: "Radially Split", bearing_type: "Sleeve",
+        shaft_material: "CS", impeller_material: "CS", api_standard: "API 610" };
+    default: return base;
+  }
+}
+
 function buildMultistagePumpRequirement(attrs: Record<string, unknown>): string {
-  const msType   = (attrs.multistage_type  as string)?.trim() || "";
-  const flowRate = (attrs.flow_rate        as string)?.trim() || "";
-  const head     = (attrs.head_mlc         as string)?.trim() || "";
-  const matClass = (attrs.material_class   as string)?.trim() || "";
-  const fluid    = (attrs.fluid            as string)?.trim() || "";
+  const msType   = (attrs.multistage_type as string)?.trim() || "";
+  const flowRate = (attrs.flow_rate       as string)?.trim() || "";
+  const head     = (attrs.head_mlc        as string)?.trim() || "";
+  const matClass = (attrs.material_class  as string)?.trim() || "";
+  const fluid    = (attrs.fluid           as string)?.trim() || "";
+  const stages   = (attrs.num_stages      as string)?.trim() || "";
 
   const parts: string[] = ["Multistage Pump"];
-  if (msType) parts.push(msType);
+  if (msType)  parts.push(msType);
+  if (stages)  parts.push(stages);
 
   const opCond: string[] = [];
   if (flowRate) opCond.push(flowRate);
@@ -2503,23 +2628,6 @@ function buildMultistagePumpRequirement(attrs: Record<string, unknown>): string 
   return parts.join(", ");
 }
 
-// ── Multistage Pump option lists ─────────────────────────────────────────────
-const MULTISTAGE_PUMP_OPTS: Record<string, string[]> = {
-  multistage_type: ["Horizontal Multistage", "Vertical Multistage", "Ring Section", "Barrel Type"],
-  mounting:        ["Base Mounted", "Skid Mounted", "Vertical"],
-  drive_type:      ["Motor Driven", "Engine Driven"],
-  service_type:    ["Continuous", "Intermittent", "Standby"],
-  flow_rate:       ["1 m³/hr", "5 m³/hr", "10 m³/hr", "20 m³/hr", "30 m³/hr",
-                    "50 m³/hr", "75 m³/hr", "100 m³/hr"],
-  head_mlc:        ["50", "75", "100", "150", "200", "300", "500"],
-  fluid:           ["Water", "Hot Water", "Boiler Feed Water", "Oil", "Chemical"],
-  operating_temp:  ["Ambient", "50°C", "80°C", "120°C", "150°C"],
-  material_class:  ["CI", "CS", "SS304", "SS316", "Duplex"],
-  seal_type:       ["Single Mechanical Seal", "Double Mechanical Seal", "Cartridge Seal", "Gland Packing"],
-};
-
-const MULTISTAGE_PUMP_MAKES = ["Grundfos", "KSB", "Sulzer", "Flowserve", "Ebara", "WILO", "CNP", "Caprari", "Lowara"];
-
 // ── Multistage Pump structured form ──────────────────────────────────────────
 function MultistagePumpAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -2529,14 +2637,17 @@ function MultistagePumpAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+  const msType = (attrs.multistage_type as string) ?? "";
 
-  const singleKeys = Object.keys(MULTISTAGE_PUMP_OPTS);
+  function handleTypeChange(newType: string) {
+    onChange({ ...buildMultistagePumpDefaults(newType), approved_makes: [] });
+  }
+
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
+    for (const key of Object.keys(MS_ALL_FIELD_OPTS)) {
       const val  = (attrs[key] as string) ?? "";
-      const opts = MULTISTAGE_PUMP_OPTS[key] ?? [];
+      const opts = MS_ALL_FIELD_OPTS[key] ?? [];
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
@@ -2545,16 +2656,25 @@ function MultistagePumpAttrsForm({
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
+      onChange({ ...attrs, [key]: "" });
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      onChange({ ...attrs, [key]: val });
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = MULTISTAGE_PUMP_OPTS[key];
-    const curVal    = (attrs[key] as string) ?? "";
+  function renderField(key: string, label: string, required?: boolean, freeText?: boolean) {
+    const curVal = (attrs[key] as string) ?? "";
+    if (freeText) {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+          <Input className="h-8 text-sm" placeholder="Enter value…"
+            value={curVal} onChange={(e) => onChange({ ...attrs, [key]: e.target.value })} />
+        </div>
+      );
+    }
+    const opts      = MS_ALL_FIELD_OPTS[key] ?? [];
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
@@ -2564,30 +2684,11 @@ function MultistagePumpAttrsForm({
           onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
           <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+            value={curVal} onChange={(e) => onChange({ ...attrs, [key]: e.target.value })} autoFocus />
         )}
       </div>
     );
   }
-
-  // ── Makes multi-select ──
-  const [makesOpen, setMakesOpen] = useState(false);
-  const [makesQuery, setMakesQuery] = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal, setCustomMakeVal] = useState("");
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter((m) => m !== make)
-      : [...approvedMakes, make] });
-  }
-  function addCustomMake() {
-    const t = customMakeVal.trim();
-    if (t && !approvedMakes.includes(t)) onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  const filteredMakes = MULTISTAGE_PUMP_MAKES.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
 
   function sectionHeader(label: string) {
     return (
@@ -2597,84 +2698,225 @@ function MultistagePumpAttrsForm({
     );
   }
 
+  // ── Ranked makes ──────────────────────────────────────────────────────────
+  const [makesQuery, setMakesQuery]   = useState("");
+  const [makesOpen,  setMakesOpen]    = useState(false);
+  const [customMakeVal, setCustomMakeVal] = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
+
+  function moveMake(idx: number, dir: -1 | 1) {
+    const next = [...approvedMakes];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange({ ...attrs, approved_makes: next });
+  }
+  function removeMake(idx: number) {
+    onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) });
+  }
+  function addMake(make: string) {
+    if (!make.trim() || approvedMakes.includes(make.trim())) return;
+    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+  }
+  function addCustomMakeConfirm() {
+    addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false);
+  }
+  const filteredMakes = MULTISTAGE_PUMP_MAKES.filter(
+    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase())
+  );
+
+  const isHorizontal = msType === "Horizontal Multistage";
+  const isVertical   = msType === "Vertical Multistage";
+  const isRing       = msType === "Ring Section";
+  const isBarrel     = msType === "Barrel Type";
+
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Multistage Pump Specifications</p>
       <div className="grid grid-cols-2 gap-3">
 
-        {sectionHeader("Pump Specifications")}
-        {renderField("multistage_type", "Multistage Type", true)}
-        {renderField("mounting",        "Mounting",        true)}
-        {renderField("drive_type",      "Drive Type",      true)}
-        {renderField("service_type",    "Service Type",    true)}
-
-        {sectionHeader("Operating Conditions")}
-        {renderField("flow_rate",      "Flow Rate",     true)}
-        {renderField("head_mlc",       "Head (mLC)",    true)}
-        {renderField("fluid",          "Fluid",         true)}
-        {renderField("operating_temp", "Operating Temp", true)}
-
-        {sectionHeader("Construction")}
-        {renderField("material_class", "Material Class", true)}
-        {renderField("seal_type",      "Seal Type",      true)}
-
-        {sectionHeader("Vendor / Make")}
+        {/* ── Type Selector ── */}
         <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredMakes.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {approvedMakes.map((make) => (
-                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
-                  {make}
-                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {showCustomMake && (
-            <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <Label className="text-xs">Multistage Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={MULTISTAGE_PUMP_TYPES.includes(msType) ? msType : ""}
+            options={MULTISTAGE_PUMP_TYPES}
+            placeholder="Select multistage type…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
         </div>
 
+        {/* ── Type sub-panel: Horizontal Multistage ── */}
+        {isHorizontal && (<>
+          {sectionHeader("Horizontal Multistage — Configuration")}
+          {renderField("num_stages",       "Number of Stages",    true)}
+          {renderField("impeller_type",    "Impeller Type",       true)}
+          {renderField("casing_split",     "Casing Split",        true)}
+          {renderField("coupling_type",    "Coupling Type")}
+          {renderField("bearing_type",     "Bearing Type")}
+          {renderField("shaft_material",   "Shaft Material",      true)}
+          {renderField("impeller_material","Impeller Material",   true)}
+          {renderField("port_connection",  "Port Connection",     true)}
+          {renderField("port_size",        "Port Size (DN/NPS)",  false, true)}
+          {renderField("balance_drum",     "Balance Drum")}
+          {renderField("api_standard",     "API Standard")}
+        </>)}
+
+        {/* ── Type sub-panel: Vertical Multistage ── */}
+        {isVertical && (<>
+          {sectionHeader("Vertical Multistage — Configuration")}
+          {renderField("num_stages",       "Number of Stages",       true)}
+          {renderField("impeller_type",    "Impeller Type",          true)}
+          {renderField("column_length",    "Column / Setting Length", false, true)}
+          {renderField("lineshaft_type",   "Lineshaft Type",         true)}
+          {renderField("discharge_type",   "Discharge Type",         true)}
+          {renderField("motor_type",       "Motor Type",             true)}
+          {renderField("shaft_material",   "Shaft Material",         true)}
+          {renderField("impeller_material","Impeller Material",      true)}
+          {renderField("port_connection",  "Port Connection",        true)}
+          {renderField("port_size",        "Port Size (DN/NPS)",     false, true)}
+          {renderField("api_standard",     "API Standard")}
+        </>)}
+
+        {/* ── Type sub-panel: Ring Section ── */}
+        {isRing && (<>
+          {sectionHeader("Ring Section — Configuration")}
+          {renderField("num_stages",       "Number of Stages",     true)}
+          {renderField("impeller_type",    "Impeller Type",        true)}
+          {renderField("rotor_type",       "Rotor Arrangement")}
+          {renderField("bearing_type",     "Bearing Type")}
+          {renderField("back_to_back",     "Back-to-Back Impellers")}
+          {renderField("shaft_material",   "Shaft Material",       true)}
+          {renderField("impeller_material","Impeller Material",    true)}
+          {renderField("port_connection",  "Port Connection",      true)}
+          {renderField("port_size",        "Port Size (DN/NPS)",   false, true)}
+          {renderField("api_standard",     "API Standard")}
+        </>)}
+
+        {/* ── Type sub-panel: Barrel Type ── */}
+        {isBarrel && (<>
+          {sectionHeader("Barrel Type — Configuration")}
+          {renderField("num_stages",       "Number of Stages",     true)}
+          {renderField("inner_casing_type","Inner Casing Split",   true)}
+          {renderField("impeller_type",    "Impeller Type",        true)}
+          {renderField("bearing_type",     "Bearing Type",         true)}
+          {renderField("shaft_material",   "Shaft Material",       true)}
+          {renderField("impeller_material","Impeller Material",    true)}
+          {renderField("design_pressure",  "Design Pressure",      false, true)}
+          {renderField("design_temp",      "Design Temperature",   false, true)}
+          {renderField("port_connection",  "Port Connection",      true)}
+          {renderField("port_size",        "Port Size (DN/NPS)",   false, true)}
+          {renderField("api_standard",     "API Standard",         true)}
+        </>)}
+
+        {/* ── Common mandatory fields ── */}
+        {msType && (<>
+          {sectionHeader("Operating Conditions")}
+          {renderField("flow_rate",     "Flow Rate (m³/hr)",  true)}
+          {renderField("head_mlc",      "Head / TDH (mLC)",   true)}
+          {renderField("fluid",         "Fluid",              true)}
+          {renderField("material_class","Material Class",     true)}
+          {renderField("seal_type",     "Seal Type",          true)}
+          {renderField("mounting",      "Mounting",           true)}
+          {renderField("drive_type",    "Drive Type",         true)}
+          {renderField("service_type",  "Service Type",       true)}
+
+          {/* ── Optional fields ── */}
+          {sectionHeader("Optional / Additional")}
+          {renderField("operating_temp",     "Operating Temp")}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Specific Gravity</Label>
+            <Input className="h-8 text-sm" placeholder="e.g. 1.0"
+              value={(attrs.specific_gravity as string) ?? ""}
+              onChange={(e) => onChange({ ...attrs, specific_gravity: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">NPSHa (m)</Label>
+            <Input className="h-8 text-sm" placeholder="e.g. 5"
+              value={(attrs.npsh_available as string) ?? ""}
+              onChange={(e) => onChange({ ...attrs, npsh_available: e.target.value })} />
+          </div>
+          {renderField("speed_rpm",          "Speed (RPM)")}
+          {renderField("motor_power_kw",     "Motor Power (kW)")}
+          {renderField("area_classification","Area Classification")}
+          {renderField("certification",      "Certification")}
+          {renderField("spare_parts",        "Spare Parts Package")}
+
+          {/* ── Approved Makes — ranked ── */}
+          {sectionHeader("Approved Makes (Ranked)")}
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Plus className="h-3.5 w-3.5" />Add Make
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                    <CommandList>
+                      <CommandEmpty>No results.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredMakes.map((opt) => (
+                          <CommandItem key={opt} value={opt} onSelect={() => { addMake(opt); setMakesOpen(false); setMakesQuery(""); }}>
+                            {opt}
+                          </CommandItem>
+                        ))}
+                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                          <Plus className="mr-2 h-4 w-4" />Add custom make…
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {approvedMakes.length === 0 && (
+                <span className="text-[11px] text-muted-foreground self-center">No makes added yet</span>
+              )}
+            </div>
+            {showCustomMake && (
+              <div className="flex gap-2">
+                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMakeConfirm(); } }}
+                  autoFocus />
+                <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMakeConfirm}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                  onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {approvedMakes.length > 0 && (
+              <div className="space-y-1">
+                {approvedMakes.map((make, idx) => (
+                  <div key={make} className="flex items-center gap-2 rounded border bg-background px-2 py-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground w-4 shrink-0">{idx + 1}.</span>
+                    <span className="text-xs flex-1">{make}</span>
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button"
+                        onClick={() => moveMake(idx, -1)} disabled={idx === 0}>
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button"
+                        onClick={() => moveMake(idx, 1)} disabled={idx === approvedMakes.length - 1}>
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" type="button"
+                        onClick={() => removeMake(idx)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── Quantity ── */}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
           <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
@@ -3430,6 +3672,26 @@ function computeSubgroupWarnings(
     if (missing("screw_material"))  w.push("Screw Material — required for construction datasheet.");
     if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
       w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
+  } else if (subgroupCode === "multistage") {
+    if (missing("multistage_type"))  w.push("Multistage Type — required to configure type-specific datasheet.");
+    if (missing("flow_rate"))        w.push("Flow Rate — critical operating condition for pump selection.");
+    if (missing("head_mlc"))         w.push("Head / TDH — required for pump hydraulic sizing.");
+    if (missing("fluid"))            w.push("Fluid — required for material and seal selection.");
+    if (missing("material_class"))   w.push("Material Class — required for wetted parts datasheet.");
+    if (missing("seal_type"))        w.push("Seal Type — required for mechanical seal datasheet.");
+    if (missing("num_stages"))       w.push("Number of Stages — required for multistage pump datasheet.");
+    if (missing("impeller_type"))    w.push("Impeller Type — required for hydraulic design datasheet.");
+    if (missing("shaft_material"))   w.push("Shaft Material — required for rotating parts datasheet.");
+    if (missing("impeller_material")) w.push("Impeller Material — required for wetted parts datasheet.");
+    const msTL = ((attrs.multistage_type as string) ?? "").toLowerCase();
+    if (msTL.includes("vertical")) {
+      if (missing("lineshaft_type")) w.push("Lineshaft Type — required for Vertical Multistage pump.");
+      if (missing("motor_type"))     w.push("Motor Type — required for Vertical Multistage pump.");
+    } else if (msTL.includes("barrel")) {
+      if (missing("inner_casing_type")) w.push("Inner Casing Split — required for Barrel Type pump.");
+    }
+    if (!Array.isArray(attrs.approved_makes) || (attrs.approved_makes as string[]).length === 0)
+      w.push("Approved Makes — at least one ranked make required for vendor enquiry.");
   } else if (subgroupCode === "dosing" || subgroupCode === "dosing_metering") {
     if (missing("pump_type"))           w.push("Pump Type — required to configure dosing pump datasheet.");
     if (missing("flow_rate"))           w.push("Flow Rate — critical dosing condition.");
@@ -4119,6 +4381,96 @@ function buildDatasheetSections(
     ];
   }
 
+  if (subgroupCode === "multistage") {
+    const msType   = v("multistage_type") || "";
+    const msTL     = msType.toLowerCase();
+    const isHoriz  = msTL === "horizontal multistage";
+    const isVert   = msTL === "vertical multistage";
+    const isRing   = msTL === "ring section";
+    const isBarrel = msTL === "barrel type";
+
+    const typeSpecFields: DatasheetField[] = [];
+    if (isHoriz) {
+      typeSpecFields.push(
+        { label: "Casing Split",       value: v("casing_split"),     highlight: true },
+        { label: "Coupling Type",      value: v("coupling_type") },
+        { label: "Bearing Type",       value: v("bearing_type") },
+        { label: "Balance Drum",       value: v("balance_drum") },
+        { label: "Port Connection",    value: v("port_connection") },
+        { label: "Port Size",          value: v("port_size") },
+        { label: "API Standard",       value: v("api_standard") },
+      );
+    } else if (isVert) {
+      typeSpecFields.push(
+        { label: "Lineshaft Type",     value: v("lineshaft_type"),   highlight: true },
+        { label: "Discharge Type",     value: v("discharge_type"),   highlight: true },
+        { label: "Motor Type",         value: v("motor_type"),       highlight: true },
+        { label: "Column Length",      value: v("column_length") },
+        { label: "Port Connection",    value: v("port_connection") },
+        { label: "Port Size",          value: v("port_size") },
+        { label: "API Standard",       value: v("api_standard") },
+      );
+    } else if (isRing) {
+      typeSpecFields.push(
+        { label: "Rotor Arrangement",  value: v("rotor_type"),       highlight: true },
+        { label: "Bearing Type",       value: v("bearing_type") },
+        { label: "Back-to-Back",       value: v("back_to_back") },
+        { label: "Port Connection",    value: v("port_connection") },
+        { label: "Port Size",          value: v("port_size") },
+        { label: "API Standard",       value: v("api_standard") },
+      );
+    } else if (isBarrel) {
+      typeSpecFields.push(
+        { label: "Inner Casing Split", value: v("inner_casing_type"), highlight: true },
+        { label: "Bearing Type",       value: v("bearing_type"),      highlight: true },
+        { label: "Design Pressure",    value: v("design_pressure") },
+        { label: "Design Temperature", value: v("design_temp") },
+        { label: "Port Connection",    value: v("port_connection") },
+        { label: "Port Size",          value: v("port_size") },
+        { label: "API Standard",       value: v("api_standard"),      highlight: true },
+      );
+    }
+
+    const vMakes  = (attrs.approved_makes as string[]) ?? [];
+    const vMakesStr = vMakes.length > 0 ? vMakes.map((m, i) => `${i + 1}. ${m}`).join("  ") : "—";
+
+    return [
+      { title: "Pump Identity", fields: [
+        { label: "Multistage Type",   value: msType,            highlight: true },
+        { label: "No. of Stages",     value: v("num_stages"),   highlight: true },
+        { label: "Impeller Type",     value: v("impeller_type") },
+        { label: "Shaft Material",    value: v("shaft_material") },
+        { label: "Impeller Material", value: v("impeller_material") },
+        ...typeSpecFields,
+      ]},
+      { title: "Operating Conditions", fields: [
+        { label: "Flow Rate",         value: v("flow_rate"),     highlight: true },
+        { label: "Head / TDH (mLC)", value: v("head_mlc"),      highlight: true },
+        { label: "Fluid",             value: v("fluid"),         highlight: true },
+        { label: "Operating Temp",    value: v("operating_temp") },
+        { label: "Specific Gravity",  value: v("specific_gravity") },
+        { label: "NPSHa (m)",         value: v("npsh_available") },
+        { label: "Speed (RPM)",       value: v("speed_rpm") },
+        { label: "Motor Power (kW)",  value: v("motor_power_kw") },
+      ]},
+      { title: "Construction", fields: [
+        { label: "Material Class",    value: v("material_class"), highlight: true },
+        { label: "Seal Type",         value: v("seal_type"),      highlight: true },
+        { label: "Mounting",          value: v("mounting") },
+        { label: "Drive Type",        value: v("drive_type") },
+        { label: "Service Type",      value: v("service_type") },
+      ]},
+      { title: "Classification", fields: [
+        { label: "Area Classification", value: v("area_classification") },
+        { label: "Certification",       value: v("certification") },
+        { label: "Spare Parts",         value: v("spare_parts") },
+      ]},
+      { title: "Approved Makes (Ranked)", fields: [
+        { label: "Makes", value: vMakesStr, highlight: vMakesStr !== "—" },
+      ]},
+    ];
+  }
+
   if (subgroupCode === "screw") {
     const screwType = v("screw_type") || "";
     const stL       = screwType.toLowerCase();
@@ -4717,6 +5069,7 @@ const DS_CRITICAL_FIELDS: Record<string, string[]> = {
   screw:        ["Screw Type","Flow Rate","Differential Pressure","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
   dosing:       ["Pump Type","Flow Rate","Discharge Pressure","Dosing Accuracy","Fluid","Wetted / Body Mat.","Approved Makes (ranked)"],
   dosing_metering:["Pump Type","Flow Rate","Discharge Pressure","Dosing Accuracy","Fluid","Wetted / Body Mat.","Approved Makes (ranked)"],
+  multistage:     ["Multistage Type","Flow Rate","Head / TDH (mLC)","Fluid","Material Class","Seal Type","Approved Makes (ranked)"],
 };
 
 function computeDatasheetCompleteness(
@@ -10114,15 +10467,24 @@ export default function BuyPackagesPage() {
     } else if (isMultistagePumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.multistage_type as string)?.trim()) { toast({ title: "Multistage Type is required", variant: "destructive" }); return; }
-      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
-      if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
-      if (!(ta.service_type as string)?.trim()) { toast({ title: "Service Type is required", variant: "destructive" }); return; }
       if (!(ta.flow_rate as string)?.trim()) { toast({ title: "Flow Rate is required", variant: "destructive" }); return; }
-      if (!(ta.head_mlc as string)?.trim()) { toast({ title: "Head is required", variant: "destructive" }); return; }
+      if (!(ta.head_mlc as string)?.trim()) { toast({ title: "Head / TDH is required", variant: "destructive" }); return; }
       if (!(ta.fluid as string)?.trim()) { toast({ title: "Fluid is required", variant: "destructive" }); return; }
-      if (!(ta.operating_temp as string)?.trim()) { toast({ title: "Operating Temp is required", variant: "destructive" }); return; }
       if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
       if (!(ta.seal_type as string)?.trim()) { toast({ title: "Seal Type is required", variant: "destructive" }); return; }
+      if (!(ta.mounting as string)?.trim()) { toast({ title: "Mounting is required", variant: "destructive" }); return; }
+      if (!(ta.drive_type as string)?.trim()) { toast({ title: "Drive Type is required", variant: "destructive" }); return; }
+      if (!(ta.num_stages as string)?.trim()) { toast({ title: "Number of Stages is required", variant: "destructive" }); return; }
+      if (!(ta.impeller_type as string)?.trim()) { toast({ title: "Impeller Type is required", variant: "destructive" }); return; }
+      if (!(ta.shaft_material as string)?.trim()) { toast({ title: "Shaft Material is required", variant: "destructive" }); return; }
+      if (!(ta.impeller_material as string)?.trim()) { toast({ title: "Impeller Material is required", variant: "destructive" }); return; }
+      const msTL = ((ta.multistage_type as string) ?? "").toLowerCase();
+      if (msTL.includes("vertical")) {
+        if (!(ta.lineshaft_type as string)?.trim()) { toast({ title: "Lineshaft Type is required for Vertical Multistage", variant: "destructive" }); return; }
+        if (!(ta.motor_type as string)?.trim()) { toast({ title: "Motor Type is required for Vertical Multistage", variant: "destructive" }); return; }
+      } else if (msTL.includes("barrel")) {
+        if (!(ta.inner_casing_type as string)?.trim()) { toast({ title: "Inner Casing Type is required for Barrel Type", variant: "destructive" }); return; }
+      }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isDosingPumpMode) {
       const ta = lf.technicalAttributes;
