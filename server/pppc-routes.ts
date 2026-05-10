@@ -969,7 +969,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
            u_r.username AS reviewed_by_name,
            u_rel.username AS released_by_name,
            COUNT(l.id)::int AS line_count,
-           SUM(CASE WHEN l.tag_no = '' OR l.equipment_reference = '' OR l.service_description = '' THEN 1 ELSE 0 END)::int AS incomplete_lines
+           SUM(CASE WHEN bg.code != 'raw_materials' AND (l.tag_no IS NULL OR l.tag_no = '') THEN 1 ELSE 0 END)::int AS incomplete_lines
          FROM project_buy_list_headers h
          LEFT JOIN project_items pi ON pi.id = h.project_item_id
          LEFT JOIN buy_package_headers pkg ON pkg.id = h.source_package_id
@@ -978,6 +978,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
          LEFT JOIN users u_r ON u_r.id = h.reviewed_by
          LEFT JOIN users u_rel ON u_rel.id = h.released_by
          LEFT JOIN project_buy_list_lines l ON l.buy_list_header_id = h.id
+         LEFT JOIN buy_groups bg ON bg.id = l.buy_group_id
          WHERE ${conditions.join(' AND ')}
          GROUP BY h.id, pi.description, pi.item_code, pi.make_or_buy,
                   pkg.package_code, pkg.name, u_c.username, u_s.username, u_r.username, u_rel.username
