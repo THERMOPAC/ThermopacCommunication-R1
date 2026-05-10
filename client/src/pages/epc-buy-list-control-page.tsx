@@ -1859,10 +1859,10 @@ export default function EpcBuyListControlPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Copy From Package <span className="text-xs text-muted-foreground">(optional)</span></Label>
-              <Select value={createForm.sourcePackageId} onValueChange={v => setCreateForm(f => ({ ...f, sourcePackageId: v }))}>
+              <Select value={createForm.sourcePackageId || "_none"} onValueChange={v => setCreateForm(f => ({ ...f, sourcePackageId: v === "_none" ? "" : v }))}>
                 <SelectTrigger><SelectValue placeholder="None — create blank list" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None — blank list</SelectItem>
+                  <SelectItem value="_none">None — blank list</SelectItem>
                   {(packages as any[]).map((p: any) => (
                     <SelectItem key={p.id} value={String(p.id)}>
                       {p.package_code} — {p.name}
