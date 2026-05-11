@@ -555,16 +555,16 @@ const API_ORIFICE_OPTS = ["D","E","F","G","H","J","K","L","M","N","P","Q","R","T
 const SAFETY_COMMON_OPTS = {
   inlet_outlet_size:  ["15 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB"],
   pressure_rating:    ["Class 150","Class 300","Class 600","Class 900","Class 1500"],
-  end_connection:     ["Flanged","Threaded","Screwed"],
+  end_connection:     ["Flanged","Threaded"],
   end_conn_bv:        ["Flanged","NPT","BSP"],
-  body_material:      ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","Alloy Steel (WC6)","Duplex SS","Hastelloy C"],
+  body_material:      ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","SS316L","CF8","CF8M","Duplex SS","Hastelloy C"],
   body_material_bv:   ["Al Alloy","CS","SS304","SS316","FRP"],
   trim_material:      ["SS304","SS316","Hardened Trim","Stellite"],
   bonnet_type:        ["Open Bonnet","Closed Bonnet"],
   back_pressure_type: ["Conventional","Balanced Bellows","Pilot-Operated"],
   overpressure:       ["10%","16%","21%"],
   discharge_type:     ["Open Discharge","Closed Discharge","To Flare Line","Vent to Atmosphere"],
-  design_std_psv:     ["API 526","API 520","ASME Section VIII","EN ISO 4126"],
+  design_std_psv:     ["ASME Section VIII","API 520","API 526","EN ISO 4126","EN 14123"],
   design_std_tank:    ["API 2000","ISO 28300","EN 14123"],
   certification:      ["IBR","ATEX","IECEx","PESO","CE","SIL Rated"],
   operation_type:     ["Spring-Loaded","Pilot-Operated"],
@@ -598,8 +598,8 @@ const SAFETY_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 
 const SAFETY_VALVE_MAKES = [
-  "Crosby (Emerson)","Leser","Anderson Greenwood (Baker Hughes)","Consolidated (Emerson)",
-  "Pentair (Varec)","Tyco / Bharat Valves","PROTEGO","OPW","Cashco","Aquatrol",
+  "Anderson Greenwood (Baker Hughes)","Aquatrol","Cashco","Consolidated (Emerson)",
+  "Crosby (Emerson)","Leser","OPW","Pentair (Varec)","PROTEGO","Tyco / Bharat Valves",
 ];
 
 export function buildSafetyValveRequirement(attrs: Record<string, unknown>): string {
@@ -664,17 +664,17 @@ function buildSafetyValveDefaults(type: string): Record<string, unknown> {
   };
   switch (type) {
     case "Pressure Safety Valve (PSV)":
-      return { ...base, design_standard: "API 526", inlet_size: "50 NB", outlet_size: "80 NB",
+      return { ...base, design_standard: "ASME Section VIII", inlet_size: "50 NB", outlet_size: "80 NB",
         pressure_rating: "Class 300", operation_type: "Spring-Loaded", bonnet_type: "Closed Bonnet",
         discharge_type: "To Flare Line", back_pressure_type: "Conventional",
         overpressure: "10%", service_fluid: "Steam" };
     case "Pressure Relief Valve (PRV)":
-      return { ...base, design_standard: "API 520", inlet_size: "50 NB", outlet_size: "80 NB",
+      return { ...base, design_standard: "ASME Section VIII", inlet_size: "50 NB", outlet_size: "80 NB",
         pressure_rating: "Class 150", bonnet_type: "Closed Bonnet",
         discharge_type: "Closed Discharge", back_pressure_type: "Conventional",
         overpressure: "10%", service_fluid: "Water" };
     case "Safety Relief Valve (SRV)":
-      return { ...base, design_standard: "API 526", inlet_size: "50 NB", outlet_size: "80 NB",
+      return { ...base, design_standard: "ASME Section VIII", inlet_size: "50 NB", outlet_size: "80 NB",
         pressure_rating: "Class 150", operation_type: "Spring-Loaded",
         service_phase: "Gas / Vapour", bonnet_type: "Open Bonnet",
         discharge_type: "Open Discharge", back_pressure_type: "Conventional", overpressure: "10%" };
