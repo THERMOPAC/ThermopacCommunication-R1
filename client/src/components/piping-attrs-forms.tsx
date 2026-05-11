@@ -125,6 +125,15 @@ function getStructuralMtrDefault(grade: string): string {
   return "No";
 }
 
+function deriveStructuralStandard(grade: string): string {
+  if (grade.startsWith("IS 2062"))      return "IS 2062";
+  if (grade === "ASTM A36")             return "ASTM A36";
+  if (grade === "ASTM A500")            return "ASTM A500";
+  if (grade.startsWith("ASTM A572"))    return "ASTM A572";
+  if (grade === "EN S275" || grade === "EN S355") return "EN 10025";
+  return "";
+}
+
 // ── Qty field (integer-only, no scroll-wheel) ─────────────────────────────────
 function QtyField({ qty, onQtyChange }: { qty?: string; onQtyChange?: (q: string) => void }) {
   if (qty === undefined) return null;
@@ -1055,8 +1064,11 @@ const STRUCTURAL_SECTION_TYPES = [
   "Grating (GI)","Grating (SS)","Expanded Metal",
 ];
 const STRUCTURAL_MATERIAL = [
-  "IS 2062 E250 BR","IS 2062 E250 C","IS 2062 E300","IS 2062 E350",
-  "SS 304","SS 316","Galvanized (IS 277)","ASTM A36","ASTM A500",
+  "IS 2062 E250A","IS 2062 E250 BR","IS 2062 E250 C","IS 2062 E250BO",
+  "IS 2062 E300","IS 2062 E350","IS 2062 E350BO","IS 2062 E410",
+  "SS 304","SS 304L","SS 316","SS 316L",
+  "ASTM A36","ASTM A500","ASTM A572 Gr 50",
+  "EN S275","EN S355",
 ];
 const STRUCTURAL_LENGTH   = ["Mill Length","2m","3m","4m","6m","9m","12m","Cut to Size"];
 const STRUCTURAL_STANDARD = ["IS 2062","IS 1161","IS 1239","EN 10025","ASTM A36","IS 808"];
@@ -1115,9 +1127,14 @@ export function StructuralSteelAttrsForm({
     else {
       setCustom(c => ({ ...c, [key]: false }));
       if (key === "material_grade") {
-        const existing = (attrs.mtr_required as string) ?? "";
-        const derived  = getStructuralMtrDefault(val);
-        onChange({ ...attrs, material_grade: val, mtr_required: existing || derived });
+        const existingMtr = (attrs.mtr_required  as string) ?? "";
+        const existingStd = (attrs.steel_standard as string) ?? "";
+        onChange({
+          ...attrs,
+          material_grade: val,
+          mtr_required:   existingMtr || getStructuralMtrDefault(val),
+          steel_standard: existingStd || deriveStructuralStandard(val),
+        });
       } else {
         set(key, val);
       }
