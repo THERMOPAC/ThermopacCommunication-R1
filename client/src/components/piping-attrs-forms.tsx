@@ -739,31 +739,63 @@ const FASTENER_COATING = [
   "Xylan / Fluoropolymer","PTFE Coated","Black Oxide",
 ];
 const FASTENER_THREAD_PROTECTION = ["None","Plastic Cap","Thread Protector"];
+const FASTENER_STANDARD = [
+  "ASME B18.2.1",
+  "ASME B18.2.2",
+  "ASME B18.22.1",
+  "DIN 931",
+  "DIN 933",
+  "DIN 934",
+  "DIN 125",
+  "IS 1364",
+  "IS 1367",
+  "ASTM F436",
+];
 const FASTENERS_ALL_OPTS: Record<string, string[]> = {
   fastener_type:       FASTENER_TYPES,
   bolt_material:       FASTENER_BOLT_MATERIAL,
   nut_material:        FASTENER_NUT_MATERIAL,
   diameter:            FASTENER_DIAMETER,
   threading_standard:  FASTENER_THREADING,
+  fastener_standard:   FASTENER_STANDARD,
   coating:             FASTENER_COATING,
   thread_protection:   FASTENER_THREAD_PROTECTION,
 };
 
 export function buildFastenersRequirement(attrs: Record<string, unknown>): string {
-  const ftype  = (attrs.fastener_type      as string)?.trim() || "";
-  const bmat   = (attrs.bolt_material      as string)?.trim() || "";
-  const nmat   = (attrs.nut_material       as string)?.trim() || "";
-  const dia    = (attrs.diameter           as string)?.trim() || "";
-  const length = (attrs.length_mm          as string)?.trim() || "";
-  const std    = (attrs.threading_standard as string)?.trim() || "";
+  const ftype   = (attrs.fastener_type      as string)?.trim() || "";
+  const bmat    = (attrs.bolt_material      as string)?.trim() || "";
+  const nmat    = (attrs.nut_material       as string)?.trim() || "";
+  const dia     = (attrs.diameter           as string)?.trim() || "";
+  const length  = (attrs.length_mm          as string)?.trim() || "";
+  const thdStd  = (attrs.threading_standard as string)?.trim() || "";
+  const fstdStr = (attrs.fastener_standard  as string)?.trim() || "";
   if (!ftype) return "";
   const parts: string[] = [ftype];
   if (bmat && nmat) parts.push(`${bmat} / ${nmat}`);
   else if (bmat)    parts.push(bmat);
-  if (dia)    parts.push(dia);
-  if (length) parts.push(`L=${length}mm`);
-  if (std)    parts.push(std);
+  if (dia)     parts.push(dia);
+  if (length)  parts.push(`L=${length}mm`);
+  if (thdStd)  parts.push(thdStd);
+  if (fstdStr) parts.push(fstdStr);
   return parts.join(", ");
+}
+
+function deriveFastenerStandard(ftype: string, threading: string): string {
+  const ftl = ftype.toLowerCase();
+  const thl = threading.toLowerCase();
+  const isBoltOrStud = ftl.includes("bolt") || ftl.includes("stud");
+  const isNut        = ftl.includes("nut");
+  const isWasher     = ftl.includes("washer");
+  const isInch       = thl.includes("unc") || thl.includes("unf");
+  const isMetric     = thl.includes("iso metric");
+  if (isBoltOrStud && isInch)   return "ASME B18.2.1";
+  if (isNut        && isInch)   return "ASME B18.2.2";
+  if (isWasher     && isInch)   return "ASME B18.22.1";
+  // Metric bolts/studs: DIN 931 vs DIN 933 requires thread-length knowledge — leave blank
+  if (isNut        && isMetric) return "DIN 934";
+  if (isWasher     && isMetric) return "DIN 125";
+  return "";
 }
 
 export function FastenersAttrsForm({
@@ -802,10 +834,37 @@ export function FastenersAttrsForm({
     );
   }
 
-  const ftype       = (attrs.fastener_type as string) ?? "";
+  const ftype       = (attrs.fastener_type      as string) ?? "";
+  const threading   = (attrs.threading_standard as string) ?? "";
   const ftLower     = ftype.toLowerCase();
   const needsLength = ftLower.includes("bolt") || ftLower.includes("stud");
   const needsNut    = ftLower.includes("bolt") || ftLower.includes("stud") || ftype === "Stud + 2 Nut + 2 Washer Set";
+
+  // Auto-derive fastener standard (fill-if-blank)
+  const derivedFStd = deriveFastenerStandard(ftype, threading);
+  if (derivedFStd && !((attrs.fastener_standard as string) ?? "")) {
+    Promise.resolve().then(() => onChange({ ...attrs, fastener_standard: derivedFStd }));
+  }
+
+  function rfFStd() {
+    const curVal = (attrs.fastener_standard as string) ?? "";
+    const isCust = custom["fastener_standard"] ?? false;
+    const selVal = isCust ? "__other__" : (FASTENER_STANDARD.includes(curVal) ? curVal : "");
+    const hint   = derivedFStd && !curVal ? `Suggested: ${derivedFStd}` : "";
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">Fastener Standard</Label>
+        <SearchableSelect value={selVal} options={FASTENER_STANDARD} placeholder="Select…"
+          onSelect={v => {
+            if (v === "__other__") { setCustom(c => ({ ...c, fastener_standard: true }));  set("fastener_standard", ""); }
+            else                   { setCustom(c => ({ ...c, fastener_standard: false })); set("fastener_standard", v); }
+          }} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set("fastener_standard", e.target.value)} autoFocus />}
+        {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -821,6 +880,7 @@ export function FastenersAttrsForm({
               onChange={e => set("length_mm", e.target.value)} />
           </div>
         ) : <div />}
+        {rfFStd()}
       </SectionCard>
       <SectionCard title="Materials & Threading" color="bg-violet-50/60 border-violet-200">
         {rf("bolt_material",      "Bolt / Stud Material", FASTENER_BOLT_MATERIAL, true)}
