@@ -1342,7 +1342,9 @@ export function buildLevelRequirement(attrs: Record<string, unknown>): string {
 }
 
 const LEVEL_OPTS: Record<string, string[]> = {
-  instrument_type:      ["Radar Level Transmitter (LT)", "Guided Wave Radar (GWR)", "DP Level Transmitter", "Ultrasonic Level Transmitter", "Level Switch (LS)", "Float Level Switch (LS)", "Displacer Level Transmitter", "Level Gauge (Glass)", "Magnetostrictive Level Transmitter"],
+  instrument_type:      ["Radar Level Transmitter (LT)", "Guided Wave Radar (GWR)", "DP Level Transmitter", "Ultrasonic Level Transmitter", "Level Switch (LS)", "Displacer Level Transmitter", "Level Gauge (Glass)", "Magnetostrictive Level Transmitter"],
+  switch_technology:    ["Float", "Vibrating Fork", "Capacitance", "Conductivity", "Rotary Paddle", "Displacer", "Optical", "Ultrasonic", "Magnetic"],
+  switch_contact_type:  ["SPDT", "DPDT"],
   range_unit:           ["m", "mm", "ft", "%"],
   output_signal:        [...SMART_OUTPUT_SIGNALS],
   connection_size:      ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""],
@@ -1422,6 +1424,7 @@ export function LevelAttrsForm({
 
   const areaClass       = (attrs.area_classification as string) ?? "";
   const instrType       = (attrs.instrument_type    as string) ?? "";
+  const isLevelSwitch   = instrType === "Level Switch (LS)";
   const isLevelNoSignal = instrType.includes("Switch") || instrType.includes("Gauge");
   const hasLevelSignal  = instrType !== "" && !isLevelNoSignal;
 
@@ -1450,6 +1453,14 @@ export function LevelAttrsForm({
           </div>
         )}
       </SectionCard>
+
+      {/* Switch Details (Level Switch only) */}
+      {isLevelSwitch && (
+        <SectionCard title="Switch Details" color="bg-violet-50/60 border-violet-200">
+          {renderField("switch_technology",   "Switch Technology",   true)}
+          {renderField("switch_contact_type", "Switch Contact Type", true)}
+        </SectionCard>
+      )}
 
       {/* Measuring Range */}
       <SectionCard title="Measuring Range" color="bg-sky-50/60 border-sky-200">
