@@ -72,19 +72,25 @@ const CONTROL_VALVE_TYPES = [
 ];
 
 const CONTROL_COMMON_OPTS = {
-  size_nb:             ["15 NB","20 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB"],
-  pressure_rating:     ["Class 150","Class 300","Class 600","Class 900","PN10","PN16","PN25","PN40"],
-  end_connection:      ["Flanged","Threaded","Butt Weld","Socket Weld"],
-  end_conn_bfly:       ["Wafer","Flanged","Lug"],
-  body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","Alloy Steel (WC6)","Duplex SS","Hastelloy C"],
-  actuator_type:       ["Pneumatic Diaphragm","Pneumatic Piston","Electric Actuator","Hydraulic Actuator"],
-  fail_action:         ["Fail Open (FO)","Fail Close (FC)","Fail Last (FL)"],
-  input_signal:        ["4–20 mA","4–20 mA with HART","0–10 V","Digital / Fieldbus"],
-  positioner:          ["With Positioner","Without Positioner"],
-  handwheel:           ["Yes","No"],
-  bypass_valve:        ["Yes","No"],
-  area_classification: ["Safe Area","Zone 1","Zone 2"],
-  certification:       ["ATEX","IECEx","PESO"],
+  size_nb:              ["15 NB","20 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB"],
+  pressure_rating:      ["Class 150","Class 300","Class 600","Class 900","Class 1500","Class 2500",
+                         "PN10","PN16","PN25","PN40","PN64","PN100","PN160"],
+  end_connection:       ["Flanged","Threaded","Butt Weld","Socket Weld"],
+  end_conn_bfly:        ["Wafer","Flanged","Lug"],
+  body_material:        ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","SS316L","CF8","CF8M","Duplex SS","Hastelloy C"],
+  actuator_type:        ["Pneumatic Diaphragm","Pneumatic Piston","Electric Actuator","Hydraulic Actuator"],
+  fail_action:          ["Fail Open (FO)","Fail Close (FC)","Fail Last (FL)"],
+  input_signal:         ["4–20 mA","4–20 mA + HART","Foundation Fieldbus","PROFIBUS PA",
+                         "Modbus RTU","Modbus TCP","Profinet","Ethernet/IP"],
+  positioner:           ["With Positioner","Without Positioner"],
+  handwheel:            ["Yes","No"],
+  bypass_valve:         ["Yes","No"],
+  area_classification:  ["Safe Area","Zone 1","Zone 2"],
+  certification:        ["ATEX","IECEx","PESO"],
+  explosion_protection: ["Flameproof (Ex d)","Intrinsically Safe (Ex ia)","Intrinsically Safe (Ex ib)",
+                         "Increased Safety (Ex e)","Non-sparking (Ex n)"],
+  gas_group:            ["IIA","IIB","IIC"],
+  temperature_class:    ["T1","T2","T3","T4","T5","T6"],
 };
 
 const GLOBE_CV_OPTS = {
@@ -155,11 +161,14 @@ const CONTROL_ALL_FIELD_OPTS: Record<string, string[]> = {
   service_application: ANGLE_CV_OPTS.service_application,
   flow_direction:      ANGLE_CV_OPTS.flow_direction,
   outlet_reducer:      ANGLE_CV_OPTS.outlet_reducer,
+  explosion_protection:CONTROL_COMMON_OPTS.explosion_protection,
+  gas_group:           CONTROL_COMMON_OPTS.gas_group,
+  temperature_class:   CONTROL_COMMON_OPTS.temperature_class,
 };
 
 const CONTROL_VALVE_MAKES = [
-  "Flowserve","Fisher (Emerson)","Samson","Metso Neles","Spirax Sarco",
-  "Rotork","AUMA","KMC","KOSO","Crane","IMI CCI","L&T Valves","Bray","Belimo",
+  "AUMA","Belimo","Bray","Crane","Fisher (Emerson)","Flowserve",
+  "IMI CCI","KMC","KOSO","L&T Valves","Metso Neles","Rotork","Samson","Spirax Sarco",
 ];
 
 export function buildControlValveRequirement(attrs: Record<string, unknown>): string {
@@ -235,7 +244,7 @@ function buildControlValveDefaults(type: string): Record<string, unknown> {
     valve_type: type,
     size_nb: "50 NB", pressure_rating: "Class 150", end_connection: "Flanged",
     body_material: "WCB (CS)", actuator_type: "Pneumatic Diaphragm",
-    fail_action: "Fail Close (FC)", input_signal: "4–20 mA",
+    fail_action: "Fail Close (FC)", input_signal: "4–20 mA + HART",
     positioner: "With Positioner", handwheel: "No", bypass_valve: "No",
     area_classification: "Safe Area", makes: [],
     valve_config: "", trim_style: "", flow_characteristic: "", trim_material: "",
@@ -465,9 +474,12 @@ export function ControlValveAttrsForm({
 
           {sec("Area Classification (Optional)")}
           {renderField("area_classification", "Area Classification", CONTROL_COMMON_OPTS.area_classification)}
-          {(areaClass === "Zone 1" || areaClass === "Zone 2")
-            ? renderField("certification", "Certification", CONTROL_COMMON_OPTS.certification)
-            : <div />}
+          {(areaClass === "Zone 1" || areaClass === "Zone 2") ? (<>
+            {renderField("certification",        "Certification",        CONTROL_COMMON_OPTS.certification,        true)}
+            {renderField("explosion_protection", "Explosion Protection", CONTROL_COMMON_OPTS.explosion_protection, true)}
+            {renderField("gas_group",            "Gas Group",            CONTROL_COMMON_OPTS.gas_group,            true)}
+            {renderField("temperature_class",    "Temperature Class",    CONTROL_COMMON_OPTS.temperature_class,    true)}
+          </>) : <div />}
         </>)}
 
         {hasType && (<>
