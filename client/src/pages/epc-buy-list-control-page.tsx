@@ -22,6 +22,17 @@ import {
   RefreshCw, Zap, ArrowUpCircle, MinusCircle, PlusCircle,
   AlertTriangle, ShieldAlert, Info,
 } from "lucide-react";
+import {
+  PUMP_SUBGROUP_CODES,
+  validatePumpAttrs,
+  CentrifugalPumpAttrsForm,
+  GearPumpAttrsForm,
+  ScrewPumpAttrsForm,
+  MultistagePumpAttrsForm,
+  DosingPumpAttrsForm,
+  VacuumBoosterAttrsForm,
+  PumpSkidAttrsForm,
+} from "@/components/pump-attrs-forms";
 
 // ── Taggable subgroup codes (must match server/tag-generation-service.ts) ──────
 const TAGGABLE_SUBGROUP_CODES = new Set([
@@ -923,6 +934,10 @@ export default function EpcBuyListControlPage() {
     if (!lineDialog) return;
     if (!lf.buyGroupId || !lf.buySubgroupId || !lf.uomId || !lf.genericRequirement) {
       toast({ title: "Group, subgroup, UOM and requirement are required", variant: "destructive" }); return;
+    }
+    if (currentSubgroupCode && PUMP_SUBGROUP_CODES.has(currentSubgroupCode)) {
+      const pumpErr = validatePumpAttrs(currentSubgroupCode, lf.technicalAttributes);
+      if (pumpErr) { toast({ title: "Pump specification incomplete", description: pumpErr, variant: "destructive" }); return; }
     }
     const body = {
       buyGroupId: Number(lf.buyGroupId), buySubgroupId: Number(lf.buySubgroupId),
@@ -1956,7 +1971,7 @@ export default function EpcBuyListControlPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Buy Subgroup <span className="text-red-500">*</span></Label>
-                <Select value={lf.buySubgroupId} onValueChange={v => setLf(f => ({ ...f, buySubgroupId: v }))} disabled={!lf.buyGroupId}>
+                <Select value={lf.buySubgroupId} onValueChange={v => setLf(f => ({ ...f, buySubgroupId: v, technicalAttributes: {} }))} disabled={!lf.buyGroupId}>
                   <SelectTrigger><SelectValue placeholder="Select subgroup…" /></SelectTrigger>
                   <SelectContent>
                     {(subgroups as any[]).map((s: any) => (
@@ -1986,11 +2001,58 @@ export default function EpcBuyListControlPage() {
                 <Input placeholder="e.g. Feed Pump, Suction Strainer"
                   value={lf.genericRequirement} onChange={e => setLf(f => ({ ...f, genericRequirement: e.target.value }))} />
               </div>
-              <TechnicalAttrsSection
-                subgroupCode={currentSubgroupCode}
-                attrs={lf.technicalAttributes}
-                onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-              />
+              {currentSubgroupCode && PUMP_SUBGROUP_CODES.has(currentSubgroupCode) ? (
+                <div className="col-span-2">
+                  {currentSubgroupCode === "centrifugal" && (
+                    <CentrifugalPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "gear" && (
+                    <GearPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "screw" && (
+                    <ScrewPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "multistage" && (
+                    <MultistagePumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "dosing_metering" && (
+                    <DosingPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "vacuum_boosters" && (
+                    <VacuumBoosterAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "pump_skid" && (
+                    <PumpSkidAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                </div>
+              ) : (
+                <TechnicalAttrsSection
+                  subgroupCode={currentSubgroupCode}
+                  attrs={lf.technicalAttributes}
+                  onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                />
+              )}
               {/* Tag No — hidden for Raw Materials, info box when qty-split */}
               {!isRawMaterials && !isQtySplit && (
                 <div className="space-y-1.5">
