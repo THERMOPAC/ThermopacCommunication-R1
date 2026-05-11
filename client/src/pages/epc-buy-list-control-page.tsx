@@ -53,7 +53,7 @@ import {
 const TAGGABLE_SUBGROUP_CODES = new Set([
   'pressure', 'temperature', 'flow', 'level',
   'isolation', 'control', 'safety', 'on_off',
-  'pump_skid', 'centrifugal', 'gear', 'screw', 'multistage', 'dosing_metering', 'vacuum_boosters',
+  'pump_skid', 'centrifugal', 'gear', 'screw', 'multistage', 'dosing_metering', 'vacuum_boosters', 'vacuum_pump',
   'cooling_tower', 'junction_box',
   'non_flameproof', 'flameproof', 'motors',
 ]);

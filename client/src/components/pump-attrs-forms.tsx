@@ -2184,6 +2184,381 @@ export function VacuumBoosterAttrsForm({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// VACUUM PUMP
+// ─────────────────────────────────────────────────────────────────────────────
+const VP_TYPES = ["Liquid Ring", "Dry Screw", "Rotary Vane", "Reciprocating", "Steam Jet Ejector"];
+const VP_ALL_FIELD_OPTS: Record<string, string[]> = {
+  vacuum_pump_type:         VP_TYPES,
+  sealing_liquid:           ["Water", "Process Liquid", "Oil", "Other"],
+  compression_stages:       ["Single Stage", "Two Stage"],
+  screw_profile:            ["Parallel", "Twisted"],
+  cooling_type:             ["Air Cooled", "Water Cooled", "Oil Cooled"],
+  gearbox_lubrication:      ["Splash Lubricated", "Force Lubricated"],
+  oil_sealed:               ["Yes", "No (Oil-Free)"],
+  num_stages_rv:            ["Single Stage", "Two Stage"],
+  num_cylinders:            ["1", "2", "4"],
+  cylinder_lubrication:     ["Oil Lubricated", "Oil-Free"],
+  port_connection:          ["Flanged", "NPT", "BSP"],
+  num_stages_ejector:       ["1", "2", "3", "4", "5", "6"],
+  intercondenser_type:      ["Barometric", "Surface", "None"],
+  after_condenser:          ["Yes", "No"],
+  condenser_cooling_medium: ["Cooling Water", "Sea Water", "Air"],
+  suction_capacity_m3hr:    ["5", "10", "20", "30", "50", "75", "100", "150", "200", "300", "500", "750", "1000"],
+  operating_vacuum_mbar:    ["10", "25", "33", "50", "100", "150", "200", "300", "500", "700"],
+  ultimate_vacuum_mbar:     ["0.01", "0.1", "1", "5", "10", "20", "33", "50"],
+  discharge_pressure_barg:  ["0", "0.5", "1", "1.5", "2", "3", "5"],
+  gas_type:                 ["Air", "Steam–Air Mixture", "Hydrocarbon Gas", "Nitrogen", "Water Vapour", "Solvent Vapour", "Other"],
+  condensable_vapours:      ["Yes", "No"],
+  liquid_carry_over:        ["Yes", "No"],
+  mounting:                 ["Base Mounted", "Skid Mounted", "Close-Coupled"],
+  drive_type:               ["Motor Driven", "Belt Drive", "Engine Driven"],
+  coupling_type:            ["Flexible Coupling", "V-Belt", "Direct Drive", "Spacer Coupling"],
+  seal_type:                ["Single Mechanical Seal", "Double Mechanical Seal", "Dry Running Seal", "Lip Seal", "Piston Ring", "Liquid Ring (Integral)"],
+  material_class:           ["CI", "CS", "SS304", "SS316", "Duplex SS"],
+  service_type:             ["Continuous", "Intermittent", "Standby", "Duty-Standby"],
+  motor_power_kw:           ["0.37 kW", "0.55 kW", "0.75 kW", "1.1 kW", "1.5 kW", "2.2 kW", "3.7 kW",
+                             "5.5 kW", "7.5 kW", "11 kW", "15 kW", "18.5 kW", "22 kW", "30 kW",
+                             "37 kW", "45 kW", "55 kW", "75 kW", "90 kW", "110 kW", "132 kW"],
+  supply_voltage:           ["415V 3Ph 50Hz", "11kV 3Ph 50Hz", "220V 1Ph 50Hz"],
+  motor_enclosure:          ["TEFC (IP55)", "TEFC (IP65)", "Flameproof (Ex d)", "Weatherproof (WP)"],
+  motor_efficiency_class:   ["IE2", "IE3", "IE4"],
+  speed_rpm:                ["960 RPM", "1450 RPM", "1500 RPM", "2900 RPM", "2950 RPM", "Variable"],
+  vfd_required:             ["Yes", "No"],
+};
+const VACUUM_PUMP_MAKES = [
+  "Busch", "Gardner Denver (Elmo Rietschle)", "Nash (Atlas Copco)", "Sterling SIHI (SPX Flow)",
+  "Pfeiffer Vacuum", "Atlas Copco", "Becker", "Kinetic Pumps", "Cutes Corporation",
+  "Graham Corporation", "Croll-Reynolds", "Mazda Vacuum",
+];
+const VP_SEAL_DEFAULTS: Record<string, string> = {
+  "Liquid Ring":       "Liquid Ring (Integral)",
+  "Dry Screw":         "Dry Running Seal",
+  "Rotary Vane":       "Lip Seal",
+  "Reciprocating":     "Piston Ring",
+  "Steam Jet Ejector": "",
+};
+
+function buildVacuumPumpDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    vacuum_pump_type: type, approved_makes: [],
+    sealing_liquid: "", sealing_liquid_temp_c: "", compression_stages: "",
+    screw_profile: "", cooling_type: "", gearbox_lubrication: "",
+    oil_sealed: "", num_stages_rv: "", num_cylinders: "", cylinder_lubrication: "",
+    port_connection: "", port_size: "", num_stages_ejector: "",
+    intercondenser_type: "", after_condenser: "", condenser_cooling_medium: "",
+    motive_steam_pressure: "",
+    suction_capacity_m3hr: "", operating_vacuum_mbar: "", ultimate_vacuum_mbar: "",
+    discharge_pressure_barg: "0", gas_type: "", gas_inlet_temp_c: "",
+    condensable_vapours: "", liquid_carry_over: "",
+    mounting: "Base Mounted", drive_type: "Motor Driven",
+    material_class: "CI", service_type: "Continuous",
+    seal_type: VP_SEAL_DEFAULTS[type] ?? "",
+    coupling_type: "", noise_level_dba: "",
+    motor_power_kw: "", supply_voltage: "415V 3Ph 50Hz",
+    motor_enclosure: "TEFC (IP55)", motor_efficiency_class: "IE3",
+    speed_rpm: "", vfd_required: "No",
+  };
+  switch (type) {
+    case "Liquid Ring":
+      return { ...base, sealing_liquid: "Water", compression_stages: "Single Stage",
+        port_connection: "Flanged", cooling_type: "Water Cooled" };
+    case "Dry Screw":
+      return { ...base, compression_stages: "Single Stage", screw_profile: "Twisted",
+        cooling_type: "Air Cooled", port_connection: "Flanged", material_class: "CS" };
+    case "Rotary Vane":
+      return { ...base, oil_sealed: "Yes", num_stages_rv: "Single Stage",
+        cooling_type: "Air Cooled", port_connection: "Flanged" };
+    case "Reciprocating":
+      return { ...base, num_cylinders: "2", compression_stages: "Single Stage",
+        cooling_type: "Air Cooled", material_class: "CS" };
+    case "Steam Jet Ejector":
+      return { ...base, num_stages_ejector: "2", intercondenser_type: "Barometric",
+        after_condenser: "Yes", condenser_cooling_medium: "Cooling Water",
+        motor_power_kw: "", supply_voltage: "", motor_enclosure: "",
+        motor_efficiency_class: "", speed_rpm: "", vfd_required: "", seal_type: "" };
+    default: return base;
+  }
+}
+
+export function buildVacuumPumpRequirement(attrs: Record<string, unknown>): string {
+  const vpType   = (attrs.vacuum_pump_type      as string)?.trim() || "";
+  const capacity = (attrs.suction_capacity_m3hr as string)?.trim() || "";
+  const vacuum   = (attrs.operating_vacuum_mbar as string)?.trim() || "";
+  const mat      = (attrs.material_class        as string)?.trim() || "";
+  const gas      = (attrs.gas_type              as string)?.trim() || "";
+  const parts: string[] = ["Vacuum Pump"];
+  if (vpType)   parts.push(vpType);
+  const opCond: string[] = [];
+  if (capacity) opCond.push(`${capacity} m³/hr`);
+  if (vacuum)   opCond.push(`${vacuum} mbar abs`);
+  if (opCond.length === 2) parts.push(opCond.join(" @ "));
+  else if (opCond.length === 1) parts.push(opCond[0]);
+  if (mat)      parts.push(mat);
+  if (gas)      parts.push(`${gas} Service`);
+  return parts.join(", ");
+}
+
+export function VacuumPumpAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty?: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange?: (q: string) => void;
+}) {
+  const vpType = (attrs.vacuum_pump_type as string) ?? "";
+  function handleTypeChange(newType: string) {
+    onChange({ ...buildVacuumPumpDefaults(newType), approved_makes: [] });
+  }
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const key of Object.keys(VP_ALL_FIELD_OPTS)) {
+      const val  = (attrs[key] as string) ?? "";
+      const opts = VP_ALL_FIELD_OPTS[key] ?? [];
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") { setCustom((c) => ({ ...c, [key]: true })); onChange({ ...attrs, [key]: "" }); }
+    else { setCustom((c) => ({ ...c, [key]: false })); onChange({ ...attrs, [key]: val }); }
+  }
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+  function renderField(key: string, label: string, required?: boolean, freeText?: boolean) {
+    const curVal = (attrs[key] as string) ?? "";
+    if (freeText) {
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+          <Input className="h-8 text-sm" placeholder="Enter value…" value={curVal} onChange={(e) => set(key, e.target.value)} />
+        </div>
+      );
+    }
+    const opts      = VP_ALL_FIELD_OPTS[key] ?? [];
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />}
+      </div>
+    );
+  }
+  function renderReadOnly(label: string, value: string) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label} <span className="text-red-500">*</span></Label>
+        <Input className="h-8 text-sm bg-muted/50 text-muted-foreground cursor-default" readOnly value={value} />
+      </div>
+    );
+  }
+  function sectionHeader(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+  const [makesQuery, setMakesQuery]         = useState("");
+  const [makesOpen, setMakesOpen]           = useState(false);
+  const [customMakeVal, setCustomMakeVal]   = useState("");
+  const [showCustomMake, setShowCustomMake] = useState(false);
+  const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
+  function moveMake(idx: number, dir: -1 | 1) {
+    const next = [...approvedMakes]; const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange({ ...attrs, approved_makes: next });
+  }
+  function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
+  function addMake(make: string) {
+    if (!make.trim() || approvedMakes.includes(make.trim())) return;
+    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+  }
+  function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
+  const filteredMakes = VACUUM_PUMP_MAKES.filter(
+    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const isLiquidRing = vpType === "Liquid Ring";
+  const isDryScrew   = vpType === "Dry Screw";
+  const isRotaryVane = vpType === "Rotary Vane";
+  const isRecip      = vpType === "Reciprocating";
+  const isEjector    = vpType === "Steam Jet Ejector";
+  const hasType      = isLiquidRing || isDryScrew || isRotaryVane || isRecip || isEjector;
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vacuum Pump Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5 col-span-2">
+          <Label className="text-xs">Vacuum Pump Technology <span className="text-red-500">*</span></Label>
+          <SearchableSelect value={VP_TYPES.includes(vpType) ? vpType : ""}
+            options={VP_TYPES} placeholder="Select technology first…"
+            onSelect={(v) => handleTypeChange(v)} />
+        </div>
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a vacuum pump technology above to configure specifications
+          </div>
+        )}
+        {isLiquidRing && (<>
+          {sectionHeader("Liquid Ring — Configuration")}
+          {renderField("sealing_liquid",       "Sealing Liquid",      true)}
+          {renderField("compression_stages",   "Compression Stages")}
+          {renderField("port_connection",      "Port Connection",     true)}
+          {renderField("sealing_liquid_temp_c","Sealing Liquid Temp (°C)", false, true)}
+          {renderField("port_size",            "Port Size (DN/NPS)",  false, true)}
+          <div />
+        </>)}
+        {isDryScrew && (<>
+          {sectionHeader("Dry Screw — Configuration")}
+          {renderField("compression_stages",  "Compression Stages",  true)}
+          {renderField("screw_profile",       "Screw Profile",       true)}
+          {renderField("cooling_type",        "Cooling Type",        true)}
+          {renderField("gearbox_lubrication", "Gearbox Lubrication")}
+          {renderField("port_connection",     "Port Connection",     true)}
+          {renderField("port_size",           "Port Size (DN/NPS)",  false, true)}
+        </>)}
+        {isRotaryVane && (<>
+          {sectionHeader("Rotary Vane — Configuration")}
+          {renderField("oil_sealed",      "Oil Sealed",         true)}
+          {renderField("num_stages_rv",   "Number of Stages",   true)}
+          {renderField("cooling_type",    "Cooling Type",       true)}
+          {renderField("port_connection", "Port Connection",    true)}
+          {renderField("port_size",       "Port Size (DN/NPS)", false, true)}
+          <div />
+        </>)}
+        {isRecip && (<>
+          {sectionHeader("Reciprocating — Configuration")}
+          {renderField("num_cylinders",       "Number of Cylinders", true)}
+          {renderField("compression_stages",  "Compression Stages",  true)}
+          {renderField("cooling_type",        "Cooling Type",        true)}
+          {renderField("cylinder_lubrication","Cylinder Lubrication")}
+          {renderField("port_connection",     "Port Connection")}
+          {renderField("port_size",           "Port Size (DN/NPS)",  false, true)}
+        </>)}
+        {isEjector && (<>
+          {sectionHeader("Steam Jet Ejector — Configuration")}
+          {renderField("num_stages_ejector",       "Number of Stages",        true)}
+          {renderField("motive_steam_pressure",    "Motive Steam Pressure",   true, true)}
+          {renderField("intercondenser_type",      "Intercondenser Type")}
+          {renderField("after_condenser",          "After Condenser")}
+          {renderField("condenser_cooling_medium", "Condenser Cooling Medium")}
+          <div />
+        </>)}
+        {hasType && (<>
+          {sectionHeader("Operating Conditions")}
+          {renderField("suction_capacity_m3hr",  "Suction Capacity (m³/hr)",    true)}
+          {renderField("operating_vacuum_mbar",  "Operating Vacuum (mbar abs)", true)}
+          {renderField("discharge_pressure_barg","Discharge Pressure (bar g)",  true)}
+          {renderField("gas_type",               "Gas / Vapour Handled",        true)}
+          {renderField("ultimate_vacuum_mbar",   "Ultimate Vacuum (mbar abs)")}
+          {renderField("gas_inlet_temp_c",       "Gas Inlet Temp (°C)",         false, true)}
+          {renderField("condensable_vapours",    "Condensable Vapours Present")}
+          {renderField("liquid_carry_over",      "Liquid Carry-Over Risk")}
+          {sectionHeader("Mechanical Configuration")}
+          {renderField("mounting",      "Mounting",      true)}
+          {renderField("drive_type",    "Drive Type",    true)}
+          {renderField("material_class","Material Class",true)}
+          {renderField("service_type",  "Service Type",  true)}
+          {isEjector
+            ? <div />
+            : isLiquidRing
+              ? renderReadOnly("Seal Type", "Liquid Ring (Integral)")
+              : renderField("seal_type", "Seal Type", true)
+          }
+          {renderField("coupling_type",   "Coupling Type")}
+          {renderField("noise_level_dba", "Noise Level Target", false, true)}
+          <div />
+          {!isEjector && (<>
+            {sectionHeader("Electrical & Motor")}
+            {renderField("motor_power_kw",        "Motor Power (kW)",  true)}
+            {renderField("supply_voltage",        "Supply Voltage",    true)}
+            {renderField("motor_enclosure",       "Motor Enclosure")}
+            {renderField("motor_efficiency_class","Efficiency Class")}
+            {renderField("speed_rpm",             "Speed (RPM)")}
+            {renderField("vfd_required",          "VFD Required")}
+          </>)}
+          {sectionHeader("Approved Makes (Ranked)")}
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                    <Plus className="h-3.5 w-3.5" />Add Make
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                    <CommandList>
+                      <CommandEmpty>No results.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredMakes.map((opt) => (
+                          <CommandItem key={opt} value={opt} onSelect={() => { addMake(opt); setMakesOpen(false); setMakesQuery(""); }}>
+                            {opt}
+                          </CommandItem>
+                        ))}
+                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
+                          <Plus className="mr-2 h-4 w-4" />Add custom make…
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {approvedMakes.length === 0 && (
+                <span className="text-[11px] text-muted-foreground self-center">No makes added yet — at least 1 required</span>
+              )}
+            </div>
+            {showCustomMake && (
+              <div className="flex gap-2">
+                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
+                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMakeConfirm(); } }}
+                  autoFocus />
+                <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMakeConfirm}>Add</Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
+                  onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {approvedMakes.length > 0 && (
+              <div className="space-y-1">
+                {approvedMakes.map((make, idx) => (
+                  <div key={make} className="flex items-center gap-2 rounded border bg-background px-2 py-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground w-4 shrink-0">{idx + 1}.</span>
+                    <span className="text-xs flex-1">{make}</span>
+                    <div className="flex gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button" onClick={() => moveMake(idx, -1)} disabled={idx === 0}>
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" type="button" onClick={() => moveMake(idx, 1)} disabled={idx === approvedMakes.length - 1}>
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" type="button" onClick={() => removeMake(idx)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+        {qty !== undefined && onQtyChange && (
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PUMP SKID
 // ─────────────────────────────────────────────────────────────────────────────
 const PUMP_SKID_PKG_TYPES = [

@@ -39,6 +39,7 @@ import {
   MultistagePumpAttrsForm,
   DosingPumpAttrsForm,
   VacuumBoosterAttrsForm,
+  VacuumPumpAttrsForm,
   PumpSkidAttrsForm,
   buildCentrifugalPumpRequirement,
   buildGearPumpRequirement,
@@ -46,6 +47,7 @@ import {
   buildMultistagePumpRequirement,
   buildDosingPumpRequirement,
   buildVacuumBoosterRequirement,
+  buildVacuumPumpRequirement,
   buildPumpSkidRequirement,
 } from "@/components/pump-attrs-forms";
 import {
@@ -531,6 +533,9 @@ export default function BuyPackagesPage() {
     (lineDialog.lock?.subgroupCode === "pump_skid_packages") ||
     (lineDialog.lock?.subgroupCode === "pump_skid") ||
     (selectedGroupCode === "pumps" && (selectedSubgroupCode === "pump_skid_packages" || selectedSubgroupCode === "pump_skid"));
+  const isVacuumPumpMode =
+    (lineDialog.lock?.subgroupCode === "vacuum_pump") ||
+    (selectedGroupCode === "pumps" && selectedSubgroupCode === "vacuum_pump");
   const isNonFlameproofMotorMode =
     (lineDialog.lock?.subgroupCode === "non_flameproof") ||
     (selectedGroupCode === "motors" && selectedSubgroupCode === "non_flameproof");
@@ -945,6 +950,47 @@ export default function BuyPackagesPage() {
       if (!(ta.gas_type as string)?.trim()) { toast({ title: "Gas Type is required", variant: "destructive" }); return; }
       if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
       if (!(ta.cooling_type as string)?.trim()) { toast({ title: "Cooling Type is required", variant: "destructive" }); return; }
+      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+    } else if (isVacuumPumpMode) {
+      const ta = lf.technicalAttributes;
+      const vpType = (ta.vacuum_pump_type as string)?.trim() ?? "";
+      if (!vpType) { toast({ title: "Vacuum Pump Technology is required", variant: "destructive" }); return; }
+      if (!(ta.suction_capacity_m3hr  as string)?.trim()) { toast({ title: "Suction Capacity is required",              variant: "destructive" }); return; }
+      if (!(ta.operating_vacuum_mbar  as string)?.trim()) { toast({ title: "Operating Vacuum is required",              variant: "destructive" }); return; }
+      if (!(ta.discharge_pressure_barg as string)?.trim()) { toast({ title: "Discharge Pressure is required",           variant: "destructive" }); return; }
+      if (!(ta.gas_type               as string)?.trim()) { toast({ title: "Gas / Vapour Handled is required",          variant: "destructive" }); return; }
+      if (!(ta.mounting               as string)?.trim()) { toast({ title: "Mounting is required",                      variant: "destructive" }); return; }
+      if (!(ta.drive_type             as string)?.trim()) { toast({ title: "Drive Type is required",                    variant: "destructive" }); return; }
+      if (!(ta.material_class         as string)?.trim()) { toast({ title: "Material Class is required",                variant: "destructive" }); return; }
+      if (!(ta.service_type           as string)?.trim()) { toast({ title: "Service Type is required",                  variant: "destructive" }); return; }
+      if (vpType !== "Steam Jet Ejector") {
+        if (vpType !== "Liquid Ring" && !(ta.seal_type as string)?.trim()) {
+          toast({ title: "Seal Type is required", variant: "destructive" }); return;
+        }
+        if (!(ta.motor_power_kw  as string)?.trim()) { toast({ title: "Motor Power is required",    variant: "destructive" }); return; }
+        if (!(ta.supply_voltage  as string)?.trim()) { toast({ title: "Supply Voltage is required", variant: "destructive" }); return; }
+      }
+      if (vpType === "Liquid Ring") {
+        if (!(ta.sealing_liquid   as string)?.trim()) { toast({ title: "Sealing Liquid is required",   variant: "destructive" }); return; }
+        if (!(ta.port_connection  as string)?.trim()) { toast({ title: "Port Connection is required",  variant: "destructive" }); return; }
+      } else if (vpType === "Dry Screw") {
+        if (!(ta.compression_stages as string)?.trim()) { toast({ title: "Compression Stages is required", variant: "destructive" }); return; }
+        if (!(ta.screw_profile      as string)?.trim()) { toast({ title: "Screw Profile is required",      variant: "destructive" }); return; }
+        if (!(ta.cooling_type       as string)?.trim()) { toast({ title: "Cooling Type is required",       variant: "destructive" }); return; }
+        if (!(ta.port_connection    as string)?.trim()) { toast({ title: "Port Connection is required",    variant: "destructive" }); return; }
+      } else if (vpType === "Rotary Vane") {
+        if (!(ta.oil_sealed       as string)?.trim()) { toast({ title: "Oil Sealed is required",        variant: "destructive" }); return; }
+        if (!(ta.num_stages_rv    as string)?.trim()) { toast({ title: "Number of Stages is required",  variant: "destructive" }); return; }
+        if (!(ta.cooling_type     as string)?.trim()) { toast({ title: "Cooling Type is required",      variant: "destructive" }); return; }
+        if (!(ta.port_connection  as string)?.trim()) { toast({ title: "Port Connection is required",   variant: "destructive" }); return; }
+      } else if (vpType === "Reciprocating") {
+        if (!(ta.num_cylinders      as string)?.trim()) { toast({ title: "Number of Cylinders is required", variant: "destructive" }); return; }
+        if (!(ta.compression_stages as string)?.trim()) { toast({ title: "Compression Stages is required",  variant: "destructive" }); return; }
+        if (!(ta.cooling_type       as string)?.trim()) { toast({ title: "Cooling Type is required",        variant: "destructive" }); return; }
+      } else if (vpType === "Steam Jet Ejector") {
+        if (!(ta.num_stages_ejector      as string)?.trim()) { toast({ title: "Number of Stages is required",       variant: "destructive" }); return; }
+        if (!(ta.motive_steam_pressure   as string)?.trim()) { toast({ title: "Motive Steam Pressure is required",  variant: "destructive" }); return; }
+      }
       if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
     } else if (isPumpSkidMode) {
       const ta = lf.technicalAttributes;
@@ -2121,6 +2167,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Booster Type to generate…"} />
+                  </div>
+                </>
+              ) : isVacuumPumpMode ? (
+                <>
+                  <VacuumPumpAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildVacuumPumpRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Select technology to generate…"} />
                   </div>
                 </>
               ) : isPumpSkidMode ? (
