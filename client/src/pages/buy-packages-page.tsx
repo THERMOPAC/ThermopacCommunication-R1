@@ -721,10 +721,18 @@ export default function BuyPackagesPage() {
     groupId: number, groupCode: string, groupLabel: string,
     subgroupId: number, subgroupCode: string, subgroupLabel: string,
   ) {
+    const isMotorSg = subgroupCode === "non_flameproof" || subgroupCode === "flameproof";
     const initAttrs: Record<string, unknown> =
       subgroupCode === "non_flameproof" ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } :
       subgroupCode === "flameproof"     ? { ...FLAMEPROOF_MOTOR_DEFAULTS }     : {};
-    setLf({ ...EMPTY_LINE, buyGroupId: String(groupId), buySubgroupId: String(subgroupId), technicalAttributes: initAttrs });
+    const nosUom = uoms.find((u: any) => u.code?.toUpperCase() === "NOS");
+    setLf({
+      ...EMPTY_LINE,
+      buyGroupId: String(groupId),
+      buySubgroupId: String(subgroupId),
+      technicalAttributes: initAttrs,
+      ...(isMotorSg && nosUom ? { uomId: String(nosUom.id) } : {}),
+    });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null,
       lock: { groupId: String(groupId), groupCode, groupLabel, subgroupId: String(subgroupId), subgroupCode, subgroupLabel },
@@ -1844,7 +1852,7 @@ export default function BuyPackagesPage() {
                           technicalAttributes: isNFP ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS }
                                              : isFP  ? { ...FLAMEPROOF_MOTOR_DEFAULTS }
                                              : {},
-                          ...(isMotorSg && nosUom && !f.uomId ? { uomId: String(nosUom.id) } : {}),
+                          ...(isMotorSg && nosUom ? { uomId: String(nosUom.id) } : {}),
                         }));
                       }}
                       disabled={!lf.buyGroupId}
