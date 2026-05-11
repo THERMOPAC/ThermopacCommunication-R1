@@ -910,7 +910,7 @@ export function GasketsAttrsForm({
 // 7. STRUCTURAL STEEL
 // ─────────────────────────────────────────────────────────────────────────────
 const STRUCTURAL_SECTION_TYPES = [
-  "Plate (Chequered)","Angle (Equal Leg)","Angle (Unequal Leg)",
+  "Plate (Plain)","Plate (Chequered)","Angle (Equal Leg)","Angle (Unequal Leg)",
   "Channel (ISMC)","I-Beam (ISMB)","H-Beam (ISHB)",
   "Round Bar","Flat Bar","Square Bar",
   "RHS (Round Hollow Section)","SHS (Square Hollow Section)","Rectangular Hollow Section",
