@@ -421,7 +421,7 @@ function fittingEndTypeOpts(nb: string): string[] {
     ? FITTINGS_END_TYPE_FULL
     : FITTINGS_END_TYPE_LARGE;
 }
-const FITTINGS_STANDARD = ["ASME B16.9 (BW)","ASME B16.11 (SW/Screwed)","MSS SP-43"];
+const FITTINGS_STANDARD = ["ASME B16.9","ASME B16.11","MSS SP-43","MSS SP-75"];
 const ELBOW_RADIUS_OPTS = ["Long Radius (LR)","Short Radius (SR)"];
 const FITTINGS_ALL_OPTS: Record<string, string[]> = {
   fitting_type:     FITTINGS_TYPES,
@@ -495,8 +495,8 @@ export function FittingsAttrsForm({
   const nb        = (attrs.nominal_bore as string) ?? "";
   const nbNum     = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "999");
   const endType   = (attrs.end_type as string) ?? "";
-  const isSW      = endType.includes("Socket Weld") || endType.includes("SW");
-  const stdHint   = nbNum <= 40 && isSW ? "ASME B16.11 (SW/Screwed)" : "ASME B16.9 (BW)";
+  const isSW      = endType.includes("Socket Weld") || endType.toLowerCase().includes("screwed");
+  const stdHint   = isSW ? "ASME B16.11" : "ASME B16.9";
   const endOpts   = fittingEndTypeOpts(nb);
 
   return (
