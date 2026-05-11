@@ -44,7 +44,7 @@ import {
 } from "@/components/motor-attrs-forms";
 import {
   PanelAttrsForm, CablingAttrsForm, JunctionBoxAttrsForm,
-  CoolingTowerAttrsForm, BoughtOutAttrsForm,
+  CoolingTowerAttrsForm, BoughtOutAttrsForm, ComponentsAttrsForm,
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
@@ -2192,6 +2192,15 @@ export default function EpcBuyListControlPage() {
                   <IsolationValveAttrsForm
                     attrs={lf.technicalAttributes}
                     onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "components" ? (
+                <div className="col-span-2">
+                  <ComponentsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    projectVoltage={selectedProject?.electrical_voltage ?? undefined}
+                    projectFrequency={selectedProject?.electrical_frequency ?? undefined}
                   />
                 </div>
               ) : currentSubgroupCode === "panels" ? (

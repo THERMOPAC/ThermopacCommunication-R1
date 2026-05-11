@@ -69,9 +69,9 @@ import {
 } from "@/components/motor-attrs-forms";
 import {
   PanelAttrsForm, CablingAttrsForm, JunctionBoxAttrsForm,
-  CoolingTowerAttrsForm, BoughtOutAttrsForm,
+  CoolingTowerAttrsForm, BoughtOutAttrsForm, ComponentsAttrsForm,
   buildPanelRequirement, buildCablingRequirement, buildJunctionBoxRequirement,
-  buildCoolingTowerRequirement, buildBoughtOutRequirement,
+  buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
@@ -590,6 +590,9 @@ export default function BuyPackagesPage() {
   const isJunctionBoxMode =
     (lineDialog.lock?.subgroupCode === "junction_box") ||
     (selectedGroupCode === "electrical_control" && selectedSubgroupCode === "junction_box");
+  const isComponentsMode =
+    (lineDialog.lock?.subgroupCode === "components") ||
+    (selectedGroupCode === "electrical_control" && selectedSubgroupCode === "components");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -1109,6 +1112,11 @@ export default function BuyPackagesPage() {
       const ta = lf.technicalAttributes;
       if (!(ta.instrument_type as string)?.trim()) {
         toast({ title: "Instrument Type is required", variant: "destructive" }); return;
+      }
+    } else if (isComponentsMode) {
+      const ta = lf.technicalAttributes;
+      if (!(ta.component_type as string)?.trim()) {
+        toast({ title: "Component Type is required", variant: "destructive" }); return;
       }
     } else if (isCablingMode) {
       const ta = lf.technicalAttributes;
@@ -2380,6 +2388,25 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
+                  </div>
+                </>
+              ) : isComponentsMode ? (
+                <>
+                  <ComponentsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildComponentsRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Select Component Type to generate…"} />
                   </div>
                 </>
               ) : isJunctionBoxMode ? (

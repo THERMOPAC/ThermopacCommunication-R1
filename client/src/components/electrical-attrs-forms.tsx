@@ -936,6 +936,779 @@ export function buildBoughtOutRequirement(attrs: Record<string, unknown>): strin
   return parts.join(", ");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+const COMP_TYPE_OPTS = [
+  "MCB", "MCCB", "ACB",
+  "Contactor", "Overload Relay",
+  "DOL Starter", "Star-Delta Starter",
+  "VFD (Variable Frequency Drive)", "Soft Starter",
+  "Transformer", "SMPS / Power Supply", "UPS",
+  "Relay", "Timer Relay",
+  "Selector Switch", "Push Button", "Limit Switch",
+  "Indicator / Pilot Light",
+  "Energy Meter",
+  "Current Transformer (CT)", "Potential Transformer (PT)",
+  "Fuse", "Terminal Block", "ELCB / RCCB / RCBO",
+  "PLC / DCS Module", "HMI / Operator Panel",
+];
+const COMP_VOLTAGE_OPTS  = ["415V AC (3Ph)","380V AC (3Ph)","440V AC (3Ph)","480V AC (3Ph)","690V AC (3Ph)","240V AC (1Ph)","110V AC (1Ph)","48V DC","24V DC"];
+const COMP_FREQ_OPTS     = ["50 Hz","60 Hz"];
+const COMP_CURRENT_OPTS  = ["6A","10A","16A","20A","25A","32A","40A","50A","63A","80A","100A","125A","160A","200A","250A","315A","400A","630A","800A","1000A","1250A","1600A"];
+const COMP_POWER_KW_OPTS = ["0.37","0.75","1.1","2.2","3.7","5.5","7.5","11","15","18.5","22","30","37","45","55","75","90","110","132","160","200","250","315","400"];
+const COMP_COIL_V_OPTS   = ["24V DC","24V AC","48V DC","110V DC","110V AC","230V AC","415V AC"];
+const COMP_IP_OPTS       = ["IP20","IP40","IP42","IP54","IP55","IP65","IP66","IP67","IP68"];
+const COMP_MOUNTING_OPTS = ["DIN Rail","Panel Mounted","Wall Mounted","Rack Mounted","Surface Mounted","Standalone"];
+const COMP_AREA_OPTS     = ["Safe Area","Zone 1","Zone 2"];
+const COMP_EX_PROT_OPTS  = ["Ex e (Increased Safety)","Ex d (Flameproof)","Ex n (Non-sparking)","Ex p (Pressurized)","Ex ia (Intrinsically Safe)"];
+const COMP_GAS_GRP_OPTS  = ["IIA","IIB","IIC"];
+const COMP_TEMP_CLS_OPTS = ["T1 (450°C)","T2 (300°C)","T3 (200°C)","T4 (135°C)","T5 (100°C)","T6 (85°C)"];
+const COMP_CERT_OPTS     = ["ATEX","IECEx","PESO","UL / FM Listed","CMRI / BIS Certified"];
+const COMP_YES_NO        = ["Yes","No"];
+const COMP_POLES_ALL     = ["1P","2P","3P","4P"];
+const COMP_POLES_3P4P    = ["3P","4P"];
+
+const MCB_BREAKING   = ["6 kA","10 kA","16 kA","25 kA"];
+const MCB_TRIP       = ["B","C","D","K"];
+const MCB_STD        = ["IEC 60898-1","IS 8828"];
+const MCCB_BREAKING  = ["10 kA","16 kA","25 kA","36 kA","50 kA","65 kA","85 kA","100 kA"];
+const MCCB_RELEASE   = ["Thermal-Magnetic","Electronic (ETU)"];
+const MCCB_STD       = ["IEC 60947-2","IS 13947-2"];
+const ACB_BREAKING   = ["50 kA","65 kA","80 kA","100 kA","120 kA"];
+const ACB_RELEASE    = ["Electronic (ETU)","Microprocessor-based"];
+const ACB_DRAWOUT    = ["Fixed","Drawout (Withdrawable)"];
+const ACB_STD        = ["IEC 60947-2","IS 13947-2"];
+const CONT_AC_DUTY   = ["AC1","AC2","AC3","AC4"];
+const CONT_AUX       = ["None","1NO","1NC","1NO+1NC","2NO+2NC"];
+const CONT_STD       = ["IEC 60947-4-1","IS 13947-4-1"];
+const OL_RANGE       = ["0.1–0.16A","0.16–0.25A","0.25–0.4A","0.4–0.63A","0.63–1A","1–1.6A","1.6–2.5A","2.5–4A","4–6A","6–10A","9–14A","13–18A","18–25A","24–32A","28–40A","37–50A","48–65A","55–70A","63–80A","80–100A","90–125A"];
+const OL_TRIP_CLASS  = ["Class 5","Class 10","Class 10A","Class 20","Class 30"];
+const OL_TYPE        = ["Bi-metal Thermal","Electronic"];
+const STARTER_STD    = ["IEC 60947-4-1","IS 13947-4-1"];
+const VFD_CONTROL    = ["V/f Scalar","Sensorless Vector","Closed Loop Vector"];
+const VFD_COMM       = ["None","Modbus RTU","Profibus DP","EtherNet/IP","PROFINET","CANopen"];
+const VFD_STD        = ["IEC 61800-5-1","IEC 61800-3"];
+const XFMR_TYPE      = ["Control Transformer","Isolation Transformer","Auto-transformer","Step-down","Step-up"];
+const XFMR_KVA       = ["0.1","0.25","0.5","1","2","3","5","7.5","10","15","20","25","50","75","100"];
+const XFMR_SEC_V     = ["24V AC","48V AC","110V AC","230V AC","415V AC"];
+const XFMR_INSUL     = ["Class B","Class F","Class H"];
+const XFMR_STD       = ["IEC 61558","IS 5142"];
+const SMPS_OUT_V     = ["5V DC","12V DC","24V DC","48V DC","110V DC"];
+const SMPS_OUT_A     = ["1A","2A","3A","5A","10A","15A","20A","40A"];
+const SMPS_REDUND    = ["None","1+1 Redundant"];
+const UPS_KVA        = ["0.5","1","2","3","5","6","10","15","20"];
+const UPS_TOPOLOGY   = ["Online (Double Conversion)","Line Interactive","Offline"];
+const UPS_BACKUP     = ["15 min","30 min","45 min","60 min","90 min","120 min"];
+const UPS_BATTERY    = ["VRLA (Sealed)","Lithium-Ion","Gel"];
+const RELAY_CAT      = ["General Purpose","Auxiliary","Latching","Solid State","Safety Relay"];
+const RELAY_CONTACT  = ["SPDT (1C/O)","DPDT (2C/O)","4PDT (4C/O)"];
+const RELAY_SOCKET   = ["DIN Rail Socket","Panel Mount","PCB Mount"];
+const TIMER_FUNC     = ["ON Delay","OFF Delay","Star-Delta","Interval","Cyclic"];
+const TIMER_RANGE    = ["0.1–10s","1–100s","1s–60s","1–60 min","1–60 hr"];
+const SW_POSITIONS   = ["2-Position","3-Position","4-Position"];
+const PB_TYPES       = ["Momentary","Maintained","Spring Return"];
+const SW_CONTACT     = ["NO","NC","NO+NC"];
+const SW_COLOUR      = ["Black","Green","Red","Yellow","White","Blue","Grey"];
+const SW_OPERATOR    = ["Standard","Illuminated","Key-operated","Mushroom Head (Emergency Stop)"];
+const SW_CUTOUT      = ["22mm","30mm","40mm"];
+const IND_COLOUR     = ["Red","Green","Yellow","White","Blue","Orange"];
+const IND_VOLTAGE    = ["24V DC","24V AC","110V AC","230V AC"];
+const IND_LAMP       = ["LED","Incandescent","Neon"];
+const EM_TYPE        = ["Single Phase kWh","Three Phase kWh","Multifunction (kWh+kVAh+kVArh)","Power Analyser"];
+const EM_ACCURACY    = ["Class 0.2","Class 0.5","Class 1.0","Class 2.0"];
+const EM_COMM        = ["None","Pulse Output","RS485/Modbus RTU","Ethernet","DNP3"];
+const EM_DISPLAY     = ["LCD","LED","None"];
+const CT_RATIO       = ["50/5A","75/5A","100/5A","150/5A","200/5A","250/5A","300/5A","400/5A","500/5A","600/5A","800/5A","1000/5A","1200/5A","1500/5A","2000/5A"];
+const CT_ACCURACY    = ["Class 0.2","Class 0.5","Class 1","Class 3","5P10","5P20","10P10","10P20"];
+const CT_BURDEN      = ["2.5 VA","5 VA","10 VA","15 VA","20 VA","30 VA"];
+const CT_CORE        = ["Measurement","Protection","Metering + Protection (Dual)"];
+const CT_STD         = ["IEC 61869-2","IS 2705"];
+const PT_RATIO       = ["415/110V","3300/110V","6600/110V","11000/110V"];
+const PT_ACCURACY    = ["Class 0.2","Class 0.5","Class 1","Class 3","3P","6P"];
+const PT_STD         = ["IEC 61869-3","IS 3156"];
+const FUSE_TYPE      = ["HRC (High Rupturing Capacity)","Rewireable","Cartridge","NH Type","D-Type"];
+const FUSE_BREAKING  = ["10 kA","16 kA","25 kA","50 kA","80 kA","100 kA","120 kA"];
+const FUSE_SIZE      = ["00","0","1","2","3","4"];
+const FUSE_STD       = ["IEC 60269","IS 13703","BS 88"];
+const TB_TYPE        = ["Screw Clamp","Spring Cage","Knife Disconnect","Fused","Earth"];
+const TB_WIRE        = ["0.5–4 mm²","0.5–6 mm²","0.75–10 mm²","2.5–16 mm²","4–25 mm²","6–35 mm²"];
+const TB_CURRENT     = ["10A","16A","25A","32A","57A","76A","101A"];
+const ELCB_TYPE      = ["ELCB","RCCB","RCBO"];
+const ELCB_POLES     = ["2P","4P"];
+const ELCB_SENS      = ["10 mA","30 mA","100 mA","300 mA","500 mA"];
+const ELCB_STD       = ["IEC 61008","IEC 61009","IS 12640"];
+const PLC_MODULE     = ["CPU Module","Digital Input (DI)","Digital Output (DO)","Analog Input (AI)","Analog Output (AO)","Communication Module","Power Supply Module"];
+const PLC_PLATFORM   = ["Siemens S7-1200","Siemens S7-1500","Allen Bradley CompactLogix","Allen Bradley MicroLogix","Schneider M221","Schneider M340","Honeywell","Yokogawa","ABB"];
+const PLC_COMM       = ["Profibus DP","PROFINET","EtherNet/IP","Modbus RTU","Modbus TCP"];
+const HMI_SIZE       = ['4"','5.7"','7"','10"','12"','15"'];
+const HMI_DISPLAY    = ["TFT LCD Colour Touch","TFT LCD Non-touch","Membrane Keypad"];
+const HMI_PLATFORM   = ["Siemens KTP","Allen Bradley PanelView","Schneider Magelis","Weintek","Delta"];
+const HMI_COMM       = ["Profibus DP","PROFINET","EtherNet/IP","Modbus RTU","RS232/RS485"];
+const COMP_FALLBACK_STD = ["IEC 60947-1","IEC 61439-1","IS 13947-1","BS EN 60947"];
+
+const ALL_COMP_OPTS: Record<string, string[]> = {
+  component_type: COMP_TYPE_OPTS, voltage: COMP_VOLTAGE_OPTS, frequency: COMP_FREQ_OPTS,
+  current_rating: COMP_CURRENT_OPTS, power_kw: COMP_POWER_KW_OPTS, coil_voltage: COMP_COIL_V_OPTS,
+  ip_rating: COMP_IP_OPTS, mounting_type: COMP_MOUNTING_OPTS, area_classification: COMP_AREA_OPTS,
+  explosion_protection: COMP_EX_PROT_OPTS, gas_group: COMP_GAS_GRP_OPTS,
+  temperature_class: COMP_TEMP_CLS_OPTS, certification: COMP_CERT_OPTS,
+  num_poles: [...new Set([...COMP_POLES_ALL, ...COMP_POLES_3P4P])],
+  breaking_capacity: [...new Set([...MCB_BREAKING, ...MCCB_BREAKING, ...ACB_BREAKING, ...FUSE_BREAKING])],
+  trip_characteristic: MCB_TRIP, release_type: [...MCCB_RELEASE, ...ACB_RELEASE],
+  draw_out_type: ACB_DRAWOUT, ac_duty: CONT_AC_DUTY, aux_contacts: CONT_AUX,
+  current_range: OL_RANGE, trip_class: OL_TRIP_CLASS, relay_type: OL_TYPE,
+  contactor_included: COMP_YES_NO, overload_included: COMP_YES_NO,
+  control_type: VFD_CONTROL, bypass_provision: COMP_YES_NO,
+  transformer_type: XFMR_TYPE, kva_rating: [...new Set([...XFMR_KVA, ...UPS_KVA])],
+  primary_voltage: COMP_VOLTAGE_OPTS, secondary_voltage: XFMR_SEC_V, insulation_class: XFMR_INSUL,
+  output_voltage: SMPS_OUT_V, output_current: SMPS_OUT_A, redundancy: SMPS_REDUND,
+  ups_topology: UPS_TOPOLOGY, battery_backup_min: UPS_BACKUP, battery_type: UPS_BATTERY,
+  relay_category: RELAY_CAT, contact_config: [...new Set([...RELAY_CONTACT, ...SW_CONTACT])],
+  relay_socket: RELAY_SOCKET, timer_function: TIMER_FUNC, time_range: TIMER_RANGE,
+  switch_positions: SW_POSITIONS, pb_type: PB_TYPES, actuator_colour: SW_COLOUR,
+  operator_type: SW_OPERATOR, mounting_cutout: SW_CUTOUT,
+  indicator_colour: IND_COLOUR, indicator_voltage: IND_VOLTAGE, lamp_type: IND_LAMP,
+  meter_type: EM_TYPE, accuracy_class: [...new Set([...EM_ACCURACY, ...CT_ACCURACY, ...PT_ACCURACY])],
+  communication: [...new Set([...VFD_COMM, ...EM_COMM, ...PLC_COMM, ...HMI_COMM])],
+  meter_display: EM_DISPLAY, ct_ratio: CT_RATIO, burden_va: CT_BURDEN, core_type: CT_CORE,
+  pt_ratio: PT_RATIO, fuse_type: FUSE_TYPE, fuse_size: FUSE_SIZE,
+  terminal_type: TB_TYPE, wire_range: TB_WIRE, terminal_current: TB_CURRENT,
+  elcb_type: ELCB_TYPE, elcb_poles: ELCB_POLES, sensitivity_ma: ELCB_SENS,
+  plc_module_type: PLC_MODULE, plc_platform: PLC_PLATFORM,
+  screen_size: HMI_SIZE, display_type: HMI_DISPLAY, hmi_platform: HMI_PLATFORM,
+  component_std: [...new Set([...MCB_STD, ...MCCB_STD, ...ACB_STD, ...CONT_STD, ...STARTER_STD,
+    ...VFD_STD, ...XFMR_STD, ...CT_STD, ...PT_STD, ...FUSE_STD, ...ELCB_STD, ...COMP_FALLBACK_STD])],
+};
+
+const COMP_TYPE_DEFAULTS: Record<string, Record<string, string>> = {
+  "MCB":                            { num_poles: "3P", trip_characteristic: "C", mounting_type: "DIN Rail" },
+  "MCCB":                           { num_poles: "3P", release_type: "Thermal-Magnetic", mounting_type: "Panel Mounted" },
+  "ACB":                            { num_poles: "3P", draw_out_type: "Drawout (Withdrawable)", mounting_type: "Panel Mounted" },
+  "Contactor":                      { num_poles: "3P", ac_duty: "AC3", mounting_type: "DIN Rail" },
+  "Overload Relay":                 { relay_type: "Bi-metal Thermal", mounting_type: "DIN Rail" },
+  "DOL Starter":                    { contactor_included: "Yes", overload_included: "Yes", mounting_type: "Panel Mounted" },
+  "Star-Delta Starter":             { contactor_included: "Yes", overload_included: "Yes", mounting_type: "Panel Mounted" },
+  "VFD (Variable Frequency Drive)": { ip_rating: "IP20", mounting_type: "Panel Mounted", control_type: "V/f Scalar" },
+  "Soft Starter":                   { ip_rating: "IP20", mounting_type: "Panel Mounted" },
+  "SMPS / Power Supply":            { output_voltage: "24V DC", mounting_type: "DIN Rail" },
+  "Relay":                          { contact_config: "SPDT (1C/O)", relay_socket: "DIN Rail Socket", mounting_type: "DIN Rail" },
+  "Timer Relay":                    { mounting_type: "DIN Rail" },
+  "Push Button":                    { operator_type: "Standard", mounting_cutout: "22mm" },
+  "Indicator / Pilot Light":        { lamp_type: "LED", mounting_cutout: "22mm" },
+};
+
+const TYPES_WITH_CURRENT_RATING = new Set(["MCB","MCCB","ACB","Fuse","ELCB / RCCB / RCBO"]);
+const TYPES_WITH_POWER_KW       = new Set(["VFD (Variable Frequency Drive)","Soft Starter","DOL Starter","Star-Delta Starter","Transformer","UPS"]);
+const TYPES_WITH_COIL_VOLTAGE   = new Set(["Contactor","Relay","Timer Relay","DOL Starter","Star-Delta Starter"]);
+const TYPES_NO_SYSTEM_VOLTAGE   = new Set(["Indicator / Pilot Light","Current Transformer (CT)","Potential Transformer (PT)","Terminal Block"]);
+const TYPES_NO_FREQUENCY        = new Set(["SMPS / Power Supply","Current Transformer (CT)","Potential Transformer (PT)","Terminal Block","Limit Switch","Indicator / Pilot Light"]);
+const TYPES_WITH_OWN_STD        = new Set(["MCB","MCCB","ACB","Contactor","DOL Starter","Star-Delta Starter","VFD (Variable Frequency Drive)","Transformer","Current Transformer (CT)","Potential Transformer (PT)","Fuse","ELCB / RCCB / RCBO"]);
+
+function getCompVendors(t: string): string[] {
+  if (["MCB","MCCB","ACB","ELCB / RCCB / RCBO"].includes(t))
+    return ["ABB","Schneider Electric","Siemens","L&T","Havells","Legrand","C&S","Eaton","Hager"];
+  if (["Contactor","Overload Relay","DOL Starter","Star-Delta Starter"].includes(t))
+    return ["ABB","Schneider Electric","Siemens","L&T","Chint","Lovato","WEG"];
+  if (["VFD (Variable Frequency Drive)","Soft Starter"].includes(t))
+    return ["ABB","Schneider Electric","Siemens","Danfoss","Yaskawa","Allen Bradley","Delta","WEG","Mitsubishi"];
+  if (t === "Transformer") return ["Siemens","Schneider Electric","ABB","Hammond","Legrand","Servomax"];
+  if (t === "SMPS / Power Supply") return ["Phoenix Contact","Weidmuller","Murr Elektronik","Siemens","ABB","Mean Well","Puls"];
+  if (t === "UPS") return ["Eaton","APC (Schneider)","ABB","Delta","Vertiv","Emerson"];
+  if (["Relay","Timer Relay"].includes(t))
+    return ["Omron","Phoenix Contact","Weidmuller","Schneider Electric","ABB","Siemens","Finder"];
+  if (["Selector Switch","Push Button","Limit Switch","Indicator / Pilot Light"].includes(t))
+    return ["Schneider Electric","ABB","Siemens","IDEC","Eaton","GE"];
+  if (t === "Energy Meter") return ["Schneider Electric","ABB","Siemens","L&T","Secure Meters","Elmeasure","HPL"];
+  if (["Current Transformer (CT)","Potential Transformer (PT)"].includes(t))
+    return ["Kappa","Selec","Crompton","Rishabh","ABB","Siemens","Schneider"];
+  if (t === "Fuse") return ["L&T","Siemens","Schneider Electric","Eaton","ETI","Legrand"];
+  if (t === "Terminal Block") return ["Weidmuller","Phoenix Contact","WAGO","Entrelec","Elmex"];
+  if (["PLC / DCS Module","HMI / Operator Panel"].includes(t))
+    return ["Siemens","Allen Bradley","Schneider Electric","ABB","Honeywell","Yokogawa","Delta","Beckhoff","Weintek"];
+  return ["ABB","Schneider Electric","Siemens","L&T","Havells"];
+}
+
+export function buildComponentsRequirement(attrs: Record<string, unknown>): string {
+  const t       = (attrs.component_type   as string)?.trim() || "";
+  const voltage = (attrs.voltage          as string)?.trim() || "";
+  const currA   = (attrs.current_rating   as string)?.trim() || "";
+  const powerKW = (attrs.power_kw         as string)?.trim() || "";
+  const ip      = (attrs.ip_rating        as string)?.trim() || "";
+  const area    = (attrs.area_classification as string)?.trim() || "";
+  const parts: string[] = [];
+  if (t) parts.push(t);
+
+  if (["MCB","MCCB","ACB"].includes(t)) {
+    if (currA) parts.push(currA);
+    if (voltage) parts.push(voltage);
+    const poles = (attrs.num_poles as string)?.trim();
+    if (poles) parts.push(poles);
+    const brk = (attrs.breaking_capacity as string)?.trim();
+    if (brk) parts.push(`Breaking ${brk}`);
+    if (t === "MCB") {
+      const trip = (attrs.trip_characteristic as string)?.trim();
+      if (trip) parts.push(`${trip} Curve`);
+    }
+  } else if (t === "Contactor") {
+    if (currA) parts.push(currA);
+    if (voltage) parts.push(voltage);
+    const duty = (attrs.ac_duty as string)?.trim();
+    if (duty) parts.push(duty);
+    const coil = (attrs.coil_voltage as string)?.trim();
+    if (coil) parts.push(`Coil ${coil}`);
+  } else if (t === "Overload Relay") {
+    const range = (attrs.current_range as string)?.trim();
+    if (range) parts.push(range);
+    const cls = (attrs.trip_class as string)?.trim();
+    if (cls) parts.push(cls);
+  } else if (["VFD (Variable Frequency Drive)","Soft Starter"].includes(t)) {
+    if (powerKW) parts.push(`${powerKW} kW`);
+    if (voltage) parts.push(voltage);
+    if (ip) parts.push(ip);
+  } else if (["DOL Starter","Star-Delta Starter"].includes(t)) {
+    if (powerKW) parts.push(`${powerKW} kW`);
+    if (voltage) parts.push(voltage);
+  } else if (t === "Transformer") {
+    const kva = (attrs.kva_rating as string)?.trim();
+    if (kva) parts.push(`${kva} kVA`);
+    const pv = (attrs.primary_voltage as string)?.trim();
+    const sv = (attrs.secondary_voltage as string)?.trim();
+    if (pv && sv) parts.push(`${pv}/${sv}`);
+    else if (pv) parts.push(pv);
+  } else if (t === "SMPS / Power Supply") {
+    const ov = (attrs.output_voltage as string)?.trim();
+    const oa = (attrs.output_current as string)?.trim();
+    if (ov) parts.push(ov);
+    if (oa) parts.push(oa);
+  } else if (t === "UPS") {
+    const kva = (attrs.kva_rating as string)?.trim();
+    if (kva) parts.push(`${kva} kVA`);
+    const backup = (attrs.battery_backup_min as string)?.trim();
+    if (backup) parts.push(`${backup} backup`);
+  } else if (["Relay","Timer Relay"].includes(t)) {
+    const coil = (attrs.coil_voltage as string)?.trim();
+    if (coil) parts.push(coil);
+    const contact = (attrs.contact_config as string)?.trim();
+    if (contact) parts.push(contact);
+  } else if (["Selector Switch","Push Button","Limit Switch"].includes(t)) {
+    const contact = (attrs.contact_config as string)?.trim();
+    if (contact) parts.push(contact);
+  } else if (t === "Indicator / Pilot Light") {
+    const colour = (attrs.indicator_colour as string)?.trim();
+    if (colour) parts.push(colour);
+    const indV = (attrs.indicator_voltage as string)?.trim();
+    if (indV) parts.push(indV);
+  } else if (t === "Energy Meter") {
+    const mt = (attrs.meter_type as string)?.trim();
+    if (mt) parts.push(mt);
+    const acc = (attrs.accuracy_class as string)?.trim();
+    if (acc) parts.push(acc);
+  } else if (t === "Current Transformer (CT)") {
+    const ratio = (attrs.ct_ratio as string)?.trim();
+    if (ratio) parts.push(ratio);
+    const acc = (attrs.accuracy_class as string)?.trim();
+    if (acc) parts.push(acc);
+    const burden = (attrs.burden_va as string)?.trim();
+    if (burden) parts.push(burden);
+  } else if (t === "Potential Transformer (PT)") {
+    const ratio = (attrs.pt_ratio as string)?.trim();
+    if (ratio) parts.push(ratio);
+    const acc = (attrs.accuracy_class as string)?.trim();
+    if (acc) parts.push(acc);
+  } else if (t === "Fuse") {
+    if (currA) parts.push(currA);
+    const fsz = (attrs.fuse_size as string)?.trim();
+    if (fsz) parts.push(`Size ${fsz}`);
+  } else if (t === "Terminal Block") {
+    const tbType = (attrs.terminal_type as string)?.trim();
+    if (tbType) parts.push(tbType);
+    const wire = (attrs.wire_range as string)?.trim();
+    if (wire) parts.push(wire);
+  } else if (t === "ELCB / RCCB / RCBO") {
+    if (currA) parts.push(currA);
+    const sens = (attrs.sensitivity_ma as string)?.trim();
+    if (sens) parts.push(sens);
+  } else if (t === "PLC / DCS Module") {
+    const mod = (attrs.plc_module_type as string)?.trim();
+    if (mod) parts.push(mod);
+    const plat = (attrs.plc_platform as string)?.trim();
+    if (plat) parts.push(plat);
+  } else if (t === "HMI / Operator Panel") {
+    const sz = (attrs.screen_size as string)?.trim();
+    if (sz) parts.push(sz);
+    const disp = (attrs.display_type as string)?.trim();
+    if (disp) parts.push(disp);
+  } else {
+    if (currA) parts.push(currA);
+    if (powerKW) parts.push(`${powerKW} kW`);
+    if (voltage) parts.push(voltage);
+  }
+
+  if (ip && !parts.includes(ip)) parts.push(ip);
+  if (area && area !== "Safe Area") parts.push(area);
+  return parts.join(", ");
+}
+
+export function ComponentsAttrsForm({
+  attrs, qty, onChange, onQtyChange, projectVoltage, projectFrequency,
+}: {
+  attrs: Record<string, unknown>;
+  qty?: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange?: (q: string) => void;
+  projectVoltage?: string;
+  projectFrequency?: string;
+}) {
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  const resolvedProjVolt = resolveProjectVoltage(projectVoltage);
+  const resolvedProjFreq = resolveProjectFrequency(projectFrequency);
+
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(ALL_COMP_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom(c => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
+      setCustom(c => ({ ...c, [key]: false }));
+      set(key, val);
+    }
+  }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean, projDefault?: string) {
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const fromProj  = !!projDefault && curVal === projDefault;
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs flex items-center gap-1.5">
+          {label}{required && <span className="text-red-500">*</span>}
+          {fromProj && (
+            <span className="text-[9px] font-normal text-sky-600 bg-sky-50 border border-sky-200 px-1 py-px rounded leading-none">
+              project
+            </span>
+          )}
+        </Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={e => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function renderText(key: string, label: string, placeholder?: string) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}</Label>
+        <Input className="h-8 text-sm" placeholder={placeholder ?? `Enter ${label.toLowerCase()}…`}
+          value={(attrs[key] as string) ?? ""} onChange={e => set(key, e.target.value)} />
+      </div>
+    );
+  }
+
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  const compType    = (attrs.component_type    as string) ?? "";
+  const areaClass   = (attrs.area_classification as string) ?? "";
+  const isHazardous = areaClass === "Zone 1" || areaClass === "Zone 2";
+  const ctIsCustom  = custom.component_type ?? false;
+  const ctSelectVal = ctIsCustom ? "__other__" : (COMP_TYPE_OPTS.includes(compType) ? compType : "");
+  const vendors     = getCompVendors(compType);
+
+  const selectedVendors: string[] = ((attrs.approved_makes as string) ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+  function toggleVendor(chip: string) {
+    const next = selectedVendors.includes(chip)
+      ? selectedVendors.filter(v => v !== chip)
+      : [...selectedVendors, chip];
+    set("approved_makes", next.join(", "));
+  }
+
+  function handleTypeSelect(v: string) {
+    if (v === "__other__") {
+      setCustom(c => ({ ...c, component_type: true }));
+      onChange({ ...attrs, component_type: "" });
+      return;
+    }
+    setCustom(c => ({ ...c, component_type: false }));
+    const typeDefaults = COMP_TYPE_DEFAULTS[v] ?? {};
+    const volt = resolveProjectVoltage(projectVoltage);
+    const freq = resolveProjectFrequency(projectFrequency);
+    const defaults: Record<string, unknown> = { ...typeDefaults };
+    if (volt && !TYPES_NO_SYSTEM_VOLTAGE.has(v)) defaults.voltage = volt;
+    if (freq && !TYPES_NO_FREQUENCY.has(v)) defaults.frequency = freq;
+    const next: Record<string, unknown> = { ...attrs, component_type: v };
+    for (const [key, val] of Object.entries(defaults)) {
+      const cur = next[key];
+      if (cur === undefined || cur === null || (typeof cur === "string" && !cur.trim())) {
+        next[key] = val;
+      }
+    }
+    onChange(next);
+  }
+
+  function renderTypeSpecific() {
+    const t = compType;
+    if (!t) return null;
+
+    if (t === "MCB") return (
+      <>
+        {renderField("num_poles",           "Number of Poles",    COMP_POLES_ALL, true)}
+        {renderField("breaking_capacity",   "Breaking Capacity",  MCB_BREAKING,   true)}
+        {renderField("trip_characteristic", "Trip Characteristic",MCB_TRIP,       true)}
+        {renderField("component_std",       "Standard",           MCB_STD)}
+      </>
+    );
+    if (t === "MCCB") return (
+      <>
+        {renderField("num_poles",         "Number of Poles",   COMP_POLES_3P4P, true)}
+        {renderField("breaking_capacity", "Breaking Capacity", MCCB_BREAKING,   true)}
+        {renderField("release_type",      "Release Type",      MCCB_RELEASE)}
+        {renderField("component_std",     "Standard",          MCCB_STD)}
+      </>
+    );
+    if (t === "ACB") return (
+      <>
+        {renderField("num_poles",         "Number of Poles",   COMP_POLES_3P4P, true)}
+        {renderField("breaking_capacity", "Breaking Capacity", ACB_BREAKING,    true)}
+        {renderField("release_type",      "Release Type",      ACB_RELEASE)}
+        {renderField("draw_out_type",     "Drawout / Fixed",   ACB_DRAWOUT)}
+        {renderField("component_std",     "Standard",          ACB_STD)}
+        <div />
+      </>
+    );
+    if (t === "Contactor") return (
+      <>
+        {renderField("num_poles",    "Number of Poles",       COMP_POLES_3P4P, true)}
+        {renderField("ac_duty",      "Utilisation Category",  CONT_AC_DUTY,    true)}
+        {renderField("aux_contacts", "Auxiliary Contacts",    CONT_AUX)}
+        {renderField("component_std","Standard",              CONT_STD)}
+      </>
+    );
+    if (t === "Overload Relay") return (
+      <>
+        <div className="col-span-2">{renderField("current_range", "Current Setting Range", OL_RANGE, true)}</div>
+        {renderField("trip_class", "Trip Class", OL_TRIP_CLASS, true)}
+        {renderField("relay_type", "Relay Type", OL_TYPE)}
+      </>
+    );
+    if (t === "DOL Starter" || t === "Star-Delta Starter") return (
+      <>
+        {renderField("contactor_included", "Contactor Included", COMP_YES_NO)}
+        {renderField("overload_included",  "Overload Included",  COMP_YES_NO)}
+        {renderField("component_std",      "Standard",           STARTER_STD)}
+        <div />
+      </>
+    );
+    if (t === "VFD (Variable Frequency Drive)") return (
+      <>
+        {renderField("control_type",    "Control Type",    VFD_CONTROL, true)}
+        {renderField("communication",   "Communication",   VFD_COMM)}
+        {renderField("bypass_provision","Bypass Provision",COMP_YES_NO)}
+        {renderField("component_std",   "Standard",        VFD_STD)}
+      </>
+    );
+    if (t === "Soft Starter") return (
+      <>
+        {renderField("bypass_provision","Bypass Provision", COMP_YES_NO)}
+        {renderField("communication",   "Communication",    VFD_COMM)}
+        <div /><div />
+      </>
+    );
+    if (t === "Transformer") return (
+      <>
+        {renderField("transformer_type", "Transformer Type",   XFMR_TYPE,         true)}
+        {renderField("kva_rating",       "kVA Rating",         XFMR_KVA,          true)}
+        {renderField("primary_voltage",  "Primary Voltage",    COMP_VOLTAGE_OPTS,  true)}
+        {renderField("secondary_voltage","Secondary Voltage",  XFMR_SEC_V,         true)}
+        {renderField("insulation_class", "Insulation Class",   XFMR_INSUL)}
+        {renderField("component_std",    "Standard",           XFMR_STD)}
+      </>
+    );
+    if (t === "SMPS / Power Supply") return (
+      <>
+        {renderField("output_voltage", "Output Voltage", SMPS_OUT_V, true)}
+        {renderField("output_current", "Output Current", SMPS_OUT_A, true)}
+        {renderField("redundancy",     "Redundancy",     SMPS_REDUND)}
+        <div />
+      </>
+    );
+    if (t === "UPS") return (
+      <>
+        {renderField("kva_rating",         "kVA Rating",    UPS_KVA,      true)}
+        {renderField("ups_topology",       "Topology",      UPS_TOPOLOGY, true)}
+        {renderField("battery_backup_min", "Battery Backup",UPS_BACKUP)}
+        {renderField("battery_type",       "Battery Type",  UPS_BATTERY)}
+      </>
+    );
+    if (t === "Relay") return (
+      <>
+        {renderField("relay_category", "Relay Category",        RELAY_CAT,     true)}
+        {renderField("contact_config", "Contact Configuration", RELAY_CONTACT, true)}
+        {renderField("relay_socket",   "Socket / Base",         RELAY_SOCKET)}
+        <div />
+      </>
+    );
+    if (t === "Timer Relay") return (
+      <>
+        {renderField("timer_function", "Timer Function", TIMER_FUNC,  true)}
+        {renderField("time_range",     "Time Range",     TIMER_RANGE, true)}
+      </>
+    );
+    if (t === "Selector Switch") return (
+      <>
+        {renderField("switch_positions","Positions",       SW_POSITIONS, true)}
+        {renderField("contact_config",  "Contact",        SW_CONTACT,   true)}
+        {renderField("actuator_colour", "Actuator Colour",SW_COLOUR)}
+        {renderField("operator_type",   "Operator Type",  SW_OPERATOR)}
+        {renderField("mounting_cutout", "Mounting Cutout",SW_CUTOUT)}
+        <div />
+      </>
+    );
+    if (t === "Push Button") return (
+      <>
+        {renderField("pb_type",         "Button Type",    PB_TYPES,   true)}
+        {renderField("contact_config",  "Contact",        SW_CONTACT, true)}
+        {renderField("actuator_colour", "Actuator Colour",SW_COLOUR)}
+        {renderField("operator_type",   "Operator Type",  SW_OPERATOR)}
+        {renderField("mounting_cutout", "Mounting Cutout",SW_CUTOUT)}
+        <div />
+      </>
+    );
+    if (t === "Limit Switch") return (
+      <>
+        {renderField("contact_config", "Contact", SW_CONTACT, true)}
+        <div />
+      </>
+    );
+    if (t === "Indicator / Pilot Light") return (
+      <>
+        {renderField("indicator_colour",  "Colour",            IND_COLOUR,  true)}
+        {renderField("indicator_voltage", "Indicator Voltage", IND_VOLTAGE, true)}
+        {renderField("lamp_type",         "Lamp Type",         IND_LAMP)}
+        {renderField("mounting_cutout",   "Mounting Cutout",   SW_CUTOUT)}
+      </>
+    );
+    if (t === "Energy Meter") return (
+      <>
+        {renderField("meter_type",    "Meter Type",     EM_TYPE,     true)}
+        {renderField("accuracy_class","Accuracy Class", EM_ACCURACY, true)}
+        {renderField("communication", "Communication",  EM_COMM)}
+        {renderField("meter_display", "Display",        EM_DISPLAY)}
+      </>
+    );
+    if (t === "Current Transformer (CT)") return (
+      <>
+        {renderField("ct_ratio",       "CT Ratio",       CT_RATIO,    true)}
+        {renderField("accuracy_class", "Accuracy Class", CT_ACCURACY, true)}
+        {renderField("burden_va",      "Burden (VA)",    CT_BURDEN)}
+        {renderField("core_type",      "Core Type",      CT_CORE)}
+        {renderField("component_std",  "Standard",       CT_STD)}
+        <div />
+      </>
+    );
+    if (t === "Potential Transformer (PT)") return (
+      <>
+        {renderField("pt_ratio",       "PT Ratio",       PT_RATIO,    true)}
+        {renderField("accuracy_class", "Accuracy Class", PT_ACCURACY, true)}
+        {renderField("component_std",  "Standard",       PT_STD)}
+        <div />
+      </>
+    );
+    if (t === "Fuse") return (
+      <>
+        {renderField("fuse_type",         "Fuse Type",         FUSE_TYPE,     true)}
+        {renderField("fuse_size",         "Fuse Size",         FUSE_SIZE)}
+        {renderField("breaking_capacity", "Breaking Capacity", FUSE_BREAKING)}
+        {renderField("component_std",     "Standard",          FUSE_STD)}
+      </>
+    );
+    if (t === "Terminal Block") return (
+      <>
+        {renderField("terminal_type",    "Terminal Type",   TB_TYPE,     true)}
+        {renderField("wire_range",       "Wire Range",      TB_WIRE,     true)}
+        {renderField("terminal_current", "Current Rating",  TB_CURRENT)}
+        {renderText( "qty_per_set",      "Qty per Set",     "e.g. 24 way")}
+      </>
+    );
+    if (t === "ELCB / RCCB / RCBO") return (
+      <>
+        {renderField("elcb_type",      "Device Type",      ELCB_TYPE,  true)}
+        {renderField("elcb_poles",     "Number of Poles",  ELCB_POLES, true)}
+        {renderField("sensitivity_ma", "Sensitivity (mA)", ELCB_SENS,  true)}
+        {renderField("component_std",  "Standard",         ELCB_STD)}
+      </>
+    );
+    if (t === "PLC / DCS Module") return (
+      <>
+        {renderField("plc_module_type", "Module Type", PLC_MODULE,   true)}
+        <div className="col-span-2">{renderField("plc_platform", "Platform / Series", PLC_PLATFORM, true)}</div>
+        {renderField("communication",   "Communication",             PLC_COMM)}
+        {renderText( "io_count",        "I/O Count",                 "e.g. 16 DI / 16 DO")}
+      </>
+    );
+    if (t === "HMI / Operator Panel") return (
+      <>
+        {renderField("screen_size",   "Screen Size (inch)", HMI_SIZE,     true)}
+        {renderField("display_type",  "Display Type",       HMI_DISPLAY,  true)}
+        <div className="col-span-2">{renderField("hmi_platform", "Platform", HMI_PLATFORM)}</div>
+        {renderField("communication", "Communication",      HMI_COMM)}
+        <div />
+      </>
+    );
+    return null;
+  }
+
+  const showVoltage    = compType !== "" && !TYPES_NO_SYSTEM_VOLTAGE.has(compType);
+  const showFrequency  = compType !== "" && !TYPES_NO_FREQUENCY.has(compType);
+  const showCurrentA   = compType !== "" && TYPES_WITH_CURRENT_RATING.has(compType);
+  const showPowerKW    = compType !== "" && TYPES_WITH_POWER_KW.has(compType);
+  const showCoilVolt   = compType !== "" && TYPES_WITH_COIL_VOLTAGE.has(compType);
+  const showFallbackStd = compType !== "" && !TYPES_WITH_OWN_STD.has(compType);
+
+  return (
+    <div className="space-y-3">
+
+      {/* 1 — Component Identity */}
+      <SectionCard title="Component Identity" color="bg-sky-50/60 border-sky-200">
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Component Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect value={ctSelectVal} options={COMP_TYPE_OPTS}
+            placeholder="Select component type…" onSelect={handleTypeSelect} />
+          {ctIsCustom && (
+            <Input className="h-8 text-sm" placeholder="Enter custom component type…" value={compType}
+              onChange={e => onChange({ ...attrs, component_type: e.target.value })} autoFocus />
+          )}
+        </div>
+        {renderText("make",          "Make / Brand")}
+        {renderText("model_no",      "Model / Catalogue No.")}
+        {renderText("tag_reference", "Tag Reference")}
+        <div />
+      </SectionCard>
+
+      {/* 2 — Electrical Rating */}
+      {compType && (
+        <SectionCard title="Electrical Rating" color="bg-violet-50/60 border-violet-200">
+          {showVoltage  && renderField("voltage",        "Voltage",                COMP_VOLTAGE_OPTS,  true, resolvedProjVolt)}
+          {showFrequency && renderField("frequency",     "Frequency",              COMP_FREQ_OPTS,     true, resolvedProjFreq)}
+          {showCurrentA  && renderField("current_rating","Current Rating",         COMP_CURRENT_OPTS,  true)}
+          {showPowerKW   && renderField("power_kw",      "Power (kW)",             COMP_POWER_KW_OPTS, true)}
+          {showCoilVolt  && renderField("coil_voltage",  "Coil / Control Voltage", COMP_COIL_V_OPTS,   true)}
+          {!showVoltage && !showFrequency && !showCurrentA && !showPowerKW && !showCoilVolt && (
+            <div className="col-span-2 text-xs text-muted-foreground italic py-1">
+              No electrical rating fields applicable for this component type.
+            </div>
+          )}
+        </SectionCard>
+      )}
+
+      {/* 3 — Type Configuration */}
+      {compType && (
+        <SectionCard title="Type Configuration" color="bg-amber-50/60 border-amber-200">
+          {renderTypeSpecific()}
+        </SectionCard>
+      )}
+
+      {/* 4 — Mounting & Enclosure */}
+      <SectionCard title="Mounting & Enclosure" color="bg-emerald-50/60 border-emerald-200">
+        {renderField("mounting_type", "Mounting Type", COMP_MOUNTING_OPTS)}
+        {renderField("ip_rating",     "IP Rating",     COMP_IP_OPTS)}
+      </SectionCard>
+
+      {/* 5 — Approved Makes */}
+      {compType && (
+        <SectionCard title="Approved Makes" color="bg-teal-50/60 border-teal-200">
+          <div className="col-span-2 space-y-1.5">
+            <Label className="text-xs">Approved Makes</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {vendors.map(chip => (
+                <button key={chip} type="button" onClick={() => toggleVendor(chip)}
+                  className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                    selectedVendors.includes(chip)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:border-primary"
+                  }`}>{chip}</button>
+              ))}
+            </div>
+            {selectedVendors.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
+            )}
+            <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
+              value={(attrs.approved_makes_other as string) ?? ""}
+              onChange={e => set("approved_makes_other", e.target.value)} />
+          </div>
+        </SectionCard>
+      )}
+
+      {/* 6 — Area Classification */}
+      <SectionCard title="Area Classification" color="bg-rose-50/60 border-rose-200">
+        <div className="col-span-2">
+          {renderField("area_classification", "Area Classification", COMP_AREA_OPTS)}
+        </div>
+        {isHazardous && (
+          <>
+            {renderField("explosion_protection", "Explosion Protection", COMP_EX_PROT_OPTS, true)}
+            {renderField("gas_group",             "Gas Group",           COMP_GAS_GRP_OPTS, true)}
+            {renderField("temperature_class",     "Temperature Class",   COMP_TEMP_CLS_OPTS, true)}
+            {renderField("certification",         "Certification",       COMP_CERT_OPTS,     true)}
+          </>
+        )}
+      </SectionCard>
+
+      {/* 7 — Standards & Notes */}
+      <SectionCard title="Standards & Notes" color="bg-slate-50/80 border-slate-200">
+        {showFallbackStd && (
+          <>
+            {renderField("component_std", "Applicable Standard", COMP_FALLBACK_STD)}
+            <div />
+          </>
+        )}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Additional Notes</Label>
+          <Input className="h-8 text-sm" placeholder="Any additional requirements…"
+            value={(attrs.notes as string) ?? ""} onChange={e => set("notes", e.target.value)} />
+        </div>
+        {qty !== undefined && (
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Quantity (Nos.) <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" type="number" min="1" step="1"
+              value={qty}
+              onWheel={e => e.currentTarget.blur()}
+              onChange={e => {
+                const v = e.target.value;
+                onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))));
+              }} />
+          </div>
+        )}
+      </SectionCard>
+
+    </div>
+  );
+}
+
 export function BoughtOutAttrsForm({
   attrs, qty, onChange, onQtyChange,
 }: {
