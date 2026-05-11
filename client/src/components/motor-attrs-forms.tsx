@@ -195,16 +195,13 @@ export function MotorAttrsForm({
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
   const areaOpts = isFlameproof ? MOTOR_AREA_HAZARDOUS : MOTOR_AREA_SAFE;
   const currentFreq = (attrs.frequency as string) ?? "";
-  const speedOpts   = MOTOR_SPEED_BY_FREQ[currentFreq] ?? MOTOR_SPEED_BY_FREQ["50 Hz"];
   const polesOpts   = MOTOR_POLES_BY_FREQ[currentFreq]  ?? MOTOR_POLES_BY_FREQ["50 Hz"];
-  const singleKeys = [...Object.keys(MOTOR_OPTS), "area_classification"];
+  const singleKeys = [...Object.keys(MOTOR_OPTS).filter((k) => k !== "speed"), "area_classification"];
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
     for (const key of singleKeys) {
       const val  = (attrs[key] as string) ?? "";
-      const opts = key === "area_classification" ? areaOpts
-                 : key === "speed"               ? speedOpts
-                 : (MOTOR_OPTS[key] ?? []);
+      const opts = key === "area_classification" ? areaOpts : (MOTOR_OPTS[key] ?? []);
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
