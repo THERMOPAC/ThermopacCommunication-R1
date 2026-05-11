@@ -355,7 +355,7 @@ export function PipesAttrsForm({
         {rf("material_grade", "Material Grade",   PIPES_MATERIAL_GRADES, true)}
         {rf("nominal_bore",   "Nominal Bore",     COMMON_NB,             true)}
         {rf("schedule",       "Schedule",         COMMON_SCHEDULE,       true)}
-        {rf("end_condition",  "End Condition",    PIPES_END_CONDITION,   true)}
+        {rf("end_condition",  "End Condition",    PIPES_END_CONDITION)}
         {rf("length",         "Length",           PIPES_LENGTH_OPTS,     true)}
         <div />
       </SectionCard>
