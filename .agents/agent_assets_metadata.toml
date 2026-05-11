@@ -330,3 +330,9 @@ id = "a-rkTrc1VNCsha6nlsp3T"
 uri = "file://docs/item-code-generation-plan-v5.1.md"
 type = "text"
 title = "Item Code Generation Plan v5.1"
+
+[[outputs]]
+id = "ABz48-Xtsn8Kk06d8hu-s"
+uri = "file://docs/item-code-generation-baseline-v1.0.md"
+type = "text"
+title = "BUY Item Code Generation — Baseline v1.0"
