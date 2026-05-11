@@ -49,6 +49,10 @@ import {
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
 } from "@/components/valve-attrs-forms";
+import {
+  PlatesAttrsForm, PipesAttrsForm, FittingsAttrsForm, FlangesAttrsForm,
+  FastenersAttrsForm, GasketsAttrsForm, StructuralSteelAttrsForm,
+} from "@/components/piping-attrs-forms";
 
 // ── Taggable subgroup codes (must match server/tag-generation-service.ts) ──────
 const TAGGABLE_SUBGROUP_CODES = new Set([
@@ -2206,6 +2210,55 @@ export default function EpcBuyListControlPage() {
               ) : (currentSubgroupCode === "general" && currentGroupCode === "bought_out_packages") ? (
                 <div className="col-span-2">
                   <BoughtOutAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "plates" ? (
+                <div className="col-span-2">
+                  <PlatesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "pipes" ? (
+                <div className="col-span-2">
+                  <PipesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "fittings" ? (
+                <div className="col-span-2">
+                  <FittingsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "flanges" ? (
+                <div className="col-span-2">
+                  <FlangesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "fasteners" ? (
+                <div className="col-span-2">
+                  <FastenersAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "gaskets" ? (
+                <div className="col-span-2">
+                  <GasketsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "structural_steel" ? (
+                <div className="col-span-2">
+                  <StructuralSteelAttrsForm
                     attrs={lf.technicalAttributes}
                     onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
                   />

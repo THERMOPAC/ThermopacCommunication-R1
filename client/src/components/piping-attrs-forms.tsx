@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command, CommandInput, CommandList, CommandEmpty,
@@ -24,35 +23,29 @@ function SearchableSelect({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline" role="combobox"
-          className="h-8 text-sm justify-between font-normal w-full overflow-hidden"
-        >
+        <Button variant="outline" role="combobox"
+          className="h-8 text-sm justify-between font-normal w-full overflow-hidden">
           <span className={displayVal ? "truncate" : "text-muted-foreground"}>
             {displayVal || (placeholder ?? "Select…")}
           </span>
           <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-0" align="start">
+      <PopoverContent className="w-64 p-0" align="start">
         <Command>
           <CommandInput placeholder="Search…" className="h-8" />
           <CommandList>
             <CommandEmpty>No match.</CommandEmpty>
             <CommandGroup>
               {options.map((opt) => (
-                <CommandItem
-                  key={opt} value={opt}
-                  onSelect={() => { onSelectProp(opt); setOpen(false); }}
-                >
+                <CommandItem key={opt} value={opt}
+                  onSelect={() => { onSelectProp(opt); setOpen(false); }}>
                   <Check className={`mr-2 h-3.5 w-3.5 ${value === opt ? "opacity-100" : "opacity-0"}`} />
                   {opt}
                 </CommandItem>
               ))}
-              <CommandItem
-                key="__other__" value="Other…"
-                onSelect={() => { onSelectProp("__other__"); setOpen(false); }}
-              >
+              <CommandItem key="__other__" value="Other…"
+                onSelect={() => { onSelectProp("__other__"); setOpen(false); }}>
                 <Check className={`mr-2 h-3.5 w-3.5 ${value === "__other__" ? "opacity-100" : "opacity-0"}`} />
                 Other…
               </CommandItem>
@@ -64,32 +57,122 @@ function SearchableSelect({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PLATES
-// ─────────────────────────────────────────────────────────────────────────────
-export function buildPlatesRequirement(attrs: Record<string, unknown>): string {
-  const plateType    = (attrs.plate_type     as string)?.trim() || "";
-  const grade        = (attrs.material_grade as string)?.trim() || "";
-  const standard     = (attrs.standard       as string)?.trim() || "";
-  const thick        = attrs.thickness_mm ? `${attrs.thickness_mm}mm Thk` : "";
-  const width        = attrs.width_mm      ? `${attrs.width_mm}mm W`      : "";
-  const length       = attrs.length_mm     ? `${attrs.length_mm}mm L`     : "";
-  const prefix = [plateType, "Plate"].filter(Boolean).join(" ");
-  const spec   = [standard, grade].filter(Boolean).join(" ");
-  const dims   = [thick, width, length].filter(Boolean).join(" x ");
-  let result = [prefix, spec].filter(Boolean).join(" ");
-  if (dims) result += (result ? ", " : "") + dims;
-  return result;
+// ── SectionCard ───────────────────────────────────────────────────────────────
+function SectionCard({ title, color, children }: {
+  title: string; color: string; children: React.ReactNode;
+}) {
+  return (
+    <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+      <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+        {title}
+      </h4>
+      <div className="grid grid-cols-2 gap-3">
+        {children}
+      </div>
+    </div>
+  );
 }
 
-const PLATE_OPTS: Record<string, string[]> = {
-  plate_type:     ["MS", "SS 304", "SS 316", "Chequered", "Boiler Quality Plate"],
-  material_grade: ["IS 2062 E250", "IS 2062 E350", "SA 516 Gr 60", "SA 516 Gr 65", "SA 516 Gr 70", "ASTM A36", "SS 304", "SS 316"],
-  thickness_mm:   ["3", "5", "6", "8", "10", "12", "16", "20", "25", "32", "40"],
-  width_mm:       ["1000", "1250", "1500", "2000", "2500"],
-  length_mm:      ["2000", "2500", "3000", "6000"],
-  standard:       ["IS 2062", "ASTM A36", "ASTM A516", "ASME SA-516", "DIN", "EN", "JIS"],
+// ── Shared option lists ───────────────────────────────────────────────────────
+const COMMON_NB = [
+  "15NB","20NB","25NB","32NB","40NB","50NB","65NB","80NB",
+  "100NB","125NB","150NB","200NB","250NB","300NB",
+  "350NB","400NB","450NB","500NB","600NB",
+  "650NB","700NB","750NB","800NB","900NB","1000NB","1200NB",
+];
+const COMMON_SCHEDULE      = ["SCH 10","SCH 20","SCH 40","SCH 80","SCH 160","XXS","STD","XS"];
+const PRESSURE_CLASS_OPTS  = ["150#","300#","600#","900#","1500#","2500#"];
+const FACING_OPTS          = ["RF (Raised Face)","FF (Flat Face)","RTJ (Ring Type Joint)"];
+const YES_NO               = ["Yes","No"];
+const HEAT_TREATMENT_OPTS  = ["None","Normalized","PWHT","Quenched & Tempered","Annealed","Stress Relieved"];
+
+// ── Dynamic helpers ───────────────────────────────────────────────────────────
+function derivePipeStandard(grade: string): string {
+  const g = grade.toUpperCase();
+  if (g.startsWith("A106"))    return "ASTM A106";
+  if (g.startsWith("A312"))    return "ASTM A312";
+  if (g.startsWith("A335"))    return "ASTM A335";
+  if (g.startsWith("A53"))     return "ASTM A53";
+  if (g.startsWith("IS 1239")) return "IS 1239";
+  if (g.startsWith("IS 3589")) return "IS 3589";
+  if (g.startsWith("IS 6630")) return "IS 6630";
+  if (g.includes("DUPLEX"))    return "ASTM A790";
+  if (g.includes("ERW"))       return "IS 3589";
+  if (g.startsWith("API 5L"))  return "API 5L";
+  return "";
+}
+
+function deriveFlangeStandard(nb: string): string {
+  const m = nb.match(/^(\d+)NB$/i);
+  if (!m) return "ASME B16.5";
+  return parseInt(m[1]) > 600 ? "ASME B16.47 Series A" : "ASME B16.5";
+}
+
+function getStructuralMtrDefault(grade: string): string {
+  const g = grade.toUpperCase();
+  if (g.startsWith("SS") || g.includes("DUPLEX")) return "Yes";
+  return "No";
+}
+
+// ── Qty field (integer-only, no scroll-wheel) ─────────────────────────────────
+function QtyField({ qty, onQtyChange }: { qty?: string; onQtyChange?: (q: string) => void }) {
+  if (qty === undefined) return null;
+  return (
+    <div className="space-y-1.5 col-span-2">
+      <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+      <Input className="h-8 text-sm" type="number" min="1" step="1"
+        value={qty}
+        onWheel={(e) => e.currentTarget.blur()}
+        onChange={(e) => {
+          const v = e.target.value;
+          onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))));
+        }} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. PLATES
+// ─────────────────────────────────────────────────────────────────────────────
+const PLATES_MATERIAL_GRADES = [
+  "SA-516 Gr.60","SA-516 Gr.70","SA-537 Cl.1","SA-537 Cl.2",
+  "IS 2062 E250 BR","IS 2062 E250 C","IS 2062 E300","IS 2062 E350",
+  "SS 304","SS 304L","SS 316","SS 316L",
+  "Duplex 2205","Super Duplex 2507","Monel 400","Hastelloy C-276",
+];
+const PLATES_THICKNESS = ["3","5","6","8","10","12","16","20","25","32","40","50"];
+const PLATES_WIDTH     = ["1000","1250","1500","2000","2500"];
+const PLATES_LENGTH    = ["Mill Length","2000","2500","3000","4000","5000","6000"];
+const PLATES_STANDARD  = ["ASTM","IS 2062","EN 10028","ASME SA-516"];
+const PLATES_SURFACE   = ["No.1 (HR)","No.2B (CR)","No.4 (Brushed)","Pickled & Oiled"];
+const PLATES_TESTING   = ["UT (Ultrasonic)","NACE MR-0175","HIC Test","Impact Test","Charpy Test"];
+const PLATES_ALL_OPTS: Record<string, string[]> = {
+  material_grade:     PLATES_MATERIAL_GRADES,
+  thickness_mm:       PLATES_THICKNESS,
+  width_mm:           PLATES_WIDTH,
+  length_mm:          PLATES_LENGTH,
+  plate_standard:     PLATES_STANDARD,
+  mtr_required:       YES_NO,
+  heat_treatment:     HEAT_TREATMENT_OPTS,
+  surface_finish:     PLATES_SURFACE,
+  additional_testing: PLATES_TESTING,
 };
+
+export function buildPlatesRequirement(attrs: Record<string, unknown>): string {
+  const grade  = (attrs.material_grade as string)?.trim() || "";
+  const thick  = (attrs.thickness_mm   as string)?.trim() || "";
+  const width  = (attrs.width_mm       as string)?.trim() || "";
+  const length = (attrs.length_mm      as string)?.trim() || "";
+  const std    = (attrs.plate_standard  as string)?.trim() || "";
+  if (!grade) return "";
+  const parts: string[] = [grade, "Plate"];
+  if (thick)               parts.push(`${thick} mm thk`);
+  if (width && length)     parts.push(`${width} × ${length} mm`);
+  else if (width)          parts.push(`${width} mm wide`);
+  else if (length)         parts.push(`${length} mm`);
+  if (std)                 parts.push(std);
+  return parts.join(", ");
+}
 
 export function PlatesAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -99,124 +182,104 @@ export function PlatesAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of Object.keys(PLATE_OPTS)) {
+    for (const [key, opts] of Object.entries(PLATES_ALL_OPTS)) {
       const val = (attrs[key] as string) ?? "";
-      c[key] = val !== "" && !PLATE_OPTS[key].includes(val);
+      c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
-    }
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    else                     { setCustom(c => ({ ...c, [key]: false })); set(key, val); }
   }
-
-  function renderField(key: string, label: string, required?: boolean, colSpan?: boolean) {
-    const opts = PLATE_OPTS[key];
+  function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
-    const dropdownVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className={`space-y-1.5${colSpan ? " col-span-2" : ""}`}>
-        <Label className="text-xs">
-          {label}{required && <span className="text-red-500"> *</span>}
-        </Label>
-        <Select value={dropdownVal} onValueChange={(v) => handleSelect(key, v)}>
-          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
-          <SelectContent>
-            {opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-            <SelectItem value="__other__">Other…</SelectItem>
-          </SelectContent>
-        </Select>
-        {isCustom && (
-          <Input
-            className="h-8 text-sm"
-            placeholder="Enter custom value…"
-            value={curVal}
-            onChange={(e) => set(key, e.target.value)}
-            autoFocus
-          />
-        )}
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set(key, e.target.value)} autoFocus />}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plate Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {renderField("plate_type",     "Plate Type",      true)}
-        {renderField("material_grade", "Material Grade")}
-        {renderField("thickness_mm",   "Thickness (mm)",  true)}
-        {renderField("width_mm",       "Width (mm)")}
-        {renderField("length_mm",      "Length (mm)")}
-        {renderField("standard",       "Standard")}
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input
-              className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }}
-            />
-          </div>
-        )}
-      </div>
+    <div className="space-y-3">
+      <SectionCard title="Material & Dimensions" color="bg-sky-50/60 border-sky-200">
+        {rf("material_grade", "Material Grade",   PLATES_MATERIAL_GRADES, true)}
+        {rf("thickness_mm",   "Thickness (mm)",   PLATES_THICKNESS,       true)}
+        {rf("width_mm",       "Width (mm)",        PLATES_WIDTH,           true)}
+        {rf("length_mm",      "Length (mm)",       PLATES_LENGTH,          true)}
+        {rf("plate_standard", "Plate Standard",   PLATES_STANDARD,        true)}
+        <div />
+      </SectionCard>
+      <SectionCard title="Quality & Testing" color="bg-slate-50/80 border-slate-200">
+        {rf("mtr_required",       "MTR Required",       YES_NO,           true)}
+        {rf("heat_treatment",     "Heat Treatment",     HEAT_TREATMENT_OPTS)}
+        {rf("surface_finish",     "Surface Finish",     PLATES_SURFACE)}
+        {rf("additional_testing", "Additional Testing", PLATES_TESTING)}
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PIPES
+// 2. PIPES
 // ─────────────────────────────────────────────────────────────────────────────
-export function buildPipesRequirement(attrs: Record<string, unknown>): string {
-  const sectionType = (attrs.section_type  as string)?.trim() || "";
-  const matGrade    = (attrs.material_grade as string)?.trim() || "";
-  const lengthVal   = (attrs.length         as string)?.trim() || "";
-  const standard    = (attrs.standard       as string)?.trim() || "";
-  let sizePart = "";
-  if (sectionType === "Round Pipe") {
-    const nb  = attrs.nb_mm    ? `${attrs.nb_mm}NB`   : "";
-    const sch = (attrs.schedule as string)?.trim() || "";
-    sizePart = [nb, sch].filter(Boolean).join(" ");
-  } else if (sectionType === "Square Pipe") {
-    const sz  = (attrs.sq_size     as string)?.trim() || "";
-    const thk = attrs.thickness_mm ? `x${attrs.thickness_mm}mm` : "";
-    sizePart = sz ? `${sz}${thk}` : "";
-  } else if (sectionType === "Rectangular Pipe") {
-    const sz  = (attrs.rect_size   as string)?.trim() || "";
-    const thk = attrs.thickness_mm ? `x${attrs.thickness_mm}mm` : "";
-    sizePart = sz ? `${sz}${thk}` : "";
-  }
-  const label = sectionType || "Pipe";
-  const parts: string[] = [label];
-  if (sizePart) parts.push(sizePart);
-  const trailer = [matGrade, lengthVal ? `${lengthVal} length` : "", standard].filter(Boolean).join(", ");
-  let result = parts.join(" ");
-  if (trailer) result += (result ? ", " : "") + trailer;
-  return result;
-}
-
-const PIPE_OPTS: Record<string, string[]> = {
-  section_type:   ["Round Pipe", "Square Pipe", "Rectangular Pipe", "Seamless", "ERW", "Welded", "GI", "MS", "SS"],
-  material_grade: ["ASTM A106 Gr B", "ASTM A53", "IS 1239", "IS 3589", "SS 304", "SS 316"],
-  nb_mm:          ["15", "20", "25", "32", "40", "50", "65", "80", "100", "150", "200", "250", "300"],
-  schedule:       ["Sch 10", "Sch 20", "Sch 40", "Sch 80", "Sch 160", "XS", "XXS"],
-  sq_size:        ["25x25", "40x40", "50x50", "75x75", "100x100", "150x150"],
-  rect_size:      ["50x25", "75x40", "100x50", "150x75", "200x100"],
-  thickness_mm:   ["1.6", "2", "3", "4", "5", "6", "8", "10"],
-  length:         ["3m", "6m", "12m", "Random"],
-  standard:       ["ASTM", "ASME", "IS", "DIN", "EN", "JIS"],
+const PIPES_MATERIAL_GRADES = [
+  "A106 Gr.A","A106 Gr.B","A106 Gr.C",
+  "A312 TP304","A312 TP304L","A312 TP316","A312 TP316L",
+  "A335 P11","A335 P22","A335 P5","A335 P9",
+  "A53 Gr.A","A53 Gr.B",
+  "IS 1239 Light","IS 1239 Medium","IS 1239 Heavy",
+  "IS 3589 Gr.330","IS 3589 Gr.410",
+  "IS 6630",
+  "Duplex S31803","Super Duplex S32750",
+  "ERW CS","API 5L Gr.B","API 5L X42","API 5L X52","API 5L X65",
+];
+const PIPES_END_CONDITION   = ["Plain End (PE)","Bevelled End (BE)","Threaded & Coupled (T&C)"];
+const PIPES_LENGTH_OPTS     = ["Random (5–7m)","Fixed 6m","Fixed 12m"];
+const PIPES_STANDARD_OPTS   = [
+  "ASTM A106","ASTM A312","ASTM A335","ASTM A53",
+  "IS 1239","IS 3589","IS 6630","EN 10216","API 5L","ASTM A790",
+];
+const PIPES_SURFACE         = ["Black (As-rolled)","Pickled & Oiled","Hot-Dip Galvanized","Epoxy Coated"];
+const PIPES_NDT             = ["None","Hydrotest","Ultrasonic (UT)","Radiography (RT)","Magnetic Particle (MT)"];
+const PIPES_ALL_OPTS: Record<string, string[]> = {
+  material_grade:    PIPES_MATERIAL_GRADES,
+  nominal_bore:      COMMON_NB,
+  schedule:          COMMON_SCHEDULE,
+  end_condition:     PIPES_END_CONDITION,
+  length:            PIPES_LENGTH_OPTS,
+  pipe_standard:     PIPES_STANDARD_OPTS,
+  mtr_required:      YES_NO,
+  surface_condition: PIPES_SURFACE,
+  ndt_requirement:   PIPES_NDT,
+  heat_treatment:    HEAT_TREATMENT_OPTS,
 };
+
+export function buildPipesRequirement(attrs: Record<string, unknown>): string {
+  const grade = (attrs.material_grade as string)?.trim() || "";
+  const nb    = (attrs.nominal_bore   as string)?.trim() || "";
+  const sch   = (attrs.schedule       as string)?.trim() || "";
+  const end   = (attrs.end_condition  as string)?.trim() || "";
+  const std   = (attrs.pipe_standard  as string)?.trim() || "";
+  if (!grade) return "";
+  const parts: string[] = [grade, "Pipe"];
+  if (nb)  parts.push(nb);
+  if (sch) parts.push(sch);
+  if (end) parts.push(end);
+  if (std) parts.push(std);
+  return parts.join(", ");
+}
 
 export function PipesAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -226,126 +289,114 @@ export function PipesAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of Object.keys(PIPE_OPTS)) {
+    for (const [key, opts] of Object.entries(PIPES_ALL_OPTS)) {
       const val = (attrs[key] as string) ?? "";
-      c[key] = val !== "" && !PIPE_OPTS[key].includes(val);
+      c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      if (key === "section_type") {
-        onChange({ ...attrs, section_type: val, nb_mm: "", schedule: "", sq_size: "", rect_size: "", thickness_mm: "" });
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    else {
+      setCustom(c => ({ ...c, [key]: false }));
+      if (key === "material_grade") {
+        const derived  = derivePipeStandard(val);
+        const existing = (attrs.pipe_standard as string) ?? "";
+        onChange({ ...attrs, material_grade: val, pipe_standard: existing || derived });
       } else {
         set(key, val);
       }
     }
   }
-
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts = PIPE_OPTS[key];
+  function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">
-          {label}{required && <span className="text-red-500"> *</span>}
-        </Label>
-        <SearchableSelect
-          value={selectVal}
-          options={opts}
-          placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)}
-        />
-        {isCustom && (
-          <Input
-            className="h-8 text-sm"
-            placeholder="Enter custom value…"
-            value={curVal}
-            onChange={(e) => set(key, e.target.value)}
-            autoFocus
-          />
-        )}
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set(key, e.target.value)} autoFocus />}
       </div>
     );
   }
 
-  const sectionType = (attrs.section_type as string) ?? "";
-  const isRound  = sectionType === "Round Pipe";
-  const isSquare = sectionType === "Square Pipe";
-  const isRect   = sectionType === "Rectangular Pipe";
-
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pipe Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {renderField("section_type",   "Section / Pipe Type", true)}
-        {renderField("material_grade", "Material Grade")}
-        {isRound  && renderField("nb_mm",        "Nominal Bore (NB)", true)}
-        {isRound  && renderField("schedule",      "Schedule")}
-        {isSquare && renderField("sq_size",       "Size (mm)",         true)}
-        {isSquare && renderField("thickness_mm",  "Thickness (mm)",    true)}
-        {isRect   && renderField("rect_size",     "Size (mm)",         true)}
-        {isRect   && renderField("thickness_mm",  "Thickness (mm)",    true)}
-        {renderField("length",   "Length")}
-        {renderField("standard", "Standard")}
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input
-              className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }}
-            />
-          </div>
-        )}
-      </div>
+    <div className="space-y-3">
+      <SectionCard title="Pipe Specification" color="bg-sky-50/60 border-sky-200">
+        {rf("material_grade", "Material Grade",   PIPES_MATERIAL_GRADES, true)}
+        {rf("nominal_bore",   "Nominal Bore",     COMMON_NB,             true)}
+        {rf("schedule",       "Schedule",         COMMON_SCHEDULE,       true)}
+        {rf("end_condition",  "End Condition",    PIPES_END_CONDITION,   true)}
+        {rf("length",         "Length",           PIPES_LENGTH_OPTS,     true)}
+        <div />
+      </SectionCard>
+      <SectionCard title="Standards & Quality" color="bg-emerald-50/60 border-emerald-200">
+        {rf("pipe_standard", "Pipe Standard", PIPES_STANDARD_OPTS, true)}
+        {rf("mtr_required",  "MTR Required",  YES_NO,              true)}
+      </SectionCard>
+      <SectionCard title="Additional Options" color="bg-slate-50/80 border-slate-200">
+        {rf("surface_condition", "Surface Condition", PIPES_SURFACE)}
+        {rf("ndt_requirement",   "NDT Requirement",   PIPES_NDT)}
+        {rf("heat_treatment",    "Heat Treatment",    HEAT_TREATMENT_OPTS)}
+        <div />
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FITTINGS
+// 3. FITTINGS
 // ─────────────────────────────────────────────────────────────────────────────
+const FITTINGS_TYPES = [
+  "90° LR Elbow","45° LR Elbow","90° SR Elbow",
+  "Equal Tee","Reducing Tee",
+  "Concentric Reducer","Eccentric Reducer",
+  "End Cap","Stub End","Swage Nipple",
+  "Coupling","Half Coupling","Boss",
+];
+const FITTINGS_MATERIAL = [
+  "A234 WPB","A234 WPC","A234 WP11","A234 WP22",
+  "A403 WP304","A403 WP304L","A403 WP316","A403 WP316L",
+  "A860 WPHY 60","Duplex F51","Super Duplex F53",
+];
+const FITTINGS_END_TYPE = ["Butt Weld (BW)","Socket Weld (SW)","Screwed NPT","Screwed BSP"];
+const FITTINGS_STANDARD = ["ASME B16.9 (BW)","ASME B16.11 (SW/Screwed)","MSS SP-43","IS 1239"];
+const ELBOW_RADIUS_OPTS = ["Long Radius (LR)","Short Radius (SR)"];
+const FITTINGS_ALL_OPTS: Record<string, string[]> = {
+  fitting_type:     FITTINGS_TYPES,
+  material_grade:   FITTINGS_MATERIAL,
+  nominal_bore:     COMMON_NB,
+  schedule:         COMMON_SCHEDULE,
+  end_type:         FITTINGS_END_TYPE,
+  fitting_standard: FITTINGS_STANDARD,
+  mtr_required:     YES_NO,
+  elbow_radius:     ELBOW_RADIUS_OPTS,
+  reducing_bore:    COMMON_NB,
+};
+
 export function buildFittingsRequirement(attrs: Record<string, unknown>): string {
-  const fittingType = (attrs.fitting_type as string)?.trim() || "";
-  const endType     = (attrs.end_type     as string)?.trim() || "";
-  const sizeNb      = (attrs.size_nb      as string)?.trim() || "";
-  const rating      = (attrs.rating       as string)?.trim() || "";
-  const material    = (attrs.material     as string)?.trim() || "";
-  const standard    = (attrs.standard     as string)?.trim() || "";
-  const endAbbr: Record<string, string> = {
-    "Threaded": "THD", "Socket Weld": "SW", "Butt Weld": "BW", "Flanged": "FLG",
-  };
-  const endShort = endAbbr[endType] || endType;
-  const parts: string[] = [];
-  if (material)    parts.push(material);
-  if (fittingType) parts.push(fittingType);
-  if (sizeNb)      parts.push(`${sizeNb} NB`);
-  if (rating)      parts.push(rating);
-  if (endShort)    parts.push(endShort);
-  if (standard)    parts.push(standard);
+  const ftype = (attrs.fitting_type    as string)?.trim() || "";
+  const grade = (attrs.material_grade  as string)?.trim() || "";
+  const nb    = (attrs.nominal_bore    as string)?.trim() || "";
+  const sch   = (attrs.schedule        as string)?.trim() || "";
+  const end   = (attrs.end_type        as string)?.trim() || "";
+  const std   = (attrs.fitting_standard as string)?.trim() || "";
+  if (!ftype) return "";
+  const parts: string[] = [ftype];
+  if (grade) parts.push(grade);
+  if (nb)    parts.push(nb);
+  if (sch)   parts.push(sch);
+  if (end)   parts.push(end);
+  if (std)   parts.push(std);
   return parts.join(", ");
 }
-
-const FITTING_OPTS: Record<string, string[]> = {
-  fitting_type: ["Elbow", "Tee", "Reducer", "Union", "Coupling", "Cap", "Cross", "Nipple"],
-  end_type:     ["Threaded", "Socket Weld", "Butt Weld", "Flanged"],
-  size_nb:      ["15", "20", "25", "32", "40", "50", "65", "80", "100", "150", "200", "250", "300"],
-  rating:       ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
-  material:     ["MS", "CS", "SS 304", "SS 316", "GI", "Alloy Steel"],
-  standard:     ["ASME B16.9", "ASME B16.11", "IS", "DIN", "EN"],
-};
 
 export function FittingsAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -355,111 +406,133 @@ export function FittingsAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of Object.keys(FITTING_OPTS)) {
+    for (const [key, opts] of Object.entries(FITTINGS_ALL_OPTS)) {
       const val = (attrs[key] as string) ?? "";
-      c[key] = val !== "" && !FITTING_OPTS[key].includes(val);
+      c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
-    }
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    else                     { setCustom(c => ({ ...c, [key]: false })); set(key, val); }
   }
-
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts = FITTING_OPTS[key];
+  function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">
-          {label}{required && <span className="text-red-500"> *</span>}
-        </Label>
-        <SearchableSelect
-          value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)}
-        />
-        {isCustom && (
-          <Input
-            className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus
-          />
-        )}
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set(key, e.target.value)} autoFocus />}
       </div>
     );
   }
 
+  const ftype    = (attrs.fitting_type as string) ?? "";
+  const ftLower  = ftype.toLowerCase();
+  const isElbow  = ftLower.includes("elbow");
+  const isReduce = ftLower.includes("reducer") || ftLower.includes("reducing tee");
+  const nb       = (attrs.nominal_bore as string) ?? "";
+  const nbNum    = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "999");
+  const endType  = (attrs.end_type as string) ?? "";
+  const isSW     = endType.includes("Socket Weld") || endType.includes("SW");
+  const stdHint  = nbNum <= 40 && isSW ? "ASME B16.11 (SW/Screwed)" : "ASME B16.9 (BW)";
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fitting Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {renderField("fitting_type", "Fitting Type",    true)}
-        {renderField("end_type",     "End Type"              )}
-        {renderField("size_nb",      "Size (NB)",       true)}
-        {renderField("rating",       "Rating / Class"        )}
-        {renderField("material",     "Material"              )}
-        {renderField("standard",     "Standard"              )}
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input
-              className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }}
-            />
-          </div>
-        )}
-      </div>
+    <div className="space-y-3">
+      <SectionCard title="Fitting Specification" color="bg-sky-50/60 border-sky-200">
+        {rf("fitting_type",   "Fitting Type",   FITTINGS_TYPES,    true)}
+        {rf("material_grade", "Material Grade", FITTINGS_MATERIAL, true)}
+        {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,         true)}
+        {rf("schedule",       "Schedule",       COMMON_SCHEDULE,   true)}
+      </SectionCard>
+      <SectionCard title="Connection & Standards" color="bg-emerald-50/60 border-emerald-200">
+        {rf("end_type", "End Type", FITTINGS_END_TYPE, true)}
+        {(() => {
+          const curVal = (attrs.fitting_standard as string) ?? "";
+          const isCust = custom["fitting_standard"] ?? false;
+          const effective = curVal || stdHint;
+          const selVal = isCust ? "__other__" : (FITTINGS_STANDARD.includes(effective) ? effective : "");
+          return (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Fitting Standard <span className="text-red-500">*</span></Label>
+              <SearchableSelect value={selVal} options={FITTINGS_STANDARD} placeholder="Select…"
+                onSelect={v => handleSelect("fitting_standard", v)} />
+              {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+                onChange={e => set("fitting_standard", e.target.value)} autoFocus />}
+            </div>
+          );
+        })()}
+      </SectionCard>
+      {(isElbow || isReduce) && (
+        <SectionCard title="Conditional Details" color="bg-violet-50/60 border-violet-200">
+          {isElbow  && rf("elbow_radius",  "Elbow Radius",      ELBOW_RADIUS_OPTS, true)}
+          {isReduce && rf("reducing_bore", "Reducing Size (NB)", COMMON_NB,        true)}
+          {(isElbow && !isReduce) && <div />}
+        </SectionCard>
+      )}
+      <SectionCard title="Quality" color="bg-slate-50/80 border-slate-200">
+        {rf("mtr_required", "MTR Required", YES_NO, true)}
+        <div />
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FLANGES
+// 4. FLANGES
 // ─────────────────────────────────────────────────────────────────────────────
+const FLANGES_TYPES = [
+  "Weld Neck (WN)","Slip-On (SO)","Blind (BL)","Socket Weld (SW)",
+  "Lap Joint (LJ)","Threaded","Orifice",
+];
+const FLANGES_MATERIAL = [
+  "A105","A182 F304","A182 F304L","A182 F316","A182 F316L",
+  "A182 F11","A182 F22","A182 F5","A182 F9",
+  "A350 LF2","A350 LF3",
+  "Duplex F51","Super Duplex F53",
+  "A694 F52","A694 F60","A694 F65",
+];
+const FLANGES_STANDARD  = ["ASME B16.5","ASME B16.47 Series A","ASME B16.47 Series B","IS 6392"];
+const BORE_CONDITION    = ["Stock Bore","Full Bore"];
+const FACING_FINISH     = ["125–250 AARH (Standard)","63 AARH (Smooth)","Ra 3.2 µm"];
+const TAP_HOLE_OPTS     = ["2-hole taps","4-hole taps"];
+const FLANGES_ALL_OPTS: Record<string, string[]> = {
+  flange_type:     FLANGES_TYPES,
+  material_grade:  FLANGES_MATERIAL,
+  nominal_bore:    COMMON_NB,
+  pressure_class:  PRESSURE_CLASS_OPTS,
+  facing:          FACING_OPTS,
+  flange_standard: FLANGES_STANDARD,
+  bore_condition:  BORE_CONDITION,
+  facing_finish:   FACING_FINISH,
+  mtr_required:    YES_NO,
+  tap_hole_config: TAP_HOLE_OPTS,
+};
+
 export function buildFlangesRequirement(attrs: Record<string, unknown>): string {
-  const flangeType = (attrs.flange_type as string)?.trim() || "";
-  const sizeNb     = (attrs.size_nb     as string)?.trim() || "";
-  const pressure   = (attrs.pressure    as string)?.trim() || "";
-  const facing     = (attrs.facing      as string)?.trim() || "";
-  const material   = (attrs.material    as string)?.trim() || "";
-  const standard   = (attrs.standard    as string)?.trim() || "";
-  const typeAbbr: Record<string, string> = {
-    "Weld Neck (WN)": "WN Flange", "Slip-On (SO)": "SO Flange",
-    "Blind (BL)": "Blind Flange", "Socket Weld (SW)": "SW Flange",
-    "Threaded (THD)": "THD Flange", "Lap Joint (LJ)": "LJ Flange",
-    "Orifice": "Orifice Flange", "Spectacle Blind": "Spectacle Blind",
-  };
-  const typeLabel = typeAbbr[flangeType] || (flangeType ? `${flangeType} Flange` : "");
-  const parts: string[] = [];
-  if (typeLabel) parts.push(typeLabel);
-  if (sizeNb)    parts.push(`${sizeNb} NB`);
-  if (pressure)  parts.push(pressure);
-  if (facing)    parts.push(facing);
-  if (material)  parts.push(material);
-  if (standard)  parts.push(standard);
+  const ftype = (attrs.flange_type     as string)?.trim() || "";
+  const grade = (attrs.material_grade  as string)?.trim() || "";
+  const nb    = (attrs.nominal_bore    as string)?.trim() || "";
+  const cls   = (attrs.pressure_class  as string)?.trim() || "";
+  const facing= (attrs.facing          as string)?.trim() || "";
+  const std   = (attrs.flange_standard as string)?.trim() || "";
+  if (!ftype) return "";
+  const parts: string[] = [`${ftype} Flange`];
+  if (grade)  parts.push(grade);
+  if (nb)     parts.push(nb);
+  if (cls)    parts.push(cls);
+  if (facing) parts.push(facing);
+  if (std)    parts.push(std);
   return parts.join(", ");
 }
-
-const FLANGE_OPTS: Record<string, string[]> = {
-  flange_type: ["Weld Neck (WN)", "Slip-On (SO)", "Blind (BL)", "Socket Weld (SW)", "Threaded (THD)", "Lap Joint (LJ)", "Orifice", "Spectacle Blind"],
-  size_nb:     ["15", "20", "25", "32", "40", "50", "65", "80", "100", "150", "200", "250", "300"],
-  pressure:    ["Class 150", "Class 300", "Class 600", "Class 900", "PN10", "PN16", "PN25", "PN40"],
-  facing:      ["RF (Raised Face)", "FF (Flat Face)", "RTJ (Ring Type Joint)"],
-  material:    ["MS", "CS", "ASTM A105", "SS 304", "SS 316", "Alloy Steel"],
-  standard:    ["ASME B16.5", "ASME B16.47", "DIN", "EN", "IS"],
-};
 
 export function FlangesAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -469,113 +542,160 @@ export function FlangesAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of Object.keys(FLANGE_OPTS)) {
+    for (const [key, opts] of Object.entries(FLANGES_ALL_OPTS)) {
       const val = (attrs[key] as string) ?? "";
-      c[key] = val !== "" && !FLANGE_OPTS[key].includes(val);
+      c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    else {
+      setCustom(c => ({ ...c, [key]: false }));
+      if (key === "nominal_bore") {
+        const derived  = deriveFlangeStandard(val);
+        const existing = (attrs.flange_standard as string) ?? "";
+        onChange({ ...attrs, nominal_bore: val, flange_standard: existing || derived });
+      } else {
+        set(key, val);
+      }
     }
   }
-
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts = FLANGE_OPTS[key];
+  function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">
-          {label}{required && <span className="text-red-500"> *</span>}
-        </Label>
-        <SearchableSelect
-          value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)}
-        />
-        {isCustom && (
-          <Input
-            className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus
-          />
-        )}
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set(key, e.target.value)} autoFocus />}
+      </div>
+    );
+  }
+  function rt(key: string, label: string, required?: boolean, ph?: string) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" placeholder={ph ?? `Enter ${label.toLowerCase()}…`}
+          value={(attrs[key] as string) ?? ""} onChange={e => set(key, e.target.value)} />
       </div>
     );
   }
 
+  const facing    = (attrs.facing      as string) ?? "";
+  const ftype     = (attrs.flange_type as string) ?? "";
+  const nb        = (attrs.nominal_bore as string) ?? "";
+  const nbNum     = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "0");
+  const isRTJ     = facing.includes("RTJ");
+  const isOrifice = ftype.toLowerCase().includes("orifice");
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flange Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {renderField("flange_type", "Flange Type",      true)}
-        {renderField("size_nb",     "Size (NB)",         true)}
-        {renderField("pressure",    "Pressure Class"         )}
-        {renderField("facing",      "Facing"                 )}
-        {renderField("material",    "Material"               )}
-        {renderField("standard",    "Standard"               )}
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input
-              className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }}
-            />
-          </div>
-        )}
-      </div>
+    <div className="space-y-3">
+      <SectionCard title="Flange Specification" color="bg-sky-50/60 border-sky-200">
+        {rf("flange_type",    "Flange Type",    FLANGES_TYPES,       true)}
+        {rf("material_grade", "Material Grade", FLANGES_MATERIAL,    true)}
+        {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,           true)}
+        {rf("pressure_class", "Pressure Class", PRESSURE_CLASS_OPTS, true)}
+      </SectionCard>
+      <SectionCard title="Facing & Standards" color="bg-emerald-50/60 border-emerald-200">
+        {rf("facing", "Facing", FACING_OPTS, true)}
+        {(() => {
+          const curVal  = (attrs.flange_standard as string) ?? "";
+          const isCust  = custom["flange_standard"] ?? false;
+          const derived = nbNum > 0 ? deriveFlangeStandard(nb) : "ASME B16.5";
+          const effective = curVal || derived;
+          const selVal  = isCust ? "__other__" : (FLANGES_STANDARD.includes(effective) ? effective : "");
+          return (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Flange Standard <span className="text-red-500">*</span></Label>
+              <SearchableSelect value={selVal} options={FLANGES_STANDARD} placeholder="Select…"
+                onSelect={v => handleSelect("flange_standard", v)} />
+              {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+                onChange={e => set("flange_standard", e.target.value)} autoFocus />}
+              {nbNum > 600 && !isCust && (
+                <p className="text-[10px] text-amber-600 mt-0.5">NB &gt; 600: defaults to ASME B16.47 Series A</p>
+              )}
+            </div>
+          );
+        })()}
+        {rf("bore_condition", "Bore Condition", BORE_CONDITION)}
+        {rf("facing_finish",  "Facing Finish",  FACING_FINISH)}
+      </SectionCard>
+      {(isRTJ || isOrifice) && (
+        <SectionCard title="Conditional Details" color="bg-violet-50/60 border-violet-200">
+          {isRTJ     && rt("rtj_ring_number",  "RTJ Ring Number",          true, "e.g. R-24, RX-24")}
+          {isOrifice && rf("tap_hole_config",   "Tap Hole Configuration",   TAP_HOLE_OPTS, true)}
+          {(isRTJ && !isOrifice)  && <div />}
+          {(!isRTJ && isOrifice)  && <div />}
+        </SectionCard>
+      )}
+      <SectionCard title="Quality" color="bg-slate-50/80 border-slate-200">
+        {rf("mtr_required", "MTR Required", YES_NO, true)}
+        <div />
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FASTENERS
+// 5. FASTENERS
 // ─────────────────────────────────────────────────────────────────────────────
-export function buildFastenersRequirement(attrs: Record<string, unknown>): string {
-  const fastenerType = (attrs.fastener_type as string)?.trim() || "";
-  const size         = (attrs.size_dia      as string)?.trim() || "";
-  const length       = (attrs.length        as string)?.trim() || "";
-  const grade        = (attrs.grade         as string)?.trim() || "";
-  const finish       = (attrs.finish        as string)?.trim() || "";
-  const standard     = (attrs.standard      as string)?.trim() || "";
-  const finishAbbr: Record<string, string> = {
-    "Hot Dip Galvanized (HDG)": "HDG", "Zinc Plated": "ZP",
-    "PTFE Coated": "PTFE", "Black": "Black",
-  };
-  const finishShort = finishAbbr[finish] || finish;
-  const sizePart = size && length ? `${size} x ${length}` : size;
-  const parts: string[] = [];
-  if (fastenerType) parts.push(fastenerType);
-  if (sizePart)     parts.push(sizePart);
-  if (grade)        parts.push(`Grade ${grade}`);
-  if (finishShort)  parts.push(finishShort);
-  if (standard)     parts.push(standard);
-  return parts.join(", ");
-}
-
-const FASTENER_OPTS: Record<string, string[]> = {
-  fastener_type: ["Bolt", "Nut", "Washer", "Stud", "Screw", "Anchor Bolt", "U-Bolt"],
-  size_dia:      ["M6", "M8", "M10", "M12", "M16", "M20", "M24", "M30"],
-  length:        ["20", "30", "40", "50", "60", "75", "100", "150", "200"],
-  thread_type:   ["Metric", "UNC", "UNF", "BSW"],
-  grade:         ["4.6", "5.6", "8.8", "10.9", "12.9", "SS 304", "SS 316"],
-  material:      ["MS", "CS", "SS 304", "SS 316", "Alloy Steel"],
-  finish:        ["Black", "Zinc Plated", "Hot Dip Galvanized (HDG)", "PTFE Coated"],
-  standard:      ["IS", "ASTM", "DIN", "ISO"],
+const FASTENER_TYPES = [
+  "Stud Bolt (Full Thread)","Stud Bolt (2-end Thread)",
+  "Hex Bolt","Hex Nut","Heavy Hex Nut",
+  "Flat Washer","Spring Washer","U-Bolt","Eye Bolt",
+];
+const FASTENER_BOLT_MATERIAL = [
+  "ASTM A193 B7","ASTM A193 B7M","ASTM A193 B8 (SS304)","ASTM A193 B8M (SS316)",
+  "ASTM A320 L7","IS 1367 Cl.8.8","IS 1367 Cl.10.9","A307","A325","A490",
+];
+const FASTENER_NUT_MATERIAL = [
+  "ASTM A194 2H","ASTM A194 2HM","ASTM A194 8 (SS304)","ASTM A194 8M (SS316)",
+  "ASTM A194 4","IS 1367 Cl.8",
+];
+const FASTENER_DIAMETER = [
+  "M8","M10","M12","M16","M20","M24","M30","M36",
+  '1/4"','3/8"','1/2"','5/8"','3/4"','7/8"','1"','1-1/4"','1-1/2"',
+];
+const FASTENER_THREADING = [
+  "ASME B1.1 (UNC)","ASME B1.1 (UNF)","ISO Metric Coarse","ISO Metric Fine","BSW",
+];
+const FASTENER_COATING = [
+  "Plain (Uncoated)","Hot-Dip Galvanized","Zinc Electroplated",
+  "Xylan / Fluoropolymer","PTFE Coated","Black Oxide",
+];
+const FASTENERS_ALL_OPTS: Record<string, string[]> = {
+  fastener_type:      FASTENER_TYPES,
+  bolt_material:      FASTENER_BOLT_MATERIAL,
+  nut_material:       FASTENER_NUT_MATERIAL,
+  diameter:           FASTENER_DIAMETER,
+  threading_standard: FASTENER_THREADING,
+  coating:            FASTENER_COATING,
 };
 
-const FASTENER_LENGTH_TYPES = new Set(["Bolt", "Stud", "U-Bolt", "Anchor Bolt"]);
+export function buildFastenersRequirement(attrs: Record<string, unknown>): string {
+  const ftype  = (attrs.fastener_type      as string)?.trim() || "";
+  const bmat   = (attrs.bolt_material      as string)?.trim() || "";
+  const nmat   = (attrs.nut_material       as string)?.trim() || "";
+  const dia    = (attrs.diameter           as string)?.trim() || "";
+  const length = (attrs.length_mm          as string)?.trim() || "";
+  const std    = (attrs.threading_standard as string)?.trim() || "";
+  if (!ftype) return "";
+  const parts: string[] = [ftype];
+  if (bmat && nmat) parts.push(`${bmat} / ${nmat}`);
+  else if (bmat)    parts.push(bmat);
+  if (dia)    parts.push(dia);
+  if (length) parts.push(`L=${length}mm`);
+  if (std)    parts.push(std);
+  return parts.join(", ");
+}
 
 export function FastenersAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -585,107 +705,116 @@ export function FastenersAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of Object.keys(FASTENER_OPTS)) {
+    for (const [key, opts] of Object.entries(FASTENERS_ALL_OPTS)) {
       const val = (attrs[key] as string) ?? "";
-      c[key] = val !== "" && !FASTENER_OPTS[key].includes(val);
+      c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
-    }
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    else                     { setCustom(c => ({ ...c, [key]: false })); set(key, val); }
   }
-
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts = FASTENER_OPTS[key];
+  function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">
-          {label}{required && <span className="text-red-500"> *</span>}
-        </Label>
-        <SearchableSelect
-          value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)}
-        />
-        {isCustom && (
-          <Input
-            className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus
-          />
-        )}
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set(key, e.target.value)} autoFocus />}
       </div>
     );
   }
 
-  const fastenerType  = (attrs.fastener_type as string) ?? "";
-  const showLength    = FASTENER_LENGTH_TYPES.has(fastenerType);
+  const ftype       = (attrs.fastener_type as string) ?? "";
+  const ftLower     = ftype.toLowerCase();
+  const needsLength = ftLower.includes("bolt") || ftLower.includes("stud");
+  const needsNut    = needsLength;
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fastener Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {renderField("fastener_type", "Fastener Type", true)}
-        {renderField("size_dia",      "Size (Diameter)", true)}
-        {showLength && renderField("length", "Length (mm)")}
-        {renderField("thread_type", "Thread Type")}
-        {renderField("grade",       "Grade"      )}
-        {renderField("material",    "Material"   )}
-        {renderField("finish",      "Finish"     )}
-        {renderField("standard",    "Standard"   )}
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input
-              className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }}
-            />
+    <div className="space-y-3">
+      <SectionCard title="Fastener Specification" color="bg-sky-50/60 border-sky-200">
+        {rf("fastener_type", "Fastener Type", FASTENER_TYPES, true)}
+        {rf("diameter",      "Diameter",      FASTENER_DIAMETER, true)}
+        {needsLength ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Length (mm) <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 100"
+              value={(attrs.length_mm as string) ?? ""}
+              onWheel={e => e.currentTarget.blur()}
+              onChange={e => set("length_mm", e.target.value)} />
           </div>
-        )}
-      </div>
+        ) : <div />}
+      </SectionCard>
+      <SectionCard title="Materials & Threading" color="bg-violet-50/60 border-violet-200">
+        {rf("bolt_material",      "Bolt / Stud Material", FASTENER_BOLT_MATERIAL, true)}
+        {needsNut
+          ? rf("nut_material",    "Nut Material",         FASTENER_NUT_MATERIAL,  true)
+          : <div />}
+        {rf("threading_standard", "Threading Standard",   FASTENER_THREADING,     true)}
+        {rf("coating",            "Coating / Finish",     FASTENER_COATING)}
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GASKETS
+// 6. GASKETS
 // ─────────────────────────────────────────────────────────────────────────────
+const GASKET_TYPES = [
+  "Spiral Wound (Inner + Outer Ring)",
+  "Spiral Wound (Outer Ring only)",
+  "RTJ — Oval",
+  "RTJ — Octagonal",
+  "Flat Sheet — Full Face",
+  "Flat Sheet — Raised Face",
+  "Camprofile (Grooved)",
+  "Kammprofile",
+];
+const GASKET_WINDING_MATERIAL    = [
+  "SS316 / Graphite","SS304 / Graphite","SS316 / PTFE","SS304 / PTFE",
+  "Inconel 625 / Graphite","CS / Graphite","SS316 / Ceramic",
+];
+const GASKET_INNER_RING_MATERIAL = ["SS316","SS304","CS","Inconel 625","Monel 400"];
+const GASKET_RTJ_RING_MATERIAL   = ["Soft Iron","Low Carbon Steel","SS316","SS304","Monel","Inconel 625"];
+const GASKET_SHEET_MATERIAL      = [
+  "CAF-Free (Non-asbestos)","PTFE","EPDM","Neoprene","Graphite Sheet","Compressed Fibre",
+];
+const GASKET_STANDARD            = ["ASME B16.20","ASME B16.21","IS 2712"];
+const GASKETS_ALL_OPTS: Record<string, string[]> = {
+  gasket_type:         GASKET_TYPES,
+  nominal_bore:        COMMON_NB,
+  pressure_class:      PRESSURE_CLASS_OPTS,
+  facing:              FACING_OPTS,
+  gasket_standard:     GASKET_STANDARD,
+  winding_material:    GASKET_WINDING_MATERIAL,
+  inner_ring_material: GASKET_INNER_RING_MATERIAL,
+  rtj_ring_material:   GASKET_RTJ_RING_MATERIAL,
+  sheet_material:      GASKET_SHEET_MATERIAL,
+};
+
 export function buildGasketsRequirement(attrs: Record<string, unknown>): string {
-  const gasketType = (attrs.gasket_type as string)?.trim() || "";
-  const sizeNb     = (attrs.size_nb     as string)?.trim() || "";
-  const pressure   = (attrs.pressure    as string)?.trim() || "";
-  const material   = (attrs.material    as string)?.trim() || "";
-  const standard   = (attrs.standard    as string)?.trim() || "";
-  const label = gasketType ? `${gasketType} Gasket` : "Gasket";
-  const parts: string[] = [label];
-  if (sizeNb)   parts.push(`${sizeNb} NB`);
-  if (pressure) parts.push(pressure);
-  if (material) parts.push(material);
-  if (standard) parts.push(standard);
+  const gtype  = (attrs.gasket_type    as string)?.trim() || "";
+  const nb     = (attrs.nominal_bore   as string)?.trim() || "";
+  const cls    = (attrs.pressure_class as string)?.trim() || "";
+  const facing = (attrs.facing         as string)?.trim() || "";
+  const std    = (attrs.gasket_standard as string)?.trim() || "";
+  if (!gtype) return "";
+  const parts: string[] = [`${gtype} Gasket`];
+  if (nb)     parts.push(nb);
+  if (cls)    parts.push(cls);
+  if (facing) parts.push(facing);
+  if (std)    parts.push(std);
   return parts.join(", ");
 }
-
-const GASKET_OPTS: Record<string, string[]> = {
-  gasket_type: ["Full Face", "Ring Type", "Spiral Wound", "CAF (Compressed Asbestos Free)", "PTFE", "Graphite", "Rubber", "Metallic"],
-  size_nb:     ["15", "20", "25", "32", "40", "50", "65", "80", "100", "150", "200", "250", "300"],
-  pressure:    ["Class 150", "Class 300", "Class 600", "PN10", "PN16", "PN25", "PN40"],
-  thickness:   ["1", "1.5", "2", "3", "4", "5"],
-  material:    ["CAF", "PTFE", "Graphite", "Rubber", "SS Spiral Wound"],
-  standard:    ["ASME B16.20", "ASME B16.21", "IS", "DIN", "EN"],
-};
 
 export function GasketsAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -695,126 +824,135 @@ export function GasketsAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of Object.keys(GASKET_OPTS)) {
+    for (const [key, opts] of Object.entries(GASKETS_ALL_OPTS)) {
       const val = (attrs[key] as string) ?? "";
-      c[key] = val !== "" && !GASKET_OPTS[key].includes(val);
+      c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    else {
+      setCustom(c => ({ ...c, [key]: false }));
+      if (key === "gasket_type") {
+        const isSwType = val.toLowerCase().startsWith("spiral");
+        if (isSwType && !(attrs.winding_material as string)) {
+          onChange({ ...attrs, gasket_type: val, winding_material: "SS316 / Graphite" });
+        } else {
+          set(key, val);
+        }
+      } else {
+        set(key, val);
+      }
     }
   }
-
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts = GASKET_OPTS[key];
+  function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">
-          {label}{required && <span className="text-red-500"> *</span>}
-        </Label>
-        <SearchableSelect
-          value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)}
-        />
-        {isCustom && (
-          <Input
-            className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus
-          />
-        )}
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set(key, e.target.value)} autoFocus />}
+      </div>
+    );
+  }
+  function rt(key: string, label: string, required?: boolean, ph?: string) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" placeholder={ph ?? `Enter ${label.toLowerCase()}…`}
+          value={(attrs[key] as string) ?? ""} onChange={e => set(key, e.target.value)} />
       </div>
     );
   }
 
+  const gtype  = (attrs.gasket_type as string) ?? "";
+  const gLower = gtype.toLowerCase();
+  const isSW   = gLower.startsWith("spiral");
+  const isRTJ  = gLower.startsWith("rtj");
+  const isFlat = gLower.startsWith("flat sheet");
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Gasket Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {renderField("gasket_type", "Gasket Type",     true)}
-        {renderField("size_nb",     "Size (NB)",        true)}
-        {renderField("pressure",    "Pressure Class"        )}
-        {renderField("thickness",   "Thickness (mm)"        )}
-        {renderField("material",    "Material"              )}
-        {renderField("standard",    "Standard"              )}
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input
-              className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }}
-            />
-          </div>
-        )}
-      </div>
+    <div className="space-y-3">
+      <SectionCard title="Gasket Specification" color="bg-sky-50/60 border-sky-200">
+        {rf("gasket_type",    "Gasket Type",    GASKET_TYPES,        true)}
+        {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,           true)}
+        {rf("pressure_class", "Pressure Class", PRESSURE_CLASS_OPTS, true)}
+        {rf("facing",         "Facing",         FACING_OPTS,         true)}
+        {rf("gasket_standard","Standard",       GASKET_STANDARD,     true)}
+        <div />
+      </SectionCard>
+      {(isSW || isRTJ || isFlat) && (
+        <SectionCard title="Materials" color="bg-violet-50/60 border-violet-200">
+          {isSW   && rf("winding_material",    "Winding / Filler Material", GASKET_WINDING_MATERIAL,    true)}
+          {isSW   && rf("inner_ring_material", "Inner Ring Material",       GASKET_INNER_RING_MATERIAL, true)}
+          {isRTJ  && rf("rtj_ring_material",   "RTJ Ring Material",         GASKET_RTJ_RING_MATERIAL,   true)}
+          {isRTJ  && rt("rtj_ring_number",     "RTJ Ring Number",           true, "e.g. R-24, RX-24, BX-169")}
+          {isFlat && rf("sheet_material",      "Sheet Material",            GASKET_SHEET_MATERIAL,      true)}
+          {isFlat && <div />}
+        </SectionCard>
+      )}
+      <SectionCard title="Quantity" color="bg-slate-50/80 border-slate-200">
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STRUCTURAL STEEL
+// 7. STRUCTURAL STEEL
 // ─────────────────────────────────────────────────────────────────────────────
+const STRUCTURAL_SECTION_TYPES = [
+  "Plate (Chequered)","Angle (Equal Leg)","Angle (Unequal Leg)",
+  "Channel (ISMC)","I-Beam (ISMB)","H-Beam (ISHB)",
+  "Round Bar","Flat Bar","Square Bar",
+  "RHS (Round Hollow Section)","SHS (Square Hollow Section)","Rectangular Hollow Section",
+  "Grating (GI)","Grating (SS)","Expanded Metal",
+];
+const STRUCTURAL_MATERIAL = [
+  "IS 2062 E250 BR","IS 2062 E250 C","IS 2062 E300","IS 2062 E350",
+  "SS 304","SS 316","Galvanized (IS 277)","ASTM A36","ASTM A500",
+];
+const STRUCTURAL_LENGTH   = ["Mill Length","2m","3m","4m","6m","9m","12m","Cut to Size"];
+const STRUCTURAL_STANDARD = ["IS 2062","IS 1161","IS 1239","EN 10025","ASTM A36","IS 808"];
+const STRUCTURAL_SURFACE  = [
+  "Mill Finish (Unpainted)","Shot Blasted SA 2.5 + Primer",
+  "Hot-Dip Galvanized","Epoxy Primer Coated","Zinc-Rich Primer",
+];
+const GRATING_BAR_TYPES   = ["Flat Bar","I-Bar","Serrated Flat Bar"];
+const GRATING_MESH_SIZES  = ["30×3","30×5","33×5","38×5","40×5","40×6"];
+const STRUCTURAL_ALL_OPTS: Record<string, string[]> = {
+  section_type:      STRUCTURAL_SECTION_TYPES,
+  material_grade:    STRUCTURAL_MATERIAL,
+  length:            STRUCTURAL_LENGTH,
+  steel_standard:    STRUCTURAL_STANDARD,
+  mtr_required:      YES_NO,
+  surface_treatment: STRUCTURAL_SURFACE,
+  grating_bar_type:  GRATING_BAR_TYPES,
+  grating_mesh_size: GRATING_MESH_SIZES,
+};
+
 export function buildStructuralSteelRequirement(attrs: Record<string, unknown>): string {
-  const sectionType = (attrs.section_type  as string)?.trim() || "";
-  const size        = (attrs.size          as string)?.trim() || "";
-  const thickness   = (attrs.thickness_mm  as string)?.trim() || "";
-  const length      = (attrs.length        as string)?.trim() || "";
-  const matGrade    = (attrs.material_grade as string)?.trim() || "";
-  const standard    = (attrs.standard      as string)?.trim() || "";
-  const isNamedSection = ["Channel", "I-Beam (UB)", "H-Beam (UC)"].includes(sectionType);
-  let mainPart = "";
-  if (isNamedSection && size) {
-    mainPart = `${size} ${sectionType}`;
-  } else {
-    mainPart = [sectionType, size].filter(Boolean).join(" ");
-  }
-  const parts: string[] = [];
-  if (mainPart)   parts.push(mainPart);
-  if (thickness)  parts.push(`${thickness}mm thk`);
-  if (matGrade)   parts.push(matGrade);
-  if (length)     parts.push(`${length} length`);
-  if (standard)   parts.push(standard);
+  const stype  = (attrs.section_type   as string)?.trim() || "";
+  const grade  = (attrs.material_grade as string)?.trim() || "";
+  const size   = (attrs.section_size   as string)?.trim() || "";
+  const length = (attrs.length         as string)?.trim() || "";
+  const std    = (attrs.steel_standard as string)?.trim() || "";
+  if (!stype) return "";
+  const parts: string[] = [stype];
+  if (size)   parts.push(size);
+  if (grade)  parts.push(grade);
+  if (length) parts.push(length);
+  if (std)    parts.push(std);
   return parts.join(", ");
 }
-
-const STRUCTURAL_COMMON_OPTS: Record<string, string[]> = {
-  length:        ["3m", "6m", "12m", "Random"],
-  material_grade:["IS 2062 E250", "IS 2062 E350", "ASTM A36"],
-  standard:      ["IS", "ASTM", "EN", "DIN"],
-  thickness_mm:  ["3", "5", "6", "8", "10", "12", "16", "20"],
-};
-
-const STRUCTURAL_SIZE_BY_TYPE: Record<string, string[]> = {
-  "Angle":              ["25x25x3", "40x40x5", "50x50x6", "65x65x6", "75x75x8", "100x100x10"],
-  "Channel":            ["ISMC 75", "ISMC 100", "ISMC 125", "ISMC 150", "ISMC 200", "ISMC 250", "ISMC 300"],
-  "I-Beam (UB)":        ["ISMB 100", "ISMB 150", "ISMB 200", "ISMB 250", "ISMB 300", "ISMB 400"],
-  "H-Beam (UC)":        ["ISMB 100", "ISMB 150", "ISMB 200", "ISMB 250", "ISMB 300", "ISMB 400"],
-  "Flat Bar":           ["25x3", "50x6", "75x8", "100x10", "150x12"],
-  "Square Bar":         ["10x10", "12x12", "16x16", "20x20", "25x25"],
-  "Round Bar":          ["10", "12", "16", "20", "25", "32"],
-  "Hollow Section (SHS)":               ["25x25", "40x40", "50x50", "75x75", "100x100"],
-  "Rectangular Hollow Section (RHS)":   ["50x25", "75x40", "100x50", "150x75", "200x100"],
-  "T-Section":                          [],
-  "Plate (for structural use)":         [],
-};
-
-const STRUCTURAL_SHOW_THICKNESS = new Set([
-  "Plate (for structural use)", "T-Section", "Flat Bar", "Square Bar",
-]);
 
 export function StructuralSteelAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -824,114 +962,120 @@ export function StructuralSteelAttrsForm({
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
 }) {
-  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-  type CustomMap = Record<string, boolean>;
-  const allKeys = ["size", "length", "material_grade", "standard", "thickness_mm"];
-  const [custom, setCustom] = useState<CustomMap>(() => {
-    const c: CustomMap = {};
-    for (const key of allKeys) {
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(STRUCTURAL_ALL_OPTS)) {
       const val = (attrs[key] as string) ?? "";
-      const opts = key === "size"
-        ? (STRUCTURAL_SIZE_BY_TYPE[(attrs.section_type as string) ?? ""] ?? [])
-        : STRUCTURAL_COMMON_OPTS[key] ?? [];
       c[key] = val !== "" && !opts.includes(val);
     }
     return c;
   });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
-  const sectionTypes = Object.keys(STRUCTURAL_SIZE_BY_TYPE);
-  const [sectionCustom, setSectionCustom] = useState(() => {
-    const v = (attrs.section_type as string) ?? "";
-    return v !== "" && !sectionTypes.includes(v);
-  });
-
-  const sectionType = (attrs.section_type as string) ?? "";
-  const sizeOpts    = STRUCTURAL_SIZE_BY_TYPE[sectionType] ?? [];
-  const showThickness = STRUCTURAL_SHOW_THICKNESS.has(sectionType);
-
-  function handleSectionSelect(val: string) {
-    if (val === "__other__") {
-      setSectionCustom(true);
-      onChange({ ...attrs, section_type: "", size: "" });
-    } else {
-      setSectionCustom(false);
-      onChange({ ...attrs, section_type: val, size: "" });
-      setCustom((c) => ({ ...c, size: false }));
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    else {
+      setCustom(c => ({ ...c, [key]: false }));
+      if (key === "material_grade") {
+        const existing = (attrs.mtr_required as string) ?? "";
+        const derived  = getStructuralMtrDefault(val);
+        onChange({ ...attrs, material_grade: val, mtr_required: existing || derived });
+      } else {
+        set(key, val);
+      }
     }
   }
-
-  function handleSelect(key: string, val: string, _opts: string[]) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
-    }
-  }
-
-  function renderCommonField(key: string, label: string, opts: string[], required?: boolean) {
-    const curVal  = (attrs[key] as string) ?? "";
-    const isCustom = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+  function rf(key: string, label: string, opts: string[], required?: boolean) {
+    const curVal = (attrs[key] as string) ?? "";
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
       <div className="space-y-1.5">
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
-        <SearchableSelect
-          value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v, opts)}
-        />
-        {isCustom && (
-          <Input className="h-8 text-sm" placeholder="Enter custom value…"
-            value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
-        )}
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
+          onChange={e => set(key, e.target.value)} autoFocus />}
       </div>
     );
   }
 
-  const sectionSelectVal = sectionCustom ? "__other__" : (sectionTypes.includes(sectionType) ? sectionType : "");
+  const stype      = (attrs.section_type as string) ?? "";
+  const grade      = (attrs.material_grade as string) ?? "";
+  const length     = (attrs.length as string) ?? "";
+  const isGrating  = stype.toLowerCase().includes("grating");
+  const isHollow   = stype.toLowerCase().includes("hollow");
+  const isCutToSz  = length === "Cut to Size";
+  const mtrDefault = getStructuralMtrDefault(grade);
+  const curMtr     = (attrs.mtr_required as string) ?? "";
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Structural Steel Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Section Type <span className="text-red-500">*</span></Label>
-          <SearchableSelect
-            value={sectionSelectVal} options={sectionTypes} placeholder="Select section type…"
-            onSelect={handleSectionSelect}
-          />
-          {sectionCustom && (
-            <Input className="h-8 text-sm" placeholder="Enter custom section type…"
-              value={sectionType} onChange={(e) => onChange({ ...attrs, section_type: e.target.value })} autoFocus />
-          )}
+    <div className="space-y-3">
+      <SectionCard title="Section Specification" color="bg-sky-50/60 border-sky-200">
+        {rf("section_type",   "Section Type",              STRUCTURAL_SECTION_TYPES, true)}
+        {rf("material_grade", "Material Grade",            STRUCTURAL_MATERIAL,      true)}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Section Size / Designation <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" placeholder="e.g. 75×75×8, ISMC 100, ISMB 200"
+            value={(attrs.section_size as string) ?? ""} onChange={e => set("section_size", e.target.value)} />
         </div>
-        {sectionType && (
-          sizeOpts.length > 0
-            ? renderCommonField("size", "Size", sizeOpts, true)
-            : (
-              <div className="space-y-1.5">
-                <Label className="text-xs">Size <span className="text-red-500">*</span></Label>
-                <Input className="h-8 text-sm" placeholder="Enter size…"
-                  value={(attrs.size as string) ?? ""}
-                  onChange={(e) => set("size", e.target.value)} />
-              </div>
-            )
-        )}
-        {showThickness && renderCommonField("thickness_mm", "Thickness (mm)", STRUCTURAL_COMMON_OPTS.thickness_mm)}
-        {renderCommonField("material_grade", "Material Grade", STRUCTURAL_COMMON_OPTS.material_grade)}
-        {renderCommonField("length",         "Length",         STRUCTURAL_COMMON_OPTS.length        )}
-        {renderCommonField("standard",       "Standard",       STRUCTURAL_COMMON_OPTS.standard      )}
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
-          </div>
-        )}
-      </div>
+        {rf("length",         "Length",                    STRUCTURAL_LENGTH,        true)}
+        {rf("steel_standard", "Steel Standard",            STRUCTURAL_STANDARD,      true)}
+        <div />
+      </SectionCard>
+
+      {(isGrating || isHollow || isCutToSz) && (
+        <SectionCard title="Conditional Details" color="bg-violet-50/60 border-violet-200">
+          {isGrating && rf("grating_bar_type",  "Grating Bar Type",  GRATING_BAR_TYPES,  true)}
+          {isGrating && rf("grating_mesh_size", "Grating Mesh Size", GRATING_MESH_SIZES, true)}
+          {isHollow && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Wall Thickness (mm) <span className="text-red-500">*</span></Label>
+              <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 5"
+                value={(attrs.hollow_wall_thickness as string) ?? ""}
+                onWheel={e => e.currentTarget.blur()}
+                onChange={e => set("hollow_wall_thickness", e.target.value)} />
+            </div>
+          )}
+          {isCutToSz && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Cut Length (mm) <span className="text-red-500">*</span></Label>
+              <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 1500"
+                value={(attrs.cut_length_mm as string) ?? ""}
+                onWheel={e => e.currentTarget.blur()}
+                onChange={e => set("cut_length_mm", e.target.value)} />
+            </div>
+          )}
+          {isGrating && !isHollow && !isCutToSz && null}
+          {!isGrating && (isHollow || isCutToSz) && <div />}
+        </SectionCard>
+      )}
+
+      <SectionCard title="Quality & Construction" color="bg-slate-50/80 border-slate-200">
+        <div className="space-y-1.5">
+          <Label className="text-xs">MTR Required</Label>
+          {(() => {
+            const isCust = custom["mtr_required"] ?? false;
+            const effective = curMtr || mtrDefault;
+            const selVal = isCust ? "__other__" : (YES_NO.includes(effective) ? effective : "");
+            return (
+              <>
+                <SearchableSelect value={selVal} options={YES_NO} placeholder="Select…"
+                  onSelect={v => handleSelect("mtr_required", v)} />
+                {grade && !curMtr && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Default: {mtrDefault} ({
+                      grade.toUpperCase().startsWith("SS") || grade.toUpperCase().includes("DUPLEX")
+                        ? "SS / Duplex material" : "Carbon Steel material"
+                    })
+                  </p>
+                )}
+              </>
+            );
+          })()}
+        </div>
+        {rf("surface_treatment", "Surface Treatment", STRUCTURAL_SURFACE)}
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
     </div>
   );
 }
