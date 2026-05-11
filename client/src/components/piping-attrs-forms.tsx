@@ -536,22 +536,27 @@ const FLANGES_TYPES = [
   "Lap Joint (LJ)","Threaded","Orifice",
 ];
 const FLANGES_MATERIAL = [
-  "A105","A182 F304","A182 F304L","A182 F316","A182 F316L",
+  "A105","A105N",
+  "A182 F304","A182 F304L","A182 F316","A182 F316L","A182 F321","A182 F347",
   "A182 F11","A182 F22","A182 F5","A182 F9",
   "A350 LF2","A350 LF3",
   "Duplex F51","Super Duplex F53",
   "A694 F52","A694 F60","A694 F65",
 ];
 const FLANGES_STANDARD  = ["ASME B16.5","ASME B16.47 Series A","ASME B16.47 Series B","IS 6392"];
+const FLANGES_FACING_OPTS = [
+  "RF (Raised Face)","FF (Flat Face)","RTJ (Ring Type Joint)",
+  "Tongue & Groove (T&G)","Male & Female (M&F)",
+];
 const BORE_CONDITION    = ["Stock Bore","Full Bore"];
-const FACING_FINISH     = ["125–250 AARH (Standard)","63 AARH (Smooth)","Ra 3.2 µm"];
+const FACING_FINISH     = ["125–250 AARH (Standard)","63 AARH (Smooth)"];
 const TAP_HOLE_OPTS     = ["2-hole taps","4-hole taps"];
 const FLANGES_ALL_OPTS: Record<string, string[]> = {
   flange_type:     FLANGES_TYPES,
   material_grade:  FLANGES_MATERIAL,
   nominal_bore:    COMMON_NB,
   pressure_class:  PRESSURE_CLASS_OPTS,
-  facing:          FACING_OPTS,
+  facing:          FLANGES_FACING_OPTS,
   flange_standard: FLANGES_STANDARD,
   bore_condition:  BORE_CONDITION,
   facing_finish:   FACING_FINISH,
@@ -646,7 +651,7 @@ export function FlangesAttrsForm({
         {rf("pressure_class", "Pressure Class", PRESSURE_CLASS_OPTS, true)}
       </SectionCard>
       <SectionCard title="Facing & Standards" color="bg-emerald-50/60 border-emerald-200">
-        {rf("facing", "Facing", FACING_OPTS, true)}
+        {rf("facing", "Facing", FLANGES_FACING_OPTS, true)}
         {(() => {
           const curVal  = (attrs.flange_standard as string) ?? "";
           const isCust  = custom["flange_standard"] ?? false;
