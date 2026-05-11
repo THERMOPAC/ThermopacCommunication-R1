@@ -294,7 +294,7 @@ export function MotorAttrsForm({
               onChange={(e) => set("explosion_protection", e.target.value)}
             >
               <option value="Ex d">Ex d</option>
-              <option value="IECEx">IECEx</option>
+              <option value="IECEx d">IECEx d</option>
               <option value="ATEX">ATEX</option>
             </select>
           </div>
