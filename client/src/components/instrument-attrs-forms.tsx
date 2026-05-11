@@ -423,10 +423,8 @@ export function PressureAttrsForm({
 
   function sectionHeader(label: string) {
     return (
-      <div className="col-span-2 mt-3">
-        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
-          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
-        </div>
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
   }
@@ -571,9 +569,9 @@ export function PressureAttrsForm({
   }
 
   return (
-    <div className="space-y-5 rounded-xl border bg-card shadow-sm p-5">
-      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Pressure Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pressure Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
         {sectionHeader("Instrument Type")}
         <div className="col-span-2">
           <div className="space-y-1.5">
@@ -916,10 +914,8 @@ export function TemperatureAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-3">
-        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
-          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
-        </div>
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
   }
@@ -936,9 +932,9 @@ export function TemperatureAttrsForm({
   const isHazardous     = areaClass === "Zone 1" || areaClass === "Zone 2";
 
   return (
-    <div className="space-y-5 rounded-xl border bg-card shadow-sm p-5">
-      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Temperature Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Temperature Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
 
         {sec("Instrument Type")}
         <div className="col-span-2">
@@ -1148,10 +1144,8 @@ export function FlowAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-3">
-        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
-          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
-        </div>
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
   }
@@ -1163,9 +1157,9 @@ export function FlowAttrsForm({
   const hasFlowSignal = instrType !== "" && !isRotameter;
 
   return (
-    <div className="space-y-5 rounded-xl border bg-card shadow-sm p-5">
-      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Flow Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flow Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
         {sec("Instrument Type")}
         <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
         {sec("Line & Process")}
@@ -1313,10 +1307,8 @@ export function LevelAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-3">
-        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
-          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
-        </div>
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
   }
@@ -1327,9 +1319,9 @@ export function LevelAttrsForm({
   const hasLevelSignal  = instrType !== "" && !isLevelNoSignal;
 
   return (
-    <div className="space-y-5 rounded-xl border bg-card shadow-sm p-5">
-      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Level Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Level Instrument Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
         {sec("Instrument Type")}
         <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
         {sec("Measuring Range")}
