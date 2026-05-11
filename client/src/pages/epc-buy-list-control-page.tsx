@@ -35,7 +35,7 @@ import {
 } from "@/components/pump-attrs-forms";
 import {
   PressureAttrsForm, TemperatureAttrsForm, FlowAttrsForm, LevelAttrsForm,
-  INSTRUMENT_CABLE_GLAND_DEFAULTS, TEMPERATURE_THERMOCOUPLE_DEFAULTS,
+  INSTRUMENT_CABLE_GLAND_DEFAULTS, applyTemperatureDefaults,
 } from "@/components/instrument-attrs-forms";
 import {
   MotorAttrsForm,
@@ -949,14 +949,12 @@ export default function EpcBuyListControlPage() {
         : line.buy_subgroup_code === "flameproof"
           ? applyFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
           : line.buy_group_code === "instruments"
-            ? (() => {
-                const ta = (line.technical_attributes ?? {}) as Record<string, unknown>;
-                return {
-                  ...INSTRUMENT_CABLE_GLAND_DEFAULTS,
-                  ...(ta.instrument_type === "Thermocouple (TC)" ? TEMPERATURE_THERMOCOUPLE_DEFAULTS : {}),
-                  ...ta,
-                };
-              })()
+            ? (line.buy_subgroup_code === "temperature"
+                ? applyTemperatureDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
+                : (() => {
+                    const ta = (line.technical_attributes ?? {}) as Record<string, unknown>;
+                    return { ...INSTRUMENT_CABLE_GLAND_DEFAULTS, ...ta };
+                  })())
             : (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setTagDuplicateWarning(null); setTagPreview([]); setTagAutoFilled(false); setTagFetching(false);

@@ -750,48 +750,83 @@ export function PressureAttrsForm({
 // ─────────────────────────────────────────────────────────────────────────────
 // TEMPERATURE INSTRUMENTS
 // ─────────────────────────────────────────────────────────────────────────────
+const TEMP_INSTR_TYPES = ["Thermocouple (TC)", "RTD", "Thermistor"] as const;
+
 export function buildTemperatureRequirement(attrs: Record<string, unknown>): string {
-  const instrType   = (attrs.instrument_type as string)?.trim() || "";
-  const sensorType  = instrType === "Thermocouple (TC)"
-    ? (attrs.tc_type  as string)?.trim() || ""
+  const instrType  = (attrs.instrument_type   as string)?.trim() || "";
+  const subType    = instrType === "Thermocouple (TC)"
+    ? (attrs.tc_type        as string)?.trim() || ""
     : instrType === "RTD"
-      ? (attrs.rtd_type as string)?.trim() || ""
-      : "";
-  const rangeMin    = (attrs.range_min         as string)?.trim() || "";
-  const rangeMax    = (attrs.range_max         as string)?.trim() || "";
-  const rangeUnit   = (attrs.range_unit        as string)?.trim() || "°C";
-  const material    = (attrs.wetted_material   as string)?.trim() || "";
-  const connSize    = (attrs.connection_size   as string)?.trim() || "";
-  const connType    = (attrs.connection_type   as string)?.trim() || "";
-  const areaClass   = (attrs.area_classification as string)?.trim() || "";
-  const expProt     = (attrs.explosion_protection as string)?.trim() || "";
-  const rangeStr    = rangeMin || rangeMax ? `${rangeMin}–${rangeMax} ${rangeUnit}`.trim() : "";
-  const connStr     = [connSize, connType].filter(Boolean).join(" ");
+      ? (attrs.rtd_type      as string)?.trim() || ""
+      : instrType === "Thermistor"
+        ? (attrs.thermistor_type as string)?.trim() || ""
+        : "";
+  const rangeMin   = (attrs.range_min          as string)?.trim() || "";
+  const rangeMax   = (attrs.range_max          as string)?.trim() || "";
+  const rangeUnit  = (attrs.range_unit         as string)?.trim() || "°C";
+  const connSize   = (attrs.connection_size    as string)?.trim() || "";
+  const connType   = (attrs.connection_type    as string)?.trim() || "";
+  const areaClass  = (attrs.area_classification as string)?.trim() || "";
+  const expProt    = (attrs.explosion_protection as string)?.trim() || "";
+  const rangeStr   = rangeMin || rangeMax ? `${rangeMin}–${rangeMax} ${rangeUnit}`.trim() : "";
+  const connStr    = [connSize, connType].filter(Boolean).join(" ");
   const parts: string[] = [];
-  if (instrType)  parts.push(instrType);
-  if (sensorType) parts.push(sensorType);
-  if (rangeStr)   parts.push(rangeStr);
-  if (material)   parts.push(material);
-  if (connStr)    parts.push(connStr);
+  if (instrType) parts.push(instrType);
+  if (subType)   parts.push(subType);
+  if (rangeStr)  parts.push(rangeStr);
+  if (connStr)   parts.push(connStr);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  if (expProt)    parts.push(expProt);
+  if (expProt)   parts.push(expProt);
   return parts.join(", ");
 }
 
-const TEMPERATURE_OPTS: Record<string, string[]> = {
-  instrument_type:      ["Thermocouple (TC)", "RTD", "Thermistor"],
-  range_unit:           ["°C", "°F", "K"],
-  wetted_material:      ["SS304", "SS316", "Inconel 600", "Carbon Steel"],
-  connection_size:      ["1/4\"", "1/2\"", "3/4\"", "1\""],
-  connection_type:      ["NPT", "BSP", "Flanged"],
-  output_signal:        ["4–20 mA", "HART", "Resistance (RTD)", "mV (TC)", "SPDT Contact", "Local Display"],
-  enclosure:            ["IP65", "IP66", "Flameproof", "Weatherproof"],
-  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
-  explosion_protection: ["Ex d (Flameproof)", "Ex ia (Intrinsically Safe)", "Ex ib (Intrinsically Safe)", "Non-Flameproof"],
-  certification:        ["ATEX", "IECEx", "PESO"],
-  gas_group:            ["IIA", "IIB", "IIC"],
-  temperature_class:    ["T1", "T2", "T3", "T4", "T5", "T6"],
-};
+export function applyTemperatureDefaults(ta: Record<string, unknown>): Record<string, unknown> {
+  const instrType = (ta.instrument_type as string) || "";
+  const base: Record<string, unknown> = {
+    ...INSTRUMENT_CABLE_GLAND_DEFAULTS,
+    range_min:           "-30",
+    range_max:           "400",
+    range_unit:          "°C",
+    ip_rating:           "IP65",
+    area_classification: "Safe Area",
+    ...ta,
+  };
+  if (instrType === "Thermocouple (TC)") {
+    return {
+      element_type:        "Simplex",
+      probe_diameter:      "6 mm",
+      probe_length:        "260",
+      thermowell_required: "No",
+      connection_size:     '1/2"',
+      connection_type:     "NPT",
+      head_transmitter:    "No",
+      output_signal:       "mV (TC)",
+      ...base,
+    };
+  }
+  if (instrType === "RTD") {
+    return {
+      rtd_type:            "PT100",
+      wire_count:          "3-wire",
+      probe_diameter:      "6 mm",
+      probe_length:        "150",
+      thermowell_required: "No",
+      connection_size:     '1/2"',
+      connection_type:     "NPT",
+      head_transmitter:    "No",
+      output_signal:       "Resistance (RTD)",
+      ...base,
+    };
+  }
+  if (instrType === "Thermistor") {
+    return {
+      probe_diameter: "6 mm",
+      probe_length:   "100",
+      ...base,
+    };
+  }
+  return base;
+}
 
 export function TemperatureAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -802,55 +837,74 @@ export function TemperatureAttrsForm({
   onQtyChange?: (q: string) => void;
 }) {
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-  const singleKeys = Object.keys(TEMPERATURE_OPTS);
-  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
-    const c: Record<string, boolean> = {};
-    for (const key of singleKeys) {
-      const val = (attrs[key] as string) ?? "";
-      const opts = TEMPERATURE_OPTS[key] ?? [];
-      c[key] = val !== "" && !opts.includes(val);
-    }
-    return c;
+  const [instrCustom, setInstrCustom] = useState(() => {
+    const v = (attrs.instrument_type as string) ?? "";
+    return v !== "" && !(TEMP_INSTR_TYPES as readonly string[]).includes(v);
   });
 
-  function handleSelect(key: string, val: string) {
-    if (val === "__other__") {
-      setCustom((c) => ({ ...c, [key]: true }));
-      set(key, "");
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      if (key === "instrument_type") {
-        const next: Record<string, unknown> = { ...attrs, instrument_type: val };
-        if (val === "Thermocouple (TC)") {
-          next.rtd_type       = "";
-          next.element_type   = (attrs.element_type   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.element_type;
-          next.probe_diameter = (attrs.probe_diameter as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_diameter;
-          next.probe_length   = (attrs.probe_length   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_length;
-        } else if (val === "RTD") {
-          next.tc_type = "";
-        } else {
-          next.tc_type  = "";
-          next.rtd_type = "";
-        }
-        onChange(next);
-      } else {
-        set(key, val);
-      }
+  function handleInstrTypeSelect(val: string) {
+    if (val === "__other__") { setInstrCustom(true); set("instrument_type", ""); return; }
+    setInstrCustom(false);
+    const next: Record<string, unknown> = {
+      ...attrs,
+      instrument_type:     val,
+      range_min:           (attrs.range_min  as string)  || "-30",
+      range_max:           (attrs.range_max  as string)  || "400",
+      range_unit:          (attrs.range_unit as string)  || "°C",
+      ip_rating:           (attrs.ip_rating  as string)  || "IP65",
+      area_classification: (attrs.area_classification as string) || "Safe Area",
+    };
+    if (val === "Thermocouple (TC)") {
+      next.rtd_type = ""; next.thermistor_type = "";
+      next.element_type        = (attrs.element_type   as string) || "Simplex";
+      next.probe_diameter      = (attrs.probe_diameter as string) || "6 mm";
+      next.probe_length        = (attrs.probe_length   as string) || "260";
+      next.thermowell_required = (attrs.thermowell_required as string) || "No";
+      next.connection_size     = (attrs.connection_size as string) || '1/2"';
+      next.connection_type     = (attrs.connection_type as string) || "NPT";
+      next.head_transmitter    = (attrs.head_transmitter as string) || "No";
+      next.output_signal       = (attrs.output_signal   as string) || "mV (TC)";
+    } else if (val === "RTD") {
+      next.tc_type = ""; next.thermistor_type = "";
+      next.rtd_type            = (attrs.rtd_type      as string) || "PT100";
+      next.wire_count          = (attrs.wire_count     as string) || "3-wire";
+      next.probe_diameter      = (attrs.probe_diameter as string) || "6 mm";
+      next.probe_length        = (attrs.probe_length   as string) || "150";
+      next.thermowell_required = (attrs.thermowell_required as string) || "No";
+      next.connection_size     = (attrs.connection_size as string) || '1/2"';
+      next.connection_type     = (attrs.connection_type as string) || "NPT";
+      next.head_transmitter    = (attrs.head_transmitter as string) || "No";
+      next.output_signal       = (attrs.output_signal   as string) || "Resistance (RTD)";
+    } else if (val === "Thermistor") {
+      next.tc_type = ""; next.rtd_type = "";
+      next.probe_diameter = (attrs.probe_diameter as string) || "6 mm";
+      next.probe_length   = (attrs.probe_length   as string) || "100";
     }
+    onChange(next);
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
-    const opts      = TEMPERATURE_OPTS[key] ?? [];
-    const curVal    = (attrs[key] as string) ?? "";
-    const isCustom  = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+  function ss(key: string, label: string, opts: string[], mandatory: boolean, defaultVal?: string) {
+    const val = (attrs[key] as string) || (defaultVal ?? "");
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
-        <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
-        {isCustom && (
-          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
-        )}
+        <Label className="text-xs">{label}{mandatory && <span className="text-red-500"> *</span>}</Label>
+        <Select value={val} onValueChange={v => set(key, v)}>
+          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+          <SelectContent>{opts.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  function ni(key: string, label: string, mandatory: boolean, defaultVal?: string, placeholder?: string, allowNeg?: boolean) {
+    const val = (attrs[key] as string) ?? (defaultVal ?? "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{mandatory && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" type="number" step="1" {...(allowNeg ? {} : { min: "1" })}
+          placeholder={placeholder ?? ""} value={val}
+          onWheel={(e) => e.currentTarget.blur()}
+          onChange={(e) => set(key, e.target.value)} />
       </div>
     );
   }
@@ -863,116 +917,121 @@ export function TemperatureAttrsForm({
     );
   }
 
-  const areaClass      = (attrs.area_classification as string) ?? "";
-  const instrType      = (attrs.instrument_type as string) ?? "";
-  const isThermocouple = instrType === "Thermocouple (TC)";
-  const isRTD          = instrType === "RTD";
+  const instrType       = (attrs.instrument_type   as string) ?? "";
+  const instrTypeSelect = instrCustom ? "__other__" : ((TEMP_INSTR_TYPES as readonly string[]).includes(instrType) ? instrType : "");
+  const isTC            = instrType === "Thermocouple (TC)";
+  const isRTD           = instrType === "RTD";
+  const isThermistor    = instrType === "Thermistor";
+  const hasType         = isTC || isRTD || isThermistor;
+  const thermowell      = (attrs.thermowell_required as string) === "Yes";
+  const headXmtr        = (attrs.head_transmitter   as string) === "Yes";
+  const areaClass       = (attrs.area_classification as string) ?? "";
+  const isHazardous     = areaClass === "Zone 1" || areaClass === "Zone 2";
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Temperature Instrument Specifications</p>
       <div className="grid grid-cols-2 gap-3">
+
         {sec("Instrument Type")}
-        <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
-        {isThermocouple && (<>
+        <div className="col-span-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Instrument Type <span className="text-red-500">*</span></Label>
+            <SearchableSelect value={instrTypeSelect} options={[...TEMP_INSTR_TYPES]} placeholder="Select…" onSelect={handleInstrTypeSelect} />
+            {instrCustom && (
+              <Input className="h-8 text-sm" placeholder="Enter custom type…"
+                value={instrType} onChange={(e) => set("instrument_type", e.target.value)} autoFocus />
+            )}
+          </div>
+        </div>
+
+        {isTC && (<>
           {sec("Thermocouple Details")}
-          <div className="space-y-1.5">
-            <Label className="text-xs">TC Type <span className="text-red-500">*</span></Label>
-            <Select
-              value={(attrs.tc_type as string) || ""}
-              onValueChange={v => onChange({ ...attrs, tc_type: v })}
-            >
-              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
-              <SelectContent>
-                {TC_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Element Type <span className="text-red-500">*</span></Label>
-            <Select
-              value={(attrs.element_type as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.element_type}
-              onValueChange={v => onChange({ ...attrs, element_type: v })}
-            >
-              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TC_ELEMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Probe Diameter <span className="text-red-500">*</span></Label>
-            <Select
-              value={(attrs.probe_diameter as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_diameter}
-              onValueChange={v => onChange({ ...attrs, probe_diameter: v })}
-            >
-              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TC_PROBE_DIAMETERS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Probe Length (mm) <span className="text-red-500">*</span></Label>
-            <Input
-              className="h-8 text-sm" type="number" min="1" step="1"
-              placeholder="e.g. 260"
-              value={(attrs.probe_length as string) ?? TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_length}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => onChange({ ...attrs, probe_length: e.target.value })}
-            />
-          </div>
-          <div />
+          {ss("tc_type",       "TC Type",       [...TC_TYPES],          true)}
+          {ss("element_type",  "Element Type",  ["Simplex","Duplex"],   true, "Simplex")}
+          {ss("probe_diameter","Probe Diameter",[...TC_PROBE_DIAMETERS],true, "6 mm")}
+          {ni("probe_length",  "Probe Length (mm)", true, "260", "e.g. 260")}
         </>)}
+
         {isRTD && (<>
           {sec("RTD Details")}
-          <div className="space-y-1.5">
-            <Label className="text-xs">RTD Type <span className="text-red-500">*</span></Label>
-            <Select
-              value={(attrs.rtd_type as string) || ""}
-              onValueChange={v => onChange({ ...attrs, rtd_type: v })}
-            >
-              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
-              <SelectContent>
-                {RTD_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          {ss("rtd_type",      "RTD Type",         ["PT100","PT1000"],                           true,  "PT100")}
+          {ss("wire_count",    "Number of Wires",  ["2-wire","3-wire","4-wire"],                 true,  "3-wire")}
+          {ss("accuracy_class","Accuracy Class",   ["Class A","Class B","1/3 DIN","1/5 DIN"],   false)}
+          {ss("probe_diameter","Probe Diameter",   [...TC_PROBE_DIAMETERS],                      true,  "6 mm")}
+          {ni("probe_length",  "Probe Length (mm)", true, "150", "e.g. 150")}
+        </>)}
+
+        {isThermistor && (<>
+          {sec("Thermistor Details")}
+          {ss("thermistor_type",  "Thermistor Type",   ["NTC","PTC"],                                          true)}
+          {ss("resistance_value", "Resistance Value",  ["1 kΩ","2 kΩ","5 kΩ","10 kΩ","20 kΩ","100 kΩ"],     false)}
+          {ss("probe_diameter",   "Probe Diameter",    [...TC_PROBE_DIAMETERS],                                false, "6 mm")}
+          {ni("probe_length",     "Probe Length (mm)", false, "100", "e.g. 100")}
+        </>)}
+
+        {(isTC || isRTD) && (<>
+          {sec("Thermowell")}
+          {ss("thermowell_required","Thermowell Required",["No","Yes"], true, "No")}
+          <div />
+          {thermowell && (<>
+            {ss("thermowell_material","Thermowell Material",["SS316","SS316L","SS304","Inconel 600","Carbon Steel","Hastelloy C-276"], true)}
+            {ss("thermowell_style",   "Thermowell Style",   ["Straight","Tapered","Stepped"], true)}
+            {ni("insertion_length_u", "Insertion Length U (mm)", true,  "", "e.g. 150")}
+            {ni("lagging_extension",  "Lagging Extension (mm)",  false, "", "e.g. 50")}
+          </>)}
+        </>)}
+
+        {hasType && (<>
+          {sec("Measuring Range")}
+          {ni("range_min", "Range Min", true, "-30", "e.g. -30", true)}
+          {ni("range_max", "Range Max", true, "400", "e.g. 400", true)}
+          <div className="col-span-2">
+            {ss("range_unit", "Range Unit", ["°C","°F","K"], true, "°C")}
           </div>
+        </>)}
+
+        {(isTC || isRTD) && (<>
+          {sec("Process Connection")}
+          {ss("connection_size","Connection Size",['1/4"','1/2"','3/4"','1"'], true,  '1/2"')}
+          {ss("connection_type","Connection Type",["NPT","BSP","Flanged"],     true,  "NPT")}
+        </>)}
+        {isThermistor && (<>
+          {sec("Process Connection (Optional)")}
+          {ss("connection_size","Connection Size",['1/4"','1/2"','3/4"','1"'], false)}
+          {ss("connection_type","Connection Type",["NPT","BSP","Flanged"],     false)}
+        </>)}
+
+        {(isTC || isRTD) && (<>
+          {sec("Transmitter")}
+          {ss("head_transmitter","Head Mounted Transmitter",["No","Yes"], false, "No")}
+          {ss("output_signal","Output Signal",
+            isTC ? ["mV (TC)","4–20 mA","4–20 mA / HART"] : ["Resistance (RTD)","4–20 mA","4–20 mA / HART"],
+            headXmtr,
+            isTC ? "mV (TC)" : "Resistance (RTD)")}
+        </>)}
+
+        {hasType && (<>
+          {sec("Protection")}
+          {ss("ip_rating","IP Rating",["IP65","IP66","IP67","IP68"], true, "IP65")}
           <div />
         </>)}
-        {sec("Measuring Range")}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Range Min</Label>
-          <Input className="h-8 text-sm" placeholder="e.g. -50" value={(attrs.range_min as string) ?? ""}
-            onChange={(e) => set("range_min", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Range Max</Label>
-          <Input className="h-8 text-sm" placeholder="e.g. 200" value={(attrs.range_max as string) ?? ""}
-            onChange={(e) => set("range_max", e.target.value)} />
-        </div>
-        <div className="col-span-2">{renderField("range_unit", "Range Unit")}</div>
-        {sec("Material & Connection")}
-        {renderField("wetted_material", "Wetted Parts Material")}
-        {renderField("connection_size",  "Connection Size")}
-        {renderField("connection_type",  "Connection Type")}
-        {renderField("output_signal",    "Output Signal")}
-        {sec("Enclosure")}
-        {renderField("enclosure", "Enclosure Type")}
-        <div />
-        {sec("Hazardous Area (Optional)")}
-        {renderField("area_classification",  "Area Classification")}
-        {renderField("explosion_protection", "Explosion Protection")}
-        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (
-          <>
-            {renderField("certification",    "Certification")}
-            {renderField("gas_group",        "Gas Group")}
-            {renderField("temperature_class","Temperature Class")}
+
+        {hasType && (<>
+          {sec("Hazardous Area (Optional)")}
+          {ss("area_classification",  "Area Classification",  ["Safe Area","Zone 1","Zone 2"],                                                                             false, "Safe Area")}
+          {ss("explosion_protection", "Explosion Protection", ["Ex d (Flameproof)","Ex ia (Intrinsically Safe)","Ex ib (Intrinsically Safe)","Ex e (Increased Safety)"], isHazardous)}
+          {isHazardous && (<>
+            {ss("certification",    "Certification",     ["ATEX","IECEx","PESO"],          true)}
+            {ss("gas_group",        "Gas Group",         ["IIA","IIB","IIC"],              true)}
+            {ss("temperature_class","Temperature Class", ["T1","T2","T3","T4","T5","T6"], true)}
             <div />
-          </>
-        )}
+          </>)}
+        </>)}
+
         {sec("Cable Gland")}
         <CableGlandBlock attrs={attrs} onChange={onChange} />
+
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
