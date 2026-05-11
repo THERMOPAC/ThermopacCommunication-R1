@@ -161,6 +161,7 @@ export const FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   vfd_compatible:       "Yes",
   material:             "Cast Iron",
   explosion_protection: "Ex d",
+  gas_group:            "IIA",
 };
 
 export function applyFlameproofMotorDefaults(existing: Record<string, unknown>): Record<string, unknown> {
@@ -325,6 +326,20 @@ export function MotorAttrsForm({
               <option value="Ex d">Ex d</option>
               <option value="IECEx d">IECEx d</option>
               <option value="ATEX">ATEX</option>
+            </select>
+          </div>
+        )}
+        {isFlameproof && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Gas Group <span className="text-red-500">*</span></Label>
+            <select
+              className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              value={(attrs.gas_group as string) ?? "IIA"}
+              onChange={(e) => set("gas_group", e.target.value)}
+            >
+              <option value="IIA">IIA</option>
+              <option value="IIB">IIB</option>
+              <option value="IIC">IIC</option>
             </select>
           </div>
         )}
