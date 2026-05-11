@@ -106,10 +106,14 @@ const MOTOR_OPTS: Record<string, string[]> = {
   material:         ["Cast Iron", "Aluminium"],
 };
 
-const MOTOR_SPEED_BY_FREQ: Record<string, string[]> = {
-  "50 Hz": ["3000", "1500", "1000", "750"],
-  "60 Hz": ["3600", "1800", "1200", "900"],
-};
+// RPM = 120 × Hz / poles  (synchronous speed formula)
+function computeRPM(freqStr: string, polesStr: string): string {
+  const freqMatch = freqStr?.match(/(\d+)/);
+  const freq  = freqMatch ? parseInt(freqMatch[1]) : 0;
+  const poles = parseInt(polesStr ?? "0");
+  if (!freq || !poles) return "";
+  return String(Math.round(120 * freq / poles));
+}
 
 const MOTOR_POLES_BY_FREQ: Record<string, string[]> = {
   "50 Hz": ["2", "4", "6", "8"],
@@ -127,6 +131,7 @@ export const NON_FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   phase:               "Three Phase",
   frequency:           "50 Hz",
   num_poles:           "4",
+  speed:               "1500",
   duty:                "S1 (Continuous)",
   area_classification: "Other",
   ip_rating:           "IP55",
@@ -154,6 +159,7 @@ export const FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   phase:                "Three Phase",
   frequency:            "50 Hz",
   num_poles:            "4",
+  speed:                "1500",
   duty:                 "S1 (Continuous)",
   area_classification:  "Zone 1",
   ip_rating:            "IP55",
@@ -206,18 +212,16 @@ export function MotorAttrsForm({
 
   function handleSelect(key: string, val: string) {
     if (key === "frequency" && val !== "__other__") {
-      const newSpeedOpts = MOTOR_SPEED_BY_FREQ[val] ?? [];
-      const newPolesOpts = MOTOR_POLES_BY_FREQ[val]  ?? [];
-      const currentSpeed = (attrs.speed as string) ?? "";
+      const newPolesOpts = MOTOR_POLES_BY_FREQ[val] ?? [];
       const currentPoles = (attrs.num_poles as string) ?? "";
-      const speedStillValid = newSpeedOpts.includes(currentSpeed);
       const polesStillValid = newPolesOpts.includes(currentPoles);
-      setCustom((c) => ({ ...c, [key]: false, speed: speedStillValid ? c.speed : false }));
+      const effectivePoles = polesStillValid ? currentPoles : "";
+      setCustom((c) => ({ ...c, [key]: false }));
       onChange({
         ...attrs,
         frequency: val,
-        speed:     speedStillValid ? currentSpeed : "",
-        num_poles: polesStillValid ? currentPoles : "",
+        num_poles: effectivePoles,
+        speed:     computeRPM(val, effectivePoles),
       });
       return;
     }
@@ -305,18 +309,26 @@ export function MotorAttrsForm({
           <Label className="text-xs">Phase <span className="text-red-500">*</span></Label>
           <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">Three Phase</div>
         </div>
-        {renderField("frequency", "Frequency",   MOTOR_OPTS.frequency, true)}
-        {renderField("speed",     "Speed (RPM)", speedOpts,            true)}
+        {renderField("frequency", "Frequency", MOTOR_OPTS.frequency, true)}
         <div className="space-y-1.5">
           <Label className="text-xs">Number of Poles <span className="text-red-500">*</span></Label>
           <select
             className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             value={(attrs.num_poles as string) ?? ""}
-            onChange={(e) => set("num_poles", e.target.value)}
+            onChange={(e) => {
+              const poles = e.target.value;
+              onChange({ ...attrs, num_poles: poles, speed: computeRPM(currentFreq, poles) });
+            }}
           >
             <option value="" disabled>Select…</option>
             {polesOpts.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Speed (RPM) <span className="text-red-500">*</span></Label>
+          <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm font-medium">
+            {computeRPM(currentFreq, (attrs.num_poles as string) ?? "") || <span className="text-muted-foreground">Select frequency &amp; poles</span>}
+          </div>
         </div>
       </SectionCard>
 
