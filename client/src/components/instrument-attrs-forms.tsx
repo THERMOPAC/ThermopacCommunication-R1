@@ -1342,7 +1342,7 @@ export function buildLevelRequirement(attrs: Record<string, unknown>): string {
 }
 
 const LEVEL_OPTS: Record<string, string[]> = {
-  instrument_type:      ["Radar Level Transmitter (LT)", "Guided Wave Radar (GWR)", "DP Level Transmitter", "Ultrasonic Level Transmitter", "Float Level Switch (LS)", "Displacer Level Transmitter", "Level Gauge (Glass)", "Magnetostrictive Level Transmitter"],
+  instrument_type:      ["Radar Level Transmitter (LT)", "Guided Wave Radar (GWR)", "DP Level Transmitter", "Ultrasonic Level Transmitter", "Level Switch (LS)", "Float Level Switch (LS)", "Displacer Level Transmitter", "Level Gauge (Glass)", "Magnetostrictive Level Transmitter"],
   range_unit:           ["m", "mm", "ft", "%"],
   output_signal:        [...SMART_OUTPUT_SIGNALS],
   connection_size:      ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""],
