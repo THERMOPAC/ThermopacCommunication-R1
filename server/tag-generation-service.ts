@@ -35,6 +35,8 @@ export const TAG_PREFIXES: Record<string, string | null> = {
   multistage:     'P',
   dosing_metering:'P',
   vacuum_boosters:'P',
+  vacuum_pump:    'P',
+  hand_pump:      'P',
   cooling_tower:  'CT',
   junction_box:   'JB',
   non_flameproof: 'M',
