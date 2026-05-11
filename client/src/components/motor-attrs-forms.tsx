@@ -436,8 +436,10 @@ export function MotorAttrsForm({
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange?.(e.target.value)} />
+            <Input className="h-8 text-sm" type="number" min="1" step="1"
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
       </SectionCard>

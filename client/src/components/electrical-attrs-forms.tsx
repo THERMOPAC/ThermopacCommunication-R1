@@ -209,7 +209,9 @@ export function PanelAttrsForm({
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity (Panels) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty} onChange={(e) => onQtyChange?.(e.target.value)} />
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
       </div>
@@ -349,8 +351,10 @@ export function CablingAttrsForm({
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Length (m) <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange?.(e.target.value)} />
+            <Input className="h-8 text-sm" type="number" min="1" step="1"
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
       </div>
@@ -566,7 +570,9 @@ export function JunctionBoxAttrsForm({
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty} onChange={(e) => onQtyChange?.(e.target.value)} />
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
       </div>
@@ -729,7 +735,9 @@ export function CoolingTowerAttrsForm({
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty} onChange={(e) => onQtyChange?.(e.target.value)} />
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
       </div>
@@ -905,7 +913,9 @@ export function BoughtOutAttrsForm({
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity (Systems) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty} onChange={(e) => onQtyChange?.(e.target.value)} />
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
       </div>

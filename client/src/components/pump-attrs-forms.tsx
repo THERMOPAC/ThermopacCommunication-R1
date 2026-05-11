@@ -539,8 +539,10 @@ export function CentrifugalPumpAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>
@@ -947,8 +949,10 @@ export function GearPumpAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>
@@ -1349,8 +1353,10 @@ export function ScrewPumpAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>
@@ -1806,8 +1812,10 @@ export function MultistagePumpAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>
@@ -2216,8 +2224,10 @@ export function DosingPumpAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>
@@ -2567,8 +2577,10 @@ export function VacuumBoosterAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>
@@ -3017,8 +3029,10 @@ export function VacuumPumpAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>
@@ -3374,8 +3388,10 @@ export function PumpSkidAttrsForm({
       {qty !== undefined && onQtyChange && (
         <div className="space-y-1.5">
           <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
         </div>
       )}
     </div>

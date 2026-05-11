@@ -2033,8 +2033,9 @@ export default function EpcBuyListControlPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Quantity</Label>
-                <Input type="number" min="0.01" step="0.01" value={lf.quantity}
-                  onChange={e => setLf(f => ({ ...f, quantity: e.target.value }))} />
+                <Input type="number" min="1" step="1" value={lf.quantity}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  onChange={e => { const v = e.target.value; setLf(f => ({ ...f, quantity: v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))) })); }} />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Generic Requirement <span className="text-red-500">*</span></Label>

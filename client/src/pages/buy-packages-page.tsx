@@ -2489,9 +2489,10 @@ export default function BuyPackagesPage() {
                     <div className="space-y-1.5">
                       <Label>Default Qty</Label>
                       <Input
-                        type="number" min="0.01" step="0.01"
+                        type="number" min="1" step="1"
                         value={lf.defaultQuantity}
-                        onChange={(e) => setLf((f) => ({ ...f, defaultQuantity: e.target.value }))}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => { const v = e.target.value; setLf((f) => ({ ...f, defaultQuantity: v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))) })); }}
                       />
                     </div>
                   </div>
