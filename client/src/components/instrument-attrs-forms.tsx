@@ -1345,6 +1345,7 @@ const LEVEL_OPTS: Record<string, string[]> = {
   instrument_type:      ["Radar Level Transmitter (LT)", "Guided Wave Radar (GWR)", "DP Level Transmitter", "Ultrasonic Level Transmitter", "Level Switch (LS)", "Displacer Level Transmitter", "Level Gauge (Glass)", "Magnetostrictive Level Transmitter"],
   switch_technology:    ["Float", "Vibrating Fork", "Capacitance", "Conductivity", "Rotary Paddle", "Displacer", "Optical", "Ultrasonic", "Magnetic"],
   switch_contact_type:  ["SPDT", "DPDT"],
+  switch_point_unit:    ["mm", "m", "ft", "%"],
   range_unit:           ["m", "mm", "ft", "%"],
   output_signal:        [...SMART_OUTPUT_SIGNALS],
   connection_size:      ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""],
@@ -1422,11 +1423,22 @@ export function LevelAttrsForm({
     );
   }
 
-  const areaClass       = (attrs.area_classification as string) ?? "";
-  const instrType       = (attrs.instrument_type    as string) ?? "";
-  const isLevelSwitch   = instrType === "Level Switch (LS)";
-  const isLevelNoSignal = instrType.includes("Switch") || instrType.includes("Gauge");
-  const hasLevelSignal  = instrType !== "" && !isLevelNoSignal;
+  const LEVEL_CONTINUOUS_TYPES = new Set([
+    "Radar Level Transmitter (LT)",
+    "Guided Wave Radar (GWR)",
+    "DP Level Transmitter",
+    "Ultrasonic Level Transmitter",
+    "Displacer Level Transmitter",
+    "Magnetostrictive Level Transmitter",
+  ]);
+
+  const areaClass          = (attrs.area_classification as string) ?? "";
+  const instrType          = (attrs.instrument_type    as string) ?? "";
+  const isLevelSwitch      = instrType === "Level Switch (LS)";
+  const isLevelGauge       = instrType === "Level Gauge (Glass)";
+  const isLevelContinuous  = LEVEL_CONTINUOUS_TYPES.has(instrType);
+  const isLevelNoSignal    = instrType.includes("Switch") || instrType.includes("Gauge");
+  const hasLevelSignal     = instrType !== "" && !isLevelNoSignal;
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -1462,20 +1474,46 @@ export function LevelAttrsForm({
         </SectionCard>
       )}
 
-      {/* Measuring Range */}
-      <SectionCard title="Measuring Range" color="bg-sky-50/60 border-sky-200">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Range Min</Label>
-          <Input className="h-8 text-sm" placeholder="e.g. 0" value={(attrs.range_min as string) ?? ""}
-            onChange={(e) => set("range_min", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Range Max</Label>
-          <Input className="h-8 text-sm" placeholder="e.g. 5" value={(attrs.range_max as string) ?? ""}
-            onChange={(e) => set("range_max", e.target.value)} />
-        </div>
-        <div className="col-span-2">{renderField("range_unit", "Range Unit")}</div>
-      </SectionCard>
+      {/* Measuring Range — continuous transmitters only */}
+      {isLevelContinuous && (
+        <SectionCard title="Measuring Range" color="bg-sky-50/60 border-sky-200">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Range Min <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" placeholder="e.g. 0" value={(attrs.range_min as string) ?? ""}
+              onChange={(e) => set("range_min", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Range Max <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" placeholder="e.g. 5" value={(attrs.range_max as string) ?? ""}
+              onChange={(e) => set("range_max", e.target.value)} />
+          </div>
+          <div className="col-span-2">{renderField("range_unit", "Range Unit", true)}</div>
+        </SectionCard>
+      )}
+
+      {/* Switch Point — Level Switch only */}
+      {isLevelSwitch && (
+        <SectionCard title="Switch Point" color="bg-sky-50/60 border-sky-200">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Switch Point <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" placeholder="e.g. 500"
+              value={(attrs.switch_point as string) ?? ""}
+              onChange={(e) => set("switch_point", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Switch Point Unit <span className="text-red-500">*</span></Label>
+            <Select
+              value={(attrs.switch_point_unit as string) || "mm"}
+              onValueChange={v => set("switch_point_unit", v)}
+            >
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["mm", "m", "ft", "%"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </SectionCard>
+      )}
 
       {/* Output Signal (transmitters only) */}
       {hasLevelSignal && (
