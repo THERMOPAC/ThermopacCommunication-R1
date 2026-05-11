@@ -709,35 +709,44 @@ export function FlangesAttrsForm({
 // ─────────────────────────────────────────────────────────────────────────────
 const FASTENER_TYPES = [
   "Stud Bolt (Full Thread)","Stud Bolt (2-end Thread)",
-  "Hex Bolt","Hex Nut","Heavy Hex Nut",
+  "Stud + 2 Nut + 2 Washer Set",
+  "Hex Bolt","Anchor Bolt",
+  "Hex Nut","Heavy Hex Nut",
   "Flat Washer","Spring Washer","U-Bolt","Eye Bolt",
 ];
 const FASTENER_BOLT_MATERIAL = [
-  "ASTM A193 B7","ASTM A193 B7M","ASTM A193 B8 (SS304)","ASTM A193 B8M (SS316)",
+  "ASTM A193 B7","ASTM A193 B7M",
+  "ASTM A193 B8 (SS304)","ASTM A193 B8 Class 2",
+  "ASTM A193 B8M (SS316)","ASTM A193 B8M Class 2",
+  "ASTM A193 B16",
   "ASTM A320 L7","IS 1367 Cl.8.8","IS 1367 Cl.10.9","A307","A325","A490",
 ];
 const FASTENER_NUT_MATERIAL = [
-  "ASTM A194 2H","ASTM A194 2HM","ASTM A194 8 (SS304)","ASTM A194 8M (SS316)",
-  "ASTM A194 4","IS 1367 Cl.8",
+  "ASTM A194 2H","ASTM A194 2HM",
+  "ASTM A194 8 (SS304)","ASTM A194 8M (SS316)",
+  "ASTM A194 4","ASTM A194 7","ASTM A194 7M",
+  "IS 1367 Cl.8",
 ];
 const FASTENER_DIAMETER = [
-  "M8","M10","M12","M16","M20","M24","M30","M36",
-  '1/4"','3/8"','1/2"','5/8"','3/4"','7/8"','1"','1-1/4"','1-1/2"',
+  "M8","M10","M12","M16","M20","M24","M30","M36","M42","M48",
+  '1/4"','3/8"','1/2"','5/8"','3/4"','7/8"','1"','1-1/4"','1-1/2"','1-3/4"','2"',
 ];
 const FASTENER_THREADING = [
-  "ASME B1.1 (UNC)","ASME B1.1 (UNF)","ISO Metric Coarse","ISO Metric Fine","BSW",
+  "ASME B1.1 (UNC)","ASME B1.1 (UNF)","ISO Metric Coarse","ISO Metric Fine",
 ];
 const FASTENER_COATING = [
   "Plain (Uncoated)","Hot-Dip Galvanized","Zinc Electroplated",
   "Xylan / Fluoropolymer","PTFE Coated","Black Oxide",
 ];
+const FASTENER_THREAD_PROTECTION = ["None","Plastic Cap","Thread Protector"];
 const FASTENERS_ALL_OPTS: Record<string, string[]> = {
-  fastener_type:      FASTENER_TYPES,
-  bolt_material:      FASTENER_BOLT_MATERIAL,
-  nut_material:       FASTENER_NUT_MATERIAL,
-  diameter:           FASTENER_DIAMETER,
-  threading_standard: FASTENER_THREADING,
-  coating:            FASTENER_COATING,
+  fastener_type:       FASTENER_TYPES,
+  bolt_material:       FASTENER_BOLT_MATERIAL,
+  nut_material:        FASTENER_NUT_MATERIAL,
+  diameter:            FASTENER_DIAMETER,
+  threading_standard:  FASTENER_THREADING,
+  coating:             FASTENER_COATING,
+  thread_protection:   FASTENER_THREAD_PROTECTION,
 };
 
 export function buildFastenersRequirement(attrs: Record<string, unknown>): string {
@@ -796,12 +805,12 @@ export function FastenersAttrsForm({
   const ftype       = (attrs.fastener_type as string) ?? "";
   const ftLower     = ftype.toLowerCase();
   const needsLength = ftLower.includes("bolt") || ftLower.includes("stud");
-  const needsNut    = needsLength;
+  const needsNut    = ftLower.includes("bolt") || ftLower.includes("stud") || ftype === "Stud + 2 Nut + 2 Washer Set";
 
   return (
     <div className="space-y-3">
       <SectionCard title="Fastener Specification" color="bg-sky-50/60 border-sky-200">
-        {rf("fastener_type", "Fastener Type", FASTENER_TYPES, true)}
+        {rf("fastener_type", "Fastener Type", FASTENER_TYPES,    true)}
         {rf("diameter",      "Diameter",      FASTENER_DIAMETER, true)}
         {needsLength ? (
           <div className="space-y-1.5">
@@ -820,6 +829,7 @@ export function FastenersAttrsForm({
           : <div />}
         {rf("threading_standard", "Threading Standard",   FASTENER_THREADING,     true)}
         {rf("coating",            "Coating / Finish",     FASTENER_COATING)}
+        {rf("thread_protection",  "Thread Protection",    FASTENER_THREAD_PROTECTION)}
         <QtyField qty={qty} onQtyChange={onQtyChange} />
       </SectionCard>
     </div>
