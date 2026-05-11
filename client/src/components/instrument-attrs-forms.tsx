@@ -455,7 +455,6 @@ export function PressureAttrsForm({
   function renderHazardousBlock() {
     return (
       <>
-        {sectionHeader("Hazardous Area / Classification")}
         {renderField("area_classification", "Area Classification", PRESSURE_COMMON_OPTS.area_classification, true)}
         {isPG && isZone && (
           <div className="space-y-1.5">
@@ -486,7 +485,6 @@ export function PressureAttrsForm({
   function renderMakesBlock() {
     return (
       <>
-        {sectionHeader("Vendor / Approved Makes")}
         <div className="col-span-2 space-y-2">
           <Label className="text-xs">
             Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
@@ -568,11 +566,24 @@ export function PressureAttrsForm({
     );
   }
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pressure Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sectionHeader("Instrument Type")}
+    <div className="space-y-3">
+
+      {/* Instrument Type */}
+      <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2">
           <div className="space-y-1.5">
             <Label className="text-xs">Instrument Type <span className="text-red-500">*</span></Label>
@@ -588,152 +599,175 @@ export function PressureAttrsForm({
             </Select>
           </div>
         </div>
-
         {!instrType && (
-          <div className="col-span-2 flex items-center justify-center py-8 text-sm text-muted-foreground">
+          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
             Select an instrument type above to configure specifications.
           </div>
         )}
+      </SectionCard>
 
-        {isPG && (<>
-          {sectionHeader("Measurement")}
-          {renderField("measurement_type", "Measurement Type",   PRESSURE_PG_OPTS.measurement_type, true)}
-          {renderField("range_unit",       "Range Unit",         PRESSURE_COMMON_OPTS.range_unit_bar, true)}
+      {/* ── PRESSURE GAUGE ── */}
+      {isPG && (<>
+        <SectionCard title="Measurement" color="bg-sky-50/60 border-sky-200">
+          {renderField("measurement_type", "Measurement Type",      PRESSURE_PG_OPTS.measurement_type,   true)}
+          {renderField("range_unit",       "Range Unit",            PRESSURE_COMMON_OPTS.range_unit_bar, true)}
           {renderNumeric("range_min",      "Range Min")}
-          {renderNumeric("range_max",      "Range Max",          true)}
-          {renderField("accuracy_class",   "Accuracy Class",     PRESSURE_PG_OPTS.accuracy_class, true)}
+          {renderNumeric("range_max",      "Range Max",             true)}
+          {renderField("accuracy_class",   "Accuracy Class",        PRESSURE_PG_OPTS.accuracy_class,     true)}
           <div />
-          {sectionHeader("Physical")}
-          {renderField("dial_size",        "Dial Size",          PRESSURE_PG_OPTS.dial_size, true)}
-          {renderField("dial_type",        "Fill Type",          PRESSURE_PG_OPTS.dial_type, true)}
+        </SectionCard>
+        <SectionCard title="Physical" color="bg-violet-50/60 border-violet-200">
+          {renderField("dial_size",        "Dial Size",             PRESSURE_PG_OPTS.dial_size,          true)}
+          {renderField("dial_type",        "Fill Type",             PRESSURE_PG_OPTS.dial_type,          true)}
           {renderField("bourdon_material", "Bourdon Tube Material", PRESSURE_PG_OPTS.bourdon_material)}
-          {renderField("window_material",  "Window Material",    PRESSURE_PG_OPTS.window_material)}
-          {sectionHeader("Process Connection")}
-          {renderField("connection_size",  "Connection Size",    PRESSURE_COMMON_OPTS.connection_size,  true)}
-          {renderField("connection_type",  "Connection Type",    PRESSURE_COMMON_OPTS.connection_type,  true)}
-          {renderField("conn_orientation", "Orientation",        PRESSURE_COMMON_OPTS.conn_orientation, true)}
+          {renderField("window_material",  "Window Material",       PRESSURE_PG_OPTS.window_material)}
+        </SectionCard>
+        <SectionCard title="Process Connection" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("connection_size",  "Connection Size",       PRESSURE_COMMON_OPTS.connection_size,  true)}
+          {renderField("connection_type",  "Connection Type",       PRESSURE_COMMON_OPTS.connection_type,  true)}
+          {renderField("conn_orientation", "Orientation",           PRESSURE_COMMON_OPTS.conn_orientation, true)}
           <div />
-          {sectionHeader("Process Conditions")}
-          {renderField("process_fluid",    "Process Fluid",      PRESSURE_COMMON_OPTS.process_fluid)}
+        </SectionCard>
+        <SectionCard title="Process Conditions & Construction" color="bg-slate-50/80 border-slate-200">
+          {renderField("process_fluid",    "Process Fluid",         PRESSURE_COMMON_OPTS.process_fluid)}
           {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
-          {sectionHeader("Construction")}
           {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
-          {renderField("ip_rating",        "IP Rating",          PRESSURE_COMMON_OPTS.ip_rating, true)}
-        </>)}
+          {renderField("ip_rating",        "IP Rating",             PRESSURE_COMMON_OPTS.ip_rating,       true)}
+        </SectionCard>
+      </>)}
 
-        {isPT && (<>
-          {sectionHeader("Measurement")}
-          {renderField("measurement_type", "Measurement Type",   PRESSURE_PT_DPT_OPTS.pt_meas_type, true)}
-          {renderField("range_unit",       "Range Unit",         PRESSURE_COMMON_OPTS.range_unit_bar, true)}
+      {/* ── PRESSURE TRANSMITTER ── */}
+      {isPT && (<>
+        <SectionCard title="Measurement" color="bg-sky-50/60 border-sky-200">
+          {renderField("measurement_type", "Measurement Type",      PRESSURE_PT_DPT_OPTS.pt_meas_type,  true)}
+          {renderField("range_unit",       "Range Unit",            PRESSURE_COMMON_OPTS.range_unit_bar, true)}
           {renderNumeric("range_min",      "Range Min")}
-          {renderNumeric("range_max",      "Range Max",          true)}
-          {renderField("accuracy_class",   "Accuracy Class",     PRESSURE_PT_DPT_OPTS.accuracy_class, true)}
+          {renderNumeric("range_max",      "Range Max",             true)}
+          {renderField("accuracy_class",   "Accuracy Class",        PRESSURE_PT_DPT_OPTS.accuracy_class, true)}
           <div />
-          {sectionHeader("Electrical / Signal")}
+        </SectionCard>
+        <SectionCard title="Electrical / Signal" color="bg-violet-50/60 border-violet-200">
           {renderField("output_signal",    "Output Signal",          PRESSURE_PT_DPT_OPTS.output_signal,  true)}
           {renderField("power_supply",     "Power Supply",           PRESSURE_PT_DPT_OPTS.power_supply,   true)}
           {renderField("comm_protocol",    "Communication Protocol", PRESSURE_PT_DPT_OPTS.comm_protocol)}
           {renderField("display",          "Display",                PRESSURE_PT_DPT_OPTS.display)}
-          {sectionHeader("Process Connection")}
-          {renderField("connection_size",  "Connection Size",    PRESSURE_COMMON_OPTS.connection_size,  true)}
-          {renderField("connection_type",  "Connection Type",    PRESSURE_COMMON_OPTS.connection_type,  true)}
-          {renderField("conn_orientation", "Orientation",        PRESSURE_COMMON_OPTS.conn_orientation, true)}
+        </SectionCard>
+        <SectionCard title="Process Connection" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("connection_size",  "Connection Size",        PRESSURE_COMMON_OPTS.connection_size,  true)}
+          {renderField("connection_type",  "Connection Type",        PRESSURE_COMMON_OPTS.connection_type,  true)}
+          {renderField("conn_orientation", "Orientation",            PRESSURE_COMMON_OPTS.conn_orientation, true)}
           <div />
-          {sectionHeader("Remote Seal (Optional)")}
-          {renderField("remote_seal_type", "Remote Seal Type",   PRESSURE_PT_DPT_OPTS.remote_seal_type)}
-          {renderText("capillary_length",  "Capillary Length",   false, "e.g. 2 m, 5 m")}
-          {sectionHeader("Process Conditions")}
-          {renderField("process_fluid",    "Process Fluid",      PRESSURE_COMMON_OPTS.process_fluid)}
+        </SectionCard>
+        <SectionCard title="Remote Seal (Optional)" color="bg-amber-50/50 border-amber-200">
+          {renderField("remote_seal_type", "Remote Seal Type",       PRESSURE_PT_DPT_OPTS.remote_seal_type)}
+          {renderText("capillary_length",  "Capillary Length",       false, "e.g. 2 m, 5 m")}
+        </SectionCard>
+        <SectionCard title="Process Conditions & Construction" color="bg-slate-50/80 border-slate-200">
+          {renderField("process_fluid",    "Process Fluid",          PRESSURE_COMMON_OPTS.process_fluid)}
           {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
-          {sectionHeader("Construction")}
-          {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
-          {renderField("housing_material", "Housing Material",      PRESSURE_COMMON_OPTS.housing_material)}
-          {renderField("ip_rating",        "IP Rating",          PRESSURE_COMMON_OPTS.ip_rating, true)}
+          {renderField("wetted_material",  "Wetted Parts Material",  PRESSURE_COMMON_OPTS.wetted_material, true)}
+          {renderField("housing_material", "Housing Material",       PRESSURE_COMMON_OPTS.housing_material)}
+          {renderField("ip_rating",        "IP Rating",              PRESSURE_COMMON_OPTS.ip_rating,       true)}
           <div />
-          {sectionHeader("Safety Integrity")}
-          {renderField("sil_requirement",  "SIL Requirement",    PRESSURE_COMMON_OPTS.sil_requirement)}
+        </SectionCard>
+        <SectionCard title="Safety Integrity" color="bg-rose-50/60 border-rose-200">
+          {renderField("sil_requirement",  "SIL Requirement",        PRESSURE_COMMON_OPTS.sil_requirement)}
           <div />
-        </>)}
+        </SectionCard>
+      </>)}
 
-        {isDPT && (<>
-          {sectionHeader("Measurement")}
+      {/* ── DIFFERENTIAL PRESSURE TRANSMITTER ── */}
+      {isDPT && (<>
+        <SectionCard title="Measurement" color="bg-sky-50/60 border-sky-200">
           <div className="space-y-1.5">
             <Label className="text-xs">Measurement Type</Label>
             <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">
               Differential Pressure
             </div>
           </div>
-          {renderField("application",      "Application",        PRESSURE_PT_DPT_OPTS.application, true)}
-          {renderField("range_unit",       "Range Unit",         PRESSURE_COMMON_OPTS.range_unit_dp, true)}
+          {renderField("application",      "Application",            PRESSURE_PT_DPT_OPTS.application,    true)}
+          {renderField("range_unit",       "Range Unit",             PRESSURE_COMMON_OPTS.range_unit_dp,  true)}
           {renderNumeric("range_min",      "Range Min")}
-          {renderNumeric("range_max",      "Range Max",          true)}
-          {renderField("accuracy_class",   "Accuracy Class",     PRESSURE_PT_DPT_OPTS.accuracy_class, true)}
-          <div />
-          {sectionHeader("Electrical / Signal")}
+          {renderNumeric("range_max",      "Range Max",              true)}
+          {renderField("accuracy_class",   "Accuracy Class",         PRESSURE_PT_DPT_OPTS.accuracy_class, true)}
+        </SectionCard>
+        <SectionCard title="Electrical / Signal" color="bg-violet-50/60 border-violet-200">
           {renderField("output_signal",    "Output Signal",          PRESSURE_PT_DPT_OPTS.output_signal,  true)}
           {renderField("power_supply",     "Power Supply",           PRESSURE_PT_DPT_OPTS.power_supply,   true)}
           {renderField("comm_protocol",    "Communication Protocol", PRESSURE_PT_DPT_OPTS.comm_protocol)}
           {renderField("display",          "Display",                PRESSURE_PT_DPT_OPTS.display)}
-          {sectionHeader("Process Connection")}
-          {renderField("connection_size",  "HP Connection Size", PRESSURE_COMMON_OPTS.connection_size,  true)}
-          {renderField("connection_type",  "HP Connection Type", PRESSURE_COMMON_OPTS.connection_type,  true)}
-          {renderField("conn_orientation", "HP Orientation",     PRESSURE_COMMON_OPTS.conn_orientation, true)}
-          {renderField("lp_connection",    "LP Connection",      PRESSURE_PT_DPT_OPTS.lp_connection)}
-          {sectionHeader("Manifold")}
-          {renderField("manifold_type",    "Manifold Type",      PRESSURE_PT_DPT_OPTS.manifold_type, true)}
+        </SectionCard>
+        <SectionCard title="Process Connection" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("connection_size",  "HP Connection Size",     PRESSURE_COMMON_OPTS.connection_size,  true)}
+          {renderField("connection_type",  "HP Connection Type",     PRESSURE_COMMON_OPTS.connection_type,  true)}
+          {renderField("conn_orientation", "HP Orientation",         PRESSURE_COMMON_OPTS.conn_orientation, true)}
+          {renderField("lp_connection",    "LP Connection",          PRESSURE_PT_DPT_OPTS.lp_connection)}
+        </SectionCard>
+        <SectionCard title="Manifold" color="bg-amber-50/50 border-amber-200">
+          {renderField("manifold_type",    "Manifold Type",          PRESSURE_PT_DPT_OPTS.manifold_type, true)}
           <div />
-          {sectionHeader("Remote Seal (Optional)")}
-          {renderField("remote_seal_type", "Remote Seal Type",   PRESSURE_PT_DPT_OPTS.remote_seal_type)}
-          {renderText("capillary_length",  "Capillary Length",   false, "e.g. 2 m, 5 m")}
-          {sectionHeader("Process Conditions")}
-          {renderField("process_fluid",    "Process Fluid",      PRESSURE_COMMON_OPTS.process_fluid)}
+        </SectionCard>
+        <SectionCard title="Remote Seal (Optional)" color="bg-amber-50/50 border-amber-200">
+          {renderField("remote_seal_type", "Remote Seal Type",       PRESSURE_PT_DPT_OPTS.remote_seal_type)}
+          {renderText("capillary_length",  "Capillary Length",       false, "e.g. 2 m, 5 m")}
+        </SectionCard>
+        <SectionCard title="Process Conditions & Construction" color="bg-slate-50/80 border-slate-200">
+          {renderField("process_fluid",    "Process Fluid",          PRESSURE_COMMON_OPTS.process_fluid)}
           {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
-          {sectionHeader("Construction")}
-          {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
-          {renderField("housing_material", "Housing Material",      PRESSURE_COMMON_OPTS.housing_material)}
-          {renderField("ip_rating",        "IP Rating",          PRESSURE_COMMON_OPTS.ip_rating, true)}
+          {renderField("wetted_material",  "Wetted Parts Material",  PRESSURE_COMMON_OPTS.wetted_material, true)}
+          {renderField("housing_material", "Housing Material",       PRESSURE_COMMON_OPTS.housing_material)}
+          {renderField("ip_rating",        "IP Rating",              PRESSURE_COMMON_OPTS.ip_rating,       true)}
           <div />
-          {sectionHeader("Safety Integrity")}
-          {renderField("sil_requirement",  "SIL Requirement",    PRESSURE_COMMON_OPTS.sil_requirement)}
+        </SectionCard>
+        <SectionCard title="Safety Integrity" color="bg-rose-50/60 border-rose-200">
+          {renderField("sil_requirement",  "SIL Requirement",        PRESSURE_COMMON_OPTS.sil_requirement)}
           <div />
-        </>)}
+        </SectionCard>
+      </>)}
 
-        {isPS && (<>
-          {sectionHeader("Measurement & Range")}
-          {renderField("measurement_type", "Measurement Type",     PRESSURE_PS_OPTS.measurement_type, true)}
-          {renderField("range_unit",       "Range Unit",           PRESSURE_COMMON_OPTS.range_unit_bar, true)}
+      {/* ── PRESSURE SWITCH ── */}
+      {isPS && (<>
+        <SectionCard title="Measurement & Range" color="bg-sky-50/60 border-sky-200">
+          {renderField("measurement_type", "Measurement Type",       PRESSURE_PS_OPTS.measurement_type,   true)}
+          {renderField("range_unit",       "Range Unit",             PRESSURE_COMMON_OPTS.range_unit_bar, true)}
           {renderNumeric("range_min",      "Adjustable Range Min")}
-          {renderNumeric("range_max",      "Adjustable Range Max", true)}
-          {sectionHeader("Setpoint")}
-          {renderText("trip_setpoint",     "Trip Setpoint",        true,  "e.g. 8.0 bar")}
-          {renderText("deadband",          "Deadband / Hysteresis",false, "e.g. 0.5 bar")}
-          {sectionHeader("Switching")}
-          {renderField("switching_action", "Switching Action",     PRESSURE_PS_OPTS.switching_action, true)}
-          {renderField("contact_rating",   "Contact Rating",       PRESSURE_PS_OPTS.contact_rating,   true)}
-          {renderField("reset_type",       "Reset Type",           PRESSURE_PS_OPTS.reset_type,       true)}
+          {renderNumeric("range_max",      "Adjustable Range Max",   true)}
+        </SectionCard>
+        <SectionCard title="Setpoint & Switching" color="bg-violet-50/60 border-violet-200">
+          {renderText("trip_setpoint",     "Trip Setpoint",          true,  "e.g. 8.0 bar")}
+          {renderText("deadband",          "Deadband / Hysteresis",  false, "e.g. 0.5 bar")}
+          {renderField("switching_action", "Switching Action",       PRESSURE_PS_OPTS.switching_action,   true)}
+          {renderField("contact_rating",   "Contact Rating",         PRESSURE_PS_OPTS.contact_rating,     true)}
+          {renderField("reset_type",       "Reset Type",             PRESSURE_PS_OPTS.reset_type,         true)}
           <div />
-          {sectionHeader("Process Connection")}
-          {renderField("connection_size",  "Connection Size",      PRESSURE_COMMON_OPTS.connection_size, true)}
-          {renderField("connection_type",  "Connection Type",      PRESSURE_COMMON_OPTS.connection_type, true)}
-          {sectionHeader("Process Conditions")}
-          {renderField("process_fluid",    "Process Fluid",        PRESSURE_COMMON_OPTS.process_fluid)}
+        </SectionCard>
+        <SectionCard title="Process Connection" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("connection_size",  "Connection Size",        PRESSURE_COMMON_OPTS.connection_size, true)}
+          {renderField("connection_type",  "Connection Type",        PRESSURE_COMMON_OPTS.connection_type, true)}
+        </SectionCard>
+        <SectionCard title="Process Conditions & Construction" color="bg-slate-50/80 border-slate-200">
+          {renderField("process_fluid",    "Process Fluid",          PRESSURE_COMMON_OPTS.process_fluid)}
           {renderText("operating_temp",    "Operating Temp (Process)", false, "e.g. Ambient, −10 to 120°C")}
-          {sectionHeader("Construction")}
-          {renderField("wetted_material",  "Wetted Parts Material", PRESSURE_COMMON_OPTS.wetted_material, true)}
-          {renderField("housing_material", "Housing Material",      PRESSURE_COMMON_OPTS.housing_material)}
-          {renderField("cable_entry",      "Cable Entry",           PRESSURE_PS_OPTS.cable_entry)}
-          {renderField("ip_rating",        "IP Rating",             PRESSURE_COMMON_OPTS.ip_rating, true)}
+          {renderField("wetted_material",  "Wetted Parts Material",  PRESSURE_COMMON_OPTS.wetted_material, true)}
+          {renderField("housing_material", "Housing Material",       PRESSURE_COMMON_OPTS.housing_material)}
+          {renderField("cable_entry",      "Cable Entry",            PRESSURE_PS_OPTS.cable_entry)}
+          {renderField("ip_rating",        "IP Rating",              PRESSURE_COMMON_OPTS.ip_rating,       true)}
+        </SectionCard>
+        <SectionCard title="Safety Integrity" color="bg-rose-50/60 border-rose-200">
+          {renderField("sil_requirement",  "SIL Requirement",        PRESSURE_COMMON_OPTS.sil_requirement)}
           <div />
-          {sectionHeader("Safety Integrity")}
-          {renderField("sil_requirement",  "SIL Requirement",      PRESSURE_COMMON_OPTS.sil_requirement)}
-          <div />
-        </>)}
+        </SectionCard>
+      </>)}
 
-        {sectionHeader("Cable Gland")}
-        <CableGlandBlock attrs={attrs} onChange={onChange} />
-
-        {instrType && (<>
+      {/* ── COMMON (always when type selected) ── */}
+      {instrType && (<>
+        <SectionCard title="Cable Gland" color="bg-slate-50/80 border-slate-200">
+          <CableGlandBlock attrs={attrs} onChange={onChange} />
+        </SectionCard>
+        <SectionCard title="Hazardous Area / Classification" color="bg-amber-50/60 border-amber-300">
           {renderHazardousBlock()}
+        </SectionCard>
+        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           {renderMakesBlock()}
           {qty !== undefined && (
             <div className="space-y-1.5 col-span-2">
@@ -744,8 +778,9 @@ export function PressureAttrsForm({
                 onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
             </div>
           )}
-        </>)}
-      </div>
+        </SectionCard>
+      </>)}
+
     </div>
   );
 }
