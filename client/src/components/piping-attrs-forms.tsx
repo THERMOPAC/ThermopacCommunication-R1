@@ -152,8 +152,8 @@ const PLATES_MATERIAL_GRADES = [
   "Duplex 2205","Super Duplex 2507","Monel 400","Hastelloy C-276",
 ];
 const PLATES_THICKNESS = ["3","5","6","8","10","12","16","20","25","32","40","50"];
-const PLATES_WIDTH     = ["1000","1250","1500","2000","2500"];
-const PLATES_LENGTH    = ["Mill Length","2000","2500","3000","4000","5000","6000"];
+const PLATES_WIDTH     = ["1000","1250","1500","1800","2000","2500"];
+const PLATES_LENGTH    = ["Mill Length","2000","2500","3000","4000","5000","6000","12000"];
 const PLATES_STANDARD  = [
   "ASME SA-516","ASME SA-537","ASME SA-240",
   "IS 2062","EN 10028","ASTM B127","ASTM B575",
