@@ -33,6 +33,21 @@ import {
   VacuumBoosterAttrsForm,
   PumpSkidAttrsForm,
 } from "@/components/pump-attrs-forms";
+import {
+  PressureAttrsForm, TemperatureAttrsForm, FlowAttrsForm, LevelAttrsForm,
+} from "@/components/instrument-attrs-forms";
+import {
+  MotorAttrsForm,
+  NON_FLAMEPROOF_MOTOR_DEFAULTS, FLAMEPROOF_MOTOR_DEFAULTS,
+  applyNonFlameproofMotorDefaults, applyFlameproofMotorDefaults,
+} from "@/components/motor-attrs-forms";
+import {
+  PanelAttrsForm, CablingAttrsForm, JunctionBoxAttrsForm,
+  CoolingTowerAttrsForm, BoughtOutAttrsForm,
+} from "@/components/electrical-attrs-forms";
+import {
+  ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
+} from "@/components/valve-attrs-forms";
 
 // ── Taggable subgroup codes (must match server/tag-generation-service.ts) ──────
 const TAGGABLE_SUBGROUP_CODES = new Set([
@@ -924,7 +939,11 @@ export default function EpcBuyListControlPage() {
       selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
-      technicalAttributes: (line.technical_attributes ?? {}) as Record<string, unknown>,
+      technicalAttributes: line.buy_subgroup_code === "non_flameproof"
+        ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
+        : line.buy_subgroup_code === "flameproof"
+          ? applyFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
+          : (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setTagDuplicateWarning(null); setTagPreview([]); setTagAutoFilled(false); setTagFetching(false);
     setLineDialog({ open: true, listId, status, editLine: line });
@@ -2048,6 +2067,105 @@ export default function EpcBuyListControlPage() {
                       onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
                     />
                   )}
+                </div>
+              ) : (currentSubgroupCode === "non_flameproof" || currentSubgroupCode === "flameproof") ? (
+                <div className="col-span-2">
+                  <MotorAttrsForm
+                    attrs={lf.technicalAttributes}
+                    isFlameproof={currentSubgroupCode === "flameproof"}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "pressure" ? (
+                <div className="col-span-2">
+                  <PressureAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "temperature" ? (
+                <div className="col-span-2">
+                  <TemperatureAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "flow" ? (
+                <div className="col-span-2">
+                  <FlowAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "level" ? (
+                <div className="col-span-2">
+                  <LevelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "control" ? (
+                <div className="col-span-2">
+                  <ControlValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "safety" ? (
+                <div className="col-span-2">
+                  <SafetyValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "on_off" ? (
+                <div className="col-span-2">
+                  <OnOffValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "isolation" ? (
+                <div className="col-span-2">
+                  <IsolationValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "panels" ? (
+                <div className="col-span-2">
+                  <PanelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "cabling" ? (
+                <div className="col-span-2">
+                  <CablingAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "junction_box" ? (
+                <div className="col-span-2">
+                  <JunctionBoxAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "cooling_tower" ? (
+                <div className="col-span-2">
+                  <CoolingTowerAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : (currentSubgroupCode === "general" && currentGroupCode === "bought_out_packages") ? (
+                <div className="col-span-2">
+                  <BoughtOutAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
                 </div>
               ) : (
                 <TechnicalAttrsSection
