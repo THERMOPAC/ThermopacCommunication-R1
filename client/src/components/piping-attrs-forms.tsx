@@ -108,6 +108,17 @@ function deriveFlangeStandard(nb: string): string {
   return parseInt(m[1]) > 600 ? "ASME B16.47 Series A" : "ASME B16.5";
 }
 
+function derivePlateStandard(grade: string): string {
+  const g = grade.toUpperCase();
+  if (g.startsWith("SA-516"))       return "ASME SA-516";
+  if (g.startsWith("SA-537"))       return "ASME SA-537";
+  if (g.startsWith("IS 2062"))      return "IS 2062";
+  if (g.startsWith("SS") || g.startsWith("DUPLEX") || g.startsWith("SUPER DUPLEX")) return "ASME SA-240";
+  if (g.startsWith("MONEL"))        return "ASTM B127";
+  if (g.startsWith("HASTELLOY"))    return "ASTM B575";
+  return "";
+}
+
 function getStructuralMtrDefault(grade: string): string {
   const g = grade.toUpperCase();
   if (g.startsWith("SS") || g.includes("DUPLEX")) return "Yes";
@@ -143,7 +154,10 @@ const PLATES_MATERIAL_GRADES = [
 const PLATES_THICKNESS = ["3","5","6","8","10","12","16","20","25","32","40","50"];
 const PLATES_WIDTH     = ["1000","1250","1500","2000","2500"];
 const PLATES_LENGTH    = ["Mill Length","2000","2500","3000","4000","5000","6000"];
-const PLATES_STANDARD  = ["ASTM","IS 2062","EN 10028","ASME SA-516"];
+const PLATES_STANDARD  = [
+  "ASME SA-516","ASME SA-537","ASME SA-240",
+  "IS 2062","EN 10028","ASTM B127","ASTM B575",
+];
 const PLATES_SURFACE   = ["No.1 (HR)","No.2B (CR)","No.4 (Brushed)","Pickled & Oiled"];
 const PLATES_TESTING   = ["UT (Ultrasonic)","NACE MR-0175","HIC Test","Impact Test","Charpy Test"];
 const PLATES_ALL_OPTS: Record<string, string[]> = {
@@ -194,7 +208,16 @@ export function PlatesAttrsForm({
 
   function handleSelect(key: string, val: string) {
     if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
-    else                     { setCustom(c => ({ ...c, [key]: false })); set(key, val); }
+    else {
+      setCustom(c => ({ ...c, [key]: false }));
+      if (key === "material_grade") {
+        const derived  = derivePlateStandard(val);
+        const existing = (attrs.plate_standard as string) ?? "";
+        onChange({ ...attrs, material_grade: val, plate_standard: existing || derived });
+      } else {
+        set(key, val);
+      }
+    }
   }
   function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
