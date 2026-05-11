@@ -970,19 +970,22 @@ const OO_VALVE_TYPES = [
 const OO_COMMON_OPTS = {
   size_nb:             ["15 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB","450 NB","500 NB","600 NB"],
   pressure_rating_std: ["Class 150","Class 300","Class 600","Class 900","Class 1500"],
-  pressure_rating_pn:  ["PN6","PN10","PN16","PN25","PN40"],
+  pressure_rating_pn:  ["PN6","PN10","PN16","PN25","PN40","PN64","PN100","PN160"],
   actuation_type:      ["Manual Lever","Manual Handwheel","Manual Gear","Pneumatic Actuator","Electric Actuator","Hydraulic Actuator"],
   fail_action:         ["Fail Open (FO)","Fail Close (FC)","Fail Last (FL)"],
-  end_connection:      ["Flanged","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type"],
-  body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","Alloy Steel (WC6)","Duplex SS","CI (Cast Iron)","Ductile Iron","Hastelloy C"],
+  end_connection:      ["Flanged","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type","Grooved","Clamp End (Tri-Clamp)"],
+  body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","SS316L","CF8","CF8M","Duplex SS","CI (Cast Iron)","Ductile Iron","Hastelloy C"],
   service_type:        ["Isolation","On-Off Control","Emergency Shutdown (ESD)","Bypass","General"],
   area_class:          ["Safe Area","Zone 1","Zone 2"],
   certification:       ["ATEX","IECEx","PESO","SIL Rated","Fire Safe (API 607)"],
+  explosion_protection:["Ex d (Flameproof)","Ex e (Increased Safety)","Ex ia (Intrinsic Safety)","Ex nA (Non-Sparking)"],
+  gas_group:           ["IIA","IIB","IIC"],
+  temperature_class:   ["T1","T2","T3","T4","T5","T6"],
   yes_no:              ["Yes","No"],
   bore_type:           ["Full Bore","Reduced Bore"],
   body_style:          ["Floating Ball","Trunnion Mounted"],
   seat_material_ball:  ["PTFE","PEEK","Metal Seat (SS316)","Graphite","Devlon"],
-  port_config:         ["2-Way","3-Way (L-Port)","3-Way (T-Port)"],
+  port_config:         ["2-Way","3-Way (L-Port)","3-Way (T-Port)","DBB (Double Block & Bleed)"],
   stem_seal:           ["PTFE","Graphite","RPTFE"],
   stem_type:           ["OS&Y (Rising Stem)","Non-Rising Stem"],
   wedge_type:          ["Solid Wedge","Flexible Wedge","Split Wedge"],
@@ -1006,7 +1009,19 @@ const OO_COMMON_OPTS = {
   diaphragm_material:  ["EPDM","Natural Rubber","PTFE","Butyl Rubber","Neoprene"],
   body_design:         ["Weir Type","Straight-Through"],
   body_lining:         ["Unlined","PTFE Lined","Rubber Lined","Glass Lined"],
+  valve_std_ball:      ["API 6D","API 608","ISO 17292","EN 1983","ASME B16.34","ISO 5208"],
+  valve_std_gate:      ["API 600","ASME B16.34","EN 13709","ISO 5208"],
+  valve_std_globe:     ["API 602","ASME B16.34","EN 13709","ISO 5208"],
+  valve_std_butterfly: ["API 609","EN 593","ASME B16.34","ISO 5208"],
+  valve_std_plug:      ["MSS SP-78","MSS SP-99","ASME B16.34","ISO 5208"],
+  valve_std_diaphragm: ["EN 13397","ISO 16136","ASME B16.34","ISO 5208"],
 };
+
+const OO_ALL_VALVE_STDS = [
+  ...OO_COMMON_OPTS.valve_std_ball, ...OO_COMMON_OPTS.valve_std_gate,
+  ...OO_COMMON_OPTS.valve_std_globe, ...OO_COMMON_OPTS.valve_std_butterfly,
+  ...OO_COMMON_OPTS.valve_std_plug, ...OO_COMMON_OPTS.valve_std_diaphragm,
+].filter((v, i, a) => a.indexOf(v) === i);
 
 const OO_ALL_FIELD_OPTS: Record<string, string[]> = {
   size_nb:             OO_COMMON_OPTS.size_nb,
@@ -1018,6 +1033,10 @@ const OO_ALL_FIELD_OPTS: Record<string, string[]> = {
   service_type:        OO_COMMON_OPTS.service_type,
   area_classification: OO_COMMON_OPTS.area_class,
   certification:       OO_COMMON_OPTS.certification,
+  explosion_protection:OO_COMMON_OPTS.explosion_protection,
+  gas_group:           OO_COMMON_OPTS.gas_group,
+  temperature_class:   OO_COMMON_OPTS.temperature_class,
+  valve_standard:      OO_ALL_VALVE_STDS,
   bore_type:           OO_COMMON_OPTS.bore_type,
   body_style:          OO_COMMON_OPTS.body_style,
   seat_material:       OO_COMMON_OPTS.seat_material_ball,
@@ -1050,8 +1069,8 @@ const OO_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 
 const OO_VALVE_MAKES = [
-  "Metso","Emerson (Fisher)","Flowserve (BW Valves)","Velan","Neway (Adler)",
-  "KSB","L&T Valves","Crane ChemPharma","AUMA","Rotork",
+  "AUMA","Crane ChemPharma","Emerson (Fisher)","Flowserve (BW Valves)",
+  "KSB","L&T Valves","Metso","Neway (Adler)","Rotork","Velan",
 ];
 
 const OO_ACTUATED_TYPES = ["Pneumatic Actuator","Electric Actuator","Hydraulic Actuator"];
@@ -1132,7 +1151,9 @@ function buildOnOffValveDefaults(type: string): Record<string, unknown> {
     valve_type: type, makes: [],
     size_nb: "", pressure_rating: "", actuation_type: "", fail_action: "",
     end_connection: "Flanged", body_material: "WCB (CS)", service_type: "",
+    valve_standard: "",
     area_classification: "", certification: "",
+    explosion_protection: "", gas_group: "", temperature_class: "",
     bore_type: "", body_style: "", seat_material: "", port_configuration: "",
     stem_seal: "", fire_safe: "", anti_static_device: "",
     stem_type: "", wedge_type: "", bonnet_type: "", gate_material: "", gate_stem_seal: "",
@@ -1144,33 +1165,33 @@ function buildOnOffValveDefaults(type: string): Record<string, unknown> {
   };
   switch (type) {
     case "Ball Valve":
-      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+      return { ...base, valve_standard: "API 6D", pressure_rating: "Class 150", end_connection: "Flanged",
         body_material: "WCB (CS)", actuation_type: "Pneumatic Actuator",
         fail_action: "Fail Close (FC)", bore_type: "Full Bore",
         body_style: "Floating Ball", seat_material: "PTFE",
         port_configuration: "2-Way", fire_safe: "No", anti_static_device: "No" };
     case "Gate Valve":
-      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+      return { ...base, valve_standard: "API 600", pressure_rating: "Class 150", end_connection: "Flanged",
         body_material: "WCB (CS)", actuation_type: "Manual Gear",
         stem_type: "OS&Y (Rising Stem)", wedge_type: "Solid Wedge",
         bonnet_type: "Bolted Bonnet" };
     case "Globe Valve":
-      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+      return { ...base, valve_standard: "API 602", pressure_rating: "Class 150", end_connection: "Flanged",
         body_material: "WCB (CS)", actuation_type: "Manual Handwheel",
         port_type: "Single Port", plug_trim_material: "SS316",
         seat_material_globe: "SS316", bonnet_type_globe: "Standard" };
     case "Butterfly Valve":
-      return { ...base, pressure_rating: "PN16", end_connection: "Wafer",
+      return { ...base, valve_standard: "API 609", pressure_rating: "PN16", end_connection: "Wafer",
         body_material: "CI (Cast Iron)", actuation_type: "Pneumatic Actuator",
         fail_action: "Fail Close (FC)", valve_design: "Concentric (Centric)",
         disc_material: "SS316", seat_liner: "EPDM" };
     case "Plug Valve":
-      return { ...base, pressure_rating: "Class 150", end_connection: "Flanged",
+      return { ...base, valve_standard: "MSS SP-78", pressure_rating: "Class 150", end_connection: "Flanged",
         body_material: "WCB (CS)", actuation_type: "Manual Lever",
         plug_type: "Non-Lubricated (Sleeved)", plug_port_config: "2-Way",
         sleeve_material: "PTFE" };
     case "Diaphragm Valve":
-      return { ...base, pressure_rating: "PN10", end_connection: "Flanged",
+      return { ...base, valve_standard: "EN 13397", pressure_rating: "PN10", end_connection: "Flanged",
         body_material: "WCB (CS)", actuation_type: "Manual Handwheel",
         diaphragm_material: "EPDM", body_design: "Weir Type", body_lining: "Unlined" };
     default: return base;
@@ -1276,6 +1297,16 @@ export function OnOffValveAttrsForm({
   const plugType      = (attrs.plug_type as string) ?? "";
   const isSleeved     = plugType === "Non-Lubricated (Sleeved)";
   const isLubricated  = plugType === "Lubricated";
+  const areaClass     = (attrs.area_classification as string) ?? "";
+  const isHazardous   = areaClass === "Zone 1" || areaClass === "Zone 2";
+
+  const valveStdOpts = isBall ? OO_COMMON_OPTS.valve_std_ball
+    : isGate      ? OO_COMMON_OPTS.valve_std_gate
+    : isGlobe     ? OO_COMMON_OPTS.valve_std_globe
+    : isBfly      ? OO_COMMON_OPTS.valve_std_butterfly
+    : isPlug      ? OO_COMMON_OPTS.valve_std_plug
+    : isDiaphragm ? OO_COMMON_OPTS.valve_std_diaphragm
+    : [];
 
   const filteredMakes = OO_VALVE_MAKES.filter(
     (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
@@ -1306,6 +1337,10 @@ export function OnOffValveAttrsForm({
           {renderField("size_nb",         "Size (NB)",       OO_COMMON_OPTS.size_nb, true)}
           {renderField("pressure_rating", "Pressure Rating",
             isBfly || isDiaphragm ? OO_COMMON_OPTS.pressure_rating_pn : OO_COMMON_OPTS.pressure_rating_std, true)}
+
+          {sec("Design Standard")}
+          {renderField("valve_standard", "Valve Standard", valveStdOpts, true)}
+          <div />
         </>)}
 
         {isBall && (<>
@@ -1382,6 +1417,10 @@ export function OnOffValveAttrsForm({
           {sec("Hazardous Area (Optional)")}
           {renderField("area_classification","Area Classification",OO_COMMON_OPTS.area_class)}
           {renderField("certification",      "Certification",      OO_COMMON_OPTS.certification)}
+          {isHazardous && renderField("explosion_protection","Explosion Protection",OO_COMMON_OPTS.explosion_protection, true)}
+          {isHazardous && renderField("gas_group",           "Gas Group",           OO_COMMON_OPTS.gas_group,           true)}
+          {isHazardous && renderField("temperature_class",   "Temperature Class",   OO_COMMON_OPTS.temperature_class,   true)}
+          {isHazardous && <div />}
         </>)}
 
         {hasType && (<>
