@@ -398,25 +398,37 @@ export function PipesAttrsForm({
 // ─────────────────────────────────────────────────────────────────────────────
 const FITTINGS_TYPES = [
   "90° LR Elbow","45° LR Elbow","90° SR Elbow",
-  "Equal Tee","Reducing Tee",
+  "Equal Tee","Reducing Tee","Cross",
   "Concentric Reducer","Eccentric Reducer",
   "End Cap","Stub End","Swage Nipple",
-  "Coupling","Half Coupling","Boss",
+  "Coupling","Half Coupling","Union","Boss",
+  "Barrel Nipple","Pipe Nipple",
 ];
 const FITTINGS_MATERIAL = [
   "A234 WPB","A234 WPC","A234 WP11","A234 WP22",
-  "A403 WP304","A403 WP304L","A403 WP316","A403 WP316L",
+  "A403 WP304","A403 WP304L","A403 WP316","A403 WP316L","A403 WP321","A403 WP347",
   "A860 WPHY 60","Duplex F51","Super Duplex F53",
 ];
-const FITTINGS_END_TYPE = ["Butt Weld (BW)","Socket Weld (SW)","Screwed NPT","Screwed BSP"];
-const FITTINGS_STANDARD = ["ASME B16.9 (BW)","ASME B16.11 (SW/Screwed)","MSS SP-43","IS 1239"];
+const FITTINGS_SCHEDULE  = [
+  "SCH 5","SCH 5S","SCH 10","SCH 10S","SCH 20",
+  "SCH 40","SCH 40S","SCH 80","SCH 80S","SCH 160","XXS","STD","XS",
+];
+const FITTINGS_END_TYPE_FULL    = ["Butt Weld (BW)","Socket Weld (SW)","Screwed NPT","Screwed BSP"];
+const FITTINGS_END_TYPE_LARGE   = ["Butt Weld (BW)"];
+const FITTING_SMALL_BORE_NBS    = new Set(["15NB","20NB","25NB","32NB","40NB","50NB"]);
+function fittingEndTypeOpts(nb: string): string[] {
+  return (!nb || FITTING_SMALL_BORE_NBS.has(nb))
+    ? FITTINGS_END_TYPE_FULL
+    : FITTINGS_END_TYPE_LARGE;
+}
+const FITTINGS_STANDARD = ["ASME B16.9 (BW)","ASME B16.11 (SW/Screwed)","MSS SP-43"];
 const ELBOW_RADIUS_OPTS = ["Long Radius (LR)","Short Radius (SR)"];
 const FITTINGS_ALL_OPTS: Record<string, string[]> = {
   fitting_type:     FITTINGS_TYPES,
   material_grade:   FITTINGS_MATERIAL,
   nominal_bore:     COMMON_NB,
-  schedule:         COMMON_SCHEDULE,
-  end_type:         FITTINGS_END_TYPE,
+  schedule:         FITTINGS_SCHEDULE,
+  end_type:         FITTINGS_END_TYPE_FULL,
   fitting_standard: FITTINGS_STANDARD,
   mtr_required:     YES_NO,
   elbow_radius:     ELBOW_RADIUS_OPTS,
@@ -478,13 +490,14 @@ export function FittingsAttrsForm({
 
   const ftype    = (attrs.fitting_type as string) ?? "";
   const ftLower  = ftype.toLowerCase();
-  const isElbow  = ftLower.includes("elbow");
-  const isReduce = ftLower.includes("reducer") || ftLower.includes("reducing tee");
-  const nb       = (attrs.nominal_bore as string) ?? "";
-  const nbNum    = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "999");
-  const endType  = (attrs.end_type as string) ?? "";
-  const isSW     = endType.includes("Socket Weld") || endType.includes("SW");
-  const stdHint  = nbNum <= 40 && isSW ? "ASME B16.11 (SW/Screwed)" : "ASME B16.9 (BW)";
+  const isLRElbow = ftype === "90° LR Elbow" || ftype === "45° LR Elbow";
+  const isReduce  = ftLower.includes("reducer") || ftype === "Reducing Tee";
+  const nb        = (attrs.nominal_bore as string) ?? "";
+  const nbNum     = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "999");
+  const endType   = (attrs.end_type as string) ?? "";
+  const isSW      = endType.includes("Socket Weld") || endType.includes("SW");
+  const stdHint   = nbNum <= 40 && isSW ? "ASME B16.11 (SW/Screwed)" : "ASME B16.9 (BW)";
+  const endOpts   = fittingEndTypeOpts(nb);
 
   return (
     <div className="space-y-3">
@@ -492,10 +505,10 @@ export function FittingsAttrsForm({
         {rf("fitting_type",   "Fitting Type",   FITTINGS_TYPES,    true)}
         {rf("material_grade", "Material Grade", FITTINGS_MATERIAL, true)}
         {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,         true)}
-        {rf("schedule",       "Schedule",       COMMON_SCHEDULE,   true)}
+        {rf("schedule",       "Schedule",       FITTINGS_SCHEDULE, true)}
       </SectionCard>
       <SectionCard title="Connection & Standards" color="bg-emerald-50/60 border-emerald-200">
-        {rf("end_type", "End Type", FITTINGS_END_TYPE, true)}
+        {rf("end_type", "End Type", endOpts, true)}
         {(() => {
           const curVal = (attrs.fitting_standard as string) ?? "";
           const isCust = custom["fitting_standard"] ?? false;
@@ -512,11 +525,11 @@ export function FittingsAttrsForm({
           );
         })()}
       </SectionCard>
-      {(isElbow || isReduce) && (
+      {(isLRElbow || isReduce) && (
         <SectionCard title="Conditional Details" color="bg-violet-50/60 border-violet-200">
-          {isElbow  && rf("elbow_radius",  "Elbow Radius",      ELBOW_RADIUS_OPTS, true)}
-          {isReduce && rf("reducing_bore", "Reducing Size (NB)", COMMON_NB,        true)}
-          {(isElbow && !isReduce) && <div />}
+          {isLRElbow && rf("elbow_radius",  "Elbow Radius",       ELBOW_RADIUS_OPTS, true)}
+          {isReduce  && rf("reducing_bore", "Reducing Size (NB)", COMMON_NB,         true)}
+          {(isLRElbow && !isReduce) && <div />}
         </SectionCard>
       )}
       <SectionCard title="Quality" color="bg-slate-50/80 border-slate-200">
