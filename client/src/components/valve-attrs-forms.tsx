@@ -2397,8 +2397,8 @@ const NEEDLE_COMMON_OPTS = {
     "3000 PSI (207 bar)","6000 PSI (414 bar)","10000 PSI (689 bar)",
     "PN40","PN64","PN100",
   ],
-  std_general: ["ASME B16.34","BS 5793 Part 2","ISO 4126-1","Manufacturer's Standard"],
-  std_bleed:   ["ASME B16.34","ISO 4126-1","Manufacturer's Standard"],
+  std_general: ["ASME B16.34","BS 5793 Part 2","Manufacturer's Standard"],
+  std_bleed:   ["ASME B16.34","BS 5793 Part 2","Manufacturer's Standard"],
   end_connection: [
     "Double Ferrule (Swagelok / Ham-Let Type)",
     "Single Ferrule (Parker Type)",
@@ -2412,12 +2412,12 @@ const NEEDLE_COMMON_OPTS = {
   body_material: [
     "SS316","SS316L","SS304",
     "Carbon Steel (A105)","Duplex SS (A182 F51)",
-    "Monel 400 (B564)","Hastelloy C-276",
+    "Monel 400 (B564)","Hastelloy C-276","Inconel 625",
   ],
   stem_material: ["SS316","SS316L","17-4 PH SS","Monel 400","Hastelloy C-276"],
-  seat_type:     ["Metal Seat (Integral)","PTFE Soft Seat","Ceramic Seat"],
-  packing:       ["PTFE","Graphite","Viton"],
-  flow_pattern:  ["Straight-Through","Angle (L-Pattern)","T-Pattern (Cross)"],
+  seat_type:     ["Metal Seat (Integral)","PTFE Soft Seat"],
+  packing:       ["PTFE","Graphite","FKM (Viton)"],
+  flow_pattern:  ["Straight-Through","Angle (L-Pattern)"],
   bonnet_type:   ["Packed Bonnet","Welded Bonnet","Capped Bonnet"],
   vent_type:     ["Manual Bleed","Auto Vent","Self-Closing Vent"],
 };
@@ -2464,12 +2464,12 @@ function buildNeedleValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     valve_type: type, makes: [],
     size: '1/2" OD', pressure_rating: "3000 PSI (207 bar)",
-    design_standard: "Manufacturer's Standard",
+    design_standard: "ASME B16.34",
     end_connection: "Double Ferrule (Swagelok / Ham-Let Type)",
     body_material: "SS316", stem_material: "SS316",
     seat_type: "Metal Seat (Integral)", packing: "PTFE",
     flow_pattern: "Straight-Through",
-    bonnet_type: "", vent_type: "",
+    bonnet_type: "Packed Bonnet", vent_type: "",
   };
   switch (type) {
     case "Straight Needle Valve":
@@ -2479,7 +2479,7 @@ function buildNeedleValveDefaults(type: string): Record<string, unknown> {
     case "Multi-Turn Needle Valve":
       return { ...base, design_standard: "BS 5793 Part 2", flow_pattern: "Straight-Through" };
     case "Bleed / Vent Needle Valve":
-      return { ...base, design_standard: "ISO 4126-1",
+      return { ...base, design_standard: "ASME B16.34",
         bonnet_type: "Packed Bonnet", vent_type: "Manual Bleed" };
     default: return base;
   }
