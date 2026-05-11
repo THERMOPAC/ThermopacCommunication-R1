@@ -2518,14 +2518,6 @@ export default function BuyPackagesPage() {
                 </>
               )}
 
-              {/* Process & Design Conditions — valve modes */}
-              {(isIsolationValveMode || isControlValveMode || isSafetyValveMode || isOnOffValveMode) && (
-                <ProcessDesignConditionsBlock
-                  attrs={lf.technicalAttributes}
-                  onChange={(a) => setLf((f) => ({ ...f, technicalAttributes: a }))}
-                />
-              )}
-
               {/* Completeness Warnings */}
               {(() => {
                 const sg = lineDialog.lock?.subgroupCode || selectedSubgroupCode || "";
