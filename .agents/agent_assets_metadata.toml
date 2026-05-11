@@ -300,3 +300,9 @@ id = "9NEUE2Cw_84r44Endu7EZ"
 uri = "file://UOR-PLC-Price-Review.xlsx"
 type = "table"
 title = "UOR-PLC Package Price Review"
+
+[[outputs]]
+id = "sauikHbhfBywHzVqe9I6g"
+uri = "file://docs/item-code-generation-plan-v2.0.md"
+type = "text"
+title = "Item Code Generation Plan v2.0"
