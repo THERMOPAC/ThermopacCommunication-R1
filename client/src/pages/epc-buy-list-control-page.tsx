@@ -1952,12 +1952,15 @@ export default function EpcBuyListControlPage() {
       {/* ── Line Add/Edit Dialog ────────────────────────────────────────────────── */}
       {lineDialog && (
         <Dialog open={lineDialog.open} onOpenChange={() => setLineDialog(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
-              <DialogDescription>Tag, equipment and service fields must be filled before submission.</DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-2">
+          <DialogContent className="max-w-2xl flex flex-col gap-0 p-0 max-h-[90vh] overflow-hidden">
+            <div className="px-6 pt-6 pb-4 border-b shrink-0">
+              <DialogHeader>
+                <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
+                <DialogDescription>Tag, equipment and service fields must be filled before submission.</DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Buy Group <span className="text-red-500">*</span></Label>
                 <Select value={lf.buyGroupId} onValueChange={v => setLf(f => ({ ...f, buyGroupId: v, buySubgroupId: "" }))}>
@@ -2143,13 +2146,16 @@ export default function EpcBuyListControlPage() {
                 <Textarea value={lf.notes} onChange={e => setLf(f => ({ ...f, notes: e.target.value }))} rows={2} />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setLineDialog(null)}>Cancel</Button>
-              <Button onClick={submitLine} disabled={addLine.isPending || patchLine.isPending}>
-                {(addLine.isPending || patchLine.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {lineDialog.editLine ? "Save Changes" : "Add Line"}
-              </Button>
-            </DialogFooter>
+            </div>
+            <div className="px-6 py-4 border-t shrink-0">
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setLineDialog(null)}>Cancel</Button>
+                <Button onClick={submitLine} disabled={addLine.isPending || patchLine.isPending}>
+                  {(addLine.isPending || patchLine.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {lineDialog.editLine ? "Save Changes" : "Add Line"}
+                </Button>
+              </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
       )}
