@@ -318,3 +318,9 @@ id = "g8KXGhSO-CZi74_ECjKrR"
 uri = "file://docs/item-code-generation-plan-v4.0.md"
 type = "text"
 title = "Item Code Generation Plan v4.0"
+
+[[outputs]]
+id = "oLO664mzVTjg6H1UAUdtP"
+uri = "file://docs/item-code-generation-plan-v5.0.md"
+type = "text"
+title = "Item Code Generation Plan v5.0"
