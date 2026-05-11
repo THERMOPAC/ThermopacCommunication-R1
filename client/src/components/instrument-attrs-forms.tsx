@@ -161,10 +161,13 @@ const PRESSURE_PG_OPTS = {
   bourdon_material: ["SS316L", "SS316", "SS304", "Phosphor Bronze", "Hastelloy C-276"],
   window_material:  ["Glass", "Polycarbonate", "Laminated Safety Glass"],
 };
+const SMART_OUTPUT_SIGNALS = ["4–20 mA", "4–20 mA + HART", "Foundation Fieldbus", "PROFIBUS PA", "Modbus RTU", "Modbus TCP", "Profinet", "Ethernet/IP"] as const;
+const TURBINE_OUTPUT_SIGNALS = [...SMART_OUTPUT_SIGNALS, "Pulse"] as const;
+
 const PRESSURE_PT_DPT_OPTS = {
   accuracy_class:   ["0.1%", "0.2%", "0.5%"],
   pt_meas_type:     ["Gauge Pressure", "Absolute Pressure"],
-  output_signal:    ["4–20 mA", "4–20 mA + HART", "Foundation Fieldbus", "PROFIBUS PA"],
+  output_signal:    [...SMART_OUTPUT_SIGNALS],
   power_supply:     ["24V DC (Loop)", "24V DC (Separate)", "110V AC", "230V AC"],
   comm_protocol:    ["HART 5", "HART 7", "Foundation Fieldbus", "PROFIBUS PA"],
   display:          ["Integral LCD", "No Display"],
@@ -800,7 +803,7 @@ export function applyTemperatureDefaults(ta: Record<string, unknown>): Record<st
       connection_size:     '1/2"',
       connection_type:     "NPT",
       head_transmitter:    "No",
-      output_signal:       "mV (TC)",
+      output_signal:       "4–20 mA + HART",
       ...base,
     };
   }
@@ -814,7 +817,7 @@ export function applyTemperatureDefaults(ta: Record<string, unknown>): Record<st
       connection_size:     '1/2"',
       connection_type:     "NPT",
       head_transmitter:    "No",
-      output_signal:       "Resistance (RTD)",
+      output_signal:       "4–20 mA + HART",
       ...base,
     };
   }
@@ -863,7 +866,7 @@ export function TemperatureAttrsForm({
       next.connection_size     = (attrs.connection_size as string) || '1/2"';
       next.connection_type     = (attrs.connection_type as string) || "NPT";
       next.head_transmitter    = (attrs.head_transmitter as string) || "No";
-      next.output_signal       = (attrs.output_signal   as string) || "mV (TC)";
+      next.output_signal       = (attrs.output_signal   as string) || "4–20 mA + HART";
     } else if (val === "RTD") {
       next.tc_type = ""; next.thermistor_type = "";
       next.rtd_type            = (attrs.rtd_type      as string) || "PT100";
@@ -874,7 +877,7 @@ export function TemperatureAttrsForm({
       next.connection_size     = (attrs.connection_size as string) || '1/2"';
       next.connection_type     = (attrs.connection_type as string) || "NPT";
       next.head_transmitter    = (attrs.head_transmitter as string) || "No";
-      next.output_signal       = (attrs.output_signal   as string) || "Resistance (RTD)";
+      next.output_signal       = (attrs.output_signal   as string) || "4–20 mA + HART";
     } else if (val === "Thermistor") {
       next.tc_type = ""; next.rtd_type = "";
       next.probe_diameter = (attrs.probe_diameter as string) || "6 mm";
@@ -1005,10 +1008,9 @@ export function TemperatureAttrsForm({
         {(isTC || isRTD) && (<>
           {sec("Transmitter")}
           {ss("head_transmitter","Head Mounted Transmitter",["No","Yes"], false, "No")}
-          {ss("output_signal","Output Signal",
-            isTC ? ["mV (TC)","4–20 mA","4–20 mA / HART"] : ["Resistance (RTD)","4–20 mA","4–20 mA / HART"],
-            headXmtr,
-            isTC ? "mV (TC)" : "Resistance (RTD)")}
+          {headXmtr
+            ? ss("output_signal","Output Signal",[...SMART_OUTPUT_SIGNALS], true, "4–20 mA + HART")
+            : <div />}
         </>)}
 
         {hasType && (<>
@@ -1073,7 +1075,7 @@ const FLOW_OPTS: Record<string, string[]> = {
   instrument_type:      ["Electromagnetic Flowmeter", "Vortex Flowmeter", "Turbine Flowmeter", "Orifice / DP Flowmeter", "Ultrasonic Flowmeter", "Coriolis Flowmeter", "Rotameter"],
   line_size:            ["15 NB", "25 NB", "40 NB", "50 NB", "80 NB", "100 NB", "150 NB", "200 NB", "250 NB", "300 NB"],
   process_fluid:        ["Water", "Oil", "Chemical", "Steam", "Gas", "Slurry", "Acid", "Alkali"],
-  output_signal:        ["4–20 mA", "HART", "4–20 mA / HART", "Pulse", "RS485", "Modbus RTU"],
+  output_signal:        [...SMART_OUTPUT_SIGNALS, "Pulse"],
   liner_material:       ["PTFE", "Hard Rubber", "PFA", "SS316", "Carbon Steel", "PP"],
   end_connection:       ["Flanged", "Wafer", "Clamp", "Inline"],
   pressure_rating:      ["PN10", "PN16", "PN25", "PN40", "Class 150", "Class 300"],
@@ -1138,7 +1140,11 @@ export function FlowAttrsForm({
     );
   }
 
-  const areaClass = (attrs.area_classification as string) ?? "";
+  const areaClass     = (attrs.area_classification as string) ?? "";
+  const instrType     = (attrs.instrument_type    as string) ?? "";
+  const isRotameter   = instrType === "Rotameter";
+  const isTurbine     = instrType === "Turbine Flowmeter";
+  const hasFlowSignal = instrType !== "" && !isRotameter;
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
@@ -1150,7 +1156,17 @@ export function FlowAttrsForm({
         {renderField("line_size",    "Line Size (NB)", true)}
         {renderField("process_fluid","Process Fluid")}
         {sec("Signal & Material")}
-        {renderField("output_signal",   "Output Signal")}
+        {hasFlowSignal ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Output Signal <span className="text-red-500">*</span></Label>
+            <Select value={(attrs.output_signal as string) || "4–20 mA + HART"} onValueChange={v => set("output_signal", v)}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(isTurbine ? [...TURBINE_OUTPUT_SIGNALS] : [...SMART_OUTPUT_SIGNALS]).map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : <div />}
         {renderField("liner_material",  "Liner / Body Material")}
         {sec("Connection")}
         {renderField("end_connection",  "End Connection")}
@@ -1208,7 +1224,7 @@ export function buildLevelRequirement(attrs: Record<string, unknown>): string {
 const LEVEL_OPTS: Record<string, string[]> = {
   instrument_type:      ["Radar Level Transmitter (LT)", "Guided Wave Radar (GWR)", "DP Level Transmitter", "Ultrasonic Level Transmitter", "Float Level Switch (LS)", "Displacer Level Transmitter", "Level Gauge (Glass)", "Magnetostrictive Level Transmitter"],
   range_unit:           ["m", "mm", "ft", "%"],
-  output_signal:        ["4–20 mA", "HART", "4–20 mA / HART", "SPDT Contact", "Modbus RTU"],
+  output_signal:        [...SMART_OUTPUT_SIGNALS],
   connection_size:      ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""],
   connection_type:      ["Flanged", "Threaded (NPT)", "Threaded (BSP)"],
   wetted_material:      ["SS316", "SS304", "CS", "PP", "PVC", "PTFE", "Hastelloy C"],
@@ -1274,7 +1290,10 @@ export function LevelAttrsForm({
     );
   }
 
-  const areaClass = (attrs.area_classification as string) ?? "";
+  const areaClass       = (attrs.area_classification as string) ?? "";
+  const instrType       = (attrs.instrument_type    as string) ?? "";
+  const isLevelNoSignal = instrType.includes("Switch") || instrType.includes("Gauge");
+  const hasLevelSignal  = instrType !== "" && !isLevelNoSignal;
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
@@ -1294,9 +1313,20 @@ export function LevelAttrsForm({
             onChange={(e) => set("range_max", e.target.value)} />
         </div>
         <div className="col-span-2">{renderField("range_unit", "Range Unit")}</div>
-        {sec("Output Signal")}
-        {renderField("output_signal", "Output Signal")}
-        <div />
+        {hasLevelSignal && (<>
+          {sec("Output Signal")}
+          <div className="col-span-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Output Signal <span className="text-red-500">*</span></Label>
+              <Select value={(attrs.output_signal as string) || "4–20 mA + HART"} onValueChange={v => set("output_signal", v)}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[...SMART_OUTPUT_SIGNALS].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </>)}
         {sec("Process Connection")}
         {renderField("connection_size", "Connection Size")}
         {renderField("connection_type", "Connection Type")}
