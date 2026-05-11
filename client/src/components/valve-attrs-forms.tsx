@@ -1984,3 +1984,693 @@ export function IsolationValveAttrsForm({
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NRV (NON-RETURN / CHECK VALVE)
+// ─────────────────────────────────────────────────────────────────────────────
+const NRV_VALVE_TYPES = [
+  "Swing Check Valve","Lift Check Valve","Dual Plate (Wafer) Check Valve",
+  "Ball Check Valve","Tilting Disc Check Valve","Piston Check Valve","Foot Valve",
+];
+
+const NRV_COMMON_OPTS = {
+  size_nb:             ["15 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB","450 NB","500 NB","600 NB"],
+  pressure_rating_std: ["Class 150","Class 300","Class 600","Class 900","Class 1500"],
+  pressure_rating_pn:  ["PN6","PN10","PN16","PN25","PN40","PN64","PN100","PN160"],
+  end_connection:      ["Flanged","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type","Grooved"],
+  end_conn_dual:       ["Wafer","Lug Type","Flanged"],
+  body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","SS316L","CF8","CF8M","Duplex SS","CI (Cast Iron)","Ductile Iron","Bronze","Hastelloy C"],
+  disc_material:       ["WCB (CS)","SS304","SS316","SS316L","Duplex SS","Bronze","Hardened Steel","Stellite Faced","NBR","EPDM"],
+  seat_material:       ["Soft Seat (NBR)","Soft Seat (EPDM)","Soft Seat (PTFE)","Metal Seat (SS316)","Stellite"],
+  spring:              ["Spring Assisted","No Spring"],
+  spring_material:     ["SS316","Inconel","Hastelloy C"],
+  hinge_pin_material:  ["SS316","Duplex SS","Monel","Bronze"],
+  yes_no:              ["Yes","No"],
+  piston_material:     ["SS316","PTFE Coated","Teflon Coated"],
+  ball_material:       ["SS316","PTFE Coated","Rubber Coated","Buna-N"],
+  disc_tilt_material:  ["WCB (CS)","SS316","Duplex SS","Stellite Faced"],
+  face_to_face:        ["API 594","ASME B16.10","EN 558-1"],
+  strainer:            ["Integral","Separate","None"],
+  foot_seat_material:  ["Rubber","Brass","SS316"],
+  std_swing:    ["API 594","API 6D","ASME B16.34","EN 12334","BS 5153","ISO 5208"],
+  std_lift:     ["API 594","ASME B16.34","EN 12334","BS 5153","ISO 5208"],
+  std_dual:     ["API 594","ASME B16.34","EN 12334","ISO 5208"],
+  std_ball:     ["API 6D","ASME B16.34","ISO 5208"],
+  std_tilting:  ["API 594","ASME B16.34","EN 12334","ISO 5208"],
+  std_piston:   ["API 594","ASME B16.34","EN 12334","ISO 5208"],
+  std_foot:     ["IS 4038","BS 5153","ASME B16.34","ISO 5208"],
+};
+
+const NRV_ALL_DESIGN_STDS = [
+  ...NRV_COMMON_OPTS.std_swing, ...NRV_COMMON_OPTS.std_lift,
+  ...NRV_COMMON_OPTS.std_dual,  ...NRV_COMMON_OPTS.std_ball,
+  ...NRV_COMMON_OPTS.std_tilting,...NRV_COMMON_OPTS.std_piston,
+  ...NRV_COMMON_OPTS.std_foot,
+].filter((v, i, a) => a.indexOf(v) === i);
+
+const NRV_ALL_FIELD_OPTS: Record<string, string[]> = {
+  size_nb:              NRV_COMMON_OPTS.size_nb,
+  pressure_rating:      [...NRV_COMMON_OPTS.pressure_rating_std, ...NRV_COMMON_OPTS.pressure_rating_pn],
+  end_connection:       [...NRV_COMMON_OPTS.end_connection, ...NRV_COMMON_OPTS.end_conn_dual].filter((v,i,a)=>a.indexOf(v)===i),
+  body_material:        NRV_COMMON_OPTS.body_material,
+  disc_material:        NRV_COMMON_OPTS.disc_material,
+  seat_material:        NRV_COMMON_OPTS.seat_material,
+  design_standard:      NRV_ALL_DESIGN_STDS,
+  spring:               NRV_COMMON_OPTS.spring,
+  spring_material:      NRV_COMMON_OPTS.spring_material,
+  hinge_pin_material:   NRV_COMMON_OPTS.hinge_pin_material,
+  renewable_seat:       NRV_COMMON_OPTS.yes_no,
+  guided:               NRV_COMMON_OPTS.yes_no,
+  dual_spring_material: NRV_COMMON_OPTS.spring_material,
+  face_to_face_std:     NRV_COMMON_OPTS.face_to_face,
+  piston_material:      NRV_COMMON_OPTS.piston_material,
+  dashpot:              NRV_COMMON_OPTS.yes_no,
+  disc_tilt_material:   NRV_COMMON_OPTS.disc_tilt_material,
+  counterweight:        NRV_COMMON_OPTS.yes_no,
+  ball_material:        NRV_COMMON_OPTS.ball_material,
+  strainer:             NRV_COMMON_OPTS.strainer,
+  foot_seat_material:   NRV_COMMON_OPTS.foot_seat_material,
+};
+
+const NRV_VALVE_MAKES = [
+  "Abacus Valves","Audco (L&T)","AVK","Bonney Forge","Crane",
+  "DFT Inc.","Flowserve","KSB","Neway (Adler)","Velan",
+];
+
+export function buildNrvValveRequirement(attrs: Record<string, unknown>): string {
+  const type    = (attrs.valve_type as string)?.trim() || "";
+  const sizeNb  = (attrs.size_nb as string)?.trim() || "";
+  const pr      = (attrs.pressure_rating as string)?.trim() || "";
+  const bodyMat = (attrs.body_material as string)?.trim() || "";
+  const endConn = (attrs.end_connection as string)?.trim() || "";
+  const std     = (attrs.design_standard as string)?.trim() || "";
+  const parts: string[] = [];
+  if (type)    parts.push(type);
+  if (sizeNb)  parts.push(sizeNb);
+  if (pr)      parts.push(pr);
+  if (bodyMat) parts.push(`${bodyMat} Body`);
+  if (endConn) parts.push(endConn);
+  if (std)     parts.push(std);
+  return parts.join(", ");
+}
+
+function buildNrvValveDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    valve_type: type, makes: [],
+    size_nb: "50 NB", pressure_rating: "", end_connection: "Flanged",
+    body_material: "WCB (CS)", disc_material: "SS316", seat_material: "Metal Seat (SS316)",
+    design_standard: "",
+    spring: "", spring_material: "",
+    hinge_pin_material: "", renewable_seat: "",
+    guided: "",
+    dual_spring_material: "", face_to_face_std: "",
+    piston_material: "", dashpot: "",
+    disc_tilt_material: "", counterweight: "",
+    ball_material: "",
+    strainer: "", foot_seat_material: "",
+  };
+  switch (type) {
+    case "Swing Check Valve":
+      return { ...base, pressure_rating: "Class 150", design_standard: "API 594",
+        spring: "Spring Assisted", spring_material: "SS316" };
+    case "Lift Check Valve":
+      return { ...base, pressure_rating: "Class 150", design_standard: "API 594",
+        spring: "Spring Assisted", spring_material: "SS316" };
+    case "Dual Plate (Wafer) Check Valve":
+      return { ...base, pressure_rating: "PN16", end_connection: "Wafer",
+        body_material: "CI (Cast Iron)", design_standard: "API 594",
+        dual_spring_material: "SS316", face_to_face_std: "API 594" };
+    case "Ball Check Valve":
+      return { ...base, pressure_rating: "Class 150", design_standard: "API 6D",
+        ball_material: "SS316" };
+    case "Tilting Disc Check Valve":
+      return { ...base, pressure_rating: "Class 150", design_standard: "API 594",
+        spring: "Spring Assisted", spring_material: "SS316",
+        disc_tilt_material: "SS316" };
+    case "Piston Check Valve":
+      return { ...base, pressure_rating: "Class 150", design_standard: "API 594",
+        spring: "Spring Assisted", spring_material: "SS316",
+        piston_material: "SS316", dashpot: "No" };
+    case "Foot Valve":
+      return { ...base, pressure_rating: "Class 150",
+        body_material: "CI (Cast Iron)", design_standard: "IS 4038",
+        strainer: "Integral", foot_seat_material: "Rubber" };
+    default: return base;
+  }
+}
+
+export function NrvValveAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty?: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange?: (q: string) => void;
+}) {
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(NRV_ALL_FIELD_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
+
+  function handleTypeChange(type: string) {
+    const defaults = buildNrvValveDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(NRV_ALL_FIELD_OPTS)) {
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+  }
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      onChange({ ...attrs, [key]: "" });
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      onChange({ ...attrs, [key]: val });
+    }
+  }
+
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
+          onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  function addMake(make: string) {
+    if (!make.trim() || makes.includes(make.trim())) return;
+    const next = [...makes, make.trim()];
+    setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) {
+    const next = makes.filter((x) => x !== m);
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+
+  const valveType  = (attrs.valve_type as string) ?? "";
+  const isSwing    = valveType === "Swing Check Valve";
+  const isLift     = valveType === "Lift Check Valve";
+  const isDual     = valveType === "Dual Plate (Wafer) Check Valve";
+  const isBallChk  = valveType === "Ball Check Valve";
+  const isTilting  = valveType === "Tilting Disc Check Valve";
+  const isPiston   = valveType === "Piston Check Valve";
+  const isFoot     = valveType === "Foot Valve";
+  const hasType    = isSwing || isLift || isDual || isBallChk || isTilting || isPiston || isFoot;
+
+  const hasSpringToggle  = isSwing || isLift || isTilting || isPiston;
+  const springVal        = (attrs.spring as string) ?? "";
+  const isSpringAssisted = springVal === "Spring Assisted";
+
+  const stdOpts = isSwing   ? NRV_COMMON_OPTS.std_swing
+    : isLift    ? NRV_COMMON_OPTS.std_lift
+    : isDual    ? NRV_COMMON_OPTS.std_dual
+    : isBallChk ? NRV_COMMON_OPTS.std_ball
+    : isTilting ? NRV_COMMON_OPTS.std_tilting
+    : isPiston  ? NRV_COMMON_OPTS.std_piston
+    : isFoot    ? NRV_COMMON_OPTS.std_foot
+    : [];
+
+  const filteredMakes = NRV_VALVE_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
+  );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Non-Return Valve Specifications</p>
+      <div className="grid grid-cols-2 gap-3" data-nrv-grid>
+        {sec("Valve Type")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect
+            value={NRV_VALVE_TYPES.includes(valveType) ? valveType : ""}
+            options={NRV_VALVE_TYPES} placeholder="Select valve type first…"
+            onSelect={(v) => handleTypeChange(v)}
+          />
+        </div>
+
+        {!hasType && (
+          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+            Select a valve type above to configure specifications
+          </div>
+        )}
+
+        {hasType && (<>
+          {sec("Size & Pressure Rating")}
+          {renderField("size_nb",         "Size (NB)",       NRV_COMMON_OPTS.size_nb, true)}
+          {renderField("pressure_rating", "Pressure Rating",
+            isDual ? NRV_COMMON_OPTS.pressure_rating_pn : NRV_COMMON_OPTS.pressure_rating_std, true)}
+
+          {sec("Design Standard")}
+          {renderField("design_standard", "Design Standard", stdOpts, true)}
+          <div />
+
+          {sec("Connection & Material")}
+          {renderField("end_connection", "End Connection",
+            isDual ? NRV_COMMON_OPTS.end_conn_dual : NRV_COMMON_OPTS.end_connection, true)}
+          {renderField("body_material",  "Body Material",           NRV_COMMON_OPTS.body_material,  true)}
+          {renderField("disc_material",  "Disc / Closure Material", NRV_COMMON_OPTS.disc_material,  true)}
+          {renderField("seat_material",  "Seat Material",           NRV_COMMON_OPTS.seat_material)}
+        </>)}
+
+        {isSwing && (<>
+          {sec("Swing Check Configuration")}
+          {renderField("hinge_pin_material","Hinge / Pin Material",NRV_COMMON_OPTS.hinge_pin_material)}
+          {renderField("renewable_seat",    "Renewable Seat",      NRV_COMMON_OPTS.yes_no)}
+        </>)}
+
+        {isLift && (<>
+          {sec("Lift Check Configuration")}
+          {renderField("guided","Guided",NRV_COMMON_OPTS.yes_no)}
+          <div />
+        </>)}
+
+        {isDual && (<>
+          {sec("Dual Plate Configuration")}
+          {renderField("dual_spring_material","Spring Material",  NRV_COMMON_OPTS.spring_material, true)}
+          {renderField("face_to_face_std",    "Face-to-Face Std", NRV_COMMON_OPTS.face_to_face)}
+        </>)}
+
+        {isTilting && (<>
+          {sec("Tilting Disc Configuration")}
+          {renderField("disc_tilt_material","Disc Material", NRV_COMMON_OPTS.disc_tilt_material)}
+          {renderField("counterweight",     "Counterweight", NRV_COMMON_OPTS.yes_no)}
+        </>)}
+
+        {isPiston && (<>
+          {sec("Piston Check Configuration")}
+          {renderField("piston_material","Piston Material",    NRV_COMMON_OPTS.piston_material)}
+          {renderField("dashpot",        "Dashpot / Dampener", NRV_COMMON_OPTS.yes_no)}
+        </>)}
+
+        {isBallChk && (<>
+          {sec("Ball Check Configuration")}
+          {renderField("ball_material","Ball Material",NRV_COMMON_OPTS.ball_material)}
+          <div />
+        </>)}
+
+        {isFoot && (<>
+          {sec("Foot Valve Configuration")}
+          {renderField("strainer",          "Strainer",     NRV_COMMON_OPTS.strainer,         true)}
+          {renderField("foot_seat_material","Seat Material",NRV_COMMON_OPTS.foot_seat_material)}
+        </>)}
+
+        {hasSpringToggle && (<>
+          {sec("Spring")}
+          {renderField("spring","Spring",NRV_COMMON_OPTS.spring)}
+          {isSpringAssisted
+            ? renderField("spring_material","Spring Material",NRV_COMMON_OPTS.spring_material)
+            : <div />}
+        </>)}
+
+        {hasType && (<>
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
+                onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch.trim()); }} />
+              <Button type="button" size="sm" className="h-8"
+                onClick={() => { if (makeSearch.trim()) addMake(makeSearch.trim()); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button"
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted"
+                    onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)}
+                      className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {qty !== undefined && (
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" type="number" min="1" step="1"
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEEDLE VALVE FORM
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NEEDLE_VALVE_TYPES = [
+  "Straight Needle Valve",
+  "Angle Needle Valve (L-Pattern)",
+  "Multi-Turn Needle Valve",
+  "Bleed / Vent Needle Valve",
+];
+
+const NEEDLE_COMMON_OPTS = {
+  size: [
+    '1/4" OD','3/8" OD','1/2" OD','3/4" OD','1" OD',
+    "8 NB (DN8)","10 NB (DN10)","15 NB (DN15)","20 NB (DN20)","25 NB (DN25)",
+  ],
+  pressure_rating: [
+    "Class 300","Class 600","Class 900","Class 1500",
+    "3000 PSI (207 bar)","6000 PSI (414 bar)","10000 PSI (689 bar)",
+    "PN40","PN64","PN100",
+  ],
+  std_general: ["ASME B16.34","BS 5793 Part 2","ISO 4126-1","Manufacturer's Standard"],
+  std_bleed:   ["ASME B16.34","ISO 4126-1","Manufacturer's Standard"],
+  end_connection: [
+    "Double Ferrule (Swagelok / Ham-Let Type)",
+    "Single Ferrule (Parker Type)",
+    "NPT (F) - Female Threaded",
+    "NPT (M) - Male Threaded",
+    "SW (Socket Weld)",
+    "BW (Butt Weld)",
+    "Compression Fitting",
+    "Flanged (ASME B16.5)",
+  ],
+  body_material: [
+    "SS316","SS316L","SS304",
+    "Carbon Steel (A105)","Duplex SS (A182 F51)",
+    "Monel 400 (B564)","Hastelloy C-276",
+  ],
+  stem_material: ["SS316","SS316L","17-4 PH SS","Monel 400","Hastelloy C-276"],
+  seat_type:     ["Metal Seat (Integral)","PTFE Soft Seat","Ceramic Seat"],
+  packing:       ["PTFE","Graphite","Viton"],
+  flow_pattern:  ["Straight-Through","Angle (L-Pattern)","T-Pattern (Cross)"],
+  bonnet_type:   ["Packed Bonnet","Welded Bonnet","Capped Bonnet"],
+  vent_type:     ["Manual Bleed","Auto Vent","Self-Closing Vent"],
+};
+
+const NEEDLE_ALL_DESIGN_STDS = [
+  ...NEEDLE_COMMON_OPTS.std_general,
+  ...NEEDLE_COMMON_OPTS.std_bleed,
+].filter((v, i, a) => a.indexOf(v) === i);
+
+const NEEDLE_ALL_FIELD_OPTS: Record<string, string[]> = {
+  size:            NEEDLE_COMMON_OPTS.size,
+  pressure_rating: NEEDLE_COMMON_OPTS.pressure_rating,
+  design_standard: NEEDLE_ALL_DESIGN_STDS,
+  end_connection:  NEEDLE_COMMON_OPTS.end_connection,
+  body_material:   NEEDLE_COMMON_OPTS.body_material,
+  stem_material:   NEEDLE_COMMON_OPTS.stem_material,
+  seat_type:       NEEDLE_COMMON_OPTS.seat_type,
+  packing:         NEEDLE_COMMON_OPTS.packing,
+  flow_pattern:    NEEDLE_COMMON_OPTS.flow_pattern,
+  bonnet_type:     NEEDLE_COMMON_OPTS.bonnet_type,
+  vent_type:       NEEDLE_COMMON_OPTS.vent_type,
+};
+
+const NEEDLE_VALVE_MAKES = [
+  "Autoclave Engineers","Ham-Let","Hoke","Oliver Valves","Parker","Swagelok","WIKA",
+];
+
+export function buildNeedleValveRequirement(attrs: Record<string, unknown>): string {
+  const type    = (attrs.valve_type as string)?.trim() || "";
+  const size    = (attrs.size       as string)?.trim() || "";
+  const pr      = (attrs.pressure_rating as string)?.trim() || "";
+  const bodyMat = (attrs.body_material   as string)?.trim() || "";
+  const endConn = (attrs.end_connection  as string)?.trim() || "";
+  const parts: string[] = [];
+  if (type)    parts.push(type);
+  if (size)    parts.push(size);
+  if (pr)      parts.push(pr);
+  if (bodyMat) parts.push(`${bodyMat} Body`);
+  if (endConn) parts.push(endConn);
+  return parts.join(", ");
+}
+
+function buildNeedleValveDefaults(type: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    valve_type: type, makes: [],
+    size: '1/2" OD', pressure_rating: "3000 PSI (207 bar)",
+    design_standard: "Manufacturer's Standard",
+    end_connection: "Double Ferrule (Swagelok / Ham-Let Type)",
+    body_material: "SS316", stem_material: "SS316",
+    seat_type: "Metal Seat (Integral)", packing: "PTFE",
+    flow_pattern: "Straight-Through",
+    bonnet_type: "", vent_type: "",
+  };
+  switch (type) {
+    case "Straight Needle Valve":
+      return { ...base, design_standard: "ASME B16.34", flow_pattern: "Straight-Through" };
+    case "Angle Needle Valve (L-Pattern)":
+      return { ...base, design_standard: "ASME B16.34", flow_pattern: "Angle (L-Pattern)" };
+    case "Multi-Turn Needle Valve":
+      return { ...base, design_standard: "BS 5793 Part 2", flow_pattern: "Straight-Through" };
+    case "Bleed / Vent Needle Valve":
+      return { ...base, design_standard: "ISO 4126-1",
+        bonnet_type: "Packed Bonnet", vent_type: "Manual Bleed" };
+    default: return base;
+  }
+}
+
+export function NeedleValveAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty?: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange?: (q: string) => void;
+}) {
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(NEEDLE_ALL_FIELD_OPTS)) {
+      const val = (attrs[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    return c;
+  });
+  const [makeSearch, setMakeSearch] = useState("");
+  const [makes, setMakes] = useState<string[]>(() => {
+    const m = attrs.makes;
+    return Array.isArray(m) ? (m as string[]) : [];
+  });
+
+  function handleTypeChange(type: string) {
+    const defaults = buildNeedleValveDefaults(type);
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(NEEDLE_ALL_FIELD_OPTS)) {
+      const val = (defaults[key] as string) ?? "";
+      c[key] = val !== "" && !opts.includes(val);
+    }
+    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+  }
+
+  function handleSelect(key: string, val: string) {
+    if (val === "__other__") {
+      setCustom((c) => ({ ...c, [key]: true }));
+      onChange({ ...attrs, [key]: "" });
+    } else {
+      setCustom((c) => ({ ...c, [key]: false }));
+      onChange({ ...attrs, [key]: val });
+    }
+  }
+
+  function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
+
+  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+    const curVal    = (attrs[key] as string) ?? "";
+    const isCustom  = custom[key] ?? false;
+    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selectVal} options={opts} placeholder="Select..."
+          onSelect={(v) => handleSelect(key, v)} />
+        {isCustom && (
+          <Input className="h-8 text-sm" placeholder="Enter custom value..." value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  function sec(label: string) {
+    return (
+      <div className="col-span-2 mt-1 pb-0.5 border-b">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+    );
+  }
+
+  function addMake(make: string) {
+    if (!make.trim() || makes.includes(make.trim())) return;
+    const next = [...makes, make.trim()];
+    setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
+  }
+  function removeMake(m: string) {
+    const next = makes.filter((x) => x !== m);
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+  function moveMake(i: number, dir: -1 | 1) {
+    const next = [...makes]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setMakes(next); onChange({ ...attrs, makes: next });
+  }
+
+  const valveType = (attrs.valve_type as string) ?? "";
+  const isBleed   = valveType === "Bleed / Vent Needle Valve";
+  const hasType   = NEEDLE_VALVE_TYPES.includes(valveType);
+  const stdOpts   = isBleed ? NEEDLE_COMMON_OPTS.std_bleed : NEEDLE_COMMON_OPTS.std_general;
+
+  const filteredMakes = NEEDLE_VALVE_MAKES.filter(
+    (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
+  );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Needle Valve Specifications</p>
+      <div className="grid grid-cols-2 gap-3">
+        {sec("Valve Type")}
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect value={valveType} options={NEEDLE_VALVE_TYPES} placeholder="Select valve type..."
+            onSelect={handleTypeChange} />
+        </div>
+
+        {hasType && (<>
+          {sec("Size & Pressure Rating")}
+          {renderField("size",            "Size / Tube OD",   NEEDLE_COMMON_OPTS.size,            true)}
+          {renderField("pressure_rating", "Pressure Rating",  NEEDLE_COMMON_OPTS.pressure_rating, true)}
+
+          {sec("Design Standard")}
+          {renderField("design_standard", "Design Standard",  stdOpts, true)}
+          <div />
+
+          {sec("End Connection & Body")}
+          {renderField("end_connection",  "End Connection",   NEEDLE_COMMON_OPTS.end_connection,  true)}
+          {renderField("body_material",   "Body Material",    NEEDLE_COMMON_OPTS.body_material,   true)}
+
+          {sec("Trim & Internals")}
+          {renderField("stem_material",   "Stem Material",    NEEDLE_COMMON_OPTS.stem_material,   true)}
+          {renderField("seat_type",       "Seat Type",        NEEDLE_COMMON_OPTS.seat_type,       true)}
+          {renderField("packing",         "Packing Material", NEEDLE_COMMON_OPTS.packing,         true)}
+          {renderField("flow_pattern",    "Flow Pattern",     NEEDLE_COMMON_OPTS.flow_pattern)}
+
+          {sec("Bonnet")}
+          {renderField("bonnet_type", "Bonnet Type", NEEDLE_COMMON_OPTS.bonnet_type)}
+          <div />
+
+          {isBleed && (<>
+            {sec("Bleed / Vent Configuration")}
+            {renderField("vent_type", "Vent Type", NEEDLE_COMMON_OPTS.vent_type, true)}
+            <div />
+          </>)}
+
+          <div className="col-span-2 mt-1 pb-0.5 border-b">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <div className="flex gap-2">
+              <Input className="h-8 text-sm flex-1" placeholder="Search or type make..." value={makeSearch}
+                onChange={(e) => setMakeSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && makeSearch.trim()) addMake(makeSearch.trim()); }} />
+              <Button type="button" size="sm" className="h-8"
+                onClick={() => { if (makeSearch.trim()) addMake(makeSearch.trim()); }}>Add</Button>
+            </div>
+            {makeSearch && filteredMakes.length > 0 && (
+              <div className="rounded-md border bg-background shadow-sm max-h-32 overflow-y-auto">
+                {filteredMakes.map((m) => (
+                  <button key={m} type="button"
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-muted"
+                    onClick={() => addMake(m)}>{m}</button>
+                ))}
+              </div>
+            )}
+            {makes.length > 0 && (
+              <div className="space-y-1">
+                {makes.map((m, i) => (
+                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
+                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
+                    <span className="flex-1 text-xs">{m}</span>
+                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronUp className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ChevronDown className="h-3 w-3" /></button>
+                    <button type="button" onClick={() => removeMake(m)}
+                      className="text-muted-foreground hover:text-destructive">
+                      <X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {qty !== undefined && (
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" type="number" min="1" step="1"
+              value={qty}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -75,8 +75,10 @@ import {
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
+  NrvValveAttrsForm, NeedleValveAttrsForm,
   buildControlValveRequirement, buildSafetyValveRequirement,
   buildOnOffValveRequirement, buildIsolationValveRequirement,
+  buildNrvValveRequirement, buildNeedleValveRequirement,
 } from "@/components/valve-attrs-forms";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -573,6 +575,12 @@ export default function BuyPackagesPage() {
   const isOnOffValveMode =
     (lineDialog.lock?.subgroupCode === "on_off") ||
     (selectedGroupCode === "valves" && selectedSubgroupCode === "on_off");
+  const isNrvValveMode =
+    (lineDialog.lock?.subgroupCode === "nrv") ||
+    (selectedGroupCode === "valves" && selectedSubgroupCode === "nrv");
+  const isNeedleValveMode =
+    (lineDialog.lock?.subgroupCode === "needle") ||
+    (selectedGroupCode === "valves" && selectedSubgroupCode === "needle");
   const isBoughtOutMode =
     (lineDialog.lock?.subgroupCode === "general" && lineDialog.lock?.groupCode === "bought_out_packages") ||
     (selectedGroupCode === "bought_out_packages" && selectedSubgroupCode === "general");
@@ -1336,6 +1344,69 @@ export default function BuyPackagesPage() {
           { toast({ title: "Diaphragm Material is required", variant: "destructive" }); return; }
         if (!(ta.body_design as string)?.trim())
           { toast({ title: "Body Design is required for Diaphragm Valve", variant: "destructive" }); return; }
+      }
+    } else if (isNeedleValveMode) {
+      const ta         = lf.technicalAttributes;
+      const needleType = ((ta.valve_type as string) ?? "").trim();
+      if (!needleType) {
+        toast({ title: "Valve Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.size as string)?.trim()) {
+        toast({ title: "Size / Tube OD is required", variant: "destructive" }); return;
+      }
+      if (!(ta.pressure_rating as string)?.trim()) {
+        toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
+      }
+      if (!(ta.design_standard as string)?.trim()) {
+        toast({ title: "Design Standard is required", variant: "destructive" }); return;
+      }
+      if (!(ta.end_connection as string)?.trim()) {
+        toast({ title: "End Connection is required", variant: "destructive" }); return;
+      }
+      if (!(ta.body_material as string)?.trim()) {
+        toast({ title: "Body Material is required", variant: "destructive" }); return;
+      }
+      if (!(ta.stem_material as string)?.trim()) {
+        toast({ title: "Stem Material is required", variant: "destructive" }); return;
+      }
+      if (!(ta.seat_type as string)?.trim()) {
+        toast({ title: "Seat Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.packing as string)?.trim()) {
+        toast({ title: "Packing Material is required", variant: "destructive" }); return;
+      }
+      if (needleType === "Bleed / Vent Needle Valve" && !(ta.vent_type as string)?.trim()) {
+        toast({ title: "Vent Type is required for Bleed / Vent Needle Valve", variant: "destructive" }); return;
+      }
+    } else if (isNrvValveMode) {
+      const ta      = lf.technicalAttributes;
+      const nrvType = ((ta.valve_type as string) ?? "").trim();
+      if (!nrvType) {
+        toast({ title: "Valve Type is required", variant: "destructive" }); return;
+      }
+      if (!(ta.size_nb as string)?.trim()) {
+        toast({ title: "Size (NB) is required", variant: "destructive" }); return;
+      }
+      if (!(ta.pressure_rating as string)?.trim()) {
+        toast({ title: "Pressure Rating is required", variant: "destructive" }); return;
+      }
+      if (!(ta.design_standard as string)?.trim()) {
+        toast({ title: "Design Standard is required", variant: "destructive" }); return;
+      }
+      if (!(ta.end_connection as string)?.trim()) {
+        toast({ title: "End Connection is required", variant: "destructive" }); return;
+      }
+      if (!(ta.body_material as string)?.trim()) {
+        toast({ title: "Body Material is required", variant: "destructive" }); return;
+      }
+      if (!(ta.disc_material as string)?.trim()) {
+        toast({ title: "Disc / Closure Material is required", variant: "destructive" }); return;
+      }
+      if (nrvType === "Dual Plate (Wafer) Check Valve" && !(ta.dual_spring_material as string)?.trim()) {
+        toast({ title: "Spring Material is required for Dual Plate Check Valve", variant: "destructive" }); return;
+      }
+      if (nrvType === "Foot Valve" && !(ta.strainer as string)?.trim()) {
+        toast({ title: "Strainer is required for Foot Valve", variant: "destructive" }); return;
       }
     } else if (isBoughtOutMode) {
       const ta = lf.technicalAttributes;
@@ -2461,6 +2532,44 @@ export default function BuyPackagesPage() {
                     </Label>
                     <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
                       value={lf.genericRequirement || "Select Valve Type, Size and Actuation to generate…"} />
+                  </div>
+                </>
+              ) : isNrvValveMode ? (
+                <>
+                  <NrvValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildNrvValveRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Select Valve Type, Size and Rating to generate…"} />
+                  </div>
+                </>
+              ) : isNeedleValveMode ? (
+                <>
+                  <NeedleValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildNeedleValveRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
+                    </Label>
+                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
+                      value={lf.genericRequirement || "Select Valve Type, Size and Rating to generate…"} />
                   </div>
                 </>
               ) : isIsolationValveMode ? (

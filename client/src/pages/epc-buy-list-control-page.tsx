@@ -48,6 +48,7 @@ import {
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
+  NrvValveAttrsForm, NeedleValveAttrsForm,
 } from "@/components/valve-attrs-forms";
 import {
   PlatesAttrsForm, PipesAttrsForm, FittingsAttrsForm, FlangesAttrsForm,
@@ -2168,6 +2169,20 @@ export default function EpcBuyListControlPage() {
               ) : currentSubgroupCode === "on_off" ? (
                 <div className="col-span-2">
                   <OnOffValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "nrv" ? (
+                <div className="col-span-2">
+                  <NrvValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "needle" ? (
+                <div className="col-span-2">
+                  <NeedleValveAttrsForm
                     attrs={lf.technicalAttributes}
                     onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
                   />
