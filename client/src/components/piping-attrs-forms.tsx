@@ -105,7 +105,7 @@ function derivePipeStandard(grade: string): string {
 function deriveFlangeStandard(nb: string): string {
   const m = nb.match(/^(\d+)NB$/i);
   if (!m) return "ASME B16.5";
-  return parseInt(m[1]) > 600 ? "ASME B16.47 Series A" : "ASME B16.5";
+  return parseInt(m[1]) > 600 ? "ASME B16.47A" : "ASME B16.5";
 }
 
 function derivePlateStandard(grade: string): string {
@@ -556,7 +556,7 @@ const FLANGES_MATERIAL = [
   "Duplex F51","Super Duplex F53",
   "A694 F52","A694 F60","A694 F65",
 ];
-const FLANGES_STANDARD  = ["ASME B16.5","ASME B16.47 Series A","ASME B16.47 Series B","IS 6392"];
+const FLANGES_STANDARD  = ["ASME B16.5","ASME B16.47A","ASME B16.47B"];
 const FLANGES_FACING_OPTS = [
   "RF (Raised Face)","FF (Flat Face)","RTJ (Ring Type Joint)",
   "Tongue & Groove (T&G)","Male & Female (M&F)",
@@ -679,7 +679,7 @@ export function FlangesAttrsForm({
               {isCust && <Input className="h-8 text-sm" placeholder="Enter custom…" value={curVal}
                 onChange={e => set("flange_standard", e.target.value)} autoFocus />}
               {nbNum > 600 && !isCust && (
-                <p className="text-[10px] text-amber-600 mt-0.5">NB &gt; 600: defaults to ASME B16.47 Series A</p>
+                <p className="text-[10px] text-amber-600 mt-0.5">NB &gt; 600 (NPS 24): defaults to ASME B16.47A</p>
               )}
             </div>
           );
