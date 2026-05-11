@@ -18,7 +18,7 @@
 | C6 | Complete example item codes for every group, every subgroup, every type, every size/rating pattern added. |
 | C7 | Full Code Matrix table added (§7). |
 | C8 | SAP B1 length analysis redone with corrected short codes. Separate `sap_item_code` recommendation confirmed with justification. |
-| C9 | Size zero-padding rule clarified — inconsistency with approved example flagged for sign-off. |
+| C9 | Size numeric part confirmed as **3 to 5 digits**, zero-padded to minimum 3. Zero-padding open question resolved. |
 
 ---
 
@@ -35,25 +35,29 @@ GROUP-SUBGROUP-TYPE-SIZE-UNIT
 | GROUP | 3 – 5 characters | Fixed from registry; no padding |
 | SUBGROUP | Max 3 characters | Fixed from registry; no padding |
 | TYPE | Max 3 characters; `NA` when no type applies | Fixed from registry; no padding |
-| SIZE | **3 – 4 digits** (numeric) or a short alphanumeric code (max 5 chars) | Zero-pad to 3 digits minimum (see §2.2) |
+| SIZE | **3 – 5 digits** (numeric), zero-padded to minimum 3 digits | Zero-pad to 3 digits minimum; max 5 digits |
 | UNIT | Short normalized text code, max 4 characters | Fixed from unit registry |
 
 **Maximum item code length (baseline, no collision suffix):**
-`PUMP-CEN-HOR-1000-LPH` = 4+1+3+1+3+1+4+1+3 = **21 characters**
+`PUMP-CEN-HOR-10000-LPH` = 4+1+3+1+3+1+5+1+3 = **22 characters** (5-digit size, worst case)
 
 With 3-digit size: `PUMP-CEN-HOR-100-M3H` = **20 characters** (fits SAP 20-char standard).
+With 4-digit size: `PUMP-CEN-HOR-1000-LPH` = **21 characters**.
+With 5-digit size: `PUMP-CEN-HOR-10000-M3H` = **22 characters**.
 
-### 2.2 Size Zero-Padding Rule — Clarification Required
+### 2.2 Size Zero-Padding Rule — Confirmed
 
-> **ACTION REQUIRED BEFORE IMPLEMENTATION**
->
-> The user-approved example `PLAT-CS-NA-10-MM` contains SIZE = `10` (2 digits).
-> The stated rule requires a minimum of 3 digits.
->
-> **Option A** — Apply zero-padding: `PLAT-CS-NA-010-MM` (consistent, all sizes ≥ 3 digits).
-> **Option B** — Allow 2-digit sizes: `PLAT-CS-NA-10-MM` (matches approved example, inconsistent rule).
->
-> **Plan recommendation: Option A** (zero-padding). Confirm before implementation.
+Size is always **zero-padded to a minimum of 3 digits**. Maximum is 5 digits.
+
+| Raw value | Padded SIZE |
+|-----------|-------------|
+| 10 | `010` |
+| 50 | `050` |
+| 100 | `100` |
+| 1000 | `1000` |
+| 10000 | `10000` |
+
+The approved example `PLAT-CS-NA-10-MM` renders as **`PLAT-CS-NA-010-MM`** in the final code.
 
 ### 2.3 Collision Suffix
 
@@ -629,24 +633,26 @@ Every row below is one complete, valid item code. This table covers every group,
 
 | Item Code Example | Length | Fits SAP 20? |
 |-------------------|--------|-------------|
+| `VALV-ISO-GAT-050-NB` | 20 | ✓ Yes |
+| `MOTR-NFP-ACI-015-KW` | 20 | ✓ Yes |
 | `PUMP-CEN-HOR-100-M3H` | 20 | ✓ Yes |
 | `PUMP-CEN-HOR-1000-LPH` | 21 | ✗ No (1 over) |
-| `MOTR-NFP-ACI-015-KW` | 20 | ✓ Yes |
 | `ELEC-CMP-MCB-016-AMP` | 21 | ✗ No (1 over) |
 | `ELEC-CMP-ACB-1600-AMP` | 22 | ✗ No (2 over) |
 | `INST-LVL-GWR-4000-MM` | 21 | ✗ No (1 over) |
-| `VALV-ISO-GAT-050-NB` | 20 | ✓ Yes |
+| `PUMP-CEN-HOR-10000-M3H` | 22 | ✗ No (2 over) |
 | `PUMP-CEN-HOR-1000-LPH-02` | 24 | ✗ No (collision suffix) |
 
-**Finding:** With 3-char subgroup and type codes, roughly 40% of codes fit within 20 chars. 4-digit sizes (≥ 1000) and 3-char units push to 21 chars. The collision suffix adds a further 3 chars.
+**Finding:** With 3-char subgroup and type codes, 3-digit sizes fit exactly within 20 chars. 4-digit sizes push to 21 chars; 5-digit sizes push to 22 chars. The collision suffix adds a further 3 chars. The separate `sap_item_code` field is required for any code exceeding 20 chars.
 
 ### 9.2 Recommendation: Retain Separate `sap_item_code` Field
 
 The separate `sap_item_code` column on `master_items` is **still required** for the following reasons:
 
 1. Codes with 4-digit size (e.g., `1000-LPH`) exceed 20 chars by 1 character.
-2. Codes with collision suffix always exceed 20 chars.
-3. The actual ItemCode max length in the current SAP B1 instance has not been confirmed. If configured to 50 chars (SAP B1 9.x+), the full internal code can be used directly — but this must be verified before implementation.
+2. Codes with 5-digit size (e.g., `10000-M3H`) exceed 20 chars by 2 characters.
+3. Codes with collision suffix always exceed 20 chars.
+4. The actual ItemCode max length in the current SAP B1 instance has not been confirmed. If configured to 50 chars (SAP B1 9.x+), the full internal code can be used directly — but this must be verified before implementation.
 
 ### 9.3 SAP Item Code Mapping Strategy
 
@@ -765,7 +771,7 @@ ALTER TABLE buy_package_lines
 ## 13. Audit & Validation
 
 - Every generation logged to `audit_logs` (`entity_type = 'master_item'`, `action = 'item_code_generated'`).
-- Format compliance regex: `^[A-Z]{3,5}-[A-Z0-9]{2,3}-[A-Z]{2,3}-[A-Z0-9]{2,4}-[A-Z0-9]{1,4}(-\d{2})?$`
+- Format compliance regex: `^[A-Z]{3,5}-[A-Z0-9]{2,3}-[A-Z]{2,3}-[A-Z0-9]{3,5}-[A-Z0-9]{1,4}(-\d{2})?$`
 - Uniqueness enforced by existing DB unique index on `master_items.item_code`.
 - Locked records (`item_code_locked = true`) reject any regeneration attempt.
 - Parity verification endpoint returns: duplicate codes, non-compliant codes, SAP mismatches, `needs_review` count.
@@ -776,12 +782,11 @@ ALTER TABLE buy_package_lines
 
 | # | Question | Owner |
 |---|----------|-------|
-| 1 | **Size zero-padding (§2.2):** Use Option A (zero-pad to 3 digits, e.g., `010`) or keep Option B (no padding, e.g., `10` as in approved example)? | Approval required |
-| 2 | **SAP B1 ItemCode max length:** What is the configured max length in the current production instance? | THERMOPAC IT / SAP admin |
-| 3 | **`ELEC-CMP-PLC-NA-NA` and `BOPK-GEN-NA-NA-NA`:** Is `NA-NA` for both size and unit acceptable for types with no standard size, or should a different convention be used? | Approval required |
-| 4 | **Field Items (FLD):** Should `ELEC-FLD-NA-NA-NA` be used as a placeholder until the attrs form is defined, or should field items be excluded from item code generation entirely until the form is ready? | PM / Engineering |
-| 5 | **Pump size field priority:** Is the primary size the flow rate (preferred) or the power (kW) for cases where flow rate is not specified? | Engineering lead |
-| 6 | **SAP Item Group mapping (§9.3):** Confirm the SAP Item Group codes configured in the production B1 instance match the labels in §9.3. | THERMOPAC Finance / SAP |
+| 1 | **SAP B1 ItemCode max length:** What is the configured max length in the current production instance? Standard = 20 chars; extended config up to 50 chars possible. | THERMOPAC IT / SAP admin |
+| 2 | **`ELEC-CMP-PLC-NA-NA` and `BOPK-GEN-NA-NA-NA`:** Is `NA-NA` for both size and unit acceptable for types with no standard size, or should a different convention be used? | Approval required |
+| 3 | **Field Items (FLD):** Should `ELEC-FLD-NA-NA-NA` be used as a placeholder until the attrs form is defined, or should field items be excluded from item code generation entirely until the form is ready? | PM / Engineering |
+| 4 | **Pump size field priority:** Is the primary size the flow rate (preferred) or the power (kW) for cases where flow rate is not specified? | Engineering lead |
+| 5 | **SAP Item Group mapping:** Confirm the SAP Item Group codes configured in the production B1 instance match the labels in §9.3. | THERMOPAC Finance / SAP |
 
 ---
 
