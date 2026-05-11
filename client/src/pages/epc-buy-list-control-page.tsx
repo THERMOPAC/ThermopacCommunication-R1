@@ -35,6 +35,7 @@ import {
 } from "@/components/pump-attrs-forms";
 import {
   PressureAttrsForm, TemperatureAttrsForm, FlowAttrsForm, LevelAttrsForm,
+  INSTRUMENT_CABLE_GLAND_DEFAULTS,
 } from "@/components/instrument-attrs-forms";
 import {
   MotorAttrsForm,
@@ -947,7 +948,9 @@ export default function EpcBuyListControlPage() {
         ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
         : line.buy_subgroup_code === "flameproof"
           ? applyFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
-          : (line.technical_attributes ?? {}) as Record<string, unknown>,
+          : line.buy_group_code === "instruments"
+            ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS, ...(line.technical_attributes ?? {}) as Record<string, unknown> }
+            : (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setTagDuplicateWarning(null); setTagPreview([]); setTagAutoFilled(false); setTagFetching(false);
     setLineDialog({ open: true, listId, status, editLine: line });
@@ -2023,7 +2026,8 @@ export default function EpcBuyListControlPage() {
                   const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
                   const nosUom = (uoms as any[]).find((u: any) => u.code?.toUpperCase() === "NOS");
                   setLf(f => ({
-                    ...f, buySubgroupId: v, technicalAttributes: {},
+                    ...f, buySubgroupId: v,
+                    technicalAttributes: currentGroupCode === "instruments" ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS } : {},
                     ...(NOS_GROUPS.has(currentGroupCode ?? "") && nosUom ? { uomId: String(nosUom.id) } : {}),
                   }));
                 }} disabled={!lf.buyGroupId}>

@@ -60,7 +60,7 @@ import {
 import {
   PressureAttrsForm, TemperatureAttrsForm, FlowAttrsForm, LevelAttrsForm,
   buildPressureRequirement, buildTemperatureRequirement, buildFlowRequirement,
-  buildLevelRequirement,
+  buildLevelRequirement, INSTRUMENT_CABLE_GLAND_DEFAULTS,
 } from "@/components/instrument-attrs-forms";
 import {
   MotorAttrsForm, buildMotorRequirement,
@@ -729,7 +729,8 @@ export default function BuyPackagesPage() {
     const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
     const initAttrs: Record<string, unknown> =
       subgroupCode === "non_flameproof" ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } :
-      subgroupCode === "flameproof"     ? { ...FLAMEPROOF_MOTOR_DEFAULTS }     : {};
+      subgroupCode === "flameproof"     ? { ...FLAMEPROOF_MOTOR_DEFAULTS }     :
+      groupCode === "instruments"       ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS } : {};
     const nosUom = uoms.find((u: any) => u.code?.toUpperCase() === "NOS");
     setLf({
       ...EMPTY_LINE,
@@ -756,7 +757,9 @@ export default function BuyPackagesPage() {
         ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
         : line.buy_subgroup_code === "flameproof"
           ? applyFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
-          : (line.technical_attributes ?? {}) as Record<string, unknown>,
+          : line.buy_group_code === "instruments"
+            ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS, ...(line.technical_attributes ?? {}) as Record<string, unknown> }
+            : (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: line,
@@ -1896,6 +1899,7 @@ export default function BuyPackagesPage() {
                           ...f, buySubgroupId: v, genericRequirement: "",
                           technicalAttributes: isNFP ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS }
                                              : isFP  ? { ...FLAMEPROOF_MOTOR_DEFAULTS }
+                                             : selectedGroupCode === "instruments" ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS }
                                              : {},
                           ...(NOS_GROUPS.has(selectedGroupCode) && nosUom ? { uomId: String(nosUom.id) } : {}),
                         }));

@@ -12,6 +12,61 @@ import {
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// ── Cable Gland constants ──────────────────────────────────────────────────────
+const CABLE_GLAND_TYPES = ["PG", "Metric", "NPT", "BSP", "BSPT"] as const;
+const CABLE_GLAND_THREAD_SIZES: Record<string, string[]> = {
+  PG:     ["PG7", "PG9", "PG11", "PG13.5", "PG16", "PG21"],
+  Metric: ["M16", "M20", "M25", "M32"],
+  NPT:    ['1/2" NPT', '3/4" NPT', '1" NPT'],
+  BSP:    ['1/2"', '3/4"', '1"'],
+  BSPT:   ['1/2"', '3/4"', '1"'],
+};
+export const INSTRUMENT_CABLE_GLAND_DEFAULTS = {
+  cable_gland_type: "NPT",
+  thread_size: '1/2" NPT',
+} as const;
+
+// ── Cable Gland Block (shared by all instrument forms) ────────────────────────
+function CableGlandBlock({
+  attrs, onChange,
+}: {
+  attrs: Record<string, unknown>;
+  onChange: (a: Record<string, unknown>) => void;
+}) {
+  const glandType  = (attrs.cable_gland_type as string) || "NPT";
+  const threadSize = (attrs.thread_size      as string) || '1/2" NPT';
+  const threadOpts = CABLE_GLAND_THREAD_SIZES[glandType] ?? [];
+  const safeThread = threadOpts.includes(threadSize) ? threadSize : (threadOpts[0] ?? "");
+
+  function handleGlandType(val: string) {
+    const opts = CABLE_GLAND_THREAD_SIZES[val] ?? [];
+    onChange({ ...attrs, cable_gland_type: val, thread_size: opts[0] ?? "" });
+  }
+
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Cable Gland Type <span className="text-red-500">*</span></Label>
+        <Select value={glandType} onValueChange={handleGlandType}>
+          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CABLE_GLAND_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Thread Size <span className="text-red-500">*</span></Label>
+        <Select value={safeThread} onValueChange={v => onChange({ ...attrs, thread_size: v })}>
+          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {threadOpts.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+}
+
 // ── Shared SearchableSelect ───────────────────────────────────────────────────
 function SearchableSelect({
   value, options, placeholder, onSelect: onSelectProp,
@@ -659,6 +714,9 @@ export function PressureAttrsForm({
           <div />
         </>)}
 
+        {sectionHeader("Cable Gland")}
+        <CableGlandBlock attrs={attrs} onChange={onChange} />
+
         {instrType && (<>
           {renderHazardousBlock()}
           {renderMakesBlock()}
@@ -816,6 +874,8 @@ export function TemperatureAttrsForm({
             <div />
           </>
         )}
+        {sec("Cable Gland")}
+        <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
@@ -950,6 +1010,8 @@ export function FlowAttrsForm({
             <div />
           </>
         )}
+        {sec("Cable Gland")}
+        <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
@@ -1096,6 +1158,8 @@ export function LevelAttrsForm({
             <div />
           </>
         )}
+        {sec("Cable Gland")}
+        <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
