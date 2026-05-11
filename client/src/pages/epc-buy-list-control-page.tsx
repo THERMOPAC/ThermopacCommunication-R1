@@ -2000,7 +2000,15 @@ export default function EpcBuyListControlPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Buy Group <span className="text-red-500">*</span></Label>
-                <Select value={lf.buyGroupId} onValueChange={v => setLf(f => ({ ...f, buyGroupId: v, buySubgroupId: "" }))}>
+                <Select value={lf.buyGroupId} onValueChange={v => {
+                  const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
+                  const grpCode = (groups as any[]).find((g: any) => String(g.id) === v)?.code ?? "";
+                  const nosUom  = (uoms   as any[]).find((u: any) => u.code?.toUpperCase() === "NOS");
+                  setLf(f => ({
+                    ...f, buyGroupId: v, buySubgroupId: "",
+                    ...(NOS_GROUPS.has(grpCode) && nosUom ? { uomId: String(nosUom.id) } : { uomId: "" }),
+                  }));
+                }}>
                   <SelectTrigger><SelectValue placeholder="Select group…" /></SelectTrigger>
                   <SelectContent>
                     {(groups as any[]).map((g: any) => (
@@ -2011,7 +2019,14 @@ export default function EpcBuyListControlPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Buy Subgroup <span className="text-red-500">*</span></Label>
-                <Select value={lf.buySubgroupId} onValueChange={v => setLf(f => ({ ...f, buySubgroupId: v, technicalAttributes: {} }))} disabled={!lf.buyGroupId}>
+                <Select value={lf.buySubgroupId} onValueChange={v => {
+                  const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
+                  const nosUom = (uoms as any[]).find((u: any) => u.code?.toUpperCase() === "NOS");
+                  setLf(f => ({
+                    ...f, buySubgroupId: v, technicalAttributes: {},
+                    ...(NOS_GROUPS.has(currentGroupCode ?? "") && nosUom ? { uomId: String(nosUom.id) } : {}),
+                  }));
+                }} disabled={!lf.buyGroupId}>
                   <SelectTrigger><SelectValue placeholder="Select subgroup…" /></SelectTrigger>
                   <SelectContent>
                     {(subgroups as any[]).map((s: any) => (

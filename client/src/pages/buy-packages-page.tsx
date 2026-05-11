@@ -726,7 +726,7 @@ export default function BuyPackagesPage() {
     groupId: number, groupCode: string, groupLabel: string,
     subgroupId: number, subgroupCode: string, subgroupLabel: string,
   ) {
-    const isMotorSg = subgroupCode === "non_flameproof" || subgroupCode === "flameproof";
+    const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
     const initAttrs: Record<string, unknown> =
       subgroupCode === "non_flameproof" ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS } :
       subgroupCode === "flameproof"     ? { ...FLAMEPROOF_MOTOR_DEFAULTS }     : {};
@@ -736,7 +736,7 @@ export default function BuyPackagesPage() {
       buyGroupId: String(groupId),
       buySubgroupId: String(subgroupId),
       technicalAttributes: initAttrs,
-      ...(isMotorSg && nosUom ? { uomId: String(nosUom.id) } : {}),
+      ...(NOS_GROUPS.has(groupCode) && nosUom ? { uomId: String(nosUom.id) } : {}),
     });
     setLineDialog({
       open: true, pkgId: pkg.id, pkgStatus: pkg.status, editLine: null,
@@ -1888,17 +1888,16 @@ export default function BuyPackagesPage() {
                       value={lf.buySubgroupId}
                       onValueChange={(v) => {
                         const sg = subgroups.find((s) => String(s.id) === v);
-                        const isMotors = selectedGroupCode === "motors";
-                        const isNFP = isMotors && sg?.code === "non_flameproof";
-                        const isFP  = isMotors && sg?.code === "flameproof";
+                        const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
+                        const isNFP = selectedGroupCode === "motors" && sg?.code === "non_flameproof";
+                        const isFP  = selectedGroupCode === "motors" && sg?.code === "flameproof";
                         const nosUom = uoms.find((u: any) => u.code?.toUpperCase() === "NOS");
-                        const isMotorSg = isNFP || isFP;
                         setLf((f) => ({
                           ...f, buySubgroupId: v, genericRequirement: "",
                           technicalAttributes: isNFP ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS }
                                              : isFP  ? { ...FLAMEPROOF_MOTOR_DEFAULTS }
                                              : {},
-                          ...(isMotorSg && nosUom ? { uomId: String(nosUom.id) } : {}),
+                          ...(NOS_GROUPS.has(selectedGroupCode) && nosUom ? { uomId: String(nosUom.id) } : {}),
                         }));
                       }}
                       disabled={!lf.buyGroupId}
