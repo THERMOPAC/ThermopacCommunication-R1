@@ -13,12 +13,13 @@ import { cn } from "@/lib/utils";
 
 // ── Shared SearchableSelect ───────────────────────────────────────────────────
 function SearchableSelect({
-  value, options, placeholder, onSelect: onSelectProp,
+  value, options, placeholder, onSelect: onSelectProp, hideOther,
 }: {
   value: string;
   options: string[];
   placeholder?: string;
   onSelect: (v: string) => void;
+  hideOther?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const displayVal = value === "__other__" ? "Other…" : value;
@@ -46,11 +47,13 @@ function SearchableSelect({
                   {opt}
                 </CommandItem>
               ))}
-              <CommandItem key="__other__" value="Other…"
-                onSelect={() => { onSelectProp("__other__"); setOpen(false); }}>
-                <Check className={`mr-2 h-3.5 w-3.5 ${value === "__other__" ? "opacity-100" : "opacity-0"}`} />
-                Other…
-              </CommandItem>
+              {!hideOther && (
+                <CommandItem key="__other__" value="Other…"
+                  onSelect={() => { onSelectProp("__other__"); setOpen(false); }}>
+                  <Check className={`mr-2 h-3.5 w-3.5 ${value === "__other__" ? "opacity-100" : "opacity-0"}`} />
+                  Other…
+                </CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
@@ -109,7 +112,7 @@ const MOTOR_SPEED_BY_FREQ: Record<string, string[]> = {
 };
 
 const MOTOR_AREA_SAFE      = ["Safe Area", "Other"];
-const MOTOR_AREA_HAZARDOUS = ["Zone 1", "Zone 2", "Hazardous Area"];
+const MOTOR_AREA_HAZARDOUS = ["Zone 1", "Zone 2"];
 
 export const NON_FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   motor_type:          "Induction",
@@ -210,7 +213,7 @@ export function MotorAttrsForm({
     }
   }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, hideOther?: boolean) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
@@ -218,7 +221,7 @@ export function MotorAttrsForm({
       <div className="space-y-1.5">
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
-          onSelect={(v) => handleSelect(key, v)} />
+          onSelect={(v) => handleSelect(key, v)} hideOther={hideOther} />
         {isCustom && (
           <Input className="h-8 text-sm" placeholder="Enter custom value…"
             value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
@@ -278,7 +281,7 @@ export function MotorAttrsForm({
 
         {sectionHeader("Operating Conditions")}
         {renderField("duty",                "Duty",                MOTOR_OPTS.duty,             true)}
-        {renderField("area_classification", "Area Classification", areaOpts,                    true)}
+        {renderField("area_classification", "Area Classification", areaOpts,                    true, true)}
         {renderField("ip_rating",           "IP Rating",           MOTOR_OPTS.ip_rating,        true)}
         {renderField("efficiency_class",    "Efficiency Class",    MOTOR_OPTS.efficiency_class, true)}
         {renderField("vfd_compatible",      "VFD Compatible",      MOTOR_OPTS.vfd_compatible,   true)}
