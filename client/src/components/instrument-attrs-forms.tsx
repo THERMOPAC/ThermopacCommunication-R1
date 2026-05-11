@@ -1112,7 +1112,17 @@ export function FlowAttrsForm({
       set(key, "");
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      if (key === "instrument_type") {
+        const newIsRotameter   = val === "Rotameter";
+        const currentSignal    = (attrs.output_signal as string) ?? "";
+        onChange({
+          ...attrs,
+          instrument_type: val,
+          output_signal:   newIsRotameter ? "" : (currentSignal || "4–20 mA + HART"),
+        });
+      } else {
+        set(key, val);
+      }
     }
   }
 
@@ -1155,8 +1165,8 @@ export function FlowAttrsForm({
         {sec("Line & Process")}
         {renderField("line_size",    "Line Size (NB)", true)}
         {renderField("process_fluid","Process Fluid")}
-        {sec("Signal & Material")}
-        {hasFlowSignal ? (
+        {hasFlowSignal ? (<>
+          {sec("Signal & Material")}
           <div className="space-y-1.5">
             <Label className="text-xs">Output Signal <span className="text-red-500">*</span></Label>
             <Select value={(attrs.output_signal as string) || "4–20 mA + HART"} onValueChange={v => set("output_signal", v)}>
@@ -1166,8 +1176,11 @@ export function FlowAttrsForm({
               </SelectContent>
             </Select>
           </div>
-        ) : <div />}
-        {renderField("liner_material",  "Liner / Body Material")}
+          {renderField("liner_material", "Liner / Body Material")}
+        </>) : (<>
+          {sec("Body Material")}
+          <div className="col-span-2">{renderField("liner_material", "Liner / Body Material")}</div>
+        </>)}
         {sec("Connection")}
         {renderField("end_connection",  "End Connection")}
         {renderField("pressure_rating", "Pressure Rating")}
@@ -1262,7 +1275,17 @@ export function LevelAttrsForm({
       set(key, "");
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      if (key === "instrument_type") {
+        const noSignal      = val.includes("Switch") || val.includes("Gauge");
+        const currentSignal = (attrs.output_signal as string) ?? "";
+        onChange({
+          ...attrs,
+          instrument_type: val,
+          output_signal:   noSignal ? "" : (currentSignal || "4–20 mA + HART"),
+        });
+      } else {
+        set(key, val);
+      }
     }
   }
 
