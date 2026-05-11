@@ -541,321 +541,6 @@ export default function VisaManagement() {
                     Showing {filteredRecords.length} of {visaRecords.length} visa records
                   </p>
                 </div>
-                {showAddDialog && (
-                  <div className="fixed inset-0 z-[9999] bg-black bg-opacity-80 flex items-start justify-center pt-8 pb-8">
-                    <div className="bg-white rounded-lg w-full max-w-4xl max-h-full flex flex-col mx-4">
-                      {/* Header */}
-                      <div className="flex items-center justify-between p-6 border-b bg-gray-50 flex-shrink-0">
-                        <div>
-                          <h2 className="text-xl font-semibold">Create New Visa Record</h2>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Test
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowAddDialog(false)}
-                          className="h-8 w-8 p-0"
-                        >
-                          ×
-                        </Button>
-                      </div>
-
-                      {/* Scrollable Content */}
-                      <div className="flex-1 overflow-y-auto">
-                        {/* File Upload Section - PROMINENT BLUE SECTION */}
-                        <div className="p-8 bg-blue-100 border-4 border-blue-400 m-4 rounded-lg">
-                          <div className="flex items-center mb-4">
-                            <Upload className="h-6 w-6 text-blue-700 mr-3" />
-                            <h3 className="text-blue-800 font-bold text-xl">📁 VISA DOCUMENT UPLOAD</h3>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg border-2 border-blue-300">
-                            <input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={handleFileChange}
-                              ref={fileInputRef}
-                              className="w-full p-4 border-2 border-blue-400 rounded-lg text-lg bg-blue-50"
-                            />
-                          </div>
-                          {selectedFile && (
-                            <div className="mt-4 p-4 bg-green-100 border-2 border-green-400 rounded-lg">
-                              <p className="text-green-800 font-semibold">
-                                ✅ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                              </p>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedFile(null);
-                                  if (fileInputRef.current) {
-                                    fileInputRef.current.value = '';
-                                  }
-                                }}
-                                className="mt-2"
-                              >
-                                Clear File
-                              </Button>
-                            </div>
-                          )}
-                          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
-                            <p className="text-sm text-gray-700">
-                              <strong>File Storage:</strong> Documents uploaded to Google Cloud Storage
-                              <br />
-                              <strong>Supported:</strong> PDF, JPG, PNG files up to 10MB
-                              <br />
-                              <strong>Path:</strong> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}
-                            </p>
-                          </div>
-                        </div>
-
-                      {/* File Upload Section */}
-                      <div className="p-6 bg-blue-50 border-b">
-                        <h3 className="text-blue-700 font-semibold text-lg mb-3 flex items-center">
-                          <Upload className="h-5 w-5 mr-2" />
-                          Visa Document Upload
-                        </h3>
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={handleFileChange}
-                          ref={fileInputRef}
-                          className="w-full p-3 border border-gray-300 rounded-md mb-3"
-                        />
-                        {selectedFile && (
-                          <div className="text-green-600 mt-2">
-                            ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                          </div>
-                        )}
-                        {selectedFile && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedFile(null);
-                              if (fileInputRef.current) {
-                                fileInputRef.current.value = '';
-                              }
-                            }}
-                            className="mt-2"
-                          >
-                            Clear
-                          </Button>
-                        )}
-                        <p className="text-xs text-gray-500 mt-2">
-                          Upload visa copy to Google Cloud Storage (Optional) • Supports: PDF, JPG, PNG • Max: 10MB
-                          <br />
-                          <span className="font-medium">Storage path:</span> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}/{"{filename}"}
-                        </p>
-                      </div>
-
-                      {/* Form Content */}
-                      <div className="p-6">
-                        <Form {...form}>
-                          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-
-                        {/* Basic Information */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="employeeId"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Employee *</FormLabel>
-                                <Select 
-                                  value={field.value?.toString()} 
-                                  onValueChange={(value) => field.onChange(parseInt(value))}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select employee" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {Object.entries(groupedEmployees).map(([role, roleEmployees]) => (
-                                      <SelectGroup key={role}>
-                                        <SelectLabel className="text-blue-600 font-medium">{role}</SelectLabel>
-                                        {roleEmployees.map((emp) => (
-                                          <SelectItem key={emp.id} value={emp.id.toString()}>
-                                            {emp.username} {emp.department && `(${emp.department})`}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectGroup>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="country"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Country *</FormLabel>
-                                <Select value={field.value} onValueChange={field.onChange}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select country" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {visaOptions?.countries.map((country) => (
-                                      <SelectItem key={country} value={country}>
-                                        {country}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="visaType"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Visa Type *</FormLabel>
-                                <Select value={field.value} onValueChange={field.onChange}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select visa type" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {visaOptions?.visaTypes.map((type) => (
-                                      <SelectItem key={type} value={type}>
-                                        {type}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="visaNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Visa Number *</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Enter visa number" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="issueDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Issue Date *</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="expiryDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Expiry Date *</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        {/* Additional Fields */}
-                        <div className="grid grid-cols-1 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="quotaReference"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Quota Reference (Optional)</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Enter quota reference" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="notes"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Notes (Optional)</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    placeholder="Enter any additional notes about this visa record" 
-                                    {...field} 
-                                    rows={3}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        <div className="flex justify-end space-x-3 pt-4 border-t">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            onClick={() => {
-                              setShowAddDialog(false);
-                              resetForm();
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            type="submit" 
-                            disabled={createMutation.isPending}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            {createMutation.isPending ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Creating...
-                              </>
-                            ) : (
-                              'Create Visa Record'
-                            )}
-                          </Button>
-                            </div>
-                          </form>
-                        </Form>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
                 <Button onClick={() => setShowAddDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add New Visa Record
@@ -976,6 +661,324 @@ export default function VisaManagement() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Add New Visa Record Modal */}
+            {showAddDialog && (
+              <div className="fixed inset-0 z-[9999] bg-black bg-opacity-80 flex items-start justify-center pt-8 pb-8">
+                <div className="bg-white rounded-lg w-full max-w-4xl max-h-full flex flex-col mx-4">
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-6 border-b bg-gray-50 flex-shrink-0">
+                    <div>
+                      <h2 className="text-xl font-semibold">Create New Visa Record</h2>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Test
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAddDialog(false)}
+                      className="h-8 w-8 p-0"
+                    >
+                      ×
+                    </Button>
+                  </div>
+
+                  {/* Scrollable Content */}
+                  <div className="flex-1 overflow-y-auto">
+                    {/* File Upload Section - PROMINENT BLUE SECTION */}
+                    <div className="p-8 bg-blue-100 border-4 border-blue-400 m-4 rounded-lg">
+                      <div className="flex items-center mb-4">
+                        <Upload className="h-6 w-6 text-blue-700 mr-3" />
+                        <h3 className="text-blue-800 font-bold text-xl">📁 VISA DOCUMENT UPLOAD</h3>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg border-2 border-blue-300">
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleFileChange}
+                          ref={fileInputRef}
+                          className="w-full p-4 border-2 border-blue-400 rounded-lg text-lg bg-blue-50"
+                        />
+                      </div>
+                      {selectedFile && (
+                        <div className="mt-4 p-4 bg-green-100 border-2 border-green-400 rounded-lg">
+                          <p className="text-green-800 font-semibold">
+                            ✅ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedFile(null);
+                              if (fileInputRef.current) {
+                                fileInputRef.current.value = '';
+                              }
+                            }}
+                            className="mt-2"
+                          >
+                            Clear File
+                          </Button>
+                        </div>
+                      )}
+                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded">
+                        <p className="text-sm text-gray-700">
+                          <strong>File Storage:</strong> Documents uploaded to Google Cloud Storage
+                          <br />
+                          <strong>Supported:</strong> PDF, JPG, PNG files up to 10MB
+                          <br />
+                          <strong>Path:</strong> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}
+                        </p>
+                      </div>
+                    </div>
+
+                  {/* File Upload Section */}
+                  <div className="p-6 bg-blue-50 border-b">
+                    <h3 className="text-blue-700 font-semibold text-lg mb-3 flex items-center">
+                      <Upload className="h-5 w-5 mr-2" />
+                      Visa Document Upload
+                    </h3>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleFileChange}
+                      ref={fileInputRef}
+                      className="w-full p-3 border border-gray-300 rounded-md mb-3"
+                    />
+                    {selectedFile && (
+                      <div className="text-green-600 mt-2">
+                        ✓ Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </div>
+                    )}
+                    {selectedFile && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                        className="mt-2"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      Upload visa copy to Google Cloud Storage (Optional) • Supports: PDF, JPG, PNG • Max: 10MB
+                      <br />
+                      <span className="font-medium">Storage path:</span> thermopac_storage/Business_Visa/{"{Employee}"}/{"{Country}"}/{"{Visa Number}"}/{"{filename}"}
+                    </p>
+                  </div>
+
+                  {/* Form Content */}
+                  <div className="p-6">
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+                    {/* Basic Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="employeeId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Employee *</FormLabel>
+                            <Select 
+                              value={field.value?.toString()} 
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select employee" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Object.entries(groupedEmployees).map(([role, roleEmployees]) => (
+                                  <SelectGroup key={role}>
+                                    <SelectLabel className="text-blue-600 font-medium">{role}</SelectLabel>
+                                    {roleEmployees.map((emp) => (
+                                      <SelectItem key={emp.id} value={emp.id.toString()}>
+                                        {emp.username} {emp.department && `(${emp.department})`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Country *</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select country" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {visaOptions?.countries.map((country) => (
+                                  <SelectItem key={country} value={country}>
+                                    {country}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="visaType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Visa Type *</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select visa type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {visaOptions?.visaTypes.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="visaNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Visa Number *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter visa number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="issueDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Issue Date *</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="expiryDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Expiry Date *</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Additional Fields */}
+                    <div className="grid grid-cols-1 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="quotaReference"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quota Reference (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter quota reference" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Notes (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Enter any additional notes about this visa record" 
+                                {...field} 
+                                rows={3}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex justify-end space-x-3 pt-4 border-t">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => {
+                          setShowAddDialog(false);
+                          resetForm();
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={createMutation.isPending}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {createMutation.isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Creating...
+                          </>
+                        ) : (
+                          'Create Visa Record'
+                        )}
+                      </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </div>
+                </div>
+              </div>
+              </div>
+            )}
+
 
             {/* Edit Dialog */}
             <Dialog 
