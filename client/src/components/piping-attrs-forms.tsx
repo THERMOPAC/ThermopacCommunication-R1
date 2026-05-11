@@ -268,18 +268,32 @@ const PIPES_MATERIAL_GRADES = [
   "Duplex S31803","Super Duplex S32750",
   "ERW CS","API 5L Gr.B","API 5L X42","API 5L X52","API 5L X65",
 ];
+const PIPES_SCHEDULE        = [
+  "SCH 5","SCH 5S","SCH 10","SCH 10S","SCH 20",
+  "SCH 40","SCH 40S","SCH 80","SCH 80S","SCH 160","XXS","STD","XS",
+];
 const PIPES_END_CONDITION   = ["Plain End (PE)","Bevelled End (BE)","Threaded & Coupled (T&C)"];
-const PIPES_LENGTH_OPTS     = ["Random (5–7m)","Fixed 6m","Fixed 12m"];
+const SMALL_BORE_NBS        = new Set(["15NB","20NB","25NB","32NB","40NB","50NB"]);
+function pipeEndConditionOpts(nb: string): string[] {
+  return (!nb || SMALL_BORE_NBS.has(nb))
+    ? PIPES_END_CONDITION
+    : PIPES_END_CONDITION.filter(v => v !== "Threaded & Coupled (T&C)");
+}
+function pipeNeedsHeatTreatment(grade: string): boolean {
+  const g = grade.toUpperCase();
+  return g.startsWith("A335") || g.includes("DUPLEX");
+}
+const PIPES_LENGTH_OPTS     = ["Random (5–7m)","Fixed 6m","Fixed 12m","Double Random Length"];
 const PIPES_STANDARD_OPTS   = [
   "ASTM A106","ASTM A312","ASTM A335","ASTM A53",
-  "IS 1239","IS 3589","IS 6630","EN 10216","API 5L","ASTM A790",
+  "IS 1239","IS 3589","IS 6630","API 5L","ASTM A790",
 ];
-const PIPES_SURFACE         = ["Black (As-rolled)","Pickled & Oiled","Hot-Dip Galvanized","Epoxy Coated"];
+const PIPES_SURFACE         = ["Black (As-rolled)","Pickled & Passivated","Hot-Dip Galvanized"];
 const PIPES_NDT             = ["None","Hydrotest","Ultrasonic (UT)","Radiography (RT)","Magnetic Particle (MT)"];
 const PIPES_ALL_OPTS: Record<string, string[]> = {
   material_grade:    PIPES_MATERIAL_GRADES,
   nominal_bore:      COMMON_NB,
-  schedule:          COMMON_SCHEDULE,
+  schedule:          PIPES_SCHEDULE,
   end_condition:     PIPES_END_CONDITION,
   length:            PIPES_LENGTH_OPTS,
   pipe_standard:     PIPES_STANDARD_OPTS,
@@ -349,14 +363,19 @@ export function PipesAttrsForm({
     );
   }
 
+  const curGrade = (attrs.material_grade as string) ?? "";
+  const curNB    = (attrs.nominal_bore   as string) ?? "";
+  const endOpts  = pipeEndConditionOpts(curNB);
+  const showHT   = pipeNeedsHeatTreatment(curGrade);
+
   return (
     <div className="space-y-3">
       <SectionCard title="Pipe Specification" color="bg-sky-50/60 border-sky-200">
-        {rf("material_grade", "Material Grade",   PIPES_MATERIAL_GRADES, true)}
-        {rf("nominal_bore",   "Nominal Bore",     COMMON_NB,             true)}
-        {rf("schedule",       "Schedule",         COMMON_SCHEDULE,       true)}
-        {rf("end_condition",  "End Condition",    PIPES_END_CONDITION)}
-        {rf("length",         "Length",           PIPES_LENGTH_OPTS,     true)}
+        {rf("material_grade", "Material Grade", PIPES_MATERIAL_GRADES, true)}
+        {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,             true)}
+        {rf("schedule",       "Schedule",       PIPES_SCHEDULE,        true)}
+        {rf("end_condition",  "End Condition",  endOpts)}
+        {rf("length",         "Length",         PIPES_LENGTH_OPTS,     true)}
         <div />
       </SectionCard>
       <SectionCard title="Standards & Quality" color="bg-emerald-50/60 border-emerald-200">
@@ -366,7 +385,7 @@ export function PipesAttrsForm({
       <SectionCard title="Additional Options" color="bg-slate-50/80 border-slate-200">
         {rf("surface_condition", "Surface Condition", PIPES_SURFACE)}
         {rf("ndt_requirement",   "NDT Requirement",   PIPES_NDT)}
-        {rf("heat_treatment",    "Heat Treatment",    HEAT_TREATMENT_OPTS)}
+        {showHT && rf("heat_treatment", "Heat Treatment", HEAT_TREATMENT_OPTS)}
         <div />
         <QtyField qty={qty} onQtyChange={onQtyChange} />
       </SectionCard>
