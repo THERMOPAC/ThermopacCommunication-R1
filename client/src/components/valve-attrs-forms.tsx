@@ -1753,14 +1753,6 @@ export function IsolationValveAttrsForm({
     );
   }
 
-  function sectionHeader(label: string) {
-    return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
-      </div>
-    );
-  }
-
   function toggleMake(make: string) {
     onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
       ? approvedMakes.filter(m => m !== make)
@@ -1786,113 +1778,139 @@ export function IsolationValveAttrsForm({
 
   const RANK_LABELS_ISO = ["1st","2nd","3rd","4th","5th","6th","7th","8th"];
 
-  return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Manual Isolation Valve Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-
-        {sectionHeader("Valve Type")}
-        <div className="col-span-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
-            <Select value={valveType} onValueChange={(v) => { if (v !== valveType) handleTypeChange(v); }}>
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Select valve type…" />
-              </SelectTrigger>
-              <SelectContent>
-                {ISOLATION_VALVE_TYPES.map(opt => (
-                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
         </div>
+      </div>
+    );
+  }
 
+  return (
+    <div className="space-y-3">
+
+      {/* 1 — Valve Type */}
+      <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
+          <Select value={valveType} onValueChange={(v) => { if (v !== valveType) handleTypeChange(v); }}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Select valve type…" />
+            </SelectTrigger>
+            <SelectContent>
+              {ISOLATION_VALVE_TYPES.map(opt => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         {!valveType && (
-          <div className="col-span-2 flex items-center justify-center py-8 text-sm text-muted-foreground">
+          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications.
           </div>
         )}
+      </SectionCard>
 
-        {valveType && (<>
-          {sectionHeader("Size & Rating")}
-          {renderField("size_nb",        "Size (NB)",       ISOLATION_COMMON_OPTS.size_nb,        true)}
-          {renderField("pressure_rating","Pressure Rating", ISOLATION_COMMON_OPTS.pressure_rating, true)}
-          {sectionHeader("Connection")}
-          {renderField("end_connection", "End Connection",  endConnOpts, true)}
-          <div />
-          {sectionHeader("Body Material")}
-          {renderField("body_material",  "Body Material",   ISOLATION_COMMON_OPTS.body_material, true)}
-          <div />
-        </>)}
+      {/* 2 — Size & Pressure Rating */}
+      {valveType && (
+        <SectionCard title="Size & Pressure Rating" color="bg-violet-50/60 border-violet-200">
+          {renderField("size_nb",         "Size (NB)",       ISOLATION_COMMON_OPTS.size_nb,         true)}
+          {renderField("pressure_rating", "Pressure Rating", ISOLATION_COMMON_OPTS.pressure_rating,  true)}
+        </SectionCard>
+      )}
 
-        {isBall && (<>
-          {sectionHeader("Ball & Seat")}
+      {/* 3 — End Connection & Body Material */}
+      {valveType && (
+        <SectionCard title="End Connection & Body Material" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("end_connection", "End Connection", endConnOpts,                         true)}
+          {renderField("body_material",  "Body Material",  ISOLATION_COMMON_OPTS.body_material, true)}
+        </SectionCard>
+      )}
+
+      {/* 4 — Type-specific details */}
+      {isBall && (
+        <SectionCard title="Ball & Seat Details" color="bg-amber-50/60 border-amber-300">
           {renderField("ball_design",   "Ball Design",   ISOLATION_BALL_OPTS.ball_design,   true)}
           {renderField("bore_type",     "Bore Type",     ISOLATION_BALL_OPTS.bore_type,     true)}
           {renderField("seat_material", "Seat Material", ISOLATION_BALL_OPTS.seat_material, true)}
           {renderField("ball_material", "Ball Material", ISOLATION_BALL_OPTS.ball_material)}
           {renderField("stem_packing",  "Stem Packing",  ISOLATION_BALL_OPTS.stem_packing)}
           {renderField("locking_device","Locking Device",ISOLATION_BALL_OPTS.locking_device)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isGate && (<>
-          {sectionHeader("Wedge & Stem")}
+      {isGate && (
+        <SectionCard title="Wedge & Stem Details" color="bg-amber-50/60 border-amber-300">
           {renderField("wedge_type",    "Wedge Type",    ISOLATION_GATE_OPTS.wedge_type,    true)}
           {renderField("stem_type",     "Stem Type",     ISOLATION_GATE_OPTS.stem_type,     true)}
           {renderField("trim_material", "Trim Material", ISOLATION_GATE_OPTS.trim_material, true)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isGlobe && (<>
-          {sectionHeader("Disc & Port")}
+      {isGlobe && (
+        <SectionCard title="Disc & Port Details" color="bg-amber-50/60 border-amber-300">
           {renderField("port_type",     "Port Type",     ISOLATION_GLOBE_OPTS.port_type,     true)}
           {renderField("disc_type",     "Disc Type",     ISOLATION_GLOBE_OPTS.disc_type,     true)}
           {renderField("trim_material", "Trim Material", ISOLATION_GLOBE_OPTS.trim_material, true)}
           {renderField("bonnet_type",   "Bonnet Type",   ISOLATION_GLOBE_OPTS.bonnet_type)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isButterfly && (<>
-          {sectionHeader("Disc & Seat")}
-          {renderField("disc_material", "Disc Material",          ISOLATION_BUTTERFLY_OPTS.disc_material, true)}
-          {renderField("seat_material", "Seat / Liner Material",  ISOLATION_BUTTERFLY_OPTS.seat_material, true)}
-          {renderField("disc_mounting", "Disc Mounting",          ISOLATION_BUTTERFLY_OPTS.disc_mounting, true)}
-          {renderField("lining_type",   "Lining Type",            ISOLATION_BUTTERFLY_OPTS.lining_type)}
-        </>)}
+      {isButterfly && (
+        <SectionCard title="Disc & Seat Details" color="bg-amber-50/60 border-amber-300">
+          {renderField("disc_material", "Disc Material",         ISOLATION_BUTTERFLY_OPTS.disc_material, true)}
+          {renderField("seat_material", "Seat / Liner Material", ISOLATION_BUTTERFLY_OPTS.seat_material, true)}
+          {renderField("disc_mounting", "Disc Mounting",         ISOLATION_BUTTERFLY_OPTS.disc_mounting, true)}
+          {renderField("lining_type",   "Lining Type",           ISOLATION_BUTTERFLY_OPTS.lining_type)}
+        </SectionCard>
+      )}
 
-        {isPlug && (<>
-          {sectionHeader("Port & Lubrication")}
+      {isPlug && (
+        <SectionCard title="Port & Lubrication Details" color="bg-amber-50/60 border-amber-300">
           {renderField("port_pattern",    "Port Pattern",    ISOLATION_PLUG_OPTS.port_pattern,    true)}
           {renderField("lubrication",     "Lubrication",     ISOLATION_PLUG_OPTS.lubrication,     true)}
           {renderField("plug_material",   "Plug Material",   ISOLATION_PLUG_OPTS.plug_material)}
           {renderField("sleeve_material", "Sleeve Material", ISOLATION_PLUG_OPTS.sleeve_material)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isKnife && (<>
-          {sectionHeader("Gate & Packing")}
+      {isKnife && (
+        <SectionCard title="Gate & Packing Details" color="bg-amber-50/60 border-amber-300">
           {renderField("service_type",   "Service Type",   ISOLATION_KNIFE_OPTS.service_type,   true)}
           {renderField("gate_material",  "Gate Material",  ISOLATION_KNIFE_OPTS.gate_material,  true)}
           {renderField("packing_type",   "Packing Type",   ISOLATION_KNIFE_OPTS.packing_type,   true)}
           {renderField("seat_type",      "Seat Type",      ISOLATION_KNIFE_OPTS.seat_type)}
           {renderField("flow_direction", "Flow Direction", ISOLATION_KNIFE_OPTS.flow_direction)}
-        </>)}
+          <div />
+        </SectionCard>
+      )}
 
-        {isDiaphragm && (<>
-          {sectionHeader("Diaphragm & Lining")}
+      {isDiaphragm && (
+        <SectionCard title="Diaphragm & Lining Details" color="bg-amber-50/60 border-amber-300">
           {renderField("diaphragm_material","Diaphragm Material",ISOLATION_DIAPHRAGM_OPTS.diaphragm_material, true)}
           {renderField("body_lining",       "Body Lining",       ISOLATION_DIAPHRAGM_OPTS.body_lining,        true)}
           {renderField("weir_type",         "Weir Type",         ISOLATION_DIAPHRAGM_OPTS.weir_type,          true)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {valveType && (<>
-          {sectionHeader("Area Classification")}
+      {/* 5 — Area Classification */}
+      {valveType && (
+        <SectionCard title="Area Classification" color="bg-orange-50/60 border-orange-200">
           {renderField("area_classification","Area Classification",ISOLATION_COMMON_OPTS.area_classification)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {valveType && (<>
-          {sectionHeader("Vendor / Approved Makes")}
+      {/* 6 — Vendor / Approved Makes */}
+      {valveType && (
+        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           <div className="col-span-2 space-y-2">
             <Label className="text-xs">
               Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
@@ -1969,18 +1987,19 @@ export function IsolationValveAttrsForm({
               </div>
             )}
           </div>
-        </>)}
+        </SectionCard>
+      )}
 
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
-          </div>
-        )}
-      </div>
+      {/* Quantity */}
+      {qty !== undefined && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+        </div>
+      )}
     </div>
   );
 }
