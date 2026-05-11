@@ -306,3 +306,9 @@ id = "sauikHbhfBywHzVqe9I6g"
 uri = "file://docs/item-code-generation-plan-v2.0.md"
 type = "text"
 title = "Item Code Generation Plan v2.0"
+
+[[outputs]]
+id = "Sx2x5lgsbnwEA7VTjbrpu"
+uri = "file://docs/item-code-generation-plan-v3.0.md"
+type = "text"
+title = "Item Code Generation Plan v3.0"
