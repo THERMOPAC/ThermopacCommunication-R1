@@ -918,17 +918,22 @@ const GASKET_RTJ_RING_MATERIAL   = ["Soft Iron","Low Carbon Steel","SS316","SS30
 const GASKET_SHEET_MATERIAL      = [
   "CAF-Free (Non-asbestos)","PTFE","EPDM","Neoprene","Graphite Sheet","Compressed Fibre",
 ];
-const GASKET_STANDARD            = ["ASME B16.20","ASME B16.21","IS 2712"];
+const GASKET_STANDARD            = ["ASME B16.20","ASME B16.21","API 601"];
+const GASKETS_FACING_OPTS        = ["RF","FF","RTJ"];
+const GASKET_CAMPROFILE_CORE     = ["SS316","SS304","CS","Inconel 625"];
+const GASKET_CAMPROFILE_FACING   = ["Graphite","PTFE"];
 const GASKETS_ALL_OPTS: Record<string, string[]> = {
-  gasket_type:         GASKET_TYPES,
-  nominal_bore:        COMMON_NB,
-  pressure_class:      PRESSURE_CLASS_OPTS,
-  facing:              FACING_OPTS,
-  gasket_standard:     GASKET_STANDARD,
-  winding_material:    GASKET_WINDING_MATERIAL,
-  inner_ring_material: GASKET_INNER_RING_MATERIAL,
-  rtj_ring_material:   GASKET_RTJ_RING_MATERIAL,
-  sheet_material:      GASKET_SHEET_MATERIAL,
+  gasket_type:            GASKET_TYPES,
+  nominal_bore:           COMMON_NB,
+  pressure_class:         PRESSURE_CLASS_OPTS,
+  facing:                 GASKETS_FACING_OPTS,
+  gasket_standard:        GASKET_STANDARD,
+  winding_material:       GASKET_WINDING_MATERIAL,
+  inner_ring_material:    GASKET_INNER_RING_MATERIAL,
+  rtj_ring_material:      GASKET_RTJ_RING_MATERIAL,
+  sheet_material:         GASKET_SHEET_MATERIAL,
+  camprofile_core:        GASKET_CAMPROFILE_CORE,
+  camprofile_facing:      GASKET_CAMPROFILE_FACING,
 };
 
 export function buildGasketsRequirement(attrs: Record<string, unknown>): string {
@@ -1008,6 +1013,7 @@ export function GasketsAttrsForm({
   const isSW   = gLower.startsWith("spiral");
   const isRTJ  = gLower.startsWith("rtj");
   const isFlat = gLower.startsWith("flat sheet");
+  const isCamp = gLower.startsWith("camprofile") || gLower.startsWith("kammprofile");
 
   return (
     <div className="space-y-3">
@@ -1015,11 +1021,11 @@ export function GasketsAttrsForm({
         {rf("gasket_type",    "Gasket Type",    GASKET_TYPES,        true)}
         {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,           true)}
         {rf("pressure_class", "Pressure Class", PRESSURE_CLASS_OPTS, true)}
-        {rf("facing",         "Facing",         FACING_OPTS,         true)}
+        {rf("facing",         "Facing",         GASKETS_FACING_OPTS, true)}
         {rf("gasket_standard","Standard",       GASKET_STANDARD,     true)}
         <div />
       </SectionCard>
-      {(isSW || isRTJ || isFlat) && (
+      {(isSW || isRTJ || isFlat || isCamp) && (
         <SectionCard title="Materials" color="bg-violet-50/60 border-violet-200">
           {isSW   && rf("winding_material",    "Winding / Filler Material", GASKET_WINDING_MATERIAL,    true)}
           {isSW   && rf("inner_ring_material", "Inner Ring Material",       GASKET_INNER_RING_MATERIAL, true)}
@@ -1027,6 +1033,8 @@ export function GasketsAttrsForm({
           {isRTJ  && rt("rtj_ring_number",     "RTJ Ring Number",           true, "e.g. R-24, RX-24, BX-169")}
           {isFlat && rf("sheet_material",      "Sheet Material",            GASKET_SHEET_MATERIAL,      true)}
           {isFlat && <div />}
+          {isCamp && rf("camprofile_core",     "Core Material",             GASKET_CAMPROFILE_CORE,     true)}
+          {isCamp && rf("camprofile_facing",   "Facing Material",           GASKET_CAMPROFILE_FACING,   true)}
         </SectionCard>
       )}
       <SectionCard title="Quantity" color="bg-slate-50/80 border-slate-200">
