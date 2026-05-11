@@ -1440,15 +1440,19 @@ const ISOLATION_VALVE_TYPES = [
 const ISOLATION_COMMON_OPTS = {
   size_nb:          ["15 NB","20 NB","25 NB","32 NB","40 NB","50 NB","65 NB","80 NB",
                      "100 NB","125 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB"],
-  pressure_rating:  ["Class 150","Class 300","Class 600","Class 900","PN6","PN10","PN16","PN25","PN40"],
-  end_connection:   ["Flanged","Threaded (BSP)","Threaded (NPT)","Socket Weld","Butt Weld"],
-  end_conn_bfly:    ["Wafer","Lug Type","Flanged"],
+  pressure_rating:  ["Class 150","Class 300","Class 600","Class 900","Class 1500","Class 2500",
+                     "PN6","PN10","PN16","PN25","PN40","PN64","PN100","PN160"],
+  end_connection:   ["Flanged","Threaded (BSP)","Threaded (NPT)","Socket Weld","Butt Weld",
+                     "Grooved","Clamp End (Tri-Clamp)"],
+  end_conn_bfly:    ["Wafer","Lug Type","Flanged","Grooved"],
   end_conn_knife:   ["Wafer","Flanged"],
-  body_material:    ["CI","CS (WCB)","SS304","SS316","SS316L","Alloy Steel","Duplex SS","Hastelloy C"],
+  body_material:    ["CI","DI","CS (WCB)","LCB","SS304","SS316","SS316L","CF8","CF8M",
+                     "Duplex SS","Hastelloy C","Bronze","Monel","Titanium"],
   area_classification: ["Safe Area","Zone 1","Zone 2"],
 };
 
 const ISOLATION_BALL_OPTS = {
+  ball_design:    ["Floating Ball","Trunnion Mounted"],
   bore_type:      ["Full Bore","Reduced Bore"],
   seat_material:  ["PTFE","PEEK","Metal (SS316)","Nylon"],
   ball_material:  ["SS304","SS316","CS+ENP","Duplex SS"],
@@ -1479,6 +1483,7 @@ const ISOLATION_PLUG_OPTS = {
   sleeve_material: ["PTFE","Nylon","Metal"],
 };
 const ISOLATION_KNIFE_OPTS = {
+  service_type:   ["Standard","Slurry Service"],
   gate_material:  ["SS304","SS316","Hardened SS"],
   packing_type:   ["PTFE Stuffing Box","O-Ring"],
   seat_type:      ["Metal Seat","Soft Seat (EPDM)","Scraper Type"],
@@ -1486,13 +1491,13 @@ const ISOLATION_KNIFE_OPTS = {
 };
 const ISOLATION_DIAPHRAGM_OPTS = {
   diaphragm_material: ["EPDM","NBR","PTFE","Butyl"],
-  body_lining:        ["Rubber Lined","PTFE Lined","Unlined"],
+  body_lining:        ["Rubber Lined","PTFE Lined","PVDF Lined","Unlined"],
   weir_type:          ["Weir Type","Straightway","Full Bore"],
 };
 
 const ISOLATION_VALVE_MAKES = [
-  "L&T Valves","Neway","KSB","KITZ","Crane","Velan","Flowserve",
-  "Metso","Audco (L&T)","AVK","Bray","ORBINOX","GF Piping Systems","GEMU","IMI",
+  "Audco (L&T)","AVK","Bray","Crane","Flowserve","GF Piping Systems",
+  "GEMU","IMI","KITZ","KSB","L&T Valves","Metso","Neway","ORBINOX","Velan",
 ];
 
 const ISOLATION_ALL_FIELD_OPTS: Record<string, string[]> = {
@@ -1501,6 +1506,7 @@ const ISOLATION_ALL_FIELD_OPTS: Record<string, string[]> = {
   body_material:      ISOLATION_COMMON_OPTS.body_material,
   area_classification:ISOLATION_COMMON_OPTS.area_classification,
   end_connection:     [...ISOLATION_COMMON_OPTS.end_connection,"Wafer","Lug Type"],
+  ball_design:        ISOLATION_BALL_OPTS.ball_design,
   bore_type:          ISOLATION_BALL_OPTS.bore_type,
   seat_material:      [...ISOLATION_BALL_OPTS.seat_material, ...ISOLATION_BUTTERFLY_OPTS.seat_material],
   ball_material:      ISOLATION_BALL_OPTS.ball_material,
@@ -1519,6 +1525,7 @@ const ISOLATION_ALL_FIELD_OPTS: Record<string, string[]> = {
   lubrication:        ISOLATION_PLUG_OPTS.lubrication,
   plug_material:      ISOLATION_PLUG_OPTS.plug_material,
   sleeve_material:    ISOLATION_PLUG_OPTS.sleeve_material,
+  service_type:       ISOLATION_KNIFE_OPTS.service_type,
   gate_material:      ISOLATION_KNIFE_OPTS.gate_material,
   packing_type:       ISOLATION_KNIFE_OPTS.packing_type,
   seat_type:          ISOLATION_KNIFE_OPTS.seat_type,
@@ -1600,7 +1607,7 @@ function buildIsolationDefaults(valveType: string, prev: Record<string, unknown>
       body_material: "CS (WCB)", port_type: "Single Port", disc_type: "Plug Disc", trim_material: "SS316" };
   } else if (vt.includes("butterfly")) {
     return { ...base, size_nb: "100 NB", pressure_rating: "PN16", end_connection: "Wafer",
-      body_material: "CI", disc_material: "SS316", seat_material: "EPDM", disc_mounting: "Double Offset" };
+      body_material: "CI", disc_material: "SS316", seat_material: "EPDM", disc_mounting: "Concentric" };
   } else if (vt.includes("plug")) {
     return { ...base, size_nb: "50 NB", pressure_rating: "Class 150", end_connection: "Flanged",
       body_material: "CS (WCB)", port_pattern: "Single Port", lubrication: "Non-Lubricated" };
@@ -1770,12 +1777,12 @@ export function IsolationValveAttrsForm({
 
         {isBall && (<>
           {sectionHeader("Ball & Seat")}
+          {renderField("ball_design",   "Ball Design",   ISOLATION_BALL_OPTS.ball_design,   true)}
           {renderField("bore_type",     "Bore Type",     ISOLATION_BALL_OPTS.bore_type,     true)}
           {renderField("seat_material", "Seat Material", ISOLATION_BALL_OPTS.seat_material, true)}
           {renderField("ball_material", "Ball Material", ISOLATION_BALL_OPTS.ball_material)}
           {renderField("stem_packing",  "Stem Packing",  ISOLATION_BALL_OPTS.stem_packing)}
           {renderField("locking_device","Locking Device",ISOLATION_BALL_OPTS.locking_device)}
-          <div />
         </>)}
 
         {isGate && (<>
@@ -1812,6 +1819,7 @@ export function IsolationValveAttrsForm({
 
         {isKnife && (<>
           {sectionHeader("Gate & Packing")}
+          {renderField("service_type",   "Service Type",   ISOLATION_KNIFE_OPTS.service_type,   true)}
           {renderField("gate_material",  "Gate Material",  ISOLATION_KNIFE_OPTS.gate_material,  true)}
           {renderField("packing_type",   "Packing Type",   ISOLATION_KNIFE_OPTS.packing_type,   true)}
           {renderField("seat_type",      "Seat Type",      ISOLATION_KNIFE_OPTS.seat_type)}
