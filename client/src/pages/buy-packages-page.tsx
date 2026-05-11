@@ -60,7 +60,7 @@ import {
 import {
   PressureAttrsForm, TemperatureAttrsForm, FlowAttrsForm, LevelAttrsForm,
   buildPressureRequirement, buildTemperatureRequirement, buildFlowRequirement,
-  buildLevelRequirement, INSTRUMENT_CABLE_GLAND_DEFAULTS,
+  buildLevelRequirement, INSTRUMENT_CABLE_GLAND_DEFAULTS, TEMPERATURE_THERMOCOUPLE_DEFAULTS,
 } from "@/components/instrument-attrs-forms";
 import {
   MotorAttrsForm, buildMotorRequirement,
@@ -758,7 +758,14 @@ export default function BuyPackagesPage() {
         : line.buy_subgroup_code === "flameproof"
           ? applyFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
           : line.buy_group_code === "instruments"
-            ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS, ...(line.technical_attributes ?? {}) as Record<string, unknown> }
+            ? (() => {
+                const ta = (line.technical_attributes ?? {}) as Record<string, unknown>;
+                return {
+                  ...INSTRUMENT_CABLE_GLAND_DEFAULTS,
+                  ...(ta.instrument_type === "Thermocouple (TC)" ? TEMPERATURE_THERMOCOUPLE_DEFAULTS : {}),
+                  ...ta,
+                };
+              })()
             : (line.technical_attributes ?? {}) as Record<string, unknown>,
     });
     setLineDialog({

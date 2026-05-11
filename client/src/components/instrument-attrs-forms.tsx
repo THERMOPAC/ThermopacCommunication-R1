@@ -26,6 +26,16 @@ export const INSTRUMENT_CABLE_GLAND_DEFAULTS = {
   thread_size: '1/2" NPT',
 } as const;
 
+// ── Temperature / Thermocouple defaults ──────────────────────────────────────
+export const TEMPERATURE_THERMOCOUPLE_DEFAULTS = {
+  element_type:   "Simplex",
+  probe_diameter: "6 mm",
+  probe_length:   "260",
+} as const;
+
+const TC_ELEMENT_TYPES  = ["Simplex", "Duplex"] as const;
+const TC_PROBE_DIAMETERS = ["3 mm", "6 mm", "8 mm", "10 mm", "12 mm"] as const;
+
 // ── Cable Gland Block (shared by all instrument forms) ────────────────────────
 function CableGlandBlock({
   attrs, onChange,
@@ -804,7 +814,17 @@ export function TemperatureAttrsForm({
       set(key, "");
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      set(key, val);
+      if (key === "instrument_type" && val === "Thermocouple (TC)") {
+        onChange({
+          ...attrs,
+          instrument_type:  val,
+          element_type:   (attrs.element_type   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.element_type,
+          probe_diameter: (attrs.probe_diameter as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_diameter,
+          probe_length:   (attrs.probe_length   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_length,
+        });
+      } else {
+        set(key, val);
+      }
     }
   }
 
@@ -832,9 +852,10 @@ export function TemperatureAttrsForm({
     );
   }
 
-  const areaClass = (attrs.area_classification as string) ?? "";
-  const instrType = (attrs.instrument_type as string) ?? "";
-  const showSensor = instrType.startsWith("Thermocouple") || instrType.startsWith("RTD");
+  const areaClass      = (attrs.area_classification as string) ?? "";
+  const instrType      = (attrs.instrument_type as string) ?? "";
+  const isThermocouple = instrType === "Thermocouple (TC)";
+  const showSensor     = instrType.startsWith("Thermocouple") || instrType.startsWith("RTD");
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
@@ -843,6 +864,44 @@ export function TemperatureAttrsForm({
         {sec("Instrument Type")}
         <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
         {showSensor && <>{sec("Sensor")}{renderField("sensor_type", "Sensor Type")}<div /></>}
+        {isThermocouple && (<>
+          {sec("Thermocouple Details")}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Element Type <span className="text-red-500">*</span></Label>
+            <Select
+              value={(attrs.element_type as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.element_type}
+              onValueChange={v => onChange({ ...attrs, element_type: v })}
+            >
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TC_ELEMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Probe Diameter <span className="text-red-500">*</span></Label>
+            <Select
+              value={(attrs.probe_diameter as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_diameter}
+              onValueChange={v => onChange({ ...attrs, probe_diameter: v })}
+            >
+              <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TC_PROBE_DIAMETERS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Probe Length (mm) <span className="text-red-500">*</span></Label>
+            <Input
+              className="h-8 text-sm" type="number" min="1" step="1"
+              placeholder="e.g. 260"
+              value={(attrs.probe_length as string) ?? TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_length}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => onChange({ ...attrs, probe_length: e.target.value })}
+            />
+          </div>
+          <div />
+        </>)}
         {sec("Measuring Range")}
         <div className="space-y-1.5">
           <Label className="text-xs">Range Min</Label>
