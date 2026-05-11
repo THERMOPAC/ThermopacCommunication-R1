@@ -268,19 +268,21 @@ export function MotorAttrsForm({
 
   function sectionHeader(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      <div className="col-span-2 mt-3">
+        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
+        </div>
       </div>
     );
   }
 
-  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+  function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
-        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
-          {title}
-        </h4>
-        <div className="grid grid-cols-2 gap-3">
+      <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{title}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
           {children}
         </div>
       </div>
@@ -288,10 +290,10 @@ export function MotorAttrsForm({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
 
       {/* 1 — Motor Specifications */}
-      <SectionCard title="Motor Specifications" color="bg-sky-50/60 border-sky-200">
+      <SectionCard title="Motor Specifications">
         {renderField("motor_type",   "Motor Type",   MOTOR_OPTS.motor_type,   true)}
         {renderField("mounting",     "Mounting",     MOTOR_OPTS.mounting,     true)}
         {renderField("cooling_type", "Cooling Type", MOTOR_OPTS.cooling_type, true)}
@@ -299,7 +301,7 @@ export function MotorAttrsForm({
       </SectionCard>
 
       {/* 2 — Electrical Data */}
-      <SectionCard title="Electrical Data" color="bg-violet-50/60 border-violet-200">
+      <SectionCard title="Electrical Data">
         {renderField("power",   "Power (kW)", MOTOR_OPTS.power,     true)}
         {renderField("voltage", "Voltage",    MOTOR_OPTS.voltage,   true)}
         <div className="space-y-1.5">
@@ -330,7 +332,7 @@ export function MotorAttrsForm({
       </SectionCard>
 
       {/* 3 — Operating Conditions */}
-      <SectionCard title="Operating Conditions" color="bg-emerald-50/60 border-emerald-200">
+      <SectionCard title="Operating Conditions">
         {renderField("duty",                "Duty",                MOTOR_OPTS.duty,             true)}
         {renderField("area_classification", "Area Classification", areaOpts,                    true, true)}
         {renderField("ip_rating",           "IP Rating",           MOTOR_OPTS.ip_rating,        true)}
@@ -341,7 +343,7 @@ export function MotorAttrsForm({
 
       {/* 4 — Flameproof / Hazardous Area Details (flameproof only) */}
       {isFlameproof && (
-        <SectionCard title="Flameproof / Hazardous Area Details" color="bg-amber-50/60 border-amber-300">
+        <SectionCard title="Flameproof / Hazardous Area Details">
           <div className="space-y-1.5">
             <Label className="text-xs">Explosion Protection <span className="text-red-500">*</span></Label>
             <select
@@ -370,7 +372,7 @@ export function MotorAttrsForm({
       )}
 
       {/* 5 — Construction / Approved Makes */}
-      <SectionCard title="Construction / Approved Makes" color="bg-slate-50/80 border-slate-200">
+      <SectionCard title="Construction / Approved Makes">
         {renderField("material", "Material", MOTOR_OPTS.material)}
         <div />
         <div className="space-y-1.5 col-span-2">

@@ -299,8 +299,10 @@ export function CentrifugalPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      <div className="col-span-2 mt-3">
+        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
+        </div>
       </div>
     );
   }
@@ -329,13 +331,13 @@ export function CentrifugalPumpAttrsForm({
   const filteredMakes   = PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Centrifugal Pump Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Centrifugal Pump Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Pump Type</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Pump Type</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Pump Type <span className="text-red-500">*</span></Label>
@@ -352,10 +354,10 @@ export function CentrifugalPumpAttrsForm({
       )}
 
       {isEndSuction && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">End Suction Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">End Suction Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("casing_type",    "Casing Type",       CENTRIFUGAL_COMMON_OPTS.casing_type,   true)}
@@ -370,10 +372,10 @@ export function CentrifugalPumpAttrsForm({
         </div>
       )}
       {isSplitCase && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Split Case Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Split Case Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("impeller_type_sc","Impeller Type",    CENTRIFUGAL_COMMON_OPTS.impeller_type_sc, true)}
@@ -388,10 +390,10 @@ export function CentrifugalPumpAttrsForm({
         </div>
       )}
       {isMultistage && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Multistage Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Multistage Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_stages",     "Number of Stages",  CENTRIFUGAL_COMMON_OPTS.num_stages,      true)}
@@ -406,10 +408,10 @@ export function CentrifugalPumpAttrsForm({
         </div>
       )}
       {isVertInline && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Inline Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Vertical Inline Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,   true)}
@@ -422,10 +424,10 @@ export function CentrifugalPumpAttrsForm({
         </div>
       )}
       {isVertTurbine && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Turbine Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Vertical Turbine Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_bowl_stages",      "No. of Bowl Stages",   CENTRIFUGAL_COMMON_OPTS.num_bowl_stages,       true)}
@@ -443,10 +445,10 @@ export function CentrifugalPumpAttrsForm({
       )}
 
       {hasType && (<>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Operating Conditions</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("flow_rate",      "Flow Rate",         CENTRIFUGAL_COMMON_OPTS.flow_rate,      true)}
@@ -456,10 +458,10 @@ export function CentrifugalPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("mounting",       "Mounting",          CENTRIFUGAL_COMMON_OPTS.mounting,       true)}
@@ -471,7 +473,7 @@ export function CentrifugalPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Area & Spares</p>
@@ -484,7 +486,7 @@ export function CentrifugalPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
@@ -740,8 +742,10 @@ export function GearPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      <div className="col-span-2 mt-3">
+        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
+        </div>
       </div>
     );
   }
@@ -766,13 +770,13 @@ export function GearPumpAttrsForm({
   const filteredMakes = GEAR_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Gear Pump Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Gear Pump Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Gear Type</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Gear Type</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Gear Type <span className="text-red-500">*</span></Label>
@@ -789,10 +793,10 @@ export function GearPumpAttrsForm({
       )}
 
       {isExternal && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">External Gear Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">External Gear Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
@@ -806,10 +810,10 @@ export function GearPumpAttrsForm({
         </div>
       )}
       {isInternal && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Internal Gear (Crescent) Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Internal Gear (Crescent) Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("gear_material",   "Gear Material",       GEAR_COMMON_OPTS.gear_material,  true)}
@@ -825,10 +829,10 @@ export function GearPumpAttrsForm({
         </div>
       )}
       {isHelical && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Helical Gear Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Helical Gear Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
@@ -844,10 +848,10 @@ export function GearPumpAttrsForm({
         </div>
       )}
       {isBiHelical && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Bi-Helical / Herringbone Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Bi-Helical / Herringbone Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
@@ -863,10 +867,10 @@ export function GearPumpAttrsForm({
       )}
 
       {hasType && (<>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Operating Conditions</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("flow_rate",      "Flow Rate",             GEAR_COMMON_OPTS.flow_rate,      true)}
@@ -878,10 +882,10 @@ export function GearPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("mounting",       "Mounting",              GEAR_COMMON_OPTS.mounting,       true)}
@@ -893,7 +897,7 @@ export function GearPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Performance & Area</p>
@@ -908,7 +912,7 @@ export function GearPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
@@ -1148,8 +1152,10 @@ export function ScrewPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      <div className="col-span-2 mt-3">
+        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
+        </div>
       </div>
     );
   }
@@ -1173,13 +1179,13 @@ export function ScrewPumpAttrsForm({
   const filteredMakes = SCREW_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Screw Pump Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Screw Pump Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Screw Type</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Screw Type</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Screw Type <span className="text-red-500">*</span></Label>
@@ -1196,10 +1202,10 @@ export function ScrewPumpAttrsForm({
       )}
 
       {isSingle && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Single Screw Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Single Screw Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_s,    true)}
@@ -1212,10 +1218,10 @@ export function ScrewPumpAttrsForm({
         </div>
       )}
       {isTwin && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Twin Screw Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Twin Screw Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
@@ -1230,10 +1236,10 @@ export function ScrewPumpAttrsForm({
         </div>
       )}
       {isTriple && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Triple Screw Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Triple Screw Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
@@ -1247,10 +1253,10 @@ export function ScrewPumpAttrsForm({
         </div>
       )}
       {isPC && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Progressive Cavity Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Progressive Cavity Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("rotor_material",    "Rotor Material",    SCREW_COMMON_OPTS.rotor_material,   true)}
@@ -1267,10 +1273,10 @@ export function ScrewPumpAttrsForm({
       )}
 
       {hasType && (<>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Operating Conditions</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("flow_rate",      "Flow Rate",             SCREW_COMMON_OPTS.flow_rate,     true)}
@@ -1282,10 +1288,10 @@ export function ScrewPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("mounting",       "Mounting",       SCREW_COMMON_OPTS.mounting,       true)}
@@ -1297,7 +1303,7 @@ export function ScrewPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Performance & Area</p>
@@ -1312,7 +1318,7 @@ export function ScrewPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
@@ -1584,13 +1590,13 @@ export function MultistagePumpAttrsForm({
   const isBarrel     = msType === "Barrel Type";
 
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Multistage Pump Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Multistage Pump Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Multistage Type</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Multistage Type</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Multistage Type <span className="text-red-500">*</span></Label>
@@ -1607,10 +1613,10 @@ export function MultistagePumpAttrsForm({
       )}
 
       {isHorizontal && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Horizontal Multistage — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Horizontal Multistage — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_stages",       "Number of Stages",    true)}
@@ -1628,10 +1634,10 @@ export function MultistagePumpAttrsForm({
         </div>
       )}
       {isVertical && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Multistage — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Vertical Multistage — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_stages",       "Number of Stages",        true)}
@@ -1649,10 +1655,10 @@ export function MultistagePumpAttrsForm({
         </div>
       )}
       {isRing && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Ring Section — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Ring Section — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_stages",       "Number of Stages",     true)}
@@ -1669,10 +1675,10 @@ export function MultistagePumpAttrsForm({
         </div>
       )}
       {isBarrel && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Barrel Type — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Barrel Type — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_stages",       "Number of Stages",     true)}
@@ -1691,10 +1697,10 @@ export function MultistagePumpAttrsForm({
       )}
 
       {msType && (<>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Operating Conditions</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("flow_rate",     "Flow Rate (m³/hr)",  true)}
@@ -1708,7 +1714,7 @@ export function MultistagePumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional / Additional</p>
@@ -1735,7 +1741,7 @@ export function MultistagePumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Approved Makes (Ranked)</p>
@@ -2013,8 +2019,10 @@ export function DosingPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      <div className="col-span-2 mt-3">
+        <div className="bg-muted/60 border-l-[3px] border-primary/50 rounded-sm px-3 py-1.5">
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">{label}</p>
+        </div>
       </div>
     );
   }
@@ -2039,13 +2047,13 @@ export function DosingPumpAttrsForm({
   const filteredMakes = DOSING_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Dosing / Metering Pump Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Dosing / Metering Pump Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Pump Type</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Pump Type</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Pump Type <span className="text-red-500">*</span></Label>
@@ -2062,10 +2070,10 @@ export function DosingPumpAttrsForm({
       )}
 
       {isDiaphragm && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Diaphragm Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Diaphragm Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("diaphragm_material", "Diaphragm Material",   DOSING_COMMON_OPTS.diaphragm_material, true)}
@@ -2079,10 +2087,10 @@ export function DosingPumpAttrsForm({
         </div>
       )}
       {isPlunger && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Plunger Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Plunger Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("plunger_material", "Plunger Material",   DOSING_COMMON_OPTS.plunger_material, true)}
@@ -2093,10 +2101,10 @@ export function DosingPumpAttrsForm({
         </div>
       )}
       {isPiston && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Piston Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Piston Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("piston_material",  "Piston Material",    DOSING_COMMON_OPTS.piston_material,   true)}
@@ -2107,10 +2115,10 @@ export function DosingPumpAttrsForm({
         </div>
       )}
       {isPeris && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Peristaltic Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Peristaltic Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("hose_material",  "Hose / Tube Material", DOSING_COMMON_OPTS.hose_material,  true)}
@@ -2121,10 +2129,10 @@ export function DosingPumpAttrsForm({
         </div>
       )}
       {isSolenoid && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Solenoid Dosing Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Solenoid Dosing Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("diaphragm_material","Diaphragm Material", DOSING_COMMON_OPTS.diaphragm_material, true)}
@@ -2138,10 +2146,10 @@ export function DosingPumpAttrsForm({
       )}
 
       {hasType && (<>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Operating Conditions</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("flow_rate",           "Flow Rate",           DOSING_COMMON_OPTS.flow_rate,           true)}
@@ -2153,10 +2161,10 @@ export function DosingPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("mounting",     "Mounting",     DOSING_COMMON_OPTS.mounting,     true)}
@@ -2166,7 +2174,7 @@ export function DosingPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Controls & Area</p>
@@ -2183,7 +2191,7 @@ export function DosingPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
@@ -2385,13 +2393,13 @@ export function VacuumBoosterAttrsForm({
   const isTri     = vbType === "Tri-Lobe";
 
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Vacuum Booster Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Vacuum Booster Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Booster Type</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Booster Type</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Booster Type <span className="text-red-500">*</span></Label>
@@ -2408,10 +2416,10 @@ export function VacuumBoosterAttrsForm({
       )}
 
       {isRoots && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Roots Blower — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Roots Blower — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("rotor_profile",        "Rotor Profile")}
@@ -2424,10 +2432,10 @@ export function VacuumBoosterAttrsForm({
         </div>
       )}
       {isBooster && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vacuum Booster — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Vacuum Booster — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("booster_compression_ratio","Compression Ratio")}
@@ -2439,10 +2447,10 @@ export function VacuumBoosterAttrsForm({
         </div>
       )}
       {isTwin && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Twin Lobe — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Twin Lobe — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("rotor_profile",        "Rotor Profile")}
@@ -2454,10 +2462,10 @@ export function VacuumBoosterAttrsForm({
         </div>
       )}
       {isTri && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Tri-Lobe — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Tri-Lobe — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("drive_type",           "Drive Type")}
@@ -2470,10 +2478,10 @@ export function VacuumBoosterAttrsForm({
       )}
 
       {vbType && (<>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Operating Conditions</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("flow_rate",          "Flow Rate (m³/hr)",  true)}
@@ -2485,7 +2493,7 @@ export function VacuumBoosterAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional / Additional</p>
@@ -2500,7 +2508,7 @@ export function VacuumBoosterAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Approved Makes (Ranked)</p>
@@ -2790,13 +2798,13 @@ export function VacuumPumpAttrsForm({
   const isEjector    = vpType === "Steam Jet Ejector";
   const hasType      = isLiquidRing || isDryScrew || isRotaryVane || isRecip || isEjector;
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Vacuum Pump Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Vacuum Pump Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Technology</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Technology</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Vacuum Pump Technology <span className="text-red-500">*</span></Label>
@@ -2813,10 +2821,10 @@ export function VacuumPumpAttrsForm({
       )}
 
       {isLiquidRing && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Liquid Ring — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Liquid Ring — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("sealing_liquid",       "Sealing Liquid",      true)}
@@ -2829,10 +2837,10 @@ export function VacuumPumpAttrsForm({
         </div>
       )}
       {isDryScrew && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Dry Screw — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Dry Screw — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("compression_stages",  "Compression Stages",  true)}
@@ -2845,10 +2853,10 @@ export function VacuumPumpAttrsForm({
         </div>
       )}
       {isRotaryVane && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Rotary Vane — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Rotary Vane — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("oil_sealed",      "Oil Sealed",         true)}
@@ -2861,10 +2869,10 @@ export function VacuumPumpAttrsForm({
         </div>
       )}
       {isRecip && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Reciprocating — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Reciprocating — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_cylinders",       "Number of Cylinders", true)}
@@ -2877,10 +2885,10 @@ export function VacuumPumpAttrsForm({
         </div>
       )}
       {isEjector && (
-        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
-            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Steam Jet Ejector — Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Steam Jet Ejector — Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("num_stages_ejector",       "Number of Stages",        true)}
@@ -2894,10 +2902,10 @@ export function VacuumPumpAttrsForm({
       )}
 
       {hasType && (<>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Operating Conditions</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("suction_capacity_m3hr",  "Suction Capacity (m³/hr)",    true)}
@@ -2911,10 +2919,10 @@ export function VacuumPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Mechanical Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Mechanical Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("mounting",      "Mounting",      true)}
@@ -2934,10 +2942,10 @@ export function VacuumPumpAttrsForm({
         </div>
 
         {!isEjector && (
-          <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 space-y-2">
+          <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
             <div className="flex items-center gap-1.5">
-              <div className="w-[3px] h-4 rounded-full bg-indigo-500 shrink-0" />
-              <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest">Electrical & Motor</p>
+              <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+              <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Electrical & Motor</p>
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               {renderField("motor_power_kw",        "Motor Power (kW)",  true)}
@@ -2950,7 +2958,7 @@ export function VacuumPumpAttrsForm({
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
@@ -3186,13 +3194,13 @@ export function PumpSkidAttrsForm({
     (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase()));
 
   return (
-    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Pump Skid Package Specifications</p>
+    <div className="space-y-4 rounded-xl border bg-card shadow-sm p-5">
+      <p className="text-sm font-semibold text-foreground/80 tracking-tight">Pump Skid Package Specifications</p>
 
-      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+      <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
         <div className="flex items-center gap-1.5">
-          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
-          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Package Type</p>
+          <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+          <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Package Type</p>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Package Type <span className="text-red-500">*</span></Label>
@@ -3209,10 +3217,10 @@ export function PumpSkidAttrsForm({
       )}
 
       {pkgType && (<>
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Details</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Pump Details</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("pump_type",     "Pump Type",     true)}
@@ -3222,10 +3230,10 @@ export function PumpSkidAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Capacity (Indicative)</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Capacity (Indicative)</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("flow_rate",     "Flow Rate (m³/hr)")}
@@ -3234,10 +3242,10 @@ export function PumpSkidAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
-            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Package Configuration</p>
+            <div className="w-[3px] h-4 rounded-full bg-primary/50 shrink-0" />
+            <p className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">Package Configuration</p>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {renderField("mounting",         "Mounting")}
@@ -3247,7 +3255,7 @@ export function PumpSkidAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Scope of Supply</p>
@@ -3311,7 +3319,7 @@ export function PumpSkidAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+        <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Approved Makes (Ranked)</p>
