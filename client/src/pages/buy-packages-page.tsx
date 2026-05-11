@@ -233,6 +233,63 @@ function TechnicalAttrsForm({
   );
 }
 
+// ── Subgroup completeness warnings ────────────────────────────────────────────
+function computeSubgroupWarnings(
+  subgroupCode: string,
+  groupCode: string,
+  attrs: Record<string, unknown>,
+  isMotorMode: boolean,
+): string[] {
+  const warns: string[] = [];
+  const missing = (key: string) => !attrs[key] && attrs[key] !== 0;
+
+  if (isMotorMode || groupCode === "motors") {
+    if (missing("kw") && missing("hp"))  warns.push("Power rating (kW or HP) is required");
+    if (missing("voltage_v"))            warns.push("Voltage is required");
+    if (missing("phase"))                warns.push("Phase is required");
+    if (missing("frequency_hz"))         warns.push("Frequency is required");
+    if (missing("rpm"))                  warns.push("RPM is required");
+  } else if (groupCode === "pumps") {
+    if (missing("flow_m3hr"))            warns.push("Flow rate (m³/hr) is required");
+    if (missing("head_m"))               warns.push("Head (m) is required");
+    if (missing("fluid"))                warns.push("Fluid is required");
+    if (missing("moc"))                  warns.push("MOC is required");
+  } else if (groupCode === "instruments") {
+    if (missing("measurement_type"))     warns.push("Measurement type is required");
+    if (missing("range_min"))            warns.push("Range minimum is required");
+    if (missing("range_max"))            warns.push("Range maximum is required");
+    if (missing("range_unit"))           warns.push("Range unit is required");
+  } else if (groupCode === "valves") {
+    if (missing("size_mm"))              warns.push("Valve size (mm) is required");
+    if (missing("rating_class"))         warns.push("Rating class is required");
+    if (missing("end_connection"))       warns.push("End connection is required");
+  } else if (groupCode === "electrical_control") {
+    if (subgroupCode === "panels") {
+      if (missing("panel_type"))         warns.push("Panel type is required");
+      if (missing("voltage_v"))          warns.push("Voltage is required");
+    } else if (subgroupCode === "cabling") {
+      if (missing("voltage_v"))          warns.push("Voltage is required");
+    }
+  }
+  return warns;
+}
+
+function WarningPanel({ warnings }: { warnings: string[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1">
+        <AlertCircle className="h-3 w-3" /> Completeness Warnings
+      </p>
+      <ul className="list-disc list-inside space-y-0.5">
+        {warnings.map((w, i) => (
+          <li key={i} className="text-xs text-amber-700">{w}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ── Flag badges ───────────────────────────────────────────────────────────────
 const FLAGS = [
   { key: "selection_required",   short: "SEL"  },
