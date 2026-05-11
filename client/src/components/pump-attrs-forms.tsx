@@ -329,100 +329,169 @@ export function CentrifugalPumpAttrsForm({
   const filteredMakes   = PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Centrifugal Pump Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Pump Type")}
-        <div className="col-span-2 space-y-1.5">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Centrifugal Pump Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Pump Type</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Pump Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={CENTRIFUGAL_PUMP_TYPES.includes(pumpType) ? pumpType : ""}
             options={CENTRIFUGAL_PUMP_TYPES} placeholder="Select pump type first…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
-            Select a pump type above to configure specifications
+      </div>
+
+      {!hasType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a pump type above to configure specifications
+        </div>
+      )}
+
+      {isEndSuction && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">End Suction Configuration</p>
           </div>
-        )}
-        {isEndSuction && (<>
-          {sec("End Suction Configuration")}
-          {renderField("casing_type",    "Casing Type",       CENTRIFUGAL_COMMON_OPTS.casing_type,   true)}
-          {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type, true)}
-          {renderField("coupling_type",  "Coupling Type",     CENTRIFUGAL_COMMON_OPTS.coupling_type, true)}
-          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
-          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
-          {renderFreeText("npsha",       "NPSHa (m)",         "e.g. 4.5 m")}
-          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
-          <div />
-        </>)}
-        {isSplitCase && (<>
-          {sec("Split Case Configuration")}
-          {renderField("impeller_type_sc","Impeller Type",    CENTRIFUGAL_COMMON_OPTS.impeller_type_sc, true)}
-          {renderField("orientation",    "Orientation",       CENTRIFUGAL_COMMON_OPTS.orientation,     true)}
-          {renderField("coupling_type_sc","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_sc,true)}
-          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
-          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
-          {renderFreeText("npsha",       "NPSHa (m)",         "e.g. 4.5 m")}
-          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
-          <div />
-        </>)}
-        {isMultistage && (<>
-          {sec("Multistage Configuration")}
-          {renderField("num_stages",     "Number of Stages",  CENTRIFUGAL_COMMON_OPTS.num_stages,     true)}
-          {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,  true)}
-          {renderField("coupling_type_ms","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_ms,true)}
-          {renderField("orientation_ms", "Orientation",       CENTRIFUGAL_COMMON_OPTS.orientation)}
-          {renderField("balance_method", "Balancing Method",  CENTRIFUGAL_COMMON_OPTS.balance_method)}
-          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
-          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
-          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
-        </>)}
-        {isVertInline && (<>
-          {sec("Vertical Inline Configuration")}
-          {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,   true)}
-          {renderField("coupling_type_vi","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_vi,true)}
-          {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
-          {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
-          {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
-          <div />
-        </>)}
-        {isVertTurbine && (<>
-          {sec("Vertical Turbine Configuration")}
-          {renderField("num_bowl_stages",      "No. of Bowl Stages",    CENTRIFUGAL_COMMON_OPTS.num_bowl_stages,         true)}
-          {renderField("column_length",        "Column Length",          CENTRIFUGAL_COMMON_OPTS.column_length,           true)}
-          {renderField("discharge_head_type",  "Discharge Head Type",    CENTRIFUGAL_COMMON_OPTS.discharge_head_type,     true)}
-          {renderField("lineshaft_lubrication","Lineshaft Lubrication",  CENTRIFUGAL_COMMON_OPTS.lineshaft_lubrication,   true)}
-          {renderField("bowl_diameter",        "Bowl Diameter",          CENTRIFUGAL_COMMON_OPTS.bowl_diameter)}
-          {renderField("api_610_category",     "API 610 Category",       CENTRIFUGAL_COMMON_OPTS.api_610)}
-          {renderField("strainer_fitted",      "Strainer Fitted",        CENTRIFUGAL_COMMON_OPTS.yes_no)}
-          {renderField("motor_platform",       "Motor Platform",         CENTRIFUGAL_COMMON_OPTS.motor_platform)}
-          {renderField("motor_power_kw",       "Motor Power (kW)",       CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
-          <div />
-        </>)}
-        {hasType && (<>
-          {sec("Operating Conditions")}
-          {renderField("flow_rate",      "Flow Rate",         CENTRIFUGAL_COMMON_OPTS.flow_rate,      true)}
-          {renderField("head",           "Head / TDH",        CENTRIFUGAL_COMMON_OPTS.head,           true)}
-          {renderField("fluid",          "Fluid",             CENTRIFUGAL_COMMON_OPTS.fluid,          true)}
-          {renderField("operating_temp", "Operating Temp",    CENTRIFUGAL_COMMON_OPTS.operating_temp)}
-          {sec("Pump Configuration")}
-          {renderField("mounting",       "Mounting",          CENTRIFUGAL_COMMON_OPTS.mounting,       true)}
-          {renderField("drive_type",     "Drive Type",        CENTRIFUGAL_COMMON_OPTS.drive_type,     true)}
-          {renderField("service_type",   "Service Type",      CENTRIFUGAL_COMMON_OPTS.service_type,   true)}
-          {renderField("seal_type",      "Seal Type",         CENTRIFUGAL_COMMON_OPTS.seal_type,      true)}
-          {renderField("material_class", "Material Class",    CENTRIFUGAL_COMMON_OPTS.material_class, true)}
-          <div />
-          {sec("Optional — Area & Spares")}
-          {renderField("area_classification","Area Classification", CENTRIFUGAL_COMMON_OPTS.area_class)}
-          {renderField("certification",  "Certification",     CENTRIFUGAL_COMMON_OPTS.certification)}
-          {renderField("spare_parts",    "Spare Parts Package",CENTRIFUGAL_COMMON_OPTS.spare_parts)}
-          <div />
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Approved Makes (ranked) <span className="text-red-500">*</span>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("casing_type",    "Casing Type",       CENTRIFUGAL_COMMON_OPTS.casing_type,   true)}
+            {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type, true)}
+            {renderField("coupling_type",  "Coupling Type",     CENTRIFUGAL_COMMON_OPTS.coupling_type, true)}
+            {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+            {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+            {renderFreeText("npsha",       "NPSHa (m)",         "e.g. 4.5 m")}
+            {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+            <div />
+          </div>
+        </div>
+      )}
+      {isSplitCase && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Split Case Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("impeller_type_sc","Impeller Type",    CENTRIFUGAL_COMMON_OPTS.impeller_type_sc, true)}
+            {renderField("orientation",    "Orientation",       CENTRIFUGAL_COMMON_OPTS.orientation,     true)}
+            {renderField("coupling_type_sc","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_sc,true)}
+            {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+            {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+            {renderFreeText("npsha",       "NPSHa (m)",         "e.g. 4.5 m")}
+            {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+            <div />
+          </div>
+        </div>
+      )}
+      {isMultistage && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Multistage Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_stages",     "Number of Stages",  CENTRIFUGAL_COMMON_OPTS.num_stages,      true)}
+            {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,   true)}
+            {renderField("coupling_type_ms","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_ms,true)}
+            {renderField("orientation_ms", "Orientation",       CENTRIFUGAL_COMMON_OPTS.orientation)}
+            {renderField("balance_method", "Balancing Method",  CENTRIFUGAL_COMMON_OPTS.balance_method)}
+            {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+            {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+            {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+          </div>
+        </div>
+      )}
+      {isVertInline && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Inline Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,   true)}
+            {renderField("coupling_type_vi","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_vi,true)}
+            {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
+            {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
+            {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+            <div />
+          </div>
+        </div>
+      )}
+      {isVertTurbine && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Turbine Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_bowl_stages",      "No. of Bowl Stages",   CENTRIFUGAL_COMMON_OPTS.num_bowl_stages,       true)}
+            {renderField("column_length",        "Column Length",         CENTRIFUGAL_COMMON_OPTS.column_length,         true)}
+            {renderField("discharge_head_type",  "Discharge Head Type",   CENTRIFUGAL_COMMON_OPTS.discharge_head_type,   true)}
+            {renderField("lineshaft_lubrication","Lineshaft Lubrication", CENTRIFUGAL_COMMON_OPTS.lineshaft_lubrication, true)}
+            {renderField("bowl_diameter",        "Bowl Diameter",         CENTRIFUGAL_COMMON_OPTS.bowl_diameter)}
+            {renderField("api_610_category",     "API 610 Category",      CENTRIFUGAL_COMMON_OPTS.api_610)}
+            {renderField("strainer_fitted",      "Strainer Fitted",       CENTRIFUGAL_COMMON_OPTS.yes_no)}
+            {renderField("motor_platform",       "Motor Platform",        CENTRIFUGAL_COMMON_OPTS.motor_platform)}
+            {renderField("motor_power_kw",       "Motor Power (kW)",      CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
+            <div />
+          </div>
+        </div>
+      )}
+
+      {hasType && (<>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("flow_rate",      "Flow Rate",         CENTRIFUGAL_COMMON_OPTS.flow_rate,      true)}
+            {renderField("head",           "Head / TDH",        CENTRIFUGAL_COMMON_OPTS.head,           true)}
+            {renderField("fluid",          "Fluid",             CENTRIFUGAL_COMMON_OPTS.fluid,          true)}
+            {renderField("operating_temp", "Operating Temp",    CENTRIFUGAL_COMMON_OPTS.operating_temp)}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("mounting",       "Mounting",          CENTRIFUGAL_COMMON_OPTS.mounting,       true)}
+            {renderField("drive_type",     "Drive Type",        CENTRIFUGAL_COMMON_OPTS.drive_type,     true)}
+            {renderField("service_type",   "Service Type",      CENTRIFUGAL_COMMON_OPTS.service_type,   true)}
+            {renderField("seal_type",      "Seal Type",         CENTRIFUGAL_COMMON_OPTS.seal_type,      true)}
+            {renderField("material_class", "Material Class",    CENTRIFUGAL_COMMON_OPTS.material_class, true)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Area & Spares</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("area_classification","Area Classification", CENTRIFUGAL_COMMON_OPTS.area_class)}
+            {renderField("certification",  "Certification",     CENTRIFUGAL_COMMON_OPTS.certification)}
+            {renderField("spare_parts",    "Spare Parts Package",CENTRIFUGAL_COMMON_OPTS.spare_parts)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+              Approved Makes (Ranked) <span className="text-red-500">*</span>
             </p>
           </div>
-          <div className="col-span-2 space-y-2">
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
                 value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
@@ -451,7 +520,7 @@ export function CentrifugalPumpAttrsForm({
             )}
           </div>
           {seriesOpts.length > 0 && (
-            <div className="space-y-1.5 col-span-2">
+            <div className="space-y-1.5 pt-1">
               <Label className="text-xs">Preferred Series <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
               <SearchableSelect value={seriesSelectVal} options={seriesOpts} placeholder="Select series…"
                 onSelect={(v) => {
@@ -464,15 +533,16 @@ export function CentrifugalPumpAttrsForm({
               )}
             </div>
           )}
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -694,94 +764,156 @@ export function GearPumpAttrsForm({
   const filteredMakes = GEAR_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Gear Pump Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Gear Type")}
-        <div className="col-span-2 space-y-1.5">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Gear Pump Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Gear Type</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Gear Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={GEAR_PUMP_TYPES.includes(gearType) ? gearType : ""}
             options={GEAR_PUMP_TYPES} placeholder="Select gear type first…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
-            Select a gear type above to configure specifications
+      </div>
+
+      {!hasType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a gear type above to configure specifications
+        </div>
+      )}
+
+      {isExternal && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">External Gear Configuration</p>
           </div>
-        )}
-        {isExternal && (<>
-          {sec("External Gear Configuration")}
-          {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
-          {renderField("port_connection",     "Port Connection",       GEAR_COMMON_OPTS.port_conn,     true)}
-          {renderFreeText("port_size",        "Port Size (DN/NPS)",    "e.g. DN50, 2\"")}
-          {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
-          {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 12 bar")}
-          {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",  GEAR_COMMON_OPTS.heating_medium) : <div />}
-        </>)}
-        {isInternal && (<>
-          {sec("Internal Gear (Crescent) Configuration")}
-          {renderField("gear_material",   "Gear Material",       GEAR_COMMON_OPTS.gear_material,  true)}
-          {renderField("crescent_type",   "Crescent Type",       GEAR_COMMON_OPTS.crescent_type,  true)}
-          {renderField("idler_pin_type",  "Idler Pin Type",      GEAR_COMMON_OPTS.idler_pin_type, true)}
-          {renderField("port_connection", "Port Connection",     GEAR_COMMON_OPTS.port_conn,      true)}
-          {renderFreeText("port_size",    "Port Size (DN/NPS)",  "e.g. DN50, 2\"")}
-          {renderField("heating_jacket",  "Heating Jacket",      GEAR_COMMON_OPTS.yes_no,         true)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",GEAR_COMMON_OPTS.heating_medium) : <div />}
-          {renderField("insulation",      "Insulation Required", GEAR_COMMON_OPTS.yes_no)}
-          <div />
-        </>)}
-        {isHelical && (<>
-          {sec("Helical Gear Configuration")}
-          {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
-          {renderField("helix_angle",         "Helix Angle",           GEAR_COMMON_OPTS.helix_angle)}
-          {renderField("noise_class",         "Noise Class",           GEAR_COMMON_OPTS.noise_class)}
-          {renderField("port_connection",     "Port Connection",       GEAR_COMMON_OPTS.port_conn)}
-          {renderFreeText("port_size",        "Port Size (DN/NPS)",    "e.g. DN50, 2\"")}
-          {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
-          {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 12 bar")}
-          {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",  GEAR_COMMON_OPTS.heating_medium) : <div />}
-        </>)}
-        {isBiHelical && (<>
-          {sec("Bi-Helical / Herringbone Configuration")}
-          {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
-          {renderField("bearing_type",        "Bearing Type",          GEAR_COMMON_OPTS.bearing_type,  true)}
-          {renderFreeText("max_diff_pressure","Max Diff. Pressure",    "e.g. 40 bar",                  true)}
-          {renderField("lube_system",         "Lubrication System",    GEAR_COMMON_OPTS.lube_system)}
-          {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
-          {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 40 bar")}
-          {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",  GEAR_COMMON_OPTS.heating_medium) : <div />}
-        </>)}
-        {hasType && (<>
-          {sec("Operating Conditions")}
-          {renderField("flow_rate",      "Flow Rate",             GEAR_COMMON_OPTS.flow_rate,      true)}
-          {renderField("diff_pressure",  "Differential Pressure", GEAR_COMMON_OPTS.diff_pressure,  true)}
-          {renderField("fluid",          "Fluid",                 GEAR_COMMON_OPTS.fluid,          true)}
-          {renderFreeText("viscosity",   "Viscosity (cSt)",       "e.g. 100 cSt")}
-          {renderField("operating_temp", "Operating Temp",        GEAR_COMMON_OPTS.operating_temp)}
-          <div />
-          {sec("Pump Configuration")}
-          {renderField("mounting",       "Mounting",              GEAR_COMMON_OPTS.mounting,       true)}
-          {renderField("drive_type",     "Drive Type",            GEAR_COMMON_OPTS.drive_type,     true)}
-          {renderField("service_type",   "Service Type",          GEAR_COMMON_OPTS.service_type,   true)}
-          {renderField("material_class", "Material Class",        GEAR_COMMON_OPTS.material_class, true)}
-          {renderField("seal_type",      "Seal Type",             GEAR_COMMON_OPTS.seal_type,      true)}
-          <div />
-          {sec("Optional — Performance & Area")}
-          {renderField("speed_rpm",          "Speed (RPM)",          GEAR_COMMON_OPTS.speed_rpm)}
-          {renderField("motor_power_kw",     "Motor Power (kW)",     GEAR_COMMON_OPTS.motor_power_kw)}
-          {renderField("api_standard",       "API Standard",         GEAR_COMMON_OPTS.api_676)}
-          {renderField("area_classification","Area Classification",  GEAR_COMMON_OPTS.area_class)}
-          {renderField("certification",      "Certification",        GEAR_COMMON_OPTS.certification)}
-          {renderField("spare_parts",        "Spare Parts Package",  GEAR_COMMON_OPTS.spare_parts)}
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Approved Makes (ranked) <span className="text-red-500">*</span>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
+            {renderField("port_connection",     "Port Connection",       GEAR_COMMON_OPTS.port_conn,     true)}
+            {renderFreeText("port_size",        "Port Size (DN/NPS)",    "e.g. DN50, 2\"")}
+            {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
+            {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 12 bar")}
+            {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",  GEAR_COMMON_OPTS.heating_medium) : <div />}
+          </div>
+        </div>
+      )}
+      {isInternal && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Internal Gear (Crescent) Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("gear_material",   "Gear Material",       GEAR_COMMON_OPTS.gear_material,  true)}
+            {renderField("crescent_type",   "Crescent Type",       GEAR_COMMON_OPTS.crescent_type,  true)}
+            {renderField("idler_pin_type",  "Idler Pin Type",      GEAR_COMMON_OPTS.idler_pin_type, true)}
+            {renderField("port_connection", "Port Connection",     GEAR_COMMON_OPTS.port_conn,      true)}
+            {renderFreeText("port_size",    "Port Size (DN/NPS)",  "e.g. DN50, 2\"")}
+            {renderField("heating_jacket",  "Heating Jacket",      GEAR_COMMON_OPTS.yes_no,         true)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",GEAR_COMMON_OPTS.heating_medium) : <div />}
+            {renderField("insulation",      "Insulation Required", GEAR_COMMON_OPTS.yes_no)}
+            <div />
+          </div>
+        </div>
+      )}
+      {isHelical && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Helical Gear Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
+            {renderField("helix_angle",         "Helix Angle",           GEAR_COMMON_OPTS.helix_angle)}
+            {renderField("noise_class",         "Noise Class",           GEAR_COMMON_OPTS.noise_class)}
+            {renderField("port_connection",     "Port Connection",       GEAR_COMMON_OPTS.port_conn)}
+            {renderFreeText("port_size",        "Port Size (DN/NPS)",    "e.g. DN50, 2\"")}
+            {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
+            {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 12 bar")}
+            {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",  GEAR_COMMON_OPTS.heating_medium) : <div />}
+          </div>
+        </div>
+      )}
+      {isBiHelical && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Bi-Helical / Herringbone Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
+            {renderField("bearing_type",        "Bearing Type",          GEAR_COMMON_OPTS.bearing_type,  true)}
+            {renderFreeText("max_diff_pressure","Max Diff. Pressure",    "e.g. 40 bar",                  true)}
+            {renderField("lube_system",         "Lubrication System",    GEAR_COMMON_OPTS.lube_system)}
+            {renderField("builtin_relief_valve","Built-in Relief Valve", GEAR_COMMON_OPTS.yes_no)}
+            {hasRelief && renderFreeText("relief_pressure_setting","Relief Pressure Setting","e.g. 40 bar")}
+            {renderField("heating_jacket",      "Heating Jacket",        GEAR_COMMON_OPTS.yes_no)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",  GEAR_COMMON_OPTS.heating_medium) : <div />}
+          </div>
+        </div>
+      )}
+
+      {hasType && (<>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("flow_rate",      "Flow Rate",             GEAR_COMMON_OPTS.flow_rate,      true)}
+            {renderField("diff_pressure",  "Differential Pressure", GEAR_COMMON_OPTS.diff_pressure,  true)}
+            {renderField("fluid",          "Fluid",                 GEAR_COMMON_OPTS.fluid,          true)}
+            {renderFreeText("viscosity",   "Viscosity (cSt)",       "e.g. 100 cSt")}
+            {renderField("operating_temp", "Operating Temp",        GEAR_COMMON_OPTS.operating_temp)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("mounting",       "Mounting",              GEAR_COMMON_OPTS.mounting,       true)}
+            {renderField("drive_type",     "Drive Type",            GEAR_COMMON_OPTS.drive_type,     true)}
+            {renderField("service_type",   "Service Type",          GEAR_COMMON_OPTS.service_type,   true)}
+            {renderField("material_class", "Material Class",        GEAR_COMMON_OPTS.material_class, true)}
+            {renderField("seal_type",      "Seal Type",             GEAR_COMMON_OPTS.seal_type,      true)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Performance & Area</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("speed_rpm",          "Speed (RPM)",          GEAR_COMMON_OPTS.speed_rpm)}
+            {renderField("motor_power_kw",     "Motor Power (kW)",     GEAR_COMMON_OPTS.motor_power_kw)}
+            {renderField("api_standard",       "API Standard",         GEAR_COMMON_OPTS.api_676)}
+            {renderField("area_classification","Area Classification",  GEAR_COMMON_OPTS.area_class)}
+            {renderField("certification",      "Certification",        GEAR_COMMON_OPTS.certification)}
+            {renderField("spare_parts",        "Spare Parts Package",  GEAR_COMMON_OPTS.spare_parts)}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+              Approved Makes (Ranked) <span className="text-red-500">*</span>
             </p>
           </div>
-          <div className="col-span-2 space-y-2">
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
                 value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
@@ -809,15 +941,16 @@ export function GearPumpAttrsForm({
               </div>
             )}
           </div>
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1036,91 +1169,153 @@ export function ScrewPumpAttrsForm({
   const filteredMakes = SCREW_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Screw Pump Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Screw Type")}
-        <div className="col-span-2 space-y-1.5">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Screw Pump Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Screw Type</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Screw Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={SCREW_PUMP_TYPES.includes(screwType) ? screwType : ""}
             options={SCREW_PUMP_TYPES} placeholder="Select screw type first…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
-            Select a screw type above to configure specifications
+      </div>
+
+      {!hasType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a screw type above to configure specifications
+        </div>
+      )}
+
+      {isSingle && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Single Screw Configuration</p>
           </div>
-        )}
-        {isSingle && (<>
-          {sec("Single Screw Configuration")}
-          {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_s,   true)}
-          {renderField("liner_material", "Liner / Casing",    SCREW_COMMON_OPTS.liner_material, true)}
-          {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,     true)}
-          {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN50")}
-          {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
-        </>)}
-        {isTwin && (<>
-          {sec("Twin Screw Configuration")}
-          {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
-          {renderField("timing_gears",   "Timing Gears",      SCREW_COMMON_OPTS.timing_gears, true)}
-          {renderField("self_priming",   "Self-Priming",      SCREW_COMMON_OPTS.yes_no,       true)}
-          {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,    true)}
-          {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN80")}
-          {renderField("api_standard",   "API Standard",      SCREW_COMMON_OPTS.api_676)}
-          {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
-        </>)}
-        {isTriple && (<>
-          {sec("Triple Screw Configuration")}
-          {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
-          {renderField("noise_level",    "Noise Level",       SCREW_COMMON_OPTS.noise_level)}
-          {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,    true)}
-          {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN50")}
-          {renderField("api_standard",   "API Standard",      SCREW_COMMON_OPTS.api_676)}
-          {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
-        </>)}
-        {isPC && (<>
-          {sec("Progressive Cavity Configuration")}
-          {renderField("rotor_material",    "Rotor Material",    SCREW_COMMON_OPTS.rotor_material,   true)}
-          {renderField("stator_elastomer",  "Stator Elastomer",  SCREW_COMMON_OPTS.stator_elastomer, true)}
-          {renderField("speed_control",     "Speed Control",     SCREW_COMMON_OPTS.speed_control,    true)}
-          {renderField("self_priming",      "Self-Priming",      SCREW_COMMON_OPTS.yes_no,           true)}
-          {renderField("dry_run_protection","Dry Run Protection",SCREW_COMMON_OPTS.yes_no,           true)}
-          {renderField("port_connection",   "Port Connection",   SCREW_COMMON_OPTS.port_conn,        true)}
-          {renderFreeText("port_size",      "Port Size (DN/NPS)","e.g. DN50")}
-          {renderField("heating_jacket",    "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
-          {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
-        </>)}
-        {hasType && (<>
-          {sec("Operating Conditions")}
-          {renderField("flow_rate",      "Flow Rate",             SCREW_COMMON_OPTS.flow_rate,     true)}
-          {renderField("diff_pressure",  "Differential Pressure", SCREW_COMMON_OPTS.diff_pressure, true)}
-          {renderField("fluid",          "Fluid",                 SCREW_COMMON_OPTS.fluid,         true)}
-          {renderFreeText("viscosity",   "Viscosity (cSt)",       "e.g. 500 cSt")}
-          {renderField("operating_temp", "Operating Temp",        SCREW_COMMON_OPTS.operating_temp)}
-          <div />
-          {sec("Pump Configuration")}
-          {renderField("mounting",       "Mounting",       SCREW_COMMON_OPTS.mounting,       true)}
-          {renderField("drive_type",     "Drive Type",     SCREW_COMMON_OPTS.drive_type,     true)}
-          {renderField("service_type",   "Service Type",   SCREW_COMMON_OPTS.service_type,   true)}
-          {renderField("material_class", "Material Class", SCREW_COMMON_OPTS.material_class, true)}
-          {renderField("seal_type",      "Seal Type",      SCREW_COMMON_OPTS.seal_type,      true)}
-          <div />
-          {sec("Optional — Performance & Area")}
-          {renderField("speed_rpm",          "Speed (RPM)",         SCREW_COMMON_OPTS.speed_rpm)}
-          {renderField("motor_power_kw",     "Motor Power (kW)",    SCREW_COMMON_OPTS.motor_power_kw)}
-          {renderField("area_classification","Area Classification", SCREW_COMMON_OPTS.area_class)}
-          {renderField("certification",      "Certification",       SCREW_COMMON_OPTS.certification)}
-          {renderField("spare_parts",        "Spare Parts Package", SCREW_COMMON_OPTS.spare_parts)}
-          <div />
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Approved Makes (ranked) <span className="text-red-500">*</span>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_s,    true)}
+            {renderField("liner_material", "Liner / Casing",    SCREW_COMMON_OPTS.liner_material,  true)}
+            {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,      true)}
+            {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN50")}
+            {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+          </div>
+        </div>
+      )}
+      {isTwin && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Twin Screw Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
+            {renderField("timing_gears",   "Timing Gears",      SCREW_COMMON_OPTS.timing_gears, true)}
+            {renderField("self_priming",   "Self-Priming",      SCREW_COMMON_OPTS.yes_no,       true)}
+            {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,    true)}
+            {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN80")}
+            {renderField("api_standard",   "API Standard",      SCREW_COMMON_OPTS.api_676)}
+            {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+          </div>
+        </div>
+      )}
+      {isTriple && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Triple Screw Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
+            {renderField("noise_level",    "Noise Level",       SCREW_COMMON_OPTS.noise_level)}
+            {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,    true)}
+            {renderFreeText("port_size",   "Port Size (DN/NPS)","e.g. DN50")}
+            {renderField("api_standard",   "API Standard",      SCREW_COMMON_OPTS.api_676)}
+            {renderField("heating_jacket", "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+          </div>
+        </div>
+      )}
+      {isPC && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Progressive Cavity Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("rotor_material",    "Rotor Material",    SCREW_COMMON_OPTS.rotor_material,   true)}
+            {renderField("stator_elastomer",  "Stator Elastomer",  SCREW_COMMON_OPTS.stator_elastomer, true)}
+            {renderField("speed_control",     "Speed Control",     SCREW_COMMON_OPTS.speed_control,    true)}
+            {renderField("self_priming",      "Self-Priming",      SCREW_COMMON_OPTS.yes_no,           true)}
+            {renderField("dry_run_protection","Dry Run Protection",SCREW_COMMON_OPTS.yes_no,           true)}
+            {renderField("port_connection",   "Port Connection",   SCREW_COMMON_OPTS.port_conn,        true)}
+            {renderFreeText("port_size",      "Port Size (DN/NPS)","e.g. DN50")}
+            {renderField("heating_jacket",    "Heating Jacket",    SCREW_COMMON_OPTS.yes_no)}
+            {hasJacket ? renderField("heating_medium","Heating Medium",SCREW_COMMON_OPTS.heating_medium) : <div />}
+          </div>
+        </div>
+      )}
+
+      {hasType && (<>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("flow_rate",      "Flow Rate",             SCREW_COMMON_OPTS.flow_rate,     true)}
+            {renderField("diff_pressure",  "Differential Pressure", SCREW_COMMON_OPTS.diff_pressure, true)}
+            {renderField("fluid",          "Fluid",                 SCREW_COMMON_OPTS.fluid,         true)}
+            {renderFreeText("viscosity",   "Viscosity (cSt)",       "e.g. 500 cSt")}
+            {renderField("operating_temp", "Operating Temp",        SCREW_COMMON_OPTS.operating_temp)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("mounting",       "Mounting",       SCREW_COMMON_OPTS.mounting,       true)}
+            {renderField("drive_type",     "Drive Type",     SCREW_COMMON_OPTS.drive_type,     true)}
+            {renderField("service_type",   "Service Type",   SCREW_COMMON_OPTS.service_type,   true)}
+            {renderField("material_class", "Material Class", SCREW_COMMON_OPTS.material_class, true)}
+            {renderField("seal_type",      "Seal Type",      SCREW_COMMON_OPTS.seal_type,      true)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Performance & Area</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("speed_rpm",          "Speed (RPM)",         SCREW_COMMON_OPTS.speed_rpm)}
+            {renderField("motor_power_kw",     "Motor Power (kW)",    SCREW_COMMON_OPTS.motor_power_kw)}
+            {renderField("area_classification","Area Classification", SCREW_COMMON_OPTS.area_class)}
+            {renderField("certification",      "Certification",       SCREW_COMMON_OPTS.certification)}
+            {renderField("spare_parts",        "Spare Parts Package", SCREW_COMMON_OPTS.spare_parts)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+              Approved Makes (Ranked) <span className="text-red-500">*</span>
             </p>
           </div>
-          <div className="col-span-2 space-y-2">
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
                 value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
@@ -1148,15 +1343,16 @@ export function ScrewPumpAttrsForm({
               </div>
             )}
           </div>
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1382,101 +1578,163 @@ export function MultistagePumpAttrsForm({
   const isBarrel     = msType === "Barrel Type";
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Multistage Pump Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5 col-span-2">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Multistage Pump Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Multistage Type</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Multistage Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={MULTISTAGE_PUMP_TYPES.includes(msType) ? msType : ""}
             options={MULTISTAGE_PUMP_TYPES} placeholder="Select multistage type…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {isHorizontal && (<>
-          {sectionHeader("Horizontal Multistage — Configuration")}
-          {renderField("num_stages",       "Number of Stages",    true)}
-          {renderField("impeller_type",    "Impeller Type",       true)}
-          {renderField("casing_split",     "Casing Split",        true)}
-          {renderField("coupling_type",    "Coupling Type")}
-          {renderField("bearing_type",     "Bearing Type")}
-          {renderField("shaft_material",   "Shaft Material",      true)}
-          {renderField("impeller_material","Impeller Material",   true)}
-          {renderField("port_connection",  "Port Connection",     true)}
-          {renderField("port_size",        "Port Size (DN/NPS)",  false, true)}
-          {renderField("balance_drum",     "Balance Drum")}
-          {renderField("api_standard",     "API Standard")}
-        </>)}
-        {isVertical && (<>
-          {sectionHeader("Vertical Multistage — Configuration")}
-          {renderField("num_stages",       "Number of Stages",        true)}
-          {renderField("impeller_type",    "Impeller Type",           true)}
-          {renderField("column_length",    "Column / Setting Length", false, true)}
-          {renderField("lineshaft_type",   "Lineshaft Type",          true)}
-          {renderField("discharge_type",   "Discharge Type",          true)}
-          {renderField("motor_type",       "Motor Type",              true)}
-          {renderField("shaft_material",   "Shaft Material",          true)}
-          {renderField("impeller_material","Impeller Material",       true)}
-          {renderField("port_connection",  "Port Connection",         true)}
-          {renderField("port_size",        "Port Size (DN/NPS)",      false, true)}
-          {renderField("api_standard",     "API Standard")}
-        </>)}
-        {isRing && (<>
-          {sectionHeader("Ring Section — Configuration")}
-          {renderField("num_stages",       "Number of Stages",     true)}
-          {renderField("impeller_type",    "Impeller Type",        true)}
-          {renderField("rotor_type",       "Rotor Arrangement")}
-          {renderField("bearing_type",     "Bearing Type")}
-          {renderField("back_to_back",     "Back-to-Back Impellers")}
-          {renderField("shaft_material",   "Shaft Material",       true)}
-          {renderField("impeller_material","Impeller Material",    true)}
-          {renderField("port_connection",  "Port Connection",      true)}
-          {renderField("port_size",        "Port Size (DN/NPS)",   false, true)}
-          {renderField("api_standard",     "API Standard")}
-        </>)}
-        {isBarrel && (<>
-          {sectionHeader("Barrel Type — Configuration")}
-          {renderField("num_stages",       "Number of Stages",     true)}
-          {renderField("inner_casing_type","Inner Casing Split",   true)}
-          {renderField("impeller_type",    "Impeller Type",        true)}
-          {renderField("bearing_type",     "Bearing Type",         true)}
-          {renderField("shaft_material",   "Shaft Material",       true)}
-          {renderField("impeller_material","Impeller Material",    true)}
-          {renderField("design_pressure",  "Design Pressure",      false, true)}
-          {renderField("design_temp",      "Design Temperature",   false, true)}
-          {renderField("port_connection",  "Port Connection",      true)}
-          {renderField("port_size",        "Port Size (DN/NPS)",   false, true)}
-          {renderField("api_standard",     "API Standard",         true)}
-        </>)}
-        {msType && (<>
-          {sectionHeader("Operating Conditions")}
-          {renderField("flow_rate",     "Flow Rate (m³/hr)",  true)}
-          {renderField("head_mlc",      "Head / TDH (mLC)",   true)}
-          {renderField("fluid",         "Fluid",              true)}
-          {renderField("material_class","Material Class",     true)}
-          {renderField("seal_type",     "Seal Type",          true)}
-          {renderField("mounting",      "Mounting",           true)}
-          {renderField("drive_type",    "Drive Type",         true)}
-          {renderField("service_type",  "Service Type",       true)}
-          {sectionHeader("Optional / Additional")}
-          {renderField("operating_temp", "Operating Temp")}
-          <div className="space-y-1.5">
-            <Label className="text-xs">Specific Gravity</Label>
-            <Input className="h-8 text-sm" placeholder="e.g. 1.0"
-              value={(attrs.specific_gravity as string) ?? ""}
-              onChange={(e) => onChange({ ...attrs, specific_gravity: e.target.value })} />
+      </div>
+
+      {!msType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a multistage type above to configure specifications
+        </div>
+      )}
+
+      {isHorizontal && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Horizontal Multistage — Configuration</p>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">NPSHa (m)</Label>
-            <Input className="h-8 text-sm" placeholder="e.g. 5"
-              value={(attrs.npsh_available as string) ?? ""}
-              onChange={(e) => onChange({ ...attrs, npsh_available: e.target.value })} />
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_stages",       "Number of Stages",    true)}
+            {renderField("impeller_type",    "Impeller Type",       true)}
+            {renderField("casing_split",     "Casing Split",        true)}
+            {renderField("coupling_type",    "Coupling Type")}
+            {renderField("bearing_type",     "Bearing Type")}
+            {renderField("shaft_material",   "Shaft Material",      true)}
+            {renderField("impeller_material","Impeller Material",   true)}
+            {renderField("port_connection",  "Port Connection",     true)}
+            {renderField("port_size",        "Port Size (DN/NPS)",  false, true)}
+            {renderField("balance_drum",     "Balance Drum")}
+            {renderField("api_standard",     "API Standard")}
           </div>
-          {renderField("speed_rpm",          "Speed (RPM)")}
-          {renderField("motor_power_kw",     "Motor Power (kW)")}
-          {renderField("area_classification","Area Classification")}
-          {renderField("certification",      "Certification")}
-          {renderField("spare_parts",        "Spare Parts Package")}
-          {sectionHeader("Approved Makes (Ranked)")}
-          <div className="col-span-2 space-y-2">
+        </div>
+      )}
+      {isVertical && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Multistage — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_stages",       "Number of Stages",        true)}
+            {renderField("impeller_type",    "Impeller Type",           true)}
+            {renderField("column_length",    "Column / Setting Length", false, true)}
+            {renderField("lineshaft_type",   "Lineshaft Type",          true)}
+            {renderField("discharge_type",   "Discharge Type",          true)}
+            {renderField("motor_type",       "Motor Type",              true)}
+            {renderField("shaft_material",   "Shaft Material",          true)}
+            {renderField("impeller_material","Impeller Material",       true)}
+            {renderField("port_connection",  "Port Connection",         true)}
+            {renderField("port_size",        "Port Size (DN/NPS)",      false, true)}
+            {renderField("api_standard",     "API Standard")}
+          </div>
+        </div>
+      )}
+      {isRing && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Ring Section — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_stages",       "Number of Stages",     true)}
+            {renderField("impeller_type",    "Impeller Type",        true)}
+            {renderField("rotor_type",       "Rotor Arrangement")}
+            {renderField("bearing_type",     "Bearing Type")}
+            {renderField("back_to_back",     "Back-to-Back Impellers")}
+            {renderField("shaft_material",   "Shaft Material",       true)}
+            {renderField("impeller_material","Impeller Material",    true)}
+            {renderField("port_connection",  "Port Connection",      true)}
+            {renderField("port_size",        "Port Size (DN/NPS)",   false, true)}
+            {renderField("api_standard",     "API Standard")}
+          </div>
+        </div>
+      )}
+      {isBarrel && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Barrel Type — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_stages",       "Number of Stages",     true)}
+            {renderField("inner_casing_type","Inner Casing Split",   true)}
+            {renderField("impeller_type",    "Impeller Type",        true)}
+            {renderField("bearing_type",     "Bearing Type",         true)}
+            {renderField("shaft_material",   "Shaft Material",       true)}
+            {renderField("impeller_material","Impeller Material",    true)}
+            {renderField("design_pressure",  "Design Pressure",      false, true)}
+            {renderField("design_temp",      "Design Temperature",   false, true)}
+            {renderField("port_connection",  "Port Connection",      true)}
+            {renderField("port_size",        "Port Size (DN/NPS)",   false, true)}
+            {renderField("api_standard",     "API Standard",         true)}
+          </div>
+        </div>
+      )}
+
+      {msType && (<>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("flow_rate",     "Flow Rate (m³/hr)",  true)}
+            {renderField("head_mlc",      "Head / TDH (mLC)",   true)}
+            {renderField("fluid",         "Fluid",              true)}
+            {renderField("material_class","Material Class",     true)}
+            {renderField("seal_type",     "Seal Type",          true)}
+            {renderField("mounting",      "Mounting",           true)}
+            {renderField("drive_type",    "Drive Type",         true)}
+            {renderField("service_type",  "Service Type",       true)}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional / Additional</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("operating_temp", "Operating Temp")}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Specific Gravity</Label>
+              <Input className="h-8 text-sm" placeholder="e.g. 1.0"
+                value={(attrs.specific_gravity as string) ?? ""}
+                onChange={(e) => onChange({ ...attrs, specific_gravity: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">NPSHa (m)</Label>
+              <Input className="h-8 text-sm" placeholder="e.g. 5"
+                value={(attrs.npsh_available as string) ?? ""}
+                onChange={(e) => onChange({ ...attrs, npsh_available: e.target.value })} />
+            </div>
+            {renderField("speed_rpm",          "Speed (RPM)")}
+            {renderField("motor_power_kw",     "Motor Power (kW)")}
+            {renderField("area_classification","Area Classification")}
+            {renderField("certification",      "Certification")}
+            {renderField("spare_parts",        "Spare Parts Package")}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Approved Makes (Ranked)</p>
+          </div>
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -1542,15 +1800,16 @@ export function MultistagePumpAttrsForm({
               </div>
             )}
           </div>
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1772,89 +2031,158 @@ export function DosingPumpAttrsForm({
   const filteredMakes = DOSING_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dosing / Metering Pump Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Pump Type")}
-        <div className="col-span-2 space-y-1.5">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Dosing / Metering Pump Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Pump Type</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Pump Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={DOSING_PUMP_TYPES.includes(pumpType) ? pumpType : ""}
             options={DOSING_PUMP_TYPES} placeholder="Select pump type first…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
-            Select a pump type above to configure specifications
+      </div>
+
+      {!hasType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a pump type above to configure specifications
+        </div>
+      )}
+
+      {isDiaphragm && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Diaphragm Pump Configuration</p>
           </div>
-        )}
-        {isDiaphragm && (<>
-          {sec("Diaphragm Pump Configuration")}
-          {renderField("diaphragm_material", "Diaphragm Material",   DOSING_COMMON_OPTS.diaphragm_material, true)}
-          {renderField("diaphragm_design",   "Diaphragm Design",     DOSING_COMMON_OPTS.diaphragm_design,   true)}
-          {renderField("control_type",       "Control Type",         DOSING_COMMON_OPTS.ctrl_dp,            true)}
-          {renderField("back_pressure_valve","Back Pressure Valve",  DOSING_COMMON_OPTS.yes_no)}
-          {isDoubleD ? renderField("leak_detection","Leak Detection",DOSING_COMMON_OPTS.yes_no) : <div />}
-          {renderField("degassing_valve",    "Degassing Valve",      DOSING_COMMON_OPTS.yes_no)}
-          <div />
-        </>)}
-        {isPlunger && (<>
-          {sec("Plunger Pump Configuration")}
-          {renderField("plunger_material", "Plunger Material",   DOSING_COMMON_OPTS.plunger_material, true)}
-          {renderField("packing_material", "Packing Material",   DOSING_COMMON_OPTS.packing_material, true)}
-          {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,        true)}
-          {renderField("control_type",     "Control Type",       DOSING_COMMON_OPTS.ctrl_pl,          true)}
-        </>)}
-        {isPiston && (<>
-          {sec("Piston Pump Configuration")}
-          {renderField("piston_material",  "Piston Material",    DOSING_COMMON_OPTS.piston_material,   true)}
-          {renderField("packing_seal_type","Packing / Seal Type",DOSING_COMMON_OPTS.packing_seal_type, true)}
-          {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,         true)}
-          {renderField("control_type",     "Control Type",       DOSING_COMMON_OPTS.ctrl_pn,           true)}
-        </>)}
-        {isPeris && (<>
-          {sec("Peristaltic Pump Configuration")}
-          {renderField("hose_material",  "Hose / Tube Material", DOSING_COMMON_OPTS.hose_material,  true)}
-          {renderField("reversible",     "Reversible",           DOSING_COMMON_OPTS.yes_no,         true)}
-          {renderField("speed_control",  "Speed Control",        DOSING_COMMON_OPTS.speed_control,  true)}
-          {renderField("ip_rating",      "IP Rating",            DOSING_COMMON_OPTS.ip_rating)}
-        </>)}
-        {isSolenoid && (<>
-          {sec("Solenoid Dosing Pump Configuration")}
-          {renderField("diaphragm_material","Diaphragm Material", DOSING_COMMON_OPTS.diaphragm_material, true)}
-          {renderField("wetted_material",   "Wetted Material",    DOSING_COMMON_OPTS.wetted_material,    true)}
-          {renderField("control_type",      "Control Type",       DOSING_COMMON_OPTS.ctrl_sol,           true)}
-          {renderFreeText("max_stroke_rate","Max Stroke Rate (spm)","e.g. 120 spm")}
-          {renderField("ip_rating",         "IP Rating",          DOSING_COMMON_OPTS.ip_rating)}
-          <div />
-        </>)}
-        {hasType && (<>
-          {sec("Operating Conditions")}
-          {renderField("flow_rate",           "Flow Rate",           DOSING_COMMON_OPTS.flow_rate,           true)}
-          {renderField("discharge_pressure",  "Discharge Pressure",  DOSING_COMMON_OPTS.discharge_pressure,  true)}
-          {renderField("dosing_accuracy",     "Dosing Accuracy",     DOSING_COMMON_OPTS.dosing_accuracy,     true)}
-          {renderField("fluid",               "Fluid",               DOSING_COMMON_OPTS.fluid,               true)}
-          {renderField("operating_temp",      "Operating Temp",      DOSING_COMMON_OPTS.operating_temp)}
-          {renderField("wetted_material",     "Wetted / Body Mat.",  DOSING_COMMON_OPTS.wetted_material,     true)}
-          {sec("Pump Configuration")}
-          {renderField("mounting",     "Mounting",     DOSING_COMMON_OPTS.mounting,     true)}
-          {renderField("drive_type",   "Drive Type",   DOSING_COMMON_OPTS.drive_type,   true)}
-          {renderField("service_type", "Service Type", DOSING_COMMON_OPTS.service_type, true)}
-          <div />
-          {sec("Optional — Controls & Area")}
-          {renderFreeText("motor_power",     "Motor Power",          "e.g. 0.37 kW")}
-          {renderField("control_panel",      "Control Panel",        ["Integral","Remote","None"])}
-          {renderField("pulsation_dampener", "Pulsation Dampener",   DOSING_COMMON_OPTS.yes_no)}
-          {renderField("safety_valve",       "Safety / Relief Valve",DOSING_COMMON_OPTS.yes_no)}
-          {renderField("area_classification","Area Classification",  DOSING_COMMON_OPTS.area_class)}
-          {renderField("certification",      "Certification",        DOSING_COMMON_OPTS.certification)}
-          {renderField("spare_parts",        "Spare Parts Package",  DOSING_COMMON_OPTS.spare_parts)}
-          <div />
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Approved Makes (ranked) <span className="text-red-500">*</span>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("diaphragm_material", "Diaphragm Material",   DOSING_COMMON_OPTS.diaphragm_material, true)}
+            {renderField("diaphragm_design",   "Diaphragm Design",     DOSING_COMMON_OPTS.diaphragm_design,   true)}
+            {renderField("control_type",       "Control Type",         DOSING_COMMON_OPTS.ctrl_dp,            true)}
+            {renderField("back_pressure_valve","Back Pressure Valve",  DOSING_COMMON_OPTS.yes_no)}
+            {isDoubleD ? renderField("leak_detection","Leak Detection",DOSING_COMMON_OPTS.yes_no) : <div />}
+            {renderField("degassing_valve",    "Degassing Valve",      DOSING_COMMON_OPTS.yes_no)}
+            <div />
+          </div>
+        </div>
+      )}
+      {isPlunger && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Plunger Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("plunger_material", "Plunger Material",   DOSING_COMMON_OPTS.plunger_material, true)}
+            {renderField("packing_material", "Packing Material",   DOSING_COMMON_OPTS.packing_material, true)}
+            {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,        true)}
+            {renderField("control_type",     "Control Type",       DOSING_COMMON_OPTS.ctrl_pl,          true)}
+          </div>
+        </div>
+      )}
+      {isPiston && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Piston Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("piston_material",  "Piston Material",    DOSING_COMMON_OPTS.piston_material,   true)}
+            {renderField("packing_seal_type","Packing / Seal Type",DOSING_COMMON_OPTS.packing_seal_type, true)}
+            {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,         true)}
+            {renderField("control_type",     "Control Type",       DOSING_COMMON_OPTS.ctrl_pn,           true)}
+          </div>
+        </div>
+      )}
+      {isPeris && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Peristaltic Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("hose_material",  "Hose / Tube Material", DOSING_COMMON_OPTS.hose_material,  true)}
+            {renderField("reversible",     "Reversible",           DOSING_COMMON_OPTS.yes_no,         true)}
+            {renderField("speed_control",  "Speed Control",        DOSING_COMMON_OPTS.speed_control,  true)}
+            {renderField("ip_rating",      "IP Rating",            DOSING_COMMON_OPTS.ip_rating)}
+          </div>
+        </div>
+      )}
+      {isSolenoid && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Solenoid Dosing Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("diaphragm_material","Diaphragm Material", DOSING_COMMON_OPTS.diaphragm_material, true)}
+            {renderField("wetted_material",   "Wetted Material",    DOSING_COMMON_OPTS.wetted_material,    true)}
+            {renderField("control_type",      "Control Type",       DOSING_COMMON_OPTS.ctrl_sol,           true)}
+            {renderFreeText("max_stroke_rate","Max Stroke Rate (spm)","e.g. 120 spm")}
+            {renderField("ip_rating",         "IP Rating",          DOSING_COMMON_OPTS.ip_rating)}
+            <div />
+          </div>
+        </div>
+      )}
+
+      {hasType && (<>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("flow_rate",           "Flow Rate",           DOSING_COMMON_OPTS.flow_rate,           true)}
+            {renderField("discharge_pressure",  "Discharge Pressure",  DOSING_COMMON_OPTS.discharge_pressure,  true)}
+            {renderField("dosing_accuracy",     "Dosing Accuracy",     DOSING_COMMON_OPTS.dosing_accuracy,     true)}
+            {renderField("fluid",               "Fluid",               DOSING_COMMON_OPTS.fluid,               true)}
+            {renderField("operating_temp",      "Operating Temp",      DOSING_COMMON_OPTS.operating_temp)}
+            {renderField("wetted_material",     "Wetted / Body Mat.",  DOSING_COMMON_OPTS.wetted_material,     true)}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("mounting",     "Mounting",     DOSING_COMMON_OPTS.mounting,     true)}
+            {renderField("drive_type",   "Drive Type",   DOSING_COMMON_OPTS.drive_type,   true)}
+            {renderField("service_type", "Service Type", DOSING_COMMON_OPTS.service_type, true)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Controls & Area</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderFreeText("motor_power",     "Motor Power",          "e.g. 0.37 kW")}
+            {renderField("control_panel",      "Control Panel",        ["Integral","Remote","None"])}
+            {renderField("pulsation_dampener", "Pulsation Dampener",   DOSING_COMMON_OPTS.yes_no)}
+            {renderField("safety_valve",       "Safety / Relief Valve",DOSING_COMMON_OPTS.yes_no)}
+            {renderField("area_classification","Area Classification",  DOSING_COMMON_OPTS.area_class)}
+            {renderField("certification",      "Certification",        DOSING_COMMON_OPTS.certification)}
+            {renderField("spare_parts",        "Spare Parts Package",  DOSING_COMMON_OPTS.spare_parts)}
+            <div />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+              Approved Makes (Ranked) <span className="text-red-500">*</span>
             </p>
           </div>
-          <div className="col-span-2 space-y-2">
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…"
                 value={makeSearch} onChange={(e) => setMakeSearch(e.target.value)}
@@ -1882,15 +2210,16 @@ export function DosingPumpAttrsForm({
               </div>
             )}
           </div>
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2046,65 +2375,127 @@ export function VacuumBoosterAttrsForm({
   const isTri     = vbType === "Tri-Lobe";
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vacuum Booster Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5 col-span-2">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Vacuum Booster Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Booster Type</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Booster Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={VB_TYPES.includes(vbType) ? vbType : ""}
             options={VB_TYPES} placeholder="Select booster type…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {isRoots && (<>
-          {sectionHeader("Roots Blower — Configuration")}
-          {renderField("rotor_profile",        "Rotor Profile")}
-          {renderField("drive_type",           "Drive Type")}
-          {renderField("pressure_differential","Pressure Differential")}
-          {renderField("synchronizing_gears",  "Synchronizing Gears")}
-          {renderField("oil_sealed",           "Sealing Type")}
-          {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
-        </>)}
-        {isBooster && (<>
-          {sectionHeader("Vacuum Booster — Configuration")}
-          {renderField("booster_compression_ratio","Compression Ratio")}
-          {renderField("bypass_valve",             "Bypass Valve")}
-          {renderField("backing_pump_type",        "Backing Pump Type")}
-          {renderField("drive_type",               "Drive Type")}
-          {renderField("inlet_size",               "Inlet Size (DN/NPS)", false, true)}
-        </>)}
-        {isTwin && (<>
-          {sectionHeader("Twin Lobe — Configuration")}
-          {renderField("rotor_profile",        "Rotor Profile")}
-          {renderField("drive_type",           "Drive Type")}
-          {renderField("pressure_differential","Pressure Differential")}
-          {renderField("silencer_included",    "Silencer Included")}
-          {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
-        </>)}
-        {isTri && (<>
-          {sectionHeader("Tri-Lobe — Configuration")}
-          {renderField("drive_type",           "Drive Type")}
-          {renderField("pressure_differential","Pressure Differential")}
-          {renderField("silencer_included",    "Silencer Included")}
-          {renderField("noise_level",          "Noise Level Target", false, true)}
-          {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
-        </>)}
-        {vbType && (<>
-          {sectionHeader("Operating Conditions")}
-          {renderField("flow_rate",          "Flow Rate (m³/hr)",  true)}
-          {renderField("suction_pressure",   "Suction Pressure",   true)}
-          {renderField("discharge_pressure", "Discharge Pressure", true)}
-          {renderField("gas_type",           "Gas Type",           true)}
-          {renderField("material_class",     "Material Class",     true)}
-          {renderField("cooling_type",       "Cooling Type",       true)}
-          {sectionHeader("Optional / Additional")}
-          {renderField("motor_power_kw",    "Motor Power (kW)")}
-          {renderField("speed_rpm",         "Speed (RPM)")}
-          {renderField("operating_temp",    "Operating Temp")}
-          {renderField("area_classification","Area Classification")}
-          {renderField("atex_rating",       "ATEX Rating")}
-          {renderField("ip_rating_motor",   "IP Rating (Motor)")}
-          {sectionHeader("Approved Makes (Ranked)")}
-          <div className="col-span-2 space-y-2">
+      </div>
+
+      {!vbType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a booster type above to configure specifications
+        </div>
+      )}
+
+      {isRoots && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Roots Blower — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("rotor_profile",        "Rotor Profile")}
+            {renderField("drive_type",           "Drive Type")}
+            {renderField("pressure_differential","Pressure Differential")}
+            {renderField("synchronizing_gears",  "Synchronizing Gears")}
+            {renderField("oil_sealed",           "Sealing Type")}
+            {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
+          </div>
+        </div>
+      )}
+      {isBooster && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vacuum Booster — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("booster_compression_ratio","Compression Ratio")}
+            {renderField("bypass_valve",             "Bypass Valve")}
+            {renderField("backing_pump_type",        "Backing Pump Type")}
+            {renderField("drive_type",               "Drive Type")}
+            {renderField("inlet_size",               "Inlet Size (DN/NPS)", false, true)}
+          </div>
+        </div>
+      )}
+      {isTwin && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Twin Lobe — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("rotor_profile",        "Rotor Profile")}
+            {renderField("drive_type",           "Drive Type")}
+            {renderField("pressure_differential","Pressure Differential")}
+            {renderField("silencer_included",    "Silencer Included")}
+            {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
+          </div>
+        </div>
+      )}
+      {isTri && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Tri-Lobe — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("drive_type",           "Drive Type")}
+            {renderField("pressure_differential","Pressure Differential")}
+            {renderField("silencer_included",    "Silencer Included")}
+            {renderField("noise_level",          "Noise Level Target", false, true)}
+            {renderField("inlet_size",           "Inlet Size (DN/NPS)", false, true)}
+          </div>
+        </div>
+      )}
+
+      {vbType && (<>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("flow_rate",          "Flow Rate (m³/hr)",  true)}
+            {renderField("suction_pressure",   "Suction Pressure",   true)}
+            {renderField("discharge_pressure", "Discharge Pressure", true)}
+            {renderField("gas_type",           "Gas Type",           true)}
+            {renderField("material_class",     "Material Class",     true)}
+            {renderField("cooling_type",       "Cooling Type",       true)}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional / Additional</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("motor_power_kw",    "Motor Power (kW)")}
+            {renderField("speed_rpm",         "Speed (RPM)")}
+            {renderField("operating_temp",    "Operating Temp")}
+            {renderField("area_classification","Area Classification")}
+            {renderField("atex_rating",       "ATEX Rating")}
+            {renderField("ip_rating_motor",   "IP Rating (Motor)")}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Approved Makes (Ranked)</p>
+          </div>
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -2170,15 +2561,16 @@ export function VacuumBoosterAttrsForm({
               </div>
             )}
           </div>
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2386,100 +2778,174 @@ export function VacuumPumpAttrsForm({
   const isEjector    = vpType === "Steam Jet Ejector";
   const hasType      = isLiquidRing || isDryScrew || isRotaryVane || isRecip || isEjector;
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vacuum Pump Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5 col-span-2">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Vacuum Pump Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Technology</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Vacuum Pump Technology <span className="text-red-500">*</span></Label>
           <SearchableSelect value={VP_TYPES.includes(vpType) ? vpType : ""}
             options={VP_TYPES} placeholder="Select technology first…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
-            Select a vacuum pump technology above to configure specifications
+      </div>
+
+      {!hasType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a vacuum pump technology above to configure specifications
+        </div>
+      )}
+
+      {isLiquidRing && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Liquid Ring — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("sealing_liquid",       "Sealing Liquid",      true)}
+            {renderField("compression_stages",   "Compression Stages")}
+            {renderField("port_connection",      "Port Connection",     true)}
+            {renderField("sealing_liquid_temp_c","Sealing Liquid Temp (°C)", false, true)}
+            {renderField("port_size",            "Port Size (DN/NPS)",  false, true)}
+            <div />
+          </div>
+        </div>
+      )}
+      {isDryScrew && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Dry Screw — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("compression_stages",  "Compression Stages",  true)}
+            {renderField("screw_profile",       "Screw Profile",       true)}
+            {renderField("cooling_type",        "Cooling Type",        true)}
+            {renderField("gearbox_lubrication", "Gearbox Lubrication")}
+            {renderField("port_connection",     "Port Connection",     true)}
+            {renderField("port_size",           "Port Size (DN/NPS)",  false, true)}
+          </div>
+        </div>
+      )}
+      {isRotaryVane && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Rotary Vane — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("oil_sealed",      "Oil Sealed",         true)}
+            {renderField("num_stages_rv",   "Number of Stages",   true)}
+            {renderField("cooling_type",    "Cooling Type",       true)}
+            {renderField("port_connection", "Port Connection",    true)}
+            {renderField("port_size",       "Port Size (DN/NPS)", false, true)}
+            <div />
+          </div>
+        </div>
+      )}
+      {isRecip && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Reciprocating — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_cylinders",       "Number of Cylinders", true)}
+            {renderField("compression_stages",  "Compression Stages",  true)}
+            {renderField("cooling_type",        "Cooling Type",        true)}
+            {renderField("cylinder_lubrication","Cylinder Lubrication")}
+            {renderField("port_connection",     "Port Connection")}
+            {renderField("port_size",           "Port Size (DN/NPS)",  false, true)}
+          </div>
+        </div>
+      )}
+      {isEjector && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
+            <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Steam Jet Ejector — Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("num_stages_ejector",       "Number of Stages",        true)}
+            {renderField("motive_steam_pressure",    "Motive Steam Pressure",   true, true)}
+            {renderField("intercondenser_type",      "Intercondenser Type")}
+            {renderField("after_condenser",          "After Condenser")}
+            {renderField("condenser_cooling_medium", "Condenser Cooling Medium")}
+            <div />
+          </div>
+        </div>
+      )}
+
+      {hasType && (<>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("suction_capacity_m3hr",  "Suction Capacity (m³/hr)",    true)}
+            {renderField("operating_vacuum_mbar",  "Operating Vacuum (mbar abs)", true)}
+            {renderField("discharge_pressure_barg","Discharge Pressure (bar g)",  true)}
+            {renderField("gas_type",               "Gas / Vapour Handled",        true)}
+            {renderField("ultimate_vacuum_mbar",   "Ultimate Vacuum (mbar abs)")}
+            {renderField("gas_inlet_temp_c",       "Gas Inlet Temp (°C)",         false, true)}
+            {renderField("condensable_vapours",    "Condensable Vapours Present")}
+            {renderField("liquid_carry_over",      "Liquid Carry-Over Risk")}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Mechanical Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("mounting",      "Mounting",      true)}
+            {renderField("drive_type",    "Drive Type",    true)}
+            {renderField("material_class","Material Class",true)}
+            {renderField("service_type",  "Service Type",  true)}
+            {isEjector
+              ? <div />
+              : isLiquidRing
+                ? renderReadOnly("Seal Type", "Liquid Ring (Integral)")
+                : renderField("seal_type", "Seal Type", true)
+            }
+            {renderField("coupling_type",   "Coupling Type")}
+            {renderField("noise_level_dba", "Noise Level Target", false, true)}
+            <div />
+          </div>
+        </div>
+
+        {!isEjector && (
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <div className="w-[3px] h-4 rounded-full bg-indigo-500 shrink-0" />
+              <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest">Electrical & Motor</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {renderField("motor_power_kw",        "Motor Power (kW)",  true)}
+              {renderField("supply_voltage",        "Supply Voltage",    true)}
+              {renderField("motor_enclosure",       "Motor Enclosure")}
+              {renderField("motor_efficiency_class","Efficiency Class")}
+              {renderField("speed_rpm",             "Speed (RPM)")}
+              {renderField("vfd_required",          "VFD Required")}
+            </div>
           </div>
         )}
-        {isLiquidRing && (<>
-          {sectionHeader("Liquid Ring — Configuration")}
-          {renderField("sealing_liquid",       "Sealing Liquid",      true)}
-          {renderField("compression_stages",   "Compression Stages")}
-          {renderField("port_connection",      "Port Connection",     true)}
-          {renderField("sealing_liquid_temp_c","Sealing Liquid Temp (°C)", false, true)}
-          {renderField("port_size",            "Port Size (DN/NPS)",  false, true)}
-          <div />
-        </>)}
-        {isDryScrew && (<>
-          {sectionHeader("Dry Screw — Configuration")}
-          {renderField("compression_stages",  "Compression Stages",  true)}
-          {renderField("screw_profile",       "Screw Profile",       true)}
-          {renderField("cooling_type",        "Cooling Type",        true)}
-          {renderField("gearbox_lubrication", "Gearbox Lubrication")}
-          {renderField("port_connection",     "Port Connection",     true)}
-          {renderField("port_size",           "Port Size (DN/NPS)",  false, true)}
-        </>)}
-        {isRotaryVane && (<>
-          {sectionHeader("Rotary Vane — Configuration")}
-          {renderField("oil_sealed",      "Oil Sealed",         true)}
-          {renderField("num_stages_rv",   "Number of Stages",   true)}
-          {renderField("cooling_type",    "Cooling Type",       true)}
-          {renderField("port_connection", "Port Connection",    true)}
-          {renderField("port_size",       "Port Size (DN/NPS)", false, true)}
-          <div />
-        </>)}
-        {isRecip && (<>
-          {sectionHeader("Reciprocating — Configuration")}
-          {renderField("num_cylinders",       "Number of Cylinders", true)}
-          {renderField("compression_stages",  "Compression Stages",  true)}
-          {renderField("cooling_type",        "Cooling Type",        true)}
-          {renderField("cylinder_lubrication","Cylinder Lubrication")}
-          {renderField("port_connection",     "Port Connection")}
-          {renderField("port_size",           "Port Size (DN/NPS)",  false, true)}
-        </>)}
-        {isEjector && (<>
-          {sectionHeader("Steam Jet Ejector — Configuration")}
-          {renderField("num_stages_ejector",       "Number of Stages",        true)}
-          {renderField("motive_steam_pressure",    "Motive Steam Pressure",   true, true)}
-          {renderField("intercondenser_type",      "Intercondenser Type")}
-          {renderField("after_condenser",          "After Condenser")}
-          {renderField("condenser_cooling_medium", "Condenser Cooling Medium")}
-          <div />
-        </>)}
-        {hasType && (<>
-          {sectionHeader("Operating Conditions")}
-          {renderField("suction_capacity_m3hr",  "Suction Capacity (m³/hr)",    true)}
-          {renderField("operating_vacuum_mbar",  "Operating Vacuum (mbar abs)", true)}
-          {renderField("discharge_pressure_barg","Discharge Pressure (bar g)",  true)}
-          {renderField("gas_type",               "Gas / Vapour Handled",        true)}
-          {renderField("ultimate_vacuum_mbar",   "Ultimate Vacuum (mbar abs)")}
-          {renderField("gas_inlet_temp_c",       "Gas Inlet Temp (°C)",         false, true)}
-          {renderField("condensable_vapours",    "Condensable Vapours Present")}
-          {renderField("liquid_carry_over",      "Liquid Carry-Over Risk")}
-          {sectionHeader("Mechanical Configuration")}
-          {renderField("mounting",      "Mounting",      true)}
-          {renderField("drive_type",    "Drive Type",    true)}
-          {renderField("material_class","Material Class",true)}
-          {renderField("service_type",  "Service Type",  true)}
-          {isEjector
-            ? <div />
-            : isLiquidRing
-              ? renderReadOnly("Seal Type", "Liquid Ring (Integral)")
-              : renderField("seal_type", "Seal Type", true)
-          }
-          {renderField("coupling_type",   "Coupling Type")}
-          {renderField("noise_level_dba", "Noise Level Target", false, true)}
-          <div />
-          {!isEjector && (<>
-            {sectionHeader("Electrical & Motor")}
-            {renderField("motor_power_kw",        "Motor Power (kW)",  true)}
-            {renderField("supply_voltage",        "Supply Voltage",    true)}
-            {renderField("motor_enclosure",       "Motor Enclosure")}
-            {renderField("motor_efficiency_class","Efficiency Class")}
-            {renderField("speed_rpm",             "Speed (RPM)")}
-            {renderField("vfd_required",          "VFD Required")}
-          </>)}
-          {sectionHeader("Approved Makes (Ranked)")}
-          <div className="col-span-2 space-y-2">
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+              Approved Makes (Ranked) <span className="text-red-500">*</span>
+            </p>
+          </div>
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -2545,15 +3011,16 @@ export function VacuumPumpAttrsForm({
               </div>
             )}
           </div>
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2705,32 +3172,73 @@ export function PumpSkidAttrsForm({
     (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase()));
 
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pump Skid Package Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5 col-span-2">
+    <div className="space-y-2.5 rounded-lg border p-3 bg-card">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest pb-0.5">Pump Skid Package Specifications</p>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[3px] h-4 rounded-full bg-sky-500 shrink-0" />
+          <p className="text-[11px] font-bold text-sky-700 uppercase tracking-widest">Package Type</p>
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs">Package Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={PUMP_SKID_PKG_TYPES.includes(pkgType) ? pkgType : ""}
             options={PUMP_SKID_PKG_TYPES} placeholder="Select package type…"
             onSelect={(v) => handleTypeChange(v)} />
         </div>
-        {pkgType && (<>
-          {sectionHeader("Pump Details")}
-          {renderField("pump_type",     "Pump Type",     true)}
-          {renderField("num_pumps",     "Number of Pumps")}
-          {renderField("standby_config","Standby Config")}
-          {renderField("driver_type",   "Driver Type")}
-          {sectionHeader("Capacity (Indicative)")}
-          {renderField("flow_rate",     "Flow Rate (m³/hr)")}
-          {renderField("head_pressure", "Head / Pressure")}
-          {renderField("fluid",         "Process Fluid")}
-          {sectionHeader("Package Configuration")}
-          {renderField("mounting",         "Mounting")}
-          {renderField("material_class",   "Material Class")}
-          {renderField("testing_standard", "Testing Standard")}
-          {renderField("pipeline_class",   "Pipeline Class")}
-          {sectionHeader("Scope of Supply")}
-          <div className="col-span-2 space-y-2">
+      </div>
+
+      {!pkgType && (
+        <div className="rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          Select a package type above to configure specifications
+        </div>
+      )}
+
+      {pkgType && (<>
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Details</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("pump_type",     "Pump Type",     true)}
+            {renderField("num_pumps",     "Number of Pumps")}
+            {renderField("standby_config","Standby Config")}
+            {renderField("driver_type",   "Driver Type")}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Capacity (Indicative)</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("flow_rate",     "Flow Rate (m³/hr)")}
+            {renderField("head_pressure", "Head / Pressure")}
+            {renderField("fluid",         "Process Fluid")}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Package Configuration</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {renderField("mounting",         "Mounting")}
+            {renderField("material_class",   "Material Class")}
+            {renderField("testing_standard", "Testing Standard")}
+            {renderField("pipeline_class",   "Pipeline Class")}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Scope of Supply</p>
+          </div>
+          <div className="space-y-2">
             <div className="flex gap-2 flex-wrap">
               <Popover open={compOpen} onOpenChange={setCompOpen}>
                 <PopoverTrigger asChild>
@@ -2787,8 +3295,14 @@ export function PumpSkidAttrsForm({
               </div>
             )}
           </div>
-          {sectionHeader("Approved Makes (Ranked)")}
-          <div className="col-span-2 space-y-2">
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Approved Makes (Ranked)</p>
+          </div>
+          <div className="space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -2854,15 +3368,16 @@ export function PumpSkidAttrsForm({
               </div>
             )}
           </div>
-        </>)}
-        {qty !== undefined && onQtyChange && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
-              value={qty} onChange={(e) => onQtyChange(e.target.value)} />
-          </div>
-        )}
-      </div>
+        </div>
+      </>)}
+
+      {qty !== undefined && onQtyChange && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="0.01" step="0.01"
+            value={qty} onChange={(e) => onQtyChange(e.target.value)} />
+        </div>
+      )}
     </div>
   );
 }
