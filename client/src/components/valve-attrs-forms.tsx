@@ -378,11 +378,24 @@ export function ControlValveAttrsForm({
     (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
   );
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Control Valve Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Valve Type")}
+    <div className="space-y-3">
+
+      {/* 1 — Valve Type */}
+      <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2 space-y-1.5">
           <Label className="text-xs">Control Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
@@ -391,15 +404,16 @@ export function ControlValveAttrsForm({
             onSelect={(v) => handleTypeChange(v)}
           />
         </div>
-
         {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
+      </SectionCard>
 
-        {isGlobe && (<>
-          {sec("Globe Configuration")}
+      {/* 2 — Type-specific configuration */}
+      {isGlobe && (
+        <SectionCard title="Globe Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("valve_config",        "Valve Configuration",  GLOBE_CV_OPTS.valve_config,        true)}
           {renderField("trim_style",          "Trim Style",           GLOBE_CV_OPTS.trim_style,          true)}
           {renderField("flow_characteristic", "Flow Characteristic",  GLOBE_CV_OPTS.flow_characteristic, true)}
@@ -410,40 +424,44 @@ export function ControlValveAttrsForm({
           {renderField("packing_material",    "Packing Material",     GLOBE_CV_OPTS.packing_material)}
           {renderField("noise_cavitation",    "Noise / Cavitation",   GLOBE_CV_OPTS.noise_cavitation)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isBall && (<>
-          {sec("Ball Configuration")}
+      {isBall && (
+        <SectionCard title="Ball Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("ball_type",           "Ball Type",            BALL_CV_OPTS.ball_type,            true)}
           {renderField("flow_characteristic", "Flow Characteristic",  BALL_CV_OPTS.flow_characteristic,  true)}
           {renderField("ball_trim_material",  "Ball / Trim Material", BALL_CV_OPTS.ball_trim_material,   true)}
           {renderField("seat_material",       "Seat Material",        BALL_CV_OPTS.seat_material,        true)}
           {renderField("leakage_class",       "Leakage Class",        BALL_CV_OPTS.leakage_class)}
           {renderField("packing_material",    "Packing Material",     BALL_CV_OPTS.packing_material)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isBfly && (<>
-          {sec("Butterfly Configuration")}
+      {isBfly && (
+        <SectionCard title="Butterfly Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("disc_mounting",       "Disc Mounting",         BFLY_CV_OPTS.disc_mounting,       true)}
           {renderField("disc_material",       "Disc Material",         BFLY_CV_OPTS.disc_material,       true)}
           {renderField("seat_liner_material", "Seat / Liner Material", BFLY_CV_OPTS.seat_liner_material, true)}
           {renderField("leakage_class",       "Leakage Class",         BFLY_CV_OPTS.leakage_class)}
           {renderField("flow_characteristic", "Flow Characteristic",   BFLY_CV_OPTS.flow_characteristic)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isPlug && (<>
-          {sec("Eccentric Plug Configuration")}
+      {isPlug && (
+        <SectionCard title="Eccentric Plug Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("plug_style",         "Plug Style",           PLUG_CV_OPTS.plug_style,         true)}
           {renderField("plug_trim_material", "Plug / Trim Material", PLUG_CV_OPTS.plug_trim_material, true)}
           {renderField("seat_material",      "Seat Material",        PLUG_CV_OPTS.seat_material,      true)}
           {renderField("leakage_class",      "Leakage Class",        PLUG_CV_OPTS.leakage_class)}
           {renderField("packing_material",   "Packing Material",     PLUG_CV_OPTS.packing_material)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isAngle && (<>
-          {sec("Angle Valve Configuration")}
+      {isAngle && (
+        <SectionCard title="Angle Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("service_application", "Service Application",  ANGLE_CV_OPTS.service_application, true)}
           {renderField("flow_direction",      "Flow Direction",       ANGLE_CV_OPTS.flow_direction,      true)}
           {renderField("trim_style",          "Trim Style",           ANGLE_CV_OPTS.trim_style,          true)}
@@ -452,27 +470,41 @@ export function ControlValveAttrsForm({
           {renderField("leakage_class",       "Leakage Class",        ANGLE_CV_OPTS.leakage_class,       true)}
           {renderField("outlet_reducer",      "Outlet Reducer",       ANGLE_CV_OPTS.outlet_reducer)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          {sec("Size & Rating")}
+      {/* 3 — Size, Rating & Body */}
+      {hasType && (
+        <SectionCard title="Size, Rating & Body" color="bg-violet-50/60 border-violet-200">
           {renderField("size_nb",         "Size (NB)",       CONTROL_COMMON_OPTS.size_nb,         true)}
           {renderField("pressure_rating", "Pressure Rating", CONTROL_COMMON_OPTS.pressure_rating, true)}
           {renderField("end_connection",  "End Connection",
             isBfly ? CONTROL_COMMON_OPTS.end_conn_bfly : CONTROL_COMMON_OPTS.end_connection, true)}
           {renderField("body_material",   "Body Material",   CONTROL_COMMON_OPTS.body_material,   true)}
+        </SectionCard>
+      )}
 
-          {sec("Actuation")}
+      {/* 4 — Actuation */}
+      {hasType && (
+        <SectionCard title="Actuation" color="bg-emerald-50/60 border-emerald-200">
           {renderField("actuator_type", "Actuator Type", CONTROL_COMMON_OPTS.actuator_type, true)}
           {renderField("fail_action",   "Fail Action",   CONTROL_COMMON_OPTS.fail_action,   true)}
+        </SectionCard>
+      )}
 
-          {sec("Signal & Control (Optional)")}
+      {/* 5 — Signal & Control (Optional) */}
+      {hasType && (
+        <SectionCard title="Signal & Control (Optional)" color="bg-orange-50/60 border-orange-200">
           {renderField("input_signal",  "Input Signal",       CONTROL_COMMON_OPTS.input_signal)}
           {renderField("positioner",    "Positioner",         CONTROL_COMMON_OPTS.positioner)}
           {renderField("handwheel",     "Handwheel Override", CONTROL_COMMON_OPTS.handwheel)}
           {renderField("bypass_valve",  "Bypass Valve",       CONTROL_COMMON_OPTS.bypass_valve)}
+        </SectionCard>
+      )}
 
-          {sec("Area Classification (Optional)")}
+      {/* 6 — Area Classification (Optional) */}
+      {hasType && (
+        <SectionCard title="Area Classification (Optional)" color="bg-rose-50/60 border-rose-200">
           {renderField("area_classification", "Area Classification", CONTROL_COMMON_OPTS.area_classification)}
           {(areaClass === "Zone 1" || areaClass === "Zone 2") ? (<>
             {renderField("certification",        "Certification",        CONTROL_COMMON_OPTS.certification,        true)}
@@ -480,12 +512,12 @@ export function ControlValveAttrsForm({
             {renderField("gas_group",            "Gas Group",            CONTROL_COMMON_OPTS.gas_group,            true)}
             {renderField("temperature_class",    "Temperature Class",    CONTROL_COMMON_OPTS.temperature_class,    true)}
           </>) : <div />}
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
-          </div>
+      {/* 7 — Vendor / Approved Makes */}
+      {hasType && (
+        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           <div className="col-span-2 space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
@@ -523,18 +555,19 @@ export function ControlValveAttrsForm({
               </div>
             )}
           </div>
-        </>)}
+        </SectionCard>
+      )}
 
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
-          </div>
-        )}
-      </div>
+      {/* Quantity */}
+      {qty !== undefined && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -795,11 +828,24 @@ export function SafetyValveAttrsForm({
     (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
   );
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Safety / Relief Valve Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Valve Type")}
+    <div className="space-y-3">
+
+      {/* 1 — Valve Type */}
+      <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2 space-y-1.5">
           <Label className="text-xs">Safety Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
@@ -808,86 +854,83 @@ export function SafetyValveAttrsForm({
             onSelect={(v) => handleTypeChange(v)}
           />
         </div>
-
         {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
+      </SectionCard>
 
-        {isSpringBased && (<>
-          {sec("Size & Pressure Rating")}
-          {renderField("inlet_size",      "Inlet Size (NB)",  SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
-          {renderField("outlet_size",     "Outlet Size (NB)", SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
-          <div className="col-span-2">{renderField("pressure_rating","Pressure Rating",SAFETY_COMMON_OPTS.pressure_rating, true)}</div>
-          {sec("Pressure Settings")}
-          <div className="col-span-2">{renderText("set_pressure", "Set Pressure", "e.g. 10 barg", true)}</div>
-          {renderField("overpressure",       "Overpressure (%)",    SAFETY_COMMON_OPTS.overpressure)}
-          {renderText( "relieving_capacity", "Relieving Capacity",  "e.g. 500 kg/h")}
-        </>)}
+      {/* 2 — Size & Pressure Rating (spring-based) */}
+      {isSpringBased && (
+        <SectionCard title="Size & Pressure Rating" color="bg-violet-50/60 border-violet-200">
+          {renderField("inlet_size",  "Inlet Size (NB)",  SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
+          {renderField("outlet_size", "Outlet Size (NB)", SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
+          <div className="col-span-2">
+            {renderField("pressure_rating","Pressure Rating",SAFETY_COMMON_OPTS.pressure_rating, true)}
+          </div>
+        </SectionCard>
+      )}
 
-        {isPSV && (<>
-          {sec("PSV Configuration")}
+      {/* 3 — Pressure Settings (spring-based) */}
+      {isSpringBased && (
+        <SectionCard title="Pressure Settings" color="bg-amber-50/60 border-amber-300">
+          <div className="col-span-2">{renderText("set_pressure","Set Pressure","e.g. 10 barg", true)}</div>
+          {renderField("overpressure",       "Overpressure (%)",   SAFETY_COMMON_OPTS.overpressure)}
+          {renderText( "relieving_capacity", "Relieving Capacity", "e.g. 500 kg/h")}
+        </SectionCard>
+      )}
+
+      {/* 4 — Type-specific configuration */}
+      {isPSV && (
+        <SectionCard title="PSV Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("operation_type",    "Operation Type",    SAFETY_COMMON_OPTS.operation_type,    true)}
           {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                     true)}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
           {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
           {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isPRV && (<>
-          {sec("PRV Configuration")}
+      {isPRV && (
+        <SectionCard title="PRV Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type)}
           {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS)}
           {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isSRV && (<>
-          {sec("SRV Configuration")}
+      {isSRV && (
+        <SectionCard title="SRV Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("operation_type",    "Operation Type",    SAFETY_COMMON_OPTS.operation_type,    true)}
           {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                     true)}
           {renderField("service_phase",     "Service Phase",     SAFETY_COMMON_OPTS.service_phase,     true)}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
           {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
           {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isSpringBased && (<>
-          {sec("Service Conditions (Optional)")}
-          {renderField("service_fluid",  "Service Fluid",
-            isPRV ? SAFETY_COMMON_OPTS.service_fluid_prv : SAFETY_COMMON_OPTS.service_fluid_psv)}
-          {renderText( "operating_temp", "Operating Temperature", "e.g. 150°C")}
-          {sec("Material & Connection")}
-          {renderField("body_material",  "Body Material",  SAFETY_COMMON_OPTS.body_material,  true)}
-          {renderField("trim_material",  "Trim Material",  SAFETY_COMMON_OPTS.trim_material)}
-          {renderField("end_connection", "End Connection", SAFETY_COMMON_OPTS.end_connection, true)}
+      {isVRV && (
+        <SectionCard title="VRV Configuration" color="bg-amber-50/60 border-amber-300">
+          {renderField("connection_size","Connection Size (NB)",   SAFETY_COMMON_OPTS.connection_size,  true)}
+          {renderText( "set_vacuum",     "Set Vacuum (mbar)",      "e.g. 10 mbar",                      true)}
+          {renderText( "flow_capacity",  "Flow Capacity (m³/h)",   "e.g. 200 m³/h")}
+          {renderText( "reseal_pressure","Re-seal Pressure (mbar)","e.g. 5 mbar")}
+          {renderField("service_fluid",  "Service Fluid",          SAFETY_COMMON_OPTS.service_fluid_tank)}
+          {renderText( "operating_temp", "Operating Temperature",  "e.g. 65°C")}
+          {renderField("body_material",  "Body Material",          SAFETY_COMMON_OPTS.body_material)}
+          {renderField("end_connection", "End Connection",         SAFETY_COMMON_OPTS.end_connection)}
+          {renderField("certification",  "Certification",          SAFETY_COMMON_OPTS.certification)}
+          {renderField("design_standard","Design Standard",        SAFETY_COMMON_OPTS.design_std_tank,  true)}
           <div />
-          {sec("Standard & Certification")}
-          {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_psv, true)}
-          {renderField("certification",  "Certification",  SAFETY_COMMON_OPTS.certification)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isVRV && (<>
-          {sec("VRV Configuration")}
-          {renderField("connection_size","Connection Size (NB)", SAFETY_COMMON_OPTS.connection_size,  true)}
-          {renderText( "set_vacuum",     "Set Vacuum (mbar)",    "e.g. 10 mbar",                      true)}
-          {renderText( "flow_capacity",  "Flow Capacity (m³/h)", "e.g. 200 m³/h")}
-          {renderText( "reseal_pressure","Re-seal Pressure (mbar)", "e.g. 5 mbar")}
-          {renderField("service_fluid",  "Service Fluid",        SAFETY_COMMON_OPTS.service_fluid_tank)}
-          {renderText( "operating_temp", "Operating Temperature","e.g. 65°C")}
-          {renderField("body_material",  "Body Material",        SAFETY_COMMON_OPTS.body_material)}
-          {renderField("end_connection", "End Connection",       SAFETY_COMMON_OPTS.end_connection)}
-          {renderField("certification",  "Certification",        SAFETY_COMMON_OPTS.certification)}
-          <div />
-          {sec("Standard")}
-          {renderField("design_standard","Design Standard",      SAFETY_COMMON_OPTS.design_std_tank,  true)}
-          <div />
-        </>)}
-
-        {isBV && (<>
-          {sec("Breather Valve Configuration")}
+      {isBV && (
+        <SectionCard title="Breather Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("connection_size",       "Connection Size (NB)",    SAFETY_COMMON_OPTS.connection_size,  true)}
           {renderText( "pressure_setting_mbar", "Pressure Setting (mbar)", "e.g. 14 mbar",                      true)}
           {renderText( "vacuum_setting_mbar",   "Vacuum Setting (mbar)",   "e.g. 3.5 mbar",                     true)}
@@ -898,15 +941,41 @@ export function SafetyValveAttrsForm({
           {renderField("body_material",         "Body Material",           SAFETY_COMMON_OPTS.body_material_bv)}
           {renderField("end_connection",        "End Connection",          SAFETY_COMMON_OPTS.end_conn_bv)}
           {renderField("certification",         "Certification",           SAFETY_COMMON_OPTS.certification)}
-          {sec("Standard")}
-          {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_tank, true)}
+          {renderField("design_standard",       "Design Standard",         SAFETY_COMMON_OPTS.design_std_tank, true)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
-          </div>
+      {/* 5 — Service Conditions (spring-based, optional) */}
+      {isSpringBased && (
+        <SectionCard title="Service Conditions (Optional)" color="bg-orange-50/60 border-orange-200">
+          {renderField("service_fluid",  "Service Fluid",
+            isPRV ? SAFETY_COMMON_OPTS.service_fluid_prv : SAFETY_COMMON_OPTS.service_fluid_psv)}
+          {renderText( "operating_temp", "Operating Temperature", "e.g. 150°C")}
+        </SectionCard>
+      )}
+
+      {/* 6 — Material & Connection (spring-based) */}
+      {isSpringBased && (
+        <SectionCard title="Material & Connection" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("body_material",  "Body Material",  SAFETY_COMMON_OPTS.body_material,  true)}
+          {renderField("trim_material",  "Trim Material",  SAFETY_COMMON_OPTS.trim_material)}
+          {renderField("end_connection", "End Connection", SAFETY_COMMON_OPTS.end_connection, true)}
+          <div />
+        </SectionCard>
+      )}
+
+      {/* 7 — Standard & Certification (spring-based) */}
+      {isSpringBased && (
+        <SectionCard title="Standard & Certification" color="bg-teal-50/60 border-teal-200">
+          {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_psv, true)}
+          {renderField("certification",  "Certification",  SAFETY_COMMON_OPTS.certification)}
+        </SectionCard>
+      )}
+
+      {/* 8 — Vendor / Approved Makes */}
+      {hasType && (
+        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           <div className="col-span-2 space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
@@ -944,18 +1013,19 @@ export function SafetyValveAttrsForm({
               </div>
             )}
           </div>
-        </>)}
+        </SectionCard>
+      )}
 
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
-          </div>
-        )}
-      </div>
+      {/* Quantity */}
+      {qty !== undefined && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1312,11 +1382,24 @@ export function OnOffValveAttrsForm({
     (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
   );
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">ON/OFF Valve Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Valve Type")}
+    <div className="space-y-3">
+
+      {/* 1 — Valve Type */}
+      <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
@@ -1325,26 +1408,27 @@ export function OnOffValveAttrsForm({
             onSelect={(v) => handleTypeChange(v)}
           />
         </div>
-
         {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
+      </SectionCard>
 
-        {hasType && (<>
-          {sec("Size & Pressure Rating")}
+      {/* 2 — Size, Rating & Design Standard */}
+      {hasType && (
+        <SectionCard title="Size, Pressure Rating & Design Standard" color="bg-violet-50/60 border-violet-200">
           {renderField("size_nb",         "Size (NB)",       OO_COMMON_OPTS.size_nb, true)}
           {renderField("pressure_rating", "Pressure Rating",
             isBfly || isDiaphragm ? OO_COMMON_OPTS.pressure_rating_pn : OO_COMMON_OPTS.pressure_rating_std, true)}
-
-          {sec("Design Standard")}
-          {renderField("valve_standard", "Valve Standard", valveStdOpts, true)}
+          {renderField("valve_standard",  "Valve Standard",  valveStdOpts, true)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isBall && (<>
-          {sec("Ball Valve Configuration")}
+      {/* 3 — Type-specific configuration */}
+      {isBall && (
+        <SectionCard title="Ball Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("bore_type",          "Bore Type",           OO_COMMON_OPTS.bore_type,         true)}
           {renderField("body_style",         "Body Style",          OO_COMMON_OPTS.body_style,         true)}
           {renderField("seat_material",      "Seat Material",       OO_COMMON_OPTS.seat_material_ball, true)}
@@ -1353,80 +1437,93 @@ export function OnOffValveAttrsForm({
           {renderField("anti_static_device", "Anti-Static Device",  OO_COMMON_OPTS.yes_no)}
           {renderField("stem_seal",          "Stem Seal / Packing", OO_COMMON_OPTS.stem_seal)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isGate && (<>
-          {sec("Gate Valve Configuration")}
+      {isGate && (
+        <SectionCard title="Gate Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("stem_type",     "Stem Type",           OO_COMMON_OPTS.stem_type,     true)}
           {renderField("wedge_type",    "Wedge Type",          OO_COMMON_OPTS.wedge_type,    true)}
           {renderField("bonnet_type",   "Bonnet Type",         OO_COMMON_OPTS.bonnet_type)}
           {renderField("gate_material", "Gate/Wedge Material", OO_COMMON_OPTS.gate_material)}
           {renderField("gate_stem_seal","Stem Seal / Packing", OO_COMMON_OPTS.gate_stem_seal)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isGlobe && (<>
-          {sec("Globe Valve Configuration")}
+      {isGlobe && (
+        <SectionCard title="Globe Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("port_type",          "Port Type",            OO_COMMON_OPTS.port_type,         true)}
           {renderField("plug_trim_material", "Plug / Trim Material", OO_COMMON_OPTS.plug_trim_mat,     true)}
           {renderField("seat_material_globe","Seat Material",        OO_COMMON_OPTS.seat_mat_globe,    true)}
           {renderField("bonnet_type_globe",  "Bonnet Type",          OO_COMMON_OPTS.bonnet_type_globe)}
           {renderField("flow_direction",     "Flow Direction",       OO_COMMON_OPTS.flow_direction)}
           {renderField("packing",            "Stem Packing",         OO_COMMON_OPTS.packing)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isBfly && (<>
-          {sec("Butterfly Valve Configuration")}
-          {renderField("valve_design",   "Valve Design",      OO_COMMON_OPTS.valve_design,  true)}
-          {renderField("disc_material",  "Disc Material",     OO_COMMON_OPTS.disc_material, true)}
-          {renderField("seat_liner",     "Seat Liner",        OO_COMMON_OPTS.seat_liner,    true)}
-          {renderField("stem_material",  "Stem Material",     OO_COMMON_OPTS.stem_material)}
-          {renderField("face_to_face_std","Face-to-Face Std", OO_COMMON_OPTS.face_to_face)}
+      {isBfly && (
+        <SectionCard title="Butterfly Valve Configuration" color="bg-amber-50/60 border-amber-300">
+          {renderField("valve_design",    "Valve Design",      OO_COMMON_OPTS.valve_design,  true)}
+          {renderField("disc_material",   "Disc Material",     OO_COMMON_OPTS.disc_material, true)}
+          {renderField("seat_liner",      "Seat Liner",        OO_COMMON_OPTS.seat_liner,    true)}
+          {renderField("stem_material",   "Stem Material",     OO_COMMON_OPTS.stem_material)}
+          {renderField("face_to_face_std","Face-to-Face Std",  OO_COMMON_OPTS.face_to_face)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isPlug && (<>
-          {sec("Plug Valve Configuration")}
-          {renderField("plug_type",       "Plug Type",          OO_COMMON_OPTS.plug_type,       true)}
+      {isPlug && (
+        <SectionCard title="Plug Valve Configuration" color="bg-amber-50/60 border-amber-300">
+          {renderField("plug_type",       "Plug Type",          OO_COMMON_OPTS.plug_type,        true)}
           {renderField("plug_port_config","Port Configuration", OO_COMMON_OPTS.plug_port_config, true)}
           {isSleeved    ? renderField("sleeve_material",     "Sleeve Material",  OO_COMMON_OPTS.sleeve_material) : <div />}
           {isLubricated ? renderField("anti_static_device", "Injection Fitting",OO_COMMON_OPTS.yes_no) : <div />}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isDiaphragm && (<>
-          {sec("Diaphragm Valve Configuration")}
+      {isDiaphragm && (
+        <SectionCard title="Diaphragm Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("diaphragm_material","Diaphragm Material",OO_COMMON_OPTS.diaphragm_material, true)}
           {renderField("body_design",       "Body Design",       OO_COMMON_OPTS.body_design,        true)}
           {renderField("body_lining",       "Body Lining",       OO_COMMON_OPTS.body_lining)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          {sec("Service (Optional)")}
+      {/* 4 — Actuation & Connection */}
+      {hasType && (
+        <SectionCard title="Actuation & Connection" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("actuation_type","Actuation Type", OO_COMMON_OPTS.actuation_type, true)}
+          {isActuated ? renderField("fail_action","Fail Action",OO_COMMON_OPTS.fail_action, true) : <div />}
+          {renderField("end_connection","End Connection", OO_COMMON_OPTS.end_connection,  true)}
+          {renderField("body_material", "Body Material",  OO_COMMON_OPTS.body_material,   true)}
+        </SectionCard>
+      )}
+
+      {/* 5 — Service (Optional) */}
+      {hasType && (
+        <SectionCard title="Service (Optional)" color="bg-orange-50/60 border-orange-200">
           {renderField("service_type","Service Type",OO_COMMON_OPTS.service_type)}
           <div />
+        </SectionCard>
+      )}
 
-          {sec("Actuation")}
-          {renderField("actuation_type","Actuation Type",OO_COMMON_OPTS.actuation_type, true)}
-          {isActuated ? renderField("fail_action","Fail Action",OO_COMMON_OPTS.fail_action, true) : <div />}
-
-          {sec("Connection & Material")}
-          {renderField("end_connection","End Connection",OO_COMMON_OPTS.end_connection, true)}
-          {renderField("body_material", "Body Material", OO_COMMON_OPTS.body_material,  true)}
-
-          {sec("Hazardous Area (Optional)")}
+      {/* 6 — Hazardous Area (Optional) */}
+      {hasType && (
+        <SectionCard title="Hazardous Area (Optional)" color="bg-rose-50/60 border-rose-200">
           {renderField("area_classification","Area Classification",OO_COMMON_OPTS.area_class)}
           {renderField("certification",      "Certification",      OO_COMMON_OPTS.certification)}
           {isHazardous && renderField("explosion_protection","Explosion Protection",OO_COMMON_OPTS.explosion_protection, true)}
           {isHazardous && renderField("gas_group",           "Gas Group",           OO_COMMON_OPTS.gas_group,           true)}
           {isHazardous && renderField("temperature_class",   "Temperature Class",   OO_COMMON_OPTS.temperature_class,   true)}
           {isHazardous && <div />}
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
-          </div>
+      {/* 7 — Vendor / Approved Makes */}
+      {hasType && (
+        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           <div className="col-span-2 space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
@@ -1464,18 +1561,19 @@ export function OnOffValveAttrsForm({
               </div>
             )}
           </div>
-        </>)}
+        </SectionCard>
+      )}
 
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
-          </div>
-        )}
-      </div>
+      {/* Quantity */}
+      {qty !== undefined && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2250,11 +2348,24 @@ export function NrvValveAttrsForm({
     (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
   );
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Non-Return Valve Specifications</p>
-      <div className="grid grid-cols-2 gap-3" data-nrv-grid>
-        {sec("Valve Type")}
+    <div className="space-y-3">
+
+      {/* 1 — Valve Type */}
+      <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
@@ -2263,85 +2374,98 @@ export function NrvValveAttrsForm({
             onSelect={(v) => handleTypeChange(v)}
           />
         </div>
-
         {!hasType && (
-          <div className="col-span-2 rounded-md border border-dashed bg-muted/20 py-6 text-center text-xs text-muted-foreground">
+          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
+      </SectionCard>
 
-        {hasType && (<>
-          {sec("Size & Pressure Rating")}
+      {/* 2 — Size, Rating & Design Standard */}
+      {hasType && (
+        <SectionCard title="Size, Pressure Rating & Design Standard" color="bg-violet-50/60 border-violet-200">
           {renderField("size_nb",         "Size (NB)",       NRV_COMMON_OPTS.size_nb, true)}
           {renderField("pressure_rating", "Pressure Rating",
             isDual ? NRV_COMMON_OPTS.pressure_rating_pn : NRV_COMMON_OPTS.pressure_rating_std, true)}
-
-          {sec("Design Standard")}
           {renderField("design_standard", "Design Standard", stdOpts, true)}
           <div />
+        </SectionCard>
+      )}
 
-          {sec("Connection & Material")}
+      {/* 3 — Connection & Material */}
+      {hasType && (
+        <SectionCard title="Connection & Material" color="bg-emerald-50/60 border-emerald-200">
           {renderField("end_connection", "End Connection",
             isDual ? NRV_COMMON_OPTS.end_conn_dual : NRV_COMMON_OPTS.end_connection, true)}
-          {renderField("body_material",  "Body Material",           NRV_COMMON_OPTS.body_material,  true)}
-          {renderField("disc_material",  "Disc / Closure Material", NRV_COMMON_OPTS.disc_material,  true)}
+          {renderField("body_material",  "Body Material",           NRV_COMMON_OPTS.body_material, true)}
+          {renderField("disc_material",  "Disc / Closure Material", NRV_COMMON_OPTS.disc_material, true)}
           {renderField("seat_material",  "Seat Material",           NRV_COMMON_OPTS.seat_material)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isSwing && (<>
-          {sec("Swing Check Configuration")}
+      {/* 4 — Type-specific configuration */}
+      {isSwing && (
+        <SectionCard title="Swing Check Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("hinge_pin_material","Hinge / Pin Material",NRV_COMMON_OPTS.hinge_pin_material)}
           {renderField("renewable_seat",    "Renewable Seat",      NRV_COMMON_OPTS.yes_no)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isLift && (<>
-          {sec("Lift Check Configuration")}
+      {isLift && (
+        <SectionCard title="Lift Check Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("guided","Guided",NRV_COMMON_OPTS.yes_no)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isDual && (<>
-          {sec("Dual Plate Configuration")}
+      {isDual && (
+        <SectionCard title="Dual Plate Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("dual_spring_material","Spring Material",  NRV_COMMON_OPTS.spring_material, true)}
           {renderField("face_to_face_std",    "Face-to-Face Std", NRV_COMMON_OPTS.face_to_face)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isTilting && (<>
-          {sec("Tilting Disc Configuration")}
+      {isTilting && (
+        <SectionCard title="Tilting Disc Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("disc_tilt_material","Disc Material", NRV_COMMON_OPTS.disc_tilt_material)}
           {renderField("counterweight",     "Counterweight", NRV_COMMON_OPTS.yes_no)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isPiston && (<>
-          {sec("Piston Check Configuration")}
+      {isPiston && (
+        <SectionCard title="Piston Check Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("piston_material","Piston Material",    NRV_COMMON_OPTS.piston_material)}
           {renderField("dashpot",        "Dashpot / Dampener", NRV_COMMON_OPTS.yes_no)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isBallChk && (<>
-          {sec("Ball Check Configuration")}
+      {isBallChk && (
+        <SectionCard title="Ball Check Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("ball_material","Ball Material",NRV_COMMON_OPTS.ball_material)}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {isFoot && (<>
-          {sec("Foot Valve Configuration")}
+      {isFoot && (
+        <SectionCard title="Foot Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("strainer",          "Strainer",     NRV_COMMON_OPTS.strainer,         true)}
           {renderField("foot_seat_material","Seat Material",NRV_COMMON_OPTS.foot_seat_material)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasSpringToggle && (<>
-          {sec("Spring")}
+      {/* 5 — Spring (for spring-capable types) */}
+      {hasSpringToggle && (
+        <SectionCard title="Spring" color="bg-orange-50/60 border-orange-200">
           {renderField("spring","Spring",NRV_COMMON_OPTS.spring)}
           {isSpringAssisted
             ? renderField("spring_material","Spring Material",NRV_COMMON_OPTS.spring_material)
             : <div />}
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
-          </div>
+      {/* 6 — Vendor / Approved Makes */}
+      {hasType && (
+        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           <div className="col-span-2 space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make…" value={makeSearch}
@@ -2379,18 +2503,19 @@ export function NrvValveAttrsForm({
               </div>
             )}
           </div>
-        </>)}
+        </SectionCard>
+      )}
 
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
-          </div>
-        )}
-      </div>
+      {/* Quantity */}
+      {qty !== undefined && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2598,49 +2723,77 @@ export function NeedleValveAttrsForm({
     (m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m)
   );
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Needle Valve Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Valve Type")}
+    <div className="space-y-3">
+
+      {/* 1 — Valve Type */}
+      <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={valveType} options={NEEDLE_VALVE_TYPES} placeholder="Select valve type..."
             onSelect={handleTypeChange} />
         </div>
-
-        {hasType && (<>
-          {sec("Size & Pressure Rating")}
-          {renderField("size",            "Size / Tube OD",   NEEDLE_COMMON_OPTS.size,            true)}
-          {renderField("pressure_rating", "Pressure Rating",  NEEDLE_COMMON_OPTS.pressure_rating, true)}
-
-          {sec("Design Standard")}
-          {renderField("design_standard", "Design Standard",  stdOpts, true)}
-          <div />
-
-          {sec("End Connection & Body")}
-          {renderField("end_connection",  "End Connection",   NEEDLE_COMMON_OPTS.end_connection,  true)}
-          {renderField("body_material",   "Body Material",    NEEDLE_COMMON_OPTS.body_material,   true)}
-
-          {sec("Trim & Internals")}
-          {renderField("stem_material",   "Stem Material",    NEEDLE_COMMON_OPTS.stem_material,   true)}
-          {renderField("seat_type",       "Seat Type",        NEEDLE_COMMON_OPTS.seat_type,       true)}
-          {renderField("packing",         "Packing Material", NEEDLE_COMMON_OPTS.packing,         true)}
-          {renderField("flow_pattern",    "Flow Pattern",     NEEDLE_COMMON_OPTS.flow_pattern)}
-
-          {sec("Bonnet")}
-          {renderField("bonnet_type", "Bonnet Type", NEEDLE_COMMON_OPTS.bonnet_type)}
-          <div />
-
-          {isBleed && (<>
-            {sec("Bleed / Vent Configuration")}
-            {renderField("vent_type", "Vent Type", NEEDLE_COMMON_OPTS.vent_type, true)}
-            <div />
-          </>)}
-
-          <div className="col-span-2 mt-1 pb-0.5 border-b">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Approved Makes (ranked)</p>
+        {!hasType && (
+          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
+            Select a valve type above to configure specifications
           </div>
+        )}
+      </SectionCard>
+
+      {/* 2 — Size, Pressure Rating & Design Standard */}
+      {hasType && (
+        <SectionCard title="Size, Pressure Rating & Design Standard" color="bg-violet-50/60 border-violet-200">
+          {renderField("size",            "Size / Tube OD",  NEEDLE_COMMON_OPTS.size,            true)}
+          {renderField("pressure_rating", "Pressure Rating", NEEDLE_COMMON_OPTS.pressure_rating, true)}
+          {renderField("design_standard", "Design Standard", stdOpts,                            true)}
+          <div />
+        </SectionCard>
+      )}
+
+      {/* 3 — End Connection & Body */}
+      {hasType && (
+        <SectionCard title="End Connection & Body Material" color="bg-emerald-50/60 border-emerald-200">
+          {renderField("end_connection", "End Connection", NEEDLE_COMMON_OPTS.end_connection, true)}
+          {renderField("body_material",  "Body Material",  NEEDLE_COMMON_OPTS.body_material,  true)}
+        </SectionCard>
+      )}
+
+      {/* 4 — Trim & Internals */}
+      {hasType && (
+        <SectionCard title="Trim & Internals" color="bg-amber-50/60 border-amber-300">
+          {renderField("stem_material", "Stem Material",    NEEDLE_COMMON_OPTS.stem_material, true)}
+          {renderField("seat_type",     "Seat Type",        NEEDLE_COMMON_OPTS.seat_type,     true)}
+          {renderField("packing",       "Packing Material", NEEDLE_COMMON_OPTS.packing,       true)}
+          {renderField("flow_pattern",  "Flow Pattern",     NEEDLE_COMMON_OPTS.flow_pattern)}
+        </SectionCard>
+      )}
+
+      {/* 5 — Bonnet & Vent */}
+      {hasType && (
+        <SectionCard title={isBleed ? "Bonnet & Vent Configuration" : "Bonnet"} color="bg-orange-50/60 border-orange-200">
+          {renderField("bonnet_type", "Bonnet Type", NEEDLE_COMMON_OPTS.bonnet_type)}
+          {isBleed
+            ? renderField("vent_type", "Vent Type", NEEDLE_COMMON_OPTS.vent_type, true)
+            : <div />}
+        </SectionCard>
+      )}
+
+      {/* 6 — Vendor / Approved Makes */}
+      {hasType && (
+        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           <div className="col-span-2 space-y-2">
             <div className="flex gap-2">
               <Input className="h-8 text-sm flex-1" placeholder="Search or type make..." value={makeSearch}
@@ -2678,18 +2831,19 @@ export function NeedleValveAttrsForm({
               </div>
             )}
           </div>
-        </>)}
+        </SectionCard>
+      )}
 
-        {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
-            <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1"
-              value={qty}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
-          </div>
-        )}
-      </div>
+      {/* Quantity */}
+      {qty !== undefined && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1"
+            value={qty}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+        </div>
+      )}
     </div>
   );
 }
