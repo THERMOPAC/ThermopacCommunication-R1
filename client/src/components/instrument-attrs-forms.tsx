@@ -33,8 +33,10 @@ export const TEMPERATURE_THERMOCOUPLE_DEFAULTS = {
   probe_length:   "260",
 } as const;
 
-const TC_ELEMENT_TYPES  = ["Simplex", "Duplex"] as const;
-const TC_PROBE_DIAMETERS = ["3 mm", "6 mm", "8 mm", "10 mm", "12 mm"] as const;
+const TC_ELEMENT_TYPES   = ["Simplex", "Duplex"] as const;
+const TC_PROBE_DIAMETERS  = ["3 mm", "6 mm", "8 mm", "10 mm", "12 mm"] as const;
+const TC_TYPES            = ["Type K", "Type J", "Type T", "Type E", "Type N", "Type R", "Type S", "Type B"] as const;
+const RTD_TYPES           = ["PT100", "PT1000"] as const;
 
 // ── Cable Gland Block (shared by all instrument forms) ────────────────────────
 function CableGlandBlock({
@@ -749,8 +751,12 @@ export function PressureAttrsForm({
 // TEMPERATURE INSTRUMENTS
 // ─────────────────────────────────────────────────────────────────────────────
 export function buildTemperatureRequirement(attrs: Record<string, unknown>): string {
-  const instrType   = (attrs.instrument_type   as string)?.trim() || "";
-  const sensorType  = (attrs.sensor_type       as string)?.trim() || "";
+  const instrType   = (attrs.instrument_type as string)?.trim() || "";
+  const sensorType  = instrType === "Thermocouple (TC)"
+    ? (attrs.tc_type  as string)?.trim() || ""
+    : instrType === "RTD"
+      ? (attrs.rtd_type as string)?.trim() || ""
+      : "";
   const rangeMin    = (attrs.range_min         as string)?.trim() || "";
   const rangeMax    = (attrs.range_max         as string)?.trim() || "";
   const rangeUnit   = (attrs.range_unit        as string)?.trim() || "°C";
@@ -773,8 +779,7 @@ export function buildTemperatureRequirement(attrs: Record<string, unknown>): str
 }
 
 const TEMPERATURE_OPTS: Record<string, string[]> = {
-  instrument_type:      ["Thermocouple (TC)", "RTD", "Temperature Transmitter (TT)", "Temperature Switch (TS)", "Bimetal Thermometer"],
-  sensor_type:          ["PT100", "PT1000", "Type K", "Type J", "Type E", "Type T"],
+  instrument_type:      ["Thermocouple (TC)", "RTD", "Thermistor"],
   range_unit:           ["°C", "°F", "K"],
   wetted_material:      ["SS304", "SS316", "Inconel 600", "Carbon Steel"],
   connection_size:      ["1/4\"", "1/2\"", "3/4\"", "1\""],
@@ -814,14 +819,20 @@ export function TemperatureAttrsForm({
       set(key, "");
     } else {
       setCustom((c) => ({ ...c, [key]: false }));
-      if (key === "instrument_type" && val === "Thermocouple (TC)") {
-        onChange({
-          ...attrs,
-          instrument_type:  val,
-          element_type:   (attrs.element_type   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.element_type,
-          probe_diameter: (attrs.probe_diameter as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_diameter,
-          probe_length:   (attrs.probe_length   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_length,
-        });
+      if (key === "instrument_type") {
+        const next: Record<string, unknown> = { ...attrs, instrument_type: val };
+        if (val === "Thermocouple (TC)") {
+          next.rtd_type       = "";
+          next.element_type   = (attrs.element_type   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.element_type;
+          next.probe_diameter = (attrs.probe_diameter as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_diameter;
+          next.probe_length   = (attrs.probe_length   as string) || TEMPERATURE_THERMOCOUPLE_DEFAULTS.probe_length;
+        } else if (val === "RTD") {
+          next.tc_type = "";
+        } else {
+          next.tc_type  = "";
+          next.rtd_type = "";
+        }
+        onChange(next);
       } else {
         set(key, val);
       }
@@ -855,7 +866,7 @@ export function TemperatureAttrsForm({
   const areaClass      = (attrs.area_classification as string) ?? "";
   const instrType      = (attrs.instrument_type as string) ?? "";
   const isThermocouple = instrType === "Thermocouple (TC)";
-  const showSensor     = instrType.startsWith("Thermocouple") || instrType.startsWith("RTD");
+  const isRTD          = instrType === "RTD";
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
@@ -863,9 +874,20 @@ export function TemperatureAttrsForm({
       <div className="grid grid-cols-2 gap-3">
         {sec("Instrument Type")}
         <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
-        {showSensor && <>{sec("Sensor")}{renderField("sensor_type", "Sensor Type")}<div /></>}
         {isThermocouple && (<>
           {sec("Thermocouple Details")}
+          <div className="space-y-1.5">
+            <Label className="text-xs">TC Type <span className="text-red-500">*</span></Label>
+            <Select
+              value={(attrs.tc_type as string) || ""}
+              onValueChange={v => onChange({ ...attrs, tc_type: v })}
+            >
+              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>
+                {TC_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Element Type <span className="text-red-500">*</span></Label>
             <Select
@@ -899,6 +921,22 @@ export function TemperatureAttrsForm({
               onWheel={(e) => e.currentTarget.blur()}
               onChange={(e) => onChange({ ...attrs, probe_length: e.target.value })}
             />
+          </div>
+          <div />
+        </>)}
+        {isRTD && (<>
+          {sec("RTD Details")}
+          <div className="space-y-1.5">
+            <Label className="text-xs">RTD Type <span className="text-red-500">*</span></Label>
+            <Select
+              value={(attrs.rtd_type as string) || ""}
+              onValueChange={v => onChange({ ...attrs, rtd_type: v })}
+            >
+              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>
+                {RTD_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div />
         </>)}
