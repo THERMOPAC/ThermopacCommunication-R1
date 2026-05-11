@@ -111,6 +111,11 @@ const MOTOR_SPEED_BY_FREQ: Record<string, string[]> = {
   "60 Hz": ["3600", "1800", "1200", "900"],
 };
 
+const MOTOR_POLES_BY_FREQ: Record<string, string[]> = {
+  "50 Hz": ["2", "4", "6", "8"],
+  "60 Hz": ["2", "4", "6", "8"],
+};
+
 const MOTOR_AREA_SAFE      = ["Safe Area", "Other"];
 const MOTOR_AREA_HAZARDOUS = ["Zone 1", "Zone 2"];
 
@@ -121,6 +126,7 @@ export const NON_FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   voltage:             "415 V",
   phase:               "Three Phase",
   frequency:           "50 Hz",
+  num_poles:           "4",
   duty:                "S1 (Continuous)",
   area_classification: "Other",
   ip_rating:           "IP55",
@@ -147,6 +153,7 @@ export const FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   voltage:              "415 V",
   phase:                "Three Phase",
   frequency:            "50 Hz",
+  num_poles:            "4",
   duty:                 "S1 (Continuous)",
   area_classification:  "Zone 1",
   ip_rating:            "IP55",
@@ -182,6 +189,7 @@ export function MotorAttrsForm({
   const areaOpts = isFlameproof ? MOTOR_AREA_HAZARDOUS : MOTOR_AREA_SAFE;
   const currentFreq = (attrs.frequency as string) ?? "";
   const speedOpts   = MOTOR_SPEED_BY_FREQ[currentFreq] ?? MOTOR_SPEED_BY_FREQ["50 Hz"];
+  const polesOpts   = MOTOR_POLES_BY_FREQ[currentFreq]  ?? MOTOR_POLES_BY_FREQ["50 Hz"];
   const singleKeys = [...Object.keys(MOTOR_OPTS), "area_classification"];
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
@@ -198,10 +206,18 @@ export function MotorAttrsForm({
   function handleSelect(key: string, val: string) {
     if (key === "frequency" && val !== "__other__") {
       const newSpeedOpts = MOTOR_SPEED_BY_FREQ[val] ?? [];
+      const newPolesOpts = MOTOR_POLES_BY_FREQ[val]  ?? [];
       const currentSpeed = (attrs.speed as string) ?? "";
+      const currentPoles = (attrs.num_poles as string) ?? "";
       const speedStillValid = newSpeedOpts.includes(currentSpeed);
+      const polesStillValid = newPolesOpts.includes(currentPoles);
       setCustom((c) => ({ ...c, [key]: false, speed: speedStillValid ? c.speed : false }));
-      onChange({ ...attrs, frequency: val, speed: speedStillValid ? currentSpeed : "" });
+      onChange({
+        ...attrs,
+        frequency: val,
+        speed:     speedStillValid ? currentSpeed : "",
+        num_poles: polesStillValid ? currentPoles : "",
+      });
       return;
     }
     if (val === "__other__") {
@@ -277,6 +293,19 @@ export function MotorAttrsForm({
         </div>
         {renderField("frequency", "Frequency",   MOTOR_OPTS.frequency, true)}
         {renderField("speed",     "Speed (RPM)", speedOpts,            true)}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Number of Poles <span className="text-red-500">*</span></Label>
+          <select
+            className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            value={(attrs.num_poles as string) ?? ""}
+            onChange={(e) => set("num_poles", e.target.value)}
+          >
+            <option value="" disabled>Select…</option>
+            {polesOpts.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
         <div />
 
         {sectionHeader("Operating Conditions")}
