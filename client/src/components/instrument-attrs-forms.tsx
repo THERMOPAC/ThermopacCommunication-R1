@@ -966,12 +966,24 @@ export function TemperatureAttrsForm({
   const areaClass       = (attrs.area_classification as string) ?? "";
   const isHazardous     = areaClass === "Zone 1" || areaClass === "Zone 2";
 
-  return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Temperature Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
 
-        {sec("Instrument Type")}
+  return (
+    <div className="space-y-3">
+
+      {/* Instrument Type */}
+      <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2">
           <div className="space-y-1.5">
             <Label className="text-xs">Instrument Type <span className="text-red-500">*</span></Label>
@@ -982,34 +994,48 @@ export function TemperatureAttrsForm({
             )}
           </div>
         </div>
+        {!instrType && (
+          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
+            Select an instrument type above to configure specifications.
+          </div>
+        )}
+      </SectionCard>
 
-        {isTC && (<>
-          {sec("Thermocouple Details")}
+      {/* TC Details */}
+      {isTC && (
+        <SectionCard title="Thermocouple Details" color="bg-violet-50/60 border-violet-200">
           {ss("tc_type",       "TC Type",       [...TC_TYPES],          true)}
           {ss("element_type",  "Element Type",  ["Simplex","Duplex"],   true, "Simplex")}
           {ss("probe_diameter","Probe Diameter",[...TC_PROBE_DIAMETERS],true, "6 mm")}
           {ni("probe_length",  "Probe Length (mm)", true, "260", "e.g. 260")}
-        </>)}
+        </SectionCard>
+      )}
 
-        {isRTD && (<>
-          {sec("RTD Details")}
+      {/* RTD Details */}
+      {isRTD && (
+        <SectionCard title="RTD Details" color="bg-violet-50/60 border-violet-200">
           {ss("rtd_type",      "RTD Type",         ["PT100","PT1000"],                           true,  "PT100")}
           {ss("wire_count",    "Number of Wires",  ["2-wire","3-wire","4-wire"],                 true,  "3-wire")}
           {ss("accuracy_class","Accuracy Class",   ["Class A","Class B","1/3 DIN","1/5 DIN"],   false)}
           {ss("probe_diameter","Probe Diameter",   [...TC_PROBE_DIAMETERS],                      true,  "6 mm")}
           {ni("probe_length",  "Probe Length (mm)", true, "150", "e.g. 150")}
-        </>)}
+          <div />
+        </SectionCard>
+      )}
 
-        {isThermistor && (<>
-          {sec("Thermistor Details")}
-          {ss("thermistor_type",  "Thermistor Type",   ["NTC","PTC"],                                          true)}
-          {ss("resistance_value", "Resistance Value",  ["1 kΩ","2 kΩ","5 kΩ","10 kΩ","20 kΩ","100 kΩ"],     false)}
-          {ss("probe_diameter",   "Probe Diameter",    [...TC_PROBE_DIAMETERS],                                false, "6 mm")}
+      {/* Thermistor Details */}
+      {isThermistor && (
+        <SectionCard title="Thermistor Details" color="bg-violet-50/60 border-violet-200">
+          {ss("thermistor_type",  "Thermistor Type",   ["NTC","PTC"],                                      true)}
+          {ss("resistance_value", "Resistance Value",  ["1 kΩ","2 kΩ","5 kΩ","10 kΩ","20 kΩ","100 kΩ"], false)}
+          {ss("probe_diameter",   "Probe Diameter",    [...TC_PROBE_DIAMETERS],                            false, "6 mm")}
           {ni("probe_length",     "Probe Length (mm)", false, "100", "e.g. 100")}
-        </>)}
+        </SectionCard>
+      )}
 
-        {(isTC || isRTD) && (<>
-          {sec("Thermowell")}
+      {/* Thermowell (TC / RTD only) */}
+      {(isTC || isRTD) && (
+        <SectionCard title="Thermowell" color="bg-amber-50/50 border-amber-200">
           {ss("thermowell_required","Thermowell Required",["No","Yes"], true, "No")}
           <div />
           {thermowell && (<>
@@ -1018,44 +1044,55 @@ export function TemperatureAttrsForm({
             {ni("insertion_length_u", "Insertion Length U (mm)", true,  "", "e.g. 150")}
             {ni("lagging_extension",  "Lagging Extension (mm)",  false, "", "e.g. 50")}
           </>)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          {sec("Measuring Range")}
+      {/* Measuring Range */}
+      {hasType && (
+        <SectionCard title="Measuring Range" color="bg-sky-50/60 border-sky-200">
           {ni("range_min", "Range Min", true, "-30", "e.g. -30", true)}
           {ni("range_max", "Range Max", true, "400", "e.g. 400", true)}
           <div className="col-span-2">
             {ss("range_unit", "Range Unit", ["°C","°F","K"], true, "°C")}
           </div>
-        </>)}
+        </SectionCard>
+      )}
 
-        {(isTC || isRTD) && (<>
-          {sec("Process Connection")}
-          {ss("connection_size","Connection Size",['1/4"','1/2"','3/4"','1"'], true,  '1/2"')}
-          {ss("connection_type","Connection Type",["NPT","BSP","Flanged"],     true,  "NPT")}
-        </>)}
-        {isThermistor && (<>
-          {sec("Process Connection (Optional)")}
+      {/* Process Connection */}
+      {(isTC || isRTD) && (
+        <SectionCard title="Process Connection" color="bg-emerald-50/60 border-emerald-200">
+          {ss("connection_size","Connection Size",['1/4"','1/2"','3/4"','1"'], true, '1/2"')}
+          {ss("connection_type","Connection Type",["NPT","BSP","Flanged"],     true, "NPT")}
+        </SectionCard>
+      )}
+      {isThermistor && (
+        <SectionCard title="Process Connection (Optional)" color="bg-emerald-50/60 border-emerald-200">
           {ss("connection_size","Connection Size",['1/4"','1/2"','3/4"','1"'], false)}
           {ss("connection_type","Connection Type",["NPT","BSP","Flanged"],     false)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {(isTC || isRTD) && (<>
-          {sec("Transmitter")}
+      {/* Transmitter / Output Signal (TC / RTD only) */}
+      {(isTC || isRTD) && (
+        <SectionCard title="Transmitter" color="bg-violet-50/60 border-violet-200">
           {ss("head_transmitter","Head Mounted Transmitter",["No","Yes"], false, "No")}
           {headXmtr
             ? ss("output_signal","Output Signal",[...SMART_OUTPUT_SIGNALS], true, "4–20 mA + HART")
             : <div />}
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          {sec("Protection")}
+      {/* Protection */}
+      {hasType && (
+        <SectionCard title="Protection" color="bg-slate-50/80 border-slate-200">
           {ss("ip_rating","IP Rating",["IP65","IP66","IP67","IP68"], true, "IP65")}
           <div />
-        </>)}
+        </SectionCard>
+      )}
 
-        {hasType && (<>
-          {sec("Hazardous Area (Optional)")}
+      {/* Hazardous Area */}
+      {hasType && (
+        <SectionCard title="Hazardous Area (Optional)" color="bg-amber-50/60 border-amber-300">
           {ss("area_classification",  "Area Classification",  ["Safe Area","Zone 1","Zone 2"],                                                                             false, "Safe Area")}
           {ss("explosion_protection", "Explosion Protection", ["Ex d (Flameproof)","Ex ia (Intrinsically Safe)","Ex ib (Intrinsically Safe)","Ex e (Increased Safety)"], isHazardous)}
           {isHazardous && (<>
@@ -1064,11 +1101,12 @@ export function TemperatureAttrsForm({
             {ss("temperature_class","Temperature Class", ["T1","T2","T3","T4","T5","T6"], true)}
             <div />
           </>)}
-        </>)}
+        </SectionCard>
+      )}
 
-        {sec("Cable Gland")}
+      {/* Cable Gland + Quantity */}
+      <SectionCard title="Cable Gland" color="bg-slate-50/80 border-slate-200">
         <CableGlandBlock attrs={attrs} onChange={onChange} />
-
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
@@ -1078,7 +1116,8 @@ export function TemperatureAttrsForm({
               onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
-      </div>
+      </SectionCard>
+
     </div>
   );
 }
@@ -1191,17 +1230,41 @@ export function FlowAttrsForm({
   const isTurbine     = instrType === "Turbine Flowmeter";
   const hasFlowSignal = instrType !== "" && !isRotameter;
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flow Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Instrument Type")}
+    <div className="space-y-3">
+
+      {/* Instrument Type */}
+      <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
-        {sec("Line & Process")}
+        {!instrType && (
+          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
+            Select an instrument type above to configure specifications.
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Line & Process */}
+      <SectionCard title="Line & Process" color="bg-sky-50/60 border-sky-200">
         {renderField("line_size",    "Line Size (NB)", true)}
         {renderField("process_fluid","Process Fluid")}
-        {hasFlowSignal ? (<>
-          {sec("Signal & Material")}
+      </SectionCard>
+
+      {/* Signal & Material — transmitters only; Body Material — Rotameter only */}
+      {hasFlowSignal ? (
+        <SectionCard title="Signal & Material" color="bg-violet-50/60 border-violet-200">
           <div className="space-y-1.5">
             <Label className="text-xs">Output Signal <span className="text-red-500">*</span></Label>
             <Select value={(attrs.output_signal as string) || "4–20 mA + HART"} onValueChange={v => set("output_signal", v)}>
@@ -1212,25 +1275,33 @@ export function FlowAttrsForm({
             </Select>
           </div>
           {renderField("liner_material", "Liner / Body Material")}
-        </>) : (<>
-          {sec("Body Material")}
+        </SectionCard>
+      ) : instrType ? (
+        <SectionCard title="Body Material" color="bg-violet-50/60 border-violet-200">
           <div className="col-span-2">{renderField("liner_material", "Liner / Body Material")}</div>
-        </>)}
-        {sec("Connection")}
+        </SectionCard>
+      ) : null}
+
+      {/* Connection */}
+      <SectionCard title="Connection" color="bg-emerald-50/60 border-emerald-200">
         {renderField("end_connection",  "End Connection")}
         {renderField("pressure_rating", "Pressure Rating")}
-        {sec("Hazardous Area (Optional)")}
+      </SectionCard>
+
+      {/* Hazardous Area */}
+      <SectionCard title="Hazardous Area (Optional)" color="bg-amber-50/60 border-amber-300">
         {renderField("area_classification",  "Area Classification")}
         {renderField("explosion_protection", "Explosion Protection")}
-        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (
-          <>
-            {renderField("certification",    "Certification")}
-            {renderField("gas_group",        "Gas Group")}
-            {renderField("temperature_class","Temperature Class")}
-            <div />
-          </>
-        )}
-        {sec("Cable Gland")}
+        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (<>
+          {renderField("certification",    "Certification")}
+          {renderField("gas_group",        "Gas Group")}
+          {renderField("temperature_class","Temperature Class")}
+          <div />
+        </>)}
+      </SectionCard>
+
+      {/* Cable Gland + Quantity */}
+      <SectionCard title="Cable Gland" color="bg-slate-50/80 border-slate-200">
         <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
@@ -1241,7 +1312,8 @@ export function FlowAttrsForm({
               onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
-      </div>
+      </SectionCard>
+
     </div>
   );
 }
@@ -1353,13 +1425,34 @@ export function LevelAttrsForm({
   const isLevelNoSignal = instrType.includes("Switch") || instrType.includes("Gauge");
   const hasLevelSignal  = instrType !== "" && !isLevelNoSignal;
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Level Instrument Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Instrument Type")}
+    <div className="space-y-3">
+
+      {/* Instrument Type */}
+      <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
         <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
-        {sec("Measuring Range")}
+        {!instrType && (
+          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
+            Select an instrument type above to configure specifications.
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Measuring Range */}
+      <SectionCard title="Measuring Range" color="bg-sky-50/60 border-sky-200">
         <div className="space-y-1.5">
           <Label className="text-xs">Range Min</Label>
           <Input className="h-8 text-sm" placeholder="e.g. 0" value={(attrs.range_min as string) ?? ""}
@@ -1371,8 +1464,11 @@ export function LevelAttrsForm({
             onChange={(e) => set("range_max", e.target.value)} />
         </div>
         <div className="col-span-2">{renderField("range_unit", "Range Unit")}</div>
-        {hasLevelSignal && (<>
-          {sec("Output Signal")}
+      </SectionCard>
+
+      {/* Output Signal (transmitters only) */}
+      {hasLevelSignal && (
+        <SectionCard title="Output Signal" color="bg-violet-50/60 border-violet-200">
           <div className="col-span-2">
             <div className="space-y-1.5">
               <Label className="text-xs">Output Signal <span className="text-red-500">*</span></Label>
@@ -1384,25 +1480,35 @@ export function LevelAttrsForm({
               </Select>
             </div>
           </div>
-        </>)}
-        {sec("Process Connection")}
+        </SectionCard>
+      )}
+
+      {/* Process Connection */}
+      <SectionCard title="Process Connection" color="bg-emerald-50/60 border-emerald-200">
         {renderField("connection_size", "Connection Size")}
         {renderField("connection_type", "Connection Type")}
-        {sec("Material & Enclosure")}
+      </SectionCard>
+
+      {/* Material & Enclosure */}
+      <SectionCard title="Material & Enclosure" color="bg-slate-50/80 border-slate-200">
         {renderField("wetted_material", "Wetted Parts Material")}
         {renderField("enclosure",       "Enclosure Type")}
-        {sec("Hazardous Area (Optional)")}
+      </SectionCard>
+
+      {/* Hazardous Area */}
+      <SectionCard title="Hazardous Area (Optional)" color="bg-amber-50/60 border-amber-300">
         {renderField("area_classification",  "Area Classification")}
         {renderField("explosion_protection", "Explosion Protection")}
-        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (
-          <>
-            {renderField("certification",    "Certification")}
-            {renderField("gas_group",        "Gas Group")}
-            {renderField("temperature_class","Temperature Class")}
-            <div />
-          </>
-        )}
-        {sec("Cable Gland")}
+        {(areaClass === "Zone 1" || areaClass === "Zone 2") && (<>
+          {renderField("certification",    "Certification")}
+          {renderField("gas_group",        "Gas Group")}
+          {renderField("temperature_class","Temperature Class")}
+          <div />
+        </>)}
+      </SectionCard>
+
+      {/* Cable Gland + Quantity */}
+      <SectionCard title="Cable Gland" color="bg-slate-50/80 border-slate-200">
         <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
@@ -1413,7 +1519,8 @@ export function LevelAttrsForm({
               onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
           </div>
         )}
-      </div>
+      </SectionCard>
+
     </div>
   );
 }
