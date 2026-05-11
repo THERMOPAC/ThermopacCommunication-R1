@@ -273,21 +273,34 @@ export function MotorAttrsForm({
     );
   }
 
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+    return (
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-        {isFlameproof ? "Flameproof Motor Specifications" : "Motor Specifications"}
-      </p>
-      <div className="grid grid-cols-2 gap-3">
-        {sectionHeader("Motor Specifications")}
+    <div className="space-y-3">
+
+      {/* 1 — Motor Specifications */}
+      <SectionCard title="Motor Specifications" color="bg-sky-50/60 border-sky-200">
         {renderField("motor_type",   "Motor Type",   MOTOR_OPTS.motor_type,   true)}
         {renderField("mounting",     "Mounting",     MOTOR_OPTS.mounting,     true)}
         {renderField("cooling_type", "Cooling Type", MOTOR_OPTS.cooling_type, true)}
         <div />
+      </SectionCard>
 
-        {sectionHeader("Electrical Data")}
-        {renderField("power",     "Power (kW)",    MOTOR_OPTS.power,     true)}
-        {renderField("voltage",   "Voltage",       MOTOR_OPTS.voltage,   true)}
+      {/* 2 — Electrical Data */}
+      <SectionCard title="Electrical Data" color="bg-violet-50/60 border-violet-200">
+        {renderField("power",   "Power (kW)", MOTOR_OPTS.power,     true)}
+        {renderField("voltage", "Voltage",    MOTOR_OPTS.voltage,   true)}
         <div className="space-y-1.5">
           <Label className="text-xs">Phase <span className="text-red-500">*</span></Label>
           <div className="h-8 flex items-center px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">Three Phase</div>
@@ -302,20 +315,24 @@ export function MotorAttrsForm({
             onChange={(e) => set("num_poles", e.target.value)}
           >
             <option value="" disabled>Select…</option>
-            {polesOpts.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
+            {polesOpts.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
-        <div />
+      </SectionCard>
 
-        {sectionHeader("Operating Conditions")}
+      {/* 3 — Operating Conditions */}
+      <SectionCard title="Operating Conditions" color="bg-emerald-50/60 border-emerald-200">
         {renderField("duty",                "Duty",                MOTOR_OPTS.duty,             true)}
         {renderField("area_classification", "Area Classification", areaOpts,                    true, true)}
         {renderField("ip_rating",           "IP Rating",           MOTOR_OPTS.ip_rating,        true)}
         {renderField("efficiency_class",    "Efficiency Class",    MOTOR_OPTS.efficiency_class, true)}
         {renderField("vfd_compatible",      "VFD Compatible",      MOTOR_OPTS.vfd_compatible,   true)}
-        {isFlameproof && (
+        <div />
+      </SectionCard>
+
+      {/* 4 — Flameproof / Hazardous Area Details (flameproof only) */}
+      {isFlameproof && (
+        <SectionCard title="Flameproof / Hazardous Area Details" color="bg-amber-50/60 border-amber-300">
           <div className="space-y-1.5">
             <Label className="text-xs">Explosion Protection <span className="text-red-500">*</span></Label>
             <select
@@ -328,8 +345,6 @@ export function MotorAttrsForm({
               <option value="ATEX">ATEX</option>
             </select>
           </div>
-        )}
-        {isFlameproof && (
           <div className="space-y-1.5">
             <Label className="text-xs">Gas Group <span className="text-red-500">*</span></Label>
             <select
@@ -342,20 +357,21 @@ export function MotorAttrsForm({
               <option value="IIC">IIC</option>
             </select>
           </div>
-        )}
-        <div />
+        </SectionCard>
+      )}
 
-        {sectionHeader("Construction")}
+      {/* 5 — Construction / Approved Makes */}
+      <SectionCard title="Construction / Approved Makes" color="bg-slate-50/80 border-slate-200">
         {renderField("material", "Material", MOTOR_OPTS.material)}
         <div />
-
-        {sectionHeader("Vendor / Make")}
         <div className="space-y-1.5 col-span-2">
           <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
           <Popover open={makesOpen} onOpenChange={setMakesOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0 ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected` : "Select approved makes…"}
+                {approvedMakes.length > 0
+                  ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected`
+                  : "Select approved makes…"}
                 <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
               </Button>
             </PopoverTrigger>
@@ -380,11 +396,13 @@ export function MotorAttrsForm({
             </PopoverContent>
           </Popover>
           {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1 mt-1">
               {approvedMakes.map((make) => (
                 <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
                   {make}
-                  <button type="button" onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })} className="hover:text-destructive">
+                  <button type="button"
+                    onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })}
+                    className="hover:text-destructive">
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -392,7 +410,7 @@ export function MotorAttrsForm({
             </div>
           )}
           {showCustomMake && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-1">
               <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
                 value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
@@ -413,7 +431,8 @@ export function MotorAttrsForm({
               value={qty} onChange={(e) => onQtyChange?.(e.target.value)} />
           </div>
         )}
-      </div>
+      </SectionCard>
+
     </div>
   );
 }

@@ -1837,11 +1837,14 @@ export default function BuyPackagesPage() {
                         const isMotors = selectedGroupCode === "motors";
                         const isNFP = isMotors && sg?.code === "non_flameproof";
                         const isFP  = isMotors && sg?.code === "flameproof";
+                        const nosUom = uoms.find((u: any) => u.code?.toUpperCase() === "NOS");
+                        const isMotorSg = isNFP || isFP;
                         setLf((f) => ({
                           ...f, buySubgroupId: v, genericRequirement: "",
                           technicalAttributes: isNFP ? { ...NON_FLAMEPROOF_MOTOR_DEFAULTS }
                                              : isFP  ? { ...FLAMEPROOF_MOTOR_DEFAULTS }
                                              : {},
+                          ...(isMotorSg && nosUom && !f.uomId ? { uomId: String(nosUom.id) } : {}),
                         }));
                       }}
                       disabled={!lf.buyGroupId}
