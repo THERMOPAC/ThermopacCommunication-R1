@@ -2199,6 +2199,8 @@ export default function EpcBuyListControlPage() {
                   <PanelAttrsForm
                     attrs={lf.technicalAttributes}
                     onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    projectVoltage={selectedProject?.electrical_voltage ?? undefined}
+                    projectFrequency={selectedProject?.electrical_frequency ?? undefined}
                   />
                 </div>
               ) : currentSubgroupCode === "cabling" ? (

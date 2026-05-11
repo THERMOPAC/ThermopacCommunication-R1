@@ -67,30 +67,87 @@ const PANEL_TYPES = [
 ];
 const PANEL_OPTS = {
   panel_type:           PANEL_TYPES,
-  enclosure_type:       ["Floor Standing", "Wall Mounted", "Desktop", "Rack Mounted"],
+  panel_standard:       ["IEC 61439-1", "IEC 61439-2", "IEC 60439", "IS 8623", "UL 508A"],
   voltage:              ["415V AC (3Ph)", "380V AC (3Ph)", "440V AC (3Ph)", "480V AC (3Ph)", "690V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)", "48V DC", "24V DC"],
-  busbar_material:      ["Copper", "Aluminium", "Copper Tin Plated"],
+  frequency:            ["50 Hz", "60 Hz"],
+  bus_rating:           ["100A", "200A", "400A", "630A", "800A", "1000A", "1600A", "2000A"],
+  short_circuit_rating: ["10 kA", "25 kA", "36 kA", "50 kA", "65 kA"],
+  enclosure_type:       ["Floor Standing", "Wall Mounted", "Desktop", "Rack Mounted"],
   enclosure_material:   ["CRCA Steel", "SS304", "SS316", "Aluminium", "GRP/FRP"],
   ip_rating:            ["IP20", "IP42", "IP54", "IP55", "IP65", "IP66"],
   form_of_separation:   ["Form 2b", "Form 3b", "Form 4b"],
-  short_circuit_rating: ["10 kA", "25 kA", "36 kA", "50 kA", "65 kA"],
+  busbar_material:      ["Copper", "Aluminium", "Copper Tin Plated"],
   interlocking:         ["None", "Electrical Interlocking", "Mechanical Interlocking", "Both"],
-  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
   anti_condensation:    ["Yes", "No"],
   aux_power_supply:     ["24V DC", "230V AC", "110V DC", "48V DC"],
+  area_classification:  ["Safe Area", "Zone 1", "Zone 2"],
+  explosion_protection: ["Ex e (Increased Safety)", "Ex d (Flameproof)", "Ex n (Non-sparking)", "Ex p (Pressurized)", "Ex ia (Intrinsically Safe)"],
+  gas_group:            ["IIA", "IIB", "IIC"],
+  temperature_class:    ["T1 (450°C)", "T2 (300°C)", "T3 (200°C)", "T4 (135°C)", "T5 (100°C)", "T6 (85°C)"],
   testing_std:          ["IEC 61439-1", "IEC 61439-2", "IEC 60439", "IS 8623", "UL 508A"],
-  bus_rating:           ["100A", "200A", "400A", "630A", "800A", "1000A", "1600A", "2000A"],
-  num_incomer_units:    ["1", "2", "3"],
 };
 
+const PANEL_TYPE_DEFAULTS: Record<string, Record<string, string>> = {
+  "MCC (Motor Control Centre)":   { enclosure_type: "Floor Standing", busbar_material: "Copper", ip_rating: "IP54", interlocking: "Electrical Interlocking" },
+  "PLC Panel":                    { enclosure_type: "Floor Standing", ip_rating: "IP54", aux_power_supply: "24V DC" },
+  "DCS Panel":                    { enclosure_type: "Floor Standing", ip_rating: "IP54", aux_power_supply: "24V DC" },
+  "Starter Panel":                { enclosure_type: "Floor Standing", busbar_material: "Copper" },
+  "Distribution Board (DB)":      { enclosure_type: "Wall Mounted" },
+  "APFC Panel":                   { enclosure_type: "Floor Standing", busbar_material: "Copper" },
+  "VFD Panel":                    { enclosure_type: "Floor Standing", ip_rating: "IP54" },
+  "SCADA Panel":                  { enclosure_type: "Floor Standing", ip_rating: "IP54" },
+  "Relay / Protection Panel":     { enclosure_type: "Floor Standing" },
+  "Power Distribution Panel":     { enclosure_type: "Floor Standing", busbar_material: "Copper" },
+};
+
+function resolveProjectVoltage(projectVoltage?: string): string {
+  if (!projectVoltage) return "";
+  const num = String(projectVoltage).trim();
+  return PANEL_OPTS.voltage.find((v) => v.startsWith(num + "V")) ?? "";
+}
+
+function resolveProjectFrequency(projectFrequency?: string): string {
+  if (!projectFrequency) return "";
+  const num = String(projectFrequency).trim();
+  return PANEL_OPTS.frequency.find((f) => f.startsWith(num + " ")) ?? "";
+}
+
+export function buildPanelDefaults(
+  panelType: string,
+  projectVoltage?: string,
+  projectFrequency?: string,
+): Record<string, unknown> {
+  const typeDefaults = PANEL_TYPE_DEFAULTS[panelType] ?? {};
+  const volt  = resolveProjectVoltage(projectVoltage);
+  const freq  = resolveProjectFrequency(projectFrequency);
+  return { ...typeDefaults, ...(volt  ? { voltage:   volt  } : {}), ...(freq  ? { frequency: freq  } : {}) };
+}
+
+export function applyPanelTypeDefaults(
+  existing: Record<string, unknown>,
+  panelType: string,
+  projectVoltage?: string,
+  projectFrequency?: string,
+): Record<string, unknown> {
+  const defaults = buildPanelDefaults(panelType, projectVoltage, projectFrequency);
+  const result = { ...existing };
+  for (const [key, val] of Object.entries(defaults)) {
+    const cur = result[key];
+    if (cur === undefined || cur === null || (typeof cur === "string" && !cur.trim())) {
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
 export function buildPanelRequirement(attrs: Record<string, unknown>): string {
-  const panelType     = (attrs.panel_type         as string)?.trim() || "";
-  const voltage       = (attrs.voltage            as string)?.trim() || "";
-  const busRating     = (attrs.bus_rating         as string)?.trim() || "";
-  const scRating      = (attrs.short_circuit_rating as string)?.trim() || "";
-  const ipRating      = (attrs.ip_rating          as string)?.trim() || "";
-  const encType       = (attrs.enclosure_type     as string)?.trim() || "";
-  const areaClass     = (attrs.area_classification as string)?.trim() || "";
+  const panelType = (attrs.panel_type          as string)?.trim() || "";
+  const voltage   = (attrs.voltage             as string)?.trim() || "";
+  const busRating = (attrs.bus_rating          as string)?.trim() || "";
+  const scRating  = (attrs.short_circuit_rating as string)?.trim() || "";
+  const ipRating  = (attrs.ip_rating           as string)?.trim() || "";
+  const encType   = (attrs.enclosure_type      as string)?.trim() || "";
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
   const parts: string[] = [];
   if (panelType) parts.push(panelType);
   if (voltage)   parts.push(voltage);
@@ -103,18 +160,24 @@ export function buildPanelRequirement(attrs: Record<string, unknown>): string {
 }
 
 export function PanelAttrsForm({
-  attrs, qty, onChange, onQtyChange,
+  attrs, qty, onChange, onQtyChange, projectVoltage, projectFrequency,
 }: {
   attrs: Record<string, unknown>;
   qty?: string;
   onChange: (a: Record<string, unknown>) => void;
   onQtyChange?: (q: string) => void;
+  projectVoltage?: string;
+  projectFrequency?: string;
 }) {
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
-  const allKeys = [...Object.keys(PANEL_OPTS), "num_feeders", "phase", "neutral", "earth"];
+
+  const resolvedProjVolt = resolveProjectVoltage(projectVoltage);
+  const resolvedProjFreq = resolveProjectFrequency(projectFrequency);
+
+  const dropdownKeys = Object.keys(PANEL_OPTS);
   const [custom, setCustom] = useState<Record<string, boolean>>(() => {
     const c: Record<string, boolean> = {};
-    for (const key of allKeys) {
+    for (const key of dropdownKeys) {
       const val  = (attrs[key] as string) ?? "";
       const opts = (PANEL_OPTS as Record<string, string[]>)[key] ?? [];
       c[key] = val !== "" && !opts.includes(val);
@@ -132,16 +195,42 @@ export function PanelAttrsForm({
     }
   }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function handleTypeSelect(panelType: string) {
+    if (panelType === "__other__") {
+      setCustom((c) => ({ ...c, panel_type: true }));
+      onChange({ ...attrs, panel_type: "" });
+      return;
+    }
+    setCustom((c) => ({ ...c, panel_type: false }));
+    const updated = applyPanelTypeDefaults({ ...attrs, panel_type: panelType }, panelType, projectVoltage, projectFrequency);
+    onChange(updated);
+  }
+
+  function renderField(
+    key: string,
+    label: string,
+    opts: string[],
+    required?: boolean,
+    projDefault?: string,
+  ) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const fromProj  = !!projDefault && curVal === projDefault;
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Label className="text-xs flex items-center gap-1.5">
+          {label}{required && <span className="text-red-500">*</span>}
+          {fromProj && (
+            <span className="text-[9px] font-normal text-sky-600 bg-sky-50 border border-sky-200 px-1 py-px rounded leading-none">
+              project
+            </span>
+          )}
+        </Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
-          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal} onChange={(e) => set(key, e.target.value)} autoFocus />
+          <Input className="h-8 text-sm" placeholder="Enter custom value…" value={curVal}
+            onChange={(e) => set(key, e.target.value)} autoFocus />
         )}
       </div>
     );
@@ -157,64 +246,126 @@ export function PanelAttrsForm({
     );
   }
 
-  function sec(label: string) {
+  function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
-      <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-2 border-b pb-1 mt-1">{label}</p>
+      <div className={`rounded-lg border ${color} p-4 space-y-3`}>
+        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
+          {title}
+        </h4>
+        <div className="grid grid-cols-2 gap-3">
+          {children}
+        </div>
+      </div>
     );
   }
 
+  const panelType      = (attrs.panel_type         as string) ?? "";
+  const areaClass      = (attrs.area_classification as string) ?? "";
+  const isHazardous    = areaClass === "Zone 1" || areaClass === "Zone 2";
+  const ptIsCustom     = custom.panel_type ?? false;
+  const ptSelectVal    = ptIsCustom ? "__other__" : (PANEL_OPTS.panel_type.includes(panelType) ? panelType : "");
+
   return (
-    <div className="space-y-3 rounded-md border p-3 bg-muted/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Panel Specifications</p>
-      <div className="grid grid-cols-2 gap-3">
-        {sec("Panel Type")}
-        <div className="col-span-2">{renderField("panel_type", "Panel Type", PANEL_OPTS.panel_type, true)}</div>
+    <div className="space-y-3">
 
-        {sec("Electrical Rating")}
-        {renderField("voltage",          "Voltage",              PANEL_OPTS.voltage,              true)}
-        {renderField("bus_rating",       "Bus Rating (A)",       PANEL_OPTS.bus_rating,           true)}
-        {renderField("short_circuit_rating","Short Circuit Rating",PANEL_OPTS.short_circuit_rating,true)}
-        {renderField("num_incomer_units","No. of Incomer Units",  PANEL_OPTS.num_incomer_units)}
+      {/* 1 — Panel Identity */}
+      <SectionCard title="Panel Identity" color="bg-sky-50/60 border-sky-200">
+        <div className="col-span-2 space-y-1.5">
+          <Label className="text-xs">Panel Type <span className="text-red-500">*</span></Label>
+          <SearchableSelect value={ptSelectVal} options={PANEL_OPTS.panel_type}
+            placeholder="Select panel type…" onSelect={handleTypeSelect} />
+          {ptIsCustom && (
+            <Input className="h-8 text-sm" placeholder="Enter custom panel type…" value={panelType}
+              onChange={(e) => onChange({ ...attrs, panel_type: e.target.value })} autoFocus />
+          )}
+        </div>
+        {renderField("panel_standard", "Panel Standard", PANEL_OPTS.panel_standard, true)}
+        <div />
+      </SectionCard>
 
-        {sec("Incoming / Feeder")}
-        {renderText("incomer_rating", "Incomer Rating",  "e.g. 630A ACB")}
-        {renderText("num_feeders",    "Number of Feeders","e.g. 12")}
+      {/* 2 — Electrical Rating */}
+      <SectionCard title="Electrical Rating" color="bg-violet-50/60 border-violet-200">
+        {renderField("voltage",              "Voltage",               PANEL_OPTS.voltage,              true, resolvedProjVolt)}
+        {renderField("frequency",            "Frequency",             PANEL_OPTS.frequency,            true, resolvedProjFreq)}
+        {renderField("bus_rating",           "Bus Rating",            PANEL_OPTS.bus_rating,           true)}
+        {renderField("short_circuit_rating", "Short Circuit Rating",  PANEL_OPTS.short_circuit_rating, true)}
+      </SectionCard>
 
-        {sec("Enclosure")}
+      {/* 3 — Incoming / Feeder */}
+      <SectionCard title="Incoming / Feeder" color="bg-amber-50/60 border-amber-200">
+        <div className="space-y-1.5">
+          <Label className="text-xs">No. of Incomer Units</Label>
+          <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 1"
+            value={(attrs.num_incomer_units as string) ?? ""}
+            onWheel={(e) => e.currentTarget.blur()}
+            onChange={(e) => {
+              const v = e.target.value;
+              set("num_incomer_units", v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))));
+            }} />
+        </div>
+        {renderText("incomer_rating", "Incomer Rating",    "e.g. 630A ACB")}
+        {renderText("num_feeders",    "Number of Feeders", "e.g. 12")}
+        <div />
+      </SectionCard>
+
+      {/* 4 — Enclosure */}
+      <SectionCard title="Enclosure" color="bg-emerald-50/60 border-emerald-200">
         {renderField("enclosure_type",     "Enclosure Type",     PANEL_OPTS.enclosure_type,     true)}
         {renderField("enclosure_material", "Enclosure Material", PANEL_OPTS.enclosure_material, true)}
         {renderField("ip_rating",          "IP Rating",          PANEL_OPTS.ip_rating,          true)}
         {renderField("form_of_separation", "Form of Separation", PANEL_OPTS.form_of_separation)}
+      </SectionCard>
 
-        {sec("Busbars & Construction")}
+      {/* 5 — Busbars & Construction */}
+      <SectionCard title="Busbars & Construction" color="bg-teal-50/60 border-teal-200">
         {renderField("busbar_material", "Busbar Material", PANEL_OPTS.busbar_material, true)}
         {renderField("interlocking",    "Interlocking",    PANEL_OPTS.interlocking)}
+      </SectionCard>
 
-        {sec("Accessories & Auxiliary")}
-        {renderField("anti_condensation","Anti-condensation Heater",PANEL_OPTS.anti_condensation)}
-        {renderField("aux_power_supply", "Auxiliary Power Supply",  PANEL_OPTS.aux_power_supply)}
+      {/* 6 — Accessories & Auxiliary */}
+      <SectionCard title="Accessories & Auxiliary" color="bg-orange-50/60 border-orange-200">
+        {renderField("anti_condensation", "Anti-condensation Heater", PANEL_OPTS.anti_condensation)}
+        {renderField("aux_power_supply",  "Auxiliary Power Supply",   PANEL_OPTS.aux_power_supply)}
+      </SectionCard>
 
-        {sec("Area / Testing")}
-        {renderField("area_classification","Area Classification",PANEL_OPTS.area_classification)}
-        {renderField("testing_std",        "Testing Standard",   PANEL_OPTS.testing_std)}
+      {/* 7 — Area Classification */}
+      <SectionCard title="Area Classification" color="bg-rose-50/60 border-rose-200">
+        <div className="col-span-2">
+          {renderField("area_classification", "Area Classification", PANEL_OPTS.area_classification)}
+        </div>
+        {isHazardous && (
+          <>
+            {renderField("explosion_protection", "Explosion Protection", PANEL_OPTS.explosion_protection, true)}
+            {renderField("gas_group",            "Gas Group",            PANEL_OPTS.gas_group,            true)}
+            {renderField("temperature_class",    "Temperature Class",    PANEL_OPTS.temperature_class,    true)}
+            <div />
+          </>
+        )}
+      </SectionCard>
 
-        {sec("Notes")}
+      {/* 8 — Standards & Testing */}
+      <SectionCard title="Standards & Testing" color="bg-slate-50/80 border-slate-200">
+        {renderField("testing_std", "Testing Standard", PANEL_OPTS.testing_std)}
+        <div />
         <div className="col-span-2 space-y-1.5">
           <Label className="text-xs">Additional Notes</Label>
           <Input className="h-8 text-sm" placeholder="Any additional requirements…"
             value={(attrs.notes as string) ?? ""} onChange={(e) => set("notes", e.target.value)} />
         </div>
-
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">
             <Label className="text-xs">Quantity (Panels) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
               onWheel={(e) => e.currentTarget.blur()}
-              onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
+              onChange={(e) => {
+                const v = e.target.value;
+                onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))));
+              }} />
           </div>
         )}
-      </div>
+      </SectionCard>
+
     </div>
   );
 }
