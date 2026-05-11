@@ -290,6 +290,59 @@ function WarningPanel({ warnings }: { warnings: string[] }) {
   );
 }
 
+// ── Datasheet Preview Dialog ──────────────────────────────────────────────────
+function DatasheetPreviewDialog({
+  line, open, onClose,
+}: { line: PackageLine | null; open: boolean; onClose: () => void }) {
+  if (!line) return null;
+  const attrs = line.technical_attributes ?? {};
+  const entries = Object.entries(attrs).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-primary" />
+            Technical Datasheet
+          </DialogTitle>
+          <DialogDescription>
+            {line.buy_subgroup_label} — Line {line.line_number}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-1">
+          {line.generic_requirement && (
+            <div className="rounded-md border bg-muted/40 px-3 py-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Requirement</p>
+              <p className="text-sm">{line.generic_requirement}</p>
+            </div>
+          )}
+          {entries.length > 0 ? (
+            <div className="rounded-md border divide-y">
+              {entries.map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between px-3 py-1.5 text-sm">
+                  <span className="text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
+                  <span className="font-medium text-right">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">No technical attributes recorded.</p>
+          )}
+          {line.notes && (
+            <div className="rounded-md border bg-muted/40 px-3 py-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+              <p className="text-sm">{line.notes}</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Flag badges ───────────────────────────────────────────────────────────────
 const FLAGS = [
   { key: "selection_required",   short: "SEL"  },
