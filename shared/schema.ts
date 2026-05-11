@@ -1921,6 +1921,11 @@ export const projects = pgTable('projects', {
   inspectionBy: varchar('inspection_by', { length: 80 }),
   voltageFrequency: varchar('voltage_frequency', { length: 20 }),
 
+  // Structured electrical standards — used for PPPC buy-list auto-override
+  electricalVoltage: varchar('electrical_voltage', { length: 10 }),
+  electricalFrequency: varchar('electrical_frequency', { length: 5 }),
+  electricalPhase: varchar('electrical_phase', { length: 5 }),
+
   // Commercial / pricing layer
   sellingCurrency: varchar('selling_currency', { length: 10 }).default('USD'),
   exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),

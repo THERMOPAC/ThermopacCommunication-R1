@@ -18,6 +18,7 @@ import multer from 'multer';
 import crypto from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
+import { applyProjectElectricalStandards, stripElectricalOverridesMeta } from './utils/electrical-override';
 import { requirePageAccess } from './utils/permission-utils';
 import {
   sendError, sendValidationError, sendNotFound,
@@ -1059,12 +1060,26 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           );
           insertId = hdr.rows[0].id;
 
+          const elecRes1 = await convClient.query(
+            `SELECT electrical_voltage, electrical_frequency, electrical_phase FROM projects WHERE id = $1`,
+            [projectId],
+          );
+          const elecRow1 = elecRes1.rows[0] ?? {};
+          const projElec1 = {
+            electricalVoltage:   (elecRow1.electrical_voltage   as string) ?? null,
+            electricalFrequency: (elecRow1.electrical_frequency as string) ?? null,
+            electricalPhase:     (elecRow1.electrical_phase     as string) ?? null,
+          };
+
           for (let i = 0; i < pkgLines.rows.length; i++) {
             const pl = pkgLines.rows[i];
             const isRaw = pl.group_code === RAW_MATERIALS_CODE;
             const tagNo = isRaw
               ? ''
               : (await getNextTagNoInTx(convClient, projectId, pl.subgroup_code) ?? '');
+            const finalAttrs1 = stripElectricalOverridesMeta(
+              applyProjectElectricalStandards(pl.subgroup_code, (pl.technical_attributes ?? {}) as Record<string, unknown>, projElec1),
+            );
             await convClient.query(
               `INSERT INTO project_buy_list_lines
                  (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
@@ -1075,7 +1090,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
               [
                 insertId, projectId, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
                 pl.generic_requirement, pl.default_quantity, pl.default_specification,
-                pl.technical_attributes,
+                finalAttrs1,
                 tagNo,
                 pl.selection_required, pl.datasheet_required, pl.inspection_required,
                 pl.certificate_required, pl.compliance_required, pl.id,
@@ -3182,10 +3197,24 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         );
         let lineNum = maxLineRes.rows[0].m as number;
 
+        const elecRes2 = await client.query(
+          `SELECT electrical_voltage, electrical_frequency, electrical_phase FROM projects WHERE id = $1`,
+          [hdr.project_id],
+        );
+        const elecRow2 = elecRes2.rows[0] ?? {};
+        const projElec2 = {
+          electricalVoltage:   (elecRow2.electrical_voltage   as string) ?? null,
+          electricalFrequency: (elecRow2.electrical_frequency as string) ?? null,
+          electricalPhase:     (elecRow2.electrical_phase     as string) ?? null,
+        };
+
         let addedLines = 0;
         for (const pl of toAdd) {
           const isRaw = pl.group_code === RAW_MATERIALS_CODE;
           const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code) ?? '');
+          const finalAttrs2 = stripElectricalOverridesMeta(
+            applyProjectElectricalStandards(pl.subgroup_code, (pl.technical_attributes ?? {}) as Record<string, unknown>, projElec2),
+          );
           await client.query(
             `INSERT INTO project_buy_list_lines
                (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
@@ -3196,7 +3225,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             [
               id, hdr.project_id, ++lineNum, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
               pl.generic_requirement, pl.default_quantity, pl.default_specification,
-              pl.technical_attributes, tagNo,
+              finalAttrs2, tagNo,
               pl.selection_required, pl.datasheet_required, pl.inspection_required,
               pl.certificate_required, pl.compliance_required, pl.id,
             ],
@@ -3283,9 +3312,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const userId = (req.user as any)?.id as number;
 
       const lineRes = await pool.query(
-        `SELECT l.*, h.project_id, h.status AS list_status
+        `SELECT l.*, h.project_id, h.status AS list_status, bs.code AS buy_subgroup_code
          FROM project_buy_list_lines l
          JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
+         JOIN buy_subgroups bs ON bs.id = l.buy_subgroup_id
          WHERE l.id = $1`,
         [id],
       );
@@ -3306,12 +3336,26 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (!newLineRes.rows[0]) return sendNotFound(res, 'Buy package line', newPackageLineId);
       const nl = newLineRes.rows[0];
 
+      const elecRes3 = await pool.query(
+        `SELECT electrical_voltage, electrical_frequency, electrical_phase FROM projects WHERE id = $1`,
+        [line.project_id],
+      );
+      const elecRow3 = elecRes3.rows[0] ?? {};
+      const projElec3 = {
+        electricalVoltage:   (elecRow3.electrical_voltage   as string) ?? null,
+        electricalFrequency: (elecRow3.electrical_frequency as string) ?? null,
+        electricalPhase:     (elecRow3.electrical_phase     as string) ?? null,
+      };
+      const finalAttrs3 = stripElectricalOverridesMeta(
+        applyProjectElectricalStandards(line.buy_subgroup_code ?? '', (nl.technical_attributes ?? {}) as Record<string, unknown>, projElec3),
+      );
+
       await pool.query(
         `UPDATE project_buy_list_lines
          SET quantity=$1, specification=$2, technical_attributes=$3,
              source_package_line_id=$4, updated_at=NOW()
          WHERE id=$5`,
-        [nl.default_quantity, nl.default_specification, nl.technical_attributes, nl.id, id],
+        [nl.default_quantity, nl.default_specification, finalAttrs3, nl.id, id],
       );
 
       await pool.query(
@@ -3435,10 +3479,24 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           [latestPkg.id],
         );
 
+        const elecRes4 = await client.query(
+          `SELECT electrical_voltage, electrical_frequency, electrical_phase FROM projects WHERE id = $1`,
+          [hdr.project_id],
+        );
+        const elecRow4 = elecRes4.rows[0] ?? {};
+        const projElec4 = {
+          electricalVoltage:   (elecRow4.electrical_voltage   as string) ?? null,
+          electricalFrequency: (elecRow4.electrical_frequency as string) ?? null,
+          electricalPhase:     (elecRow4.electrical_phase     as string) ?? null,
+        };
+
         for (let i = 0; i < pkgLines.rows.length; i++) {
           const pl = pkgLines.rows[i];
           const isRaw = pl.group_code === RAW_MATERIALS_CODE;
           const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code) ?? '');
+          const finalAttrs4 = stripElectricalOverridesMeta(
+            applyProjectElectricalStandards(pl.subgroup_code, (pl.technical_attributes ?? {}) as Record<string, unknown>, projElec4),
+          );
           await client.query(
             `INSERT INTO project_buy_list_lines
                (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
@@ -3449,7 +3507,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             [
               id, hdr.project_id, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
               pl.generic_requirement, pl.default_quantity, pl.default_specification,
-              pl.technical_attributes, tagNo,
+              finalAttrs4, tagNo,
               pl.selection_required, pl.datasheet_required, pl.inspection_required,
               pl.certificate_required, pl.compliance_required, pl.id,
             ],

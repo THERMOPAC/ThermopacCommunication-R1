@@ -620,6 +620,10 @@ export default function EpcBuyListControlPage() {
   const bulkAvailable = currentLst && ["released", "locked"].includes(currentLst.status);
 
   // ── Tag-control derived values ────────────────────────────────────────────────
+  const selectedProject = useMemo(() =>
+    (projects as any[]).find((p: any) => p.id === selectedProjectId) ?? null,
+    [projects, selectedProjectId]);
+
   const currentGroupCode    = useMemo(() =>
     (groups as any[]).find(g => String(g.id) === String(lf.buyGroupId))?.code ?? null,
     [groups, lf.buyGroupId]);
@@ -1979,6 +1983,20 @@ export default function EpcBuyListControlPage() {
               </DialogHeader>
             </div>
             <div className="overflow-y-auto flex-1 px-6 py-4">
+            {/* ── Electrical Standard Info Strip ──────────────────────────── */}
+            {(currentSubgroupCode === 'non_flameproof' || currentSubgroupCode === 'flameproof' || currentSubgroupCode === 'panels') &&
+              selectedProject?.electrical_voltage && (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                <Zap className="h-3.5 w-3.5 mt-0.5 shrink-0 text-yellow-600" />
+                <span>
+                  <span className="font-semibold">Project electrical standard:</span>{' '}
+                  {selectedProject.electrical_voltage} V
+                  {selectedProject.electrical_frequency ? ` / ${selectedProject.electrical_frequency} Hz` : ''}
+                  {selectedProject.electrical_phase ? ` / ${selectedProject.electrical_phase}` : ''}
+                  {' — '}auto-applied to motor voltage, frequency and panel voltage when seeding from templates.
+                </span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Buy Group <span className="text-red-500">*</span></Label>

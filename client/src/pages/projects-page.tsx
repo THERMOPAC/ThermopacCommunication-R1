@@ -120,6 +120,7 @@ export default function ProjectsPage() {
     financialYear: currentFY, startDate: new Date().toISOString().split("T")[0],
     targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
     mdmt: "",
+    electricalVoltage: "", electricalFrequency: "", electricalPhase: "",
   });
 
   const { data: customers } = useQuery<{ id: number; bpName: string; bpCode: string }[]>({
@@ -180,6 +181,7 @@ export default function ProjectsPage() {
         financialYear: currentFY, startDate: new Date().toISOString().split("T")[0],
         targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
         mdmt: "",
+        electricalVoltage: "", electricalFrequency: "", electricalPhase: "",
       });
     },
     onError: (error: any) => {
@@ -644,6 +646,53 @@ export default function ProjectsPage() {
                 </Select>
               </div>
             </div>
+
+            <div className="border rounded-md p-3 space-y-3 bg-muted/30">
+              <p className="text-[11px] font-semibold text-primary uppercase tracking-wide">
+                ⚡ Electrical Standards
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Auto-applied to motors and panels when buy lists are created from templates.
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Voltage (V)</Label>
+                  <Select value={newProjectData.electricalVoltage} onValueChange={(v) => setNewProjectData(d => ({ ...d, electricalVoltage: v }))}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="380">380 V</SelectItem>
+                      <SelectItem value="415">415 V</SelectItem>
+                      <SelectItem value="440">440 V</SelectItem>
+                      <SelectItem value="480">480 V</SelectItem>
+                      <SelectItem value="690">690 V</SelectItem>
+                      <SelectItem value="240">240 V</SelectItem>
+                      <SelectItem value="110">110 V</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Frequency (Hz)</Label>
+                  <Select value={newProjectData.electricalFrequency} onValueChange={(v) => setNewProjectData(d => ({ ...d, electricalFrequency: v }))}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">50 Hz</SelectItem>
+                      <SelectItem value="60">60 Hz</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Phase</Label>
+                  <Select value={newProjectData.electricalPhase} onValueChange={(v) => setNewProjectData(d => ({ ...d, electricalPhase: v }))}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3Ph">3 Phase</SelectItem>
+                      <SelectItem value="1Ph">1 Phase</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
               <Button

@@ -68,7 +68,7 @@ const PANEL_TYPES = [
 const PANEL_OPTS = {
   panel_type:           PANEL_TYPES,
   enclosure_type:       ["Floor Standing", "Wall Mounted", "Desktop", "Rack Mounted"],
-  voltage:              ["415V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)", "48V DC", "24V DC"],
+  voltage:              ["415V AC (3Ph)", "380V AC (3Ph)", "440V AC (3Ph)", "480V AC (3Ph)", "690V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)", "48V DC", "24V DC"],
   busbar_material:      ["Copper", "Aluminium", "Copper Tin Plated"],
   enclosure_material:   ["CRCA Steel", "SS304", "SS316", "Aluminium", "GRP/FRP"],
   ip_rating:            ["IP20", "IP42", "IP54", "IP55", "IP65", "IP66"],
