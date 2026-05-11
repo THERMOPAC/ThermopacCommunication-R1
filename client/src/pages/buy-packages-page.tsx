@@ -249,6 +249,8 @@ function computeSubgroupWarnings(
     if (missing("phase"))                warns.push("Phase is required");
     if (missing("frequency_hz"))         warns.push("Frequency is required");
     if (missing("rpm"))                  warns.push("RPM is required");
+    if (subgroupCode === "flameproof" && missing("explosion_protection"))
+                                         warns.push("Explosion Protection is required");
   } else if (groupCode === "pumps") {
     if (missing("flow_m3hr"))            warns.push("Flow rate (m³/hr) is required");
     if (missing("head_m"))               warns.push("Head (m) is required");

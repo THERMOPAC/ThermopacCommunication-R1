@@ -138,18 +138,19 @@ export function applyNonFlameproofMotorDefaults(existing: Record<string, unknown
 }
 
 export const FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
-  motor_type:          "Induction",
-  mounting:            "Horizontal (B3)",
-  cooling_type:        "TEFC",
-  voltage:             "415 V",
-  phase:               "Three Phase",
-  frequency:           "50 Hz",
-  duty:                "S1 (Continuous)",
-  area_classification: "Zone 1",
-  ip_rating:           "IP55",
-  efficiency_class:    "IE4",
-  vfd_compatible:      "Yes",
-  material:            "Cast Iron",
+  motor_type:           "Induction",
+  mounting:             "Horizontal (B3)",
+  cooling_type:         "TEFC",
+  voltage:              "415 V",
+  phase:                "Three Phase",
+  frequency:            "50 Hz",
+  duty:                 "S1 (Continuous)",
+  area_classification:  "Zone 1",
+  ip_rating:            "IP55",
+  efficiency_class:     "IE4",
+  vfd_compatible:       "Yes",
+  material:             "Cast Iron",
+  explosion_protection: "Ex d",
 };
 
 export function applyFlameproofMotorDefaults(existing: Record<string, unknown>): Record<string, unknown> {
@@ -281,6 +282,20 @@ export function MotorAttrsForm({
         {renderField("ip_rating",           "IP Rating",           MOTOR_OPTS.ip_rating,        true)}
         {renderField("efficiency_class",    "Efficiency Class",    MOTOR_OPTS.efficiency_class, true)}
         {renderField("vfd_compatible",      "VFD Compatible",      MOTOR_OPTS.vfd_compatible,   true)}
+        {isFlameproof && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Explosion Protection <span className="text-red-500">*</span></Label>
+            <select
+              className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              value={(attrs.explosion_protection as string) ?? "Ex d"}
+              onChange={(e) => set("explosion_protection", e.target.value)}
+            >
+              <option value="Ex d">Ex d</option>
+              <option value="IECEx">IECEx</option>
+              <option value="ATEX">ATEX</option>
+            </select>
+          </div>
+        )}
         <div />
 
         {sectionHeader("Construction")}
