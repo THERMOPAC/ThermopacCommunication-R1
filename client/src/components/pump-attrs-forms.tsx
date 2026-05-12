@@ -9,6 +9,7 @@ import {
   CommandGroup, CommandItem,
 } from "@/components/ui/command";
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
+import { shortenToSapItemName } from "@/lib/sap-item-name";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared SearchableSelect
@@ -240,7 +241,7 @@ export function buildCentrifugalPumpRequirement(attrs: Record<string, unknown>):
   if (matClass)  parts.push(matClass);
   if (sealType)  parts.push(sealType);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function CentrifugalPumpAttrsForm({
@@ -688,7 +689,7 @@ export function buildGearPumpRequirement(attrs: Record<string, unknown>): string
   if (fluid)     parts.push(`${fluid} Service`);
   if (sealType)  parts.push(sealType);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function GearPumpAttrsForm({
@@ -1100,7 +1101,7 @@ export function buildScrewPumpRequirement(attrs: Record<string, unknown>): strin
   if (fluid)     parts.push(`${fluid} Service`);
   if (sealType)  parts.push(sealType);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function ScrewPumpAttrsForm({
@@ -1519,7 +1520,7 @@ export function buildMultistagePumpRequirement(attrs: Record<string, unknown>): 
   if (fluid)     parts.push(`${fluid} Service`);
   if (sealType)  parts.push(sealType);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function MultistagePumpAttrsForm({
@@ -1975,7 +1976,7 @@ export function buildDosingPumpRequirement(attrs: Record<string, unknown>): stri
   if (wettedMat) parts.push(`${wettedMat} Wetted`);
   if (accuracy)  parts.push(`±${accuracy} Accuracy`);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function DosingPumpAttrsForm({
@@ -2332,7 +2333,7 @@ export function buildVacuumBoosterRequirement(attrs: Record<string, unknown>): s
   if (matClass)     parts.push(matClass);
   if (coolingType)  parts.push(coolingType);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function VacuumBoosterAttrsForm({
@@ -2731,7 +2732,7 @@ export function buildVacuumPumpRequirement(attrs: Record<string, unknown>): stri
     const stages  = (attrs.compression_stages as string)?.trim() || "";
     const cooling = (attrs.cooling_type       as string)?.trim() || "";
     const p2: string[] = [];
-    if (stages)  p2.push(`${stages}-Stage`);
+    if (stages)  p2.push(stages);
     if (cooling) p2.push(cooling);
     typeSpec = p2.join(", ");
   } else if (typeLC.includes("rotary vane")) {
@@ -2760,7 +2761,7 @@ export function buildVacuumPumpRequirement(attrs: Record<string, unknown>): stri
   if (gas)       parts.push(`${gas} Service`);
   if (sealType)  parts.push(sealType);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function VacuumPumpAttrsForm({
@@ -3173,7 +3174,7 @@ export function buildPumpSkidRequirement(attrs: Record<string, unknown>): string
   if (driverType)  parts.push(driverType);
   if (standbyLabel && standbyLabel !== "No Standby") parts.push(standbyLabel);
   if (components.length > 0) parts.push(`Complete with ${components.slice(0, 3).join(", ")}`);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 export function PumpSkidAttrsForm({

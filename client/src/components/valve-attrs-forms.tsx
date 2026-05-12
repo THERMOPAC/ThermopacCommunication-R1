@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/command";
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { shortenToSapItemName } from "@/lib/sap-item-name";
 
 // ── Shared SearchableSelect ───────────────────────────────────────────────────
 function SearchableSelect({
@@ -238,7 +239,7 @@ export function buildControlValveRequirement(attrs: Record<string, unknown>): st
   if (bodyMat)      parts.push(`${bodyMat} Body`);
   if (endConn)      parts.push(endConn);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 function buildControlValveDefaults(type: string): Record<string, unknown> {
@@ -640,7 +641,11 @@ const SAFETY_VALVE_MAKES = [
 export function buildSafetyValveRequirement(attrs: Record<string, unknown>): string {
   const type     = (attrs.valve_type as string)?.trim() || "";
   const typeLC   = type.toLowerCase();
-  const typeAbbr = type.match(/\(([^)]+)\)/)?.[1] || type.split(" ").map(w => w[0]).join("") || type;
+  const SAFETY_TYPE_ABBR_OVERRIDE: Record<string, string> = {
+    "Breather Valve (Conservation Vent)": "BV",
+  };
+  const typeAbbr = SAFETY_TYPE_ABBR_OVERRIDE[type]
+    ?? (type.match(/\(([^)]+)\)/)?.[1] || type.split(" ").map(w => w[0]).join("") || type);
   const bodyMat  = (attrs.body_material as string)?.trim() || "";
   const endConn  = (attrs.end_connection as string)?.trim() || "";
   const standard = (attrs.design_standard as string)?.trim() || "";
@@ -683,7 +688,7 @@ export function buildSafetyValveRequirement(attrs: Record<string, unknown>): str
   if (bodyStr)      parts.push(bodyStr);
   if (endConn)      parts.push(endConn);
   if (standard)     parts.push(standard);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 function buildSafetyValveDefaults(type: string): Record<string, unknown> {
@@ -1219,7 +1224,7 @@ export function buildOnOffValveRequirement(attrs: Record<string, unknown>): stri
   if (endConn)      parts.push(endConn);
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   if (certif && areaClass && areaClass !== "Safe Area") parts.push(certif);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 function buildOnOffValveDefaults(type: string): Record<string, unknown> {
@@ -1763,7 +1768,7 @@ export function buildIsolationValveRequirement(attrs: Record<string, unknown>): 
     if (weirType) parts.push(weirType);
   }
   if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 function buildIsolationDefaults(valveType: string, prev: Record<string, unknown>): Record<string, unknown> {
@@ -2226,7 +2231,7 @@ export function buildNrvValveRequirement(attrs: Record<string, unknown>): string
     if (seatMat) parts.push(`${seatMat} Seat`);
   }
   if (std)     parts.push(std);
-  return parts.join(", ");
+  return shortenToSapItemName(parts.join(", "));
 }
 
 function buildNrvValveDefaults(type: string): Record<string, unknown> {
@@ -2642,8 +2647,10 @@ export function buildNeedleValveRequirement(attrs: Record<string, unknown>): str
   if (bodyMat) parts.push(`${bodyMat} Body`);
   if (endConn) parts.push(endConn);
   if (stemMat && stemMat !== bodyMat) parts.push(`${stemMat} Stem`);
-  if (flowPat && flowPat !== "Straight-Through") parts.push(flowPat);
-  return parts.join(", ");
+  // Suppress flow pattern if already encoded in the type name (e.g. "Angle Needle Valve (L-Pattern)" + "Angle (L-Pattern)")
+  const patternInType = flowPat && type.includes("(L-Pattern)") && flowPat.includes("L-Pattern");
+  if (flowPat && flowPat !== "Straight-Through" && !patternInType) parts.push(flowPat);
+  return shortenToSapItemName(parts.join(", "));
 }
 
 function buildNeedleValveDefaults(type: string): Record<string, unknown> {
