@@ -20,8 +20,9 @@ import {
   ClipboardList, ArrowRight, CheckCircle2, FileText,
   TrendingUp, UserCheck, XOctagon, Upload, Layers,
   RefreshCw, Zap, ArrowUpCircle, MinusCircle, PlusCircle,
-  AlertTriangle, ShieldAlert, Info,
+  AlertTriangle, ShieldAlert, Info, FileSpreadsheet, Download,
 } from "lucide-react";
+import { DatasheetPreviewDialog, downloadDatasheetPdf } from "@/components/buy-datasheet-dialog";
 import {
   PUMP_SUBGROUP_CODES,
   validatePumpAttrs,
@@ -505,6 +506,9 @@ export default function EpcBuyListControlPage() {
   const [checkedLines, setCheckedLines] = useState<Set<number>>(new Set());
   const [bulkSelDialog, setBulkSelDialog] = useState(false);
   const [bulkMasterItemId, setBulkMasterItemId] = useState("");
+
+  // Datasheet preview
+  const [datasheetLine, setDatasheetLine] = useState<any | null>(null);
 
   // Datasheet upload ref
   const dsInputRef = useRef<HTMLInputElement>(null);
@@ -1702,6 +1706,21 @@ export default function EpcBuyListControlPage() {
                                           {/* Actions cell */}
                                           <TableCell>
                                             <div className="flex gap-1 flex-wrap">
+                                              {/* Datasheet preview + download (always visible when attrs exist) */}
+                                              {line.technical_attributes && Object.keys(line.technical_attributes).length > 0 && (
+                                                <>
+                                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                                                    title="Preview Datasheet"
+                                                    onClick={() => setDatasheetLine(line)}>
+                                                    <FileSpreadsheet className="h-3 w-3" />
+                                                  </Button>
+                                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                                                    title="Download Datasheet PDF"
+                                                    onClick={() => downloadDatasheetPdf(line)}>
+                                                    <Download className="h-3 w-3" />
+                                                  </Button>
+                                                </>
+                                              )}
                                               {lst.status === "draft" && canWrite && (
                                                 <>
                                                   <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
@@ -2900,6 +2919,13 @@ export default function EpcBuyListControlPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Datasheet Preview Dialog */}
+      <DatasheetPreviewDialog
+        line={datasheetLine}
+        open={datasheetLine !== null}
+        onClose={() => setDatasheetLine(null)}
+      />
 
     </Layout>
   );

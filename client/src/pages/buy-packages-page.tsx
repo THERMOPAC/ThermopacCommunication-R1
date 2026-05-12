@@ -1,5 +1,5 @@
 import { useState, Fragment, useCallback } from "react";
-import { Document, Page, View, Text, StyleSheet, pdf } from "@react-pdf/renderer";
+import { DatasheetPreviewDialog, downloadDatasheetPdf } from "@/components/buy-datasheet-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +28,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronUp, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
-  ChevronsUpDown, Check, X, FileSpreadsheet, Printer, Copy, GitBranch,
+  ChevronsUpDown, Check, X, FileSpreadsheet, FileDown, Copy, GitBranch,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -297,58 +297,6 @@ function WarningPanel({ warnings }: { warnings: string[] }) {
   );
 }
 
-// ── Datasheet Preview Dialog ──────────────────────────────────────────────────
-function DatasheetPreviewDialog({
-  line, open, onClose,
-}: { line: PackageLine | null; open: boolean; onClose: () => void }) {
-  if (!line) return null;
-  const attrs = line.technical_attributes ?? {};
-  const entries = Object.entries(attrs).filter(([, v]) => v !== null && v !== undefined && v !== "");
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4 text-primary" />
-            Technical Datasheet
-          </DialogTitle>
-          <DialogDescription>
-            {line.buy_subgroup_label} — Line {line.line_number}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3 py-1">
-          {line.generic_requirement && (
-            <div className="rounded-md border bg-muted/40 px-3 py-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Requirement</p>
-              <p className="text-sm">{line.generic_requirement}</p>
-            </div>
-          )}
-          {entries.length > 0 ? (
-            <div className="rounded-md border divide-y">
-              {entries.map(([key, value]) => (
-                <div key={key} className="flex items-center justify-between px-3 py-1.5 text-sm">
-                  <span className="text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
-                  <span className="font-medium text-right">{String(value)}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">No technical attributes recorded.</p>
-          )}
-          {line.notes && (
-            <div className="rounded-md border bg-muted/40 px-3 py-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
-              <p className="text-sm">{line.notes}</p>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ── Flag badges ───────────────────────────────────────────────────────────────
 const FLAGS = [
@@ -2859,14 +2807,24 @@ export default function BuyPackagesPage() {
                                   )}
                                 </div>
                                 {line.technical_attributes && Object.keys(line.technical_attributes).length > 0 && (
-                                  <Button
-                                    variant="ghost" size="sm"
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-primary shrink-0"
-                                    title="Preview Datasheet"
-                                    onClick={() => setDatasheetLine(line)}
-                                  >
-                                    <FileSpreadsheet className="h-3.5 w-3.5" />
-                                  </Button>
+                                  <div className="flex shrink-0 gap-0.5">
+                                    <Button
+                                      variant="ghost" size="sm"
+                                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                                      title="Preview Datasheet"
+                                      onClick={() => setDatasheetLine(line)}
+                                    >
+                                      <FileSpreadsheet className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost" size="sm"
+                                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                                      title="Download PDF"
+                                      onClick={() => downloadDatasheetPdf(line)}
+                                    >
+                                      <FileDown className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             </TableCell>
