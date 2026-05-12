@@ -2008,6 +2008,20 @@ export default function BuyPackagesPage() {
                 </div>
               </div>
 
+              {/* SAP ItemCode — reserved position; auto-generated after approval */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-sm font-medium">
+                  SAP ItemCode
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-normal">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Auto-generated
+                  </span>
+                </Label>
+                <div className="h-9 px-3 flex items-center justify-between rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                  <span className="font-mono tracking-wide">Auto-generated after approval</span>
+                </div>
+              </div>
+
               {/* Structured forms: Plates / Pipes / generic */}
               {isPlatesMode ? (
                 <>
