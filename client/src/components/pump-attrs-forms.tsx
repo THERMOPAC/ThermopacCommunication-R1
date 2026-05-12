@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/command";
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
 import { shortenToSapItemName } from "@/lib/sap-item-name";
-import { getApprovedMakesList, addApprovedMake } from "@/lib/approved-makes";
+import { getMakesList, addMakeToList } from "@/lib/approved-makes";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared SearchableSelect
@@ -144,7 +144,7 @@ const CENTRIFUGAL_ALL_FIELD_OPTS: Record<string, string[]> = {
   bowl_diameter:         CENTRIFUGAL_COMMON_OPTS.bowl_diameter,
   motor_platform:        CENTRIFUGAL_COMMON_OPTS.motor_platform,
 };
-const PUMP_MAKES = ["KSB","Grundfos","SPX Flow","Flowserve","Sulzer","Kirloskar","WILO","CNP","ITT","Armstrong"];
+const PUMP_MAKES = ["KSB","KSB INDIA","Grundfos","SPX Flow","SPX JOHNSON PUMP INDIA","Flowserve","Sulzer","Kirloskar","WILO","CNP","ITT","Armstrong","MAS","PRAKASH PUMP"];
 const PUMP_SERIES_BY_MAKE: Record<string, string[]> = {
   "KSB":       ["Etanorm","MegaCPK","Omega","Movitec"],
   "Grundfos":  ["CR","NK","CM","TP","S"],
@@ -312,10 +312,10 @@ export function CentrifugalPumpAttrsForm({
       </div>
     );
   }
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("centrifugal_pump", PUMP_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "centrifugal_pump", PUMP_MAKES); if (isNew) setMasterMakes(getMakesList("centrifugal_pump", PUMP_MAKES));
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -627,8 +627,8 @@ const GEAR_ALL_FIELD_OPTS: Record<string, string[]> = {
   lube_system:          GEAR_COMMON_OPTS.lube_system,
 };
 const GEAR_PUMP_MAKES = [
-  "Viking Pump","Varisco","SPX Flow","Roper Pump","Tuthill","Leistritz",
-  "Maag","Bosch Rexroth","Colfax","Gorman-Rupp","IMO Pump","Desmi",
+  "Viking Pump","VIKING","Varisco","SPX Flow","SPX JOHNSON PUMP INDIA","Roper Pump","Tuthill","TUTHIL USA","Leistritz",
+  "Maag","Bosch Rexroth","Colfax","Gorman-Rupp","IMO Pump","Desmi","KOWEL PRECISION CO LTD","TUSHACO",
 ];
 
 function buildGearPumpDefaults(type: string): Record<string, unknown> {
@@ -759,10 +759,10 @@ export function GearPumpAttrsForm({
       </div>
     );
   }
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("gear_pump", GEAR_PUMP_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "gear_pump", GEAR_PUMP_MAKES); if (isNew) setMasterMakes(getMakesList("gear_pump", GEAR_PUMP_MAKES));
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -1042,7 +1042,7 @@ const SCREW_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 const SCREW_PUMP_MAKES = [
   "Allweiler","Leistritz","IMO Pump","Bornemann","NETZSCH","Mono Pumps",
-  "Roto","PCM","Seepex","Hugo Vogel","CIRCOR","Desmi",
+  "Roto","PCM","Seepex","Hugo Vogel","CIRCOR","Desmi","TUSHACO","SPX JOHNSON PUMP INDIA",
 ];
 
 function buildScrewPumpDefaults(type: string): Record<string, unknown> {
@@ -1173,10 +1173,10 @@ export function ScrewPumpAttrsForm({
       </div>
     );
   }
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("screw_pump", SCREW_PUMP_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "screw_pump", SCREW_PUMP_MAKES); if (isNew) setMasterMakes(getMakesList("screw_pump", SCREW_PUMP_MAKES));
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -1459,7 +1459,7 @@ const MS_ALL_FIELD_OPTS: Record<string, string[]> = {
   inner_casing_type:  MS_COMMON_OPTS.inner_casing,
 };
 const MULTISTAGE_PUMP_MAKES = [
-  "Grundfos","KSB","Sulzer","Flowserve","Ebara","WILO","CNP",
+  "Grundfos","KSB","KSB INDIA","Sulzer","Flowserve","Ebara","WILO","CNP",
   "Caprari","Lowara","Torishima","Ruhrpumpen","ITT (Goulds Pumps)","Xylem",
 ];
 
@@ -1589,7 +1589,7 @@ export function MultistagePumpAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
-  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes]       = useState(() => getMakesList("multistage_pump", MULTISTAGE_PUMP_MAKES));
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -1600,7 +1600,7 @@ export function MultistagePumpAttrsForm({
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
     const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "multistage_pump", MULTISTAGE_PUMP_MAKES); if (isNew) setMasterMakes(getMakesList("multistage_pump", MULTISTAGE_PUMP_MAKES));
     onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
@@ -2052,10 +2052,10 @@ export function DosingPumpAttrsForm({
       </div>
     );
   }
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("dosing_pump", DOSING_PUMP_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "dosing_pump", DOSING_PUMP_MAKES); if (isNew) setMasterMakes(getMakesList("dosing_pump", DOSING_PUMP_MAKES));
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -2300,7 +2300,7 @@ const VB_ALL_FIELD_OPTS: Record<string, string[]> = {
   operating_temp:            ["Ambient","50°C","80°C","100°C","120°C","150°C"],
 };
 const VACUUM_BOOSTER_MAKES = [
-  "MD-Kinney","Busch","Pfeiffer","Atlas Copco","Leybold","Edwards","Elmo Rietschle","Tuthill","Agilent",
+  "MD-Kinney","Busch","Pfeiffer","Atlas Copco","Leybold","Edwards","Elmo Rietschle","Tuthill","Agilent","ORION",
 ];
 
 function buildVacuumBoosterDefaults(type: string): Record<string, unknown> {
@@ -2406,7 +2406,7 @@ export function VacuumBoosterAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
-  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes]       = useState(() => getMakesList("vacuum_booster", VACUUM_BOOSTER_MAKES));
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -2417,7 +2417,7 @@ export function VacuumBoosterAttrsForm({
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
     const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "vacuum_booster", VACUUM_BOOSTER_MAKES); if (isNew) setMasterMakes(getMakesList("vacuum_booster", VACUUM_BOOSTER_MAKES));
     onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
@@ -2676,7 +2676,7 @@ const VP_ALL_FIELD_OPTS: Record<string, string[]> = {
 const VACUUM_PUMP_MAKES = [
   "Busch", "Gardner Denver (Elmo Rietschle)", "Nash (Atlas Copco)", "Sterling SIHI (SPX Flow)",
   "Pfeiffer Vacuum", "Atlas Copco", "Becker", "Kinetic Pumps", "Cutes Corporation",
-  "Graham Corporation", "Croll-Reynolds", "Mazda Vacuum",
+  "Graham Corporation", "Croll-Reynolds", "Mazda Vacuum", "ORION",
 ];
 const VP_SEAL_DEFAULTS: Record<string, string> = {
   "Liquid Ring":       "Liquid Ring (Integral)",
@@ -2843,7 +2843,7 @@ export function VacuumPumpAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
-  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes]       = useState(() => getMakesList("vacuum_pump", VACUUM_PUMP_MAKES));
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -2854,7 +2854,7 @@ export function VacuumPumpAttrsForm({
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
     const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "vacuum_pump", VACUUM_PUMP_MAKES); if (isNew) setMasterMakes(getMakesList("vacuum_pump", VACUUM_PUMP_MAKES));
     onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
@@ -3142,7 +3142,7 @@ const PUMP_SKID_COMPONENT_OPTS = [
   "Pressure Gauges","Flow Meter","Strainer","Relief Valve","Expansion Joints",
 ];
 const PUMP_SKID_MAKES = [
-  "Flowserve","KSB","Grundfos","Sulzer","Ebara","Ruhrpumpen","SPX","Peerless","Kirloskar","WILO",
+  "Flowserve","KSB","KSB INDIA","Grundfos","Sulzer","Ebara","Ruhrpumpen","SPX","SPX JOHNSON PUMP INDIA","Peerless","Kirloskar","WILO","MAS","PRAKASH PUMP",
 ];
 
 function buildPumpSkidDefaults(pkgType: string): Record<string, unknown> {
@@ -3255,7 +3255,7 @@ export function PumpSkidAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
-  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes]       = useState(() => getMakesList("pump_skid", PUMP_SKID_MAKES));
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -3266,7 +3266,7 @@ export function PumpSkidAttrsForm({
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
     const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "pump_skid", PUMP_SKID_MAKES); if (isNew) setMasterMakes(getMakesList("pump_skid", PUMP_SKID_MAKES));
     onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }

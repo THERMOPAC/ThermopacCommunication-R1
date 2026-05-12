@@ -12,7 +12,7 @@ import {
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shortenToSapItemName } from "@/lib/sap-item-name";
-import { getApprovedMakesList, addApprovedMake } from "@/lib/approved-makes";
+import { getMakesList, addMakeToList } from "@/lib/approved-makes";
 
 // ── Shared SearchableSelect ───────────────────────────────────────────────────
 function SearchableSelect({
@@ -353,10 +353,10 @@ export function ControlValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("control_valve", CONTROL_VALVE_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "control_valve", CONTROL_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("control_valve", CONTROL_VALVE_MAKES));
     const next = [...makes, t];
     setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
   }
@@ -809,10 +809,10 @@ export function SafetyValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("safety_valve", SAFETY_VALVE_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "safety_valve", SAFETY_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("safety_valve", SAFETY_VALVE_MAKES));
     const next = [...makes, t];
     setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
   }
@@ -1353,10 +1353,10 @@ export function OnOffValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("onoff_valve", OO_VALVE_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "onoff_valve", OO_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("onoff_valve", OO_VALVE_MAKES));
     const next = [...makes, t];
     setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
   }
@@ -1848,7 +1848,7 @@ export function IsolationValveAttrsForm({
   const [makesQuery,     setMakesQuery]     = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
   const [customMakeVal,  setCustomMakeVal]  = useState("");
-  const [masterMakes,    setMasterMakes]    = useState(getApprovedMakesList);
+  const [masterMakes,    setMasterMakes]    = useState(() => getMakesList("isolation_valve", ISOLATION_VALVE_MAKES));
   const approvedMakes  = (attrs.approved_makes as string[]) ?? [];
   const filteredMakes  = masterMakes.filter(o => o.toLowerCase().includes(makesQuery.toLowerCase()));
 
@@ -1900,7 +1900,7 @@ export function IsolationValveAttrsForm({
   function addCustomMake() {
     const v = customMakeVal.trim();
     if (v && !approvedMakes.some(m => m.toLowerCase() === v.toLowerCase())) {
-      const isNew = addApprovedMake(v); if (isNew) setMasterMakes(getApprovedMakesList());
+      const isNew = addMakeToList(v, "isolation_valve", ISOLATION_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("isolation_valve", ISOLATION_VALVE_MAKES));
       onChange({ ...attrs, approved_makes: [...approvedMakes, v] });
     }
     setCustomMakeVal(""); setShowCustomMake(false);
@@ -2359,10 +2359,10 @@ export function NrvValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("nrv_valve", NRV_VALVE_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "nrv_valve", NRV_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("nrv_valve", NRV_VALVE_MAKES));
     const next = [...makes, t];
     setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
   }
@@ -2760,10 +2760,10 @@ export function NeedleValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("needle_valve", NEEDLE_VALVE_MAKES));
   function addMake(make: string) {
     const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    const isNew = addMakeToList(t, "needle_valve", NEEDLE_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("needle_valve", NEEDLE_VALVE_MAKES));
     const next = [...makes, t];
     setMakes(next); onChange({ ...attrs, makes: next }); setMakeSearch("");
   }

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/command";
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getApprovedMakesList, addApprovedMake } from "@/lib/approved-makes";
+import { getMakesList, addMakeToList } from "@/lib/approved-makes";
 
 // ── Shared SearchableSelect ───────────────────────────────────────────────────
 function SearchableSelect({
@@ -253,7 +253,7 @@ export function MotorAttrsForm({
   const [makesQuery, setMakesQuery] = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
   const [customMakeVal, setCustomMakeVal] = useState("");
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
+  const [masterMakes, setMasterMakes] = useState(() => getMakesList("motor", MOTOR_MAKES));
   const approvedMakes = (attrs.approved_makes as string[]) ?? [];
 
   function toggleMake(make: string) {
@@ -264,7 +264,7 @@ export function MotorAttrsForm({
   function addCustomMake() {
     const t = customMakeVal.trim();
     if (t && !approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) {
-      const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+      const isNew = addMakeToList(t, "motor", MOTOR_MAKES); if (isNew) setMasterMakes(getMakesList("motor", MOTOR_MAKES));
       onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
     }
     setCustomMakeVal(""); setShowCustomMake(false);

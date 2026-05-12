@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/command";
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getApprovedMakesList, addApprovedMake } from "@/lib/approved-makes";
+import { getMakesList, addMakeToList } from "@/lib/approved-makes";
 
 // ── Cable Gland constants ──────────────────────────────────────────────────────
 const CABLE_GLAND_TYPES = ["PG", "Metric", "NPT", "BSP", "BSPT"] as const;
@@ -218,9 +218,9 @@ const PRESSURE_ALL_FIELD_OPTS: Record<string, string[]> = {
   sil_requirement:      PRESSURE_COMMON_OPTS.sil_requirement,
   range_unit:           ["bar", "kg/cm²", "psi", "kPa", "MPa", "mmWC", "Pa", "mbar", "inH₂O"],
 };
-const PRESSURE_PG_MAKES     = ["Wika", "Bourdon", "Ashcroft", "Baumer", "H.Guru", "Fiebig", "Nuova Fima", "Winters"];
-const PRESSURE_PT_DPT_MAKES = ["Endress+Hauser", "Yokogawa", "Emerson (Rosemount)", "ABB", "Honeywell", "Wika", "Siemens", "Dwyer"];
-const PRESSURE_PS_MAKES     = ["Danfoss", "Wika", "United Electric", "Barksdale", "Honeywell", "Dwyer", "Nuova Fima", "Bourdon"];
+const PRESSURE_PG_MAKES     = ["WIKA", "Bourdon", "BOURDAN", "Ashcroft", "Baumer", "H.Guru", "Fiebig", "Nuova Fima", "Winters", "RADIX"];
+const PRESSURE_PT_DPT_MAKES = ["Endress+Hauser", "Yokogawa", "Emerson (Rosemount)", "ABB", "Honeywell", "WIKA", "Siemens", "Dwyer", "RADIX", "VEGA"];
+const PRESSURE_PS_MAKES     = ["Danfoss", "WIKA", "United Electric", "Barksdale", "Honeywell", "Dwyer", "Nuova Fima", "Bourdon", "BOURDAN", "RADIX", "VEGA"];
 
 export function buildPressureRequirement(attrs: Record<string, unknown>): string {
   const instrType = (attrs.instrument_type as string)?.trim() || "";
@@ -311,9 +311,10 @@ export function PressureAttrsForm({
   const isPS          = t.includes("switch");
   const areaClass     = (attrs.area_classification as string) ?? "";
   const isZone        = areaClass === "Zone 1" || areaClass === "Zone 2";
-  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-  const filteredMakes = masterMakes.filter(o => o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const approvedMakes   = (attrs.approved_makes as string[]) ?? [];
+  const _instrMakeKey   = isPG ? "pressure_pg" : isPS ? "pressure_ps" : "pressure_pt_dpt";
+  const _instrBaseMakes = isPG ? PRESSURE_PG_MAKES : isPS ? PRESSURE_PS_MAKES : PRESSURE_PT_DPT_MAKES;
+  const filteredMakes   = getMakesList(_instrMakeKey, _instrBaseMakes).filter(o => o.toLowerCase().includes(makesQuery.toLowerCase()));
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
@@ -438,7 +439,7 @@ export function PressureAttrsForm({
   function addCustomMake() {
     const v = customMakeVal.trim();
     if (v && !approvedMakes.some(m => m.toLowerCase() === v.toLowerCase())) {
-      const isNew = addApprovedMake(v); if (isNew) setMasterMakes(getApprovedMakesList());
+      addMakeToList(v, _instrMakeKey, _instrBaseMakes);
       onChange({ ...attrs, approved_makes: [...approvedMakes, v] });
     }
     setCustomMakeVal(""); setShowCustomMake(false);
