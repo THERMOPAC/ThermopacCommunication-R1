@@ -443,6 +443,8 @@ function StageBadge({ label, value, cls }: { label: string; value?: string | nul
   );
 }
 
+const SKID_OPTIONS = ["Skid-1", "Skid-2", "Skid-3", "Skid-4"];
+
 const EMPTY_LINE = {
   buyGroupId: "", buySubgroupId: "", uomId: "",
   genericRequirement: "", quantity: "1",
@@ -452,6 +454,7 @@ const EMPTY_LINE = {
   inspectionRequired: false, certificateRequired: false, complianceRequired: false,
   notes: "",
   technicalAttributes: {} as Record<string, unknown>,
+  installedOn: "",
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -949,6 +952,7 @@ export default function EpcBuyListControlPage() {
       selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
+      installedOn: line.installed_on ?? "",
       technicalAttributes: line.buy_subgroup_code === "non_flameproof"
         ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
         : line.buy_subgroup_code === "flameproof"
@@ -986,6 +990,7 @@ export default function EpcBuyListControlPage() {
       inspectionRequired: lf.inspectionRequired, certificateRequired: lf.certificateRequired,
       complianceRequired: lf.complianceRequired, notes: lf.notes || null,
       technicalAttributes: Object.keys(lf.technicalAttributes).length > 0 ? lf.technicalAttributes : undefined,
+      installedOn: lf.installedOn || null,
     };
     if (lineDialog.editLine) {
       patchLine.mutate({ lineId: lineDialog.editLine.id, body });
@@ -1006,7 +1011,7 @@ export default function EpcBuyListControlPage() {
     if (!isTaggable || !currentSubgroupCode) { setTagPreview([]); return; }
 
     setTagFetching(true); setTagAutoFilled(false);
-    const url = `/api/projects/${selectedProjectId}/next-tag-no?subgroupCode=${encodeURIComponent(currentSubgroupCode)}&qty=${lineQty}`;
+    const url = `/api/projects/${selectedProjectId}/next-tag-no?subgroupCode=${encodeURIComponent(currentSubgroupCode)}&qty=${lineQty}${lf.installedOn ? `&installedOn=${encodeURIComponent(lf.installedOn)}` : ''}`;
     fetch(url, { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
@@ -1023,7 +1028,7 @@ export default function EpcBuyListControlPage() {
       .catch(() => {})
       .finally(() => setTagFetching(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lf.buySubgroupId, lf.quantity, lineDialog?.editLine]);
+  }, [lf.buySubgroupId, lf.quantity, lf.installedOn, lineDialog?.editLine]);
 
   // ── Duplicate-check effect (debounced 500ms) ──────────────────────────────────
   useEffect(() => {
@@ -2380,6 +2385,19 @@ export default function EpcBuyListControlPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Installed On</Label>
+                <Select
+                  value={lf.installedOn || "_none"}
+                  onValueChange={v => setLf(f => ({ ...f, installedOn: v === "_none" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="None / Not specified" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">None / Not specified</SelectItem>
+                    {SKID_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Notes</Label>

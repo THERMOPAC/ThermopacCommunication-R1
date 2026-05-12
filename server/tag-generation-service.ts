@@ -10,6 +10,9 @@
  *  • Tags are unique across the entire project (all buy lists)
  *  • Sequence generation uses pg_advisory_xact_lock to prevent races
  *  • Every manual tag change is written to tag_no_audit_log
+ *  • installedOn scopes the sequence range per skid:
+ *      Skid-1 → 101–199, Skid-2 → 201–299, Skid-3 → 301–399,
+ *      Skid-4 → 401–499, null/'' → 101–199 (backward compat)
  */
 
 import type { Pool, PoolClient } from 'pg';
@@ -46,6 +49,20 @@ export const TAG_PREFIXES: Record<string, string | null> = {
   cabling:        null,
 };
 
+/** installedOn value → base sequence number (tags occupy [base+1 … base+99]) */
+const SKID_BASE: Record<string, number> = {
+  'Skid-1': 100,
+  'Skid-2': 200,
+  'Skid-3': 300,
+  'Skid-4': 400,
+};
+
+/** Return the base number for the given installedOn value (default 100). */
+function getSkidBase(installedOn?: string | null): number {
+  if (!installedOn) return 100;
+  return SKID_BASE[installedOn] ?? 100;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 export function getPrefixForSubgroup(subgroupCode: string): string | null {
@@ -63,16 +80,26 @@ function parseTagSeq(tagNo: string): number {
   return parseInt(parts[parts.length - 1], 10);
 }
 
-/** Find the current max sequence for a prefix within a project by scanning existing tags. */
-async function findMaxSeq(client: PoolClient | Pool, projectId: number, prefix: string): Promise<number> {
+/**
+ * Find the current max sequence for a prefix within a project, scoped to the
+ * skid range determined by installedOn.
+ * Range: [baseNum+1 … baseNum+99].  maxSeq starts at baseNum.
+ */
+async function findMaxSeq(
+  client: PoolClient | Pool,
+  projectId: number,
+  prefix: string,
+  installedOn?: string | null,
+): Promise<number> {
+  const baseNum = getSkidBase(installedOn);
   const result = await (client as any).query<{ tag_no: string }>(
     `SELECT tag_no FROM project_buy_list_lines WHERE project_id = $1 AND tag_no LIKE $2`,
     [projectId, `${prefix}-%`],
   );
-  let maxSeq = 100;
+  let maxSeq = baseNum;
   for (const row of result.rows) {
     const n = parseTagSeq(row.tag_no);
-    if (!isNaN(n) && n > maxSeq) maxSeq = n;
+    if (!isNaN(n) && n > baseNum && n <= baseNum + 99 && n > maxSeq) maxSeq = n;
   }
   return maxSeq;
 }
@@ -88,10 +115,11 @@ export async function getNextTagNoInTx(
   client: PoolClient,
   projectId: number,
   subgroupCode: string,
+  installedOn?: string | null,
 ): Promise<string | null> {
   const prefix = getPrefixForSubgroup(subgroupCode);
   if (!prefix) return null;
-  const maxSeq = await findMaxSeq(client, projectId, prefix);
+  const maxSeq = await findMaxSeq(client, projectId, prefix, installedOn);
   return `${prefix}-${maxSeq + 1}`;
 }
 
@@ -104,10 +132,11 @@ export async function getNextNTagNosInTx(
   projectId: number,
   subgroupCode: string,
   n: number,
+  installedOn?: string | null,
 ): Promise<string[]> {
   const prefix = getPrefixForSubgroup(subgroupCode);
   if (!prefix || n < 1) return [];
-  const maxSeq = await findMaxSeq(client, projectId, prefix);
+  const maxSeq = await findMaxSeq(client, projectId, prefix, installedOn);
   return Array.from({ length: n }, (_, i) => `${prefix}-${maxSeq + 1 + i}`);
 }
 
@@ -123,10 +152,11 @@ export async function previewNextTagNos(
   projectId: number,
   subgroupCode: string,
   qty = 1,
+  installedOn?: string | null,
 ): Promise<string[]> {
   const prefix = getPrefixForSubgroup(subgroupCode);
   if (!prefix) return [];
-  const maxSeq = await findMaxSeq(pool, projectId, prefix);
+  const maxSeq = await findMaxSeq(pool, projectId, prefix, installedOn);
   return Array.from({ length: Math.max(1, qty) }, (_, i) => `${prefix}-${maxSeq + 1 + i}`);
 }
 

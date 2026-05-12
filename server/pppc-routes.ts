@@ -768,6 +768,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         defaultQuantity, defaultSpecification, technicalAttributes,
         selectionRequired, datasheetRequired, inspectionRequired,
         certificateRequired, complianceRequired, notes, sortOrder,
+        installedOn,
       } = req.body;
 
       if (!buyGroupId || !buySubgroupId || !uomId || !genericRequirement)
@@ -793,8 +794,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
            buy_package_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
            generic_requirement, default_quantity, default_specification, technical_attributes,
            selection_required, datasheet_required, inspection_required,
-           certificate_required, compliance_required, notes, sort_order, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW())
+           certificate_required, compliance_required, notes, sort_order, installed_on, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW())
          RETURNING *`,
         [
           headerId, lineNumber, buyGroupId, buySubgroupId, uomId,
@@ -809,6 +810,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           Boolean(complianceRequired),
           notes?.trim() || null,
           parseInt(sortOrder) || 0,
+          installedOn?.trim() || null,
         ],
       );
       res.status(201).json(result.rows[0]);
@@ -857,6 +859,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (b.complianceRequired !== undefined)    { fields.push(`compliance_required = $${idx++}`);   values.push(Boolean(b.complianceRequired)); }
       if (b.notes !== undefined)                 { fields.push(`notes = $${idx++}`);                 values.push(b.notes?.trim() || null); }
       if (b.sortOrder !== undefined)             { fields.push(`sort_order = $${idx++}`);            values.push(parseInt(b.sortOrder)); }
+      if (b.installedOn !== undefined)           { fields.push(`installed_on = $${idx++}`);          values.push(b.installedOn?.trim() || null); }
 
       if (fields.length === 0) return sendValidationError(res, 'No updatable fields provided');
       fields.push(`updated_at = NOW()`); values.push(id);
@@ -924,7 +927,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid projectId');
       if (!subgroupCode)    return sendValidationError(res, 'subgroupCode is required');
 
-      const tags = await previewNextTagNos(pool, projectId, subgroupCode, qty);
+      const installedOn = (req.query.installedOn as string) || null;
+      const tags = await previewNextTagNos(pool, projectId, subgroupCode, qty, installedOn);
       if (tags.length === 0) return res.json({ tagNo: null, preview: [] });
       res.json({ tagNo: tags[0], preview: tags });
     } catch (err) { sendError(res, err); }
@@ -1421,6 +1425,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         tagNo, equipmentReference, serviceDescription,
         selectionRequired, datasheetRequired, inspectionRequired,
         certificateRequired, complianceRequired, notes,
+        installedOn,
       } = req.body;
       if (!buyGroupId || !buySubgroupId || !uomId || !genericRequirement)
         return sendValidationError(res, 'buyGroupId, buySubgroupId, uomId, genericRequirement are required.');
@@ -1467,6 +1472,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const baseLine = maxRow.rows[0].m as number;
         const taJson   = technicalAttributes ? JSON.stringify(technicalAttributes) : null;
 
+        const installedOnVal = (installedOn as string | undefined)?.trim() || null;
+
         if (!taggable) {
           // ── Non-taggable: one line, full quantity, no tag ──────────────────
           const r = await lineClient.query(
@@ -1475,40 +1482,40 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                 generic_requirement, quantity, required_date, specification, technical_attributes,
                 tag_no, equipment_reference, service_description,
                 selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, notes)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+                certificate_required, compliance_required, notes, installed_on)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
              RETURNING *`,
             [headerId, projectId, baseLine + 1, buyGroupId, buySubgroupId, uomId,
              genericRequirement, qty, requiredDate ?? null, specification ?? null, taJson,
              '', equipmentReference ?? '', serviceDescription ?? '',
              selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
-             certificateRequired ?? false, complianceRequired ?? false, notes ?? null],
+             certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal],
           );
           createdLines.push(r.rows[0]);
 
         } else if (qty === 1) {
           // ── Taggable qty=1: user tag or auto-generate ──────────────────────
-          const finalTag = userTagNo || (await getNextTagNoInTx(lineClient, projectId, subgroupCode) ?? '');
+          const finalTag = userTagNo || (await getNextTagNoInTx(lineClient, projectId, subgroupCode, installedOnVal) ?? '');
           const r = await lineClient.query(
             `INSERT INTO project_buy_list_lines
                (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
                 generic_requirement, quantity, required_date, specification, technical_attributes,
                 tag_no, equipment_reference, service_description,
                 selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, notes)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+                certificate_required, compliance_required, notes, installed_on)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
              RETURNING *`,
             [headerId, projectId, baseLine + 1, buyGroupId, buySubgroupId, uomId,
              genericRequirement, 1, requiredDate ?? null, specification ?? null, taJson,
              finalTag, equipmentReference ?? '', serviceDescription ?? '',
              selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
-             certificateRequired ?? false, complianceRequired ?? false, notes ?? null],
+             certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal],
           );
           createdLines.push(r.rows[0]);
 
         } else {
           // ── Taggable qty>1: N lines each qty=1 with sequential tags ────────
-          const tags = await getNextNTagNosInTx(lineClient, projectId, subgroupCode, qty);
+          const tags = await getNextNTagNosInTx(lineClient, projectId, subgroupCode, qty, installedOnVal);
           for (let i = 0; i < qty; i++) {
             const r = await lineClient.query(
               `INSERT INTO project_buy_list_lines
@@ -1516,14 +1523,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                   generic_requirement, quantity, required_date, specification, technical_attributes,
                   tag_no, equipment_reference, service_description,
                   selection_required, datasheet_required, inspection_required,
-                  certificate_required, compliance_required, notes)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+                  certificate_required, compliance_required, notes, installed_on)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
                RETURNING *`,
               [headerId, projectId, baseLine + 1 + i, buyGroupId, buySubgroupId, uomId,
                genericRequirement, 1, requiredDate ?? null, specification ?? null, taJson,
                tags[i] ?? '', equipmentReference ?? '', serviceDescription ?? '',
                selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
-               certificateRequired ?? false, complianceRequired ?? false, notes ?? null],
+               certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal],
             );
             createdLines.push(r.rows[0]);
           }
@@ -1603,6 +1610,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         selectionRequired: 'selection_required', datasheetRequired: 'datasheet_required',
         inspectionRequired: 'inspection_required', certificateRequired: 'certificate_required',
         complianceRequired: 'compliance_required', notes: 'notes',
+        installedOn: 'installed_on',
       };
       for (const [key, col] of Object.entries(updatable)) {
         if (req.body[key] !== undefined) {
@@ -1757,13 +1765,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
              (buy_list_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
               generic_requirement, quantity, specification, technical_attributes,
               selection_required, datasheet_required, inspection_required,
-              certificate_required, compliance_required, source_package_line_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+              certificate_required, compliance_required, source_package_line_id, installed_on)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
           [
             newId, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
             pl.generic_requirement, pl.default_quantity, pl.default_specification,
             pl.technical_attributes, pl.selection_required, pl.datasheet_required,
             pl.inspection_required, pl.certificate_required, pl.compliance_required, pl.id,
+            pl.installed_on ?? null,
           ],
         );
       }
@@ -3211,7 +3220,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         let addedLines = 0;
         for (const pl of toAdd) {
           const isRaw = pl.group_code === RAW_MATERIALS_CODE;
-          const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code) ?? '');
+          const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code, pl.installed_on ?? null) ?? '');
           const finalAttrs2 = stripElectricalOverridesMeta(
             applyProjectElectricalStandards(pl.subgroup_code, (pl.technical_attributes ?? {}) as Record<string, unknown>, projElec2),
           );
@@ -3220,14 +3229,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
                 generic_requirement, quantity, specification, technical_attributes,
                 tag_no, selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, source_package_line_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+                certificate_required, compliance_required, source_package_line_id, installed_on)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
             [
               id, hdr.project_id, ++lineNum, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
               pl.generic_requirement, pl.default_quantity, pl.default_specification,
               finalAttrs2, tagNo,
               pl.selection_required, pl.datasheet_required, pl.inspection_required,
-              pl.certificate_required, pl.compliance_required, pl.id,
+              pl.certificate_required, pl.compliance_required, pl.id, pl.installed_on ?? null,
             ],
           );
           addedLines++;
@@ -3493,7 +3502,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         for (let i = 0; i < pkgLines.rows.length; i++) {
           const pl = pkgLines.rows[i];
           const isRaw = pl.group_code === RAW_MATERIALS_CODE;
-          const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code) ?? '');
+          const tagNo = isRaw ? '' : (await getNextTagNoInTx(client, hdr.project_id, pl.subgroup_code, pl.installed_on ?? null) ?? '');
           const finalAttrs4 = stripElectricalOverridesMeta(
             applyProjectElectricalStandards(pl.subgroup_code, (pl.technical_attributes ?? {}) as Record<string, unknown>, projElec4),
           );
@@ -3502,14 +3511,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                (buy_list_header_id, project_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
                 generic_requirement, quantity, specification, technical_attributes,
                 tag_no, selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, source_package_line_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+                certificate_required, compliance_required, source_package_line_id, installed_on)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
             [
               id, hdr.project_id, i + 1, pl.buy_group_id, pl.buy_subgroup_id, pl.uom_id,
               pl.generic_requirement, pl.default_quantity, pl.default_specification,
               finalAttrs4, tagNo,
               pl.selection_required, pl.datasheet_required, pl.inspection_required,
-              pl.certificate_required, pl.compliance_required, pl.id,
+              pl.certificate_required, pl.compliance_required, pl.id, pl.installed_on ?? null,
             ],
           );
         }

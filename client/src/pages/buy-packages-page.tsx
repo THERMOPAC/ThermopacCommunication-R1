@@ -373,12 +373,15 @@ function FlagBadges({ line }: { line: PackageLine }) {
 }
 
 // ── Line form default ─────────────────────────────────────────────────────────
+const SKID_OPTIONS = ["Skid-1", "Skid-2", "Skid-3", "Skid-4"];
+
 const EMPTY_LINE = {
   buyGroupId: "", buySubgroupId: "", uomId: "",
   genericRequirement: "", defaultQuantity: "1", defaultSpecification: "",
   selectionRequired: true, datasheetRequired: false, inspectionRequired: false,
   certificateRequired: false, complianceRequired: false,
   notes: "", technicalAttributes: {} as Record<string, unknown>,
+  installedOn: "",
 };
 
 // ── Generic Requirement field — live char count, 100-char hard limit ──────────
@@ -801,6 +804,7 @@ export default function BuyPackagesPage() {
       selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
+      installedOn: (line as any).installed_on ?? "",
       technicalAttributes: line.buy_subgroup_code === "non_flameproof"
         ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
         : line.buy_subgroup_code === "flameproof"
@@ -1522,6 +1526,7 @@ export default function BuyPackagesPage() {
       complianceRequired:   lf.complianceRequired,
       notes:                lf.notes.trim() || null,
       technicalAttributes:  Object.keys(lf.technicalAttributes).length > 0 ? lf.technicalAttributes : null,
+      installedOn:          lf.installedOn || null,
     };
     if (editLine) {
       editLineMutation.mutate({ lineId: editLine.id, pkgId, body });
@@ -2681,6 +2686,21 @@ export default function BuyPackagesPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Installed On (Skid) */}
+              <div className="space-y-1.5">
+                <Label>Installed On</Label>
+                <Select
+                  value={lf.installedOn || "_none"}
+                  onValueChange={(v) => setLf((f) => ({ ...f, installedOn: v === "_none" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="None / Not specified" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">None / Not specified</SelectItem>
+                    {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Notes */}
