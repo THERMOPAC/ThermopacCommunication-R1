@@ -13695,3 +13695,22 @@ export const passwordResetAuditLog = pgTable('password_reset_audit_log', {
   createdAt:         timestamp('created_at').notNull().defaultNow(),
 });
 export type PasswordResetAuditLog = typeof passwordResetAuditLog.$inferSelect;
+
+// --- Item Code Registry (Baseline v1.3) ---
+// Single source of truth for GROUP, SUBGROUP, TYPE, SEG4, SEG5, UNIT codes and their labels.
+// scopeGroup / scopeSubgroup use '' (empty string) as the sentinel for "global scope"
+// so the composite unique index works correctly on non-nullable columns.
+export const itemCodeRegistry = pgTable('item_code_registry', {
+  id:            serial('id').primaryKey(),
+  registryType:  varchar('registry_type', { length: 20 }).notNull(), // 'group'|'subgroup'|'type'|'seg4'|'seg5'|'unit'
+  scopeGroup:    varchar('scope_group',    { length: 5  }).notNull().default(''), // '' = global; else GROUP abbr e.g. 'VALVE'
+  scopeSubgroup: varchar('scope_subgroup', { length: 5  }).notNull().default(''), // '' = group-level; else SUBGROUP abbr e.g. 'ISO'
+  entityKey:     varchar('entity_key',     { length: 60 }).notNull(),             // stable key e.g. 'cs_body', '150f'
+  abbr:          varchar('abbr',           { length: 10 }).notNull(),             // code in ItemCode e.g. 'CS', '150F', 'NB'
+  label:         varchar('label',          { length: 150 }).notNull(),            // English label for buildShortItemName
+  isActive:      boolean('is_active').notNull().default(true),
+  sortOrder:     integer('sort_order').notNull().default(0),
+}, (t) => ({
+  uniq: uniqueIndex('icr_type_scope_key_unique').on(t.registryType, t.scopeGroup, t.scopeSubgroup, t.entityKey),
+}));
+export type ItemCodeRegistry = typeof itemCodeRegistry.$inferSelect;
