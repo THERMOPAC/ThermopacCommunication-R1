@@ -347,7 +347,7 @@ export function ControlValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -390,7 +390,7 @@ export function ControlValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -402,7 +402,7 @@ export function ControlValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-3 space-y-1.5">
           <Label className="text-xs">Control Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={CONTROL_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -411,7 +411,7 @@ export function ControlValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -524,7 +524,7 @@ export function ControlValveAttrsForm({
       {/* 7 — Vendor / Approved Makes */}
       {hasType && (
         <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-2 space-y-2">
+          <div className="col-span-3 space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -829,7 +829,7 @@ export function SafetyValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -872,7 +872,7 @@ export function SafetyValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -884,7 +884,7 @@ export function SafetyValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-3 space-y-1.5">
           <Label className="text-xs">Safety Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={SAFETY_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -893,7 +893,7 @@ export function SafetyValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -904,7 +904,7 @@ export function SafetyValveAttrsForm({
         <SectionCard title="Size & Pressure Rating" color="bg-violet-50/60 border-violet-200">
           {renderField("inlet_size",  "Inlet Size (NB)",  SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
           {renderField("outlet_size", "Outlet Size (NB)", SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
-          <div className="col-span-2">
+          <div className="col-span-3">
             {renderField("pressure_rating","Pressure Rating",SAFETY_COMMON_OPTS.pressure_rating, true)}
           </div>
         </SectionCard>
@@ -913,7 +913,7 @@ export function SafetyValveAttrsForm({
       {/* 3 — Pressure Settings (spring-based) */}
       {isSpringBased && (
         <SectionCard title="Pressure Settings" color="bg-amber-50/60 border-amber-300">
-          <div className="col-span-2">{renderText("set_pressure","Set Pressure","e.g. 10 barg", true)}</div>
+          <div className="col-span-3">{renderText("set_pressure","Set Pressure","e.g. 10 barg", true)}</div>
           {renderField("overpressure",       "Overpressure (%)",   SAFETY_COMMON_OPTS.overpressure)}
           {renderText( "relieving_capacity", "Relieving Capacity", "e.g. 500 kg/h")}
         </SectionCard>
@@ -1014,7 +1014,7 @@ export function SafetyValveAttrsForm({
       {/* 8 — Vendor / Approved Makes */}
       {hasType && (
         <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-2 space-y-2">
+          <div className="col-span-3 space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -1399,7 +1399,7 @@ export function OnOffValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -1458,7 +1458,7 @@ export function OnOffValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -1470,7 +1470,7 @@ export function OnOffValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-3 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={OO_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -1479,7 +1479,7 @@ export function OnOffValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -1594,7 +1594,7 @@ export function OnOffValveAttrsForm({
       {/* 7 — Vendor / Approved Makes */}
       {hasType && (
         <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-2 space-y-2">
+          <div className="col-span-3 space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -2004,7 +2004,7 @@ export function IsolationValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -2016,7 +2016,7 @@ export function IsolationValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-3 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <Select value={valveType} onValueChange={(v) => { if (v !== valveType) handleTypeChange(v); }}>
             <SelectTrigger className="h-8 text-sm">
@@ -2030,7 +2030,7 @@ export function IsolationValveAttrsForm({
           </Select>
         </div>
         {!valveType && (
-          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications.
           </div>
         )}
@@ -2131,7 +2131,7 @@ export function IsolationValveAttrsForm({
       {/* 6 — Vendor / Approved Makes */}
       {valveType && (
         <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-2 space-y-2">
+          <div className="col-span-3 space-y-2">
             <Label className="text-xs">
               Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
             </Label>
@@ -2431,7 +2431,7 @@ export function NrvValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -2488,7 +2488,7 @@ export function NrvValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -2500,7 +2500,7 @@ export function NrvValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-3 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={NRV_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -2509,7 +2509,7 @@ export function NrvValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -2600,7 +2600,7 @@ export function NrvValveAttrsForm({
       {/* 6 — Vendor / Approved Makes */}
       {hasType && (
         <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-2 space-y-2">
+          <div className="col-span-3 space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
@@ -2859,7 +2859,7 @@ export function NeedleValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -2898,7 +2898,7 @@ export function NeedleValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -2910,13 +2910,13 @@ export function NeedleValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-3 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={valveType} options={NEEDLE_VALVE_TYPES} placeholder="Select valve type..."
             onSelect={handleTypeChange} />
         </div>
         {!hasType && (
-          <div className="col-span-2 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -2963,7 +2963,7 @@ export function NeedleValveAttrsForm({
       {/* 6 — Vendor / Approved Makes */}
       {hasType && (
         <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-2 space-y-2">
+          <div className="col-span-3 space-y-2">
             <div className="flex gap-2">
               <Popover open={makesOpen} onOpenChange={setMakesOpen}>
                 <PopoverTrigger asChild>
