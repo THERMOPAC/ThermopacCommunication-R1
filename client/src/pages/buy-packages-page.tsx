@@ -2068,6 +2068,23 @@ export default function BuyPackagesPage() {
                 </div>
               </div>
 
+              {/* Installed On (Skid) */}
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5">
+                <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wide">Installed On</Label>
+                <Select
+                  value={lf.installedOn || "_none"}
+                  onValueChange={(v) => setLf((f) => ({ ...f, installedOn: v === "_none" ? "" : v }))}
+                >
+                  <SelectTrigger className="bg-white border-blue-200">
+                    <SelectValue placeholder="None / Not specified" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">None / Not specified</SelectItem>
+                    {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Structured forms: Plates / Pipes / generic */}
               {isPlatesMode ? (
                 <>
@@ -2658,21 +2675,6 @@ export default function BuyPackagesPage() {
                   )}
                 </>
               )}
-
-              {/* Installed On (Skid) */}
-              <div className="space-y-1.5">
-                <Label>Installed On</Label>
-                <Select
-                  value={lf.installedOn || "_none"}
-                  onValueChange={(v) => setLf((f) => ({ ...f, installedOn: v === "_none" ? "" : v }))}
-                >
-                  <SelectTrigger><SelectValue placeholder="None / Not specified" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">None / Not specified</SelectItem>
-                    {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
 
               {/* Completeness Warnings */}
               {(() => {
