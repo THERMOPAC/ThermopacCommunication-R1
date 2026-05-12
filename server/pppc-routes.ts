@@ -778,7 +778,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         defaultQuantity, defaultSpecification, technicalAttributes,
         selectionRequired, datasheetRequired, inspectionRequired,
         certificateRequired, complianceRequired, notes, sortOrder,
-        installedOn,
+        installedOn, model,
       } = req.body;
 
       if (!buyGroupId || !buySubgroupId || !uomId || !genericRequirement)
@@ -804,8 +804,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
            buy_package_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
            generic_requirement, default_quantity, default_specification, technical_attributes,
            selection_required, datasheet_required, inspection_required,
-           certificate_required, compliance_required, notes, sort_order, installed_on, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW())
+           certificate_required, compliance_required, notes, sort_order, installed_on, model, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW())
          RETURNING *`,
         [
           headerId, lineNumber, buyGroupId, buySubgroupId, uomId,
@@ -821,6 +821,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           notes?.trim() || null,
           parseInt(sortOrder) || 0,
           installedOn?.trim() || null,
+          (model as string | undefined)?.trim() || 'TBN',
         ],
       );
       res.status(201).json(result.rows[0]);
@@ -870,6 +871,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (b.notes !== undefined)                 { fields.push(`notes = $${idx++}`);                 values.push(b.notes?.trim() || null); }
       if (b.sortOrder !== undefined)             { fields.push(`sort_order = $${idx++}`);            values.push(parseInt(b.sortOrder)); }
       if (b.installedOn !== undefined)           { fields.push(`installed_on = $${idx++}`);          values.push(b.installedOn?.trim() || null); }
+      if (b.model !== undefined)                 { fields.push(`model = $${idx++}`);                 values.push((b.model as string)?.trim() || 'TBN'); }
 
       if (fields.length === 0) return sendValidationError(res, 'No updatable fields provided');
       fields.push(`updated_at = NOW()`); values.push(id);
@@ -1435,7 +1437,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         tagNo, equipmentReference, serviceDescription,
         selectionRequired, datasheetRequired, inspectionRequired,
         certificateRequired, complianceRequired, notes,
-        installedOn,
+        installedOn, model,
       } = req.body;
       if (!buyGroupId || !buySubgroupId || !uomId || !genericRequirement)
         return sendValidationError(res, 'buyGroupId, buySubgroupId, uomId, genericRequirement are required.');
@@ -1483,6 +1485,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const taJson   = technicalAttributes ? JSON.stringify(technicalAttributes) : null;
 
         const installedOnVal = (installedOn as string | undefined)?.trim() || null;
+        const modelVal       = (model as string | undefined)?.trim() || 'TBN';
 
         if (!taggable) {
           // ── Non-taggable: one line, full quantity, no tag ──────────────────
@@ -1492,14 +1495,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                 generic_requirement, quantity, required_date, specification, technical_attributes,
                 tag_no, equipment_reference, service_description,
                 selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, notes, installed_on)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+                certificate_required, compliance_required, notes, installed_on, model)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
              RETURNING *`,
             [headerId, projectId, baseLine + 1, buyGroupId, buySubgroupId, uomId,
              genericRequirement, qty, requiredDate ?? null, specification ?? null, taJson,
              '', equipmentReference ?? '', serviceDescription ?? '',
              selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
-             certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal],
+             certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal, modelVal],
           );
           createdLines.push(r.rows[0]);
 
@@ -1512,14 +1515,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                 generic_requirement, quantity, required_date, specification, technical_attributes,
                 tag_no, equipment_reference, service_description,
                 selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, notes, installed_on)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+                certificate_required, compliance_required, notes, installed_on, model)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
              RETURNING *`,
             [headerId, projectId, baseLine + 1, buyGroupId, buySubgroupId, uomId,
              genericRequirement, 1, requiredDate ?? null, specification ?? null, taJson,
              finalTag, equipmentReference ?? '', serviceDescription ?? '',
              selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
-             certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal],
+             certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal, modelVal],
           );
           createdLines.push(r.rows[0]);
 
@@ -1533,14 +1536,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                   generic_requirement, quantity, required_date, specification, technical_attributes,
                   tag_no, equipment_reference, service_description,
                   selection_required, datasheet_required, inspection_required,
-                  certificate_required, compliance_required, notes, installed_on)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+                  certificate_required, compliance_required, notes, installed_on, model)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
                RETURNING *`,
               [headerId, projectId, baseLine + 1 + i, buyGroupId, buySubgroupId, uomId,
                genericRequirement, 1, requiredDate ?? null, specification ?? null, taJson,
                tags[i] ?? '', equipmentReference ?? '', serviceDescription ?? '',
                selectionRequired ?? true, datasheetRequired ?? false, inspectionRequired ?? false,
-               certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal],
+               certificateRequired ?? false, complianceRequired ?? false, notes ?? null, installedOnVal, modelVal],
             );
             createdLines.push(r.rows[0]);
           }
@@ -1621,6 +1624,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         inspectionRequired: 'inspection_required', certificateRequired: 'certificate_required',
         complianceRequired: 'compliance_required', notes: 'notes',
         installedOn: 'installed_on',
+        model: 'model',
       };
       for (const [key, col] of Object.entries(updatable)) {
         if (req.body[key] !== undefined) {

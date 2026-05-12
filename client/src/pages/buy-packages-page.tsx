@@ -382,7 +382,7 @@ const EMPTY_LINE = {
   selectionRequired: true, datasheetRequired: false, inspectionRequired: false,
   certificateRequired: false, complianceRequired: false,
   notes: "", technicalAttributes: {} as Record<string, unknown>,
-  installedOn: "",
+  installedOn: "", model: "TBN",
 };
 
 // ── Generic Requirement field — live char count, 100-char hard limit ──────────
@@ -806,7 +806,7 @@ export default function BuyPackagesPage() {
       selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
-      installedOn: (line as any).installed_on ?? "",
+      installedOn: (line as any).installed_on ?? "", model: (line as any).model ?? "TBN",
       technicalAttributes: line.buy_subgroup_code === "non_flameproof"
         ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
         : line.buy_subgroup_code === "flameproof"
@@ -1514,6 +1514,9 @@ export default function BuyPackagesPage() {
     } else if (lf.genericRequirement.trim().length > ITEM_DESC_LIMIT) {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
+    if (!lf.model.trim()) {
+      toast({ title: "Model is required", variant: "destructive" }); return;
+    }
     const body = {
       buyGroupId:           Number(lf.buyGroupId),
       buySubgroupId:        Number(lf.buySubgroupId),
@@ -1529,6 +1532,7 @@ export default function BuyPackagesPage() {
       notes:                lf.notes.trim() || null,
       technicalAttributes:  Object.keys(lf.technicalAttributes).length > 0 ? lf.technicalAttributes : null,
       installedOn:          lf.installedOn || null,
+      model:                lf.model.trim() || "TBN",
     };
     if (editLine) {
       editLineMutation.mutate({ lineId: editLine.id, pkgId, body });
@@ -2083,6 +2087,19 @@ export default function BuyPackagesPage() {
                     {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Model */}
+              <div className="rounded-md border border-violet-200 bg-violet-50 p-3 space-y-1.5">
+                <Label className="text-violet-800 font-semibold text-xs uppercase tracking-wide">
+                  Model <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={lf.model}
+                  onChange={(e) => setLf((f) => ({ ...f, model: e.target.value }))}
+                  placeholder="e.g. TBN, 3100, NHM-50…"
+                  className="bg-white border-violet-200"
+                />
               </div>
 
               {/* Structured forms: Plates / Pipes / generic */}
@@ -2810,6 +2827,7 @@ export default function BuyPackagesPage() {
                         <TableRow className="text-xs">
                           <TableHead className="w-8">#</TableHead>
                           <TableHead>Requirement</TableHead>
+                          <TableHead className="w-28">Model</TableHead>
                           <TableHead className="w-16 text-right">Qty</TableHead>
                           <TableHead className="w-16">UOM</TableHead>
                           <TableHead className="w-36">Flags</TableHead>
@@ -2839,6 +2857,11 @@ export default function BuyPackagesPage() {
                                   </Button>
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell className="pt-3">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-violet-100 text-violet-800">
+                                {(line as any).model || "TBN"}
+                              </span>
                             </TableCell>
                             <TableCell className="text-right font-mono pt-3">{line.default_quantity}</TableCell>
                             <TableCell className="pt-3">{line.uom_code}</TableCell>

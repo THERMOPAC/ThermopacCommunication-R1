@@ -454,7 +454,7 @@ const EMPTY_LINE = {
   inspectionRequired: false, certificateRequired: false, complianceRequired: false,
   notes: "",
   technicalAttributes: {} as Record<string, unknown>,
-  installedOn: "",
+  installedOn: "", model: "TBN",
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -952,7 +952,7 @@ export default function EpcBuyListControlPage() {
       selectionRequired: line.selection_required, datasheetRequired: line.datasheet_required,
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
-      installedOn: line.installed_on ?? "",
+      installedOn: line.installed_on ?? "", model: (line as any).model ?? "TBN",
       technicalAttributes: line.buy_subgroup_code === "non_flameproof"
         ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
         : line.buy_subgroup_code === "flameproof"
@@ -979,6 +979,9 @@ export default function EpcBuyListControlPage() {
       const pumpErr = validatePumpAttrs(currentSubgroupCode, lf.technicalAttributes);
       if (pumpErr) { toast({ title: "Pump specification incomplete", description: pumpErr, variant: "destructive" }); return; }
     }
+    if (!lf.model.trim()) {
+      toast({ title: "Model is required", variant: "destructive" }); return;
+    }
     const body = {
       buyGroupId: Number(lf.buyGroupId), buySubgroupId: Number(lf.buySubgroupId),
       uomId: Number(lf.uomId), genericRequirement: lf.genericRequirement.trim(),
@@ -991,6 +994,7 @@ export default function EpcBuyListControlPage() {
       complianceRequired: lf.complianceRequired, notes: lf.notes || null,
       technicalAttributes: Object.keys(lf.technicalAttributes).length > 0 ? lf.technicalAttributes : undefined,
       installedOn: lf.installedOn || null,
+      model: lf.model.trim() || "TBN",
     };
     if (lineDialog.editLine) {
       patchLine.mutate({ lineId: lineDialog.editLine.id, body });
@@ -1611,6 +1615,7 @@ export default function EpcBuyListControlPage() {
                                     <TableHead className="text-xs">#</TableHead>
                                     <TableHead className="text-xs">Group / Subgroup</TableHead>
                                     <TableHead className="text-xs">Requirement</TableHead>
+                                    <TableHead className="text-xs">Model</TableHead>
                                     <TableHead className="text-xs">Tag No</TableHead>
                                     <TableHead className="text-xs">Equip. Ref</TableHead>
                                     <TableHead className="text-xs">Service Desc</TableHead>
@@ -1647,6 +1652,11 @@ export default function EpcBuyListControlPage() {
                                             <div className="text-muted-foreground">{line.buy_subgroup_code}</div>
                                           </TableCell>
                                           <TableCell className="text-xs max-w-40 truncate">{line.generic_requirement}</TableCell>
+                                          <TableCell className="text-xs">
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-800">
+                                              {line.model || "TBN"}
+                                            </span>
+                                          </TableCell>
                                           <TableCell className="text-xs font-mono">
                                             {line.buy_group_code === 'raw_materials'
                                               ? <span className="text-muted-foreground">—</span>
@@ -2386,18 +2396,29 @@ export default function EpcBuyListControlPage() {
                   ))}
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Installed On</Label>
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5">
+                <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wide">Installed On</Label>
                 <Select
                   value={lf.installedOn || "_none"}
                   onValueChange={v => setLf(f => ({ ...f, installedOn: v === "_none" ? "" : v }))}
                 >
-                  <SelectTrigger><SelectValue placeholder="None / Not specified" /></SelectTrigger>
+                  <SelectTrigger className="bg-white border-blue-200"><SelectValue placeholder="None / Not specified" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">None / Not specified</SelectItem>
                     {SKID_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="rounded-md border border-violet-200 bg-violet-50 p-3 space-y-1.5">
+                <Label className="text-violet-800 font-semibold text-xs uppercase tracking-wide">
+                  Model <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={lf.model}
+                  onChange={e => setLf(f => ({ ...f, model: e.target.value }))}
+                  placeholder="e.g. TBN, 3100, NHM-50…"
+                  className="bg-white border-violet-200"
+                />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Notes</Label>
