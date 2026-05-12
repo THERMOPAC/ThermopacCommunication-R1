@@ -87,8 +87,9 @@ const ROLE_LEVEL: Record<string, number> = {
   Manager: 3, "Senior Executive": 4, Employee: 5,
 };
 const rl = (role?: string) => ROLE_LEVEL[role ?? ""] ?? 999;
-const isManager       = (r?: string) => rl(r) <= 3;
-const isSeniorManager = (r?: string) => rl(r) <= 2;
+const isManager          = (r?: string) => rl(r) <= 3;
+const isSeniorManager    = (r?: string) => rl(r) <= 2;
+const isSeniorExecutive  = (r?: string) => rl(r) <= 4;
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -426,8 +427,9 @@ export default function BuyPackagesPage() {
   const { toast } = useToast();
   const { user }  = useAuth();
   const role      = (user as any)?.role as string | undefined;
-  const canWrite  = isManager(role);
-  const canAction = isSeniorManager(role);
+  const canWrite     = isManager(role);
+  const canWriteLine = isSeniorExecutive(role);
+  const canAction    = isSeniorManager(role);
 
   // Filters / expand
   const [statusFilter,   setStatusFilter]   = useState<"all" | "draft" | "active" | "archived">("all");
@@ -1801,7 +1803,7 @@ export default function BuyPackagesPage() {
                                                         )}
                                                       </div>
                                                       <div className="flex items-center gap-1.5">
-                                                        {canWrite && pkg.status === "draft" && (
+                                                        {canWriteLine && pkg.status === "draft" && (
                                                           <Button
                                                             size="sm" variant="outline"
                                                             className="h-7 px-2 gap-1 text-xs"
@@ -2760,7 +2762,7 @@ export default function BuyPackagesPage() {
                         {dpkg.packageCode} · {dlines.length} line{dlines.length !== 1 ? "s" : ""}
                       </p>
                     </div>
-                    {canWrite && isDraft && (
+                    {canWriteLine && isDraft && (
                       <Button
                         size="sm" className="h-8 gap-1.5 shrink-0"
                         onClick={() => {
@@ -2784,7 +2786,7 @@ export default function BuyPackagesPage() {
                     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
                       <List className="h-8 w-8 opacity-30" />
                       <p className="text-sm">No lines added yet for this subgroup.</p>
-                      {canWrite && isDraft && (
+                      {canWriteLine && isDraft && (
                         <Button
                           size="sm" variant="outline" className="mt-2 gap-1.5"
                           onClick={() => {
@@ -2809,7 +2811,7 @@ export default function BuyPackagesPage() {
                           <TableHead className="w-16 text-right">Qty</TableHead>
                           <TableHead className="w-16">UOM</TableHead>
                           <TableHead className="w-36">Flags</TableHead>
-                          {canWrite && isDraft && <TableHead className="w-16 text-center">Actions</TableHead>}
+                          {canWriteLine && isDraft && <TableHead className="w-16 text-center">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2850,7 +2852,7 @@ export default function BuyPackagesPage() {
                                 )}
                               </div>
                             </TableCell>
-                            {canWrite && isDraft && (
+                            {canWriteLine && isDraft && (
                               <TableCell className="text-center pt-2">
                                 <div className="flex items-center justify-center gap-0.5">
                                   <Button
