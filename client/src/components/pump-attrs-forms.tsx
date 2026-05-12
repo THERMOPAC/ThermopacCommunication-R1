@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/command";
 import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
 import { shortenToSapItemName } from "@/lib/sap-item-name";
+import { getApprovedMakesList, addApprovedMake } from "@/lib/approved-makes";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared SearchableSelect
@@ -311,8 +312,10 @@ export function CentrifugalPumpAttrsForm({
       </div>
     );
   }
+  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
   function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.includes(t)) return;
+    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -333,7 +336,7 @@ export function CentrifugalPumpAttrsForm({
   const preferredSeries = (attrs.preferred_series as string) ?? "";
   const isSeriesCustom  = custom["preferred_series"] ?? false;
   const seriesSelectVal = isSeriesCustom ? "__other__" : (seriesOpts.includes(preferredSeries) ? preferredSeries : "");
-  const filteredMakes   = PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
+  const filteredMakes   = masterMakes.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase()));
 
   return (
     <div className="space-y-2.5 rounded-lg border p-3 bg-card">
@@ -756,8 +759,10 @@ export function GearPumpAttrsForm({
       </div>
     );
   }
+  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
   function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.includes(t)) return;
+    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -774,7 +779,7 @@ export function GearPumpAttrsForm({
   const hasType     = isExternal || isInternal || isHelical || isBiHelical;
   const hasJacket   = (attrs.heating_jacket as string) === "Yes";
   const hasRelief   = (attrs.builtin_relief_valve as string) === "Yes";
-  const filteredMakes = GEAR_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
+  const filteredMakes = masterMakes.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase()));
 
   return (
     <div className="space-y-2.5 rounded-lg border p-3 bg-card">
@@ -1168,8 +1173,10 @@ export function ScrewPumpAttrsForm({
       </div>
     );
   }
+  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
   function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.includes(t)) return;
+    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -1185,7 +1192,7 @@ export function ScrewPumpAttrsForm({
   const isPC       = screwType === "Progressive Cavity";
   const hasType    = isSingle || isTwin || isTriple || isPC;
   const hasJacket  = (attrs.heating_jacket as string) === "Yes";
-  const filteredMakes = SCREW_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
+  const filteredMakes = masterMakes.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase()));
 
   return (
     <div className="space-y-2.5 rounded-lg border p-3 bg-card">
@@ -1582,6 +1589,7 @@ export function MultistagePumpAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
+  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -1591,12 +1599,13 @@ export function MultistagePumpAttrsForm({
   }
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
-    if (!make.trim() || approvedMakes.includes(make.trim())) return;
-    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+    const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
-  const filteredMakes = MULTISTAGE_PUMP_MAKES.filter(
-    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const filteredMakes = masterMakes.filter(
+    (o) => !approvedMakes.some(m => m.toLowerCase() === o.toLowerCase()) && o.toLowerCase().includes(makesQuery.toLowerCase()));
   const isHorizontal = msType === "Horizontal Multistage";
   const isVertical   = msType === "Vertical Multistage";
   const isRing       = msType === "Ring Section";
@@ -2043,8 +2052,10 @@ export function DosingPumpAttrsForm({
       </div>
     );
   }
+  const [masterMakes, setMasterMakes] = useState(getApprovedMakesList);
   function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.includes(t)) return;
+    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
     const next = [...makes, t]; setMakes(next); onChange({ ...attrs, approved_makes: next }); setMakeSearch("");
   }
   function removeMake(m: string) { const next = makes.filter((x) => x !== m); setMakes(next); onChange({ ...attrs, approved_makes: next }); }
@@ -2061,7 +2072,7 @@ export function DosingPumpAttrsForm({
   const isSolenoid  = pumpType === "Solenoid Dosing Pump";
   const hasType     = isDiaphragm || isPlunger || isPiston || isPeris || isSolenoid;
   const isDoubleD   = (attrs.diaphragm_design as string) === "Double";
-  const filteredMakes = DOSING_PUMP_MAKES.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.includes(m));
+  const filteredMakes = masterMakes.filter((m) => m.toLowerCase().includes(makeSearch.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase()));
 
   return (
     <div className="space-y-2.5 rounded-lg border p-3 bg-card">
@@ -2395,6 +2406,7 @@ export function VacuumBoosterAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
+  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -2404,12 +2416,13 @@ export function VacuumBoosterAttrsForm({
   }
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
-    if (!make.trim() || approvedMakes.includes(make.trim())) return;
-    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+    const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
-  const filteredMakes = VACUUM_BOOSTER_MAKES.filter(
-    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const filteredMakes = masterMakes.filter(
+    (o) => !approvedMakes.some(m => m.toLowerCase() === o.toLowerCase()) && o.toLowerCase().includes(makesQuery.toLowerCase()));
   const isRoots   = vbType === "Roots Blower";
   const isBooster = vbType === "Vacuum Booster";
   const isTwin    = vbType === "Twin Lobe";
@@ -2830,6 +2843,7 @@ export function VacuumPumpAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
+  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -2839,12 +2853,13 @@ export function VacuumPumpAttrsForm({
   }
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
-    if (!make.trim() || approvedMakes.includes(make.trim())) return;
-    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+    const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
-  const filteredMakes = VACUUM_PUMP_MAKES.filter(
-    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const filteredMakes = masterMakes.filter(
+    (o) => !approvedMakes.some(m => m.toLowerCase() === o.toLowerCase()) && o.toLowerCase().includes(makesQuery.toLowerCase()));
   const isLiquidRing = vpType === "Liquid Ring";
   const isDryScrew   = vpType === "Dry Screw";
   const isRotaryVane = vpType === "Rotary Vane";
@@ -3240,6 +3255,7 @@ export function PumpSkidAttrsForm({
   const [makesOpen, setMakesOpen]           = useState(false);
   const [customMakeVal, setCustomMakeVal]   = useState("");
   const [showCustomMake, setShowCustomMake] = useState(false);
+  const [masterMakes, setMasterMakes]       = useState(getApprovedMakesList);
   const approvedMakes: string[] = (attrs.approved_makes as string[]) ?? [];
   function moveMake(idx: number, dir: -1 | 1) {
     const next = [...approvedMakes]; const swap = idx + dir;
@@ -3249,12 +3265,13 @@ export function PumpSkidAttrsForm({
   }
   function removeMake(idx: number) { onChange({ ...attrs, approved_makes: approvedMakes.filter((_, i) => i !== idx) }); }
   function addMake(make: string) {
-    if (!make.trim() || approvedMakes.includes(make.trim())) return;
-    onChange({ ...attrs, approved_makes: [...approvedMakes, make.trim()] });
+    const t = make.trim(); if (!t || approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) return;
+    const isNew = addApprovedMake(t); if (isNew) setMasterMakes(getApprovedMakesList());
+    onChange({ ...attrs, approved_makes: [...approvedMakes, t] }); setMakesQuery("");
   }
   function addCustomMakeConfirm() { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }
-  const filteredMakes = PUMP_SKID_MAKES.filter(
-    (o) => !approvedMakes.includes(o) && o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const filteredMakes = masterMakes.filter(
+    (o) => !approvedMakes.some(m => m.toLowerCase() === o.toLowerCase()) && o.toLowerCase().includes(makesQuery.toLowerCase()));
 
   return (
     <div className="space-y-2.5 rounded-lg border p-3 bg-card">
