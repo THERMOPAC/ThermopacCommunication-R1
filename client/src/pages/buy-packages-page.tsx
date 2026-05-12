@@ -1983,7 +1983,7 @@ export default function BuyPackagesPage() {
           open={lineDialog.open}
           onOpenChange={(o) => !o && setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null })}
         >
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className={cn("max-h-[90vh] overflow-y-auto", (isCentrifugalPumpMode || isGearPumpMode || isScrewPumpMode || isMultistagePumpMode || isDosingPumpMode || isVacuumBoosterMode || isPumpSkidMode || isVacuumPumpMode) ? "max-w-4xl" : "max-w-2xl")}>
             <DialogHeader>
               <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
               <DialogDescription>

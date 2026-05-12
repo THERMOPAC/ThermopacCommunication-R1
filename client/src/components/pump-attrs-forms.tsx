@@ -310,7 +310,7 @@ export function CentrifugalPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -370,7 +370,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">End Suction Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("casing_type",    "Casing Type",       CENTRIFUGAL_COMMON_OPTS.casing_type,   true)}
             {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type, true)}
             {renderField("coupling_type",  "Coupling Type",     CENTRIFUGAL_COMMON_OPTS.coupling_type, true)}
@@ -388,7 +388,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Split Case Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("impeller_type_sc","Impeller Type",    CENTRIFUGAL_COMMON_OPTS.impeller_type_sc, true)}
             {renderField("orientation",    "Orientation",       CENTRIFUGAL_COMMON_OPTS.orientation,     true)}
             {renderField("coupling_type_sc","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_sc,true)}
@@ -406,7 +406,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Multistage Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_stages",     "Number of Stages",  CENTRIFUGAL_COMMON_OPTS.num_stages,      true)}
             {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,   true)}
             {renderField("coupling_type_ms","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_ms,true)}
@@ -424,7 +424,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Inline Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type,   true)}
             {renderField("coupling_type_vi","Coupling Type",    CENTRIFUGAL_COMMON_OPTS.coupling_type_vi,true)}
             {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
@@ -440,7 +440,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Turbine Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_bowl_stages",      "No. of Bowl Stages",   CENTRIFUGAL_COMMON_OPTS.num_bowl_stages,       true)}
             {renderField("column_length",        "Column Length",         CENTRIFUGAL_COMMON_OPTS.column_length,         true)}
             {renderField("discharge_head_type",  "Discharge Head Type",   CENTRIFUGAL_COMMON_OPTS.discharge_head_type,   true)}
@@ -461,7 +461,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("flow_rate",      "Flow Rate",         CENTRIFUGAL_COMMON_OPTS.flow_rate,      true)}
             {renderField("head",           "Head / TDH",        CENTRIFUGAL_COMMON_OPTS.head,           true)}
             {renderField("fluid",          "Fluid",             CENTRIFUGAL_COMMON_OPTS.fluid,          true)}
@@ -474,7 +474,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("mounting",       "Mounting",          CENTRIFUGAL_COMMON_OPTS.mounting,       true)}
             {renderField("drive_type",     "Drive Type",        CENTRIFUGAL_COMMON_OPTS.drive_type,     true)}
             {renderField("service_type",   "Service Type",      CENTRIFUGAL_COMMON_OPTS.service_type,   true)}
@@ -489,7 +489,7 @@ export function CentrifugalPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Area & Spares</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("area_classification","Area Classification", CENTRIFUGAL_COMMON_OPTS.area_class)}
             {renderField("certification",  "Certification",     CENTRIFUGAL_COMMON_OPTS.certification)}
             {renderField("spare_parts",    "Spare Parts Package",CENTRIFUGAL_COMMON_OPTS.spare_parts)}
@@ -786,7 +786,7 @@ export function GearPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -842,7 +842,7 @@ export function GearPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">External Gear Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
             {renderField("port_connection",     "Port Connection",       GEAR_COMMON_OPTS.port_conn,     true)}
             {renderFreeText("port_size",        "Port Size (DN/NPS)",    "e.g. DN50, 2\"")}
@@ -859,7 +859,7 @@ export function GearPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Internal Gear (Crescent) Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("gear_material",   "Gear Material",       GEAR_COMMON_OPTS.gear_material,  true)}
             {renderField("crescent_type",   "Crescent Type",       GEAR_COMMON_OPTS.crescent_type,  true)}
             {renderField("idler_pin_type",  "Idler Pin Type",      GEAR_COMMON_OPTS.idler_pin_type, true)}
@@ -878,7 +878,7 @@ export function GearPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Helical Gear Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
             {renderField("helix_angle",         "Helix Angle",           GEAR_COMMON_OPTS.helix_angle)}
             {renderField("noise_class",         "Noise Class",           GEAR_COMMON_OPTS.noise_class)}
@@ -897,7 +897,7 @@ export function GearPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Bi-Helical / Herringbone Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("gear_material",       "Gear Material",         GEAR_COMMON_OPTS.gear_material, true)}
             {renderField("bearing_type",        "Bearing Type",          GEAR_COMMON_OPTS.bearing_type,  true)}
             {renderFreeText("max_diff_pressure","Max Diff. Pressure",    "e.g. 40 bar",                  true)}
@@ -916,7 +916,7 @@ export function GearPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("flow_rate",      "Flow Rate",             GEAR_COMMON_OPTS.flow_rate,      true)}
             {renderField("diff_pressure",  "Differential Pressure", GEAR_COMMON_OPTS.diff_pressure,  true)}
             {renderField("fluid",          "Fluid",                 GEAR_COMMON_OPTS.fluid,          true)}
@@ -931,7 +931,7 @@ export function GearPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("mounting",       "Mounting",              GEAR_COMMON_OPTS.mounting,       true)}
             {renderField("drive_type",     "Drive Type",            GEAR_COMMON_OPTS.drive_type,     true)}
             {renderField("service_type",   "Service Type",          GEAR_COMMON_OPTS.service_type,   true)}
@@ -946,7 +946,7 @@ export function GearPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Performance & Area</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("speed_rpm",          "Speed (RPM)",          GEAR_COMMON_OPTS.speed_rpm)}
             {renderField("motor_power_kw",     "Motor Power (kW)",     GEAR_COMMON_OPTS.motor_power_kw)}
             {renderField("api_standard",       "API Standard",         GEAR_COMMON_OPTS.api_676)}
@@ -1229,7 +1229,7 @@ export function ScrewPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -1284,7 +1284,7 @@ export function ScrewPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Single Screw Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_s,    true)}
             {renderField("liner_material", "Liner / Casing",    SCREW_COMMON_OPTS.liner_material,  true)}
             {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,      true)}
@@ -1300,7 +1300,7 @@ export function ScrewPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Twin Screw Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
             {renderField("timing_gears",   "Timing Gears",      SCREW_COMMON_OPTS.timing_gears, true)}
             {renderField("self_priming",   "Self-Priming",      SCREW_COMMON_OPTS.yes_no,       true)}
@@ -1318,7 +1318,7 @@ export function ScrewPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Triple Screw Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("screw_material", "Screw Material",    SCREW_COMMON_OPTS.screw_mat_tw, true)}
             {renderField("noise_level",    "Noise Level",       SCREW_COMMON_OPTS.noise_level)}
             {renderField("port_connection","Port Connection",   SCREW_COMMON_OPTS.port_conn,    true)}
@@ -1335,7 +1335,7 @@ export function ScrewPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Progressive Cavity Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("rotor_material",    "Rotor Material",    SCREW_COMMON_OPTS.rotor_material,   true)}
             {renderField("stator_elastomer",  "Stator Elastomer",  SCREW_COMMON_OPTS.stator_elastomer, true)}
             {renderField("speed_control",     "Speed Control",     SCREW_COMMON_OPTS.speed_control,    true)}
@@ -1355,7 +1355,7 @@ export function ScrewPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("flow_rate",      "Flow Rate",             SCREW_COMMON_OPTS.flow_rate,     true)}
             {renderField("diff_pressure",  "Differential Pressure", SCREW_COMMON_OPTS.diff_pressure, true)}
             {renderField("fluid",          "Fluid",                 SCREW_COMMON_OPTS.fluid,         true)}
@@ -1370,7 +1370,7 @@ export function ScrewPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("mounting",       "Mounting",       SCREW_COMMON_OPTS.mounting,       true)}
             {renderField("drive_type",     "Drive Type",     SCREW_COMMON_OPTS.drive_type,     true)}
             {renderField("service_type",   "Service Type",   SCREW_COMMON_OPTS.service_type,   true)}
@@ -1385,7 +1385,7 @@ export function ScrewPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Performance & Area</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("speed_rpm",          "Speed (RPM)",         SCREW_COMMON_OPTS.speed_rpm)}
             {renderField("motor_power_kw",     "Motor Power (kW)",    SCREW_COMMON_OPTS.motor_power_kw)}
             {renderField("area_classification","Area Classification", SCREW_COMMON_OPTS.area_class)}
@@ -1667,7 +1667,7 @@ export function MultistagePumpAttrsForm({
   }
   function sectionHeader(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -1727,7 +1727,7 @@ export function MultistagePumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Horizontal Multistage — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_stages",       "Number of Stages",    true)}
             {renderField("impeller_type",    "Impeller Type",       true)}
             {renderField("casing_split",     "Casing Split",        true)}
@@ -1748,7 +1748,7 @@ export function MultistagePumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vertical Multistage — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_stages",       "Number of Stages",        true)}
             {renderField("impeller_type",    "Impeller Type",           true)}
             {renderField("column_length",    "Column / Setting Length", false, true)}
@@ -1769,7 +1769,7 @@ export function MultistagePumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Ring Section — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_stages",       "Number of Stages",     true)}
             {renderField("impeller_type",    "Impeller Type",        true)}
             {renderField("rotor_type",       "Rotor Arrangement")}
@@ -1789,7 +1789,7 @@ export function MultistagePumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Barrel Type — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_stages",       "Number of Stages",     true)}
             {renderField("inner_casing_type","Inner Casing Split",   true)}
             {renderField("impeller_type",    "Impeller Type",        true)}
@@ -1811,7 +1811,7 @@ export function MultistagePumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("flow_rate",     "Flow Rate (m³/hr)",  true)}
             {renderField("head_mlc",      "Head / TDH (mLC)",   true)}
             {renderField("fluid",         "Fluid",              true)}
@@ -1828,7 +1828,7 @@ export function MultistagePumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional / Additional</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("operating_temp", "Operating Temp")}
             <div className="space-y-1.5">
               <Label className="text-xs">Specific Gravity</Label>
@@ -2134,7 +2134,7 @@ export function DosingPumpAttrsForm({
   }
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -2190,7 +2190,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Diaphragm Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("diaphragm_material", "Diaphragm Material",   DOSING_COMMON_OPTS.diaphragm_material, true)}
             {renderField("diaphragm_design",   "Diaphragm Design",     DOSING_COMMON_OPTS.diaphragm_design,   true)}
             {renderField("control_type",       "Control Type",         DOSING_COMMON_OPTS.ctrl_dp,            true)}
@@ -2207,7 +2207,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Plunger Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("plunger_material", "Plunger Material",   DOSING_COMMON_OPTS.plunger_material, true)}
             {renderField("packing_material", "Packing Material",   DOSING_COMMON_OPTS.packing_material, true)}
             {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,        true)}
@@ -2221,7 +2221,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Piston Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("piston_material",  "Piston Material",    DOSING_COMMON_OPTS.piston_material,   true)}
             {renderField("packing_seal_type","Packing / Seal Type",DOSING_COMMON_OPTS.packing_seal_type, true)}
             {renderField("num_heads",        "Number of Heads",    DOSING_COMMON_OPTS.num_heads,         true)}
@@ -2235,7 +2235,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Peristaltic Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("hose_material",  "Hose / Tube Material", DOSING_COMMON_OPTS.hose_material,  true)}
             {renderField("reversible",     "Reversible",           DOSING_COMMON_OPTS.yes_no,         true)}
             {renderField("speed_control",  "Speed Control",        DOSING_COMMON_OPTS.speed_control,  true)}
@@ -2249,7 +2249,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Solenoid Dosing Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("diaphragm_material","Diaphragm Material", DOSING_COMMON_OPTS.diaphragm_material, true)}
             {renderField("wetted_material",   "Wetted Material",    DOSING_COMMON_OPTS.wetted_material,    true)}
             {renderField("control_type",      "Control Type",       DOSING_COMMON_OPTS.ctrl_sol,           true)}
@@ -2266,7 +2266,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("flow_rate",           "Flow Rate",           DOSING_COMMON_OPTS.flow_rate,           true)}
             {renderField("discharge_pressure",  "Discharge Pressure",  DOSING_COMMON_OPTS.discharge_pressure,  true)}
             {renderField("dosing_accuracy",     "Dosing Accuracy",     DOSING_COMMON_OPTS.dosing_accuracy,     true)}
@@ -2281,7 +2281,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("mounting",     "Mounting",     DOSING_COMMON_OPTS.mounting,     true)}
             {renderField("drive_type",   "Drive Type",   DOSING_COMMON_OPTS.drive_type,   true)}
             {renderField("service_type", "Service Type", DOSING_COMMON_OPTS.service_type, true)}
@@ -2294,7 +2294,7 @@ export function DosingPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional — Controls & Area</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderFreeText("motor_power",     "Motor Power",          "e.g. 0.37 kW")}
             {renderField("control_panel",      "Control Panel",        ["Integral","Remote","None"])}
             {renderField("pulsation_dampener", "Pulsation Dampener",   DOSING_COMMON_OPTS.yes_no)}
@@ -2511,7 +2511,7 @@ export function VacuumBoosterAttrsForm({
   }
   function sectionHeader(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -2571,7 +2571,7 @@ export function VacuumBoosterAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Roots Blower — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("rotor_profile",        "Rotor Profile")}
             {renderField("drive_type",           "Drive Type")}
             {renderField("pressure_differential","Pressure Differential")}
@@ -2587,7 +2587,7 @@ export function VacuumBoosterAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Vacuum Booster — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("booster_compression_ratio","Compression Ratio")}
             {renderField("bypass_valve",             "Bypass Valve")}
             {renderField("backing_pump_type",        "Backing Pump Type")}
@@ -2602,7 +2602,7 @@ export function VacuumBoosterAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Twin Lobe — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("rotor_profile",        "Rotor Profile")}
             {renderField("drive_type",           "Drive Type")}
             {renderField("pressure_differential","Pressure Differential")}
@@ -2617,7 +2617,7 @@ export function VacuumBoosterAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Tri-Lobe — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("drive_type",           "Drive Type")}
             {renderField("pressure_differential","Pressure Differential")}
             {renderField("silencer_included",    "Silencer Included")}
@@ -2633,7 +2633,7 @@ export function VacuumBoosterAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("flow_rate",          "Flow Rate (m³/hr)",  true)}
             {renderField("suction_pressure",   "Suction Pressure",   true)}
             {renderField("discharge_pressure", "Discharge Pressure", true)}
@@ -2648,7 +2648,7 @@ export function VacuumBoosterAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-slate-400 shrink-0" />
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Optional / Additional</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("motor_power_kw",    "Motor Power (kW)")}
             {renderField("speed_rpm",         "Speed (RPM)")}
             {renderField("operating_temp",    "Operating Temp")}
@@ -2944,7 +2944,7 @@ export function VacuumPumpAttrsForm({
   }
   function sectionHeader(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -3005,7 +3005,7 @@ export function VacuumPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Liquid Ring — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("sealing_liquid",       "Sealing Liquid",      true)}
             {renderField("compression_stages",   "Compression Stages")}
             {renderField("port_connection",      "Port Connection",     true)}
@@ -3021,7 +3021,7 @@ export function VacuumPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Dry Screw — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("compression_stages",  "Compression Stages",  true)}
             {renderField("screw_profile",       "Screw Profile",       true)}
             {renderField("cooling_type",        "Cooling Type",        true)}
@@ -3037,7 +3037,7 @@ export function VacuumPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Rotary Vane — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("oil_sealed",      "Oil Sealed",         true)}
             {renderField("num_stages_rv",   "Number of Stages",   true)}
             {renderField("cooling_type",    "Cooling Type",       true)}
@@ -3053,7 +3053,7 @@ export function VacuumPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Reciprocating — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_cylinders",       "Number of Cylinders", true)}
             {renderField("compression_stages",  "Compression Stages",  true)}
             {renderField("cooling_type",        "Cooling Type",        true)}
@@ -3069,7 +3069,7 @@ export function VacuumPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-violet-500 shrink-0" />
             <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest">Steam Jet Ejector — Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("num_stages_ejector",       "Number of Stages",        true)}
             {renderField("motive_steam_pressure",    "Motive Steam Pressure",   true, true)}
             {renderField("intercondenser_type",      "Intercondenser Type")}
@@ -3086,7 +3086,7 @@ export function VacuumPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Operating Conditions</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("suction_capacity_m3hr",  "Suction Capacity (m³/hr)",    true)}
             {renderField("operating_vacuum_mbar",  "Operating Vacuum (mbar abs)", true)}
             {renderField("discharge_pressure_barg","Discharge Pressure (bar g)",  true)}
@@ -3103,7 +3103,7 @@ export function VacuumPumpAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Mechanical Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("mounting",      "Mounting",      true)}
             {renderField("drive_type",    "Drive Type",    true)}
             {renderField("material_class","Material Class",true)}
@@ -3126,7 +3126,7 @@ export function VacuumPumpAttrsForm({
               <div className="w-[3px] h-4 rounded-full bg-indigo-500 shrink-0" />
               <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest">Electrical & Motor</p>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
               {renderField("motor_power_kw",        "Motor Power (kW)",  true)}
               {renderField("supply_voltage",        "Supply Voltage",    true)}
               {renderField("motor_enclosure",       "Motor Enclosure")}
@@ -3341,7 +3341,7 @@ export function PumpSkidAttrsForm({
   }
   function sectionHeader(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -3410,7 +3410,7 @@ export function PumpSkidAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Details</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("pump_type",     "Pump Type",     true)}
             {renderField("num_pumps",     "Number of Pumps")}
             {renderField("standby_config","Standby Config")}
@@ -3423,7 +3423,7 @@ export function PumpSkidAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-emerald-500 shrink-0" />
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Capacity (Indicative)</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("flow_rate",     "Flow Rate (m³/hr)")}
             {renderField("head_pressure", "Head / Pressure")}
             {renderField("fluid",         "Process Fluid")}
@@ -3435,7 +3435,7 @@ export function PumpSkidAttrsForm({
             <div className="w-[3px] h-4 rounded-full bg-amber-500 shrink-0" />
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Package Configuration</p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("mounting",         "Mounting")}
             {renderField("material_class",   "Material Class")}
             {renderField("testing_standard", "Testing Standard")}
