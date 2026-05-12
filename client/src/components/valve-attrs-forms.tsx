@@ -168,10 +168,7 @@ const CONTROL_ALL_FIELD_OPTS: Record<string, string[]> = {
   temperature_class:   CONTROL_COMMON_OPTS.temperature_class,
 };
 
-const CONTROL_VALVE_MAKES = [
-  "AUMA","Belimo","Bray","Crane","Fisher (Emerson)","Flowserve",
-  "IMI CCI","KMC","KOSO","L&T Valves","Metso Neles","Rotork","Samson","Spirax Sarco",
-];
+const CONTROL_VALVE_MAKES: string[] = [];
 
 export function buildControlValveRequirement(attrs: Record<string, unknown>): string {
   const type     = (attrs.valve_type      as string)?.trim() || "";
@@ -665,10 +662,7 @@ const SAFETY_ALL_FIELD_OPTS: Record<string, string[]> = {
   api_orifice:       API_ORIFICE_OPTS,
 };
 
-const SAFETY_VALVE_MAKES = [
-  "Anderson Greenwood (Baker Hughes)","Aquatrol","Cashco","Consolidated (Emerson)",
-  "Crosby (Emerson)","Leser","OPW","Pentair (Varec)","PROTEGO","Tyco / Bharat Valves",
-];
+const SAFETY_VALVE_MAKES: string[] = [];
 
 export function buildSafetyValveRequirement(attrs: Record<string, unknown>): string {
   const type     = (attrs.valve_type as string)?.trim() || "";
@@ -1208,10 +1202,7 @@ const OO_ALL_FIELD_OPTS: Record<string, string[]> = {
   body_lining:         OO_COMMON_OPTS.body_lining,
 };
 
-const OO_VALVE_MAKES = [
-  "AUMA","Crane ChemPharma","Emerson (Fisher)","Flowserve (BW Valves)",
-  "KSB","L&T Valves","Metso","Neway (Adler)","Rotork","Velan",
-];
+const OO_VALVE_MAKES: string[] = [];
 
 const OO_ACTUATED_TYPES = ["Pneumatic Actuator","Electric Actuator","Hydraulic Actuator"];
 
@@ -2300,10 +2291,7 @@ const NRV_ALL_FIELD_OPTS: Record<string, string[]> = {
   foot_seat_material:   NRV_COMMON_OPTS.foot_seat_material,
 };
 
-const NRV_VALVE_MAKES = [
-  "Abacus Valves","Audco (L&T)","AVK","Bonney Forge","Crane",
-  "DFT Inc.","Flowserve","KSB","Neway (Adler)","Velan",
-];
+const NRV_VALVE_MAKES: string[] = [];
 
 export function buildNrvValveRequirement(attrs: Record<string, unknown>): string {
   const type    = (attrs.valve_type as string)?.trim() || "";
@@ -2757,9 +2745,7 @@ const NEEDLE_ALL_FIELD_OPTS: Record<string, string[]> = {
   vent_type:       NEEDLE_COMMON_OPTS.vent_type,
 };
 
-const NEEDLE_VALVE_MAKES = [
-  "Autoclave Engineers","Ham-Let","Hoke","Oliver Valves","Parker","Swagelok","WIKA",
-];
+const NEEDLE_VALVE_MAKES: string[] = [];
 
 export function buildNeedleValveRequirement(attrs: Record<string, unknown>): string {
   const type      = (attrs.valve_type     as string)?.trim() || "";

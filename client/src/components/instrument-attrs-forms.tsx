@@ -218,9 +218,9 @@ const PRESSURE_ALL_FIELD_OPTS: Record<string, string[]> = {
   sil_requirement:      PRESSURE_COMMON_OPTS.sil_requirement,
   range_unit:           ["bar", "kg/cm²", "psi", "kPa", "MPa", "mmWC", "Pa", "mbar", "inH₂O"],
 };
-const PRESSURE_PG_MAKES     = ["WIKA", "Bourdon", "BOURDAN", "Ashcroft", "Baumer", "H.Guru", "Fiebig", "Nuova Fima", "Winters", "RADIX"];
-const PRESSURE_PT_DPT_MAKES = ["Endress+Hauser", "Yokogawa", "Emerson (Rosemount)", "ABB", "Honeywell", "WIKA", "Siemens", "Dwyer", "RADIX", "VEGA"];
-const PRESSURE_PS_MAKES     = ["Danfoss", "WIKA", "United Electric", "Barksdale", "Honeywell", "Dwyer", "Nuova Fima", "Bourdon", "BOURDAN", "RADIX", "VEGA"];
+const PRESSURE_PG_MAKES:     string[] = [];
+const PRESSURE_PT_DPT_MAKES: string[] = [];
+const PRESSURE_PS_MAKES:     string[] = [];
 
 export function buildPressureRequirement(attrs: Record<string, unknown>): string {
   const instrType = (attrs.instrument_type as string)?.trim() || "";

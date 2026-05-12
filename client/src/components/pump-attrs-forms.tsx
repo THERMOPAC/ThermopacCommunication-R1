@@ -144,7 +144,7 @@ const CENTRIFUGAL_ALL_FIELD_OPTS: Record<string, string[]> = {
   bowl_diameter:         CENTRIFUGAL_COMMON_OPTS.bowl_diameter,
   motor_platform:        CENTRIFUGAL_COMMON_OPTS.motor_platform,
 };
-const PUMP_MAKES = ["KSB","KSB INDIA","Grundfos","SPX Flow","SPX JOHNSON PUMP INDIA","Flowserve","Sulzer","Kirloskar","WILO","CNP","ITT","Armstrong","MAS","PRAKASH PUMP"];
+const PUMP_MAKES: string[] = [];
 const PUMP_SERIES_BY_MAKE: Record<string, string[]> = {
   "KSB":       ["Etanorm","MegaCPK","Omega","Movitec"],
   "Grundfos":  ["CR","NK","CM","TP","S"],
@@ -658,10 +658,7 @@ const GEAR_ALL_FIELD_OPTS: Record<string, string[]> = {
   bearing_type:         GEAR_COMMON_OPTS.bearing_type,
   lube_system:          GEAR_COMMON_OPTS.lube_system,
 };
-const GEAR_PUMP_MAKES = [
-  "Viking Pump","VIKING","Varisco","SPX Flow","SPX JOHNSON PUMP INDIA","Roper Pump","Tuthill","TUTHIL USA","Leistritz",
-  "Maag","Bosch Rexroth","Colfax","Gorman-Rupp","IMO Pump","Desmi","KOWEL PRECISION CO LTD","TUSHACO",
-];
+const GEAR_PUMP_MAKES: string[] = [];
 
 function buildGearPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
@@ -1104,10 +1101,7 @@ const SCREW_ALL_FIELD_OPTS: Record<string, string[]> = {
   speed_control:       SCREW_COMMON_OPTS.speed_control,
   dry_run_protection:  SCREW_COMMON_OPTS.yes_no,
 };
-const SCREW_PUMP_MAKES = [
-  "Allweiler","Leistritz","IMO Pump","Bornemann","NETZSCH","Mono Pumps",
-  "Roto","PCM","Seepex","Hugo Vogel","CIRCOR","Desmi","TUSHACO","SPX JOHNSON PUMP INDIA",
-];
+const SCREW_PUMP_MAKES: string[] = [];
 
 function buildScrewPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
@@ -1554,10 +1548,7 @@ const MS_ALL_FIELD_OPTS: Record<string, string[]> = {
   back_to_back:       MS_COMMON_OPTS.yes_no,
   inner_casing_type:  MS_COMMON_OPTS.inner_casing,
 };
-const MULTISTAGE_PUMP_MAKES = [
-  "Grundfos","KSB","KSB INDIA","Sulzer","Flowserve","Ebara","WILO","CNP",
-  "Caprari","Lowara","Torishima","Ruhrpumpen","ITT (Goulds Pumps)","Xylem",
-];
+const MULTISTAGE_PUMP_MAKES: string[] = [];
 
 function buildMultistagePumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
@@ -2014,10 +2005,7 @@ const DOSING_ALL_FIELD_OPTS: Record<string, string[]> = {
   speed_control:       DOSING_COMMON_OPTS.speed_control,
   ip_rating:           DOSING_COMMON_OPTS.ip_rating,
 };
-const DOSING_PUMP_MAKES = [
-  "ProMinent","Grundfos Alldos","Milton Roy","Sera","SEKO","Emec",
-  "Pulsafeeder","Watson-Marlow","LEWA","Iwaki","Verder","IDEX",
-];
+const DOSING_PUMP_MAKES: string[] = [];
 
 function buildDosingPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
@@ -2427,9 +2415,7 @@ const VB_ALL_FIELD_OPTS: Record<string, string[]> = {
   ip_rating_motor:           ["IP44","IP54","IP55","IP65"],
   operating_temp:            ["Ambient","50°C","80°C","100°C","120°C","150°C"],
 };
-const VACUUM_BOOSTER_MAKES = [
-  "MD-Kinney","Busch","Pfeiffer","Atlas Copco","Leybold","Edwards","Elmo Rietschle","Tuthill","Agilent","ORION",
-];
+const VACUUM_BOOSTER_MAKES: string[] = [];
 
 function buildVacuumBoosterDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
@@ -2801,11 +2787,7 @@ const VP_ALL_FIELD_OPTS: Record<string, string[]> = {
   speed_rpm:                ["960 RPM", "1450 RPM", "1500 RPM", "2900 RPM", "2950 RPM", "Variable"],
   vfd_required:             ["Yes", "No"],
 };
-const VACUUM_PUMP_MAKES = [
-  "Busch", "Gardner Denver (Elmo Rietschle)", "Nash (Atlas Copco)", "Sterling SIHI (SPX Flow)",
-  "Pfeiffer Vacuum", "Atlas Copco", "Becker", "Kinetic Pumps", "Cutes Corporation",
-  "Graham Corporation", "Croll-Reynolds", "Mazda Vacuum", "ORION",
-];
+const VACUUM_PUMP_MAKES: string[] = [];
 const VP_SEAL_DEFAULTS: Record<string, string> = {
   "Liquid Ring":       "Liquid Ring (Integral)",
   "Dry Screw":         "Dry Running Seal",
@@ -3269,9 +3251,7 @@ const PUMP_SKID_COMPONENT_OPTS = [
   "VFD","Instrumentation","Piping","Valves","NRV",
   "Pressure Gauges","Flow Meter","Strainer","Relief Valve","Expansion Joints",
 ];
-const PUMP_SKID_MAKES = [
-  "Flowserve","KSB","KSB INDIA","Grundfos","Sulzer","Ebara","Ruhrpumpen","SPX","SPX JOHNSON PUMP INDIA","Peerless","Kirloskar","WILO","MAS","PRAKASH PUMP",
-];
+const PUMP_SKID_MAKES: string[] = [];
 
 function buildPumpSkidDefaults(pkgType: string): Record<string, unknown> {
   const base: Record<string, unknown> = {

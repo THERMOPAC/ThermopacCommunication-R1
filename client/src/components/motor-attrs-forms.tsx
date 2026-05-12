@@ -182,7 +182,7 @@ export function applyFlameproofMotorDefaults(existing: Record<string, unknown>):
   return result;
 }
 
-const MOTOR_MAKES = ["ABB", "Siemens", "WEG", "Crompton", "Kirloskar", "Bharat Bijlee", "Havells", "Leroy Somer", "TECO"];
+const MOTOR_MAKES: string[] = [];
 
 export function MotorAttrsForm({
   attrs, qty, isFlameproof, onChange, onQtyChange,
