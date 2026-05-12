@@ -79,6 +79,16 @@ function requireManager(req: Request, res: Response): boolean {
   return true;
 }
 
+function requireSeniorExecutive(req: Request, res: Response): boolean {
+  const role = (req.user as any)?.role;
+  const level = roleHierarchy[role] ?? 999;
+  if (level > roleHierarchy['Senior Executive']) {
+    sendPermissionError(res, 'Senior Executive or above required for this action.');
+    return false;
+  }
+  return true;
+}
+
 // ─── Route setup (called from routes.ts) ─────────────────────────────────────
 export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
@@ -752,10 +762,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
-  // POST /api/buy-packages/:id/lines — add line (Manager+, draft only)
+  // POST /api/buy-packages/:id/lines — add line (Senior Executive+, draft only)
   app.post('/api/buy-packages/:id/lines', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {
-      if (!requireManager(req, res)) return;
+      if (!requireSeniorExecutive(req, res)) return;
       const headerId = parseInt(req.params.id);
       if (isNaN(headerId)) return sendValidationError(res, 'Invalid package id');
 
@@ -817,10 +827,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
-  // PATCH /api/buy-package-lines/:id — edit line (Manager+, draft package only)
+  // PATCH /api/buy-package-lines/:id — edit line (Senior Executive+, draft package only)
   app.patch('/api/buy-package-lines/:id', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {
-      if (!requireManager(req, res)) return;
+      if (!requireSeniorExecutive(req, res)) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid line id');
 
@@ -868,10 +878,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
-  // DELETE /api/buy-package-lines/:id — delete line (Manager+, draft package only)
+  // DELETE /api/buy-package-lines/:id — delete line (Senior Executive+, draft package only)
   app.delete('/api/buy-package-lines/:id', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {
-      if (!requireManager(req, res)) return;
+      if (!requireSeniorExecutive(req, res)) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid line id');
 
