@@ -1,6 +1,6 @@
 # BUY Item Code Generation — Baseline v1.3
 
-**Status: SUBMITTED FOR MANAGEMENT APPROVAL — FROZEN PENDING SIGN-OFF**
+**Status: SUBMITTED FOR MANAGEMENT APPROVAL — FINAL CORRECTED VERSION — FROZEN PENDING SIGN-OFF**
 **Date: 2026-05-12**
 **Supersedes:** Baseline v1.2 (2026-05-11)
 
@@ -217,11 +217,15 @@ buildShortItemName(segments) → string
 
 | Item Code | Auto-generated short_item_name | Chars |
 |-----------|-------------------------------|-------|
-| `VALVE-ISO-BAL-CS-C150-050-NB` | Ball Valve, 50 NB, CS Body, ANSI 150 | 37 |
-| `VALVE-ISO-BAL-SS3-C300-050-NB` | Ball Valve, 50 NB, SS316 Body, ANSI 300 | 40 |
+| `VALVE-ISO-BAL-150F-CS-050-NB` | Ball Valve, 50 NB, ANSI 150 Flanged, CS Body | 45 |
+| `VALVE-ISO-BAL-150T-CS-050-NB` | Ball Valve, 50 NB, ANSI 150 Threaded, CS Body | 46 |
+| `VALVE-ISO-BAL-300F-SS3-050-NB` | Ball Valve, 50 NB, ANSI 300 Flanged, SS316 Body | 48 |
+| `VALVE-ISO-BTF-150W-CS-200-NB` | Butterfly Valve, 200 NB, ANSI 150 Wafer, CS Body | 50 |
 | `VALVE-CTL-GLB-CS-SS3-100-NB` | Globe Control Valve, 100 NB, CS Body, SS316 Trim | 49 |
 | `VALVE-CTL-GLB-CS-ALS-100-NB` | Globe Control Valve, 100 NB, CS Body, Alloy Steel Trim | 55 |
 | `VALVE-CTL-GLB-A20-A20-100-NB` | Globe Control Valve, 100 NB, Alloy 20 Body, Alloy 20 Trim | 58 |
+| `VALVE-CHK-DUL-150F-CS-150-NB` | Dual Plate Check Valve, 150 NB, ANSI 150 Flanged, CS Body | 58 |
+| `VALVE-CHK-DUL-150W-CS-150-NB` | Dual Plate Check Valve, 150 NB, ANSI 150 Wafer, CS Body | 56 |
 | `PUMPS-CEN-HOR-SS3-MS-1000-LPH` | Centrifugal Pump, Horizontal, 1000 LPH, SS316 Wetted, Mech Seal | 64 |
 | `PUMPS-DOS-DPH-PVDF-PTFE-050-LPH` | Dosing Pump, Diaphragm, 50 LPH, PVDF Head, PTFE Diaphragm | 59 |
 | `MOTOR-FLP-ACI-LV-4P-110-KW` | Flameproof Motor, AC Induction, 110 kW, 415V, 4-Pole | 53 |
@@ -237,7 +241,7 @@ buildShortItemName(segments) → string
 | `PIPES-CS-NA-S40-NA-050-NB` | CS Pipe, 50 NB, Schedule 40 | 28 |
 | `FLANG-DSS-NA-C300-BLN-100-NB` | Duplex SS Flange, 100 NB, ANSI 300, Blind | 43 |
 
-**Maximum observed across all Group/Subgroup combinations: 64 characters. Confirmed within the 100-character SAP limit.**
+**Maximum observed across all Group/Subgroup combinations: 65 characters (VALVE-CHK with Duplex SS body). Confirmed within the 100-character SAP limit.**
 
 ### 4.4 User Override
 
@@ -292,39 +296,62 @@ Each section below defines:
 
 #### VALVE-ISO — Isolation Valves (Ball, Gate, Globe ISO, Butterfly, Plug)
 
-**Governing principle applied:** A CS 100 NB ANSI 150 ball valve and a CS 100 NB ANSI 300 ball valve have different face-to-face dimensions, different wall thickness, different bolting — they cannot substitute for each other. Pressure class is ItemCode identity. End connection (almost always flanged in process plants; threaded for small bore) is project-specified at PO level → Variant.
+**Engineering review finding (v1.3 final correction):** Three attributes are all ItemCode identity for isolation valves: body material, pressure class, and end connection. A CS ANSI 150 ball valve with a flanged end and a CS ANSI 150 ball valve with a threaded end are different SAP inventory items — different installation, different piping class, different procurement source, not physically interchangeable. With only two SEG slots available (SEG4 and SEG5), the solution is to **combine pressure class and end connection into a single 4-character SEG4 code**. SEG5 carries body material.
 
-| | Attribute | Code | Label |
-|-|-----------|------|-------|
-| **SEG4** | Body Material (MOC) | `CS` | Carbon Steel |
-| | | `SS3` | SS316 / SS316L |
-| | | `SS4` | SS304 / SS304L |
-| | | `DSS` | Duplex SS 2205 |
-| | | `A20` | Alloy 20 |
-| | | `GCI` | Grey Cast Iron |
-| | | `DCI` | Ductile Cast Iron |
-| | | `HAC` | Hastelloy C-276 |
-| **SEG5** | Pressure Class | `C150` | ANSI Class 150 |
-| | | `C300` | ANSI Class 300 |
-| | | `C600` | ANSI Class 600 |
-| | | `C900` | ANSI Class 900 |
-| | | `PN16` | PN 16 (DIN) |
-| | | `PN40` | PN 40 (DIN) |
+**SEG4 — Combined Pressure Class + End Connection code (exactly 4 chars):**
 
-**ItemCode identity attributes:** Body material, pressure class, nominal bore, valve type (ball/gate/globe/butterfly).
+| SEG4 Code | Pressure Class | End Connection | Label |
+|-----------|---------------|----------------|-------|
+| `150F` | ANSI Class 150 | Flanged (RF/FF) | ANSI 150 Flanged |
+| `150T` | ANSI Class 150 | Threaded (NPT/BSP) | ANSI 150 Threaded |
+| `150S` | ANSI Class 150 | Socket Weld | ANSI 150 Socket Weld |
+| `150B` | ANSI Class 150 | Butt Weld | ANSI 150 Butt Weld |
+| `150W` | ANSI Class 150 | Wafer | ANSI 150 Wafer |
+| `150L` | ANSI Class 150 | Lug | ANSI 150 Lug |
+| `300F` | ANSI Class 300 | Flanged | ANSI 300 Flanged |
+| `300T` | ANSI Class 300 | Threaded | ANSI 300 Threaded |
+| `300S` | ANSI Class 300 | Socket Weld | ANSI 300 Socket Weld |
+| `300B` | ANSI Class 300 | Butt Weld | ANSI 300 Butt Weld |
+| `300W` | ANSI Class 300 | Wafer | ANSI 300 Wafer |
+| `600F` | ANSI Class 600 | Flanged | ANSI 600 Flanged |
+| `600S` | ANSI Class 600 | Socket Weld | ANSI 600 Socket Weld |
+| `600B` | ANSI Class 600 | Butt Weld | ANSI 600 Butt Weld |
+| `900F` | ANSI Class 900 | Flanged | ANSI 900 Flanged |
+| `900B` | ANSI Class 900 | Butt Weld | ANSI 900 Butt Weld |
+| `P16F` | PN 16 | Flanged | PN16 Flanged |
+| `P40F` | PN 40 | Flanged | PN40 Flanged |
 
-**Variant-only attributes:** End connection (FLG/THD/SW/BW/WAF), trim material, seat material, disc material, bore type (full/reduced), ANSI face type (RF/FF), specific standard (API 6D / BS 5351), vendor, model number, datasheet.
+Only valid engineering combinations are seeded in the registry. Impractical combinations (e.g., ANSI 900 wafer, ANSI 600 threaded) are not seeded and cannot be selected.
+
+**SEG5 — Body Material (MOC):**
+
+| SEG5 Code | Label |
+|-----------|-------|
+| `CS` | CS Body |
+| `SS3` | SS316 Body |
+| `SS4` | SS304 Body |
+| `DSS` | Duplex SS Body |
+| `A20` | Alloy 20 Body |
+| `GCI` | Grey Cast Iron Body |
+| `DCI` | Ductile Cast Iron Body |
+| `HAC` | Hastelloy C-276 Body |
+
+**ItemCode identity attributes:** Pressure class, end connection (combined in SEG4), body material (SEG5), nominal bore, valve type.
+
+**Variant-only attributes:** Face type (RF vs FF — within the same flanged class), trim material, seat material, disc material, bore type (full/reduced), specific standard (API 6D / BS 5351 / ASME B16.34), vendor, model number, datasheet.
 
 | Item Code | Auto-generated ItemName | Chars |
 |-----------|------------------------|-------|
-| `VALVE-ISO-BAL-CS-C150-050-NB` | Ball Valve, 50 NB, CS Body, ANSI 150 | 37 |
-| `VALVE-ISO-BAL-SS3-C150-050-NB` | Ball Valve, 50 NB, SS316 Body, ANSI 150 | 40 |
-| `VALVE-ISO-BAL-CS-C300-050-NB` | Ball Valve, 50 NB, CS Body, ANSI 300 | 37 |
-| `VALVE-ISO-BAL-CS-C600-050-NB` | Ball Valve, 50 NB, CS Body, ANSI 600 | 37 |
-| `VALVE-ISO-GTD-CS-C150-100-NB` | Gate Valve, 100 NB, CS Body, ANSI 150 | 38 |
-| `VALVE-ISO-GLB-SS3-C150-050-NB` | Globe Valve, 50 NB, SS316 Body, ANSI 150 | 41 |
-| `VALVE-ISO-BTF-CS-C150-200-NB` | Butterfly Valve, 200 NB, CS Body, ANSI 150 | 43 |
-| `VALVE-ISO-PLG-CS-C150-080-NB` | Plug Valve, 80 NB, CS Body, ANSI 150 | 37 |
+| `VALVE-ISO-BAL-150F-CS-050-NB` | Ball Valve, 50 NB, ANSI 150 Flanged, CS Body | 45 |
+| `VALVE-ISO-BAL-150T-CS-050-NB` | Ball Valve, 50 NB, ANSI 150 Threaded, CS Body | 46 |
+| `VALVE-ISO-BAL-150S-CS-025-NB` | Ball Valve, 25 NB, ANSI 150 Socket Weld, CS Body | 49 |
+| `VALVE-ISO-BAL-300F-CS-050-NB` | Ball Valve, 50 NB, ANSI 300 Flanged, CS Body | 45 |
+| `VALVE-ISO-BAL-150F-SS3-050-NB` | Ball Valve, 50 NB, ANSI 150 Flanged, SS316 Body | 48 |
+| `VALVE-ISO-GTD-150F-CS-100-NB` | Gate Valve, 100 NB, ANSI 150 Flanged, CS Body | 46 |
+| `VALVE-ISO-GLB-150F-SS3-050-NB` | Globe Valve, 50 NB, ANSI 150 Flanged, SS316 Body | 50 |
+| `VALVE-ISO-BTF-150W-CS-200-NB` | Butterfly Valve, 200 NB, ANSI 150 Wafer, CS Body | 50 |
+| `VALVE-ISO-BTF-150L-CS-200-NB` | Butterfly Valve, 200 NB, ANSI 150 Lug, CS Body | 48 |
+| `VALVE-ISO-PLG-150F-CS-080-NB` | Plug Valve, 80 NB, ANSI 150 Flanged, CS Body | 45 |
 
 ---
 
@@ -389,18 +416,37 @@ SIZE = inlet bore (inches, per API 526 convention). UNIT = `IN`.
 
 #### VALVE-CHK — Check / Non-Return Valves
 
-| | Attribute | Code | Label |
-|-|-----------|------|-------|
-| **SEG4** | Body Material | `CS`, `SS3`, `SS4`, `DSS`, `A20`, `GCI` | Same MOC registry |
-| **SEG5** | Pressure Class | `C150`, `C300`, `C600`, `C900` | Same pressure class registry |
+**Engineering review finding (v1.3 final correction):** Same ruling as VALVE-ISO. A dual plate check valve (150 NB, CS, ANSI 150, wafer) and a dual plate check valve (150 NB, CS, ANSI 150, flanged) are different physical items — different bolting requirement, different installed length, not interchangeable. TYPE cannot carry this distinction because TYPE encodes the valve mechanism (swing/dual plate/lift), not the connection. Combined SEG4 applied.
 
-**Variant-only attributes:** End connection (FLG/WAF determined by TYPE: SWG=flanged, DUL=wafer, etc.), seat material, disc material, vendor, model.
+**SEG4 — Combined Pressure Class + End Connection (exactly 4 chars):**
+
+Same code set as VALVE-ISO, restricted to valid check valve combinations:
+
+| SEG4 Code | Label | Practical check valve types |
+|-----------|-------|-----------------------------|
+| `150F` | ANSI 150 Flanged | Swing (SWG), Dual Plate (DUL), Lift (LFT) |
+| `150W` | ANSI 150 Wafer | Dual Plate (DUL), Butterfly-type (BTF) |
+| `150T` | ANSI 150 Threaded | Small bore lift check |
+| `150S` | ANSI 150 Socket Weld | Small bore lift check |
+| `300F` | ANSI 300 Flanged | All types |
+| `300W` | ANSI 300 Wafer | Dual Plate |
+| `600F` | ANSI 600 Flanged | Swing, Dual Plate |
+| `600B` | ANSI 600 Butt Weld | Swing |
+| `900F` | ANSI 900 Flanged | Swing |
+
+**SEG5 — Body Material (MOC):** `CS`, `SS3`, `SS4`, `DSS`, `A20`, `GCI` — same MOC registry as VALVE-ISO.
+
+**ItemCode identity attributes:** Pressure class, end connection (combined SEG4), body material (SEG5), nominal bore, check valve type.
+
+**Variant-only attributes:** Seat material, disc/plate material, hinge material, spring type, specific standard (API 594 / API 6D / BS 1868), vendor, model.
 
 | Item Code | Auto-generated ItemName | Chars |
 |-----------|------------------------|-------|
-| `VALVE-CHK-SWG-CS-C150-100-NB` | Swing Check Valve, 100 NB, CS Body, ANSI 150 | 45 |
-| `VALVE-CHK-DUL-CS-C150-150-NB` | Dual Plate Check Valve, 150 NB, CS Body, ANSI 150 | 50 |
-| `VALVE-CHK-SWG-SS3-C150-080-NB` | Swing Check Valve, 80 NB, SS316 Body, ANSI 150 | 47 |
+| `VALVE-CHK-SWG-150F-CS-100-NB` | Swing Check Valve, 100 NB, ANSI 150 Flanged, CS Body | 53 |
+| `VALVE-CHK-SWG-150F-SS3-080-NB` | Swing Check Valve, 80 NB, ANSI 150 Flanged, SS316 Body | 56 |
+| `VALVE-CHK-DUL-150F-CS-150-NB` | Dual Plate Check Valve, 150 NB, ANSI 150 Flanged, CS Body | 58 |
+| `VALVE-CHK-DUL-150W-CS-150-NB` | Dual Plate Check Valve, 150 NB, ANSI 150 Wafer, CS Body | 56 |
+| `VALVE-CHK-DUL-300F-DSS-100-NB` | Dual Plate Check Valve, 100 NB, ANSI 300 Flanged, Duplex SS Body | 65 |
 
 ---
 
@@ -1353,6 +1399,7 @@ Item code (with suffix):  ^[A-Z]{5}-[A-Z0-9]{2,3}-[A-Z]{2,3}-[A-Z0-9]{2,4}-[A-Z0
 | Baseline v1.0 | 2026-05-11 | First consolidated approved baseline. |
 | Baseline v1.1 | 2026-05-11 | SAP limits confirmed. `sap_item_code` column removed. `short_item_name` VARCHAR(100). Validation constants hardcoded. |
 | Baseline v1.2 | 2026-05-11 | ItemName workflow: full description pre-fills `short_item_name`; user edits if > 100 chars. No auto-abbreviation. |
-| **Baseline v1.3** | **2026-05-12** | **7-segment architecture (GROUP-SUBGROUP-TYPE-SEG4-SEG5-SIZE-UNIT). Governing principle formally stated. SEG4/SEG5 defined for all Group/Subgroup combinations. Pressure class promoted to ItemCode identity for VALVE-ISO and VALVE-CHK. ELECT-PNL bus rating, Isc, IP confirmed Variant-only. ItemName reverted to 1:1 auto-generation from 7 code segments (buildShortItemName reinstated with 7-segment labels). Governance rules formally stated (suffix, NA, registry, extension control). Schema updated with `ic_seg4`, `ic_seg5` columns and `label` column in registry. All ItemCode examples and ItemName examples regenerated. Max code length 35 chars (with suffix). Max ItemName observed 68 chars.** |
+| **Baseline v1.3** | **2026-05-12** | **7-segment architecture (GROUP-SUBGROUP-TYPE-SEG4-SEG5-SIZE-UNIT). Governing principle formally stated. SEG4/SEG5 defined for all Group/Subgroup combinations. Pressure class promoted to ItemCode identity for VALVE-ISO and VALVE-CHK. ELECT-PNL bus rating, Isc, IP confirmed Variant-only. ItemName reverted to 1:1 auto-generation from 7 code segments (buildShortItemName reinstated with 7-segment labels). Governance rules formally stated (suffix, NA, registry, extension control). Schema updated with `ic_seg4`, `ic_seg5` columns and `label` column in registry. All ItemCode examples and ItemName examples regenerated. Max code length 35 chars (with suffix). Max ItemName observed 65 chars.** |
+| **Baseline v1.3 (Final Correction)** | **2026-05-12** | **VALVE-ISO and VALVE-CHK end connection engineering review. Finding: end connection is ItemCode identity (flanged, threaded, socket weld, butt weld, wafer, lug are not physically interchangeable and require separate SAP inventory records). Resolution: SEG4 changed from Body MOC to a combined Pressure Class + End Connection code (150F, 150T, 150S, 150B, 150W, 150L, 300F, 300T, …, 900F, 900B, P16F, P40F — exactly 4 chars each). SEG5 changed from Pressure Class to Body MOC. VALVE-SAF confirmed correct — no change (SEG4=Body MOC, SEG5=Inlet Connection FLG/THD already captures the only applicable end connection distinction for PSVs). All VALVE-ISO and VALVE-CHK ItemCode examples and ItemName examples regenerated. Max ItemName re-verified at 65 chars. This is the final version submitted for management sign-off.** |
 
 *This document is submitted for management approval. It is frozen pending sign-off. Any deviation requires a versioned amendment approved by management before implementation.*
