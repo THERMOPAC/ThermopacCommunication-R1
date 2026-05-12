@@ -425,7 +425,7 @@ export function PressureAttrsForm({
 
   function sectionHeader(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -490,7 +490,7 @@ export function PressureAttrsForm({
   function renderMakesBlock() {
     return (
       <>
-        <div className="col-span-2 space-y-2">
+        <div className="col-span-3 space-y-2">
           <Label className="text-xs">
             Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
             <span className="text-red-500"> *</span>
@@ -577,7 +577,7 @@ export function PressureAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -589,7 +589,7 @@ export function PressureAttrsForm({
 
       {/* Instrument Type */}
       <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2">
+        <div className="col-span-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Instrument Type <span className="text-red-500">*</span></Label>
             <Select value={instrType} onValueChange={(v) => { if (v !== instrType) handleTypeChange(v); }}>
@@ -605,7 +605,7 @@ export function PressureAttrsForm({
           </div>
         </div>
         {!instrType && (
-          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-4 text-sm text-muted-foreground">
             Select an instrument type above to configure specifications.
           </div>
         )}
@@ -775,7 +775,7 @@ export function PressureAttrsForm({
         <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
           {renderMakesBlock()}
           {qty !== undefined && (
-            <div className="space-y-1.5 col-span-2">
+            <div className="space-y-1.5 col-span-3">
               <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
               <Input className="h-8 text-sm" type="number" min="1" step="1"
                 value={qty}
@@ -954,7 +954,7 @@ export function TemperatureAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -977,7 +977,7 @@ export function TemperatureAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -989,7 +989,7 @@ export function TemperatureAttrsForm({
 
       {/* Instrument Type */}
       <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2">
+        <div className="col-span-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Instrument Type <span className="text-red-500">*</span></Label>
             <SearchableSelect value={instrTypeSelect} options={[...TEMP_INSTR_TYPES]} placeholder="Select…" onSelect={handleInstrTypeSelect} />
@@ -1000,7 +1000,7 @@ export function TemperatureAttrsForm({
           </div>
         </div>
         {!instrType && (
-          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-4 text-sm text-muted-foreground">
             Select an instrument type above to configure specifications.
           </div>
         )}
@@ -1057,7 +1057,7 @@ export function TemperatureAttrsForm({
         <SectionCard title="Measuring Range" color="bg-sky-50/60 border-sky-200">
           {ni("range_min", "Range Min", true, "-30", "e.g. -30", true)}
           {ni("range_max", "Range Max", true, "400", "e.g. 400", true)}
-          <div className="col-span-2">
+          <div className="col-span-3">
             {ss("range_unit", "Range Unit", ["°C","°F","K"], true, "°C")}
           </div>
         </SectionCard>
@@ -1113,7 +1113,7 @@ export function TemperatureAttrsForm({
       <SectionCard title="Cable Gland" color="bg-slate-50/80 border-slate-200">
         <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
+          <div className="space-y-1.5 col-span-3">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
@@ -1223,7 +1223,7 @@ export function FlowAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -1241,7 +1241,7 @@ export function FlowAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -1253,9 +1253,9 @@ export function FlowAttrsForm({
 
       {/* Instrument Type */}
       <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
+        <div className="col-span-3">{renderField("instrument_type", "Instrument Type", true)}</div>
         {!instrType && (
-          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-4 text-sm text-muted-foreground">
             Select an instrument type above to configure specifications.
           </div>
         )}
@@ -1283,7 +1283,7 @@ export function FlowAttrsForm({
         </SectionCard>
       ) : instrType ? (
         <SectionCard title="Body Material" color="bg-violet-50/60 border-violet-200">
-          <div className="col-span-2">{renderField("liner_material", "Liner / Body Material")}</div>
+          <div className="col-span-3">{renderField("liner_material", "Liner / Body Material")}</div>
         </SectionCard>
       ) : null}
 
@@ -1309,7 +1309,7 @@ export function FlowAttrsForm({
       <SectionCard title="Cable Gland" color="bg-slate-50/80 border-slate-200">
         <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
+          <div className="space-y-1.5 col-span-3">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
@@ -1422,7 +1422,7 @@ export function LevelAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-2 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -1451,7 +1451,7 @@ export function LevelAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {children}
         </div>
       </div>
@@ -1463,9 +1463,9 @@ export function LevelAttrsForm({
 
       {/* Instrument Type */}
       <SectionCard title="Instrument Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-2">{renderField("instrument_type", "Instrument Type", true)}</div>
+        <div className="col-span-3">{renderField("instrument_type", "Instrument Type", true)}</div>
         {!instrType && (
-          <div className="col-span-2 flex items-center justify-center py-4 text-sm text-muted-foreground">
+          <div className="col-span-3 flex items-center justify-center py-4 text-sm text-muted-foreground">
             Select an instrument type above to configure specifications.
           </div>
         )}
@@ -1492,7 +1492,7 @@ export function LevelAttrsForm({
             <Input className="h-8 text-sm" placeholder="e.g. 5" value={(attrs.range_max as string) ?? ""}
               onChange={(e) => set("range_max", e.target.value)} />
           </div>
-          <div className="col-span-2">{renderField("range_unit", "Range Unit", true)}</div>
+          <div className="col-span-3">{renderField("range_unit", "Range Unit", true)}</div>
         </SectionCard>
       )}
 
@@ -1523,7 +1523,7 @@ export function LevelAttrsForm({
       {/* Output Signal (transmitters only) */}
       {hasLevelSignal && (
         <SectionCard title="Output Signal" color="bg-violet-50/60 border-violet-200">
-          <div className="col-span-2">
+          <div className="col-span-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Output Signal <span className="text-red-500">*</span></Label>
               <Select value={(attrs.output_signal as string) || "4–20 mA + HART"} onValueChange={v => set("output_signal", v)}>
@@ -1565,7 +1565,7 @@ export function LevelAttrsForm({
       <SectionCard title="Cable Gland" color="bg-slate-50/80 border-slate-200">
         <CableGlandBlock attrs={attrs} onChange={onChange} />
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
+          <div className="space-y-1.5 col-span-3">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}

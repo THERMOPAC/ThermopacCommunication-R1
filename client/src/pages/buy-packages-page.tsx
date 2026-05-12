@@ -1983,7 +1983,7 @@ export default function BuyPackagesPage() {
           open={lineDialog.open}
           onOpenChange={(o) => !o && setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null })}
         >
-          <DialogContent className={cn("max-h-[90vh] overflow-y-auto", (isPlatesMode || isPipesMode || isFittingsMode || isFlangesMode || isFastenersMode || isGasketsMode || isStructuralSteelMode || isCentrifugalPumpMode || isGearPumpMode || isScrewPumpMode || isMultistagePumpMode || isDosingPumpMode || isVacuumBoosterMode || isPumpSkidMode || isVacuumPumpMode) ? "max-w-4xl" : "max-w-2xl")}>
+          <DialogContent className={cn("max-h-[90vh] overflow-y-auto", (isPlatesMode || isPipesMode || isFittingsMode || isFlangesMode || isFastenersMode || isGasketsMode || isStructuralSteelMode || isCentrifugalPumpMode || isGearPumpMode || isScrewPumpMode || isMultistagePumpMode || isDosingPumpMode || isVacuumBoosterMode || isPumpSkidMode || isVacuumPumpMode || isPressureMode || isTemperatureMode || isFlowMode || isLevelMode) ? "max-w-4xl" : "max-w-2xl")}>
             <DialogHeader>
               <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
               <DialogDescription>
