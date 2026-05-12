@@ -227,6 +227,7 @@ export function buildControlValveRequirement(attrs: Record<string, unknown>): st
     if (seatMat)   p.push(`${seatMat} Seat`);
     typeSpecific = p.join(", ");
   }
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
   const parts: string[] = [];
   if (type)         parts.push(type);
   if (sizeNb)       parts.push(sizeNb);
@@ -236,6 +237,7 @@ export function buildControlValveRequirement(attrs: Record<string, unknown>): st
   if (failAct)      parts.push(failAct);
   if (bodyMat)      parts.push(`${bodyMat} Body`);
   if (endConn)      parts.push(endConn);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -1203,6 +1205,8 @@ export function buildOnOffValveRequirement(attrs: Record<string, unknown>): stri
     if (design)  p2.push(design);
     typeSpecific = p2.join(", ");
   }
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
+  const certif    = (attrs.certification       as string)?.trim() || "";
   const isActuated = OO_ACTUATED_TYPES.includes(act);
   const parts: string[] = [];
   if (type)         parts.push(type);
@@ -1213,6 +1217,8 @@ export function buildOnOffValveRequirement(attrs: Record<string, unknown>): stri
   if (isActuated && fail) parts.push(fail);
   if (bodyStr)      parts.push(bodyStr);
   if (endConn)      parts.push(endConn);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
+  if (certif && areaClass && areaClass !== "Safe Area") parts.push(certif);
   return parts.join(", ");
 }
 
@@ -1690,6 +1696,7 @@ export function buildIsolationValveRequirement(attrs: Record<string, unknown>): 
   const rating    = (attrs.pressure_rating as string)?.trim() || "";
   const bodyMat   = (attrs.body_material   as string)?.trim() || "";
   const endConn   = (attrs.end_connection  as string)?.trim() || "";
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
   const vt        = valveType.toLowerCase();
   const parts: string[] = [];
   if (valveType) parts.push(valveType);
@@ -1698,43 +1705,64 @@ export function buildIsolationValveRequirement(attrs: Record<string, unknown>): 
   if (bodyMat)   parts.push(`${bodyMat} Body`);
   if (endConn)   parts.push(endConn);
   if (vt.includes("ball")) {
-    const bore = (attrs.bore_type     as string)?.trim() || "";
-    const seat = (attrs.seat_material as string)?.trim() || "";
-    if (bore) parts.push(bore);
-    if (seat) parts.push(`${seat} Seat`);
+    const ballDesign  = (attrs.ball_design   as string)?.trim() || "";
+    const bore        = (attrs.bore_type     as string)?.trim() || "";
+    const seat        = (attrs.seat_material as string)?.trim() || "";
+    const ballMat     = (attrs.ball_material as string)?.trim() || "";
+    const lockDevice  = (attrs.locking_device as string)?.trim() || "";
+    if (ballDesign) parts.push(ballDesign);
+    if (bore)       parts.push(bore);
+    if (seat)       parts.push(`${seat} Seat`);
+    if (ballMat)    parts.push(`${ballMat} Ball`);
+    if (lockDevice === "Yes") parts.push("With Locking Device");
   } else if (vt.includes("gate") && !vt.includes("knife")) {
-    const wedge = (attrs.wedge_type    as string)?.trim() || "";
-    const trim  = (attrs.trim_material as string)?.trim() || "";
-    if (wedge) parts.push(wedge);
-    if (trim)  parts.push(`${trim} Trim`);
+    const wedge    = (attrs.wedge_type    as string)?.trim() || "";
+    const stemType = (attrs.stem_type     as string)?.trim() || "";
+    const trim     = (attrs.trim_material as string)?.trim() || "";
+    if (wedge)    parts.push(wedge);
+    if (stemType) parts.push(stemType);
+    if (trim)     parts.push(`${trim} Trim`);
   } else if (vt.includes("globe")) {
-    const disc = (attrs.disc_type      as string)?.trim() || "";
-    const trim = (attrs.trim_material  as string)?.trim() || "";
-    if (disc) parts.push(disc);
-    if (trim) parts.push(`${trim} Trim`);
+    const portType = (attrs.port_type     as string)?.trim() || "";
+    const disc     = (attrs.disc_type     as string)?.trim() || "";
+    const trim     = (attrs.trim_material as string)?.trim() || "";
+    if (portType) parts.push(portType);
+    if (disc)     parts.push(disc);
+    if (trim)     parts.push(`${trim} Trim`);
   } else if (vt.includes("butterfly")) {
-    const discMat  = (attrs.disc_material as string)?.trim() || "";
-    const seatMat  = (attrs.seat_material as string)?.trim() || "";
-    const mounting = (attrs.disc_mounting as string)?.trim() || "";
-    if (discMat)  parts.push(`${discMat} Disc`);
-    if (seatMat)  parts.push(`${seatMat} Seat`);
-    if (mounting) parts.push(mounting);
+    const discMat   = (attrs.disc_material as string)?.trim() || "";
+    const seatMat   = (attrs.seat_material as string)?.trim() || "";
+    const mounting  = (attrs.disc_mounting as string)?.trim() || "";
+    const liningTyp = (attrs.lining_type   as string)?.trim() || "";
+    if (discMat)   parts.push(`${discMat} Disc`);
+    if (seatMat)   parts.push(`${seatMat} Seat`);
+    if (mounting)  parts.push(mounting);
+    if (liningTyp) parts.push(liningTyp);
   } else if (vt.includes("plug")) {
-    const port = (attrs.port_pattern as string)?.trim() || "";
-    const lube = (attrs.lubrication  as string)?.trim() || "";
-    if (port) parts.push(port);
-    if (lube) parts.push(lube);
+    const port     = (attrs.port_pattern  as string)?.trim() || "";
+    const lube     = (attrs.lubrication   as string)?.trim() || "";
+    const plugMat  = (attrs.plug_material as string)?.trim() || "";
+    if (port)    parts.push(port);
+    if (lube)    parts.push(lube);
+    if (plugMat) parts.push(`${plugMat} Plug`);
   } else if (vt.includes("knife")) {
+    const svcType = (attrs.service_type  as string)?.trim() || "";
     const gate    = (attrs.gate_material as string)?.trim() || "";
     const packing = (attrs.packing_type  as string)?.trim() || "";
+    const seatTyp = (attrs.seat_type     as string)?.trim() || "";
+    if (svcType && svcType !== "Standard") parts.push(svcType);
     if (gate)    parts.push(`${gate} Gate`);
     if (packing) parts.push(packing);
+    if (seatTyp) parts.push(seatTyp);
   } else if (vt.includes("diaphragm")) {
     const diaphMat = (attrs.diaphragm_material as string)?.trim() || "";
     const lining   = (attrs.body_lining        as string)?.trim() || "";
+    const weirType = (attrs.weir_type          as string)?.trim() || "";
     if (diaphMat) parts.push(`${diaphMat} Diaphragm`);
     if (lining)   parts.push(lining);
+    if (weirType) parts.push(weirType);
   }
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -2176,17 +2204,27 @@ const NRV_VALVE_MAKES = [
 
 export function buildNrvValveRequirement(attrs: Record<string, unknown>): string {
   const type    = (attrs.valve_type as string)?.trim() || "";
+  const typeLC  = type.toLowerCase();
   const sizeNb  = (attrs.size_nb as string)?.trim() || "";
   const pr      = (attrs.pressure_rating as string)?.trim() || "";
   const bodyMat = (attrs.body_material as string)?.trim() || "";
   const endConn = (attrs.end_connection as string)?.trim() || "";
   const std     = (attrs.design_standard as string)?.trim() || "";
+  const discMat = (attrs.disc_material as string)?.trim() || "";
+  const seatMat = (attrs.seat_material as string)?.trim() || "";
+  const ballMat = (attrs.ball_material as string)?.trim() || "";
   const parts: string[] = [];
   if (type)    parts.push(type);
   if (sizeNb)  parts.push(sizeNb);
   if (pr)      parts.push(pr);
   if (bodyMat) parts.push(`${bodyMat} Body`);
   if (endConn) parts.push(endConn);
+  if (typeLC.includes("ball check")) {
+    if (ballMat) parts.push(`${ballMat} Ball`);
+  } else {
+    if (discMat) parts.push(`${discMat} Disc`);
+    if (seatMat) parts.push(`${seatMat} Seat`);
+  }
   if (std)     parts.push(std);
   return parts.join(", ");
 }
@@ -2590,17 +2628,21 @@ const NEEDLE_VALVE_MAKES = [
 ];
 
 export function buildNeedleValveRequirement(attrs: Record<string, unknown>): string {
-  const type    = (attrs.valve_type as string)?.trim() || "";
-  const size    = (attrs.size       as string)?.trim() || "";
-  const pr      = (attrs.pressure_rating as string)?.trim() || "";
-  const bodyMat = (attrs.body_material   as string)?.trim() || "";
-  const endConn = (attrs.end_connection  as string)?.trim() || "";
+  const type      = (attrs.valve_type     as string)?.trim() || "";
+  const size      = (attrs.size           as string)?.trim() || "";
+  const pr        = (attrs.pressure_rating as string)?.trim() || "";
+  const bodyMat   = (attrs.body_material  as string)?.trim() || "";
+  const endConn   = (attrs.end_connection as string)?.trim() || "";
+  const stemMat   = (attrs.stem_material  as string)?.trim() || "";
+  const flowPat   = (attrs.flow_pattern   as string)?.trim() || "";
   const parts: string[] = [];
   if (type)    parts.push(type);
   if (size)    parts.push(size);
   if (pr)      parts.push(pr);
   if (bodyMat) parts.push(`${bodyMat} Body`);
   if (endConn) parts.push(endConn);
+  if (stemMat && stemMat !== bodyMat) parts.push(`${stemMat} Stem`);
+  if (flowPat && flowPat !== "Straight-Through") parts.push(flowPat);
   return parts.join(", ");
 }
 
