@@ -1162,7 +1162,7 @@ CREATE TABLE item_variants (
   model_number          TEXT,
   moc                   TEXT,
   pressure_class        TEXT,       -- project-specific pressure class (Variant-level)
-  end_connection        TEXT,       -- project-specific end connection (Variant-level for ISO valves)
+  end_connection        TEXT,       -- end connection, Variant-level only for VALVE-CTL (flanged RF assumed; exceptions in additional_attributes) and VALVE-SAF (captured in ItemCode SEG5). NOT used for VALVE-ISO or VALVE-CHK — end connection for those categories is ItemCode identity, encoded in the combined SEG4 code (150F / 150T / 150S / 150B / 150W / 150L / 300F / …).
   flange_standard       TEXT,
   voltage               INTEGER,
   phase                 INTEGER,
