@@ -354,3 +354,9 @@ id = "NZ2rBhcvsSc-lDEOGkWuh"
 uri = "file://docs/item-code-7segment-design-discussion.md"
 type = "text"
 title = "7-Segment Item Code — Design Discussion"
+
+[[outputs]]
+id = "pmzAPomI0aTM6wN0Cyw0o"
+uri = "file://docs/item-code-generation-baseline-v1.3.md"
+type = "text"
+title = "BUY Item Code Generation — Baseline v1.3 (Submitted for Approval)"

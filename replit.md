@@ -67,7 +67,7 @@ Preferred communication style: Simple, everyday language.
 - **Leave Management Correction Plan**: `docs/leave-management-correction-plan-baseline-v1.0.md`
 - **Payroll Governance v4.1 Baseline**: `docs/payroll-governance-v4.1-baseline.md`
 - **PPPC Phase 6 Generate/Sync Baseline v1.0**: `docs/pppc-phase6-generate-sync-baseline-v1.0.md`
-- **BUY Item Code Generation Baseline v1.2**: `docs/item-code-generation-baseline-v1.2.md`
+- **BUY Item Code Generation Baseline v1.3**: `docs/item-code-generation-baseline-v1.3.md`
 - **Drizzle ORM Docs**: `https://orm.drizzle.team/`
 - **Radix UI Docs**: `https://www.radix-ui.com/`
 - **TanStack Query Docs**: `https://tanstack.com/query/latest`
