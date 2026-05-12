@@ -336,3 +336,9 @@ id = "ABz48-Xtsn8Kk06d8hu-s"
 uri = "file://docs/item-code-generation-baseline-v1.0.md"
 type = "text"
 title = "BUY Item Code Generation — Baseline v1.0"
+
+[[outputs]]
+id = "FEnn26ohDTdWkRFNRtuYS"
+uri = "file://docs/item-code-generation-baseline-v1.1.md"
+type = "text"
+title = "BUY Item Code Generation — Baseline v1.1"
