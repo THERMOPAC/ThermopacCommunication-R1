@@ -187,11 +187,14 @@ function buildCentrifugalPumpDefaults(type: string): Record<string, unknown> {
 }
 
 export function buildCentrifugalPumpRequirement(attrs: Record<string, unknown>): string {
-  const pumpType = (attrs.pump_type as string)?.trim() || "";
-  const flowRate = (attrs.flow_rate as string)?.trim() || "";
-  const head     = (attrs.head as string)?.trim() || "";
-  const matClass = (attrs.material_class as string)?.trim() || "";
-  const typeLC   = pumpType.toLowerCase();
+  const pumpType  = (attrs.pump_type       as string)?.trim() || "";
+  const flowRate  = (attrs.flow_rate       as string)?.trim() || "";
+  const head      = (attrs.head            as string)?.trim() || "";
+  const matClass  = (attrs.material_class  as string)?.trim() || "";
+  const fluid     = (attrs.fluid           as string)?.trim() || "";
+  const sealType  = (attrs.seal_type       as string)?.trim() || "";
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
+  const typeLC    = pumpType.toLowerCase();
   let typeSpec = "";
   if (typeLC.includes("end suction")) {
     const casing = (attrs.casing_type as string)?.trim() || "";
@@ -233,7 +236,10 @@ export function buildCentrifugalPumpRequirement(attrs: Record<string, unknown>):
   if (head)     opCond.push(`${head} TDH`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
-  if (matClass) parts.push(matClass);
+  if (fluid)     parts.push(`${fluid} Service`);
+  if (matClass)  parts.push(matClass);
+  if (sealType)  parts.push(sealType);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -651,12 +657,14 @@ function buildGearPumpDefaults(type: string): Record<string, unknown> {
 }
 
 export function buildGearPumpRequirement(attrs: Record<string, unknown>): string {
-  const gearType = (attrs.gear_type as string)?.trim() || "";
-  const flowRate = (attrs.flow_rate as string)?.trim() || "";
-  const pressure = (attrs.diff_pressure as string)?.trim() || "";
-  const matClass = (attrs.material_class as string)?.trim() || "";
-  const fluid    = (attrs.fluid as string)?.trim() || "";
-  const typeLC   = gearType.toLowerCase();
+  const gearType  = (attrs.gear_type           as string)?.trim() || "";
+  const flowRate  = (attrs.flow_rate           as string)?.trim() || "";
+  const pressure  = (attrs.diff_pressure       as string)?.trim() || "";
+  const matClass  = (attrs.material_class      as string)?.trim() || "";
+  const fluid     = (attrs.fluid               as string)?.trim() || "";
+  const sealType  = (attrs.seal_type           as string)?.trim() || "";
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
+  const typeLC    = gearType.toLowerCase();
   let typeSpec = "";
   if (typeLC.includes("internal") || typeLC.includes("crescent")) {
     const crescent = (attrs.crescent_type as string)?.trim() || "";
@@ -676,8 +684,10 @@ export function buildGearPumpRequirement(attrs: Record<string, unknown>): string
   if (pressure) opCond.push(`${pressure} DP`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
-  if (matClass) parts.push(matClass);
-  if (fluid)    parts.push(`${fluid} Service`);
+  if (matClass)  parts.push(matClass);
+  if (fluid)     parts.push(`${fluid} Service`);
+  if (sealType)  parts.push(sealType);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -1059,11 +1069,13 @@ function buildScrewPumpDefaults(type: string): Record<string, unknown> {
 }
 
 export function buildScrewPumpRequirement(attrs: Record<string, unknown>): string {
-  const screwType = (attrs.screw_type    as string)?.trim() || "";
-  const flowRate  = (attrs.flow_rate     as string)?.trim() || "";
-  const pressure  = (attrs.diff_pressure as string)?.trim() || "";
-  const matClass  = (attrs.material_class as string)?.trim() || "";
-  const fluid     = (attrs.fluid         as string)?.trim() || "";
+  const screwType = (attrs.screw_type          as string)?.trim() || "";
+  const flowRate  = (attrs.flow_rate           as string)?.trim() || "";
+  const pressure  = (attrs.diff_pressure       as string)?.trim() || "";
+  const matClass  = (attrs.material_class      as string)?.trim() || "";
+  const fluid     = (attrs.fluid               as string)?.trim() || "";
+  const sealType  = (attrs.seal_type           as string)?.trim() || "";
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
   const stL = screwType.toLowerCase();
   let typeSpec = "";
   if (stL.includes("progressive") || stL.includes("cavity")) {
@@ -1084,8 +1096,10 @@ export function buildScrewPumpRequirement(attrs: Record<string, unknown>): strin
   if (pressure) opCond.push(`${pressure} DP`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
-  if (matClass) parts.push(matClass);
-  if (fluid)    parts.push(`${fluid} Service`);
+  if (matClass)  parts.push(matClass);
+  if (fluid)     parts.push(`${fluid} Service`);
+  if (sealType)  parts.push(sealType);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -1485,22 +1499,26 @@ function buildMultistagePumpDefaults(type: string): Record<string, unknown> {
 }
 
 export function buildMultistagePumpRequirement(attrs: Record<string, unknown>): string {
-  const msType   = (attrs.multistage_type as string)?.trim() || "";
-  const flowRate = (attrs.flow_rate       as string)?.trim() || "";
-  const head     = (attrs.head_mlc        as string)?.trim() || "";
-  const matClass = (attrs.material_class  as string)?.trim() || "";
-  const fluid    = (attrs.fluid           as string)?.trim() || "";
-  const stages   = (attrs.num_stages      as string)?.trim() || "";
+  const msType    = (attrs.multistage_type    as string)?.trim() || "";
+  const flowRate  = (attrs.flow_rate          as string)?.trim() || "";
+  const head      = (attrs.head_mlc           as string)?.trim() || "";
+  const matClass  = (attrs.material_class     as string)?.trim() || "";
+  const fluid     = (attrs.fluid              as string)?.trim() || "";
+  const stages    = (attrs.num_stages         as string)?.trim() || "";
+  const sealType  = (attrs.seal_type          as string)?.trim() || "";
+  const areaClass = (attrs.area_classification as string)?.trim() || "";
   const parts: string[] = ["Multistage Pump"];
   if (msType)  parts.push(msType);
-  if (stages)  parts.push(stages);
+  if (stages)  parts.push(`${stages}-Stage`);
   const opCond: string[] = [];
   if (flowRate) opCond.push(flowRate);
   if (head)     opCond.push(`${head} mLC`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
-  if (matClass) parts.push(matClass);
-  if (fluid)    parts.push(`${fluid} Service`);
+  if (matClass)  parts.push(matClass);
+  if (fluid)     parts.push(`${fluid} Service`);
+  if (sealType)  parts.push(sealType);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -1926,11 +1944,14 @@ function buildDosingPumpDefaults(type: string): Record<string, unknown> {
 }
 
 export function buildDosingPumpRequirement(attrs: Record<string, unknown>): string {
-  const pumpType = (attrs.pump_type          as string)?.trim() || "";
-  const flowRate = (attrs.flow_rate          as string)?.trim() || "";
-  const pressure = (attrs.discharge_pressure as string)?.trim() || "";
-  const fluid    = (attrs.fluid              as string)?.trim() || "";
-  const typeLC   = pumpType.toLowerCase();
+  const pumpType     = (attrs.pump_type           as string)?.trim() || "";
+  const flowRate     = (attrs.flow_rate           as string)?.trim() || "";
+  const pressure     = (attrs.discharge_pressure  as string)?.trim() || "";
+  const fluid        = (attrs.fluid               as string)?.trim() || "";
+  const wettedMat    = (attrs.wetted_material     as string)?.trim() || "";
+  const accuracy     = (attrs.dosing_accuracy     as string)?.trim() || "";
+  const areaClass    = (attrs.area_classification as string)?.trim() || "";
+  const typeLC       = pumpType.toLowerCase();
   let typeSpec = "";
   if (typeLC.includes("diaphragm")) {
     const design = (attrs.diaphragm_design as string)?.trim() || "";
@@ -1943,14 +1964,17 @@ export function buildDosingPumpRequirement(attrs: Record<string, unknown>): stri
     if (hose) typeSpec = `${hose} Hose`;
   }
   const parts: string[] = ["Dosing Pump"];
-  if (pumpType) parts.push(pumpType);
-  if (typeSpec) parts.push(typeSpec);
+  if (pumpType)  parts.push(pumpType);
+  if (typeSpec)  parts.push(typeSpec);
   const opCond: string[] = [];
   if (flowRate) opCond.push(flowRate);
   if (pressure) opCond.push(pressure);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
-  if (fluid) parts.push(`${fluid} Service`);
+  if (fluid)     parts.push(`${fluid} Service`);
+  if (wettedMat) parts.push(`${wettedMat} Wetted`);
+  if (accuracy)  parts.push(`±${accuracy} Accuracy`);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -2293,15 +2317,21 @@ function buildVacuumBoosterDefaults(type: string): Record<string, unknown> {
 }
 
 export function buildVacuumBoosterRequirement(attrs: Record<string, unknown>): string {
-  const boosterType = (attrs.booster_type     as string)?.trim() || "";
-  const flowRate    = (attrs.flow_rate        as string)?.trim() || "";
-  const suctionPres = (attrs.suction_pressure as string)?.trim() || "";
-  const gasType     = (attrs.gas_type         as string)?.trim() || "";
+  const boosterType = (attrs.booster_type      as string)?.trim() || "";
+  const flowRate    = (attrs.flow_rate         as string)?.trim() || "";
+  const suctionPres = (attrs.suction_pressure  as string)?.trim() || "";
+  const gasType     = (attrs.gas_type          as string)?.trim() || "";
+  const matClass    = (attrs.material_class    as string)?.trim() || "";
+  const coolingType = (attrs.cooling_type      as string)?.trim() || "";
+  const areaClass   = (attrs.area_classification as string)?.trim() || "";
   const parts: string[] = ["Vacuum Booster"];
-  if (boosterType) parts.push(boosterType);
-  if (flowRate)    parts.push(flowRate);
-  if (suctionPres) parts.push(`${suctionPres} suction`);
-  if (gasType)     parts.push(`${gasType} Service`);
+  if (boosterType)  parts.push(boosterType);
+  if (flowRate)     parts.push(flowRate);
+  if (suctionPres)  parts.push(`${suctionPres} suction`);
+  if (gasType)      parts.push(`${gasType} Service`);
+  if (matClass)     parts.push(matClass);
+  if (coolingType)  parts.push(coolingType);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -2685,20 +2715,51 @@ function buildVacuumPumpDefaults(type: string): Record<string, unknown> {
 }
 
 export function buildVacuumPumpRequirement(attrs: Record<string, unknown>): string {
-  const vpType   = (attrs.vacuum_pump_type      as string)?.trim() || "";
-  const capacity = (attrs.suction_capacity_m3hr as string)?.trim() || "";
-  const vacuum   = (attrs.operating_vacuum_mbar as string)?.trim() || "";
-  const mat      = (attrs.material_class        as string)?.trim() || "";
-  const gas      = (attrs.gas_type              as string)?.trim() || "";
+  const vpType    = (attrs.vacuum_pump_type      as string)?.trim() || "";
+  const capacity  = (attrs.suction_capacity_m3hr as string)?.trim() || "";
+  const vacuum    = (attrs.operating_vacuum_mbar as string)?.trim() || "";
+  const mat       = (attrs.material_class        as string)?.trim() || "";
+  const gas       = (attrs.gas_type              as string)?.trim() || "";
+  const sealType  = (attrs.seal_type             as string)?.trim() || "";
+  const areaClass = (attrs.area_classification   as string)?.trim() || "";
+  const typeLC    = vpType.toLowerCase();
+  let typeSpec = "";
+  if (typeLC.includes("liquid ring")) {
+    const sealing = (attrs.sealing_liquid as string)?.trim() || "";
+    if (sealing) typeSpec = `${sealing} Sealed`;
+  } else if (typeLC.includes("dry screw")) {
+    const stages  = (attrs.compression_stages as string)?.trim() || "";
+    const cooling = (attrs.cooling_type       as string)?.trim() || "";
+    const p2: string[] = [];
+    if (stages)  p2.push(`${stages}-Stage`);
+    if (cooling) p2.push(cooling);
+    typeSpec = p2.join(", ");
+  } else if (typeLC.includes("rotary vane")) {
+    const lube = (attrs.lube_type as string)?.trim() || (attrs.lubrication_type as string)?.trim() || "";
+    if (lube) typeSpec = lube;
+  } else if (typeLC.includes("ejector")) {
+    const stages = (attrs.num_stages      as string)?.trim() || "";
+    const steam  = (attrs.steam_pressure  as string)?.trim() || "";
+    const p2: string[] = [];
+    if (stages) p2.push(`${stages}-Stage`);
+    if (steam)  p2.push(`${steam} Steam`);
+    typeSpec = p2.join(", ");
+  } else if (typeLC.includes("scroll")) {
+    const cooling = (attrs.cooling_type as string)?.trim() || "";
+    if (cooling) typeSpec = cooling;
+  }
   const parts: string[] = ["Vacuum Pump"];
   if (vpType)   parts.push(vpType);
+  if (typeSpec) parts.push(typeSpec);
   const opCond: string[] = [];
   if (capacity) opCond.push(`${capacity} m³/hr`);
   if (vacuum)   opCond.push(`${vacuum} mbar abs`);
   if (opCond.length === 2) parts.push(opCond.join(" @ "));
   else if (opCond.length === 1) parts.push(opCond[0]);
-  if (mat)      parts.push(mat);
-  if (gas)      parts.push(`${gas} Service`);
+  if (mat)       parts.push(mat);
+  if (gas)       parts.push(`${gas} Service`);
+  if (sealType)  parts.push(sealType);
+  if (areaClass && areaClass !== "Safe Area") parts.push(areaClass);
   return parts.join(", ");
 }
 
@@ -3088,8 +3149,11 @@ export function buildPumpSkidRequirement(attrs: Record<string, unknown>): string
   const pkgType    = (attrs.package_type        as string)?.trim()   || "";
   const pumpType   = (attrs.pump_type           as string)?.trim()   || "";
   const flowRate   = (attrs.flow_rate           as string)?.trim()   || "";
+  const headPres   = (attrs.head_pressure       as string)?.trim()   || "";
   const standby    = (attrs.standby_config      as string)?.trim()   || "";
   const fluid      = (attrs.fluid               as string)?.trim()   || "";
+  const matClass   = (attrs.material_class      as string)?.trim()   || "";
+  const driverType = (attrs.driver_type         as string)?.trim()   || "";
   const components = (attrs.included_components as string[])         ?? [];
   const pkgLabel     = pkgType.replace(/\s*\(.*\)$/, "");
   const pumpLabel    = pumpType ? `${pumpType} Pumps` : "";
@@ -3097,10 +3161,16 @@ export function buildPumpSkidRequirement(attrs: Record<string, unknown>): string
     .replace("1 Working + 1 Standby", "1W+1S")
     .replace("2 Working + 1 Standby", "2W+1S");
   const parts: string[] = [];
-  if (pkgLabel)  parts.push(pkgLabel);
-  if (pumpLabel) parts.push(pumpLabel);
-  if (flowRate)  parts.push(flowRate);
-  if (fluid)     parts.push(`${fluid} Service`);
+  if (pkgLabel)    parts.push(pkgLabel);
+  if (pumpLabel)   parts.push(pumpLabel);
+  const opCond: string[] = [];
+  if (flowRate)    opCond.push(flowRate);
+  if (headPres)    opCond.push(`${headPres} TDH`);
+  if (opCond.length === 2) parts.push(opCond.join(" @ "));
+  else if (opCond.length === 1) parts.push(opCond[0]);
+  if (fluid)       parts.push(`${fluid} Service`);
+  if (matClass)    parts.push(matClass);
+  if (driverType)  parts.push(driverType);
   if (standbyLabel && standbyLabel !== "No Standby") parts.push(standbyLabel);
   if (components.length > 0) parts.push(`Complete with ${components.slice(0, 3).join(", ")}`);
   return parts.join(", ");
