@@ -2736,6 +2736,18 @@ export default function BuyPackagesPage() {
               </div>
             </div>
             <DialogFooter>
+              {lineDialog.editLine &&
+                lineDialog.editLine.technical_attributes &&
+                Object.keys(lineDialog.editLine.technical_attributes).length > 0 && (
+                <Button
+                  variant="outline"
+                  className="sm:mr-auto"
+                  onClick={() => setDatasheetLine(lineDialog.editLine)}
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Preview Data Sheet
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() => setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null })}
