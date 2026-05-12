@@ -374,7 +374,7 @@ function FlagBadges({ line }: { line: PackageLine }) {
 }
 
 // ── Line form default ─────────────────────────────────────────────────────────
-const SKID_OPTIONS = ["Skid-1", "Skid-2", "Skid-3", "Skid-4"];
+const SKID_OPTIONS = ["Skid-1","Skid-2","Skid-3","Skid-4","Skid-5","Skid-6","Skid-7","Skid-8","Skid-9","Skid-10"];
 
 const EMPTY_LINE = {
   buyGroupId: "", buySubgroupId: "", uomId: "",
@@ -2659,6 +2659,21 @@ export default function BuyPackagesPage() {
                 </>
               )}
 
+              {/* Installed On (Skid) */}
+              <div className="space-y-1.5">
+                <Label>Installed On</Label>
+                <Select
+                  value={lf.installedOn || "_none"}
+                  onValueChange={(v) => setLf((f) => ({ ...f, installedOn: v === "_none" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="None / Not specified" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">None / Not specified</SelectItem>
+                    {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Completeness Warnings */}
               {(() => {
                 const sg = lineDialog.lock?.subgroupCode || selectedSubgroupCode || "";
@@ -2688,21 +2703,6 @@ export default function BuyPackagesPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-
-              {/* Installed On (Skid) */}
-              <div className="space-y-1.5">
-                <Label>Installed On</Label>
-                <Select
-                  value={lf.installedOn || "_none"}
-                  onValueChange={(v) => setLf((f) => ({ ...f, installedOn: v === "_none" ? "" : v }))}
-                >
-                  <SelectTrigger><SelectValue placeholder="None / Not specified" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">None / Not specified</SelectItem>
-                    {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
               </div>
 
               {/* Notes */}

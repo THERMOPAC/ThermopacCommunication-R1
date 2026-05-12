@@ -443,7 +443,7 @@ function StageBadge({ label, value, cls }: { label: string; value?: string | nul
   );
 }
 
-const SKID_OPTIONS = ["Skid-1", "Skid-2", "Skid-3", "Skid-4"];
+const SKID_OPTIONS = ["Skid-1","Skid-2","Skid-3","Skid-4","Skid-5","Skid-6","Skid-7","Skid-8","Skid-9","Skid-10"];
 
 const EMPTY_LINE = {
   buyGroupId: "", buySubgroupId: "", uomId: "",
