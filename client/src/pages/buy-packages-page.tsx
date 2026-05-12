@@ -381,6 +381,43 @@ const EMPTY_LINE = {
   notes: "", technicalAttributes: {} as Record<string, unknown>,
 };
 
+// ── Generic Requirement field — live char count, 100-char hard limit ──────────
+const ITEM_DESC_LIMIT = 100;
+function GenericReqField({
+  value, placeholder, onChange, required,
+}: {
+  value: string; placeholder?: string; onChange: (v: string) => void; required?: boolean;
+}) {
+  const len = value.length;
+  const over = len > ITEM_DESC_LIMIT;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs font-medium text-muted-foreground">
+          Generic Requirement{" "}
+          {required
+            ? <span className="text-red-500">*</span>
+            : <span className="text-[10px] font-normal">(Item Description / SAP ItemName)</span>}
+        </Label>
+        <span className={`shrink-0 text-[10px] font-mono tabular-nums ${over ? "text-red-600 font-bold" : len > 85 ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
+          {len}/{ITEM_DESC_LIMIT}
+        </span>
+      </div>
+      <Input
+        className={`h-9 text-sm${over ? " border-red-500 focus-visible:ring-red-500" : ""}`}
+        value={value}
+        placeholder={placeholder || "Fill attributes above to generate…"}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {over && (
+        <p className="text-[10px] text-red-600 font-medium">
+          Exceeds {ITEM_DESC_LIMIT} characters — shorten manually before saving.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function BuyPackagesPage() {
   const { toast } = useToast();
@@ -1468,6 +1505,8 @@ export default function BuyPackagesPage() {
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
+    } else if (lf.genericRequirement.trim().length > ITEM_DESC_LIMIT) {
+      toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
     const body = {
       buyGroupId:           Number(lf.buyGroupId),
@@ -2034,13 +2073,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Plate Type and Thickness to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Plate Type and Thickness to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isPipesMode ? (
                 <>
@@ -2053,13 +2090,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Section / Pipe Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Section / Pipe Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isFittingsMode ? (
                 <>
@@ -2072,13 +2107,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Fitting Type and Size to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Fitting Type and Size to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isFlangesMode ? (
                 <>
@@ -2091,13 +2124,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Flange Type and Size to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Flange Type and Size to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isFastenersMode ? (
                 <>
@@ -2110,13 +2141,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Fastener Type and Size to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Fastener Type and Size to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isGasketsMode ? (
                 <>
@@ -2129,13 +2158,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Gasket Type and Size to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Gasket Type and Size to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isStructuralSteelMode ? (
                 <>
@@ -2148,13 +2175,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Section Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Section Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isCentrifugalPumpMode ? (
                 <>
@@ -2167,13 +2192,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Pump Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Pump Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isGearPumpMode ? (
                 <>
@@ -2186,13 +2209,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Gear Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Gear Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isScrewPumpMode ? (
                 <>
@@ -2205,13 +2226,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Screw Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Screw Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isMultistagePumpMode ? (
                 <>
@@ -2224,13 +2243,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Multistage Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Multistage Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isDosingPumpMode ? (
                 <>
@@ -2243,13 +2260,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Pump Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Pump Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isVacuumBoosterMode ? (
                 <>
@@ -2262,13 +2277,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Booster Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Booster Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isVacuumPumpMode ? (
                 <>
@@ -2281,13 +2294,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Select technology to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select technology to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isPumpSkidMode ? (
                 <>
@@ -2300,13 +2311,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Package Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Package Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isMotorMode ? (
                 <>
@@ -2320,13 +2329,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Motor Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Motor Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isPressureMode ? (
                 <>
@@ -2339,13 +2346,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Instrument Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isTemperatureMode ? (
                 <>
@@ -2358,13 +2363,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Instrument Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isFlowMode ? (
                 <>
@@ -2377,13 +2380,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Instrument Type and Line Size to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Instrument Type and Line Size to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isLevelMode ? (
                 <>
@@ -2396,13 +2397,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Instrument Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Instrument Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isComponentsMode ? (
                 <>
@@ -2415,13 +2414,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Select Component Type to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select Component Type to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isJunctionBoxMode ? (
                 <>
@@ -2434,13 +2431,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Select JB Type and fill dimensions to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select JB Type and fill dimensions to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isCoolingTowerMode ? (
                 <>
@@ -2453,13 +2448,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Enter temperatures and flow to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Enter temperatures and flow to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isBoughtOutMode ? (
                 <>
@@ -2472,13 +2465,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Select Package Type and Capacity to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select Package Type and Capacity to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isCablingMode ? (
                 <>
@@ -2491,13 +2482,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Cable Type and Size to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Cable Type and Size to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isPanelMode ? (
                 <>
@@ -2510,13 +2499,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Panel Type and Voltage to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Panel Type and Voltage to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isSafetyValveMode ? (
                 <>
@@ -2529,13 +2516,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Valve Type, Inlet Size and Set Pressure to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Valve Type, Inlet Size and Set Pressure to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isControlValveMode ? (
                 <>
@@ -2548,13 +2533,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Valve Type, Size and Actuator to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Valve Type, Size and Actuator to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isOnOffValveMode ? (
                 <>
@@ -2567,13 +2550,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Select Valve Type, Size and Actuation to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select Valve Type, Size and Actuation to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isNrvValveMode ? (
                 <>
@@ -2586,13 +2567,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Select Valve Type, Size and Rating to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select Valve Type, Size and Rating to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isNeedleValveMode ? (
                 <>
@@ -2605,13 +2584,11 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Select Valve Type, Size and Rating to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select Valve Type, Size and Rating to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : isIsolationValveMode ? (
                 <>
@@ -2624,24 +2601,22 @@ export default function BuyPackagesPage() {
                     }}
                     onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
                   />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Generic Requirement <span className="text-[10px] font-normal">(auto-generated)</span>
-                    </Label>
-                    <Input readOnly className="h-9 text-sm bg-muted/50 text-muted-foreground cursor-default"
-                      value={lf.genericRequirement || "Fill Valve Type, Size and Rating to generate…"} />
-                  </div>
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Fill Valve Type, Size and Rating to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
                 </>
               ) : (
                 <>
                   {/* Requirement + Qty */}
                   <div className="grid grid-cols-4 gap-3">
-                    <div className="col-span-3 space-y-1.5">
-                      <Label>Generic Requirement <span className="text-red-500">*</span></Label>
-                      <Input
-                        placeholder="e.g. Feed Pump, Suction Strainer"
+                    <div className="col-span-3">
+                      <GenericReqField
+                        required
                         value={lf.genericRequirement}
-                        onChange={(e) => setLf((f) => ({ ...f, genericRequirement: e.target.value }))}
+                        placeholder="e.g. Feed Pump, Suction Strainer"
+                        onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
                       />
                     </div>
                     <div className="space-y-1.5">
