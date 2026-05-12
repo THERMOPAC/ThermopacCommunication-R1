@@ -342,3 +342,9 @@ id = "FEnn26ohDTdWkRFNRtuYS"
 uri = "file://docs/item-code-generation-baseline-v1.1.md"
 type = "text"
 title = "BUY Item Code Generation — Baseline v1.1"
+
+[[outputs]]
+id = "ndnL_zSV4oFM3SN0Qkoiw"
+uri = "file://docs/item-code-generation-baseline-v1.2.md"
+type = "text"
+title = "BUY Item Code Generation — Baseline v1.2"
