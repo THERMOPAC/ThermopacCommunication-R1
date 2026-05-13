@@ -13415,6 +13415,8 @@ export const projectBuyListLines = pgTable('project_buy_list_lines', {
   planningRecordId:     integer('planning_record_id'),
   isUserModified:       boolean('is_user_modified').notNull().default(false),
   notes:                text('notes'),
+  approvedBy:           integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt:           timestamp('approved_at', { withTimezone: true }),
   createdAt:            timestamp('created_at').notNull().defaultNow(),
   updatedAt:            timestamp('updated_at').notNull().defaultNow(),
 });
