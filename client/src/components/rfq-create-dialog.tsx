@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -10,14 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Plus, X } from "lucide-react";
-import { fmtDate } from "@/lib/date-format";
+import { Loader2, X, ChevronDown, Search } from "lucide-react";
 
 interface PlcLine {
   id: number; plcNumber: string; tagNo: string; serviceDescription: string;
   subgroupCode: string; status: string;
 }
-interface Vendor { id: number; name: string; display_name?: string; }
+interface Vendor { id: number; name: string; display_name?: string; sap_card_code?: string; }
 
 interface Props {
   projectId: number;
@@ -37,11 +36,16 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<number[]>([]);
 
+  // Vendor search dropdown state
+  const [vendorSearch, setVendorSearch] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
   const eligibleLines = lines.filter((l) =>
     ["pr_raised", "pending_rfq"].includes(l.status)
   );
 
-  const { data: vendors = [] } = useQuery<Vendor[]>({
+  const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
     queryFn: () => apiRequest("GET", "/api/vendors"),
   });
@@ -61,9 +65,29 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
   function toggleLine(id: number) {
     setSelectedLineIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
-  function toggleVendor(id: number) {
-    setSelectedVendorIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  function addVendor(vendor: Vendor) {
+    if (!selectedVendorIds.includes(vendor.id)) {
+      setSelectedVendorIds((prev) => [...prev, vendor.id]);
+    }
+    setVendorSearch("");
+    setDropdownOpen(false);
   }
+
+  function removeVendor(id: number) {
+    setSelectedVendorIds((prev) => prev.filter((x) => x !== id));
+  }
+
+  const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
+
+  const filteredVendors = vendors.filter((v) => {
+    if (selectedVendorIds.includes(v.id)) return false;
+    const term = vendorSearch.toLowerCase();
+    if (!term) return true;
+    const label = (v.display_name || v.name || "").toLowerCase();
+    const code = (v.sap_card_code || "").toLowerCase();
+    return label.includes(term) || code.includes(term);
+  });
 
   function submit() {
     if (selectedLineIds.length === 0) { toast({ title: "Select at least one line", variant: "destructive" }); return; }
@@ -139,22 +163,84 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
             )}
           </div>
 
-          {/* Vendor selection */}
+          {/* Vendor selection — searchable dropdown */}
           <div>
-            <Label className="text-xs font-semibold mb-1 block">Vendors to invite</Label>
-            <div className="border rounded max-h-44 overflow-y-auto">
-              {vendors.map((v) => (
-                <label
-                  key={v.id}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-0"
-                >
-                  <Checkbox
-                    checked={selectedVendorIds.includes(v.id)}
-                    onCheckedChange={() => toggleVendor(v.id)}
-                  />
-                  <span className="text-xs">{v.display_name || v.name}</span>
-                </label>
-              ))}
+            <Label className="text-xs font-semibold mb-1 block">
+              Vendors to invite
+              {selectedVendors.length > 0 && (
+                <span className="ml-2 text-indigo-600 font-normal">({selectedVendors.length} selected)</span>
+              )}
+            </Label>
+
+            {/* Selected vendor chips */}
+            {selectedVendors.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedVendors.map((v) => (
+                  <span
+                    key={v.id}
+                    className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs px-2 py-1 rounded-full"
+                  >
+                    {v.display_name || v.name}
+                    <button
+                      type="button"
+                      onClick={() => removeVendor(v.id)}
+                      className="text-indigo-400 hover:text-indigo-700 ml-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Dropdown trigger + search */}
+            <div className="relative">
+              <div
+                className="flex items-center border rounded px-3 py-2 gap-2 cursor-text bg-white"
+                onClick={() => { setDropdownOpen(true); searchRef.current?.focus(); }}
+              >
+                <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <input
+                  ref={searchRef}
+                  className="flex-1 text-xs outline-none bg-transparent placeholder:text-muted-foreground"
+                  placeholder={vendorsLoading ? "Loading vendors from SAP…" : "Search vendor name or SAP code…"}
+                  value={vendorSearch}
+                  onChange={(e) => { setVendorSearch(e.target.value); setDropdownOpen(true); }}
+                  onFocus={() => setDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
+                />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </div>
+
+              {dropdownOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border rounded shadow-lg max-h-52 overflow-y-auto">
+                  {vendorsLoading ? (
+                    <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading from SAP B1…
+                    </div>
+                  ) : filteredVendors.length === 0 ? (
+                    <div className="px-3 py-3 text-xs text-muted-foreground">
+                      {vendorSearch ? "No matching vendors" : "All vendors already selected"}
+                    </div>
+                  ) : (
+                    filteredVendors.map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 border-b last:border-0"
+                        onMouseDown={() => addVendor(v)}
+                      >
+                        <div>
+                          <div className="text-xs font-medium">{v.display_name || v.name}</div>
+                          {v.sap_card_code && (
+                            <div className="text-[10px] text-muted-foreground">{v.sap_card_code}</div>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

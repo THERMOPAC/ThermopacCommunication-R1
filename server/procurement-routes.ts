@@ -1,5 +1,4 @@
 import { Response, Router, Request } from 'express';
-import https from 'https';
 import { db, pool } from './db';
 import { 
   projects, projectItems, masterItems, vendors,
@@ -16,75 +15,24 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 }
 
 // ─── SAP B1 vendor sync helpers ───────────────────────────────────────────
-const SAP_HOST = '59.152.52.58';
-const SAP_PORT = 50000;
-const SAP_BASE = `/b1s/v1`;
-const SAP_TIMEOUT_MS = 12000;
+// Uses the proven sapHttpsClient (same client as /api/sap/vendors route)
+async function fetchSapSuppliersViaClient(): Promise<Array<{ CardCode: string; CardName: string }>> {
+  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+  const user = process.env.SAP_USERNAME || '';
+  const pass = process.env.SAP_PASSWORD || '';
+  const db_  = process.env.SAP_COMPANY_DB || '';
+  if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
 
-const sapAgent = new https.Agent({ rejectUnauthorized: false });
-
-function httpsRequest(options: {
-  method: string; path: string; headers: Record<string, string>;
-  body?: string; timeout?: number;
-}): Promise<{ status: number; body: string }> {
-  return new Promise((resolve, reject) => {
-    const reqOpts: https.RequestOptions = {
-      hostname: SAP_HOST, port: SAP_PORT,
-      path: options.path, method: options.method,
-      headers: options.headers, agent: sapAgent,
-      timeout: options.timeout ?? SAP_TIMEOUT_MS,
-    };
-    const req = https.request(reqOpts, (res) => {
-      let data = '';
-      res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-      res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));
-    });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(new Error('SAP request timed out')); });
-    if (options.body) req.write(options.body);
-    req.end();
+  const { sessionId } = await sapHttpsClient.login(user, pass, db_);
+  const response = await sapHttpsClient.authenticatedRequest(sessionId, {
+    method: 'GET',
+    url: `https://59.152.52.58:50000/b1s/v1/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$top=500`,
   });
-}
-
-async function sapLogin(): Promise<{ cookie: string } | null> {
-  const user = process.env.SAP_USERNAME;
-  const pass = process.env.SAP_PASSWORD;
-  const db_  = process.env.SAP_COMPANY_DB;
-  if (!user || !pass || !db_) return null;
-
-  try {
-    const payload = JSON.stringify({ CompanyDB: db_, UserName: user, Password: pass });
-    const { status, body } = await httpsRequest({
-      method: 'POST', path: `${SAP_BASE}/Login`,
-      headers: { 'Content-Type': 'application/json', 'Content-Length': String(payload.length) },
-      body: payload,
-    });
-    if (status !== 200) return null;
-    const d = JSON.parse(body);
-    return { cookie: `B1SESSION=${d.SessionId}; ROUTEID=${d.RouteId || '.node1'}` };
-  } catch {
-    return null;
+  if (!response.ok) {
+    throw new Error(`SAP BusinessPartners returned ${response.statusCode}: ${response.body.substring(0, 200)}`);
   }
-}
-
-async function fetchSapSuppliers(cookie: string): Promise<Array<{ CardCode: string; CardName: string }>> {
-  // OData path — single quotes around cSupplier must be percent-encoded for native https.request
-  const qs = new URLSearchParams({
-    '$filter': "CardType eq 'cSupplier'",
-    '$select': 'CardCode,CardName',
-    '$top': '500',
-  }).toString();
-  const path = `${SAP_BASE}/BusinessPartners?${qs}`;
-  const { status, body } = await httpsRequest({
-    method: 'GET', path,
-    headers: { 'Accept': 'application/json', 'Cookie': cookie },
-  });
-  if (status !== 200) {
-    console.warn(`[vendors] SAP BusinessPartners returned HTTP ${status}:`, body.substring(0, 300));
-    return [];
-  }
-  const d = JSON.parse(body);
-  return d.value || [];
+  const data = JSON.parse(response.body);
+  return data.value || [];
 }
 
 async function ensureSapCardCodeColumn(client: any): Promise<void> {
@@ -125,48 +73,38 @@ export function setupProcurementRoutes(app: Router) {
       await ensureSapCardCodeColumn(client);
 
       // --- Try to sync from SAP B1 ---
-      const session = await sapLogin();
-      if (session) {
-        try {
-          const suppliers = await fetchSapSuppliers(session.cookie);
-          if (suppliers.length > 0) {
-            // Upsert each supplier: INSERT ... ON CONFLICT (sap_card_code) DO UPDATE
-            for (const s of suppliers) {
-              const cardCode = s.CardCode?.trim();
-              const cardName = s.CardName?.trim() || cardCode;
-              if (!cardCode) continue;
-              await client.query(
-                `INSERT INTO vendors (name, display_name, is_active, sap_card_code, created_at, updated_at)
-                 VALUES ($1, $1, true, $2, NOW(), NOW())
-                 ON CONFLICT (sap_card_code)
-                 DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.display_name, is_active = true, updated_at = NOW()`,
-                [cardName, cardCode],
-              );
-            }
-            // After a successful SAP sync:
-            // 1. Deactivate SAP-sourced rows no longer in SAP
-            // 2. Deactivate old legacy/dummy rows (sap_card_code IS NULL) — SAP is now the source of truth
-            const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
-            if (sapCodes.length > 0) {
-              await client.query(
-                `UPDATE vendors SET is_active = false, updated_at = NOW()
-                 WHERE sap_card_code IS NOT NULL
-                   AND sap_card_code <> ALL($1::varchar[])`,
-                [sapCodes],
-              );
-            }
-            // Retire any vendor rows that predate SAP integration (no sap_card_code)
+      try {
+        const suppliers = await fetchSapSuppliersViaClient();
+        if (suppliers.length > 0) {
+          for (const s of suppliers) {
+            const cardCode = s.CardCode?.trim();
+            const cardName = s.CardName?.trim() || cardCode;
+            if (!cardCode) continue;
+            await client.query(
+              `INSERT INTO vendors (name, display_name, is_active, sap_card_code, created_at, updated_at)
+               VALUES ($1, $1, true, $2, NOW(), NOW())
+               ON CONFLICT (sap_card_code)
+               DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.display_name, is_active = true, updated_at = NOW()`,
+              [cardName, cardCode],
+            );
+          }
+          const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
+          if (sapCodes.length > 0) {
             await client.query(
               `UPDATE vendors SET is_active = false, updated_at = NOW()
-               WHERE sap_card_code IS NULL`,
+               WHERE sap_card_code IS NOT NULL
+                 AND sap_card_code <> ALL($1::varchar[])`,
+              [sapCodes],
             );
-            console.log(`✅ [vendors] SAP sync: upserted ${suppliers.length} suppliers, legacy rows deactivated`);
           }
-        } catch (sapErr) {
-          console.warn('⚠️  [vendors] SAP fetch succeeded login but failed data pull:', sapErr);
+          await client.query(
+            `UPDATE vendors SET is_active = false, updated_at = NOW()
+             WHERE sap_card_code IS NULL`,
+          );
+          console.log(`✅ [vendors] SAP sync: upserted ${suppliers.length} suppliers, legacy rows deactivated`);
         }
-      } else {
-        console.warn('⚠️  [vendors] SAP B1 unreachable or credentials missing — serving local vendor list');
+      } catch (sapErr: any) {
+        console.warn('⚠️  [vendors] SAP sync failed — serving local vendor list:', sapErr?.message || sapErr);
       }
 
       // Return local vendor list (now enriched with SAP data)
