@@ -1234,7 +1234,7 @@ export default function EpcBuyListControlPage() {
             )}
 
             {/* Approved: Raise PR */}
-            {selStatus === "approved" && !line.planning_record_id && ["released", "locked"].includes(lst.status) && (
+            {selStatus === "approved" && !!line.selected_master_item_id && !line.planning_record_id && ["released", "locked"].includes(lst.status) && (
               <Button
                 size="sm"
                 className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
@@ -1608,6 +1608,7 @@ export default function EpcBuyListControlPage() {
                                   {displayLines.map((line: any) => {
                                     const canRaisePr =
                                       line.status === "approved" &&
+                                      !!line.selected_master_item_id &&
                                       !line.planning_record_id &&
                                       ["released", "locked"].includes(lst.status);
                                     const alreadyRaised = !!line.planning_record_id;
