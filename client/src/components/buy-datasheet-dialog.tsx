@@ -69,8 +69,7 @@ function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
         {/* ── Header ── */}
         <View style={S.header}>
           <View style={S.hLeft}>
-            <Text style={S.hTitle}>THERMOPAC</Text>
-            <Text style={S.hSub}>ENGINEERING PRIVATE LIMITED</Text>
+            <Text style={S.hTitle}>THERMOPAC PROCESS ENGINEERING LLP</Text>
           </View>
           <View style={S.hRight}>
             <Text style={S.hBadge}>TECHNICAL DATASHEET</Text>
@@ -144,7 +143,7 @@ function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
 
         {/* ── Footer ── */}
         <View style={S.footer} fixed>
-          <Text style={S.footerText}>THERMOPAC Engineering Pvt. Ltd. — THERMOPAC QMS</Text>
+          <Text style={S.footerText}>THERMOPAC Process Engineering LLP — THERMOPAC QMS</Text>
           <Text style={S.footerText}>CONFIDENTIAL — For internal use only</Text>
         </View>
       </Page>
