@@ -238,7 +238,7 @@ export function setupPlcEvaluationRoutes(app: Express): void {
       if (status === 'complete' && finalVendorId) {
         await pool.query(
           `UPDATE procurement_list_lines
-           SET status = 'vendor_selected', selected_vendor_id = $2, updated_at = NOW()
+           SET status = 'vendor_selected', vendor_id = $2, updated_at = NOW()
            WHERE id = $1 AND status IN ('rfq_closed','tbe_complete','cbe_in_progress')`,
           [plcLineId, finalVendorId]
         );
@@ -274,7 +274,7 @@ export function setupPlcEvaluationRoutes(app: Express): void {
       const cbe = result.rows[0];
       await pool.query(
         `UPDATE procurement_list_lines
-         SET status = 'vendor_selected', selected_vendor_id = $2, updated_at = NOW()
+         SET status = 'vendor_selected', vendor_id = $2, updated_at = NOW()
          WHERE id = $1 AND status IN ('rfq_closed','tbe_complete','cbe_in_progress')`,
         [cbe.plc_line_id, finalVendorId]
       );
