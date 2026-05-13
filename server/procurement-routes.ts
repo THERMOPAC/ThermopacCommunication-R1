@@ -14,23 +14,152 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
   res.status(401).json({ error: 'Not authenticated' });
 }
 
+// ─── SAP B1 vendor sync helpers ───────────────────────────────────────────
+const SAP_URL  = 'https://59.152.52.58:50000/b1s/v1';
+const SAP_TIMEOUT_MS = 12000;
+
+async function sapLogin(): Promise<{ cookie: string } | null> {
+  const user = process.env.SAP_USERNAME;
+  const pass = process.env.SAP_PASSWORD;
+  const db_  = process.env.SAP_COMPANY_DB;
+  if (!user || !pass || !db_) return null;
+
+  const https = await import('https');
+  const agent = new (https.Agent)({ rejectUnauthorized: false });
+
+  try {
+    const r = await fetch(`${SAP_URL}/Login`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body:    JSON.stringify({ CompanyDB: db_, UserName: user, Password: pass }),
+      // @ts-ignore node-fetch agent
+      agent,
+      signal:  AbortSignal.timeout(SAP_TIMEOUT_MS),
+    });
+    if (!r.ok) return null;
+    const d = await r.json() as any;
+    return { cookie: `B1SESSION=${d.SessionId}; ROUTEID=${d.RouteId || '.node1'}` };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchSapSuppliers(cookie: string): Promise<Array<{ CardCode: string; CardName: string }>> {
+  const https = await import('https');
+  const agent = new (https.Agent)({ rejectUnauthorized: false });
+
+  const r = await fetch(
+    `${SAP_URL}/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$top=500`,
+    {
+      headers: { 'Accept': 'application/json', 'Cookie': cookie },
+      // @ts-ignore
+      agent,
+      signal: AbortSignal.timeout(SAP_TIMEOUT_MS),
+    },
+  );
+  if (!r.ok) return [];
+  const d = await r.json() as any;
+  return d.value || [];
+}
+
+async function ensureSapCardCodeColumn(client: any): Promise<void> {
+  await client.query(
+    `ALTER TABLE vendors ADD COLUMN IF NOT EXISTS sap_card_code VARCHAR(50)`,
+  );
+  // display_name is referenced by plc-rfq-routes JOINs
+  await client.query(
+    `ALTER TABLE vendors ADD COLUMN IF NOT EXISTS display_name TEXT`,
+  );
+  await client.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS vendors_sap_card_code_key ON vendors (sap_card_code) WHERE sap_card_code IS NOT NULL`,
+  );
+  // Back-fill display_name for any rows that have it null
+  await client.query(
+    `UPDATE vendors SET display_name = name WHERE display_name IS NULL`,
+  );
+}
+
+// ─── Vendor list endpoint ──────────────────────────────────────────────────
 export function setupProcurementRoutes(app: Router) {
   // ==================== VENDORS MANAGEMENT ====================
   
   /**
-   * Get all vendors
+   * GET /api/vendors — returns supplier list from SAP B1 (with local-DB fallback).
+   *
+   * Strategy:
+   *  1. Login to SAP B1 Service Layer.
+   *  2. Fetch all BusinessPartners where CardType='cSupplier'.
+   *  3. Upsert each into the local `vendors` table (keyed on sap_card_code).
+   *  4. Return the full local vendor list so integer PKs stay valid for all FK references.
+   *  5. If SAP is unreachable, fall back silently to whatever is already in the local table.
    */
   app.get('/api/vendors', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
     try {
-      const vendorsList = await db.query.vendors.findMany({
-        where: eq(vendors.isActive, true),
-        orderBy: asc(vendors.name)
-      });
-      
-      res.status(200).json(vendorsList);
+      // Ensure the sap_card_code column exists (idempotent DDL)
+      await ensureSapCardCodeColumn(client);
+
+      // --- Try to sync from SAP B1 ---
+      const session = await sapLogin();
+      if (session) {
+        try {
+          const suppliers = await fetchSapSuppliers(session.cookie);
+          if (suppliers.length > 0) {
+            // Upsert each supplier: INSERT ... ON CONFLICT (sap_card_code) DO UPDATE
+            for (const s of suppliers) {
+              const cardCode = s.CardCode?.trim();
+              const cardName = s.CardName?.trim() || cardCode;
+              if (!cardCode) continue;
+              await client.query(
+                `INSERT INTO vendors (name, display_name, is_active, sap_card_code, created_at, updated_at)
+                 VALUES ($1, $1, true, $2, NOW(), NOW())
+                 ON CONFLICT (sap_card_code)
+                 DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.display_name, is_active = true, updated_at = NOW()`,
+                [cardName, cardCode],
+              );
+            }
+            // Mark any local vendor not in SAP as inactive (only SAP-sourced rows)
+            const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
+            if (sapCodes.length > 0) {
+              await client.query(
+                `UPDATE vendors SET is_active = false, updated_at = NOW()
+                 WHERE sap_card_code IS NOT NULL
+                   AND sap_card_code <> ALL($1::varchar[])`,
+                [sapCodes],
+              );
+            }
+            console.log(`✅ [vendors] SAP sync: upserted ${suppliers.length} suppliers`);
+          }
+        } catch (sapErr) {
+          console.warn('⚠️  [vendors] SAP fetch succeeded login but failed data pull:', sapErr);
+        }
+      } else {
+        console.warn('⚠️  [vendors] SAP B1 unreachable or credentials missing — serving local vendor list');
+      }
+
+      // Return local vendor list (now enriched with SAP data)
+      const result = await client.query(
+        `SELECT id, name, email, phone, sap_card_code
+         FROM vendors
+         WHERE is_active = true
+         ORDER BY name ASC`,
+      );
+      // Map to shape expected by frontend: { id, name, display_name }
+      const list = result.rows.map((r: any) => ({
+        id:           r.id,
+        name:         r.name,
+        display_name: r.name,
+        email:        r.email,
+        phone:        r.phone,
+        sap_card_code: r.sap_card_code,
+      }));
+
+      res.status(200).json(list);
     } catch (error) {
       console.error('Error fetching vendors:', error);
       res.status(500).json({ error: 'Failed to fetch vendors' });
+    } finally {
+      client.release();
     }
   });
   
