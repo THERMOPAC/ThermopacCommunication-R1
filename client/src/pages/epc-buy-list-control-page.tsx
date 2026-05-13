@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   Loader2, Search, Plus, ChevronRight, ChevronDown,
   Send, Eye, ShieldCheck, Lock, RotateCcw, XCircle,
@@ -278,6 +279,11 @@ export default function EpcBuyListControlPage() {
   const [checkedLines, setCheckedLines] = useState<Set<number>>(new Set());
   const [bulkSelDialog, setBulkSelDialog] = useState(false);
   const [bulkMasterItemId, setBulkMasterItemId] = useState("");
+
+  // Confirm dialogs (replaces native browser confirm())
+  const [confirmRemoveSel, setConfirmRemoveSel] = useState<number | null>(null);
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState<{ headerId: number; lineIds: number[] } | null>(null);
+  const [confirmBulkRaisePr, setConfirmBulkRaisePr] = useState<{ headerId: number; lineIds: number[] } | null>(null);
 
   // Datasheet preview
   const [datasheetLine, setDatasheetLine] = useState<any | null>(null);
@@ -1100,9 +1106,7 @@ export default function EpcBuyListControlPage() {
                     className="h-6 w-6 p-0 text-red-500 hover:text-red-700 shrink-0"
                     disabled={deleteSelection.isPending}
                     title="Remove selection"
-                    onClick={() => {
-                      if (confirm("Remove this selection?")) deleteSelection.mutate(line.id);
-                    }}
+                    onClick={() => setConfirmRemoveSel(line.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -1469,10 +1473,7 @@ export default function EpcBuyListControlPage() {
                                       size="sm" variant="outline"
                                       className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                                       disabled={bulkApprove.isPending}
-                                      onClick={() => {
-                                        if (confirm(`Approve selection for ${checkedLines.size} line(s)?`))
-                                          bulkApprove.mutate({ headerId: lst.id, lineIds: Array.from(checkedLines) });
-                                      }}
+                                      onClick={() => setConfirmBulkApprove({ headerId: lst.id, lineIds: Array.from(checkedLines) })}
                                     >
                                       {bulkApprove.isPending
                                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1484,10 +1485,7 @@ export default function EpcBuyListControlPage() {
                                     size="sm" variant="outline"
                                     className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                                     disabled={bulkRaisePr.isPending}
-                                    onClick={() => {
-                                      if (confirm(`Raise PR for ${checkedLines.size} line(s)?`))
-                                        bulkRaisePr.mutate({ headerId: lst.id, lineIds: Array.from(checkedLines) });
-                                    }}
+                                    onClick={() => setConfirmBulkRaisePr({ headerId: lst.id, lineIds: Array.from(checkedLines) })}
                                   >
                                     {bulkRaisePr.isPending
                                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2856,6 +2854,69 @@ export default function EpcBuyListControlPage() {
         open={datasheetLine !== null}
         onClose={() => setDatasheetLine(null)}
       />
+
+      {/* Remove Selection Confirm */}
+      <AlertDialog open={confirmRemoveSel !== null} onOpenChange={o => { if (!o) setConfirmRemoveSel(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Selection</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the selected master item and any associated datasheet from this line. The line will return to <strong>Open</strong> status. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => { if (confirmRemoveSel !== null) { deleteSelection.mutate(confirmRemoveSel); setConfirmRemoveSel(null); } }}
+            >
+              Remove Selection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Approve Confirm */}
+      <AlertDialog open={confirmBulkApprove !== null} onOpenChange={o => { if (!o) setConfirmBulkApprove(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bulk Approve — {confirmBulkApprove?.lineIds.length ?? 0} Line{(confirmBulkApprove?.lineIds.length ?? 0) !== 1 ? "s" : ""}</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will approve the selected master item for each checked line. Lines must already have a selection. Approved lines cannot be changed without re-uploading a datasheet.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => { if (confirmBulkApprove) { bulkApprove.mutate(confirmBulkApprove); setConfirmBulkApprove(null); } }}
+            >
+              Approve {confirmBulkApprove?.lineIds.length ?? 0} Line{(confirmBulkApprove?.lineIds.length ?? 0) !== 1 ? "s" : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Raise PR Confirm */}
+      <AlertDialog open={confirmBulkRaisePr !== null} onOpenChange={o => { if (!o) setConfirmBulkRaisePr(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Raise PR — {confirmBulkRaisePr?.lineIds.length ?? 0} Line{(confirmBulkRaisePr?.lineIds.length ?? 0) !== 1 ? "s" : ""}</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will raise a Purchase Requisition for each checked line. Lines must be approved. PRs already raised will be skipped automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => { if (confirmBulkRaisePr) { bulkRaisePr.mutate(confirmBulkRaisePr); setConfirmBulkRaisePr(null); } }}
+            >
+              Raise PR for {confirmBulkRaisePr?.lineIds.length ?? 0} Line{(confirmBulkRaisePr?.lineIds.length ?? 0) !== 1 ? "s" : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </Layout>
   );
