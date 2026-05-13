@@ -372,3 +372,9 @@ id = "BzTVUYCdM0gxQNgGHI1jO"
 uri = "file://docs/procurement-list-control-baseline-v1.md"
 type = "text"
 title = "PLC Baseline v1.0 FINAL — Awaiting Approval"
+
+[[outputs]]
+id = "uO2Wye1LKhRRt0bXf2wIL"
+uri = "file://docs/procurement-list-control-phase1-evidence.md"
+type = "text"
+title = "PLC Phase 1 — Sign-Off Evidence Package"
