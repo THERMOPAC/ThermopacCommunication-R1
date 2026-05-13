@@ -19,6 +19,7 @@ interface PlcLine {
   itemCode: string | null;
   itemDescription: string | null;
   subgroupCode: string;
+  subgroupLabel: string | null;
   status: string;
 }
 interface Vendor { id: number; name: string; display_name?: string; sap_card_code?: string; }
@@ -44,11 +45,17 @@ export function RfqCreateDialog({ projectId, lines, preSelectedIds = [], onClose
 
   const [vendorSearch, setVendorSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showAllLines, setShowAllLines] = useState(preSelectedIds.length === 0);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const eligibleLines = lines.filter((l) =>
     ["pr_raised", "pending_rfq"].includes(l.status)
   );
+
+  // When opened from a specific row, show only that line by default
+  const displayedLines = showAllLines
+    ? eligibleLines
+    : eligibleLines.filter((l) => preSelectedIds.includes(l.id));
 
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
@@ -140,21 +147,36 @@ export function RfqCreateDialog({ projectId, lines, preSelectedIds = [], onClose
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label className="text-xs font-semibold">PLC Lines to include</Label>
-              <button
-                type="button"
-                className="text-xs text-indigo-600 underline"
-                onClick={() => setSelectedLineIds(eligibleLines.map((l) => l.id))}
-              >
-                Select all eligible
-              </button>
+              <div className="flex items-center gap-3">
+                {!showAllLines && eligibleLines.length > displayedLines.length && (
+                  <button
+                    type="button"
+                    className="text-xs text-gray-500 underline"
+                    onClick={() => setShowAllLines(true)}
+                  >
+                    + {eligibleLines.length - displayedLines.length} more eligible
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="text-xs text-indigo-600 underline"
+                  onClick={() => setSelectedLineIds(eligibleLines.map((l) => l.id))}
+                >
+                  Select all eligible
+                </button>
+              </div>
             </div>
-            {eligibleLines.length === 0 ? (
+            {displayedLines.length === 0 ? (
               <p className="text-xs text-muted-foreground">No eligible lines (status: pr_raised or pending_rfq)</p>
             ) : (
               <div className="border rounded max-h-52 overflow-y-auto">
-                {eligibleLines.map((line) => {
+                {displayedLines.map((line) => {
                   const isChecked = selectedLineIds.includes(line.id);
-                  const description = line.serviceDescription || line.itemDescription || "";
+                  const description =
+                    line.serviceDescription ||
+                    line.itemDescription ||
+                    line.subgroupLabel ||
+                    "";
                   const code = line.itemCode || "";
                   return (
                     <div
@@ -169,14 +191,19 @@ export function RfqCreateDialog({ projectId, lines, preSelectedIds = [], onClose
                         className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600 pointer-events-none"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-mono text-indigo-700 shrink-0">{line.plcNumber}</span>
-                          <span className="text-xs text-gray-500 shrink-0">{line.tagNo || "—"}</span>
-                          {code && <span className="text-[10px] bg-gray-100 text-gray-600 px-1 rounded shrink-0">{code}</span>}
-                          <span className="text-xs text-gray-400 shrink-0">{line.subgroupCode}</span>
+                          <span className="text-xs text-gray-600 shrink-0 font-medium">{line.tagNo || "—"}</span>
+                          {code && (
+                            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded shrink-0 font-mono">
+                              {code}
+                            </span>
+                          )}
                         </div>
-                        {description && (
+                        {description ? (
                           <div className="text-xs text-muted-foreground truncate mt-0.5">{description}</div>
+                        ) : (
+                          <div className="text-xs text-gray-400 mt-0.5 italic">{line.subgroupCode}</div>
                         )}
                       </div>
                     </div>
