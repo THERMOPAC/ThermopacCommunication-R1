@@ -20,7 +20,8 @@ import {
   ClipboardList, ArrowRight, CheckCircle2, FileText,
   TrendingUp, UserCheck, XOctagon, Upload, Layers,
   RefreshCw, Zap, ArrowUpCircle, MinusCircle, PlusCircle,
-  AlertTriangle, ShieldAlert, Info, FileSpreadsheet, Download,
+  AlertTriangle, ShieldAlert, Info, FileSpreadsheet, Download, ArrowUpDown,
+  ArrowUp, ArrowDown,
 } from "lucide-react";
 import { DatasheetPreviewDialog, downloadDatasheetPdf } from "@/components/buy-datasheet-dialog";
 import { SUBGROUP_TA_FIELDS, type SubgroupField } from "@/lib/buy-subgroup-fields";
@@ -240,6 +241,7 @@ export default function EpcBuyListControlPage() {
   const [search, setSearch] = useState("");
   const [showAllRevisions, setShowAllRevisions] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [linesSortOrder, setLinesSortOrder] = useState<"default" | "subgroup_asc" | "subgroup_desc">("default");
 
   // Dialogs — lifecycle
   const [showCreate, setShowCreate]     = useState(false);
@@ -338,6 +340,22 @@ export default function EpcBuyListControlPage() {
       fetch(`/api/buy-lists/${expandedId}/lines`, { credentials: "include" }).then(r => r.json()),
     enabled: expandedId !== null,
   });
+
+  const sortedLines = useMemo(() => {
+    if (linesSortOrder === "default") return expandedLines;
+    return [...expandedLines].sort((a, b) => {
+      const ka = `${a.buy_group_code ?? ""}|${a.buy_subgroup_code ?? ""}`;
+      const kb = `${b.buy_group_code ?? ""}|${b.buy_subgroup_code ?? ""}`;
+      const cmp = ka.localeCompare(kb);
+      return linesSortOrder === "subgroup_asc" ? cmp : -cmp;
+    });
+  }, [expandedLines, linesSortOrder]);
+
+  function cycleSubgroupSort() {
+    setLinesSortOrder(prev =>
+      prev === "default" ? "subgroup_asc" : prev === "subgroup_asc" ? "subgroup_desc" : "default"
+    );
+  }
 
   // Phase 4 — procurement chain
   const { data: procChainData, isLoading: procChainLoading } = useQuery<{ lines: any[] }>({
@@ -1282,9 +1300,11 @@ export default function EpcBuyListControlPage() {
                     <TableRow
                       className="cursor-pointer hover:bg-muted/40"
                       onClick={() => {
-                        setExpandedId(expandedId === lst.id ? null : lst.id);
+                        const newId = expandedId === lst.id ? null : lst.id;
+                        setExpandedId(newId);
                         setOpenSelLineId(null);
                         setCheckedLines(new Set());
+                        if (newId !== expandedId) setLinesSortOrder("default");
                       }}
                     >
                       <TableCell>
@@ -1411,7 +1431,18 @@ export default function EpcBuyListControlPage() {
                                       </TableHead>
                                     )}
                                     <TableHead className="text-xs">#</TableHead>
-                                    <TableHead className="text-xs">Group / Subgroup</TableHead>
+                                    <TableHead className="text-xs p-0">
+                                      <button
+                                        onClick={cycleSubgroupSort}
+                                        className="flex items-center gap-1 px-3 py-2 w-full hover:bg-muted/70 transition-colors rounded"
+                                        title="Sort by Group / Subgroup"
+                                      >
+                                        Group / Subgroup
+                                        {linesSortOrder === "default" && <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />}
+                                        {linesSortOrder === "subgroup_asc"  && <ArrowUp   className="h-3 w-3 text-blue-600" />}
+                                        {linesSortOrder === "subgroup_desc" && <ArrowDown  className="h-3 w-3 text-blue-600" />}
+                                      </button>
+                                    </TableHead>
                                     <TableHead className="text-xs">Requirement</TableHead>
                                     <TableHead className="text-xs">Model</TableHead>
                                     <TableHead className="text-xs">Tag No</TableHead>
@@ -1424,7 +1455,7 @@ export default function EpcBuyListControlPage() {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {expandedLines.map((line: any) => {
+                                  {sortedLines.map((line: any) => {
                                     const canRaisePr =
                                       line.status === "approved" &&
                                       !line.planning_record_id &&
