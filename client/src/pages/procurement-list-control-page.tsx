@@ -59,6 +59,8 @@ interface PlcLine {
   activeEpcPoId: number | null; epcPoNumber: string | null;
   itemCode: string | null; itemDescription: string | null; uom: string | null;
   createdAt: string;
+  buyGroupId: number | null; buyGroupLabel: string | null;
+  buySubgroupId: number | null; buySubgroupLabel: string | null;
 }
 
 interface PoGroup {
@@ -147,6 +149,8 @@ export default function ProcurementListControlPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [groupFilter, setGroupFilter] = useState<number | "all">("all");
+  const [subgroupFilter, setSubgroupFilter] = useState<number | "all">("all");
   const [activeTab, setActiveTab] = useState("lines");
   const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
   const [selectedPogId, setSelectedPogId] = useState<number | null>(null);
@@ -187,6 +191,12 @@ export default function ProcurementListControlPage() {
     select: (data) => (data as Project[]).filter((p) => !["Cancelled", "Closed", "Archived"].includes(p.status)),
   });
 
+  // Buy groups (for Group filter dropdown)
+  const { data: buyGroups = [] } = useQuery<{ id: number; label: string; code: string }[]>({
+    queryKey: ["/api/buy-groups"],
+    queryFn: () => apiRequest("GET", "/api/buy-groups"),
+  });
+
   // Summary strip
   const { data: summary, isLoading: summaryLoading } = useQuery<PlcSummary>({
     queryKey: ["/api/projects", selectedProjectId, "procurement-list", "summary"],
@@ -196,16 +206,31 @@ export default function ProcurementListControlPage() {
 
   // PLC Lines
   const { data: lines = [], isLoading: linesLoading, refetch: refetchLines } = useQuery<PlcLine[]>({
-    queryKey: ["/api/projects", selectedProjectId, "procurement-list", { search, statusFilter, priorityFilter }],
+    queryKey: ["/api/projects", selectedProjectId, "procurement-list", { search, statusFilter, priorityFilter, groupFilter, subgroupFilter }],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (priorityFilter !== "all") params.set("priority", priorityFilter);
+      if (groupFilter !== "all") params.set("groupId", String(groupFilter));
+      if (subgroupFilter !== "all") params.set("subgroupId", String(subgroupFilter));
       return apiRequest("GET", `/api/projects/${selectedProjectId}/procurement-list?${params}`);
     },
     enabled: !!selectedProjectId,
   });
+
+  // Derive unique subgroups from loaded lines for the selected group
+  const availableSubgroups = (() => {
+    const seen = new Map<number, string>();
+    for (const l of lines) {
+      if (l.buySubgroupId && l.buySubgroupLabel) {
+        if (groupFilter === "all" || l.buyGroupId === groupFilter) {
+          seen.set(l.buySubgroupId, l.buySubgroupLabel);
+        }
+      }
+    }
+    return Array.from(seen.entries()).map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label));
+  })();
 
   // PO Groups
   const { data: poGroups = [], isLoading: pogLoading, refetch: refetchPogs } = useQuery<PoGroup[]>({
@@ -465,6 +490,38 @@ export default function ProcurementListControlPage() {
                     <SelectItem value="critical">Critical</SelectItem>
                     <SelectItem value="expedite">Expedite</SelectItem>
                     <SelectItem value="standard">Standard</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={groupFilter === "all" ? "all" : String(groupFilter)}
+                  onValueChange={(v) => {
+                    setGroupFilter(v === "all" ? "all" : Number(v));
+                    setSubgroupFilter("all");
+                  }}
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="All Groups" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Groups</SelectItem>
+                    {buyGroups.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={subgroupFilter === "all" ? "all" : String(subgroupFilter)}
+                  onValueChange={(v) => setSubgroupFilter(v === "all" ? "all" : Number(v))}
+                  disabled={groupFilter === "all"}
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder={groupFilter === "all" ? "Select group first" : "All Subgroups"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subgroups</SelectItem>
+                    {availableSubgroups.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <div className="flex-1" />

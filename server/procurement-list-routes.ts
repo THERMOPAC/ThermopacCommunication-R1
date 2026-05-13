@@ -52,7 +52,7 @@ export function setupProcurementListRoutes(app: Express): void {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return badRequest(res, 'Invalid projectId');
 
-      const { status, subgroupCode, vendorId, priority, search, avlStatus } = req.query;
+      const { status, subgroupCode, vendorId, priority, search, avlStatus, groupId, subgroupId } = req.query;
       const conditions = ['p.project_id = $1'];
       const params: any[] = [projectId];
 
@@ -61,6 +61,8 @@ export function setupProcurementListRoutes(app: Express): void {
       if (vendorId) { params.push(parseInt(vendorId as string)); conditions.push(`p.vendor_id = $${params.length}`); }
       if (priority) { params.push(priority); conditions.push(`p.priority = $${params.length}`); }
       if (avlStatus) { params.push(avlStatus); conditions.push(`p.avl_status = $${params.length}`); }
+      if (groupId) { params.push(parseInt(groupId as string)); conditions.push(`src_bg.id = $${params.length}`); }
+      if (subgroupId) { params.push(parseInt(subgroupId as string)); conditions.push(`src_bs.id = $${params.length}`); }
       if (search) {
         params.push(`%${search}%`);
         conditions.push(`(p.plc_number ILIKE $${params.length} OR p.tag_no ILIKE $${params.length} OR p.service_description ILIKE $${params.length})`);
@@ -106,13 +108,20 @@ export function setupProcurementListRoutes(app: Express): void {
            g.pog_number AS "activePoGroupNumber",
            g.status AS "poGroupStatus",
            po.po_number AS "epcPoNumber",
-           ub.username AS "avlBypassedByName"
+           ub.username AS "avlBypassedByName",
+           src_bg.id   AS "buyGroupId",
+           src_bg.label AS "buyGroupLabel",
+           src_bs.id   AS "buySubgroupId",
+           src_bs.label AS "buySubgroupLabel"
          FROM procurement_list_lines p
          LEFT JOIN master_items mi ON mi.id = p.master_item_id
          LEFT JOIN vendors v ON v.id = p.vendor_id
          LEFT JOIN epc_po_groups g ON g.id = p.active_po_group_id
          LEFT JOIN epc_purchase_orders po ON po.id = p.active_epc_po_id
          LEFT JOIN users ub ON ub.id = p.avl_bypassed_by
+         LEFT JOIN project_buy_list_lines src ON src.id = p.source_buy_list_line_id
+         LEFT JOIN buy_groups src_bg ON src_bg.id = src.buy_group_id
+         LEFT JOIN buy_subgroups src_bs ON src_bs.id = src.buy_subgroup_id
          WHERE ${where}
          ORDER BY p.priority DESC, p.plc_number`,
         params,
