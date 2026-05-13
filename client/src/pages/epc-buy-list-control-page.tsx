@@ -1473,7 +1473,19 @@ export default function EpcBuyListControlPage() {
                                       size="sm" variant="outline"
                                       className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                                       disabled={bulkApprove.isPending}
-                                      onClick={() => setConfirmBulkApprove({ headerId: lst.id, lineIds: Array.from(checkedLines) })}
+                                      onClick={() => {
+                                        const checkedLineObjs = expandedLines.filter((l: any) => checkedLines.has(l.id));
+                                        const noSelection = checkedLineObjs.filter((l: any) => l.status === "open");
+                                        if (noSelection.length > 0) {
+                                          toast({
+                                            title: `${noSelection.length} line${noSelection.length > 1 ? "s have" : " has"} no selection`,
+                                            description: "Use Bulk Select to assign a master item first, then approve.",
+                                            variant: "destructive",
+                                          });
+                                          return;
+                                        }
+                                        setConfirmBulkApprove({ headerId: lst.id, lineIds: Array.from(checkedLines) });
+                                      }}
                                     >
                                       {bulkApprove.isPending
                                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1485,7 +1497,19 @@ export default function EpcBuyListControlPage() {
                                     size="sm" variant="outline"
                                     className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                                     disabled={bulkRaisePr.isPending}
-                                    onClick={() => setConfirmBulkRaisePr({ headerId: lst.id, lineIds: Array.from(checkedLines) })}
+                                    onClick={() => {
+                                      const checkedLineObjs = expandedLines.filter((l: any) => checkedLines.has(l.id));
+                                      const notApproved = checkedLineObjs.filter((l: any) => l.status !== "approved");
+                                      if (notApproved.length > 0) {
+                                        toast({
+                                          title: `${notApproved.length} line${notApproved.length > 1 ? "s are" : " is"} not yet approved`,
+                                          description: "Lines must be approved before a PR can be raised.",
+                                          variant: "destructive",
+                                        });
+                                        return;
+                                      }
+                                      setConfirmBulkRaisePr({ headerId: lst.id, lineIds: Array.from(checkedLines) });
+                                    }}
                                   >
                                     {bulkRaisePr.isPending
                                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
