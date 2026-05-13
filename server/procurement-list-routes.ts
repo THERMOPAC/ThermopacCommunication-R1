@@ -106,7 +106,7 @@ export function setupProcurementListRoutes(app: Express): void {
            g.pog_number AS "activePoGroupNumber",
            g.status AS "poGroupStatus",
            po.po_number AS "epcPoNumber",
-           ub.name AS "avlBypassedByName"
+           ub.username AS "avlBypassedByName"
          FROM procurement_list_lines p
          LEFT JOIN master_items mi ON mi.id = p.master_item_id
          LEFT JOIN vendors v ON v.id = p.vendor_id
@@ -133,8 +133,8 @@ export function setupProcurementListRoutes(app: Express): void {
            v.name AS vendor_display_name,
            g.pog_number AS active_po_group_number,
            po.po_number AS epc_po_number,
-           ub.name AS avl_bypassed_by_name,
-           uc.name AS created_by_name
+           ub.username AS avl_bypassed_by_name,
+           uc.username AS created_by_name
          FROM procurement_list_lines p
          LEFT JOIN master_items mi ON mi.id = p.master_item_id
          LEFT JOIN vendors v ON v.id = p.vendor_id
@@ -413,9 +413,9 @@ export function setupProcurementListRoutes(app: Express): void {
       const r = await pool.query(
         `SELECT g.*,
            v.name AS vendor_display_name,
-           us.name AS submitted_by_name,
-           ua.name AS approved_by_name,
-           uc.name AS created_by_name,
+           us.username AS submitted_by_name,
+           ua.username AS approved_by_name,
+           uc.username AS created_by_name,
            po.po_number AS epc_po_number_actual,
            (SELECT COUNT(*) FROM epc_po_group_lines gl WHERE gl.po_group_id = g.id AND gl.is_active = true) AS line_count
          FROM epc_po_groups g
@@ -441,8 +441,8 @@ export function setupProcurementListRoutes(app: Express): void {
       const [g, lines] = await Promise.all([
         pool.query(
           `SELECT g.*, v.name AS vendor_display_name,
-             us.name AS submitted_by_name, ua.name AS approved_by_name,
-             uj.name AS issued_by_name, uc.name AS created_by_name,
+             us.username AS submitted_by_name, ua.username AS approved_by_name,
+             uj.username AS issued_by_name, uc.username AS created_by_name,
              po.po_number AS epc_po_number_actual
            FROM epc_po_groups g
            LEFT JOIN vendors v ON v.id = g.vendor_id
