@@ -1,6 +1,6 @@
 # Procurement List Control (PLC) — Baseline Architecture v1.0 FINAL
 
-**Document Status:** AWAITING FORMAL APPROVAL — do not implement until formally approved  
+**Document Status:** APPROVED FOR CONTROLLED IMPLEMENTATION — Phase 1 authorised 13 May 2026  
 **Prepared by:** THERMOPAC QMS Engineering  
 **Date:** 13 May 2026  
 **Supersedes:** Plan v1.0 (rejected — parallel path), Plan v2.0 (rejected — incomplete quantity / SAP / BUY List revision governance), Baseline v1.0 (draft — incomplete rollback, security, transaction, UI governance)  
@@ -46,6 +46,11 @@
 34. Production Cutover Strategy
 35. Phase-Wise UI Creation Plan
 36. UI Delivery by Phase
+37. Phase-Wise UI Inventory
+38. Schema Ownership Governance
+39. No Direct SQL Update Governance
+40. Final Approval Gates
+41. Implementation Tracker Governance
 
 ---
 
@@ -2965,6 +2970,416 @@ Before implementation of any phase begins, the following must be confirmed by TH
 
 ---
 
-*End of Procurement List Control Baseline v1.0 FINAL*  
+## 37. Phase-Wise UI Inventory
+
+Complete inventory of every UI element. Phase column is the delivery phase. Nothing in Phase 2+ is built during Phase 1.
+
+### 37a. Pages
+
+| Element | Type | File | Phase |
+|---|---|---|---|
+| Procurement List Control Cockpit | Full page | `client/src/pages/procurement-list-control-page.tsx` | 1 |
+
+### 37b. Dialogs and Drawers
+
+| Element | Type | File | Trigger | Phase |
+|---|---|---|---|---|
+| PO Group Wizard | Multi-step dialog (4 steps) | `client/src/components/po-group-wizard.tsx` | "Create PO Group" button | 1 |
+| PO Group Detail Panel | Sheet/drawer | `client/src/components/po-group-detail.tsx` | Click POG number | 1 |
+| PLC Line Detail Drawer | Side drawer | `client/src/components/plc-line-detail-drawer.tsx` | Click PLC No | 1 |
+| PO Amendment Dialog | Dialog | `client/src/components/po-amendment-dialog.tsx` | "Amend PO" button | 1 |
+| Over-Procurement Approval | Inline confirm dialog | Inside procurement-list-control-page | Auto-shown | 1 |
+| AVL Bypass Acknowledgement | Inline checkbox in Wizard Step 1 | Inside po-group-wizard | Auto-shown | 1 |
+| GRN Record Dialog | Dialog | `client/src/components/grn-record-dialog.tsx` | "Record GRN" | 3 |
+| Material Issue Dialog | Dialog | `client/src/components/material-issue-dialog.tsx` | "Issue Material" | 3 |
+| SAP Reconciliation Report | Dialog | `client/src/components/sap-reconcile-dialog.tsx` | "Reconcile" | 4 |
+| RFQ Create Dialog | Dialog | `client/src/components/rfq-create-dialog.tsx` | "Create RFQ" | 2 |
+| Vendor Quote Dialog | Dialog | `client/src/components/vendor-quote-dialog.tsx` | "Enter Quote" | 2 |
+| TBE Dialog | Dialog | `client/src/components/tbe-dialog.tsx` | "Open TBE" | 2 |
+| CBE Dialog | Dialog | `client/src/components/cbe-dialog.tsx` | "Open CBE" | 2 |
+
+### 37c. Tables and Grids
+
+| Element | Location | Key Columns | Phase |
+|---|---|---|---|
+| Procurement Lines Table | "Procurement Lines" tab | PLC No, Tag No, Group, Subgroup, Qty Reqd, Qty Ordered, Qty Rcvd, Qty Balance, Status, Vendor, AVL, POG No, EPC PO No, Priority | 1 |
+| PO Groups Table | "PO Groups" tab | POG No, Vendor, Lines, Amount, Status, Submitted By, Approved By, EPC PO No | 1 |
+| POG Lines Sub-table | PO Group Detail Panel | Line No, PLC No, Tag No, Line Qty, Line Qty Rcvd, Unit Rate, Amount, Status | 1 |
+| Vendor AVL Table | Vendor Master — AVL tab | Subgroup, Status, Performance Score, Valid Until, Annual Review Due | 1 |
+| Amendment History Table | PLC Line Detail Drawer | Amendment No, Type, Status, Summary, Submitted By, Approved By | 1 |
+| GRN Records Table | "GRN Tracking" tab | GRN No, Date, PLC No, Vendor, Challan No, GRN Qty, Accepted Qty, Inspection Status | 3 |
+| Inspection Queue Table | GRN Tracking tab — sub-view | GRN No, Tag No, Received Date, Days Pending, Condition | 3 |
+| Vendor Scorecard Table | KPI Dashboard tab | Vendor, Orders, NCRs, Score, Status | 3 |
+| PO Aging Report Table | KPI Dashboard tab | PO No, Vendor, Age (days), Amount, Status | 3 |
+| SAP Sync Status Table | KPI Dashboard tab | EPC PO No, Sync Status, SAP Doc Entry, Last Synced | 4 |
+
+### 37d. Dashboard Sections
+
+| Section | Location | Content | Phase |
+|---|---|---|---|
+| Summary Strip | Top of cockpit (always visible) | 6 stat cards: Total / Pending / In Progress / PO Issued / Received / Closed | 1 |
+| Qty Alert Strip | Below summary strip | Required / Ordered / Balance / Over-procured / Overdue counts | 1 |
+| Project Procurement Health | KPI Dashboard tab | Completion %, delay count, over-procurement flag, NCR count | 3 |
+| Delivery Calendar | KPI Dashboard tab | Gantt by required_by_date, color-coded by risk | 3 |
+| GRN Inspection Queue | GRN Tracking tab | Days-pending sorted queue | 3 |
+| SAP Sync Health | KPI Dashboard tab (Phase 4 addition) | Error count, mismatch count, last sync time | 4 |
+
+### 37e. Tabs and Panels
+
+| Element | Parent | Phase |
+|---|---|---|
+| "Procurement Lines" tab | ProcurementListControlPage | 1 |
+| "PO Groups" tab | ProcurementListControlPage | 1 |
+| "Bid Evaluation" tab | ProcurementListControlPage | 2 |
+| "GRN Tracking" tab | ProcurementListControlPage | 3 |
+| "KPI Dashboard" tab | ProcurementListControlPage | 3 |
+| "PLC History" section | PlcLineDetailDrawer | 1 |
+| "Specification" section | PlcLineDetailDrawer | 1 |
+| "Documents" section | PlcLineDetailDrawer | 1 |
+| "Amendments" section | PlcLineDetailDrawer | 1 |
+| "Stores" section (GRN + MIR) | PlcLineDetailDrawer | 3 |
+| "SAP Integration" section | PlcLineDetailDrawer | 4 |
+| "AVL Qualification" tab | Vendor Master page | 1 |
+
+### 37f. Existing Page Modifications
+
+| Page | Change | Phase |
+|---|---|---|
+| `epc-buy-list-control-page.tsx` | Add "Procurement" column: PLC status badge + PLC No (linked) + POG No + EPC PO No | 1 |
+| `epc-buy-list-control-page.tsx` | Amber row highlight when `revision_action_required != 'none'` | 1 |
+| Vendor Master page | Add "AVL Qualification" tab with VendorAvlPanel | 1 |
+| Old procurement execution page | Add deprecation banner: "Managed by Procurement List Control" | 1 |
+| Project settings page | Add "Procurement Closure Checklist" panel | 3 |
+
+### 37g. Navigation and Permission Changes
+
+| Change | Phase |
+|---|---|
+| Sidebar: "Procurement List Control" link added below "BUY List Control" (icon: ClipboardList) | 1 |
+| Page permission key `procurement-list-control` seeded in `page_permissions` table | 1 |
+| `shared/epc-permission-registry.ts`: entry for `procurement-list-control` added | 1 |
+| App.tsx: `PageProtectedRoute` for `/epc/procurement-list-control` | 1 |
+| projects-production.ts lazy export: `EpcProcurementListControlPage` | 1 |
+
+---
+
+## 38. Schema Ownership Governance
+
+This section defines who owns each PLC-related table and what "ownership" means in practice.
+
+### 38a. Ownership Definitions
+
+| Term | Meaning |
+|---|---|
+| **Creator** | The only application code path that may INSERT rows into this table |
+| **Mutator** | The only application code path that may UPDATE rows in this table |
+| **Read-Only** | No application code may INSERT, UPDATE, or DELETE rows — read only |
+| **Append-Only** | INSERT is permitted; UPDATE and DELETE are never permitted |
+
+### 38b. Table Ownership Matrix
+
+| Table | Creator | Mutator | Deletable? | Notes |
+|---|---|---|---|---|
+| `procurement_list_lines` | `createPlcLineInTx()` in `server/plc-line-service.ts` only | `recomputePlcQty()` + status update functions in `plc-line-service.ts` only | NO | Status change is the only mutation; qty fields are recomputed-only |
+| `epc_po_groups` | `POST /api/epc-po-groups` handler only | Status-transition handlers only (`approve`, `reject`, `cancel`, `issue-po`) | NO | Header fields editable while `draft`; immutable after `approved` |
+| `epc_po_group_lines` | `POST /api/epc-po-groups` handler only (inside same tx) | `PATCH /api/epc-po-groups/:id/lines` (draft only) + `is_active = false` on cancel/reject | NO | `is_active` flag is the only mutation post-approve |
+| `epc_po_amendments` | `POST /api/epc-purchase-orders/:id/amend` handler only | Status-transition handlers only | NO | Immutable after `issued` |
+| `vendor_subgroup_qualification` | `POST /api/vendor-subgroup-qualification` handler only | `PATCH /api/vendor-subgroup-qualification/:id` + performance score updater | NO | Status changes only; performance_score auto-maintained |
+| `plc_grn_records` | `POST /api/plc-grn` handler only | `PATCH /api/plc-grn/:id/inspection-result` + `POST /api/plc-grn/:id/accept-stores` | NO | accepted_qty set once by inspection; immutable after stores acceptance |
+| `plc_material_issues` | `POST /api/plc-material-issues` handler only (Phase 3) | NONE — immutable after creation | NO | Append-only after creation |
+| `plc_document_attachments` | `POST /api/plc-documents/upload` handler only | `is_current = false` only via DELETE route (logical delete) | NO (GCS file never deleted) | `DELETE` route sets `is_current = false`; no physical deletion |
+| `procurement_list_audit_log` | `logPlcAudit()` in `plc-line-service.ts` called at end of every mutation | NONE | NO | Strictly append-only; no route or function may UPDATE or DELETE |
+| `epc_purchase_orders` (PLC columns) | `POST /api/epc-po-groups/:id/approve` handler | Status-transition handlers; `POST /api/epc-po-groups/:id/issue-po` for qty totals | NO | Legacy columns unchanged |
+| `epc_purchase_order_items` (PLC columns) | `POST /api/epc-po-groups/:id/approve` handler | `qty_received` updated by GRN recompute only | NO | Legacy columns unchanged |
+
+### 38c. Ownership Violation Definition
+
+An ownership violation is any of the following:
+1. A route handler outside the designated creator path writing to a PLC table.
+2. Any `drizzle.update()` or raw SQL `UPDATE` on `procurement_list_audit_log`.
+3. Any `drizzle.delete()` or raw SQL `DELETE` on any PLC table.
+4. Any direct field assignment to `procurement_list_lines.qty_*` fields outside `recomputePlcQty()`.
+5. Any write to `procurement_list_lines.qty_required` after the row is created.
+
+**Response to an ownership violation in code review:** PR rejected; no merge permitted until violation is corrected.
+
+---
+
+## 39. No Direct SQL Update Governance
+
+### 39a. Rule
+
+**No raw SQL `UPDATE` or `DELETE` statements are permitted on any PLC table in application code.**
+
+This applies to:
+- `pool.query('UPDATE procurement_list_lines ...')` — prohibited
+- `db.execute(sql\`UPDATE procurement_list_lines ...\`)` — prohibited
+- `drizzle.delete(procurementListLines).where(...)` — prohibited
+- Any `UPDATE` in a transaction that bypasses the service layer functions
+
+**Only permitted exceptions:**
+1. Migration scripts (one-time, reviewed by two engineers before execution).
+2. Emergency admin correction scripts (approved by Superuser + documented in `procurement_list_audit_log` under entity_type `system_correction`).
+3. Backfill routes (`POST /api/projects/:projectId/procurement-list/backfill`) which are migration-phase-only and disabled after Phase 2.
+
+### 39b. Enforcement
+
+**Code review gate:** Any PR touching PLC tables is reviewed against this rule before merge. Grep check:
+```bash
+grep -n "UPDATE procurement_list\|UPDATE epc_po_group\|DELETE FROM procurement_list\|DELETE FROM epc_po_group\|DELETE FROM plc_" server/
+```
+Expected: zero results (only migration scripts and service layer).
+
+**Service layer as the exclusive write path:**
+
+| Operation | Correct Call | Incorrect Call |
+|---|---|---|
+| Create PLC line | `createPlcLineInTx(client, params)` | Direct INSERT in route handler |
+| Recompute qty | `recomputePlcQty(plcLineId, client)` | `pool.query('UPDATE procurement_list_lines SET qty_ordered = ...')` |
+| Log audit | `logPlcAudit(client, event, ...)` | Direct INSERT in route handler |
+| Update PLC line status | `updatePlcLineStatus(client, id, newStatus, userId, reason)` | Direct UPDATE in route handler |
+
+### 39c. Drizzle ORM Preferred Pattern
+
+All writes use the Drizzle fluent API, never raw SQL for PLC tables:
+```typescript
+// Correct
+await client.update(procurementListLines)
+  .set({ status: 'in_po_group', activePoGroupId: pogId, updatedAt: new Date() })
+  .where(eq(procurementListLines.id, plcLineId));
+
+// Prohibited
+await client.execute(sql`UPDATE procurement_list_lines SET status = 'in_po_group' WHERE id = ${plcLineId}`);
+```
+
+Exception: `pg_advisory_xact_lock` must use raw SQL (it is a PostgreSQL function call, not a DML statement):
+```typescript
+await tx.execute(sql`SELECT pg_advisory_xact_lock(${plcLineId})`); // Permitted — not DML
+```
+
+---
+
+## 40. Final Approval Gates
+
+### 40a. Per-Phase Approval Requirements
+
+Implementation of each phase is not considered complete until all five evidence types are submitted and formally approved by THERMOPAC management.
+
+| Evidence Type | What Is Required | Format |
+|---|---|---|
+| **Zero-Trust Verification Evidence** | Results of all applicable §29 checks with query output or test log showing zero violations | SQL query output screenshot or exported CSV |
+| **Schema Evidence** | `\d+ procurement_list_lines` (and other new tables) output from production DB, confirming all columns and indexes are present | psql `\d+` output or pgAdmin screenshot |
+| **API Evidence** | HTTP request/response log for each new route, demonstrating correct HTTP status codes, correct JSON payloads, and correct error handling | Postman collection export or curl log |
+| **UI Evidence / Screenshots** | Screenshots of every new page, dialog, table, and tab delivered in the phase | PNG screenshots with test data visible |
+| **Rollback Evidence** | Confirmation that the rollback procedure (§28) has been tested on the staging environment and succeeds within the documented time window | Staging test log with timestamps |
+
+### 40b. Phase 1 Approval Gate
+
+**Prerequisite:** Phase 0 pre-migration audit completed and counts accepted.
+
+**Deliverables for approval:**
+
+- [ ] Zero-Trust §29a (quantity integrity) — zero violation rows on all active projects
+- [ ] Zero-Trust §29b (duplicate prevention) — zero active duplicate group assignments
+- [ ] Zero-Trust §29c (concurrency locking) — concurrent POG creation test confirms exactly one succeeds
+- [ ] Zero-Trust §29g (permission enforcement) — all 6 route / role combinations return correct HTTP status
+- [ ] Schema evidence: all 9 new tables present in production DB with all columns and indexes
+- [ ] Schema evidence: all ALTER TABLE additions confirmed on 4 existing tables
+- [ ] API evidence: all 26 Phase 1 routes tested (11 PLC line + 10 POG + 5 EPC PO routes)
+- [ ] UI evidence: screenshots of PLC cockpit, PO Group Wizard (all 4 steps), PLC Line Detail Drawer, PO Group Detail Panel, Vendor AVL Panel, BUY List Control with PLC column
+- [ ] Rollback evidence: staging rollback test completed in < 20 minutes
+
+**Phase 1 sign-off required before Phase 2 begins.** No Phase 2 implementation work starts without written approval.
+
+### 40c. Phase 2 Approval Gate (future)
+
+Same five evidence types applied to Phase 2 deliverables. Specifically:
+- [ ] Hard-block on legacy routes confirmed (HTTP 423 returned, not just warned)
+- [ ] RFQ lifecycle tested end-to-end on staging
+- [ ] Vendor comparison matrix renders correctly with multi-vendor data
+- [ ] TBE and CBE report workflows tested
+
+### 40d. Phase 3 Approval Gate (future)
+
+- [ ] GRN lifecycle tested: record → inspection → stores acceptance → PLC qty recomputed correctly
+- [ ] Background qty recompute job confirmed running (scheduler log)
+- [ ] NCR traceability confirmed: NCR linked to GRN, GRN linked to PLC line, PLC line qty not double-counted
+- [ ] KPI dashboard data matches raw SQL verification queries
+
+### 40e. Phase 4 Approval Gate (future)
+
+- [ ] SAP PO push confirmed (SAP docEntry recorded in DB)
+- [ ] SAP GRN pull confirmed (plc_grn_records created from SAP data)
+- [ ] Reconciliation report confirms zero discrepancy on test project
+- [ ] Materialized view refresh confirmed on schedule
+
+---
+
+## 41. Implementation Tracker Governance
+
+### 41a. Tracker Document
+
+The implementation tracker is a living document created at the start of Phase 1 implementation. Its path: `docs/procurement-list-control-implementation-tracker.md`.
+
+**Tracker contents:**
+- Current phase number and status (`Not Started` / `In Progress` / `Awaiting Approval` / `Approved`)
+- Per-deliverable checklist (schema, backend, frontend, migration, verification)
+- Evidence log: date, evidence type, submitter, link/screenshot reference
+- Approval record: approver name, date, approval scope
+- Phase gate status: locked / open
+- Known issues log (non-blocking issues carried forward to next phase)
+
+### 41b. Tracker Lock Mechanism
+
+**Phase gate lock:** Once a phase is submitted for approval (status `Awaiting Approval`), no further implementation work on any component is permitted until:
+1. All evidence is reviewed and accepted, OR
+2. Specific items are called back for correction (tracker status reverts to `In Progress` for those items only).
+
+**Cross-phase lock:** Phase N+1 implementation does not begin until Phase N gate is formally approved. The tracker records the approval date and approver for each gate.
+
+### 41c. Tracker Maintenance Rules
+
+1. The tracker is updated at the completion of every implementation step — not retrospectively.
+2. Each evidence item is linked by filename or URL at the time of submission.
+3. Known issues discovered during a phase are logged immediately — not deferred.
+4. The tracker is never deleted or overwritten. If a phase is re-done, a new section is appended (with a revision note) rather than editing previous entries.
+5. The tracker is committed to version control at the end of every implementation session.
+
+### 41d. Phase 1 Tracker Initialisation
+
+At the start of Phase 1 implementation, create the tracker by running:
+```
+docs/procurement-list-control-implementation-tracker.md
+```
+with the following initial structure:
+
+```markdown
+# PLC Implementation Tracker
+**Baseline:** docs/procurement-list-control-baseline-v1.md (approved 13 May 2026)
+
+## Phase 1 — Core MVP
+**Status:** In Progress  
+**Started:** [date]  
+**Submitted for approval:** [date]  
+**Approved:** [date]  
+**Approver:** [name]
+
+### Schema
+- [ ] vendor_subgroup_qualification created
+- [ ] procurement_list_lines created
+- [ ] epc_po_groups created
+- [ ] epc_po_group_lines created
+- [ ] epc_po_amendments created
+- [ ] plc_grn_records created (table only; routes Phase 3)
+- [ ] plc_material_issues created (table only; routes Phase 3)
+- [ ] plc_document_attachments created
+- [ ] procurement_list_audit_log created
+- [ ] epc_purchase_orders ALTER columns applied
+- [ ] epc_purchase_order_items ALTER columns applied
+- [ ] inspection_execution_records ALTER columns applied
+- [ ] non_conformance_reports ALTER columns applied
+- [ ] All 16 indexes created
+
+### Backend
+- [ ] server/plc-line-service.ts created
+- [ ] server/procurement-list-routes.ts created (26 routes)
+- [ ] server/vendor-qualification-routes.ts created (5 routes)
+- [ ] server/pppc-routes.ts modified (raise-pr + bulk-raise-pr)
+- [ ] server/routes.ts updated (new routes registered)
+- [ ] POG doc_sequence key registered
+- [ ] page_permission 'procurement-list-control' seeded
+
+### Frontend
+- [ ] client/src/pages/procurement-list-control-page.tsx created
+- [ ] client/src/components/po-group-wizard.tsx created
+- [ ] client/src/components/po-group-detail.tsx created
+- [ ] client/src/components/plc-line-detail-drawer.tsx created
+- [ ] client/src/components/plc-document-manager.tsx created
+- [ ] client/src/components/vendor-avl-panel.tsx created
+- [ ] client/src/loaders/projects-production.ts updated
+- [ ] client/src/App.tsx updated
+- [ ] client/src/components/layout.tsx updated (sidebar link)
+- [ ] shared/epc-permission-registry.ts updated
+- [ ] epc-buy-list-control-page.tsx updated (PLC column)
+
+### Verification
+- [ ] npm run typecheck — zero errors
+- [ ] Zero-Trust §29a (qty integrity)
+- [ ] Zero-Trust §29b (duplicate prevention)
+- [ ] Zero-Trust §29c (concurrency locking)
+- [ ] Zero-Trust §29g (permission enforcement)
+- [ ] Rollback test on staging
+
+### Evidence Log
+| Date | Type | Item | Submitter | Reference |
+|---|---|---|---|---|
+```
+
+---
+
+## Document Statistics (Final)
+
+**Saved as:** `docs/procurement-list-control-baseline-v1.md`  
+**Supersedes:** `docs/procurement-list-control-baseline-v1.0.md`  
+**Version:** v1.0 FINAL — APPROVED  
+**Approval date:** 13 May 2026
+
+### Section Inventory
+
+| Range | Group | Section Count |
+|---|---|---|
+| §1–§7 | Architecture, lifecycle, numbering, migration | 7 |
+| §8 | Schema (9 new tables, 4 ALTER TABLE, 16 indexes) | 1 (10 subsections) |
+| §9 | API / Routes (~62 endpoints across 4 phases) | 1 (8 subsections) |
+| §10–§13 | UI, status lifecycle, duplicate prevention, concurrency | 4 |
+| §14–§18 | Quantity ownership, BUY list revision, supersession, AVL, PO amendment | 5 |
+| §19–§26 | SAP, documents, notifications, KPI, archival, performance, datasheet, traceability | 8 |
+| §27 | Implementation phase breakdown | 1 (4 phases) |
+| §28–§32 | Rollback, zero-trust, transaction governance, failure recovery, security | 5 |
+| §33–§34 | Dependency matrix, production cutover | 2 |
+| §35–§36 | Phase-wise UI creation plan, UI delivery by phase | 2 |
+| §37–§41 | UI inventory, schema ownership, SQL governance, approval gates, tracker | 5 |
+| **Total** | | **41 sections** |
+
+### Schema Inventory
+
+| Item | Count |
+|---|---|
+| New tables (Phase 1 created, some routes Phase 3+) | 9 |
+| Altered existing tables | 4 |
+| New columns across all tables | ~15 new columns |
+| Indexes | 16 |
+| Future tables (Phases 2–4, designed not built) | 6 |
+| Doc sequence keys to register | 4 (POG, GRN, MIR, RFQ) |
+| Page permissions to seed | 1 |
+
+### API / Route Inventory
+
+| Phase | Route File | Endpoints |
+|---|---|---|
+| 1 | `server/procurement-list-routes.ts` | 26 (PLC lines + POG + EPC PO) |
+| 1 | `server/vendor-qualification-routes.ts` | 5 |
+| 1 | `server/pppc-routes.ts` (modified) | 0 new; 2 modified |
+| 2 | `server/plc-rfq-routes.ts` | ~6 |
+| 2 | `server/plc-evaluation-routes.ts` | ~6 |
+| 3 | `server/plc-grn-routes.ts` | 6 |
+| 3 | `server/plc-material-issue-routes.ts` | 2 |
+| 4 | `server/plc-sap-routes.ts` | 4 |
+| **Total** | | **~55+ endpoints** |
+
+### Implementation Effort Estimate
+
+| Phase | Backend | Frontend | DB/Migration | Total Lines | Duration |
+|---|---|---|---|---|---|
+| 1 | ~2,200 | ~2,800 | ~100 SQL | ~5,100 | ~3 weeks |
+| 2 | ~1,000 | ~1,200 | ~40 SQL | ~2,240 | ~1.5 weeks |
+| 3 | ~800 | ~1,000 | ~20 SQL | ~1,820 | ~1 week |
+| 4 | ~600 | ~600 | ~30 SQL | ~1,230 | ~1 week |
+| **Total** | **~4,600** | **~5,600** | **~190** | **~10,390** | **~6.5 weeks** |
+
+---
+
+*End of Procurement List Control Baseline v1.0 FINAL — APPROVED*  
 *Document saved: `docs/procurement-list-control-baseline-v1.md`*  
-*Supersedes: `docs/procurement-list-control-baseline-v1.0.md`*
+*Supersedes: `docs/procurement-list-control-baseline-v1.0.md`*  
+*Approval date: 13 May 2026 — Phase 1 implementation authorised*

@@ -155,6 +155,16 @@ export const EPC_PAGES: PagePermission[] = [
     backendSource: "server/project-routes.ts — /api/procurement-executions/*, /api/production-executions/*",
   },
   {
+    id: "procurement-list-control",
+    label: "Procurement List Control",
+    route: "/epc/procurement-list-control",
+    moduleGate: "Project Management",
+    minViewRole: 5,
+    description: "PLC — Purchase Order lifecycle: PR Raised → PO Group → EPC PO → GRN → Stores. Phase 1 MVP (approved baseline v1.0).",
+    frontendSource: "client/src/pages/procurement-list-control-page.tsx",
+    backendSource: "server/procurement-list-routes.ts — /api/projects/:id/procurement-list/*, /api/epc-po-groups/*",
+  },
+  {
     id: "quality-inspection",
     label: "EPC Quality & Inspection",
     route: "/epc/quality-inspection",

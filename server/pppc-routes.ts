@@ -36,6 +36,7 @@ import {
   getNextTagNoInTx, getNextNTagNosInTx, previewNextTagNos,
   isTagNoUnique, logTagNoChange,
 } from './tag-generation-service';
+import { createPlcLineInTx } from './plc-line-service';
 
 // ─── Phase 3 helpers ──────────────────────────────────────────────────────────
 const dsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -1402,13 +1403,17 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
            u.code AS uom_code, u.label AS uom_label,
            ipr.planning_number AS ipr_planning_number,
            ipr.status AS ipr_status,
-           mi.item_code AS selected_item_code, mi.description AS selected_item_description
+           mi.item_code AS selected_item_code, mi.description AS selected_item_description,
+           pll.plc_number AS plc_number,
+           pll.status AS plc_status
          FROM project_buy_list_lines l
          JOIN buy_groups bg ON bg.id = l.buy_group_id
          JOIN buy_subgroups bs ON bs.id = l.buy_subgroup_id
          JOIN uom_master u ON u.id = l.uom_id
          LEFT JOIN item_planning_records ipr ON ipr.id = l.planning_record_id
          LEFT JOIN master_items mi ON mi.id = l.selected_master_item_id
+         LEFT JOIN procurement_list_lines pll ON pll.source_buy_list_line_id = l.id
+           AND pll.status != 'cancelled'
          WHERE l.buy_list_header_id=$1
          ORDER BY bg.sort_order, bg.code, bs.sort_order, bs.code, l.tag_no, l.line_number`,
         [id],
@@ -2381,6 +2386,29 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         [planningRecordId, lineId],
       );
 
+      // ── Create PLC line (idempotent — skips if already exists) ───────────
+      try {
+        await createPlcLineInTx(pool, {
+          projectId: ctx.projectId,
+          projectCode: ctx.projectCode,
+          planningRecordId,
+          planningNumber,
+          sourceBuyListHeaderId: ctx.buyListHeaderId,
+          sourceBuyListLineId: lineId,
+          masterItemId: ctx.selectedMasterItemId!,
+          tagNo: ctx.tagNo ?? null,
+          serviceDescription: ctx.serviceDescription ?? null,
+          equipmentReference: ctx.equipmentReference ?? null,
+          subgroupCode: null,
+          subgroupLabel: null,
+          qtyRequired: parseFloat(ctx.quantity) || 1,
+          createdBy: userId,
+        });
+      } catch (plcErr: any) {
+        // Non-fatal: PLC creation failure does not block PLN creation
+        console.warn('[PLC] createPlcLineInTx failed for line', lineId, plcErr.message);
+      }
+
       res.status(201).json({ success: true, planningRecordId, projectItemId, isReused });
     } catch (err) { sendError(res, err); }
   });
@@ -2633,6 +2661,29 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             );
             const planningRecordId = plnIns.rows[0].id;
             await client.query(`UPDATE project_buy_list_lines SET planning_record_id=$1, updated_at=NOW() WHERE id=$2`, [planningRecordId, lineId]);
+
+            // ── Create PLC line (idempotent — skips if already exists) ───────
+            try {
+              await createPlcLineInTx(client, {
+                projectId: h.project_id,
+                projectCode: h.project_code,
+                planningRecordId,
+                planningNumber,
+                sourceBuyListHeaderId: headerId,
+                sourceBuyListLineId: lineId,
+                masterItemId: line.selected_master_item_id,
+                tagNo: line.tag_no ?? null,
+                serviceDescription: line.service_description ?? null,
+                equipmentReference: line.equipment_reference ?? null,
+                subgroupCode: null,
+                subgroupLabel: null,
+                qtyRequired: qty,
+                createdBy: userId,
+              });
+            } catch (plcErr: any) {
+              console.warn('[PLC] createPlcLineInTx failed in bulk-raise-pr for line', lineId, plcErr.message);
+            }
+
             await client.query(`RELEASE SAVEPOINT ${spName}`);
             succeeded++; results.push({ lineId, status: 'ok', planningRecordId });
           } catch (e: any) {

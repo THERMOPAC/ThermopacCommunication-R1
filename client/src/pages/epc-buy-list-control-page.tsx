@@ -1451,6 +1451,7 @@ export default function EpcBuyListControlPage() {
                                     <TableHead className="text-xs text-center">Qty</TableHead>
                                     <TableHead className="text-xs">Line Status</TableHead>
                                     <TableHead className="text-xs">Planning</TableHead>
+                                    <TableHead className="text-xs">PLC</TableHead>
                                     <TableHead className="text-xs">Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -1525,6 +1526,24 @@ export default function EpcBuyListControlPage() {
                                               </div>
                                             ) : (
                                               <span className="text-[10px] text-muted-foreground/50 italic">not raised</span>
+                                            )}
+                                          </TableCell>
+
+                                          {/* PLC cell */}
+                                          <TableCell className="min-w-32">
+                                            {line.plc_number ? (
+                                              <div className="space-y-0.5">
+                                                <span className="font-mono text-[10px] text-indigo-700 font-semibold block">
+                                                  {line.plc_number}
+                                                </span>
+                                                {line.plc_status && (
+                                                  <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-medium bg-indigo-50 text-indigo-700">
+                                                    {line.plc_status.replace(/_/g, ' ')}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span className="text-[10px] text-muted-foreground/50 italic">—</span>
                                             )}
                                           </TableCell>
 
@@ -1605,7 +1624,7 @@ export default function EpcBuyListControlPage() {
                                         {/* Phase 5 — inline selection card */}
                                         {selCardOpen && (
                                           <TableRow>
-                                            <TableCell colSpan={bulkAvailable ? 11 : 10} className="py-2 px-4 bg-blue-50/30">
+                                            <TableCell colSpan={bulkAvailable ? 12 : 11} className="py-2 px-4 bg-blue-50/30">
                                               {renderSelCard(line, lst)}
                                             </TableCell>
                                           </TableRow>

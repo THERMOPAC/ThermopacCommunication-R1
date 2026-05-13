@@ -2532,6 +2532,8 @@ export const inspectionExecutionRecords = pgTable('inspection_execution_records'
   createdSourceType: varchar('created_source_type', { length: 20 }).default('manual'),
   createdSourceRef: varchar('created_source_ref', { length: 100 }),
   automationRunId: uuid('automation_run_id'),
+  plcLineId: integer('plc_line_id'), // FK to procurement_list_lines — nullable; added Phase 1
+  grnRecordId: integer('grn_record_id'), // FK to plc_grn_records — nullable; added Phase 1
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -3074,6 +3076,8 @@ export const nonConformanceReports = pgTable('non_conformance_reports', {
   projectItemId: integer('project_item_id').references(() => projectItems.id, { onDelete: 'set null' }),
   workOrderId: integer('work_order_id').references(() => workOrders.id, { onDelete: 'set null' }),
   batchNumber: text('batch_number'),
+  plcLineId: integer('plc_line_id'), // FK to procurement_list_lines — nullable; added Phase 1
+  grnRecordId: integer('grn_record_id'), // FK to plc_grn_records — nullable; added Phase 1
   quantityAffected: integer('quantity_affected').notNull(),
   
   // Resolution
@@ -11607,6 +11611,8 @@ export const epcPurchaseOrders = pgTable('epc_purchase_orders', {
   createdSourceType: varchar("created_source_type", { length: 20 }).default('manual'),
   createdSourceRef: varchar("created_source_ref", { length: 100 }),
   automationRunId: uuid("automation_run_id"),
+  poGroupId: integer("po_group_id"), // FK to epc_po_groups — no .references() to avoid forward ref; constraint enforced at application layer
+  amendmentCount: integer("amendment_count").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -11625,6 +11631,9 @@ export const epcPurchaseOrderItems = pgTable('epc_purchase_order_items', {
   unitCost: decimal("unit_cost", { precision: 12, scale: 2 }),
   totalCost: decimal("total_cost", { precision: 12, scale: 2 }),
   sourceBomLineId: integer("source_bom_line_id"),
+  plcLineId: integer("plc_line_id"), // FK to procurement_list_lines — nullable; added Phase 1
+  plcLineQty: decimal("plc_line_qty", { precision: 10, scale: 2 }),
+  plcLineQtyReceived: decimal("plc_line_qty_received", { precision: 10, scale: 2 }).default('0'),
   procurementNotes: text("procurement_notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -13714,3 +13723,266 @@ export const itemCodeRegistry = pgTable('item_code_registry', {
   uniq: uniqueIndex('icr_type_scope_key_unique').on(t.registryType, t.scopeGroup, t.scopeSubgroup, t.entityKey),
 }));
 export type ItemCodeRegistry = typeof itemCodeRegistry.$inferSelect;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLC MODULE — Phase 1 Schema (approved baseline v1.0, 13 May 2026)
+// Governance: docs/procurement-list-control-baseline-v1.md §8 and §38
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── 1. Vendor Subgroup Qualification (AVL) ────────────────────────────────
+export const vendorSubgroupQualification = pgTable('vendor_subgroup_qualification', {
+  id: serial('id').primaryKey(),
+  vendorId: integer('vendor_id').notNull().references(() => vendors.id, { onDelete: 'cascade' }),
+  subgroupCode: varchar('subgroup_code', { length: 20 }).notNull(),
+  subgroupLabel: varchar('subgroup_label', { length: 120 }),
+  status: varchar('status', { length: 30 }).notNull().default('under_review'),
+  // 'qualified' | 'conditionally_qualified' | 'not_qualified' | 'under_review'
+  qualifiedBy: integer('qualified_by').references(() => users.id),
+  qualifiedAt: timestamp('qualified_at'),
+  validUntil: date('valid_until'),
+  performanceScore: decimal('performance_score', { precision: 5, scale: 2 }),
+  notes: text('notes'),
+  conditions: text('conditions'),
+  annualReviewDue: date('annual_review_due'),
+  lastReviewedBy: integer('last_reviewed_by').references(() => users.id),
+  lastReviewedAt: timestamp('last_reviewed_at'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  uniqVendorSubgroup: uniqueIndex('vsq_vendor_subgroup_unique').on(t.vendorId, t.subgroupCode),
+}));
+export const insertVendorSubgroupQualificationSchema = createInsertSchema(vendorSubgroupQualification).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertVendorSubgroupQualification = z.infer<typeof insertVendorSubgroupQualificationSchema>;
+export type VendorSubgroupQualification = typeof vendorSubgroupQualification.$inferSelect;
+
+// ─── 2. Procurement List Lines ─────────────────────────────────────────────
+// Creator: createPlcLineInTx() in server/plc-line-service.ts ONLY.
+// Mutator: service functions in plc-line-service.ts ONLY.
+// No direct SQL UPDATE or DELETE permitted in application code.
+export const procurementListLines = pgTable('procurement_list_lines', {
+  id: serial('id').primaryKey(),
+  plcNumber: varchar('plc_number', { length: 60 }).notNull().unique(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  planningRecordId: integer('planning_record_id').references(() => itemPlanningRecords.id),
+  planningNumber: varchar('planning_number', { length: 60 }),
+  sourceBuyListHeaderId: integer('source_buy_list_header_id'),
+  sourceBuyListLineId: integer('source_buy_list_line_id'),
+  masterItemId: integer('master_item_id').references(() => masterItems.id),
+  tagNo: varchar('tag_no', { length: 50 }),
+  serviceDescription: text('service_description'),
+  equipmentReference: varchar('equipment_reference', { length: 150 }),
+  subgroupCode: varchar('subgroup_code', { length: 20 }),
+  subgroupLabel: varchar('subgroup_label', { length: 120 }),
+  // Qty fields — only modified by recomputePlcQty() and derivePlcLineStatus()
+  qtyRequired: decimal('qty_required', { precision: 10, scale: 2 }).notNull(),
+  qtyOrdered: decimal('qty_ordered', { precision: 10, scale: 2 }).notNull().default('0'),
+  qtyReceived: decimal('qty_received', { precision: 10, scale: 2 }).notNull().default('0'),
+  qtyBalance: decimal('qty_balance', { precision: 10, scale: 2 }).notNull().default('0'),
+  qtyOverProcured: decimal('qty_over_procured', { precision: 10, scale: 2 }).notNull().default('0'),
+  // Status lifecycle: pr_raised → in_po_group → po_issued → partial_received → fully_received | closed
+  status: varchar('status', { length: 30 }).notNull().default('pr_raised'),
+  activePoGroupId: integer('active_po_group_id'),  // FK to epc_po_groups — no .references() to avoid circular
+  activeEpcPoId: integer('active_epc_po_id'),      // FK to epc_purchase_orders — no .references() to avoid circular
+  vendorId: integer('vendor_id').references(() => vendors.id),
+  vendorName: varchar('vendor_name', { length: 255 }),
+  priority: varchar('priority', { length: 20 }).notNull().default('standard'), // standard | expedite | critical
+  requiredByDate: date('required_by_date'),
+  // AVL governance
+  avlStatus: varchar('avl_status', { length: 30 }).notNull().default('not_checked'),
+  // not_checked | qualified | conditionally_qualified | not_qualified | bypassed
+  avlBypassReason: text('avl_bypass_reason'),
+  avlBypassedBy: integer('avl_bypassed_by').references(() => users.id),
+  avlBypassedAt: timestamp('avl_bypassed_at'),
+  // BUY List revision tracking
+  revisionActionRequired: varchar('revision_action_required', { length: 30 }).notNull().default('none'),
+  // none | price_revision | qty_revision | cancellation_revision
+  specificationNotes: text('specification_notes'),
+  internalNotes: text('internal_notes'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertProcurementListLineSchema = createInsertSchema(procurementListLines).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProcurementListLine = z.infer<typeof insertProcurementListLineSchema>;
+export type ProcurementListLine = typeof procurementListLines.$inferSelect;
+
+// ─── 3. EPC PO Groups ─────────────────────────────────────────────────────
+export const epcPoGroups = pgTable('epc_po_groups', {
+  id: serial('id').primaryKey(),
+  pogNumber: varchar('pog_number', { length: 60 }).notNull().unique(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  vendorId: integer('vendor_id').references(() => vendors.id),
+  vendorName: varchar('vendor_name', { length: 255 }),
+  totalLines: integer('total_lines').notNull().default(0),
+  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }),
+  currency: varchar('currency', { length: 10 }).notNull().default('INR'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  // draft → submitted → approved → po_issued | rejected | cancelled
+  epcPoId: integer('epc_po_id'),      // FK to epc_purchase_orders (set when po_issued)
+  epcPoNumber: varchar('epc_po_number', { length: 60 }),
+  deliveryTerms: text('delivery_terms'),
+  paymentTerms: text('payment_terms'),
+  groupNotes: text('group_notes'),
+  submittedBy: integer('submitted_by').references(() => users.id),
+  submittedAt: timestamp('submitted_at'),
+  submissionNotes: text('submission_notes'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  approvalNotes: text('approval_notes'),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedAt: timestamp('rejected_at'),
+  rejectionReason: text('rejection_reason'),
+  issuedBy: integer('issued_by').references(() => users.id),
+  issuedAt: timestamp('issued_at'),
+  cancelledBy: integer('cancelled_by').references(() => users.id),
+  cancelledAt: timestamp('cancelled_at'),
+  cancellationReason: text('cancellation_reason'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertEpcPoGroupSchema = createInsertSchema(epcPoGroups).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcPoGroup = z.infer<typeof insertEpcPoGroupSchema>;
+export type EpcPoGroup = typeof epcPoGroups.$inferSelect;
+
+// ─── 4. EPC PO Group Lines ─────────────────────────────────────────────────
+export const epcPoGroupLines = pgTable('epc_po_group_lines', {
+  id: serial('id').primaryKey(),
+  poGroupId: integer('po_group_id').notNull().references(() => epcPoGroups.id, { onDelete: 'cascade' }),
+  plcLineId: integer('plc_line_id').notNull(), // FK to procurement_list_lines (no .references() to avoid dependency order issue)
+  lineNumber: integer('line_number').notNull().default(1),
+  lineQty: decimal('line_qty', { precision: 10, scale: 2 }).notNull(),
+  lineUnitRate: decimal('line_unit_rate', { precision: 12, scale: 2 }),
+  lineAmount: decimal('line_amount', { precision: 15, scale: 2 }),
+  lineNotes: text('line_notes'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertEpcPoGroupLineSchema = createInsertSchema(epcPoGroupLines).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcPoGroupLine = z.infer<typeof insertEpcPoGroupLineSchema>;
+export type EpcPoGroupLine = typeof epcPoGroupLines.$inferSelect;
+
+// ─── 5. EPC PO Amendments ─────────────────────────────────────────────────
+export const epcPoAmendments = pgTable('epc_po_amendments', {
+  id: serial('id').primaryKey(),
+  amendmentNumber: varchar('amendment_number', { length: 60 }).notNull().unique(),
+  epcPoId: integer('epc_po_id').notNull().references(() => epcPurchaseOrders.id, { onDelete: 'cascade' }),
+  poGroupId: integer('po_group_id').references(() => epcPoGroups.id),
+  amendmentType: varchar('amendment_type', { length: 40 }).notNull(),
+  // qty_increase | qty_decrease | price_change | delivery_date_change | scope_change
+  amendmentSummary: text('amendment_summary').notNull(),
+  priceChangeDelta: decimal('price_change_delta', { precision: 12, scale: 2 }),
+  qtyChangeDelta: decimal('qty_change_delta', { precision: 10, scale: 2 }),
+  deliveryDateChange: date('delivery_date_change'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  // draft | submitted | approved | rejected | issued
+  submittedBy: integer('submitted_by').references(() => users.id),
+  submittedAt: timestamp('submitted_at'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  issuedBy: integer('issued_by').references(() => users.id),
+  issuedAt: timestamp('issued_at'),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedAt: timestamp('rejected_at'),
+  rejectionReason: text('rejection_reason'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertEpcPoAmendmentSchema = createInsertSchema(epcPoAmendments).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcPoAmendment = z.infer<typeof insertEpcPoAmendmentSchema>;
+export type EpcPoAmendment = typeof epcPoAmendments.$inferSelect;
+
+// ─── 6. PLC GRN Records (Phase 3 routes; table created Phase 1) ──────────
+export const plcGrnRecords = pgTable('plc_grn_records', {
+  id: serial('id').primaryKey(),
+  grnNumber: varchar('grn_number', { length: 60 }).notNull().unique(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  plcLineId: integer('plc_line_id').notNull(), // FK to procurement_list_lines
+  epcPoId: integer('epc_po_id').references(() => epcPurchaseOrders.id),
+  poGroupId: integer('po_group_id').references(() => epcPoGroups.id),
+  vendorId: integer('vendor_id').references(() => vendors.id),
+  vendorName: varchar('vendor_name', { length: 255 }),
+  challanNumber: varchar('challan_number', { length: 80 }),
+  challanDate: date('challan_date'),
+  receivedDate: date('received_date').notNull(),
+  grnQty: decimal('grn_qty', { precision: 10, scale: 2 }).notNull(),
+  acceptedQty: decimal('accepted_qty', { precision: 10, scale: 2 }).default('0'),
+  rejectedQty: decimal('rejected_qty', { precision: 10, scale: 2 }).default('0'),
+  inspectionStatus: varchar('inspection_status', { length: 30 }).notNull().default('pending'),
+  // pending | passed | failed | partial
+  inspectionNotes: text('inspection_notes'),
+  inspectionBy: integer('inspection_by').references(() => users.id),
+  inspectionAt: timestamp('inspection_at'),
+  storesAcceptedBy: integer('stores_accepted_by').references(() => users.id),
+  storesAcceptedAt: timestamp('stores_accepted_at'),
+  storesNotes: text('stores_notes'),
+  status: varchar('status', { length: 30 }).notNull().default('received'),
+  // received | under_inspection | accepted | rejected
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertPlcGrnRecordSchema = createInsertSchema(plcGrnRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPlcGrnRecord = z.infer<typeof insertPlcGrnRecordSchema>;
+export type PlcGrnRecord = typeof plcGrnRecords.$inferSelect;
+
+// ─── 7. PLC Material Issues (Phase 3 routes; table created Phase 1) ───────
+export const plcMaterialIssues = pgTable('plc_material_issues', {
+  id: serial('id').primaryKey(),
+  mirNumber: varchar('mir_number', { length: 60 }).notNull().unique(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  plcLineId: integer('plc_line_id').notNull(),
+  grnRecordId: integer('grn_record_id').references(() => plcGrnRecords.id),
+  issuedQty: decimal('issued_qty', { precision: 10, scale: 2 }).notNull(),
+  issuedTo: varchar('issued_to', { length: 255 }),
+  purposeNotes: text('purpose_notes'),
+  issuedBy: integer('issued_by').references(() => users.id),
+  issuedAt: timestamp('issued_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export const insertPlcMaterialIssueSchema = createInsertSchema(plcMaterialIssues).omit({ id: true, createdAt: true });
+export type InsertPlcMaterialIssue = z.infer<typeof insertPlcMaterialIssueSchema>;
+export type PlcMaterialIssue = typeof plcMaterialIssues.$inferSelect;
+
+// ─── 8. PLC Document Attachments ──────────────────────────────────────────
+export const plcDocumentAttachments = pgTable('plc_document_attachments', {
+  id: serial('id').primaryKey(),
+  plcLineId: integer('plc_line_id'), // at least one of these must be set
+  poGroupId: integer('po_group_id').references(() => epcPoGroups.id),
+  epcPoId: integer('epc_po_id').references(() => epcPurchaseOrders.id),
+  documentType: varchar('document_type', { length: 30 }).notNull().default('other'),
+  // po | grn | inspection | certification | vendor_doc | other
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileSize: integer('file_size'),
+  mimeType: varchar('mime_type', { length: 100 }),
+  gcsPath: text('gcs_path').notNull(),
+  sha256Hash: varchar('sha256_hash', { length: 64 }),
+  isCurrent: boolean('is_current').notNull().default(true),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertPlcDocumentAttachmentSchema = createInsertSchema(plcDocumentAttachments).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPlcDocumentAttachment = z.infer<typeof insertPlcDocumentAttachmentSchema>;
+export type PlcDocumentAttachment = typeof plcDocumentAttachments.$inferSelect;
+
+// ─── 9. Procurement List Audit Log (APPEND-ONLY — no UPDATE/DELETE permitted) ─
+export const procurementListAuditLog = pgTable('procurement_list_audit_log', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  entityType: varchar('entity_type', { length: 40 }).notNull(),
+  // plc_line | po_group | po_amendment | grn | material_issue | vendor_qual | epc_po
+  entityId: integer('entity_id').notNull(),
+  eventType: varchar('event_type', { length: 80 }).notNull(),
+  oldStatus: varchar('old_status', { length: 40 }),
+  newStatus: varchar('new_status', { length: 40 }),
+  changedBy: integer('changed_by').references(() => users.id),
+  changedAt: timestamp('changed_at').notNull().defaultNow(),
+  notes: text('notes'),
+  metadata: jsonb('metadata'),
+});
+export type ProcurementListAuditLog = typeof procurementListAuditLog.$inferSelect;
+// Note: NO insertSchema — all inserts go through logPlcAudit() in plc-line-service.ts

@@ -417,6 +417,7 @@ function Layout({ children }: LayoutProps) {
         ...(hasPageAccess("planning-control") ? [{ icon: ClipboardList, label: "Planning Control", href: "/epc/planning-control" }] : []),
         ...(hasPageAccess("procurement-production") ? [{ icon: Package, label: "Procurement & Production", href: "/epc/execution-control" }] : []),
         ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY List Control", href: "/epc/buy-list-control" }] : []),
+        ...(hasPageAccess("procurement-list-control") ? [{ icon: ClipboardList, label: "Procurement List Control", href: "/epc/procurement-list-control" }] : []),
         ...(hasPageAccess("bom-controls") ? [{ icon: Layers, label: "BOM Controls", href: "/epc/bom-controls" }] : []),
         ...(hasPageAccess("drawing-controls") ? [{ icon: PenTool, label: "Drawing Controls", href: "/epc/drawing-controls" }] : []),
         ...(hasPageAccess("purchase-orders") ? [{ icon: ShoppingCart, label: "Purchase Orders", href: "/epc/purchase-orders" }] : []),
