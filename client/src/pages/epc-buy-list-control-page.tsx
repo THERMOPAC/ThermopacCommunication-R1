@@ -284,6 +284,7 @@ export default function EpcBuyListControlPage() {
   const [confirmRemoveSel, setConfirmRemoveSel] = useState<number | null>(null);
   const [confirmBulkApprove, setConfirmBulkApprove] = useState<{ headerId: number; lineIds: number[] } | null>(null);
   const [confirmBulkRaisePr, setConfirmBulkRaisePr] = useState<{ headerId: number; lineIds: number[] } | null>(null);
+  const [confirmDirectApprove, setConfirmDirectApprove] = useState<{ headerId: number; lineIds: number[] } | null>(null);
 
   // Datasheet preview
   const [datasheetLine, setDatasheetLine] = useState<any | null>(null);
@@ -662,6 +663,28 @@ export default function EpcBuyListControlPage() {
       if (expandedId) { invalidateLines(expandedId); invalidateProcChain(expandedId); }
     },
     onError: (e: any) => toast({ title: "Bulk raise-pr error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkDirectApprove = useMutation({
+    mutationFn: ({ headerId, lineIds }: { headerId: number; lineIds: number[] }) =>
+      apiRequest("POST", `/api/buy-lists/${headerId}/bulk-direct-approve`, { lineIds }),
+    onSuccess: (data: any) => {
+      const errCount = data.errors?.length ?? 0;
+      const skipCount = data.skipped ?? 0;
+      if (errCount > 0) {
+        const uniqueReasons = [...new Set((data.errors as any[]).map((e: any) => e.error))];
+        toast({
+          title: `Select & Approve: ${data.succeeded} approved, ${errCount} failed${skipCount ? `, ${skipCount} skipped` : ""}`,
+          description: uniqueReasons.join(" | "),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `Select & Approve done`, description: `${data.succeeded} line${data.succeeded !== 1 ? "s" : ""} approved${skipCount ? `, ${skipCount} already approved` : ""}` });
+      }
+      setCheckedLines(new Set());
+      if (expandedId) invalidateLines(expandedId);
+    },
+    onError: (e: any) => toast({ title: "Select & Approve error", description: e.message, variant: "destructive" }),
   });
 
   // ── PPPC Smart Action mutations ───────────────────────────────────────────────
@@ -1469,29 +1492,46 @@ export default function EpcBuyListControlPage() {
                                     <UserCheck className="h-3.5 w-3.5" /> Bulk Select
                                   </Button>
                                   {canAction && (
-                                    <Button
-                                      size="sm" variant="outline"
-                                      className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                      disabled={bulkApprove.isPending}
-                                      onClick={() => {
-                                        const checkedLineObjs = expandedLines.filter((l: any) => checkedLines.has(l.id));
-                                        const noSelection = checkedLineObjs.filter((l: any) => l.status === "open");
-                                        if (noSelection.length > 0) {
-                                          toast({
-                                            title: `${noSelection.length} line${noSelection.length > 1 ? "s have" : " has"} no selection`,
-                                            description: "Use Bulk Select to assign a master item first, then approve.",
-                                            variant: "destructive",
-                                          });
-                                          return;
-                                        }
-                                        setConfirmBulkApprove({ headerId: lst.id, lineIds: Array.from(checkedLines) });
-                                      }}
-                                    >
-                                      {bulkApprove.isPending
-                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        : <CheckCircle2 className="h-3.5 w-3.5" />}
-                                      Bulk Approve
-                                    </Button>
+                                    <>
+                                      <Button
+                                        size="sm" variant="outline"
+                                        className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                        disabled={bulkDirectApprove.isPending}
+                                        onClick={() => {
+                                          const checkedLineObjs = expandedLines.filter((l: any) => checkedLines.has(l.id));
+                                          const blocked = checkedLineObjs.filter((l: any) => ["canceled", "obsolete"].includes(l.status));
+                                          if (blocked.length > 0) {
+                                            toast({ title: `${blocked.length} line${blocked.length > 1 ? "s are" : " is"} cancelled/obsolete`, description: "Only open, selected or DS-submitted lines can be approved.", variant: "destructive" });
+                                            return;
+                                          }
+                                          setConfirmDirectApprove({ headerId: lst.id, lineIds: Array.from(checkedLines) });
+                                        }}
+                                      >
+                                        {bulkDirectApprove.isPending
+                                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                        Select & Approve
+                                      </Button>
+                                      <Button
+                                        size="sm" variant="outline"
+                                        className="h-7 text-xs gap-1 border-slate-300 text-slate-600 hover:bg-slate-50"
+                                        disabled={bulkApprove.isPending}
+                                        onClick={() => {
+                                          const checkedLineObjs = expandedLines.filter((l: any) => checkedLines.has(l.id));
+                                          const noSelection = checkedLineObjs.filter((l: any) => l.status === "open");
+                                          if (noSelection.length > 0) {
+                                            toast({ title: `${noSelection.length} line${noSelection.length > 1 ? "s have" : " has"} no selection`, description: "Use Bulk Select to assign a master item first, then approve.", variant: "destructive" });
+                                            return;
+                                          }
+                                          setConfirmBulkApprove({ headerId: lst.id, lineIds: Array.from(checkedLines) });
+                                        }}
+                                      >
+                                        {bulkApprove.isPending
+                                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                        Bulk Approve
+                                      </Button>
+                                    </>
                                   )}
                                   <Button
                                     size="sm" variant="outline"
@@ -2895,6 +2935,27 @@ export default function EpcBuyListControlPage() {
               onClick={() => { if (confirmRemoveSel !== null) { deleteSelection.mutate(confirmRemoveSel); setConfirmRemoveSel(null); } }}
             >
               Remove Selection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Select & Approve Confirm */}
+      <AlertDialog open={confirmDirectApprove !== null} onOpenChange={o => { if (!o) setConfirmDirectApprove(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Select & Approve — {confirmDirectApprove?.lineIds.length ?? 0} Line{(confirmDirectApprove?.lineIds.length ?? 0) !== 1 ? "s" : ""}</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will approve {(confirmDirectApprove?.lineIds.length ?? 0) !== 1 ? "these lines" : "this line"} for procurement. Vendor assignment will happen later on the Procurement List Control page after bid evaluation. Already-approved lines will be skipped.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => { if (confirmDirectApprove) { bulkDirectApprove.mutate(confirmDirectApprove); setConfirmDirectApprove(null); } }}
+            >
+              Approve {confirmDirectApprove?.lineIds.length ?? 0} Line{(confirmDirectApprove?.lineIds.length ?? 0) !== 1 ? "s" : ""}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

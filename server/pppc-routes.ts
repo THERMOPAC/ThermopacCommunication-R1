@@ -2609,6 +2609,71 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // ─── POST /api/buy-lists/:id/bulk-direct-approve ──────────────────────────
+  // Approves buy list lines directly (no vendor/master-item required).
+  // Vendor assignment happens later on the PLC page after bid evaluation.
+  app.post('/api/buy-lists/:id/bulk-direct-approve', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      if (!requireManager(req, res)) return;
+      const headerId = parseInt(req.params.id);
+      if (isNaN(headerId)) return sendValidationError(res, 'Invalid buy list id');
+
+      const { lineIds } = req.body as { lineIds: number[] };
+      if (!Array.isArray(lineIds) || lineIds.length === 0) return sendValidationError(res, 'lineIds[] is required');
+
+      const hdr = await pool.query(`SELECT status FROM project_buy_list_headers WHERE id = $1`, [headerId]);
+      if (!hdr.rowCount || hdr.rowCount === 0) return sendNotFound(res, 'Buy list', headerId);
+      if (!['released', 'locked'].includes(hdr.rows[0].status))
+        return sendBusinessError(res, 'Buy list must be released or locked to approve lines.');
+
+      const userId = (req.user as any).id;
+      const results: any[] = []; const errors: any[] = [];
+      let succeeded = 0; let skipped = 0;
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const lineId of lineIds) {
+          const spName = `sp_${lineId}`;
+          await client.query(`SAVEPOINT ${spName}`);
+          try {
+            const lineRow = await client.query(
+              `SELECT id, status FROM project_buy_list_lines WHERE id = $1 AND buy_list_header_id = $2`,
+              [lineId, headerId]
+            );
+            if (!lineRow.rowCount || lineRow.rowCount === 0) throw new Error('Line not found in this buy list');
+            const line = lineRow.rows[0];
+
+            if (line.status === 'approved') {
+              await client.query(`RELEASE SAVEPOINT ${spName}`);
+              skipped++;
+              results.push({ lineId, status: 'skipped', reason: 'already approved' });
+              continue;
+            }
+            if (['canceled', 'obsolete'].includes(line.status)) {
+              throw new Error(`Cannot approve a ${line.status} line`);
+            }
+
+            await client.query(
+              `UPDATE project_buy_list_lines SET status='approved', approved_by=$1, approved_at=NOW(), updated_at=NOW() WHERE id=$2`,
+              [userId, lineId]
+            );
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            succeeded++;
+            results.push({ lineId, status: 'ok' });
+          } catch (e: any) {
+            await client.query(`ROLLBACK TO SAVEPOINT ${spName}`);
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            errors.push({ lineId, error: e.message });
+          }
+        }
+        await client.query('COMMIT');
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+
+      res.json({ processed: lineIds.length, succeeded, skipped, errors, results });
+    } catch (err) { sendError(res, err); }
+  });
+
   // ─── POST /api/buy-lists/:id/bulk-raise-pr ────────────────────────────────
   app.post('/api/buy-lists/:id/bulk-raise-pr', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {
