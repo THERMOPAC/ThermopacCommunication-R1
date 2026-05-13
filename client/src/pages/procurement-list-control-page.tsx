@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import Layout from "@/components/layout";
 import { apiRequest } from "@/lib/queryClient";
 import { fmtDate } from "@/lib/date-format";
 import {
@@ -347,6 +348,7 @@ export default function ProcurementListControlPage() {
   const clearSelection = () => setSelectedLineIds([]);
 
   return (
+    <Layout>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
@@ -1871,5 +1873,6 @@ export default function ProcurementListControlPage() {
         />
       )}
     </div>
+    </Layout>
   );
 }
