@@ -18,7 +18,8 @@ import {
   ClipboardList, Package, AlertTriangle, CheckCircle2, Clock, XCircle,
   Search, RefreshCw, Plus, Filter, MoreHorizontal, Loader2,
   Truck, ArrowRightFromLine, BarChart2, CalendarDays, ShieldAlert,
-  CheckCheck, Layers, TrendingDown,
+  CheckCheck, Layers, TrendingDown, Download, Lock, Unlock,
+  Database, Activity, TrendingUp, Building2, FileWarning,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -160,6 +161,14 @@ export default function ProcurementListControlPage() {
   const [grnStatusFilter, setGrnStatusFilter] = useState<string>("all");
   const [mirPlcLine, setMirPlcLine] = useState<any>(null);
 
+  // Phase 4 SAP + governance state
+  const [showReconcileDialog, setShowReconcileDialog] = useState(false);
+  const [reconcilePoId, setReconcilePoId] = useState<number | null>(null);
+  const [reconcileResult, setReconcileResult] = useState<any>(null);
+  const [reconcileLoading, setReconcileLoading] = useState(false);
+  const [showLineCloseConfirm, setShowLineCloseConfirm] = useState(false);
+  const [lineCloseTarget, setLineCloseTarget] = useState<any>(null);
+
   // Phase 2 RFQ state
   const [showRfqCreate, setShowRfqCreate] = useState(false);
   const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null);
@@ -288,6 +297,35 @@ export default function ProcurementListControlPage() {
       qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-rfq"] });
       setSelectedRfqId(null);
       toast({ title: "RFQ cancelled" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  // Phase 4 — Cockpit summary (materialized view)
+  const { data: cockpitSummary } = useQuery<any>({
+    queryKey: ["/api/projects", selectedProjectId, "cockpit-summary"],
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/cockpit-summary`).then((r) => r.json()),
+    enabled: !!selectedProjectId && activeTab === "kpi",
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Phase 4 — Rate contracts
+  const { data: rateContracts = [] } = useQuery<any[]>({
+    queryKey: ["/api/plc-rate-contracts", selectedProjectId],
+    queryFn: () => apiRequest("GET", `/api/plc-rate-contracts?projectId=${selectedProjectId}`).then((r) => r.json()),
+    enabled: !!selectedProjectId && activeTab === "kpi",
+  });
+
+  // Phase 4 — Line close mutation
+  const closeLineMut = useMutation({
+    mutationFn: ({ id, forceClose, cancelReason }: { id: number; forceClose?: boolean; cancelReason?: string }) =>
+      apiRequest("POST", `/api/procurement-list-lines/${id}/close`, { forceClose, cancelReason }).then((r) => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
+      toast({ title: "Line closed", description: `Line successfully closed.` });
+      setShowLineCloseConfirm(false);
+      setLineCloseTarget(null);
+      invalidateAll();
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -441,6 +479,20 @@ export default function ProcurementListControlPage() {
                     <Filter className="h-3.5 w-3.5 mr-1" /> Select Eligible
                   </Button>
                 )}
+                {selectedProjectId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                  >
+                    <a
+                      href={`/api/projects/${selectedProjectId}/procurement-list/export-csv${statusFilter !== "all" ? `?status=${statusFilter}` : ""}`}
+                      download
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1" /> Export CSV
+                    </a>
+                  </Button>
+                )}
               </div>
 
               {/* Table */}
@@ -580,6 +632,17 @@ export default function ProcurementListControlPage() {
                                     Create PO Group
                                   </DropdownMenuItem>
                                 )}
+                                {["fully_received", "received", "po_issued"].includes(line.status) && (
+                                  <DropdownMenuItem
+                                    className="text-red-700"
+                                    onClick={() => {
+                                      setLineCloseTarget(line);
+                                      setShowLineCloseConfirm(true);
+                                    }}
+                                  >
+                                    <Lock className="h-3.5 w-3.5 mr-1.5" /> Close Line
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -624,6 +687,7 @@ export default function ProcurementListControlPage() {
                         <TableHead className="font-semibold text-xs">Submitted By</TableHead>
                         <TableHead className="font-semibold text-xs">Approved By</TableHead>
                         <TableHead className="font-semibold text-xs">EPC PO No</TableHead>
+                        <TableHead className="font-semibold text-xs">SAP Sync</TableHead>
                         <TableHead className="font-semibold text-xs">Created</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -651,6 +715,22 @@ export default function ProcurementListControlPage() {
                           <TableCell className="text-xs">{pog.approvedByName ?? "—"}</TableCell>
                           <TableCell className="text-xs font-mono">
                             {pog.epcPoNumberActual ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const ss = (pog as any).sapSyncStatus;
+                              if (!ss || ss === 'pending') return <span className="text-xs text-muted-foreground">—</span>;
+                              const sapColors: Record<string, string> = {
+                                synced: "bg-emerald-100 text-emerald-800",
+                                error: "bg-red-100 text-red-800",
+                                mismatch: "bg-amber-100 text-amber-800",
+                              };
+                              return (
+                                <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium ${sapColors[ss] ?? "bg-gray-100 text-gray-600"}`}>
+                                  <Database className="h-3 w-3" />{ss}
+                                </span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-xs">{fmtDate(pog.createdAt)}</TableCell>
                         </TableRow>
@@ -1360,6 +1440,129 @@ export default function ProcurementListControlPage() {
                       </CardContent>
                     </Card>
                   )}
+
+                  {/* Phase 4 — Cockpit Summary (Materialized View) */}
+                  {cockpitSummary && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-indigo-600" />
+                          Procurement Cockpit — Computed KPIs
+                          <span className="text-xs font-normal text-muted-foreground ml-auto">Refreshed every 5 min</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          {[
+                            {
+                              label: "Procurement Completion",
+                              value: `${parseFloat(cockpitSummary.procurement_completion_pct || "0").toFixed(1)}%`,
+                              color: "text-emerald-700",
+                              icon: TrendingUp,
+                            },
+                            {
+                              label: "On-Time Delivery Rate",
+                              value: `${parseFloat(cockpitSummary.on_time_delivery_pct || "0").toFixed(1)}%`,
+                              color: "text-blue-700",
+                              icon: CheckCircle2,
+                            },
+                            {
+                              label: "Lines Requiring Reconcil.",
+                              value: String(cockpitSummary.lines_requiring_reconciliation || 0),
+                              color: "text-amber-700",
+                              icon: RefreshCw,
+                            },
+                            {
+                              label: "Open NCRs",
+                              value: String(cockpitSummary.open_ncr_count || 0),
+                              color: cockpitSummary.open_ncr_count > 0 ? "text-red-700" : "text-gray-500",
+                              icon: FileWarning,
+                            },
+                          ].map(({ label, value, color, icon: Icon }) => (
+                            <div key={label} className="bg-slate-50 rounded-lg p-4 flex items-center gap-3">
+                              <Icon className={`h-8 w-8 opacity-30 ${color}`} />
+                              <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+                                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* SAP sync summary */}
+                        {(cockpitSummary.sap_synced_po_count > 0 || cockpitSummary.sap_error_count > 0) && (
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <div className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-2.5 py-1.5">
+                              <Database className="h-3.5 w-3.5" />
+                              <strong>{cockpitSummary.sap_synced_po_count}</strong> POs synced to SAP
+                            </div>
+                            {cockpitSummary.sap_error_count > 0 && (
+                              <div className="flex items-center gap-1.5 text-xs bg-red-50 text-red-700 border border-red-200 rounded px-2.5 py-1.5">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                <strong>{cockpitSummary.sap_error_count}</strong> SAP sync error(s) — action required
+                              </div>
+                            )}
+                            {cockpitSummary.sap_mismatch_count > 0 && (
+                              <div className="flex items-center gap-1.5 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-2.5 py-1.5">
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                <strong>{cockpitSummary.sap_mismatch_count}</strong> PO(s) with quantity mismatch
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Phase 4 — Rate Contract Refs */}
+                  {rateContracts.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-indigo-600" />
+                          Rate Contract References ({rateContracts.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-gray-50">
+                                <TableHead className="text-xs font-semibold">PLC No</TableHead>
+                                <TableHead className="text-xs font-semibold">Vendor</TableHead>
+                                <TableHead className="text-xs font-semibold text-right">Rate / Unit</TableHead>
+                                <TableHead className="text-xs font-semibold">Currency</TableHead>
+                                <TableHead className="text-xs font-semibold">Valid From</TableHead>
+                                <TableHead className="text-xs font-semibold">Valid To</TableHead>
+                                <TableHead className="text-xs font-semibold">Contract Ref</TableHead>
+                                <TableHead className="text-xs font-semibold text-center">Locked</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {rateContracts.map((rc: any) => (
+                                <TableRow key={rc.id} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs font-mono text-indigo-700">{rc.plc_number}</TableCell>
+                                  <TableCell className="text-xs">{rc.vendor_name || "—"}</TableCell>
+                                  <TableCell className="text-xs text-right tabular-nums font-medium">
+                                    {parseFloat(rc.rate_per_unit).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                  </TableCell>
+                                  <TableCell className="text-xs">{rc.currency}</TableCell>
+                                  <TableCell className="text-xs">{fmtDate(rc.valid_from)}</TableCell>
+                                  <TableCell className="text-xs">{rc.valid_to ? fmtDate(rc.valid_to) : <span className="text-muted-foreground">Open</span>}</TableCell>
+                                  <TableCell className="text-xs font-mono text-muted-foreground">{rc.contract_ref || "—"}</TableCell>
+                                  <TableCell className="text-center">
+                                    {rc.is_locked
+                                      ? <Lock className="h-3.5 w-3.5 text-red-500 mx-auto" />
+                                      : <Unlock className="h-3.5 w-3.5 text-gray-300 mx-auto" />}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
             </TabsContent>
@@ -1396,6 +1599,172 @@ export default function ProcurementListControlPage() {
           onClose={() => setSelectedLineId(null)}
           onMutated={invalidateAll}
         />
+      )}
+
+      {/* ── Phase 4 Dialogs ── */}
+
+      {/* Line Close Confirmation */}
+      {showLineCloseConfirm && lineCloseTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <Lock className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Close Procurement Line</h2>
+                <p className="text-xs text-muted-foreground">This action is permanent and audited.</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">PLC No</span>
+                <span className="font-mono font-medium text-indigo-700">{lineCloseTarget.plcNumber}</span>
+              </div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground">Tag No</span>
+                <span className="font-medium">{lineCloseTarget.tagNo || "—"}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Current Status</span>
+                <span className="font-medium capitalize">{lineCloseTarget.status?.replace(/_/g, " ")}</span>
+              </div>
+            </div>
+            {lineCloseTarget.status !== "fully_received" && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
+                <AlertTriangle className="inline h-3.5 w-3.5 mr-1" />
+                Line is not fully received. This is a <strong>force close</strong> (Manager override). Reason required.
+              </div>
+            )}
+            <div className="mb-4">
+              <label className="text-xs font-medium text-gray-700 block mb-1">
+                Reason / Notes {lineCloseTarget.status !== "fully_received" && <span className="text-red-600">*</span>}
+              </label>
+              <textarea
+                id="lineCloseReason"
+                className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                rows={3}
+                placeholder="Enter reason for closure…"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowLineCloseConfirm(false); setLineCloseTarget(null); }}
+                disabled={closeLineMut.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={closeLineMut.isPending}
+                onClick={() => {
+                  const reason = (document.getElementById("lineCloseReason") as HTMLTextAreaElement)?.value || "";
+                  const forceClose = lineCloseTarget.status !== "fully_received";
+                  if (forceClose && !reason.trim()) {
+                    toast({ title: "Reason required for force-close", variant: "destructive" });
+                    return;
+                  }
+                  closeLineMut.mutate({ id: lineCloseTarget.id, forceClose, cancelReason: reason || undefined });
+                }}
+              >
+                {closeLineMut.isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Closing…</> : <><Lock className="h-3.5 w-3.5 mr-1" />Confirm Close</>}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SAP Reconciliation Dialog */}
+      {showReconcileDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 p-6 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 rounded-lg">
+                  <Database className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">SAP B1 Reconciliation Report</h2>
+                  <p className="text-xs text-muted-foreground">THERMOPAC vs SAP B1 quantity comparison</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => { setShowReconcileDialog(false); setReconcileResult(null); }}>
+                <XCircle className="h-5 w-5 text-gray-400" />
+              </Button>
+            </div>
+
+            {reconcileLoading ? (
+              <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin" /> Running reconciliation against SAP B1…
+              </div>
+            ) : !reconcileResult ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Activity className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                <p>Select an EPC PO and run reconciliation to see the diff report.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm font-medium">PO: <span className="font-mono text-indigo-700">{reconcileResult.poNumber}</span></span>
+                  <span className="text-sm text-muted-foreground">SAP DocEntry: <span className="font-mono">{reconcileResult.sapDocEntry}</span></span>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded font-medium ${
+                    reconcileResult.hasDiscrepancy ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"
+                  }`}>
+                    {reconcileResult.hasDiscrepancy ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                    {reconcileResult.hasDiscrepancy ? "Discrepancies Found" : "Quantities Match"}
+                  </span>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="text-xs font-semibold">Line</TableHead>
+                        <TableHead className="text-xs font-semibold">PLC No</TableHead>
+                        <TableHead className="text-xs font-semibold">Tag No</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">TP Ordered</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">SAP Ordered</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">TP Received</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">SAP Received</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Match</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(reconcileResult.diffs || []).map((diff: any) => (
+                        <TableRow key={diff.lineNumber} className={diff.status === "mismatch" ? "bg-red-50" : ""}>
+                          <TableCell className="text-xs font-mono">{diff.lineNumber}</TableCell>
+                          <TableCell className="text-xs font-mono text-indigo-700">{diff.plcNumber || "—"}</TableCell>
+                          <TableCell className="text-xs">{diff.tagNo || "—"}</TableCell>
+                          <TableCell className="text-xs text-right tabular-nums">{diff.thermopac.qtyOrdered}</TableCell>
+                          <TableCell className="text-xs text-right tabular-nums">
+                            {diff.sap.lineFound ? diff.sap.qtyOrdered ?? "—" : <span className="text-red-600 font-medium">NOT IN SAP</span>}
+                          </TableCell>
+                          <TableCell className="text-xs text-right tabular-nums">{diff.thermopac.qtyReceived}</TableCell>
+                          <TableCell className="text-xs text-right tabular-nums">
+                            {diff.sap.lineFound ? (diff.sap.qtyReceived ?? "—") : "—"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {diff.status === "ok"
+                              ? <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto" />
+                              : <AlertTriangle className="h-4 w-4 text-red-500 mx-auto" />}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                {reconcileResult.hasDiscrepancy && (
+                  <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm text-amber-800">
+                    <AlertTriangle className="inline h-4 w-4 mr-1" />
+                    Discrepancies detected — raise a SAP B1 journal correction or re-push the affected PO items. Audit log entry written.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── Phase 3 Dialogs ── */}

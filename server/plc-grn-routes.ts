@@ -23,6 +23,7 @@ import { pool } from './db';
 import { requirePageAccess } from './utils/permission-utils';
 import { getNextDocSeq } from './doc-sequence-service';
 import { recomputePlcQty, derivePlcLineStatus, logPlcAudit } from './plc-line-service';
+import { notifyPlcInspectionFailed, notifyPlcNcrRaised, notifyPlcGrnPendingInspection } from './plc-notification-service';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) return next();
@@ -284,6 +285,17 @@ export function setupPlcGrnRoutes(app: Express): void {
         }
 
         await client.query('COMMIT');
+
+        // Phase 4 notifications (non-fatal, post-commit)
+        try {
+          if (inspStatus === 'failed' || (rejected > 0 && accepted === 0)) {
+            await notifyPlcInspectionFailed(id, grn.project_id, grn.grn_number, grn.plc_number || String(grn.plc_line_id), rejected, userId);
+          }
+          if (ncr) {
+            await notifyPlcNcrRaised(ncr.id, grn.project_id, ncr.ncr_number, grn.plc_number || String(grn.plc_line_id), 'major', userId);
+          }
+        } catch { /* non-fatal */ }
+
         res.json({ success: true, grn: updRes.rows[0], ncr });
       } catch (err) {
         await client.query('ROLLBACK');
