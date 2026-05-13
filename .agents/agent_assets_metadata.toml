@@ -366,3 +366,9 @@ id = "jpJzmLaSLXV3Dzu_gobXN"
 uri = "file://docs/procurement-list-control-baseline-v1.0.md"
 type = "text"
 title = "PLC Baseline v1.0 — Awaiting Approval"
+
+[[outputs]]
+id = "BzTVUYCdM0gxQNgGHI1jO"
+uri = "file://docs/procurement-list-control-baseline-v1.md"
+type = "text"
+title = "PLC Baseline v1.0 FINAL — Awaiting Approval"
