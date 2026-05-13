@@ -17,7 +17,7 @@ export interface CreatePlcLineParams {
   planningNumber: string;
   sourceBuyListHeaderId: number;
   sourceBuyListLineId: number;
-  masterItemId: number;
+  masterItemId: number | null;
   tagNo: string | null;
   serviceDescription: string | null;
   equipmentReference: string | null;
@@ -46,15 +46,25 @@ function fmtPlcNumber(projectCode: string, seq: number): string {
 async function getNextPlcSeq(projectId: number, client: any): Promise<number> {
   // Uses doc_sequences table to get the next PLC sequence for the project.
   // Atomic via INSERT ... ON CONFLICT ... DO UPDATE.
-  const r = await client.query<{ next_val: number }>(
-    `INSERT INTO doc_sequences (doc_type, project_id, last_value, updated_at)
-     VALUES ('PLC', $1, 1, NOW())
-     ON CONFLICT (doc_type, project_id)
-     DO UPDATE SET last_value = doc_sequences.last_value + 1, updated_at = NOW()
-     RETURNING last_value AS next_val`,
+  const seqRes = await client.query<{ next_seq: number }>(
+    `SELECT next_seq FROM doc_sequences WHERE doc_type = 'PLC' AND project_id = $1 FOR UPDATE`,
     [projectId],
   );
-  return r.rows[0].next_val;
+  let seq: number;
+  if (!seqRes.rows[0]) {
+    seq = 1;
+    await client.query(
+      `INSERT INTO doc_sequences (doc_type, project_id, next_seq) VALUES ('PLC', $1, 2)`,
+      [projectId],
+    );
+  } else {
+    seq = seqRes.rows[0].next_seq;
+    await client.query(
+      `UPDATE doc_sequences SET next_seq = $1 WHERE doc_type = 'PLC' AND project_id = $2`,
+      [seq + 1, projectId],
+    );
+  }
+  return seq;
 }
 
 // ─── Core service functions ─────────────────────────────────────────────────

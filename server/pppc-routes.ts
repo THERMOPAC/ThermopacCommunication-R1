@@ -2394,15 +2394,17 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       );
 
       // ── Create PLC line (idempotent — skips if already exists) ───────────
+      const plcClient = await pool.connect();
       try {
-        await createPlcLineInTx(pool, {
+        await plcClient.query('BEGIN');
+        await createPlcLineInTx(plcClient, {
           projectId: ctx.projectId,
           projectCode: ctx.projectCode,
           planningRecordId,
           planningNumber,
           sourceBuyListHeaderId: ctx.buyListHeaderId,
           sourceBuyListLineId: lineId,
-          masterItemId: ctx.selectedMasterItemId!,
+          masterItemId: ctx.selectedMasterItemId ?? null,
           tagNo: ctx.tagNo ?? null,
           serviceDescription: ctx.serviceDescription ?? null,
           equipmentReference: ctx.equipmentReference ?? null,
@@ -2411,9 +2413,12 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           qtyRequired: parseFloat(ctx.quantity) || 1,
           createdBy: userId,
         });
+        await plcClient.query('COMMIT');
       } catch (plcErr: any) {
-        // Non-fatal: PLC creation failure does not block PLN creation
+        await plcClient.query('ROLLBACK');
         console.warn('[PLC] createPlcLineInTx failed for line', lineId, plcErr.message);
+      } finally {
+        plcClient.release();
       }
 
       res.status(201).json({ success: true, planningRecordId, projectItemId, isReused });
