@@ -2,12 +2,10 @@
 **Baseline:** docs/procurement-list-control-baseline-v1.md (approved 13 May 2026)
 
 ## Phase 1 — Core MVP
-**Status:** COMPLETE — Pending Phase 1 Approval Gate  
+**Status:** COMPLETE — Approved  
 **Started:** 13 May 2026  
 **All tasks completed:** 13 May 2026  
-**Submitted for approval:** —  
-**Approved:** —  
-**Approver:** —
+**Approved:** 13 May 2026
 
 ---
 
@@ -76,6 +74,67 @@
 
 ---
 
-## Phase 2+ Gate
-**Phase 1 must be formally approved before any Phase 2 work begins.**  
-Approval evidence required: functional walkthrough by approver + sign-off in Evidence Log above.
+## Phase 2 — Bid Evaluation (RFQ → Quotes → TBE → CBE)
+**Status:** COMPLETE — Pending Phase 2 Approval Gate  
+**Started:** 13 May 2026  
+**All tasks completed:** 13 May 2026
+
+---
+
+### Schema (Phase 2)
+- [x] plc_rfq_records table created — rfq_number (per-project seq), status, date, deadline, subject, notes
+- [x] plc_rfq_lines table created — links RFQ → procurement_list_lines (UNIQUE rfq+line)
+- [x] plc_rfq_vendors table created — links RFQ → vendors (UNIQUE rfq+vendor)
+- [x] plc_vendor_quotes table created — unit/total price, delivery, tech/commercial scores, recommended flag (UNIQUE rfq+line+vendor)
+- [x] plc_tbe_records table created — recommended_vendor, status, notes, gcs report path (UNIQUE rfq+line)
+- [x] plc_cbe_records table created — recommended/final vendor, final_unit_price, status (UNIQUE rfq+line)
+- [x] 8 indexes created (idx_rfq_project, idx_rfq_status, idx_rfqline_rfq, idx_rfqline_plc, idx_quote_rfq, idx_quote_plc, idx_tbe_rfq, idx_cbe_rfq)
+- [x] RFQ doc_sequence registered (global doc_type='RFQ', per-project fallback seq from projects.code)
+
+### Backend (Phase 2)
+- [x] HTTP 423 hard-block guards added to all 9 legacy procurement write routes in server/project-routes.ts (checks procurement_list_lines for active row on planning_record_id)
+- [x] server/plc-rfq-routes.ts created — 12 routes: RFQ CRUD, issue, close, cancel, add/remove vendor, add/remove line, upsert/list quotes
+- [x] server/plc-evaluation-routes.ts created — 8 routes: TBE list/get/upsert/recommend, CBE list/get/upsert/finalize
+- [x] server/routes.ts updated — setupPlcRfqRoutes + setupPlcEvaluationRoutes registered after vendor qualification routes
+
+### PLC Line Status Extensions
+- [x] New statuses: pending_rfq, rfq_issued, rfq_closed, tbe_in_progress, tbe_complete, cbe_in_progress, vendor_selected
+- [x] Status transitions: RFQ create → pending_rfq; RFQ issue → rfq_issued; RFQ close → rfq_closed; TBE save → tbe_in_progress; TBE complete → tbe_complete; CBE complete → vendor_selected
+- [x] PLC line selected_vendor_id populated on CBE finalize
+
+### Frontend (Phase 2)
+- [x] PLC_STATUS_COLORS + PLC_STATUS_LABELS extended with 8 new Phase 2 statuses (unique color palette per status)
+- [x] Bid Evaluation tab enabled (removed disabled prop, added RFQ count badge)
+- [x] RFQ Register panel — left sidebar with status filter, RFQ cards showing number/status/line+vendor counts
+- [x] RFQ detail panel — header with issue/close/cancel actions, vendors + lines summary, quotes table
+- [x] TBE/CBE panels rendered for closed RFQs — per-line records with recommended/final vendor, status chips
+- [x] client/src/components/rfq-create-dialog.tsx — multi-select lines + vendors, RFQ header fields
+- [x] client/src/components/vendor-quote-dialog.tsx — upsert quote (price, delivery, scores, recommended flag)
+- [x] client/src/components/tbe-dialog.tsx — TBE per line: recommended vendor + status + notes
+- [x] client/src/components/cbe-dialog.tsx — CBE per line: preferred/final vendor, negotiated price, completes to vendor_selected
+- [x] Phase 2 dialogs wired in main PLC page with correct invalidation
+
+### Verification (Phase 2)
+- [ ] npm run check (typecheck) — PENDING (tsc >90s environment limit)
+- [ ] End-to-end flow: PR Raised → RFQ Draft → Issue → Close → TBE → CBE → Vendor Selected
+- [ ] HTTP 423 hard-block test: attempt old-path mutation on PLC-managed line
+- [ ] RFQ number uniqueness per project confirmed by per-project doc_sequences
+
+---
+
+### Evidence Log (Phase 2)
+| Date | Type | Item | Submitter | Reference |
+|---|---|---|---|---|
+| 13 May 2026 | Schema | 6 Phase 2 tables + 8 indexes + RFQ doc seq created in DB | Agent | Direct SQL migration |
+| 13 May 2026 | Backend | HTTP 423 guards on 9 legacy routes; 20 new RFQ/TBE/CBE routes registered | Agent | server/routes.ts |
+| 13 May 2026 | Frontend | Bid Evaluation tab fully implemented; 4 new dialog components | Agent | client/src/ |
+
+### Known Issues (Phase 2)
+- `npm run check` (tsc) still times out at >90s in current environment.
+- RFQ number sequence per-project: falls back to global seq if per-project seq not yet initialized; per-project seq auto-bootstraps on first RFQ creation.
+
+---
+
+## Phase 3 Gate
+**Phase 2 must be formally approved before Phase 3 (GRN/Inspection) work begins.**  
+Phase 3 scope: GRN receipt, stores acceptance, material issue to shop floor.

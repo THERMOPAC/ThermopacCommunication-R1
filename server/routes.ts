@@ -3899,6 +3899,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { setupVendorQualificationRoutes } = await import('./vendor-qualification-routes');
   setupVendorQualificationRoutes(app);
 
+  // ── PLC — Phase 2: RFQ + Evaluation routes ───────────────────────────────
+  const { setupPlcRfqRoutes } = await import('./plc-rfq-routes');
+  setupPlcRfqRoutes(app);
+
+  const { setupPlcEvaluationRoutes } = await import('./plc-evaluation-routes');
+  setupPlcEvaluationRoutes(app);
+
   // ── One-time report download ─────────────────────────────────────────────────
   app.get('/api/reports/uor-plc-price-review/download', async (_req, res) => {
     const { createReadStream, existsSync } = await import('fs');

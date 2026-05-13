@@ -24,6 +24,10 @@ import {
 import { PoGroupWizard } from "@/components/po-group-wizard";
 import { PoGroupDetail } from "@/components/po-group-detail";
 import { PlcLineDetailDrawer } from "@/components/plc-line-detail-drawer";
+import { RfqCreateDialog } from "@/components/rfq-create-dialog";
+import { VendorQuoteDialog } from "@/components/vendor-quote-dialog";
+import { TbeDialog } from "@/components/tbe-dialog";
+import { CbeDialog } from "@/components/cbe-dialog";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -63,6 +67,13 @@ interface PoGroup {
 
 const PLC_STATUS_COLORS: Record<string, string> = {
   pr_raised:        "bg-yellow-100 text-yellow-800 border-yellow-200",
+  pending_rfq:      "bg-amber-100 text-amber-800 border-amber-200",
+  rfq_issued:       "bg-cyan-100 text-cyan-800 border-cyan-200",
+  rfq_closed:       "bg-teal-100 text-teal-800 border-teal-200",
+  tbe_in_progress:  "bg-violet-100 text-violet-800 border-violet-200",
+  tbe_complete:     "bg-purple-100 text-purple-800 border-purple-200",
+  cbe_in_progress:  "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
+  vendor_selected:  "bg-emerald-100 text-emerald-800 border-emerald-200",
   in_po_group:      "bg-blue-100 text-blue-800 border-blue-200",
   po_issued:        "bg-indigo-100 text-indigo-800 border-indigo-200",
   partial_received: "bg-orange-100 text-orange-800 border-orange-200",
@@ -71,7 +82,15 @@ const PLC_STATUS_COLORS: Record<string, string> = {
   cancelled:        "bg-red-100 text-red-700 border-red-200",
 };
 const PLC_STATUS_LABELS: Record<string, string> = {
-  pr_raised: "PR Raised", in_po_group: "In PO Group", po_issued: "PO Issued",
+  pr_raised: "PR Raised",
+  pending_rfq: "Pending RFQ",
+  rfq_issued: "RFQ Issued",
+  rfq_closed: "RFQ Closed",
+  tbe_in_progress: "TBE In Progress",
+  tbe_complete: "TBE Complete",
+  cbe_in_progress: "CBE In Progress",
+  vendor_selected: "Vendor Selected",
+  in_po_group: "In PO Group", po_issued: "PO Issued",
   partial_received: "Partial Rcvd", fully_received: "Fully Rcvd",
   closed: "Closed", cancelled: "Cancelled",
 };
@@ -127,6 +146,17 @@ export default function ProcurementListControlPage() {
   const [showPogWizard, setShowPogWizard] = useState(false);
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
 
+  // Phase 2 RFQ state
+  const [showRfqCreate, setShowRfqCreate] = useState(false);
+  const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null);
+  const [rfqStatusFilter, setRfqStatusFilter] = useState("all");
+  const [showVendorQuote, setShowVendorQuote] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any>(null);
+  const [showTbe, setShowTbe] = useState(false);
+  const [editingTbe, setEditingTbe] = useState<any>(null);
+  const [showCbe, setShowCbe] = useState(false);
+  const [editingCbe, setEditingCbe] = useState<any>(null);
+
   // Projects list
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -158,6 +188,67 @@ export default function ProcurementListControlPage() {
     queryKey: ["/api/projects", selectedProjectId, "epc-po-groups"],
     queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/epc-po-groups`).then((r) => r.json()),
     enabled: !!selectedProjectId,
+  });
+
+  // Phase 2 — RFQ list
+  const { data: rfqList = [], isLoading: rfqListLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", selectedProjectId, "plc-rfq", rfqStatusFilter],
+    queryFn: () => {
+      const params = rfqStatusFilter !== "all" ? `?status=${rfqStatusFilter}` : "";
+      return apiRequest("GET", `/api/projects/${selectedProjectId}/plc-rfq${params}`).then((r) => r.json());
+    },
+    enabled: !!selectedProjectId && activeTab === "bid-eval",
+  });
+
+  // Phase 2 — Selected RFQ detail (lines + vendors + quotes + tbe + cbe)
+  const { data: selectedRfq, isLoading: rfqDetailLoading } = useQuery<any>({
+    queryKey: ["/api/plc-rfq", selectedRfqId],
+    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}`).then((r) => r.json()),
+    enabled: !!selectedRfqId,
+  });
+  const { data: rfqTbeList = [] } = useQuery<any[]>({
+    queryKey: ["/api/plc-rfq", selectedRfqId, "tbe"],
+    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}/tbe`).then((r) => r.json()),
+    enabled: !!selectedRfqId,
+  });
+  const { data: rfqCbeList = [] } = useQuery<any[]>({
+    queryKey: ["/api/plc-rfq", selectedRfqId, "cbe"],
+    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}/cbe`).then((r) => r.json()),
+    enabled: !!selectedRfqId,
+  });
+
+  // RFQ mutations
+  const rfqIssueMut = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/plc-rfq/${id}/issue`, {}).then((r) => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
+      qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+      qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-rfq"] });
+      toast({ title: "RFQ issued to vendors" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+  const rfqCloseMut = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/plc-rfq/${id}/close`, {}).then((r) => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
+      qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+      qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-rfq"] });
+      toast({ title: "RFQ closed" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+  const rfqCancelMut = useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      apiRequest("POST", `/api/plc-rfq/${id}/cancel`, { reason }).then((r) => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
+      qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+      qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-rfq"] });
+      setSelectedRfqId(null);
+      toast({ title: "RFQ cancelled" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   function invalidateAll() {
@@ -248,8 +339,8 @@ export default function ProcurementListControlPage() {
               <TabsTrigger value="po-groups" className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 pb-2">
                 PO Groups {poGroups.length > 0 && <span className="ml-1 text-xs bg-gray-100 rounded px-1">{poGroups.length}</span>}
               </TabsTrigger>
-              <TabsTrigger value="bid-eval" disabled className="rounded-none border-b-2 border-transparent pb-2 text-muted-foreground">
-                Bid Evaluation (Phase 2)
+              <TabsTrigger value="bid-eval" className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 pb-2">
+                Bid Evaluation {rfqList.length > 0 && <span className="ml-1 text-xs bg-gray-100 rounded px-1">{rfqList.length}</span>}
               </TabsTrigger>
               <TabsTrigger value="grn" disabled className="rounded-none border-b-2 border-transparent pb-2 text-muted-foreground">
                 GRN Tracking (Phase 3)
@@ -526,11 +617,322 @@ export default function ProcurementListControlPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="bid-eval">
-              <div className="text-center py-20 text-muted-foreground">
-                <Clock className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">Bid Evaluation — Phase 2</p>
-                <p className="text-xs mt-1">RFQ creation, vendor quotes, TBE and CBE workflows will be available in Phase 2.</p>
+            <TabsContent value="bid-eval" className="mt-4">
+              <div className="flex gap-5">
+                {/* ── Left: RFQ list ── */}
+                <div className="w-72 shrink-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-gray-800">RFQ Register</h3>
+                    <Button size="sm" onClick={() => setShowRfqCreate(true)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> New RFQ
+                    </Button>
+                  </div>
+                  <Select value={rfqStatusFilter} onValueChange={(v) => { setRfqStatusFilter(v); setSelectedRfqId(null); }}>
+                    <SelectTrigger className="mb-2 text-xs h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="issued">Issued</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {rfqListLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground py-6 justify-center text-xs">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                    </div>
+                  ) : rfqList.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-xs">
+                      <p>No RFQs yet.</p>
+                      <p className="mt-1">Create one from lines in pr_raised status.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {rfqList.map((rfq: any) => {
+                        const rfqStatusColors: Record<string,string> = {
+                          draft: "bg-gray-100 text-gray-700",
+                          issued: "bg-cyan-100 text-cyan-800",
+                          closed: "bg-teal-100 text-teal-800",
+                          cancelled: "bg-red-100 text-red-700",
+                        };
+                        return (
+                          <div
+                            key={rfq.id}
+                            className={`border rounded-lg px-3 py-2.5 cursor-pointer transition-all ${
+                              selectedRfqId === rfq.id
+                                ? "border-indigo-400 bg-indigo-50 shadow-sm"
+                                : "border-gray-200 bg-white hover:border-gray-300"
+                            }`}
+                            onClick={() => setSelectedRfqId(rfq.id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-mono font-medium text-indigo-700">{rfq.rfq_number}</span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${rfqStatusColors[rfq.status] ?? "bg-gray-100 text-gray-600"}`}>
+                                {rfq.status}
+                              </span>
+                            </div>
+                            {rfq.subject && (
+                              <p className="text-xs text-gray-600 truncate mt-0.5">{rfq.subject}</p>
+                            )}
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-muted-foreground">{rfq.line_count} lines</span>
+                              <span className="text-xs text-muted-foreground">{rfq.vendor_count} vendors</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Right: RFQ detail panel ── */}
+                <div className="flex-1 min-w-0">
+                  {!selectedRfqId ? (
+                    <div className="flex flex-col items-center justify-center h-60 text-muted-foreground border rounded-lg bg-white">
+                      <Package className="h-8 w-8 mb-2 opacity-20" />
+                      <p className="text-sm">Select an RFQ to view details</p>
+                    </div>
+                  ) : rfqDetailLoading ? (
+                    <div className="flex items-center justify-center h-60">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : selectedRfq ? (
+                    <div className="space-y-4">
+                      {/* RFQ header */}
+                      <div className="border rounded-lg bg-white p-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-semibold text-indigo-700">{selectedRfq.rfq_number}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                                selectedRfq.status === "issued" ? "bg-cyan-100 text-cyan-800" :
+                                selectedRfq.status === "closed" ? "bg-teal-100 text-teal-800" :
+                                selectedRfq.status === "cancelled" ? "bg-red-100 text-red-700" :
+                                "bg-gray-100 text-gray-700"
+                              }`}>
+                                {selectedRfq.status.toUpperCase()}
+                              </span>
+                            </div>
+                            {selectedRfq.subject && <p className="text-sm text-gray-700 mt-1">{selectedRfq.subject}</p>}
+                            <div className="flex items-center gap-4 mt-2">
+                              {selectedRfq.rfq_date && (
+                                <span className="text-xs text-muted-foreground">RFQ Date: <strong>{fmtDate(selectedRfq.rfq_date)}</strong></span>
+                              )}
+                              {selectedRfq.submission_deadline && (
+                                <span className="text-xs text-muted-foreground">Deadline: <strong>{fmtDate(selectedRfq.submission_deadline)}</strong></span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {selectedRfq.status === "draft" && (
+                              <Button
+                                size="sm"
+                                onClick={() => rfqIssueMut.mutate(selectedRfq.id)}
+                                disabled={rfqIssueMut.isPending}
+                              >
+                                {rfqIssueMut.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                                Issue to Vendors
+                              </Button>
+                            )}
+                            {selectedRfq.status === "issued" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => rfqCloseMut.mutate(selectedRfq.id)}
+                                disabled={rfqCloseMut.isPending}
+                              >
+                                {rfqCloseMut.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                                Close RFQ
+                              </Button>
+                            )}
+                            {!["cancelled", "closed"].includes(selectedRfq.status) && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => {
+                                  if (window.confirm("Cancel this RFQ?")) {
+                                    rfqCancelMut.mutate({ id: selectedRfq.id });
+                                  }
+                                }}
+                                disabled={rfqCancelMut.isPending}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Vendors & Lines summary */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="border rounded-lg bg-white p-3">
+                          <h4 className="text-xs font-semibold text-gray-700 mb-2">Invited Vendors ({selectedRfq.vendors?.length ?? 0})</h4>
+                          {(selectedRfq.vendors ?? []).length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No vendors added</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {(selectedRfq.vendors ?? []).map((v: any) => (
+                                <li key={v.vendor_id} className="text-xs text-gray-700">{v.vendor_display_name || v.vendor_name}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <div className="border rounded-lg bg-white p-3">
+                          <h4 className="text-xs font-semibold text-gray-700 mb-2">Lines in RFQ ({selectedRfq.lines?.length ?? 0})</h4>
+                          {(selectedRfq.lines ?? []).length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No lines added</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {(selectedRfq.lines ?? []).map((l: any) => (
+                                <li key={l.plc_line_id} className="text-xs font-mono text-indigo-700">
+                                  {l.plc_number} <span className="font-sans text-gray-600">— {l.tag_no || l.service_description}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quotes table */}
+                      <div className="border rounded-lg bg-white overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+                          <h4 className="text-sm font-semibold text-gray-800">Vendor Quotes</h4>
+                          {["issued","closed"].includes(selectedRfq.status) && (
+                            <Button size="sm" onClick={() => { setEditingQuote(null); setShowVendorQuote(true); }}>
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Record Quote
+                            </Button>
+                          )}
+                        </div>
+                        {(selectedRfq.quotes ?? []).length === 0 ? (
+                          <p className="text-center text-xs text-muted-foreground py-6">No quotes recorded yet.</p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-gray-50">
+                                <TableHead className="text-xs font-semibold">PLC No</TableHead>
+                                <TableHead className="text-xs font-semibold">Vendor</TableHead>
+                                <TableHead className="text-xs font-semibold text-right">Unit Price</TableHead>
+                                <TableHead className="text-xs font-semibold text-right">Delivery (wks)</TableHead>
+                                <TableHead className="text-xs font-semibold text-right">Tech Score</TableHead>
+                                <TableHead className="text-xs font-semibold text-right">Comm Score</TableHead>
+                                <TableHead className="text-xs font-semibold">Rec.</TableHead>
+                                <TableHead className="w-8" />
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {(selectedRfq.quotes ?? []).map((q: any) => (
+                                <TableRow key={q.id} className="hover:bg-gray-50">
+                                  <TableCell className="text-xs font-mono text-indigo-700">{q.plc_number}</TableCell>
+                                  <TableCell className="text-xs">{q.vendor_display_name || q.vendor_name}</TableCell>
+                                  <TableCell className="text-xs text-right tabular-nums">
+                                    {q.unit_price ? `₹ ${parseFloat(q.unit_price).toLocaleString("en-IN")}` : "—"}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-right">{q.delivery_weeks ?? "—"}</TableCell>
+                                  <TableCell className="text-xs text-right">{q.technical_score ?? "—"}</TableCell>
+                                  <TableCell className="text-xs text-right">{q.commercial_score ?? "—"}</TableCell>
+                                  <TableCell>
+                                    {q.is_recommended && (
+                                      <span className="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-medium">Yes</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      variant="ghost" size="icon" className="h-7 w-7"
+                                      onClick={() => { setEditingQuote(q); setShowVendorQuote(true); }}
+                                    >
+                                      <MoreHorizontal className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </div>
+
+                      {/* TBE / CBE panels — only after RFQ closed */}
+                      {["closed"].includes(selectedRfq.status) && (
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* TBE */}
+                          <div className="border rounded-lg bg-white overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-3 border-b bg-violet-50">
+                              <h4 className="text-sm font-semibold text-violet-800">TBE</h4>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEditingTbe(null); setShowTbe(true); }}>
+                                <Plus className="h-3 w-3 mr-1" /> Record
+                              </Button>
+                            </div>
+                            {rfqTbeList.length === 0 ? (
+                              <p className="text-center text-xs text-muted-foreground py-5">No TBE records yet.</p>
+                            ) : (
+                              <div className="divide-y">
+                                {rfqTbeList.map((t: any) => (
+                                  <div
+                                    key={t.id}
+                                    className="px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-violet-50/40"
+                                    onClick={() => { setEditingTbe(t); setShowTbe(true); }}
+                                  >
+                                    <div>
+                                      <span className="text-xs font-mono text-indigo-700">{t.plc_number}</span>
+                                      <span className="text-xs text-gray-500 ml-2">— {t.tag_no}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {t.recommended_vendor_name && (
+                                        <span className="text-xs text-gray-600 truncate max-w-[120px]">{t.recommended_vendor_display_name || t.recommended_vendor_name}</span>
+                                      )}
+                                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                                        t.status === "complete" ? "bg-purple-100 text-purple-800" : "bg-violet-100 text-violet-800"
+                                      }`}>{t.status}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* CBE */}
+                          <div className="border rounded-lg bg-white overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-3 border-b bg-fuchsia-50">
+                              <h4 className="text-sm font-semibold text-fuchsia-800">CBE</h4>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEditingCbe(null); setShowCbe(true); }}>
+                                <Plus className="h-3 w-3 mr-1" /> Record
+                              </Button>
+                            </div>
+                            {rfqCbeList.length === 0 ? (
+                              <p className="text-center text-xs text-muted-foreground py-5">No CBE records yet.</p>
+                            ) : (
+                              <div className="divide-y">
+                                {rfqCbeList.map((c: any) => (
+                                  <div
+                                    key={c.id}
+                                    className="px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-fuchsia-50/40"
+                                    onClick={() => { setEditingCbe(c); setShowCbe(true); }}
+                                  >
+                                    <div>
+                                      <span className="text-xs font-mono text-indigo-700">{c.plc_number}</span>
+                                      <span className="text-xs text-gray-500 ml-2">— {c.tag_no}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {c.final_vendor_name && (
+                                        <span className="text-xs text-gray-600 truncate max-w-[120px]">{c.final_vendor_display_name || c.final_vendor_name}</span>
+                                      )}
+                                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                                        c.status === "complete" ? "bg-emerald-100 text-emerald-800" : "bg-fuchsia-100 text-fuchsia-800"
+                                      }`}>{c.status}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </TabsContent>
 
@@ -573,6 +975,66 @@ export default function ProcurementListControlPage() {
           lineId={selectedLineId}
           onClose={() => setSelectedLineId(null)}
           onMutated={invalidateAll}
+        />
+      )}
+
+      {/* ── Phase 2 Dialogs ── */}
+      {showRfqCreate && selectedProjectId && (
+        <RfqCreateDialog
+          projectId={selectedProjectId}
+          lines={lines}
+          onClose={() => setShowRfqCreate(false)}
+          onSuccess={() => {
+            setShowRfqCreate(false);
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-rfq"] });
+          }}
+        />
+      )}
+
+      {showVendorQuote && selectedRfq && (
+        <VendorQuoteDialog
+          rfqId={selectedRfq.id}
+          rfqLines={selectedRfq.lines ?? []}
+          rfqVendors={selectedRfq.vendors ?? []}
+          existingQuote={editingQuote}
+          onClose={() => { setShowVendorQuote(false); setEditingQuote(null); }}
+          onSuccess={() => {
+            setShowVendorQuote(false);
+            setEditingQuote(null);
+            qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+          }}
+        />
+      )}
+
+      {showTbe && selectedRfq && (
+        <TbeDialog
+          rfqId={selectedRfq.id}
+          rfqLines={selectedRfq.lines ?? []}
+          rfqVendors={selectedRfq.vendors ?? []}
+          existingTbe={editingTbe}
+          onClose={() => { setShowTbe(false); setEditingTbe(null); }}
+          onSuccess={() => {
+            setShowTbe(false);
+            setEditingTbe(null);
+            qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId, "tbe"] });
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list"] });
+          }}
+        />
+      )}
+
+      {showCbe && selectedRfq && (
+        <CbeDialog
+          rfqId={selectedRfq.id}
+          rfqLines={selectedRfq.lines ?? []}
+          rfqVendors={selectedRfq.vendors ?? []}
+          existingCbe={editingCbe}
+          onClose={() => { setShowCbe(false); setEditingCbe(null); }}
+          onSuccess={() => {
+            setShowCbe(false);
+            setEditingCbe(null);
+            qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId, "cbe"] });
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list"] });
+          }}
         />
       )}
     </div>

@@ -3601,6 +3601,12 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Procurement execution record not found');
       const record = existing.rows[0] as any;
 
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
+
       if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
@@ -3638,6 +3644,12 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM procurement_execution_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Procurement execution record not found');
       const record = existing.rows[0] as any;
+
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
 
       if (record.status !== 'draft') {
         return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
@@ -5633,6 +5645,12 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
 
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
+
       if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
@@ -5670,6 +5688,12 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
 
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
+
       if (record.status !== 'draft') {
         return sendBusinessError(res, `Cannot submit for review: record is in '${record.status}' status. Only 'draft' records can be submitted.`);
       }
@@ -5705,6 +5729,12 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
+
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
 
       if (record.status !== 'under_review') {
         return sendBusinessError(res, `Cannot approve: record is in '${record.status}' status. Only 'under_review' records can be approved.`);
@@ -5749,6 +5779,12 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
 
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
+
       if (record.status !== 'under_review') {
         return sendBusinessError(res, `Cannot revert to draft: only 'under_review' records can be reverted. Current status: '${record.status}'.`);
       }
@@ -5782,6 +5818,12 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
+
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
 
       if (record.status !== 'ready_for_po_creation') {
         return sendBusinessError(res, `Cannot revert to review: only 'ready_for_po_creation' records can be reverted. Current status: '${record.status}'.`);
@@ -5819,6 +5861,12 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
+
+      // Phase 2 PLC hard-block
+      if (record.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [record.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
 
       if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
@@ -6253,6 +6301,12 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${poPrepId}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const prep = existing.rows[0] as any;
+
+      // Phase 2 PLC hard-block
+      if (prep.planning_record_id) {
+        const plcChk = await pool.query(`SELECT 1 FROM procurement_list_lines WHERE planning_record_id = $1 AND status NOT IN ('cancelled','superseded') LIMIT 1`, [prep.planning_record_id]);
+        if ((plcChk.rowCount ?? 0) > 0) return res.status(423).json({ error: 'deprecated_path', message: 'Use Procurement List Control to advance this procurement line.' });
+      }
 
       if (!(await guardProjectNotFrozen(prep.project_id, res))) return;
 
