@@ -43,9 +43,13 @@ async function ensureSapCardCodeColumn(client: any): Promise<void> {
   await client.query(
     `ALTER TABLE vendors ADD COLUMN IF NOT EXISTS display_name TEXT`,
   );
+  // Drop old partial index if it still exists, then ensure full unique constraint
   await client.query(
-    `CREATE UNIQUE INDEX IF NOT EXISTS vendors_sap_card_code_key ON vendors (sap_card_code) WHERE sap_card_code IS NOT NULL`,
+    `DROP INDEX IF EXISTS vendors_sap_card_code_key`,
   );
+  await client.query(
+    `ALTER TABLE vendors ADD CONSTRAINT vendors_sap_card_code_unique UNIQUE (sap_card_code)`,
+  ).catch(() => { /* already exists — ignore */ });
   // Back-fill display_name for any rows that have it null
   await client.query(
     `UPDATE vendors SET display_name = name WHERE display_name IS NULL`,

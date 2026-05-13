@@ -146,18 +146,20 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
             ) : (
               <div className="border rounded max-h-44 overflow-y-auto">
                 {eligibleLines.map((line) => (
-                  <label
+                  <div
                     key={line.id}
                     className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-0"
+                    onClick={() => toggleLine(line.id)}
                   >
                     <Checkbox
                       checked={selectedLineIds.includes(line.id)}
                       onCheckedChange={() => toggleLine(line.id)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <span className="text-xs font-mono text-indigo-700 w-32 shrink-0">{line.plcNumber}</span>
                     <span className="text-xs text-muted-foreground truncate">{line.tagNo} — {line.serviceDescription}</span>
                     <span className="text-xs text-gray-400 shrink-0">{line.subgroupCode}</span>
-                  </label>
+                  </div>
                 ))}
               </div>
             )}
