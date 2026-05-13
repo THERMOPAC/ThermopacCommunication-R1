@@ -508,4 +508,32 @@ When operator clicks "Issue RFQ", a pre-flight check runs:
 
 ---
 
+## Approval Evidence — 13/05/2026
+
+**User confirmation:** "RFQ test emails received and it's working"
+
+All 12 evidence items verified live against `2627-013-RFQ-0001`:
+
+| # | Evidence Item | Result |
+|---|---------------|--------|
+| 1 | Pre-flight API | `vendorsNoEmail: [STEEL O FAB ENGINEERS]` — correct |
+| 2 | PDF generation | 3.6 KB PDFKit A4, vendor-addressed, line-itemised |
+| 3 | Multi-vendor dispatch | `sent=2 failed=0 no_email=1` |
+| 4 | Dispatch log rows | 5 rows — initial ×2, resend ×1, failed ×1, no_email ×1 |
+| 5 | Vendor status update | `sent` / `acknowledged` / `no_email` set correctly |
+| 6 | Resend workflow | New log row `resend_number=1`; `resend_count=1` on vendor |
+| 7 | Acknowledge workflow | `status=acknowledged`, `ack_at` + note stored, RFQ agg updated |
+| 8 | SMTP failure isolation | RFQ stays `closed`; only dispatch_log row set to `failed` |
+| 9 | No-email vendor | `email_to=[no email]`, `status=no_email`, RFQ not blocked |
+| 10 | >20 MB signed-URL fallback | 26 MB file → `SIGNED_URL_PATH` routed correctly |
+| 11 | Frozen attachments | 3 records (2 datasheets + 1 RFQ PDF), immutable |
+| 12 | TypeScript typecheck | `tsc --noEmit --skipLibCheck` → **0 errors** |
+
+Real SMTP `messageId`s (Gmail, delivered to prasad@thermopac.in):
+- Initial → Steel Supply Co.: `<3ba984b6-6f92-6dad-4b9c-e2e565efcc57@thermopac.in>`
+- Initial → Pump Manufacturers Ltd: `<31f0eb61-3292-a53a-79da-287c855ef600@thermopac.in>`
+- Resend → Steel Supply Co.: `<4767558f-195b-6564-2e5c-5b03dc08260a@thermopac.in>`
+
+---
+
 *End of RFQ Email Dispatch Baseline v1.0*
