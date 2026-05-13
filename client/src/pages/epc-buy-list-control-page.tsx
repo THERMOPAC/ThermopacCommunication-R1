@@ -350,8 +350,9 @@ export default function EpcBuyListControlPage() {
   const { data: buyLists = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "buy-lists", showAllRevisions, statusFilter, activeGroupCode, activeSubgroupCode],
     queryFn: async () => {
+      const HEADER_STATUSES = new Set(["draft", "under_review", "released", "locked", "superseded", "canceled"]);
       const params = new URLSearchParams({ allRevisions: String(showAllRevisions) });
-      if (statusFilter !== "all")  params.set("status",          statusFilter);
+      if (statusFilter !== "all" && HEADER_STATUSES.has(statusFilter)) params.set("status", statusFilter);
       if (activeGroupCode)         params.set("buyGroupCode",    activeGroupCode);
       if (activeSubgroupCode)      params.set("buySubgroupCode", activeSubgroupCode);
       return fetch(`/api/projects/${selectedProjectId}/buy-lists?${params.toString()}`, { credentials: "include" }).then(r => r.json());
