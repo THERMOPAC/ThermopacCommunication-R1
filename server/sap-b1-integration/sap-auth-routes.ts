@@ -17,7 +17,10 @@ router.post('/connect',
   sapLoginLimiter,
   async (req, res) => {
     try {
-      const { username, password, companyDb } = req.body;
+      // Prefer credentials from Secrets; fall back to request body for manual override
+      const username  = process.env.SAP_USERNAME  || req.body?.username;
+      const password  = process.env.SAP_PASSWORD  || req.body?.password;
+      const companyDb = process.env.SAP_COMPANY_DB || req.body?.companyDb;
       const userId = req.user!.id;
 
       sapSessionManager.incrementLoginAttempts();
@@ -27,7 +30,7 @@ router.post('/connect',
         sapSessionManager.incrementLoginFailures();
         return res.status(400).json({
           success: false,
-          error: 'Username, password, and company database are required'
+          error: 'SAP credentials not configured. Please set SAP_USERNAME, SAP_PASSWORD, SAP_COMPANY_DB in Secrets.'
         });
       }
 
