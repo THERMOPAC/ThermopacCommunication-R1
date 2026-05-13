@@ -34,6 +34,13 @@ import {
   DosingPumpAttrsForm,
   VacuumBoosterAttrsForm,
   PumpSkidAttrsForm,
+  buildCentrifugalPumpDefaults,
+  buildGearPumpDefaults,
+  buildScrewPumpDefaults,
+  buildMultistagePumpDefaults,
+  buildDosingPumpDefaults,
+  buildVacuumBoosterDefaults,
+  buildPumpSkidDefaults,
 } from "@/components/pump-attrs-forms";
 import {
   PressureAttrsForm, TemperatureAttrsForm, FlowAttrsForm, LevelAttrsForm,
@@ -717,18 +724,45 @@ export default function EpcBuyListControlPage() {
       inspectionRequired: line.inspection_required, certificateRequired: line.certificate_required,
       complianceRequired: line.compliance_required, notes: line.notes ?? "",
       installedOn: line.installed_on ?? "", model: (line as any).model ?? "TBN",
-      technicalAttributes: line.buy_subgroup_code === "non_flameproof"
-        ? applyNonFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
-        : line.buy_subgroup_code === "flameproof"
-          ? applyFlameproofMotorDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
-          : line.buy_group_code === "instruments"
-            ? (line.buy_subgroup_code === "temperature"
-                ? applyTemperatureDefaults((line.technical_attributes ?? {}) as Record<string, unknown>)
-                : (() => {
-                    const ta = (line.technical_attributes ?? {}) as Record<string, unknown>;
-                    return { ...INSTRUMENT_CABLE_GLAND_DEFAULTS, ...ta };
-                  })())
-            : (line.technical_attributes ?? {}) as Record<string, unknown>,
+      technicalAttributes: (() => {
+        const ta = (line.technical_attributes ?? {}) as Record<string, unknown>;
+        const code = line.buy_subgroup_code as string;
+        if (code === "non_flameproof") return applyNonFlameproofMotorDefaults(ta);
+        if (code === "flameproof") return applyFlameproofMotorDefaults(ta);
+        if (line.buy_group_code === "instruments") {
+          if (code === "temperature") return applyTemperatureDefaults(ta);
+          return { ...INSTRUMENT_CABLE_GLAND_DEFAULTS, ...ta };
+        }
+        if (code === "centrifugal") {
+          const pumpType = (ta.pump_type as string) || "End Suction";
+          return { ...buildCentrifugalPumpDefaults(pumpType), ...ta };
+        }
+        if (code === "gear") {
+          const gearType = (ta.gear_type as string) || "External Gear";
+          return { ...buildGearPumpDefaults(gearType), ...ta };
+        }
+        if (code === "screw") {
+          const screwType = (ta.screw_type as string) || "Single Screw";
+          return { ...buildScrewPumpDefaults(screwType), ...ta };
+        }
+        if (code === "multistage") {
+          const msType = (ta.multistage_type as string) || "Horizontal Multistage";
+          return { ...buildMultistagePumpDefaults(msType), ...ta };
+        }
+        if (code === "dosing_metering") {
+          const pumpType = (ta.pump_type as string) || "Diaphragm Pump";
+          return { ...buildDosingPumpDefaults(pumpType), ...ta };
+        }
+        if (code === "vacuum_boosters") {
+          const boosterType = (ta.booster_type as string) || "Roots Blower";
+          return { ...buildVacuumBoosterDefaults(boosterType), ...ta };
+        }
+        if (code === "pump_skid") {
+          const pkgType = (ta.package_type as string) || "Single Pump Skid";
+          return { ...buildPumpSkidDefaults(pkgType), ...ta };
+        }
+        return ta;
+      })(),
     });
     setTagDuplicateWarning(null); setTagPreview([]); setTagAutoFilled(false); setTagFetching(false);
     setLineDialog({ open: true, listId, status, editLine: line });

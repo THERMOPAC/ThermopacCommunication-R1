@@ -157,7 +157,7 @@ const PUMP_SERIES_BY_MAKE: Record<string, string[]> = {
   "Armstrong": ["4300","4380","S-Series"],
 };
 
-function buildCentrifugalPumpDefaults(type: string): Record<string, unknown> {
+export function buildCentrifugalPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     pump_type: type, approved_makes: [], preferred_series: "",
     mounting: "Base Mounted", drive_type: "Motor Driven",
@@ -660,7 +660,7 @@ const GEAR_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 const GEAR_PUMP_MAKES: string[] = [];
 
-function buildGearPumpDefaults(type: string): Record<string, unknown> {
+export function buildGearPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     gear_type: type, approved_makes: [],
     mounting: "Base Mounted", drive_type: "Motor Driven",
@@ -1103,7 +1103,7 @@ const SCREW_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 const SCREW_PUMP_MAKES: string[] = [];
 
-function buildScrewPumpDefaults(type: string): Record<string, unknown> {
+export function buildScrewPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     screw_type: type, approved_makes: [],
     mounting: "Base Mounted", drive_type: "Motor Driven",
@@ -1550,7 +1550,7 @@ const MS_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 const MULTISTAGE_PUMP_MAKES: string[] = [];
 
-function buildMultistagePumpDefaults(type: string): Record<string, unknown> {
+export function buildMultistagePumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     multistage_type: type, approved_makes: [],
     mounting: "Base Mounted", drive_type: "Motor Driven",
@@ -2007,7 +2007,7 @@ const DOSING_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 const DOSING_PUMP_MAKES: string[] = [];
 
-function buildDosingPumpDefaults(type: string): Record<string, unknown> {
+export function buildDosingPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     pump_type: type, approved_makes: [],
     mounting: "Base Mounted", drive_type: "Motor Driven",
@@ -2417,7 +2417,7 @@ const VB_ALL_FIELD_OPTS: Record<string, string[]> = {
 };
 const VACUUM_BOOSTER_MAKES: string[] = [];
 
-function buildVacuumBoosterDefaults(type: string): Record<string, unknown> {
+export function buildVacuumBoosterDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     booster_type: type, approved_makes: [],
     flow_rate: "", suction_pressure: "", discharge_pressure: "",
@@ -2796,7 +2796,7 @@ const VP_SEAL_DEFAULTS: Record<string, string> = {
   "Steam Jet Ejector": "",
 };
 
-function buildVacuumPumpDefaults(type: string): Record<string, unknown> {
+export function buildVacuumPumpDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     vacuum_pump_type: type, approved_makes: [],
     sealing_liquid: "", sealing_liquid_temp_c: "", compression_stages: "",
@@ -3253,7 +3253,7 @@ const PUMP_SKID_COMPONENT_OPTS = [
 ];
 const PUMP_SKID_MAKES: string[] = [];
 
-function buildPumpSkidDefaults(pkgType: string): Record<string, unknown> {
+export function buildPumpSkidDefaults(pkgType: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     package_type: pkgType, approved_makes: [], included_components: [],
     pump_type: "", flow_rate: "", head_pressure: "",
