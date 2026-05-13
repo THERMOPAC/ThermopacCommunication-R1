@@ -102,7 +102,7 @@ export function setupProcurementListRoutes(app: Express): void {
            p.created_at AS "createdAt",
            p.updated_at AS "updatedAt",
            mi.description AS "itemDescription",
-           mi.item_code AS "itemCode",
+           COALESCE(mi.item_code, bls.item_code) AS "itemCode",
            mi.uom,
            v.name AS "vendorDisplayName",
            g.pog_number AS "activePoGroupNumber",
@@ -120,6 +120,7 @@ export function setupProcurementListRoutes(app: Express): void {
          LEFT JOIN epc_purchase_orders po ON po.id = p.active_epc_po_id
          LEFT JOIN users ub ON ub.id = p.avl_bypassed_by
          LEFT JOIN project_buy_list_lines src ON src.id = p.source_buy_list_line_id
+         LEFT JOIN buy_list_line_selections bls ON bls.buy_list_line_id = src.id
          LEFT JOIN buy_groups src_bg ON src_bg.id = src.buy_group_id
          LEFT JOIN buy_subgroups src_bs ON src_bs.id = src.buy_subgroup_id
          WHERE ${where}
