@@ -78,7 +78,7 @@ export function setupProcurementListRoutes(app: Express): void {
            p.source_buy_list_line_id AS "sourceBuyListLineId",
            p.master_item_id AS "masterItemId",
            p.tag_no AS "tagNo",
-           p.service_description AS "serviceDescription",
+           COALESCE(p.service_description, src.generic_requirement) AS "serviceDescription",
            p.equipment_reference AS "equipmentReference",
            p.subgroup_code AS "subgroupCode",
            p.subgroup_label AS "subgroupLabel",

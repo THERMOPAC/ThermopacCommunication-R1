@@ -2700,7 +2700,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           await client.query(`SAVEPOINT ${spName}`);
           try {
             const lineRow = await client.query(
-              `SELECT l.id, l.status, l.tag_no, l.service_description, l.equipment_reference, l.quantity, l.selected_master_item_id, l.planning_record_id
+              `SELECT l.id, l.status, l.tag_no, l.service_description, l.generic_requirement,
+                      l.equipment_reference, l.quantity, l.selected_master_item_id, l.planning_record_id
                FROM project_buy_list_lines l WHERE l.id = $1 AND l.buy_list_header_id = $2`,
               [lineId, headerId],
             );
@@ -2757,7 +2758,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                 sourceBuyListLineId: lineId,
                 masterItemId: line.selected_master_item_id,
                 tagNo: line.tag_no ?? null,
-                serviceDescription: line.service_description ?? null,
+                serviceDescription: line.service_description || line.generic_requirement || null,
                 equipmentReference: line.equipment_reference ?? null,
                 subgroupCode: null,
                 subgroupLabel: null,
