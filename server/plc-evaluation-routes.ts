@@ -10,6 +10,7 @@
 import { Express, Request, Response } from 'express';
 import { pool } from './db';
 import { requirePageAccess } from './utils/permission-utils';
+import { logPlcAudit } from './plc-line-service';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) return next();
@@ -108,6 +109,8 @@ export function setupPlcEvaluationRoutes(app: Express): void {
       );
 
       // Update PLC line status when TBE complete
+      const tbeNewLineStatus = status === 'complete' ? 'tbe_complete'
+        : status === 'in_progress' ? 'tbe_in_progress' : null;
       if (status === 'complete') {
         await pool.query(
           `UPDATE procurement_list_lines SET status = 'tbe_complete', updated_at = NOW()
@@ -120,6 +123,22 @@ export function setupPlcEvaluationRoutes(app: Express): void {
            WHERE id = $1 AND status IN ('rfq_closed')`,
           [plcLineId]
         );
+      }
+
+      // Audit
+      const tbeLineRow = await pool.query(
+        `SELECT project_id FROM procurement_list_lines WHERE id = $1`, [plcLineId]
+      );
+      if (tbeLineRow.rowCount && tbeLineRow.rowCount > 0) {
+        await logPlcAudit(pool, {
+          projectId: tbeLineRow.rows[0].project_id,
+          entityType: 'plc_line', entityId: plcLineId,
+          eventType: status === 'complete' ? 'tbe_complete' : 'tbe_updated',
+          oldStatus: null, newStatus: tbeNewLineStatus,
+          changedBy: userId,
+          notes: `TBE ${status === 'complete' ? 'completed' : 'updated'} for RFQ ${rfqId}`,
+          metadata: { rfqId, plcLineId, recommendedVendorId: recommendedVendorId || null },
+        });
       }
 
       res.json({ success: true, tbe: result.rows[0] });
@@ -147,6 +166,22 @@ export function setupPlcEvaluationRoutes(app: Express): void {
          WHERE id = $1 AND status IN ('rfq_closed','tbe_in_progress')`,
         [tbe.plc_line_id]
       );
+
+      // Audit
+      const tbeRecLineRow = await pool.query(
+        `SELECT project_id FROM procurement_list_lines WHERE id = $1`, [tbe.plc_line_id]
+      );
+      if (tbeRecLineRow.rowCount && tbeRecLineRow.rowCount > 0) {
+        await logPlcAudit(pool, {
+          projectId: tbeRecLineRow.rows[0].project_id,
+          entityType: 'plc_line', entityId: tbe.plc_line_id,
+          eventType: 'tbe_vendor_recommended',
+          oldStatus: null, newStatus: 'tbe_complete',
+          changedBy: (req.user as any)?.id,
+          notes: `TBE vendor ${recommendedVendorId} recommended for RFQ ${tbe.rfq_id}`,
+          metadata: { rfqId: tbe.rfq_id, recommendedVendorId },
+        });
+      }
 
       res.json({ success: true, tbe });
     } catch (e) { sendErr(res, e); }
@@ -235,6 +270,8 @@ export function setupPlcEvaluationRoutes(app: Express): void {
       );
 
       // When CBE complete with final vendor, update PLC line: set vendor + status
+      const cbeNewLineStatus = (status === 'complete' && finalVendorId) ? 'vendor_selected'
+        : status === 'in_progress' ? 'cbe_in_progress' : null;
       if (status === 'complete' && finalVendorId) {
         await pool.query(
           `UPDATE procurement_list_lines
@@ -248,6 +285,26 @@ export function setupPlcEvaluationRoutes(app: Express): void {
            WHERE id = $1 AND status IN ('tbe_complete')`,
           [plcLineId]
         );
+      }
+
+      // Audit
+      const cbeLineRow = await pool.query(
+        `SELECT project_id FROM procurement_list_lines WHERE id = $1`, [plcLineId]
+      );
+      if (cbeLineRow.rowCount && cbeLineRow.rowCount > 0) {
+        const cbeEventType = (status === 'complete' && finalVendorId)
+          ? 'vendor_selected' : 'cbe_updated';
+        await logPlcAudit(pool, {
+          projectId: cbeLineRow.rows[0].project_id,
+          entityType: 'plc_line', entityId: plcLineId,
+          eventType: cbeEventType,
+          oldStatus: null, newStatus: cbeNewLineStatus,
+          changedBy: userId,
+          notes: cbeEventType === 'vendor_selected'
+            ? `CBE complete — vendor ${finalVendorId} selected at ${finalUnitPrice ?? '—'}`
+            : `CBE in progress for RFQ ${rfqId}`,
+          metadata: { rfqId, plcLineId, finalVendorId: finalVendorId || null, finalUnitPrice: finalUnitPrice || null },
+        });
       }
 
       res.json({ success: true, cbe: result.rows[0] });
@@ -278,6 +335,22 @@ export function setupPlcEvaluationRoutes(app: Express): void {
          WHERE id = $1 AND status IN ('rfq_closed','tbe_complete','cbe_in_progress')`,
         [cbe.plc_line_id, finalVendorId]
       );
+
+      // Audit
+      const cbeFinLineRow = await pool.query(
+        `SELECT project_id FROM procurement_list_lines WHERE id = $1`, [cbe.plc_line_id]
+      );
+      if (cbeFinLineRow.rowCount && cbeFinLineRow.rowCount > 0) {
+        await logPlcAudit(pool, {
+          projectId: cbeFinLineRow.rows[0].project_id,
+          entityType: 'plc_line', entityId: cbe.plc_line_id,
+          eventType: 'vendor_selected',
+          oldStatus: null, newStatus: 'vendor_selected',
+          changedBy: userId,
+          notes: `CBE finalized — vendor ${finalVendorId} selected at ${finalUnitPrice ?? '—'}`,
+          metadata: { cbeId: id, rfqId: cbe.rfq_id, finalVendorId, finalUnitPrice: finalUnitPrice || null },
+        });
+      }
 
       res.json({ success: true, cbe });
     } catch (e) { sendErr(res, e); }

@@ -13,6 +13,7 @@ import { Express, Request, Response } from 'express';
 import { pool } from './db';
 import { requirePageAccess } from './utils/permission-utils';
 import { getNextDocSeq } from './doc-sequence-service';
+import { logPlcAudit } from './plc-line-service';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) return next();
@@ -177,6 +178,15 @@ export function setupPlcRfqRoutes(app: Express): void {
           );
         }
 
+        // Audit: RFQ created
+        await logPlcAudit(client, {
+          projectId, entityType: 'rfq', entityId: rfq.id,
+          eventType: 'rfq_created', oldStatus: null, newStatus: 'draft',
+          changedBy: userId,
+          notes: `RFQ ${rfq.rfq_number} created`,
+          metadata: { rfqNumber: rfq.rfq_number, lineIds, vendorIds },
+        });
+
         await client.query('COMMIT');
         res.status(201).json({ success: true, rfq });
       } catch (err) {
@@ -215,6 +225,15 @@ export function setupPlcRfqRoutes(app: Express): void {
         [id]
       );
 
+      // Audit
+      await logPlcAudit(pool, {
+        projectId: rfq.project_id, entityType: 'rfq', entityId: id,
+        eventType: 'rfq_issued', oldStatus: 'draft', newStatus: 'issued',
+        changedBy: (req.user as any)?.id,
+        notes: `RFQ ${rfq.rfq_number} issued to vendors`,
+        metadata: { rfqId: id },
+      });
+
       res.json({ success: true, message: 'RFQ issued', rfqId: id });
     } catch (e) { sendErr(res, e); }
   });
@@ -237,6 +256,15 @@ export function setupPlcRfqRoutes(app: Express): void {
            AND status IN ('rfq_issued')`,
         [id]
       );
+
+      // Audit
+      await logPlcAudit(pool, {
+        projectId: rfq.project_id, entityType: 'rfq', entityId: id,
+        eventType: 'rfq_closed', oldStatus: 'issued', newStatus: 'closed',
+        changedBy: (req.user as any)?.id,
+        notes: `RFQ ${rfq.rfq_number} closed`,
+        metadata: { rfqId: id },
+      });
 
       res.json({ success: true, message: 'RFQ closed', rfqId: id });
     } catch (e) { sendErr(res, e); }
@@ -268,6 +296,16 @@ export function setupPlcRfqRoutes(app: Express): void {
              AND status IN ('pending_rfq','rfq_issued','rfq_closed')`,
           [id]
         );
+
+        // Audit
+        await logPlcAudit(client, {
+          projectId: rfq.project_id, entityType: 'rfq', entityId: id,
+          eventType: 'rfq_cancelled', oldStatus: rfq.status, newStatus: 'cancelled',
+          changedBy: (req.user as any)?.id,
+          notes: reason ? `Cancelled: ${reason}` : 'Cancelled',
+          metadata: { rfqId: id, previousStatus: rfq.status },
+        });
+
         await client.query('COMMIT');
         res.json({ success: true, message: 'RFQ cancelled' });
       } catch (err) {
@@ -370,6 +408,7 @@ export function setupPlcRfqRoutes(app: Express): void {
         return badReq(res, 'Can only record quotes for issued/closed RFQs');
       }
 
+      const rfqForQuote = await pool.query(`SELECT project_id FROM plc_rfq_records WHERE id = $1`, [id]);
       const result = await pool.query(
         `INSERT INTO plc_vendor_quotes (rfq_id, plc_line_id, vendor_id, unit_price, total_price, currency,
            delivery_weeks, validity_date, technical_score, commercial_score, is_recommended, notes, created_by)
@@ -382,6 +421,19 @@ export function setupPlcRfqRoutes(app: Express): void {
          deliveryWeeks || null, validityDate || null, technicalScore || null,
          commercialScore || null, isRecommended, notes || null, userId]
       );
+
+      // Audit
+      if (rfqForQuote.rowCount && rfqForQuote.rowCount > 0) {
+        await logPlcAudit(pool, {
+          projectId: rfqForQuote.rows[0].project_id,
+          entityType: 'rfq', entityId: id,
+          eventType: 'quote_upserted', oldStatus: null, newStatus: null,
+          changedBy: userId,
+          notes: `Quote from vendor ${vendorId} for line ${plcLineId}: ${currency} ${unitPrice ?? '—'}`,
+          metadata: { rfqId: id, plcLineId, vendorId, unitPrice, isRecommended },
+        });
+      }
+
       res.json({ success: true, quote: result.rows[0] });
     } catch (e) { sendErr(res, e); }
   });
