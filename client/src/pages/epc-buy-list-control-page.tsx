@@ -1489,8 +1489,8 @@ export default function EpcBuyListControlPage() {
                                     {bulkAvailable && (
                                       <TableHead className="w-8">
                                         <Checkbox
-                                          checked={expandedLines.length > 0 && expandedLines.every((l: any) => checkedLines.has(l.id))}
-                                          onCheckedChange={() => toggleAllLines(expandedLines)}
+                                          checked={displayLines.length > 0 && displayLines.every((l: any) => checkedLines.has(l.id))}
+                                          onCheckedChange={() => toggleAllLines(displayLines)}
                                         />
                                       </TableHead>
                                     )}
