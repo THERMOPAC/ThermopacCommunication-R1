@@ -20,6 +20,8 @@ interface PlcLine {
   itemDescription: string | null;
   subgroupCode: string;
   subgroupLabel: string | null;
+  buyGroupLabel: string | null;
+  buySubgroupLabel: string | null;
   status: string;
 }
 interface Vendor { id: number; name: string; display_name?: string; sap_card_code?: string; }
@@ -36,9 +38,20 @@ export function RfqCreateDialog({ projectId, lines, preSelectedIds = [], onClose
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const [rfqDate, setRfqDate] = useState("");
+  const todayIso = new Date().toISOString().split("T")[0];
+
+  function deriveSubject(ids: number[], allLines: PlcLine[]) {
+    const sel = allLines.filter((l) => ids.includes(l.id));
+    if (!sel.length) return "";
+    const first = sel[0];
+    const group = first.buyGroupLabel ?? "";
+    const subgroup = first.buySubgroupLabel ?? first.subgroupLabel ?? "";
+    return [group, subgroup, "Supply"].filter(Boolean).join(" ");
+  }
+
+  const [rfqDate, setRfqDate] = useState(todayIso);
   const [deadline, setDeadline] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(() => deriveSubject(preSelectedIds, lines));
   const [notes, setNotes] = useState("");
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>(preSelectedIds);
   const [selectedVendorIds, setSelectedVendorIds] = useState<number[]>([]);
