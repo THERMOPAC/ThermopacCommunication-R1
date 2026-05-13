@@ -920,6 +920,7 @@ export const epcPageKeys = [
   "work-orders",
   "planning-control",
   "procurement-production",
+  "procurement-list-control",
   "quality-inspection",
   "dispatch-logistics",
   "commissioning-handover",
