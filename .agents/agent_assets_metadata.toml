@@ -384,3 +384,9 @@ id = "jFU3W3GOCjyTYoHysL5zG"
 uri = "file://docs/rfq-email-dispatch-baseline-v1.0.md"
 type = "text"
 title = "RFQ Email Dispatch Baseline v1.0"
+
+[[outputs]]
+id = "aM48Rj9TQGGeQ6NrJZY0A"
+uri = "file://rfq-evidence-sample.pdf"
+type = "pdf"
+title = "2627-013-RFQ-0001 — Sample PDF (Evidence #2)"
