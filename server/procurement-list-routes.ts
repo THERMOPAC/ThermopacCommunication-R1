@@ -487,6 +487,10 @@ export function setupProcurementListRoutes(app: Express): void {
         // Advisory lock on projectId to prevent concurrent POG creation
         await client.query(`SELECT pg_advisory_xact_lock($1)`, [projectId * 1000 + 77001]);
 
+        const POG_ELIGIBLE_STATUSES = ['pr_raised', 'vendor_selected'];
+        const TERMINAL_STATUSES = ['po_issued', 'partially_received', 'fully_received', 'closed', 'cancelled', 'in_po_group'];
+        const lineOldStatuses: Record<number, string> = {};
+
         // Validate all PLC lines belong to this project and are available
         for (const plcId of plcLineIds) {
           const check = await client.query<{ status: string; active_po_group_id: number | null; project_id: number }>(
@@ -496,11 +500,13 @@ export function setupProcurementListRoutes(app: Express): void {
           if (!check.rows[0]) throw new Error(`PLC line ${plcId} not found`);
           if (check.rows[0].project_id !== projectId) throw new Error(`PLC line ${plcId} does not belong to project ${projectId}`);
           if (check.rows[0].active_po_group_id) throw new Error(`PLC line ${plcId} is already in PO Group ${check.rows[0].active_po_group_id}`);
-          if (!['pr_raised', 'in_po_group'].includes(check.rows[0].status) && check.rows[0].status !== 'pr_raised') {
-            if (['po_issued', 'partial_received', 'fully_received', 'closed', 'cancelled'].includes(check.rows[0].status)) {
-              throw new Error(`PLC line ${plcId} cannot be added — status is '${check.rows[0].status}'`);
-            }
+          if (TERMINAL_STATUSES.includes(check.rows[0].status)) {
+            throw new Error(`PLC line ${plcId} cannot be added — status is '${check.rows[0].status}'`);
           }
+          if (!POG_ELIGIBLE_STATUSES.includes(check.rows[0].status)) {
+            throw new Error(`PLC line ${plcId} is not yet eligible for a PO Group — status is '${check.rows[0].status}'. Complete bid evaluation first.`);
+          }
+          lineOldStatuses[plcId] = check.rows[0].status;
         }
 
         // Generate POG number
@@ -558,7 +564,7 @@ export function setupProcurementListRoutes(app: Express): void {
             entityType: 'plc_line',
             entityId: plcId,
             eventType: 'added_to_po_group',
-            oldStatus: 'pr_raised',
+            oldStatus: lineOldStatuses[plcId] ?? 'pr_raised',
             newStatus: 'in_po_group',
             changedBy: userId,
             notes: `Added to PO Group ${pogNumber}`,

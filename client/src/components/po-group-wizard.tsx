@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +26,8 @@ import { cn } from "@/lib/utils";
 interface PlcLine {
   id: number; plcNumber: string; tagNo: string | null;
   serviceDescription: string | null; subgroupCode: string | null;
-  subgroupLabel: string | null; qtyRequired: string; vendorName: string | null;
+  subgroupLabel: string | null; qtyRequired: string;
+  vendorId: number | null; vendorName: string | null;
   avlStatus: string; status: string; activePoGroupId: number | null;
   masterItemId: number | null; itemCode: string | null; itemDescription: string | null;
   uom: string | null;
@@ -86,9 +87,23 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     queryFn: () => apiRequest("GET", "/api/vendors").then((r) => r.json()),
   });
 
+  const POG_ELIGIBLE_STATUSES = ["pr_raised", "vendor_selected"];
   const eligibleLines = lines.filter(
-    (l) => l.status === "pr_raised" && !l.activePoGroupId,
+    (l) => POG_ELIGIBLE_STATUSES.includes(l.status) && !l.activePoGroupId,
   );
+
+  // Auto-populate vendor when all pre-selected lines share the same CBE-selected vendor
+  useEffect(() => {
+    if (lines.length === 0 || preselectedLineIds.length === 0) return;
+    if (selectedVendorId) return;
+    const preselected = lines.filter((l) => preselectedLineIds.includes(l.id));
+    const uniqueVendorIds = [...new Set(preselected.map((l) => l.vendorId).filter(Boolean))];
+    if (uniqueVendorIds.length === 1 && uniqueVendorIds[0]) {
+      const ref = preselected.find((l) => l.vendorId === uniqueVendorIds[0]);
+      setSelectedVendorId(uniqueVendorIds[0] as number);
+      setSelectedVendorName(ref?.vendorName ?? "");
+    }
+  }, [lines, preselectedLineIds]);
 
   const selectedLines = lines.filter((l) => selectedLineIds.includes(l.id));
 
@@ -263,7 +278,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
         {step === 2 && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Select the PLC lines to include in this PO Group. Only lines in "PR Raised" status are shown.
+              Select the PLC lines to include in this PO Group. Lines in <strong>PR Raised</strong> or <strong>Vendor Selected</strong> status without an existing PO Group are shown.
             </p>
             {linesLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground py-6 justify-center">

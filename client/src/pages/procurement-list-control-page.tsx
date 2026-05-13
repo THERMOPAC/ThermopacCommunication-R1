@@ -339,8 +339,9 @@ export default function ProcurementListControlPage() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
+  const POG_ELIGIBLE_STATUSES = ["pr_raised", "vendor_selected"];
   const selectAllVisible = () => {
-    const eligible = lines.filter((l) => l.status === "pr_raised" && !l.activePoGroupId);
+    const eligible = lines.filter((l) => POG_ELIGIBLE_STATUSES.includes(l.status) && !l.activePoGroupId);
     setSelectedLineIds(eligible.map((l) => l.id));
   };
   const clearSelection = () => setSelectedLineIds([]);
@@ -515,7 +516,7 @@ export default function ProcurementListControlPage() {
                           <input
                             type="checkbox"
                             className="rounded"
-                            checked={selectedLineIds.length > 0 && selectedLineIds.length === lines.filter((l) => l.status === "pr_raised" && !l.activePoGroupId).length}
+                            checked={selectedLineIds.length > 0 && selectedLineIds.length === lines.filter((l) => POG_ELIGIBLE_STATUSES.includes(l.status) && !l.activePoGroupId).length}
                             onChange={(e) => e.target.checked ? selectAllVisible() : clearSelection()}
                           />
                         </TableHead>
@@ -547,7 +548,7 @@ export default function ProcurementListControlPage() {
                             <input
                               type="checkbox"
                               className="rounded"
-                              disabled={line.status !== "pr_raised" || !!line.activePoGroupId}
+                              disabled={!POG_ELIGIBLE_STATUSES.includes(line.status) || !!line.activePoGroupId}
                               checked={selectedLineIds.includes(line.id)}
                               onChange={() => toggleLineSelect(line.id)}
                             />
