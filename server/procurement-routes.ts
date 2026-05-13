@@ -1,4 +1,5 @@
 import { Response, Router, Request } from 'express';
+import https from 'https';
 import { db, pool } from './db';
 import { 
   projects, projectItems, masterItems, vendors,
@@ -15,8 +16,35 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 }
 
 // ─── SAP B1 vendor sync helpers ───────────────────────────────────────────
-const SAP_URL  = 'https://59.152.52.58:50000/b1s/v1';
+const SAP_HOST = '59.152.52.58';
+const SAP_PORT = 50000;
+const SAP_BASE = `/b1s/v1`;
 const SAP_TIMEOUT_MS = 12000;
+
+const sapAgent = new https.Agent({ rejectUnauthorized: false });
+
+function httpsRequest(options: {
+  method: string; path: string; headers: Record<string, string>;
+  body?: string; timeout?: number;
+}): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const reqOpts: https.RequestOptions = {
+      hostname: SAP_HOST, port: SAP_PORT,
+      path: options.path, method: options.method,
+      headers: options.headers, agent: sapAgent,
+      timeout: options.timeout ?? SAP_TIMEOUT_MS,
+    };
+    const req = https.request(reqOpts, (res) => {
+      let data = '';
+      res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(new Error('SAP request timed out')); });
+    if (options.body) req.write(options.body);
+    req.end();
+  });
+}
 
 async function sapLogin(): Promise<{ cookie: string } | null> {
   const user = process.env.SAP_USERNAME;
@@ -24,20 +52,15 @@ async function sapLogin(): Promise<{ cookie: string } | null> {
   const db_  = process.env.SAP_COMPANY_DB;
   if (!user || !pass || !db_) return null;
 
-  const https = await import('https');
-  const agent = new (https.Agent)({ rejectUnauthorized: false });
-
   try {
-    const r = await fetch(`${SAP_URL}/Login`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body:    JSON.stringify({ CompanyDB: db_, UserName: user, Password: pass }),
-      // @ts-ignore node-fetch agent
-      agent,
-      signal:  AbortSignal.timeout(SAP_TIMEOUT_MS),
+    const payload = JSON.stringify({ CompanyDB: db_, UserName: user, Password: pass });
+    const { status, body } = await httpsRequest({
+      method: 'POST', path: `${SAP_BASE}/Login`,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': String(payload.length) },
+      body: payload,
     });
-    if (!r.ok) return null;
-    const d = await r.json() as any;
+    if (status !== 200) return null;
+    const d = JSON.parse(body);
     return { cookie: `B1SESSION=${d.SessionId}; ROUTEID=${d.RouteId || '.node1'}` };
   } catch {
     return null;
@@ -45,20 +68,22 @@ async function sapLogin(): Promise<{ cookie: string } | null> {
 }
 
 async function fetchSapSuppliers(cookie: string): Promise<Array<{ CardCode: string; CardName: string }>> {
-  const https = await import('https');
-  const agent = new (https.Agent)({ rejectUnauthorized: false });
-
-  const r = await fetch(
-    `${SAP_URL}/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$top=500`,
-    {
-      headers: { 'Accept': 'application/json', 'Cookie': cookie },
-      // @ts-ignore
-      agent,
-      signal: AbortSignal.timeout(SAP_TIMEOUT_MS),
-    },
-  );
-  if (!r.ok) return [];
-  const d = await r.json() as any;
+  // OData path — single quotes around cSupplier must be percent-encoded for native https.request
+  const qs = new URLSearchParams({
+    '$filter': "CardType eq 'cSupplier'",
+    '$select': 'CardCode,CardName',
+    '$top': '500',
+  }).toString();
+  const path = `${SAP_BASE}/BusinessPartners?${qs}`;
+  const { status, body } = await httpsRequest({
+    method: 'GET', path,
+    headers: { 'Accept': 'application/json', 'Cookie': cookie },
+  });
+  if (status !== 200) {
+    console.warn(`[vendors] SAP BusinessPartners returned HTTP ${status}:`, body.substring(0, 300));
+    return [];
+  }
+  const d = JSON.parse(body);
   return d.value || [];
 }
 
@@ -118,7 +143,9 @@ export function setupProcurementRoutes(app: Router) {
                 [cardName, cardCode],
               );
             }
-            // Mark any local vendor not in SAP as inactive (only SAP-sourced rows)
+            // After a successful SAP sync:
+            // 1. Deactivate SAP-sourced rows no longer in SAP
+            // 2. Deactivate old legacy/dummy rows (sap_card_code IS NULL) — SAP is now the source of truth
             const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
             if (sapCodes.length > 0) {
               await client.query(
@@ -128,7 +155,12 @@ export function setupProcurementRoutes(app: Router) {
                 [sapCodes],
               );
             }
-            console.log(`✅ [vendors] SAP sync: upserted ${suppliers.length} suppliers`);
+            // Retire any vendor rows that predate SAP integration (no sap_card_code)
+            await client.query(
+              `UPDATE vendors SET is_active = false, updated_at = NOW()
+               WHERE sap_card_code IS NULL`,
+            );
+            console.log(`✅ [vendors] SAP sync: upserted ${suppliers.length} suppliers, legacy rows deactivated`);
           }
         } catch (sapErr) {
           console.warn('⚠️  [vendors] SAP fetch succeeded login but failed data pull:', sapErr);
