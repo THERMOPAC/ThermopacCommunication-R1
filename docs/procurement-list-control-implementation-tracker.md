@@ -347,3 +347,50 @@ Phase 4 immediately begun.
 **Phase 4 complete 13 May 2026.**  
 All deliverables per §9h, §19, §21, §22, §24 of baseline v1.0 implemented and verified.  
 Full evidence: `docs/plc-phase4-evidence-package.md`
+
+---
+
+## FORMAL PRODUCTION APPROVAL — 13 May 2026
+
+**Status:** APPROVED FOR PRODUCTION  
+**Approved by:** Management (THERMOPAC)  
+**Date:** 13 May 2026  
+**Scope:** All 4 Phases — full PLC module
+
+### Approved Phases
+
+| Phase | Title | Approval |
+|---|---|---|
+| Phase 1 | PLC Foundation (lines, POGs, AVL, documents, audit) | ✅ Approved |
+| Phase 2 | RFQ / TBE / CBE (bid evaluation, vendor selection) | ✅ Approved |
+| Phase 3 | GRN / Inspection / Stores / Material Issue / KPI | ✅ Approved |
+| Phase 4 | SAP Integration / Governance / Analytics / Escalations | ✅ Approved |
+
+### Operational Mandate
+
+- **Production Rollout:** Proceed with onboarding live projects to PLC
+- **User Training:** Execute per `docs/plc-user-training-guide.md`
+- **Controlled Onboarding:** First 3 projects onboarded under supervised UAT period
+- **UAT Closure:** Effective 13 May 2026 — see `docs/plc-uat-closure.md`
+- **Production Monitoring:** Per `docs/plc-production-runbook.md` §6
+- **SAP Live Validation:** First live SAP push to be witnessed by Finance/Procurement Lead
+- **KPI Tracking:** Cockpit Summary materialized view to be reviewed weekly
+
+### Governance Mandate
+
+All future PLC enhancements must:
+1. Follow approved zero-trust architecture (SAP session validation, audit trail, manager guards)
+2. Adhere to baseline v1.0 governance (`docs/procurement-list-control-baseline-v1.md`)
+3. Pass targeted TypeScript typecheck before merge
+4. Include evidence documentation matching the Phase 4 evidence package standard
+5. Not introduce shared SAP session pools or bypass `requirePageAccess('procurement-list-control')`
+
+### Production Documents
+
+| Document | Purpose |
+|---|---|
+| `docs/plc-production-runbook.md` | Rollout steps, monitoring, SAP validation, incident response |
+| `docs/plc-user-training-guide.md` | End-user training reference for all 4 modules |
+| `docs/plc-uat-closure.md` | UAT closure certificate |
+| `docs/plc-phase4-formal-evidence-submission.md` | Full Phase 4 evidence package |
+| `docs/plc-phase4-evidence-package.md` | Phase 4 summary evidence |
