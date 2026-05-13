@@ -970,13 +970,27 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid projectId');
-      const allRevisions = req.query.allRevisions === 'true';
-      const status = req.query.status as string | undefined;
+      const allRevisions    = req.query.allRevisions    === 'true';
+      const status          = req.query.status          as string | undefined;
+      const buyGroupCode    = req.query.buyGroupCode    as string | undefined;
+      const buySubgroupCode = req.query.buySubgroupCode as string | undefined;
       const conditions: string[] = ['h.project_id = $1'];
       const values: unknown[] = [projectId];
       let idx = 2;
       if (!allRevisions) { conditions.push('h.is_current = true'); }
       if (status) { conditions.push(`h.status = $${idx++}`); values.push(status); }
+      if (buyGroupCode) {
+        conditions.push(
+          `EXISTS (SELECT 1 FROM project_buy_list_lines l2 JOIN buy_groups bg2 ON bg2.id = l2.buy_group_id WHERE l2.buy_list_header_id = h.id AND bg2.code = $${idx++})`,
+        );
+        values.push(buyGroupCode);
+      }
+      if (buySubgroupCode) {
+        conditions.push(
+          `EXISTS (SELECT 1 FROM project_buy_list_lines l2 JOIN buy_subgroups bs2 ON bs2.id = l2.buy_subgroup_id WHERE l2.buy_list_header_id = h.id AND bs2.code = $${idx++})`,
+        );
+        values.push(buySubgroupCode);
+      }
       const result = await pool.query(
         `SELECT h.*,
            pi.description AS project_item_description, pi.item_code AS project_item_code,

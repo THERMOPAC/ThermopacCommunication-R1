@@ -171,6 +171,7 @@ const isSeniorManager = (r?: string) => rl(r) <= 2;
 const STATUS: Record<string, { label: string; cls: string }> = {
   draft:        { label: "Draft",        cls: "bg-slate-100 text-slate-700 border border-slate-200" },
   under_review: { label: "Under Review", cls: "bg-amber-100 text-amber-800 border border-amber-200" },
+  approved:     { label: "Approved",     cls: "bg-teal-100 text-teal-800 border border-teal-200" },
   released:     { label: "Released",     cls: "bg-emerald-100 text-emerald-800 border border-emerald-200" },
   locked:       { label: "Locked",       cls: "bg-purple-100 text-purple-800 border border-purple-200" },
   superseded:   { label: "Superseded",   cls: "bg-orange-100 text-orange-800 border border-orange-200" },
@@ -238,6 +239,8 @@ export default function EpcBuyListControlPage() {
   // Filters
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [groupFilterId, setGroupFilterId] = useState<number | "all">("all");
+  const [subgroupFilterId, setSubgroupFilterId] = useState<number | "all">("all");
   const [search, setSearch] = useState("");
   const [showAllRevisions, setShowAllRevisions] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -305,9 +308,20 @@ export default function EpcBuyListControlPage() {
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
 
   const { data: buyLists = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/projects", selectedProjectId, "buy-lists", showAllRevisions],
-    queryFn: () =>
-      fetch(`/api/projects/${selectedProjectId}/buy-lists?allRevisions=${showAllRevisions}`, { credentials: "include" }).then(r => r.json()),
+    queryKey: ["/api/projects", selectedProjectId, "buy-lists", showAllRevisions, statusFilter, groupFilterId, subgroupFilterId],
+    queryFn: async () => {
+      const params = new URLSearchParams({ allRevisions: String(showAllRevisions) });
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (groupFilterId !== "all") {
+        const gc = (groups as any[]).find((g: any) => g.id === groupFilterId)?.code;
+        if (gc) params.set("buyGroupCode", gc);
+      }
+      if (subgroupFilterId !== "all") {
+        const sc = (filterSubgroups as any[]).find((s: any) => s.id === subgroupFilterId)?.code;
+        if (sc) params.set("buySubgroupCode", sc);
+      }
+      return fetch(`/api/projects/${selectedProjectId}/buy-lists?${params.toString()}`, { credentials: "include" }).then(r => r.json());
+    },
     enabled: !!selectedProjectId,
   });
 
@@ -324,6 +338,12 @@ export default function EpcBuyListControlPage() {
   });
 
   const { data: groups = [] } = useQuery<any[]>({ queryKey: ["/api/buy-groups"] });
+
+  const { data: filterSubgroups = [] } = useQuery<any[]>({
+    queryKey: ["/api/buy-groups", groupFilterId, "subgroups", "filter"],
+    queryFn: () => fetch(`/api/buy-groups/${groupFilterId}/subgroups`, { credentials: "include" }).then(r => r.json()),
+    enabled: groupFilterId !== "all",
+  });
 
   const { data: subgroups = [] } = useQuery<any[]>({
     queryKey: ["/api/buy-groups", lf.buyGroupId, "subgroups"],
@@ -385,9 +405,9 @@ export default function EpcBuyListControlPage() {
   });
 
   // ── Derived ──────────────────────────────────────────────────────────────────
+  // Status, group, subgroup are filtered server-side; only search is client-side
   const filtered = useMemo(() => {
     let list = buyLists;
-    if (statusFilter !== "all") list = list.filter(h => h.status === statusFilter);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(h =>
@@ -398,7 +418,7 @@ export default function EpcBuyListControlPage() {
       );
     }
     return list;
-  }, [buyLists, statusFilter, search]);
+  }, [buyLists, search]);
 
   const stats = useMemo(() => {
     const cur = buyLists.filter(h => h.is_current);
@@ -1232,6 +1252,40 @@ export default function EpcBuyListControlPage() {
                     <SelectItem value="all">All</SelectItem>
                     {Object.entries(STATUS).map(([k, v]) => (
                       <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 w-44">
+                <Label className="text-xs">Group</Label>
+                <Select
+                  value={groupFilterId === "all" ? "all" : String(groupFilterId)}
+                  onValueChange={v => {
+                    setGroupFilterId(v === "all" ? "all" : Number(v));
+                    setSubgroupFilterId("all");
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="All groups" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Groups</SelectItem>
+                    {(groups as any[]).map((g: any) => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 w-44">
+                <Label className="text-xs">Subgroup</Label>
+                <Select
+                  value={subgroupFilterId === "all" ? "all" : String(subgroupFilterId)}
+                  onValueChange={v => setSubgroupFilterId(v === "all" ? "all" : Number(v))}
+                  disabled={groupFilterId === "all"}
+                >
+                  <SelectTrigger><SelectValue placeholder={groupFilterId === "all" ? "Select group first" : "All subgroups"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subgroups</SelectItem>
+                    {(filterSubgroups as any[]).map((s: any) => (
+                      <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
