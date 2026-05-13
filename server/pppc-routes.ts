@@ -2655,8 +2655,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             }
 
             await client.query(
-              `UPDATE project_buy_list_lines SET status='approved', approved_by=$1, approved_at=NOW(), updated_at=NOW() WHERE id=$2`,
-              [userId, lineId]
+              `UPDATE project_buy_list_lines SET status='approved', updated_at=NOW() WHERE id=$1`,
+              [lineId]
             );
             await client.query(`RELEASE SAVEPOINT ${spName}`);
             succeeded++;
