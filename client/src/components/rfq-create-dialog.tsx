@@ -43,12 +43,12 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
-    queryFn: () => apiRequest("GET", "/api/vendors").then((r) => r.json()),
+    queryFn: () => apiRequest("GET", "/api/vendors"),
   });
 
   const createMut = useMutation({
     mutationFn: (body: any) =>
-      apiRequest("POST", `/api/projects/${projectId}/plc-rfq`, body).then((r) => r.json()),
+      apiRequest("POST", `/api/projects/${projectId}/plc-rfq`, body),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       qc.invalidateQueries({ queryKey: ["/api/projects", projectId] });

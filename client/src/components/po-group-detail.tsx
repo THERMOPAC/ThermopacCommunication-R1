@@ -71,12 +71,12 @@ export function PoGroupDetail({ pogId, onClose, onMutated }: { pogId: number; on
 
   const { data: pog, isLoading } = useQuery<PoGroupDetail>({
     queryKey: ["/api/epc-po-groups", pogId],
-    queryFn: () => apiRequest("GET", `/api/epc-po-groups/${pogId}`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/epc-po-groups/${pogId}`),
   });
 
   const { data: audit = [] } = useQuery<AuditEntry[]>({
     queryKey: ["/api/epc-po-groups", pogId, "audit"],
-    queryFn: () => apiRequest("GET", `/api/epc-po-groups/${pogId}/audit`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/epc-po-groups/${pogId}/audit`),
     enabled: !!pog,
   });
 

@@ -50,7 +50,7 @@ export function VendorQuoteDialog({ rfqId, rfqLines, rfqVendors, existingQuote, 
 
   const saveMut = useMutation({
     mutationFn: (body: any) =>
-      apiRequest("PUT", `/api/plc-rfq/${rfqId}/quotes`, body).then((r) => r.json()),
+      apiRequest("PUT", `/api/plc-rfq/${rfqId}/quotes`, body),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       qc.invalidateQueries({ queryKey: ["/api/plc-rfq", rfqId] });

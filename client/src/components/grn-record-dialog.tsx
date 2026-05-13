@@ -49,13 +49,13 @@ export function GrnRecordDialog({ projectId, lines, preselectedLineId, onClose, 
   // Load vendors for dropdown
   const { data: vendors = [] } = useQuery<{ id: number; name: string; display_name: string | null }[]>({
     queryKey: ["/api/vendors"],
-    queryFn: () => apiRequest("GET", "/api/vendors").then((r) => r.json()),
+    queryFn: () => apiRequest("GET", "/api/vendors"),
   });
 
   const selectedLine = receivableLines.find((l) => l.id === parseInt(plcLineId));
 
   const mutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/plc-grn", data).then((r) => r.json()),
+    mutationFn: (data: any) => apiRequest("POST", "/api/plc-grn", data),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       toast({ title: "GRN Recorded", description: `${data.grn?.grn_number} created successfully` });

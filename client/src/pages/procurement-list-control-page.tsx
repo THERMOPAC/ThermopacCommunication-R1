@@ -189,7 +189,7 @@ export default function ProcurementListControlPage() {
   // Summary strip
   const { data: summary, isLoading: summaryLoading } = useQuery<PlcSummary>({
     queryKey: ["/api/projects", selectedProjectId, "procurement-list", "summary"],
-    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/procurement-list/summary`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/procurement-list/summary`),
     enabled: !!selectedProjectId,
   });
 
@@ -201,7 +201,7 @@ export default function ProcurementListControlPage() {
       if (search) params.set("search", search);
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (priorityFilter !== "all") params.set("priority", priorityFilter);
-      return apiRequest("GET", `/api/projects/${selectedProjectId}/procurement-list?${params}`).then((r) => r.json());
+      return apiRequest("GET", `/api/projects/${selectedProjectId}/procurement-list?${params}`);
     },
     enabled: !!selectedProjectId,
   });
@@ -209,28 +209,28 @@ export default function ProcurementListControlPage() {
   // PO Groups
   const { data: poGroups = [], isLoading: pogLoading, refetch: refetchPogs } = useQuery<PoGroup[]>({
     queryKey: ["/api/projects", selectedProjectId, "epc-po-groups"],
-    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/epc-po-groups`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/epc-po-groups`),
     enabled: !!selectedProjectId,
   });
 
   // Phase 3 — GRN list
   const { data: grnList = [], isLoading: grnListLoading, refetch: refetchGrn } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "plc-grn"],
-    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/plc-grn`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/plc-grn`),
     enabled: !!selectedProjectId && activeTab === "grn",
   });
 
   // Phase 3 — MIR list
   const { data: mirList = [], isLoading: mirListLoading } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "plc-mir"],
-    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/plc-mir`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/plc-mir`),
     enabled: !!selectedProjectId && activeTab === "grn",
   });
 
   // Phase 3 — Stores accept mutation
   const storesAcceptMut = useMutation({
     mutationFn: ({ id, storesNotes }: { id: number; storesNotes?: string }) =>
-      apiRequest("POST", `/api/plc-grn/${id}/accept-stores`, { storesNotes }).then((r) => r.json()),
+      apiRequest("POST", `/api/plc-grn/${id}/accept-stores`, { storesNotes }),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       toast({ title: "Stores acceptance recorded" });
@@ -245,7 +245,7 @@ export default function ProcurementListControlPage() {
     queryKey: ["/api/projects", selectedProjectId, "plc-rfq", rfqStatusFilter],
     queryFn: () => {
       const params = rfqStatusFilter !== "all" ? `?status=${rfqStatusFilter}` : "";
-      return apiRequest("GET", `/api/projects/${selectedProjectId}/plc-rfq${params}`).then((r) => r.json());
+      return apiRequest("GET", `/api/projects/${selectedProjectId}/plc-rfq${params}`);
     },
     enabled: !!selectedProjectId && activeTab === "bid-eval",
   });
@@ -253,23 +253,23 @@ export default function ProcurementListControlPage() {
   // Phase 2 — Selected RFQ detail (lines + vendors + quotes + tbe + cbe)
   const { data: selectedRfq, isLoading: rfqDetailLoading } = useQuery<any>({
     queryKey: ["/api/plc-rfq", selectedRfqId],
-    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}`),
     enabled: !!selectedRfqId,
   });
   const { data: rfqTbeList = [] } = useQuery<any[]>({
     queryKey: ["/api/plc-rfq", selectedRfqId, "tbe"],
-    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}/tbe`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}/tbe`),
     enabled: !!selectedRfqId,
   });
   const { data: rfqCbeList = [] } = useQuery<any[]>({
     queryKey: ["/api/plc-rfq", selectedRfqId, "cbe"],
-    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}/cbe`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/plc-rfq/${selectedRfqId}/cbe`),
     enabled: !!selectedRfqId,
   });
 
   // RFQ mutations
   const rfqIssueMut = useMutation({
-    mutationFn: (id: number) => apiRequest("POST", `/api/plc-rfq/${id}/issue`, {}).then((r) => r.json()),
+    mutationFn: (id: number) => apiRequest("POST", `/api/plc-rfq/${id}/issue`, {}),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
@@ -279,7 +279,7 @@ export default function ProcurementListControlPage() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
   const rfqCloseMut = useMutation({
-    mutationFn: (id: number) => apiRequest("POST", `/api/plc-rfq/${id}/close`, {}).then((r) => r.json()),
+    mutationFn: (id: number) => apiRequest("POST", `/api/plc-rfq/${id}/close`, {}),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
@@ -290,7 +290,7 @@ export default function ProcurementListControlPage() {
   });
   const rfqCancelMut = useMutation({
     mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
-      apiRequest("POST", `/api/plc-rfq/${id}/cancel`, { reason }).then((r) => r.json()),
+      apiRequest("POST", `/api/plc-rfq/${id}/cancel`, { reason }),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
@@ -304,7 +304,7 @@ export default function ProcurementListControlPage() {
   // Phase 4 — Cockpit summary (materialized view)
   const { data: cockpitSummary } = useQuery<any>({
     queryKey: ["/api/projects", selectedProjectId, "cockpit-summary"],
-    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/cockpit-summary`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/cockpit-summary`),
     enabled: !!selectedProjectId && activeTab === "kpi",
     refetchInterval: 5 * 60 * 1000,
   });
@@ -312,14 +312,14 @@ export default function ProcurementListControlPage() {
   // Phase 4 — Rate contracts
   const { data: rateContracts = [] } = useQuery<any[]>({
     queryKey: ["/api/plc-rate-contracts", selectedProjectId],
-    queryFn: () => apiRequest("GET", `/api/plc-rate-contracts?projectId=${selectedProjectId}`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/plc-rate-contracts?projectId=${selectedProjectId}`),
     enabled: !!selectedProjectId && activeTab === "kpi",
   });
 
   // Phase 4 — Line close mutation
   const closeLineMut = useMutation({
     mutationFn: ({ id, forceClose, cancelReason }: { id: number; forceClose?: boolean; cancelReason?: string }) =>
-      apiRequest("POST", `/api/procurement-list-lines/${id}/close`, { forceClose, cancelReason }).then((r) => r.json()),
+      apiRequest("POST", `/api/procurement-list-lines/${id}/close`, { forceClose, cancelReason }),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       toast({ title: "Line closed", description: `Line successfully closed.` });

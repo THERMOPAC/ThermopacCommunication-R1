@@ -34,7 +34,7 @@ export function MaterialIssueDialog({ projectId, plcLine, grns, onClose, onSucce
   const acceptedGrns = grns.filter((g) => g.status === "accepted");
 
   const mutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/plc-mir", data).then((r) => r.json()),
+    mutationFn: (data: any) => apiRequest("POST", "/api/plc-mir", data),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       toast({ title: "Material Issued", description: `${data.mir?.mir_number} recorded successfully` });

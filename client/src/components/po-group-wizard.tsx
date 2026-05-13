@@ -79,12 +79,12 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
   // Data queries
   const { data: lines = [], isLoading: linesLoading } = useQuery<PlcLine[]>({
     queryKey: ["/api/projects", projectId, "procurement-list"],
-    queryFn: () => apiRequest("GET", `/api/projects/${projectId}/procurement-list`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/projects/${projectId}/procurement-list`),
   });
 
   const { data: vendors = [] } = useQuery<Vendor[]>({
     queryKey: ["/api/vendors"],
-    queryFn: () => apiRequest("GET", "/api/vendors").then((r) => r.json()),
+    queryFn: () => apiRequest("GET", "/api/vendors"),
   });
 
   const POG_ELIGIBLE_STATUSES = ["pr_raised", "vendor_selected"];

@@ -84,12 +84,12 @@ export function PlcLineDetailDrawer({
 
   const { data: line, isLoading } = useQuery<PlcLineDetail>({
     queryKey: ["/api/procurement-list-lines", lineId],
-    queryFn: () => apiRequest("GET", `/api/procurement-list-lines/${lineId}`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/procurement-list-lines/${lineId}`),
   });
 
   const { data: history = [] } = useQuery<AuditEntry[]>({
     queryKey: ["/api/procurement-list-lines", lineId, "history"],
-    queryFn: () => apiRequest("GET", `/api/procurement-list-lines/${lineId}/history`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/procurement-list-lines/${lineId}/history`),
     enabled: !!line,
   });
 

@@ -34,7 +34,7 @@ export function GrnInspectionDialog({ grn, projectId, onClose, onSuccess }: GrnI
 
   const inspMutation = useMutation({
     mutationFn: (data: any) =>
-      apiRequest("PATCH", `/api/plc-grn/${grn.id}/inspection-result`, data).then((r) => r.json()),
+      apiRequest("PATCH", `/api/plc-grn/${grn.id}/inspection-result`, data),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       const ncrMsg = data.ncr ? ` NCR ${data.ncr.ncr_number} auto-raised.` : "";
@@ -48,7 +48,7 @@ export function GrnInspectionDialog({ grn, projectId, onClose, onSuccess }: GrnI
 
   const waiveMutation = useMutation({
     mutationFn: (data: any) =>
-      apiRequest("POST", `/api/plc-grn/${grn.id}/waive-inspection`, data).then((r) => r.json()),
+      apiRequest("POST", `/api/plc-grn/${grn.id}/waive-inspection`, data),
     onSuccess: (data) => {
       if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
       toast({ title: "Inspection Waived", description: `GRN ${grn.grn_number} — all ${totalGrn} units accepted.` });

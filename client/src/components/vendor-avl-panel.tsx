@@ -66,7 +66,7 @@ export function VendorAvlPanel({ vendorId }: { vendorId: number }) {
 
   const { data: records = [], isLoading } = useQuery<VendorAvlRecord[]>({
     queryKey: ["/api/vendors", vendorId, "subgroup-qualifications"],
-    queryFn: () => apiRequest("GET", `/api/vendors/${vendorId}/subgroup-qualifications`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/vendors/${vendorId}/subgroup-qualifications`),
   });
 
   const form = useForm<z.infer<typeof addSchema>>({

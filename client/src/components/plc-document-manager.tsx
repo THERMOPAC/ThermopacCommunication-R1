@@ -75,7 +75,7 @@ export function PlcDocumentManager({
 
   const { data: docs = [], isLoading } = useQuery<PlcDocument[]>({
     queryKey: ["/api/plc-documents", { plcLineId, poGroupId, epcPoId }],
-    queryFn: () => apiRequest("GET", `/api/plc-documents?${buildQuery()}`).then((r) => r.json()),
+    queryFn: () => apiRequest("GET", `/api/plc-documents?${buildQuery()}`),
   });
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
