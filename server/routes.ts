@@ -3906,6 +3906,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { setupPlcEvaluationRoutes } = await import('./plc-evaluation-routes');
   setupPlcEvaluationRoutes(app);
 
+  // ── PLC — Phase 3: GRN + Material Issue routes ────────────────────────────
+  const { setupPlcGrnRoutes } = await import('./plc-grn-routes');
+  setupPlcGrnRoutes(app);
+
+  const { setupPlcMaterialIssueRoutes } = await import('./plc-material-issue-routes');
+  setupPlcMaterialIssueRoutes(app);
+
   // ── One-time report download ─────────────────────────────────────────────────
   app.get('/api/reports/uor-plc-price-review/download', async (_req, res) => {
     const { createReadStream, existsSync } = await import('fs');

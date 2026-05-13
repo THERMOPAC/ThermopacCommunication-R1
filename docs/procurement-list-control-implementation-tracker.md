@@ -161,6 +161,90 @@
 
 ---
 
+## Phase 3 — GRN Tracking, Inspection, Material Issue, KPI Dashboard
+**Status:** COMPLETE — Pending Approval  
+**Started:** 13 May 2026  
+**All tasks completed:** 13 May 2026
+
+---
+
+### DB (Phase 3)
+- [x] `plc_grn_records` and `plc_material_issues` tables confirmed in DB (created Phase 1)
+- [x] 5 indexes added: `idx_grn_project`, `idx_grn_plc_line`, `idx_grn_status`, `idx_mir_project`, `idx_mir_plc_line`
+- [x] GRN, MIR, NCR doc sequences seeded globally (project_id=NULL, next_seq=1)
+
+### Backend (Phase 3)
+- [x] `server/plc-grn-routes.ts` — 8 routes:
+  - `POST /api/plc-grn` — Record goods receipt; transitions `po_issued` → `partially_received`; GRN number from doc_sequences; audit event `grn_created`
+  - `GET /api/plc-grn/:id` — GRN detail with vendor/user JOINs
+  - `GET /api/projects/:projectId/plc-grn` — Project GRN list; filterable by `plcLineId`, `status`, `inspectionStatus`
+  - `PATCH /api/plc-grn/:id/inspection-result` — Sets `accepted_qty`, `rejected_qty`, `inspection_status` (passed/partial/failed); calls `recomputePlcQty` + `derivePlcLineStatus`; auto-raises NCR if `rejected_qty > 0`; audit event `grn_inspection_result`
+  - `POST /api/plc-grn/:id/waive-inspection` — Sets `inspection_status=waived`, `accepted_qty=grn_qty`, `status=accepted`; recomputes qty/status; reason mandatory; audit event `grn_inspection_waived`
+  - `POST /api/plc-grn/:id/accept-stores` — Sets `stores_accepted_by/at/notes`; re-derives line status; audit event `grn_stores_accepted`
+  - `POST /api/plc-grn/:id/ncr` — Manually raise NCR; doc_sequences for NCR number; audit event `ncr_raised`
+  - `GET /api/plc-grn/:id/ncr` — List NCRs for a GRN
+  - `POST /api/projects/:projectId/procurement-list/qty-recompute` — Bulk project recompute (Manager trigger); audit event `qty_recompute_triggered`
+- [x] `server/plc-material-issue-routes.ts` — 3 routes:
+  - `POST /api/plc-mir` — Validate line status (partially_received/fully_received/closed); validate issued_qty ≤ qty_received − already_issued; doc_sequences for MIR number; audit event `material_issued`
+  - `GET /api/projects/:projectId/plc-mir` — Project MIR list; filterable by plcLineId
+  - `GET /api/plc-mir/:id` — Single MIR detail with joins
+- [x] Both route files registered in `server/routes.ts` after Phase 2 routes (lines 3912–3917)
+- [x] All routes use `ensureAuthenticated` + `requirePageAccess('procurement-list-control')`
+
+### Frontend (Phase 3)
+- [x] GRN Tracking tab enabled — removed `disabled` prop; count badge added
+- [x] KPI Dashboard tab added (`value="kpi"`) with `BarChart2` icon
+- [x] Phase 3 state: `showGrnDialog`, `showInspDialog`, `showMirDialog`, `selectedGrn`, `grnLineFilter`, `grnStatusFilter`, `mirPlcLine`
+- [x] GRN query: `GET /api/projects/:projectId/plc-grn` (active only when `activeTab === "grn"`)
+- [x] MIR query: `GET /api/projects/:projectId/plc-mir` (active only when `activeTab === "grn"`)
+- [x] `storesAcceptMut` mutation wired to `POST /api/plc-grn/:id/accept-stores`
+- [x] GRN Tracking tab content: status filter, line filter, GRN KPI strip (5 cards), GRN table with actions dropdown
+  - Actions: Record Inspection (pending), Accept to Stores (accepted + no stores), Issue Material MIR (accepted)
+  - MIR sub-panel below GRN table
+- [x] KPI Dashboard tab: Procurement Lifecycle card + progress bars, Qty Tracking card, GRN & Inspection KPIs card, Alerts card (overdue/over-procured/AVL bypass)
+- [x] `client/src/components/grn-record-dialog.tsx` — PLC line selector (receivable statuses), GRN qty, received date, challan details, vendor override, notes
+- [x] `client/src/components/grn-inspection-dialog.tsx` — Accepted/rejected qty inputs, waive-inspection toggle (mandatory reason), NCR auto-raise warning
+- [x] `client/src/components/material-issue-dialog.tsx` — Issued qty (validated ≤ qty_received), GRN link, issued-to, purpose notes
+- [x] Phase 3 dialogs wired in main PLC page with correct cache invalidation
+
+### Audit Log Wiring (Phase 3)
+- [x] `grn_created` — POST /api/plc-grn
+- [x] `grn_inspection_result` — PATCH /api/plc-grn/:id/inspection-result
+- [x] `ncr_auto_raised` — auto within inspection-result when rejected_qty > 0
+- [x] `grn_inspection_waived` — POST /api/plc-grn/:id/waive-inspection
+- [x] `grn_stores_accepted` — POST /api/plc-grn/:id/accept-stores
+- [x] `ncr_raised` — POST /api/plc-grn/:id/ncr (manual)
+- [x] `material_issued` — POST /api/plc-mir
+- [x] `qty_recompute_triggered` — POST /api/projects/:projectId/procurement-list/qty-recompute
+
+### Verification (Phase 3)
+- [x] DB walkthrough — **PASS** — 9-step SQL trace confirms complete lifecycle:
+  - GRN `2627-013-GRN-0001` created (status=received, inspection_status=pending) ✅
+  - PLC line transitioned `vendor_selected` → `partially_received` ✅
+  - Inspection result recorded (accepted=2, rejected=0, inspection_status=passed, status=accepted) ✅
+  - `recomputePlcQty`: qty_received=2.00, qty_balance=0.00 ✅
+  - `derivePlcLineStatus`: fully_received (qty_received=2 ≥ qty_required=2) ✅
+  - Stores acceptance: stores_accepted_at set, stores_notes recorded ✅
+  - MIR `2627-013-MIR-0001` created (1 unit, to Production Floor) ✅
+  - All test data cleaned up; GRN/MIR/NCR doc sequences reset ✅
+- [x] Frontend: GRN tab active, KPI tab active; Vite HMR confirmed (no compilation errors in browser console)
+- [x] Qty recompute guard: `recomputePlcQty` verifies qty_received = SUM(accepted_qty WHERE status='accepted') — only confirmed GRN acceptance affects qty
+- [x] NCR auto-raise: NCR number generated from doc_sequences, linked to both `plc_line_id` and `grn_record_id`
+
+---
+
+### Evidence Log (Phase 3)
+| Date | Type | Item | Submitter | Reference |
+|---|---|---|---|---|
+| 13 May 2026 | DB | 5 Phase 3 indexes added; GRN/MIR/NCR doc sequences seeded globally | Agent | Direct SQL |
+| 13 May 2026 | Backend | `server/plc-grn-routes.ts` — 8 routes (GRN CRUD + inspection + waive + stores + NCR + project recompute) | Agent | server/routes.ts line 3912 |
+| 13 May 2026 | Backend | `server/plc-material-issue-routes.ts` — 3 MIR routes with qty validation | Agent | server/routes.ts line 3916 |
+| 13 May 2026 | Frontend | GRN tab enabled; KPI tab added; 3 new dialog components; Phase 3 state + queries + mutations | Agent | client/src/pages/procurement-list-control-page.tsx |
+| 13 May 2026 | Audit | 8 Phase 3 audit events wired across GRN + MIR route files | Agent | plc-grn-routes.ts + plc-material-issue-routes.ts |
+| 13 May 2026 | Walkthrough | 9-step SQL walkthrough: GRN create → inspection → recompute → fully_received → stores → MIR — all verified | Agent | DB direct validation; test data cleaned up |
+
+---
+
 ## Phase 3 Gate
-**Phase 2 formally approved 13 May 2026. Phase 3 (GRN/Inspection) may proceed.**  
-Phase 3 scope: GRN receipt, stores acceptance, material issue to shop floor.
+**Phase 3 complete 13 May 2026. Awaiting formal approval.**  
+Phase 4 scope (if approved): Vendor performance, GRN analytics, automated overdue escalation, NCR disposition workflow.

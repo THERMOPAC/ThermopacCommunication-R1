@@ -17,6 +17,8 @@ import {
 import {
   ClipboardList, Package, AlertTriangle, CheckCircle2, Clock, XCircle,
   Search, RefreshCw, Plus, Filter, MoreHorizontal, Loader2,
+  Truck, ArrowRightFromLine, BarChart2, CalendarDays, ShieldAlert,
+  CheckCheck, Layers, TrendingDown,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -28,6 +30,9 @@ import { RfqCreateDialog } from "@/components/rfq-create-dialog";
 import { VendorQuoteDialog } from "@/components/vendor-quote-dialog";
 import { TbeDialog } from "@/components/tbe-dialog";
 import { CbeDialog } from "@/components/cbe-dialog";
+import { GrnRecordDialog } from "@/components/grn-record-dialog";
+import { GrnInspectionDialog } from "@/components/grn-inspection-dialog";
+import { MaterialIssueDialog } from "@/components/material-issue-dialog";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -146,6 +151,15 @@ export default function ProcurementListControlPage() {
   const [showPogWizard, setShowPogWizard] = useState(false);
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
 
+  // Phase 3 GRN state
+  const [showGrnDialog, setShowGrnDialog] = useState(false);
+  const [showInspDialog, setShowInspDialog] = useState(false);
+  const [showMirDialog, setShowMirDialog] = useState(false);
+  const [selectedGrn, setSelectedGrn] = useState<any>(null);
+  const [grnLineFilter, setGrnLineFilter] = useState<string>("all");
+  const [grnStatusFilter, setGrnStatusFilter] = useState<string>("all");
+  const [mirPlcLine, setMirPlcLine] = useState<any>(null);
+
   // Phase 2 RFQ state
   const [showRfqCreate, setShowRfqCreate] = useState(false);
   const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null);
@@ -188,6 +202,33 @@ export default function ProcurementListControlPage() {
     queryKey: ["/api/projects", selectedProjectId, "epc-po-groups"],
     queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/epc-po-groups`).then((r) => r.json()),
     enabled: !!selectedProjectId,
+  });
+
+  // Phase 3 — GRN list
+  const { data: grnList = [], isLoading: grnListLoading, refetch: refetchGrn } = useQuery<any[]>({
+    queryKey: ["/api/projects", selectedProjectId, "plc-grn"],
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/plc-grn`).then((r) => r.json()),
+    enabled: !!selectedProjectId && activeTab === "grn",
+  });
+
+  // Phase 3 — MIR list
+  const { data: mirList = [], isLoading: mirListLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", selectedProjectId, "plc-mir"],
+    queryFn: () => apiRequest("GET", `/api/projects/${selectedProjectId}/plc-mir`).then((r) => r.json()),
+    enabled: !!selectedProjectId && activeTab === "grn",
+  });
+
+  // Phase 3 — Stores accept mutation
+  const storesAcceptMut = useMutation({
+    mutationFn: ({ id, storesNotes }: { id: number; storesNotes?: string }) =>
+      apiRequest("POST", `/api/plc-grn/${id}/accept-stores`, { storesNotes }).then((r) => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
+      toast({ title: "Stores acceptance recorded" });
+      qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-grn"] });
+      qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   // Phase 2 — RFQ list
@@ -342,8 +383,11 @@ export default function ProcurementListControlPage() {
               <TabsTrigger value="bid-eval" className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 pb-2">
                 Bid Evaluation {rfqList.length > 0 && <span className="ml-1 text-xs bg-gray-100 rounded px-1">{rfqList.length}</span>}
               </TabsTrigger>
-              <TabsTrigger value="grn" disabled className="rounded-none border-b-2 border-transparent pb-2 text-muted-foreground">
-                GRN Tracking (Phase 3)
+              <TabsTrigger value="grn" className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 pb-2">
+                GRN Tracking {grnList.length > 0 && <span className="ml-1 text-xs bg-gray-100 rounded px-1">{grnList.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger value="kpi" className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-700 pb-2">
+                <BarChart2 className="h-4 w-4 mr-1" />KPI
               </TabsTrigger>
             </TabsList>
 
@@ -936,12 +980,388 @@ export default function ProcurementListControlPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="grn">
-              <div className="text-center py-20 text-muted-foreground">
-                <Clock className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">GRN Tracking — Phase 3</p>
-                <p className="text-xs mt-1">Goods Receipt Notes, inspection queue, and stores acceptance will be available in Phase 3.</p>
+            {/* ── GRN Tracking Tab ── */}
+            <TabsContent value="grn" className="mt-4">
+              {/* Toolbar */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Select value={grnStatusFilter} onValueChange={setGrnStatusFilter}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="GRN Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All GRN Statuses</SelectItem>
+                    <SelectItem value="received">Received (Pending Inspection)</SelectItem>
+                    <SelectItem value="accepted">Inspection Accepted</SelectItem>
+                    <SelectItem value="rejected">Inspection Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={grnLineFilter} onValueChange={setGrnLineFilter}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Filter by PLC Line" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Lines</SelectItem>
+                    {lines.filter((l) => ["po_issued","partially_received","fully_received","closed"].includes(l.status)).map((l) => (
+                      <SelectItem key={l.id} value={String(l.id)}>
+                        {l.plcNumber} — {l.tagNo ?? l.serviceDescription?.slice(0,30)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex-1" />
+                <Button variant="outline" size="sm" onClick={refetchGrn}>
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />Refresh
+                </Button>
+                <Button size="sm" onClick={() => setShowGrnDialog(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />Record GRN
+                </Button>
               </div>
+
+              {/* GRN KPI strip */}
+              {!grnListLoading && grnList.length > 0 && (() => {
+                const total = grnList.length;
+                const pendingInsp = grnList.filter((g: any) => g.inspection_status === "pending").length;
+                const accepted = grnList.filter((g: any) => g.status === "accepted").length;
+                const rejected = grnList.filter((g: any) => g.status === "rejected").length;
+                const storesAccepted = grnList.filter((g: any) => g.stores_accepted_at).length;
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+                    <StatCard label="Total GRNs"       value={total}       icon={Truck}          color="text-gray-700" />
+                    <StatCard label="Pending Inspection" value={pendingInsp}  icon={Clock}          color="text-amber-700" />
+                    <StatCard label="Accepted"          value={accepted}    icon={CheckCircle2}   color="text-emerald-700" />
+                    <StatCard label="Rejected"          value={rejected}    icon={ShieldAlert}    color="text-red-700" />
+                    <StatCard label="Stores Accepted"   value={storesAccepted} icon={CheckCheck}  color="text-indigo-700" />
+                  </div>
+                );
+              })()}
+
+              {/* GRN Table */}
+              {grnListLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm py-8 justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin" />Loading GRN records…
+                </div>
+              ) : (() => {
+                const filtered = grnList.filter((g: any) => {
+                  if (grnStatusFilter !== "all" && g.status !== grnStatusFilter) return false;
+                  if (grnLineFilter !== "all" && String(g.plc_line_id) !== grnLineFilter) return false;
+                  return true;
+                });
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-16 text-muted-foreground">
+                      <Truck className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                      <p className="font-medium">No GRN records yet</p>
+                      <p className="text-xs mt-1">Record your first Goods Receipt to begin tracking.</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50 text-xs">
+                            <TableHead>GRN No.</TableHead>
+                            <TableHead>PLC Line</TableHead>
+                            <TableHead>Vendor</TableHead>
+                            <TableHead>Received</TableHead>
+                            <TableHead className="text-right">GRN Qty</TableHead>
+                            <TableHead className="text-right">Accepted</TableHead>
+                            <TableHead className="text-right">Rejected</TableHead>
+                            <TableHead>Inspection</TableHead>
+                            <TableHead>Stores</TableHead>
+                            <TableHead />
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filtered.map((g: any) => {
+                            const inspColor: Record<string, string> = {
+                              pending: "bg-amber-100 text-amber-800",
+                              passed:  "bg-emerald-100 text-emerald-800",
+                              partial: "bg-orange-100 text-orange-800",
+                              failed:  "bg-red-100 text-red-800",
+                              waived:  "bg-slate-100 text-slate-700",
+                            };
+                            const grnStatusColor: Record<string, string> = {
+                              received: "bg-yellow-100 text-yellow-800",
+                              accepted: "bg-emerald-100 text-emerald-800",
+                              rejected: "bg-red-100 text-red-800",
+                            };
+                            return (
+                              <TableRow key={g.id} className="hover:bg-slate-50 text-sm">
+                                <TableCell className="font-mono text-xs">{g.grn_number}</TableCell>
+                                <TableCell>
+                                  <div className="text-xs font-medium">{g.plc_number ?? "—"}</div>
+                                  <div className="text-xs text-muted-foreground">{g.tag_no ?? ""}</div>
+                                </TableCell>
+                                <TableCell className="text-xs max-w-[120px] truncate">
+                                  {g.vendor_name_resolved ?? g.vendor_name ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-xs whitespace-nowrap">{fmtDate(g.received_date)}</TableCell>
+                                <TableCell className="text-right text-xs font-medium">{parseFloat(g.grn_qty || 0)}</TableCell>
+                                <TableCell className="text-right text-xs text-emerald-700 font-semibold">{parseFloat(g.accepted_qty || 0)}</TableCell>
+                                <TableCell className="text-right text-xs text-red-600 font-semibold">{parseFloat(g.rejected_qty || 0)}</TableCell>
+                                <TableCell>
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${inspColor[g.inspection_status] ?? "bg-gray-100 text-gray-600"}`}>
+                                    {g.inspection_status}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  {g.stores_accepted_at
+                                    ? <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><CheckCheck className="h-3 w-3" />Accepted</span>
+                                    : <span className="text-xs text-muted-foreground">Pending</span>
+                                  }
+                                </TableCell>
+                                <TableCell>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      {g.inspection_status === "pending" && (
+                                        <DropdownMenuItem onClick={() => { setSelectedGrn(g); setShowInspDialog(true); }}>
+                                          <ClipboardList className="h-4 w-4 mr-2" />Record Inspection
+                                        </DropdownMenuItem>
+                                      )}
+                                      {g.status === "accepted" && !g.stores_accepted_at && (
+                                        <DropdownMenuItem onClick={() => storesAcceptMut.mutate({ id: g.id })}>
+                                          <CheckCheck className="h-4 w-4 mr-2" />Accept to Stores
+                                        </DropdownMenuItem>
+                                      )}
+                                      {g.status === "accepted" && (() => {
+                                        const plcLine = lines.find((l) => l.id === g.plc_line_id);
+                                        return plcLine ? (
+                                          <DropdownMenuItem onClick={() => { setMirPlcLine(plcLine); setShowMirDialog(true); }}>
+                                            <ArrowRightFromLine className="h-4 w-4 mr-2" />Issue Material (MIR)
+                                          </DropdownMenuItem>
+                                        ) : null;
+                                      })()}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* MIR Section */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                        <ArrowRightFromLine className="h-4 w-4 text-emerald-600" />
+                        Material Issue Records (MIR)
+                        {mirList.length > 0 && <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1.5">{mirList.length}</span>}
+                      </h3>
+                      {mirListLoading ? (
+                        <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />Loading MIRs…
+                        </div>
+                      ) : mirList.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-4">No material issues recorded yet.</p>
+                      ) : (
+                        <div className="rounded-lg border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-slate-50 text-xs">
+                                <TableHead>MIR No.</TableHead>
+                                <TableHead>PLC Line</TableHead>
+                                <TableHead className="text-right">Issued Qty</TableHead>
+                                <TableHead>Issued To</TableHead>
+                                <TableHead>Issued By</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Notes</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {mirList.map((m: any) => (
+                                <TableRow key={m.id} className="text-sm">
+                                  <TableCell className="font-mono text-xs">{m.mir_number}</TableCell>
+                                  <TableCell>
+                                    <div className="text-xs font-medium">{m.plc_number ?? "—"}</div>
+                                    <div className="text-xs text-muted-foreground">{m.tag_no ?? ""}</div>
+                                  </TableCell>
+                                  <TableCell className="text-right font-semibold text-emerald-700 text-xs">{parseFloat(m.issued_qty || 0)}</TableCell>
+                                  <TableCell className="text-xs">{m.issued_to}</TableCell>
+                                  <TableCell className="text-xs">{m.issued_by_name ?? "—"}</TableCell>
+                                  <TableCell className="text-xs whitespace-nowrap">{fmtDate(m.issued_at)}</TableCell>
+                                  <TableCell className="text-xs max-w-[180px] truncate text-muted-foreground">{m.purpose_notes ?? "—"}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </TabsContent>
+
+            {/* ── KPI Dashboard Tab ── */}
+            <TabsContent value="kpi" className="mt-4">
+              {!summary ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <BarChart2 className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">Select a project to view KPIs</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Procurement Lifecycle Summary */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-indigo-600" />
+                        Procurement Lifecycle
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                        <StatCard label="Total Lines"     value={summary.total}           icon={ClipboardList}  color="text-gray-700" />
+                        <StatCard label="PR Raised"       value={summary.pending}         icon={Clock}          color="text-yellow-700" />
+                        <StatCard label="In Progress"     value={summary.in_progress}     icon={Package}        color="text-blue-700" />
+                        <StatCard label="PO Issued"       value={summary.po_issued}       icon={CheckCircle2}   color="text-indigo-700" />
+                        <StatCard label="Partially Rcvd"  value={summary.received}        icon={Truck}          color="text-orange-700" />
+                        <StatCard label="Fully Received"  value={summary.fully_received}  icon={CheckCheck}     color="text-emerald-700" />
+                        <StatCard label="Closed"          value={summary.closed}          icon={XCircle}        color="text-gray-500" />
+                      </div>
+
+                      {/* Progress bar */}
+                      {parseInt(summary.total) > 0 && (() => {
+                        const total = parseInt(summary.total) || 1;
+                        const received = parseInt(summary.fully_received || "0") + parseInt(summary.received || "0");
+                        const closed = parseInt(summary.closed || "0");
+                        const pctReceived = Math.round((received / total) * 100);
+                        const pctClosed = Math.round((closed / total) * 100);
+                        return (
+                          <div className="mt-4 space-y-2">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>Receipt progress</span>
+                              <span>{received}/{total} lines ({pctReceived}%)</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-2.5">
+                              <div className="bg-emerald-500 h-2.5 rounded-full transition-all" style={{ width: `${pctReceived}%` }} />
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>Closure progress</span>
+                              <span>{closed}/{total} lines ({pctClosed}%)</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-2.5">
+                              <div className="bg-indigo-500 h-2.5 rounded-full transition-all" style={{ width: `${pctClosed}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+
+                  {/* Qty Tracking */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <BarChart2 className="h-4 w-4 text-indigo-600" />
+                        Quantity Tracking
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {[
+                          { label: "Total Qty Required", value: parseFloat(summary.total_qty_required || "0").toFixed(0), color: "text-gray-700", icon: ClipboardList },
+                          { label: "Total Qty Ordered",  value: parseFloat(summary.total_qty_ordered || "0").toFixed(0), color: "text-blue-700",  icon: Package },
+                          { label: "Total Qty Received", value: parseFloat(summary.total_qty_received || "0").toFixed(0), color: "text-emerald-700", icon: Truck },
+                          { label: "Over-Procured Lines", value: summary.over_procured, color: "text-amber-700", icon: TrendingDown },
+                        ].map(({ label, value, color, icon: Icon }) => (
+                          <div key={label} className="bg-slate-50 rounded-lg p-4 flex items-center gap-3">
+                            <Icon className={`h-8 w-8 opacity-30 ${color}`} />
+                            <div>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+                              <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* GRN Stats */}
+                  {grnList.length > 0 && (() => {
+                    const totalGrns = grnList.length;
+                    const totalAccepted = grnList.reduce((s: number, g: any) => s + (parseFloat(g.accepted_qty) || 0), 0);
+                    const totalRejected = grnList.reduce((s: number, g: any) => s + (parseFloat(g.rejected_qty) || 0), 0);
+                    const totalMirQty = mirList.reduce((s: number, m: any) => s + (parseFloat(m.issued_qty) || 0), 0);
+                    const rejRate = totalAccepted + totalRejected > 0
+                      ? Math.round((totalRejected / (totalAccepted + totalRejected)) * 100) : 0;
+                    return (
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Truck className="h-4 w-4 text-indigo-600" />
+                            GRN & Inspection KPIs
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {[
+                              { label: "Total GRN Records", value: totalGrns,              color: "text-gray-700",    icon: Truck },
+                              { label: "Accepted Units",    value: totalAccepted.toFixed(0), color: "text-emerald-700", icon: CheckCircle2 },
+                              { label: "Rejected Units",    value: totalRejected.toFixed(0), color: "text-red-700",    icon: ShieldAlert },
+                              { label: "Units Issued (MIR)",value: totalMirQty.toFixed(0),  color: "text-indigo-700", icon: ArrowRightFromLine },
+                            ].map(({ label, value, color, icon: Icon }) => (
+                              <div key={label} className="bg-slate-50 rounded-lg p-4 flex items-center gap-3">
+                                <Icon className={`h-8 w-8 opacity-30 ${color}`} />
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+                                  <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {rejRate > 0 && (
+                            <div className="mt-4 bg-red-50 border border-red-100 rounded p-3 flex items-center gap-2 text-sm text-red-700">
+                              <AlertTriangle className="h-4 w-4 shrink-0" />
+                              Rejection rate: <strong>{rejRate}%</strong> of inspected units rejected. Review NCRs.
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
+
+                  {/* Overdue / Alert Panel */}
+                  {(parseInt(summary.overdue || "0") > 0 || parseInt(summary.over_procured || "0") > 0) && (
+                    <Card className="border-amber-200 bg-amber-50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2 text-amber-800">
+                          <AlertTriangle className="h-4 w-4" />
+                          Alerts
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-sm text-amber-800">
+                        {parseInt(summary.overdue || "0") > 0 && (
+                          <div className="flex items-center gap-2">
+                            <CalendarDays className="h-4 w-4 shrink-0" />
+                            <strong>{summary.overdue}</strong> line(s) past required-by date — expedite required.
+                          </div>
+                        )}
+                        {parseInt(summary.over_procured || "0") > 0 && (
+                          <div className="flex items-center gap-2">
+                            <TrendingDown className="h-4 w-4 shrink-0" />
+                            <strong>{summary.over_procured}</strong> line(s) over-procured — reconciliation needed.
+                          </div>
+                        )}
+                        {parseInt(summary.avl_bypassed || "0") > 0 && (
+                          <div className="flex items-center gap-2">
+                            <ShieldAlert className="h-4 w-4 shrink-0" />
+                            <strong>{summary.avl_bypassed}</strong> line(s) with AVL bypass — quality review required.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
@@ -975,6 +1395,49 @@ export default function ProcurementListControlPage() {
           lineId={selectedLineId}
           onClose={() => setSelectedLineId(null)}
           onMutated={invalidateAll}
+        />
+      )}
+
+      {/* ── Phase 3 Dialogs ── */}
+      {showGrnDialog && selectedProjectId && (
+        <GrnRecordDialog
+          projectId={selectedProjectId}
+          lines={lines}
+          onClose={() => setShowGrnDialog(false)}
+          onSuccess={() => {
+            setShowGrnDialog(false);
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-grn"] });
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list"] });
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list", "summary"] });
+          }}
+        />
+      )}
+
+      {showInspDialog && selectedGrn && selectedProjectId && (
+        <GrnInspectionDialog
+          grn={selectedGrn}
+          projectId={selectedProjectId}
+          onClose={() => { setShowInspDialog(false); setSelectedGrn(null); }}
+          onSuccess={() => {
+            setShowInspDialog(false);
+            setSelectedGrn(null);
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-grn"] });
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list"] });
+          }}
+        />
+      )}
+
+      {showMirDialog && mirPlcLine && selectedProjectId && (
+        <MaterialIssueDialog
+          projectId={selectedProjectId}
+          plcLine={mirPlcLine}
+          grns={grnList.filter((g: any) => g.plc_line_id === mirPlcLine.id)}
+          onClose={() => { setShowMirDialog(false); setMirPlcLine(null); }}
+          onSuccess={() => {
+            setShowMirDialog(false);
+            setMirPlcLine(null);
+            qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-mir"] });
+          }}
         />
       )}
 
