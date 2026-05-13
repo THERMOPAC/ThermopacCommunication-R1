@@ -369,13 +369,17 @@ export default function EpcBuyListControlPage() {
     });
   }, [expandedLines, linesSortOrder]);
 
-  // Filter lines within expanded header by active group / subgroup
+  // Filter lines within expanded header by active group / subgroup / status
   const displayLines = useMemo(() => {
     let lines = sortedLines;
     if (activeGroupCode)    lines = lines.filter((l: any) => l.buy_group_code    === activeGroupCode);
     if (activeSubgroupCode) lines = lines.filter((l: any) => l.buy_subgroup_code === activeSubgroupCode);
+    // Apply status filter at row level when the selected status is a valid line status
+    if (statusFilter !== "all" && statusFilter in LINE_STATUS) {
+      lines = lines.filter((l: any) => l.status === statusFilter);
+    }
     return lines;
-  }, [sortedLines, activeGroupCode, activeSubgroupCode]);
+  }, [sortedLines, activeGroupCode, activeSubgroupCode, statusFilter]);
 
   function cycleSubgroupSort() {
     setLinesSortOrder(prev =>
