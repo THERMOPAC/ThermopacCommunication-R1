@@ -62,7 +62,7 @@ export function RfqCreateDialog({ projectId, lines, preSelectedIds = [], onClose
   const searchRef = useRef<HTMLInputElement>(null);
 
   const eligibleLines = lines.filter((l) =>
-    ["pr_raised", "pending_rfq"].includes(l.status)
+    ["pr_raised", "pending_rfq", "rfq_issued"].includes(l.status)
   );
 
   // When opened from a specific row, show only that line by default

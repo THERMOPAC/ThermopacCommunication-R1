@@ -250,10 +250,19 @@ export function setupPlcRfqRoutes(app: Express): void {
       if (rfq.status !== 'issued') return res.status(400).json({ error: `Cannot close: RFQ is '${rfq.status}'` });
 
       await pool.query(`UPDATE plc_rfq_records SET status = 'closed', updated_at = NOW() WHERE id = $1`, [id]);
+      // Move lines to rfq_closed only if no other issued RFQ still holds the same line.
+      // A line can be in parallel RFQs; closing one RFQ must not prematurely close the line.
       await pool.query(
         `UPDATE procurement_list_lines SET status = 'rfq_closed', updated_at = NOW()
          WHERE id IN (SELECT plc_line_id FROM plc_rfq_lines WHERE rfq_id = $1)
-           AND status IN ('rfq_issued')`,
+           AND status IN ('rfq_issued')
+           AND NOT EXISTS (
+             SELECT 1 FROM plc_rfq_lines rl2
+             JOIN plc_rfq_records r2 ON r2.id = rl2.rfq_id
+             WHERE rl2.plc_line_id = procurement_list_lines.id
+               AND r2.id != $1
+               AND r2.status = 'issued'
+           )`,
         [id]
       );
 
@@ -289,11 +298,19 @@ export function setupPlcRfqRoutes(app: Express): void {
           `UPDATE plc_rfq_records SET status = 'cancelled', notes = COALESCE(notes || E'\n', '') || $2, updated_at = NOW() WHERE id = $1`,
           [id, `[CANCELLED] ${reason || ''}`]
         );
-        // Revert PLC lines back to pr_raised
+        // Revert PLC lines back to pr_raised — but ONLY if no other active (non-cancelled) RFQ
+        // still references the same line. One line can appear in multiple parallel RFQs.
         await client.query(
           `UPDATE procurement_list_lines SET status = 'pr_raised', updated_at = NOW()
            WHERE id IN (SELECT plc_line_id FROM plc_rfq_lines WHERE rfq_id = $1)
-             AND status IN ('pending_rfq','rfq_issued','rfq_closed')`,
+             AND status IN ('pending_rfq','rfq_issued','rfq_closed')
+             AND NOT EXISTS (
+               SELECT 1 FROM plc_rfq_lines rl2
+               JOIN plc_rfq_records r2 ON r2.id = rl2.rfq_id
+               WHERE rl2.plc_line_id = procurement_list_lines.id
+                 AND r2.id != $1
+                 AND r2.status NOT IN ('cancelled')
+             )`,
           [id]
         );
 
