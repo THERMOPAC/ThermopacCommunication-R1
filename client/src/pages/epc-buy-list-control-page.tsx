@@ -618,7 +618,19 @@ export default function EpcBuyListControlPage() {
     mutationFn: ({ headerId, lineIds }: { headerId: number; lineIds: number[] }) =>
       apiRequest("POST", `/api/buy-lists/${headerId}/bulk-approve`, { lineIds }),
     onSuccess: (data: any) => {
-      toast({ title: `Bulk approve done`, description: `${data.succeeded} succeeded, ${data.errors?.length ?? 0} errors` });
+      const errCount = data.errors?.length ?? 0;
+      const skipCount = data.skipped ?? 0;
+      if (errCount > 0) {
+        const uniqueReasons = [...new Set((data.errors as any[]).map((e: any) => e.error))];
+        const reasonText = uniqueReasons.join(" | ");
+        toast({
+          title: `Bulk approve: ${data.succeeded} approved, ${errCount} failed${skipCount ? `, ${skipCount} skipped` : ""}`,
+          description: reasonText,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `Bulk approve done`, description: `${data.succeeded} approved${skipCount ? `, ${skipCount} already approved` : ""}` });
+      }
       setCheckedLines(new Set());
       if (expandedId) invalidateLines(expandedId);
     },
@@ -629,7 +641,17 @@ export default function EpcBuyListControlPage() {
     mutationFn: ({ headerId, lineIds }: { headerId: number; lineIds: number[] }) =>
       apiRequest("POST", `/api/buy-lists/${headerId}/bulk-raise-pr`, { lineIds }),
     onSuccess: (data: any) => {
-      toast({ title: `Bulk raise PR done`, description: `${data.succeeded} raised, ${data.errors?.length ?? 0} errors` });
+      const errCount = data.errors?.length ?? 0;
+      if (errCount > 0) {
+        const uniqueReasons = [...new Set((data.errors as any[]).map((e: any) => e.error))];
+        toast({
+          title: `Bulk raise PR: ${data.succeeded} raised, ${errCount} failed`,
+          description: uniqueReasons.join(" | "),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `Bulk raise PR done`, description: `${data.succeeded} PR(s) raised` });
+      }
       setCheckedLines(new Set());
       if (expandedId) { invalidateLines(expandedId); invalidateProcChain(expandedId); }
     },
