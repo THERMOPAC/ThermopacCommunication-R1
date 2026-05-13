@@ -1,12 +1,15 @@
 /**
- * PLC RFQ Routes — Phase 2
+ * PLC RFQ Routes — Phase 2 + Email Dispatch (Baseline v1.0)
  * Governance: docs/procurement-list-control-baseline-v1.md §9, §27 Phase 2
+ *             docs/rfq-email-dispatch-baseline-v1.0.md
  *
- * Routes (12):
- *   RFQ         (6): list, get, create, issue, close, cancel
- *   Vendors     (2): add-vendor, remove-vendor
+ * Routes (18):
+ *   RFQ         (7): list, get, create, issue, close, cancel, preflight
+ *   Vendors     (3): add-vendor, remove-vendor, resend-email
+ *   Vendor ACK  (1): acknowledge
  *   Lines       (2): add-line, remove-line
  *   Quotes      (2): upsert-quote, list-quotes
+ *   Dispatch    (2): dispatch-log, attachments-list
  */
 
 import { Express, Request, Response } from 'express';
@@ -14,6 +17,63 @@ import { pool } from './db';
 import { requirePageAccess } from './utils/permission-utils';
 import { getNextDocSeq } from './doc-sequence-service';
 import { logPlcAudit } from './plc-line-service';
+import { preflightRfq, freezeAttachments, dispatchRfqToVendors, resendToVendor } from './rfq-email-service';
+
+// ─── Idempotent DDL: create new RFQ email dispatch tables ────────────────────
+async function ensureRfqEmailTables(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS plc_rfq_attachments (
+      id                 SERIAL PRIMARY KEY,
+      rfq_id             INTEGER NOT NULL,
+      plc_line_id        INTEGER,
+      attachment_type    VARCHAR(30) NOT NULL DEFAULT 'datasheet',
+      gcs_bucket         VARCHAR(100) NOT NULL DEFAULT '',
+      gcs_path           TEXT NOT NULL DEFAULT '',
+      original_filename  VARCHAR(255),
+      file_size_bytes    BIGINT,
+      mime_type          VARCHAR(100),
+      checksum_sha256    VARCHAR(64),
+      source_revision_seq INTEGER,
+      frozen_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      frozen_by          INTEGER REFERENCES users(id) ON DELETE SET NULL
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS plc_rfq_dispatch_log (
+      id                    SERIAL PRIMARY KEY,
+      rfq_id                INTEGER NOT NULL,
+      vendor_id             INTEGER NOT NULL REFERENCES vendors(id) ON DELETE RESTRICT,
+      email_to              TEXT NOT NULL DEFAULT '',
+      email_cc              TEXT[],
+      dispatch_status       VARCHAR(20) NOT NULL DEFAULT 'sent',
+      nodemailer_message_id TEXT,
+      failure_reason        TEXT,
+      attachment_count      INTEGER DEFAULT 0,
+      dispatched_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      dispatched_by         INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      is_resend             BOOLEAN NOT NULL DEFAULT FALSE,
+      resend_number         INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  // Idempotent ALTER TABLE additions to plc_rfq_vendors
+  const vendorAlters = [
+    `ALTER TABLE plc_rfq_vendors ADD COLUMN IF NOT EXISTS email_override TEXT`,
+    `ALTER TABLE plc_rfq_vendors ADD COLUMN IF NOT EXISTS dispatch_status VARCHAR(20) DEFAULT 'pending'`,
+    `ALTER TABLE plc_rfq_vendors ADD COLUMN IF NOT EXISTS last_dispatched_at TIMESTAMPTZ`,
+    `ALTER TABLE plc_rfq_vendors ADD COLUMN IF NOT EXISTS resend_count INTEGER DEFAULT 0`,
+    `ALTER TABLE plc_rfq_vendors ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ`,
+    `ALTER TABLE plc_rfq_vendors ADD COLUMN IF NOT EXISTS acknowledgment_note TEXT`,
+  ];
+  for (const s of vendorAlters) { try { await pool.query(s); } catch {} }
+  // Idempotent ALTER TABLE additions to plc_rfq_records
+  const rfqAlters = [
+    `ALTER TABLE plc_rfq_records ADD COLUMN IF NOT EXISTS issued_at TIMESTAMPTZ`,
+    `ALTER TABLE plc_rfq_records ADD COLUMN IF NOT EXISTS dispatch_status VARCHAR(20) DEFAULT 'not_dispatched'`,
+    `ALTER TABLE plc_rfq_records ADD COLUMN IF NOT EXISTS attachments_frozen_at TIMESTAMPTZ`,
+  ];
+  for (const s of rfqAlters) { try { await pool.query(s); } catch {} }
+  console.log('[PLC-RFQ] Email dispatch tables ensured');
+}
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) return next();
@@ -34,6 +94,9 @@ function badReq(res: Response, msg: string) {
 }
 
 export function setupPlcRfqRoutes(app: Express): void {
+  // Run DDL on startup
+  ensureRfqEmailTables().catch(err => console.error('[PLC-RFQ] ensureRfqEmailTables failed:', err.message));
+
 
   // ── GET /api/projects/:projectId/plc-rfq — list RFQs for project ────────────
   app.get('/api/projects/:projectId/plc-rfq', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
@@ -198,12 +261,26 @@ export function setupPlcRfqRoutes(app: Express): void {
     } catch (e) { sendErr(res, e); }
   });
 
-  // ── POST /api/plc-rfq/:id/issue — issue RFQ to vendors ──────────────────────
-  app.post('/api/plc-rfq/:id/issue', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+  // ── GET /api/plc-rfq/:id/preflight — pre-flight warnings before issue ────────
+  app.get('/api/plc-rfq/:id/preflight', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return badReq(res, 'Invalid RFQ id');
+      const result = await preflightRfq(id);
+      res.json(result);
+    } catch (e) { sendErr(res, e); }
+  });
 
+  // ── POST /api/plc-rfq/:id/issue — issue RFQ + freeze attachments + dispatch ──
+  // Governance: DB transaction committed BEFORE email dispatch.
+  //             Email failures do NOT roll back the RFQ issue. (Baseline §5)
+  app.post('/api/plc-rfq/:id/issue', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return badReq(res, 'Invalid RFQ id');
+    const userId = (req.user as any)?.id;
+
+    try {
       const rfqRes = await pool.query(`SELECT * FROM plc_rfq_records WHERE id = $1`, [id]);
       if (rfqRes.rowCount === 0) return notFound(res, 'RFQ');
       const rfq = rfqRes.rows[0];
@@ -215,26 +292,60 @@ export function setupPlcRfqRoutes(app: Express): void {
       if (parseInt(vCheck.rows[0].count) === 0) return badReq(res, 'Add at least one vendor before issuing');
       if (parseInt(lCheck.rows[0].count) === 0) return badReq(res, 'Add at least one line before issuing');
 
-      await pool.query(`UPDATE plc_rfq_records SET status = 'issued', updated_at = NOW() WHERE id = $1`, [id]);
+      // ── TRANSACTION: status change + attachment freeze ──────────────────────
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
 
-      // Update linked PLC lines to rfq_issued
-      await pool.query(
-        `UPDATE procurement_list_lines SET status = 'rfq_issued', updated_at = NOW()
-         WHERE id IN (SELECT plc_line_id FROM plc_rfq_lines WHERE rfq_id = $1)
-           AND status IN ('pr_raised','pending_rfq')`,
-        [id]
-      );
+        await client.query(
+          `UPDATE plc_rfq_records
+           SET status='issued', issued_at=NOW(), dispatch_status='not_dispatched', updated_at=NOW()
+           WHERE id=$1`,
+          [id],
+        );
 
-      // Audit
-      await logPlcAudit(pool, {
-        projectId: rfq.project_id, entityType: 'rfq', entityId: id,
-        eventType: 'rfq_issued', oldStatus: 'draft', newStatus: 'issued',
-        changedBy: (req.user as any)?.id,
-        notes: `RFQ ${rfq.rfq_number} issued to vendors`,
-        metadata: { rfqId: id },
-      });
+        // Update linked PLC lines to rfq_issued
+        await client.query(
+          `UPDATE procurement_list_lines SET status='rfq_issued', updated_at=NOW()
+           WHERE id IN (SELECT plc_line_id FROM plc_rfq_lines WHERE rfq_id=$1)
+             AND status IN ('pr_raised','pending_rfq')`,
+          [id],
+        );
 
+        // Freeze attachment snapshot (immutable from this point)
+        await freezeAttachments(id, userId, client);
+
+        // Audit
+        await logPlcAudit(client, {
+          projectId: rfq.project_id, entityType: 'rfq', entityId: id,
+          eventType: 'rfq_issued', oldStatus: 'draft', newStatus: 'issued',
+          changedBy: userId,
+          notes: `RFQ ${rfq.rfq_number} issued to vendors`,
+          metadata: { rfqId: id },
+        });
+
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
+      // ── END TRANSACTION ─────────────────────────────────────────────────────
+
+      // Respond immediately — email dispatch is post-commit fire-and-forget
+      // Failures are logged per-vendor in plc_rfq_dispatch_log but do NOT revert status
       res.json({ success: true, message: 'RFQ issued', rfqId: id });
+
+      // Async dispatch (outside try/catch so failure does not affect HTTP response)
+      dispatchRfqToVendors(id, userId)
+        .then(({ dispatched, failed, noEmail }) => {
+          console.log(`[PLC-RFQ] RFQ ${id} dispatch complete: ${dispatched} sent, ${failed} failed, ${noEmail} no-email`);
+        })
+        .catch(err => {
+          console.error(`[PLC-RFQ] dispatchRfqToVendors error for RFQ ${id}:`, err.message);
+        });
+
     } catch (e) { sendErr(res, e); }
   });
 
@@ -470,6 +581,124 @@ export function setupPlcRfqRoutes(app: Express): void {
          JOIN procurement_list_lines p ON p.id = q.plc_line_id
          WHERE q.rfq_id = $1
          ORDER BY p.plc_number, v.name`, [id]
+      );
+      res.json(result.rows);
+    } catch (e) { sendErr(res, e); }
+  });
+
+  // ── GET /api/plc-rfq/:id/dispatch-log — all dispatch log rows for RFQ ────────
+  app.get('/api/plc-rfq/:id/dispatch-log', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return badReq(res, 'Invalid RFQ id');
+      const result = await pool.query(
+        `SELECT dl.*, v.name AS vendor_name, v.display_name AS vendor_display_name,
+                u.username AS dispatched_by_name
+         FROM plc_rfq_dispatch_log dl
+         JOIN vendors v ON v.id = dl.vendor_id
+         LEFT JOIN users u ON u.id = dl.dispatched_by
+         WHERE dl.rfq_id = $1
+         ORDER BY dl.dispatched_at DESC`,
+        [id],
+      );
+      res.json(result.rows);
+    } catch (e) { sendErr(res, e); }
+  });
+
+  // ── GET /api/plc-rfq/:id/attachments — frozen attachment list ────────────────
+  app.get('/api/plc-rfq/:id/attachments', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return badReq(res, 'Invalid RFQ id');
+      const result = await pool.query(
+        `SELECT a.*, u.username AS frozen_by_name
+         FROM plc_rfq_attachments a
+         LEFT JOIN users u ON u.id = a.frozen_by
+         WHERE a.rfq_id = $1
+         ORDER BY a.attachment_type, a.id`,
+        [id],
+      );
+      res.json(result.rows);
+    } catch (e) { sendErr(res, e); }
+  });
+
+  // ── POST /api/plc-rfq/:id/vendors/:vendorId/resend — resend email to vendor ──
+  app.post('/api/plc-rfq/:id/vendors/:vendorId/resend', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const vendorId = parseInt(req.params.vendorId);
+      if (isNaN(id) || isNaN(vendorId)) return badReq(res, 'Invalid ids');
+      const { emailOverride } = req.body || {};
+      const userId = (req.user as any)?.id;
+
+      const rfqRes = await pool.query(`SELECT status FROM plc_rfq_records WHERE id=$1`, [id]);
+      if (!rfqRes.rowCount) return notFound(res, 'RFQ');
+      if (!['issued', 'closed'].includes(rfqRes.rows[0].status)) {
+        return badReq(res, 'Can only resend for issued/closed RFQ');
+      }
+
+      await resendToVendor(id, vendorId, emailOverride || null, userId);
+      res.json({ success: true, message: 'Resent successfully' });
+    } catch (e) { sendErr(res, e); }
+  });
+
+  // ── PATCH /api/plc-rfq/:id/vendors/:vendorId/acknowledge — mark acknowledged ─
+  app.patch('/api/plc-rfq/:id/vendors/:vendorId/acknowledge', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const vendorId = parseInt(req.params.vendorId);
+      if (isNaN(id) || isNaN(vendorId)) return badReq(res, 'Invalid ids');
+      const { note } = req.body || {};
+      const userId = (req.user as any)?.id;
+
+      const rfqRes = await pool.query(`SELECT project_id, rfq_number FROM plc_rfq_records WHERE id=$1`, [id]);
+      if (!rfqRes.rowCount) return notFound(res, 'RFQ');
+
+      await pool.query(
+        `UPDATE plc_rfq_vendors
+         SET acknowledged_at=NOW(), acknowledgment_note=$1, dispatch_status='acknowledged'
+         WHERE rfq_id=$2 AND vendor_id=$3`,
+        [note || null, id, vendorId],
+      );
+
+      // Recalculate aggregate dispatch_status
+      const allStatuses = await pool.query(
+        `SELECT dispatch_status FROM plc_rfq_vendors WHERE rfq_id=$1`, [id]
+      );
+      const statuses = allStatuses.rows.map((r: any) => r.dispatch_status);
+      const aggStatus =
+        statuses.every((s: string) => s === 'acknowledged') ? 'all_acknowledged' :
+        statuses.some((s: string) => s === 'acknowledged') ? 'partial_acknowledged' : 'dispatched';
+      await pool.query(`UPDATE plc_rfq_records SET dispatch_status=$1 WHERE id=$2`, [aggStatus, id]);
+
+      await logPlcAudit(pool, {
+        projectId: rfqRes.rows[0].project_id, entityType: 'rfq', entityId: id,
+        eventType: 'rfq_acknowledged', oldStatus: null, newStatus: null,
+        changedBy: userId,
+        notes: `Vendor ${vendorId} acknowledged RFQ ${rfqRes.rows[0].rfq_number}${note ? `: ${note}` : ''}`,
+        metadata: { vendorId, note },
+      });
+
+      res.json({ success: true });
+    } catch (e) { sendErr(res, e); }
+  });
+
+  // ── GET /api/plc-rfq/:id/vendor-dispatch — vendor-level dispatch summary ─────
+  app.get('/api/plc-rfq/:id/vendor-dispatch', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return badReq(res, 'Invalid RFQ id');
+      const result = await pool.query(
+        `SELECT rv.*, v.name AS vendor_name, v.display_name AS vendor_display_name,
+                v.email AS vendor_email
+         FROM plc_rfq_vendors rv
+         JOIN vendors v ON v.id = rv.vendor_id
+         WHERE rv.rfq_id = $1
+         ORDER BY v.name`,
+        [id],
       );
       res.json(result.rows);
     } catch (e) { sendErr(res, e); }

@@ -30,6 +30,7 @@ import { PoGroupDetail } from "@/components/po-group-detail";
 import { PlcLineDetailDrawer } from "@/components/plc-line-detail-drawer";
 import { RfqCreateDialog } from "@/components/rfq-create-dialog";
 import { VendorQuoteDialog } from "@/components/vendor-quote-dialog";
+import { RfqDispatchPanel, RfqPreflightBanner } from "@/components/rfq-dispatch-panel";
 import { TbeDialog } from "@/components/tbe-dialog";
 import { CbeDialog } from "@/components/cbe-dialog";
 import { GrnRecordDialog } from "@/components/grn-record-dialog";
@@ -965,6 +966,13 @@ export default function ProcurementListControlPage() {
                     </div>
                   ) : selectedRfq ? (
                     <div className="space-y-4">
+                      {/* Pre-flight warnings — shown for draft RFQs only */}
+                      {selectedRfq.status === "draft" && (
+                        <RfqPreflightBanner
+                          rfqId={selectedRfq.id}
+                          enabled={!!selectedRfq.id}
+                        />
+                      )}
                       {/* RFQ header */}
                       <div className="border rounded-lg bg-white p-4">
                         <div className="flex items-start justify-between">
@@ -998,7 +1006,7 @@ export default function ProcurementListControlPage() {
                                 disabled={rfqIssueMut.isPending}
                               >
                                 {rfqIssueMut.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-                                Issue to Vendors
+                                Issue &amp; Dispatch
                               </Button>
                             )}
                             {selectedRfq.status === "issued" && (
@@ -1201,6 +1209,16 @@ export default function ProcurementListControlPage() {
                           </Table>
                         )}
                       </div>
+
+                      {/* Email Dispatch Panel — shown when RFQ issued or closed */}
+                      {["issued", "closed"].includes(selectedRfq.status) && (
+                        <RfqDispatchPanel
+                          rfqId={selectedRfq.id}
+                          rfqStatus={selectedRfq.status}
+                          rfqNumber={selectedRfq.rfq_number}
+                          onRefreshRfq={() => qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] })}
+                        />
+                      )}
 
                       {/* TBE / CBE panels — only after RFQ closed */}
                       {["closed"].includes(selectedRfq.status) && (

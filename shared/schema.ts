@@ -13989,3 +13989,41 @@ export const procurementListAuditLog = pgTable('procurement_list_audit_log', {
 });
 export type ProcurementListAuditLog = typeof procurementListAuditLog.$inferSelect;
 // Note: NO insertSchema — all inserts go through logPlcAudit() in plc-line-service.ts
+
+// ─── 10. RFQ Frozen Attachments (IMMUTABLE after creation — no UPDATE/DELETE) ─
+export const plcRfqAttachments = pgTable('plc_rfq_attachments', {
+  id:                 serial('id').primaryKey(),
+  rfqId:              integer('rfq_id').notNull(),
+  plcLineId:          integer('plc_line_id'),
+  attachmentType:     varchar('attachment_type', { length: 30 }).notNull(),
+  // Values: rfq_pdf | datasheet | tech_spec | t_and_c
+  gcsBucket:          varchar('gcs_bucket', { length: 100 }).notNull(),
+  gcsPath:            text('gcs_path').notNull(),
+  originalFilename:   varchar('original_filename', { length: 255 }),
+  fileSizeBytes:      bigint('file_size_bytes', { mode: 'number' }),
+  mimeType:           varchar('mime_type', { length: 100 }),
+  checksumSha256:     varchar('checksum_sha256', { length: 64 }),
+  sourceRevisionSeq:  integer('source_revision_seq'),
+  frozenAt:           timestamp('frozen_at').notNull().defaultNow(),
+  frozenBy:           integer('frozen_by').references(() => users.id, { onDelete: 'set null' }),
+});
+export type PlcRfqAttachment = typeof plcRfqAttachments.$inferSelect;
+
+// ─── 11. RFQ Vendor Dispatch Log (APPEND-ONLY — no UPDATE/DELETE permitted) ──
+export const plcRfqDispatchLog = pgTable('plc_rfq_dispatch_log', {
+  id:                   serial('id').primaryKey(),
+  rfqId:                integer('rfq_id').notNull(),
+  vendorId:             integer('vendor_id').notNull().references(() => vendors.id, { onDelete: 'restrict' }),
+  emailTo:              text('email_to').notNull(),
+  emailCc:              text('email_cc').array(),
+  dispatchStatus:       varchar('dispatch_status', { length: 20 }).notNull(),
+  // Values: sent | failed | no_email | resent
+  nodemailMessageId:    text('nodemailer_message_id'),
+  failureReason:        text('failure_reason'),
+  attachmentCount:      integer('attachment_count').default(0),
+  dispatchedAt:         timestamp('dispatched_at').notNull().defaultNow(),
+  dispatchedBy:         integer('dispatched_by').references(() => users.id, { onDelete: 'set null' }),
+  isResend:             boolean('is_resend').notNull().default(false),
+  resendNumber:         integer('resend_number').notNull().default(0),
+});
+export type PlcRfqDispatchLog = typeof plcRfqDispatchLog.$inferSelect;
