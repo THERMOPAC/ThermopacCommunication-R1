@@ -20,7 +20,7 @@ import {
   Search, RefreshCw, Plus, Filter, MoreHorizontal, Loader2,
   Truck, ArrowRightFromLine, BarChart2, CalendarDays, ShieldAlert,
   CheckCheck, Layers, TrendingDown, Download, Lock, Unlock,
-  Database, Activity, TrendingUp, Building2, FileWarning,
+  Database, Activity, TrendingUp, Building2, FileWarning, X,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -177,6 +177,8 @@ export default function ProcurementListControlPage() {
   // Phase 2 RFQ state
   const [showRfqCreate, setShowRfqCreate] = useState(false);
   const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null);
+  const [addVendorId, setAddVendorId] = useState<string>("");
+  const [addLineId, setAddLineId] = useState<string>("");
   const [rfqStatusFilter, setRfqStatusFilter] = useState("all");
   const [showVendorQuote, setShowVendorQuote] = useState(false);
   const [editingQuote, setEditingQuote] = useState<any>(null);
@@ -323,6 +325,59 @@ export default function ProcurementListControlPage() {
       qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "plc-rfq"] });
       setSelectedRfqId(null);
       toast({ title: "RFQ cancelled" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  // Phase 2 — Vendor list for add-vendor functionality
+  const { data: allVendors = [] } = useQuery<any[]>({
+    queryKey: ["/api/vendors"],
+    queryFn: () => apiRequest("GET", "/api/vendors"),
+    enabled: activeTab === "bid-eval",
+  });
+
+  // Phase 2 — Add/remove vendor to RFQ
+  const rfqAddVendorMut = useMutation({
+    mutationFn: ({ rfqId, vendorId }: { rfqId: number; vendorId: number }) =>
+      apiRequest("POST", `/api/plc-rfq/${rfqId}/vendors`, { vendorId }),
+    onSuccess: (data) => {
+      if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
+      qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+      setAddVendorId("");
+      toast({ title: "Vendor added to RFQ" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+  const rfqRemoveVendorMut = useMutation({
+    mutationFn: ({ rfqId, vendorId }: { rfqId: number; vendorId: number }) =>
+      apiRequest("DELETE", `/api/plc-rfq/${rfqId}/vendors/${vendorId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+      toast({ title: "Vendor removed from RFQ" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  // Phase 2 — Add/remove PLC line to RFQ
+  const rfqAddLineMut = useMutation({
+    mutationFn: ({ rfqId, plcLineId }: { rfqId: number; plcLineId: number }) =>
+      apiRequest("POST", `/api/plc-rfq/${rfqId}/lines`, { plcLineId }),
+    onSuccess: (data) => {
+      if (data.error) { toast({ title: "Error", description: data.error, variant: "destructive" }); return; }
+      qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+      qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list"] });
+      setAddLineId("");
+      toast({ title: "Line added to RFQ" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+  const rfqRemoveLineMut = useMutation({
+    mutationFn: ({ rfqId, plcLineId }: { rfqId: number; plcLineId: number }) =>
+      apiRequest("DELETE", `/api/plc-rfq/${rfqId}/lines/${plcLineId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/plc-rfq", selectedRfqId] });
+      qc.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "procurement-list"] });
+      toast({ title: "Line removed from RFQ" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -531,6 +586,14 @@ export default function ProcurementListControlPage() {
                     <Button size="sm" onClick={() => { setShowPogWizard(true); }}>
                       <Plus className="h-3.5 w-3.5 mr-1" /> Create PO Group
                     </Button>
+                    {selectedLineIds.some((id) => {
+                      const l = lines.find((ln) => ln.id === id);
+                      return l && ["pr_raised", "pending_rfq"].includes(l.status);
+                    }) && (
+                      <Button size="sm" variant="outline" onClick={() => { setShowRfqCreate(true); }}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Create RFQ
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={clearSelection}>Clear</Button>
                   </div>
                 )}
@@ -682,6 +745,16 @@ export default function ProcurementListControlPage() {
                                 <DropdownMenuItem onClick={() => setSelectedLineId(line.id)}>
                                   View Details
                                 </DropdownMenuItem>
+                                {["pr_raised", "pending_rfq"].includes(line.status) && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedLineIds([line.id]);
+                                      setShowRfqCreate(true);
+                                    }}
+                                  >
+                                    Create RFQ for this line
+                                  </DropdownMenuItem>
+                                )}
                                 {line.status === "pr_raised" && !line.activePoGroupId && (
                                   <DropdownMenuItem
                                     onClick={() => {
@@ -690,6 +763,13 @@ export default function ProcurementListControlPage() {
                                     }}
                                   >
                                     Create PO Group
+                                  </DropdownMenuItem>
+                                )}
+                                {["pending_rfq", "rfq_issued", "rfq_closed", "tbe_in_progress", "tbe_complete", "cbe_in_progress"].includes(line.status) && (
+                                  <DropdownMenuItem
+                                    onClick={() => setActiveTab("bid-eval")}
+                                  >
+                                    View in Bid Evaluation
                                   </DropdownMenuItem>
                                 )}
                                 {["fully_received", "received", "po_issued"].includes(line.status) && (
@@ -953,31 +1033,115 @@ export default function ProcurementListControlPage() {
 
                       {/* Vendors & Lines summary */}
                       <div className="grid grid-cols-2 gap-4">
+                        {/* Vendors card */}
                         <div className="border rounded-lg bg-white p-3">
                           <h4 className="text-xs font-semibold text-gray-700 mb-2">Invited Vendors ({selectedRfq.vendors?.length ?? 0})</h4>
                           {(selectedRfq.vendors ?? []).length === 0 ? (
-                            <p className="text-xs text-muted-foreground">No vendors added</p>
+                            <p className="text-xs text-muted-foreground mb-2">No vendors added</p>
                           ) : (
-                            <ul className="space-y-1">
+                            <ul className="space-y-1 mb-2">
                               {(selectedRfq.vendors ?? []).map((v: any) => (
-                                <li key={v.vendor_id} className="text-xs text-gray-700">{v.vendor_display_name || v.vendor_name}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        <div className="border rounded-lg bg-white p-3">
-                          <h4 className="text-xs font-semibold text-gray-700 mb-2">Lines in RFQ ({selectedRfq.lines?.length ?? 0})</h4>
-                          {(selectedRfq.lines ?? []).length === 0 ? (
-                            <p className="text-xs text-muted-foreground">No lines added</p>
-                          ) : (
-                            <ul className="space-y-1">
-                              {(selectedRfq.lines ?? []).map((l: any) => (
-                                <li key={l.plc_line_id} className="text-xs font-mono text-indigo-700">
-                                  {l.plc_number} <span className="font-sans text-gray-600">— {l.tag_no || l.service_description}</span>
+                                <li key={v.vendor_id} className="flex items-center justify-between text-xs text-gray-700">
+                                  <span>{v.vendor_display_name || v.vendor_name}</span>
+                                  {selectedRfq.status === "draft" && (
+                                    <button
+                                      className="text-red-400 hover:text-red-600 ml-2 shrink-0"
+                                      title="Remove vendor"
+                                      onClick={() => rfqRemoveVendorMut.mutate({ rfqId: selectedRfq.id, vendorId: v.vendor_id })}
+                                      disabled={rfqRemoveVendorMut.isPending}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
                                 </li>
                               ))}
                             </ul>
                           )}
+                          {selectedRfq.status === "draft" && (
+                            <div className="flex gap-1 mt-1">
+                              <Select value={addVendorId} onValueChange={setAddVendorId}>
+                                <SelectTrigger className="h-7 text-xs flex-1">
+                                  <SelectValue placeholder="Add vendor…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {allVendors
+                                    .filter((v: any) => !selectedRfq.vendors?.some((rv: any) => rv.vendor_id === v.id))
+                                    .map((v: any) => (
+                                      <SelectItem key={v.id} value={String(v.id)}>
+                                        {v.display_name || v.name}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                size="sm"
+                                className="h-7 px-2"
+                                disabled={!addVendorId || rfqAddVendorMut.isPending}
+                                onClick={() => rfqAddVendorMut.mutate({ rfqId: selectedRfq.id, vendorId: parseInt(addVendorId) })}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Lines card */}
+                        <div className="border rounded-lg bg-white p-3">
+                          <h4 className="text-xs font-semibold text-gray-700 mb-2">Lines in RFQ ({selectedRfq.lines?.length ?? 0})</h4>
+                          {(selectedRfq.lines ?? []).length === 0 ? (
+                            <p className="text-xs text-muted-foreground mb-2">No lines added</p>
+                          ) : (
+                            <ul className="space-y-1 mb-2">
+                              {(selectedRfq.lines ?? []).map((l: any) => (
+                                <li key={l.plc_line_id} className="flex items-center justify-between text-xs">
+                                  <span className="font-mono text-indigo-700 shrink-0">{l.plc_number}</span>
+                                  <span className="text-gray-600 truncate mx-1">— {l.tag_no || l.service_description}</span>
+                                  {selectedRfq.status === "draft" && (
+                                    <button
+                                      className="text-red-400 hover:text-red-600 shrink-0"
+                                      title="Remove line"
+                                      onClick={() => rfqRemoveLineMut.mutate({ rfqId: selectedRfq.id, plcLineId: l.plc_line_id })}
+                                      disabled={rfqRemoveLineMut.isPending}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {selectedRfq.status === "draft" && (() => {
+                            const addableLines = lines.filter(
+                              (ln) =>
+                                ["pr_raised", "pending_rfq"].includes(ln.status) &&
+                                !selectedRfq.lines?.some((rl: any) => rl.plc_line_id === ln.id),
+                            );
+                            if (addableLines.length === 0) return null;
+                            return (
+                              <div className="flex gap-1 mt-1">
+                                <Select value={addLineId} onValueChange={setAddLineId}>
+                                  <SelectTrigger className="h-7 text-xs flex-1">
+                                    <SelectValue placeholder="Add line…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {addableLines.map((ln) => (
+                                      <SelectItem key={ln.id} value={String(ln.id)}>
+                                        {ln.plcNumber} — {ln.tagNo || ln.serviceDescription}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  size="sm"
+                                  className="h-7 px-2"
+                                  disabled={!addLineId || rfqAddLineMut.isPending}
+                                  onClick={() => rfqAddLineMut.mutate({ rfqId: selectedRfq.id, plcLineId: parseInt(addLineId) })}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
