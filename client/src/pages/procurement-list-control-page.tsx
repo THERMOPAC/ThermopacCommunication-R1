@@ -2039,6 +2039,7 @@ export default function ProcurementListControlPage() {
         <RfqCreateDialog
           projectId={selectedProjectId}
           lines={lines}
+          preSelectedIds={selectedLineIds}
           onClose={() => setShowRfqCreate(false)}
           onSuccess={() => {
             setShowRfqCreate(false);

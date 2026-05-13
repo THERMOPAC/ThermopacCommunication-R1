@@ -26,11 +26,12 @@ interface Vendor { id: number; name: string; display_name?: string; sap_card_cod
 interface Props {
   projectId: number;
   lines: PlcLine[];
+  preSelectedIds?: number[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props) {
+export function RfqCreateDialog({ projectId, lines, preSelectedIds = [], onClose, onSuccess }: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -38,7 +39,7 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
   const [deadline, setDeadline] = useState("");
   const [subject, setSubject] = useState("");
   const [notes, setNotes] = useState("");
-  const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
+  const [selectedLineIds, setSelectedLineIds] = useState<number[]>(preSelectedIds);
   const [selectedVendorIds, setSelectedVendorIds] = useState<number[]>([]);
 
   const [vendorSearch, setVendorSearch] = useState("");
@@ -163,9 +164,9 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
                     >
                       <input
                         type="checkbox"
-                        readOnly
                         checked={isChecked}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600 cursor-pointer"
+                        onChange={() => {}}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600 pointer-events-none"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">

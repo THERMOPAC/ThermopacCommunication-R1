@@ -77,16 +77,18 @@ async function ensureSapCardCodeColumn(client: any): Promise<void> {
     `ALTER TABLE vendors ADD COLUMN IF NOT EXISTS display_name TEXT`,
   );
   // Drop old partial index if it still exists, then ensure full unique constraint
-  await client.query(
-    `DROP INDEX IF EXISTS vendors_sap_card_code_key`,
-  );
+  await client.query(`DROP INDEX IF EXISTS vendors_sap_card_code_key`);
   await client.query(
     `ALTER TABLE vendors ADD CONSTRAINT vendors_sap_card_code_unique UNIQUE (sap_card_code)`,
   ).catch(() => { /* already exists — ignore */ });
-  // Back-fill display_name for any rows that have it null
+  // Drop the old unique constraint on `name` — no longer valid after SAP sync
+  // (SAP has suppliers with duplicate CardNames; sap_card_code is the authoritative key now)
+  await client.query(`DROP INDEX IF EXISTS vendors_name_idx`).catch(() => {});
   await client.query(
-    `UPDATE vendors SET display_name = name WHERE display_name IS NULL`,
-  );
+    `ALTER TABLE vendors DROP CONSTRAINT IF EXISTS vendors_name_key`,
+  ).catch(() => {});
+  // Back-fill display_name for any rows that have it null
+  await client.query(`UPDATE vendors SET display_name = name WHERE display_name IS NULL`);
 }
 
 // ─── Vendor list endpoint ──────────────────────────────────────────────────
@@ -113,16 +115,20 @@ export function setupProcurementRoutes(app: Router) {
       try {
         const suppliers = await fetchSapSuppliersViaClient();
         if (suppliers.length > 0) {
-          for (const s of suppliers) {
-            const cardCode = s.CardCode?.trim();
-            const cardName = s.CardName?.trim() || cardCode;
-            if (!cardCode) continue;
+          // Batch upsert — single statement via unnest to avoid 1600+ round-trips
+          const valid = suppliers
+            .map((s) => ({ code: s.CardCode?.trim(), name: s.CardName?.trim() || s.CardCode?.trim() }))
+            .filter((s) => !!s.code);
+          if (valid.length > 0) {
+            const codes = valid.map((s) => s.code);
+            const names = valid.map((s) => s.name);
             await client.query(
               `INSERT INTO vendors (name, display_name, is_active, sap_card_code, created_at, updated_at)
-               VALUES ($1, $1, true, $2, NOW(), NOW())
+               SELECT DISTINCT ON (sap_code) n, n, true, sap_code, NOW(), NOW()
+               FROM unnest($1::text[], $2::varchar[]) AS t(n, sap_code)
                ON CONFLICT (sap_card_code)
-               DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.display_name, is_active = true, updated_at = NOW()`,
-              [cardName, cardCode],
+               DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.name, is_active = true, updated_at = NOW()`,
+              [names, codes],
             );
           }
           const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
@@ -146,7 +152,7 @@ export function setupProcurementRoutes(app: Router) {
 
       // Return local vendor list (now enriched with SAP data)
       const result = await client.query(
-        `SELECT id, name, email, phone, sap_card_code
+        `SELECT id, name, display_name, email, phone, sap_card_code
          FROM vendors
          WHERE is_active = true
          ORDER BY name ASC`,
