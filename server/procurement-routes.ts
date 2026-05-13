@@ -24,15 +24,48 @@ async function fetchSapSuppliersViaClient(): Promise<Array<{ CardCode: string; C
   if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
 
   const { sessionId } = await sapHttpsClient.login(user, pass, db_);
-  const response = await sapHttpsClient.authenticatedRequest(sessionId, {
-    method: 'GET',
-    url: `https://59.152.52.58:50000/b1s/v1/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$top=500`,
-  });
-  if (!response.ok) {
-    throw new Error(`SAP BusinessPartners returned ${response.statusCode}: ${response.body.substring(0, 200)}`);
+
+  // SAP B1 Service Layer hard-caps at 20 rows per page — paginate with $skip
+  const PAGE_SIZE = 20;
+  const allSuppliers: Array<{ CardCode: string; CardName: string }> = [];
+  let skip = 0;
+
+  while (true) {
+    // Build query string using URLSearchParams so all values are properly encoded
+    const qs = new URLSearchParams({
+      '$filter': "CardType eq 'cSupplier'",
+      '$select': 'CardCode,CardName',
+      '$top': String(PAGE_SIZE),
+      '$skip': String(skip),
+    }).toString();
+
+    const response = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      url: '',
+      path: `/b1s/v1/BusinessPartners?${qs}`,
+    });
+
+    if (!response.ok) {
+      throw new Error(`SAP BusinessPartners returned ${response.statusCode}: ${response.body.substring(0, 200)}`);
+    }
+
+    const data = JSON.parse(response.body);
+    const page: Array<{ CardCode: string; CardName: string }> = data.value || [];
+    allSuppliers.push(...page);
+
+    // If fewer than PAGE_SIZE rows returned, we've reached the last page
+    if (page.length < PAGE_SIZE) break;
+    skip += PAGE_SIZE;
+
+    // Safety cap to avoid infinite loops
+    if (allSuppliers.length >= 2000) {
+      console.warn('[vendors] SAP supplier count exceeded 2000 — truncating');
+      break;
+    }
   }
-  const data = JSON.parse(response.body);
-  return data.value || [];
+
+  console.log(`[vendors] SAP fetched ${allSuppliers.length} suppliers (${skip / PAGE_SIZE + 1} pages)`);
+  return allSuppliers;
 }
 
 async function ensureSapCardCodeColumn(client: any): Promise<void> {
