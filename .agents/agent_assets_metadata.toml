@@ -360,3 +360,9 @@ id = "pmzAPomI0aTM6wN0Cyw0o"
 uri = "file://docs/item-code-generation-baseline-v1.3.md"
 type = "text"
 title = "BUY Item Code Generation — Baseline v1.3 (Final Corrected — Ready for Sign-off)"
+
+[[outputs]]
+id = "jpJzmLaSLXV3Dzu_gobXN"
+uri = "file://docs/procurement-list-control-baseline-v1.0.md"
+type = "text"
+title = "PLC Baseline v1.0 — Awaiting Approval"
