@@ -307,22 +307,6 @@ export default function EpcBuyListControlPage() {
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
 
-  // Resolve filter codes outside queryFn to avoid stale closure and to add to queryKey
-  const activeGroupCode    = groupFilterId    !== "all" ? ((groups as any[]).find((g: any) => g.id === groupFilterId)?.code    ?? null) : null;
-  const activeSubgroupCode = subgroupFilterId !== "all" ? ((filterSubgroups as any[]).find((s: any) => s.id === subgroupFilterId)?.code ?? null) : null;
-
-  const { data: buyLists = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/projects", selectedProjectId, "buy-lists", showAllRevisions, statusFilter, activeGroupCode, activeSubgroupCode],
-    queryFn: async () => {
-      const params = new URLSearchParams({ allRevisions: String(showAllRevisions) });
-      if (statusFilter !== "all")  params.set("status",          statusFilter);
-      if (activeGroupCode)         params.set("buyGroupCode",    activeGroupCode);
-      if (activeSubgroupCode)      params.set("buySubgroupCode", activeSubgroupCode);
-      return fetch(`/api/projects/${selectedProjectId}/buy-lists?${params.toString()}`, { credentials: "include" }).then(r => r.json());
-    },
-    enabled: !!selectedProjectId,
-  });
-
   const { data: projectItems = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "items"],
     queryFn: () =>
@@ -351,6 +335,22 @@ export default function EpcBuyListControlPage() {
   });
 
   const { data: uoms = [] } = useQuery<any[]>({ queryKey: ["/api/uom-master"] });
+
+  // Resolve filter codes AFTER groups/filterSubgroups are declared — avoids temporal dead zone crash
+  const activeGroupCode    = groupFilterId    !== "all" ? ((groups as any[]).find((g: any) => g.id === groupFilterId)?.code    ?? null) : null;
+  const activeSubgroupCode = subgroupFilterId !== "all" ? ((filterSubgroups as any[]).find((s: any) => s.id === subgroupFilterId)?.code ?? null) : null;
+
+  const { data: buyLists = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", selectedProjectId, "buy-lists", showAllRevisions, statusFilter, activeGroupCode, activeSubgroupCode],
+    queryFn: async () => {
+      const params = new URLSearchParams({ allRevisions: String(showAllRevisions) });
+      if (statusFilter !== "all")  params.set("status",          statusFilter);
+      if (activeGroupCode)         params.set("buyGroupCode",    activeGroupCode);
+      if (activeSubgroupCode)      params.set("buySubgroupCode", activeSubgroupCode);
+      return fetch(`/api/projects/${selectedProjectId}/buy-lists?${params.toString()}`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!selectedProjectId,
+  });
 
   const { data: expandedLines = [], isLoading: linesLoading } = useQuery<any[]>({
     queryKey: ["/api/buy-lists", expandedId, "lines"],
