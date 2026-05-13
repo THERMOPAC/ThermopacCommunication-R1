@@ -2304,9 +2304,6 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (!['released', 'locked'].includes(ctx.headerStatus)) {
         return sendBusinessError(res, 'Buy list must be in released or locked status to raise PR.');
       }
-      if (!ctx.selectedMasterItemId) {
-        return sendBusinessError(res, 'Line has no selected master item. Approve the selection first.');
-      }
       if (!(await guardNotFrozen(ctx.projectId, res))) return;
       if (!(await guardCostUnlocked(ctx.projectId, res))) return;
 
@@ -2328,41 +2325,37 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const userId = (req.user as any).id;
       const qty = parseFloat(ctx.quantity) || 1;
 
-      // ── project_items dedup: master_item_id + tag_no + source='buy_list' ──
-      const piDedup = await pool.query<{ id: number }>(
-        `SELECT id FROM project_items
-         WHERE project_id = $1
-           AND item_id    = $2
-           AND tag_no     = $3
-           AND source     = 'buy_list'
-           AND status    != 'Cancelled'
-         LIMIT 1`,
-        [ctx.projectId, ctx.selectedMasterItemId, ctx.tagNo],
-      );
-
+      // ── project_items dedup: (master_item_id + tag_no) or (tag_no only when no master) ──
       let projectItemId: number;
       let isReused = false;
 
-      if (piDedup.rows[0]) {
-        projectItemId = piDedup.rows[0].id;
-        isReused = true;
-        await pool.query(
-          `UPDATE project_items SET required_quantity = $1, updated_at = NOW() WHERE id = $2`,
-          [qty, projectItemId],
+      if (ctx.selectedMasterItemId) {
+        const piDedup = await pool.query<{ id: number }>(
+          `SELECT id FROM project_items
+           WHERE project_id = $1 AND item_id = $2 AND tag_no = $3
+             AND source = 'buy_list' AND status != 'Cancelled' LIMIT 1`,
+          [ctx.projectId, ctx.selectedMasterItemId, ctx.tagNo],
         );
+        if (piDedup.rows[0]) {
+          projectItemId = piDedup.rows[0].id;
+          isReused = true;
+          await pool.query(`UPDATE project_items SET required_quantity=$1, updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
+        } else {
+          const piIns = await pool.query<{ id: number }>(
+            `INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at)
+             VALUES ($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
+            [ctx.projectId, ctx.projectCode, ctx.selectedMasterItemId, qty, qty, ctx.tagNo,
+             `BUY LIST: ${ctx.tagNo}${ctx.serviceDescription ? ' | ' + ctx.serviceDescription : ''}`],
+          );
+          projectItemId = piIns.rows[0].id;
+        }
       } else {
+        // Direct-approved line — no master item yet; create project_item placeholder
         const piIns = await pool.query<{ id: number }>(
-          `INSERT INTO project_items
-             (project_id, project_code, item_id, quantity, required_quantity, source, tag_no,
-              notes, status, created_at, updated_at)
-           VALUES ($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW())
-           RETURNING id`,
-          [
-            ctx.projectId, ctx.projectCode,
-            ctx.selectedMasterItemId, qty, qty,
-            ctx.tagNo,
-            `BUY LIST: ${ctx.tagNo}${ctx.serviceDescription ? ' | ' + ctx.serviceDescription : ''}`,
-          ],
+          `INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at)
+           VALUES ($1,$2,NULL,$3,$4,'buy_list',$5,$6,'Not Started',NOW(),NOW()) RETURNING id`,
+          [ctx.projectId, ctx.projectCode, qty, qty, ctx.tagNo,
+           `BUY LIST: ${ctx.tagNo}${ctx.serviceDescription ? ' | ' + ctx.serviceDescription : ''}`],
         );
         projectItemId = piIns.rows[0].id;
       }
@@ -2709,7 +2702,6 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             if (!lineRow.rowCount || lineRow.rowCount === 0) throw new Error('Line not found in this buy list');
             const line = lineRow.rows[0];
             if (line.status !== 'approved') throw new Error(`Line status is '${line.status}' — must be approved`);
-            if (!line.selected_master_item_id) throw new Error('No master item selected for this line');
 
             if (line.planning_record_id) {
               const pr = await client.query(`SELECT status FROM item_planning_records WHERE id = $1`, [line.planning_record_id]);
@@ -2718,14 +2710,22 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
             const qty = parseFloat(line.quantity) || 1;
 
-            const piDedup = await client.query(`SELECT id FROM project_items WHERE project_id=$1 AND item_id=$2 AND tag_no=$3 AND source='buy_list' AND status!='Cancelled' LIMIT 1`, [h.project_id, line.selected_master_item_id, line.tag_no]);
             let projectItemId: number;
-            if (piDedup.rows[0]) {
-              projectItemId = piDedup.rows[0].id;
-              await client.query(`UPDATE project_items SET required_quantity=$1, updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
+            if (line.selected_master_item_id) {
+              const piDedup = await client.query(`SELECT id FROM project_items WHERE project_id=$1 AND item_id=$2 AND tag_no=$3 AND source='buy_list' AND status!='Cancelled' LIMIT 1`, [h.project_id, line.selected_master_item_id, line.tag_no]);
+              if (piDedup.rows[0]) {
+                projectItemId = piDedup.rows[0].id;
+                await client.query(`UPDATE project_items SET required_quantity=$1, updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
+              } else {
+                const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
+                  [h.project_id, h.project_code, line.selected_master_item_id, qty, qty, line.tag_no,
+                   `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
+                projectItemId = piIns.rows[0].id;
+              }
             } else {
-              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
-                [h.project_id, h.project_code, line.selected_master_item_id, qty, qty, line.tag_no,
+              // Direct-approved line — no master item yet; create project_item placeholder
+              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,NULL,$3,$4,'buy_list',$5,$6,'Not Started',NOW(),NOW()) RETURNING id`,
+                [h.project_id, h.project_code, qty, qty, line.tag_no,
                  `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
               projectItemId = piIns.rows[0].id;
             }
