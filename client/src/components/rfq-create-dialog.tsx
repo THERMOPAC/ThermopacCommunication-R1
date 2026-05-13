@@ -9,12 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, X, ChevronDown, Search } from "lucide-react";
 
 interface PlcLine {
-  id: number; plcNumber: string; tagNo: string; serviceDescription: string;
-  subgroupCode: string; status: string;
+  id: number;
+  plcNumber: string;
+  tagNo: string;
+  serviceDescription: string;
+  itemCode: string | null;
+  itemDescription: string | null;
+  subgroupCode: string;
+  status: string;
 }
 interface Vendor { id: number; name: string; display_name?: string; sap_card_code?: string; }
 
@@ -36,7 +41,6 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<number[]>([]);
 
-  // Vendor search dropdown state
   const [vendorSearch, setVendorSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -63,7 +67,9 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
   });
 
   function toggleLine(id: number) {
-    setSelectedLineIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setSelectedLineIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }
 
   function addVendor(vendor: Vendor) {
@@ -110,7 +116,6 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Header fields */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">RFQ Date</Label>
@@ -135,6 +140,7 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
             <div className="flex items-center justify-between mb-1">
               <Label className="text-xs font-semibold">PLC Lines to include</Label>
               <button
+                type="button"
                 className="text-xs text-indigo-600 underline"
                 onClick={() => setSelectedLineIds(eligibleLines.map((l) => l.id))}
               >
@@ -144,23 +150,37 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
             {eligibleLines.length === 0 ? (
               <p className="text-xs text-muted-foreground">No eligible lines (status: pr_raised or pending_rfq)</p>
             ) : (
-              <div className="border rounded max-h-44 overflow-y-auto">
-                {eligibleLines.map((line) => (
-                  <div
-                    key={line.id}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-0"
-                    onClick={() => toggleLine(line.id)}
-                  >
-                    <Checkbox
-                      checked={selectedLineIds.includes(line.id)}
-                      onCheckedChange={() => toggleLine(line.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <span className="text-xs font-mono text-indigo-700 w-32 shrink-0">{line.plcNumber}</span>
-                    <span className="text-xs text-muted-foreground truncate">{line.tagNo} — {line.serviceDescription}</span>
-                    <span className="text-xs text-gray-400 shrink-0">{line.subgroupCode}</span>
-                  </div>
-                ))}
+              <div className="border rounded max-h-52 overflow-y-auto">
+                {eligibleLines.map((line) => {
+                  const isChecked = selectedLineIds.includes(line.id);
+                  const description = line.serviceDescription || line.itemDescription || "";
+                  const code = line.itemCode || "";
+                  return (
+                    <div
+                      key={line.id}
+                      className="flex items-start gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-0 select-none"
+                      onClick={() => toggleLine(line.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        readOnly
+                        checked={isChecked}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600 cursor-pointer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-indigo-700 shrink-0">{line.plcNumber}</span>
+                          <span className="text-xs text-gray-500 shrink-0">{line.tagNo || "—"}</span>
+                          {code && <span className="text-[10px] bg-gray-100 text-gray-600 px-1 rounded shrink-0">{code}</span>}
+                          <span className="text-xs text-gray-400 shrink-0">{line.subgroupCode}</span>
+                        </div>
+                        {description && (
+                          <div className="text-xs text-muted-foreground truncate mt-0.5">{description}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -174,7 +194,6 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
               )}
             </Label>
 
-            {/* Selected vendor chips */}
             {selectedVendors.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {selectedVendors.map((v) => (
@@ -195,7 +214,6 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
               </div>
             )}
 
-            {/* Dropdown trigger + search */}
             <div className="relative">
               <div
                 className="flex items-center border rounded px-3 py-2 gap-2 cursor-text bg-white"
@@ -222,7 +240,11 @@ export function RfqCreateDialog({ projectId, lines, onClose, onSuccess }: Props)
                     </div>
                   ) : filteredVendors.length === 0 ? (
                     <div className="px-3 py-3 text-xs text-muted-foreground">
-                      {vendorSearch ? "No matching vendors" : "All vendors already selected"}
+                      {vendors.length === 0
+                        ? "No vendors available — SAP sync may be in progress"
+                        : vendorSearch
+                        ? "No matching vendors"
+                        : "All vendors already selected"}
                     </div>
                   ) : (
                     filteredVendors.map((v) => (
