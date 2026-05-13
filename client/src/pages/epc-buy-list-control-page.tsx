@@ -307,19 +307,17 @@ export default function EpcBuyListControlPage() {
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
 
+  // Resolve filter codes outside queryFn to avoid stale closure and to add to queryKey
+  const activeGroupCode    = groupFilterId    !== "all" ? ((groups as any[]).find((g: any) => g.id === groupFilterId)?.code    ?? null) : null;
+  const activeSubgroupCode = subgroupFilterId !== "all" ? ((filterSubgroups as any[]).find((s: any) => s.id === subgroupFilterId)?.code ?? null) : null;
+
   const { data: buyLists = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/projects", selectedProjectId, "buy-lists", showAllRevisions, statusFilter, groupFilterId, subgroupFilterId],
+    queryKey: ["/api/projects", selectedProjectId, "buy-lists", showAllRevisions, statusFilter, activeGroupCode, activeSubgroupCode],
     queryFn: async () => {
       const params = new URLSearchParams({ allRevisions: String(showAllRevisions) });
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      if (groupFilterId !== "all") {
-        const gc = (groups as any[]).find((g: any) => g.id === groupFilterId)?.code;
-        if (gc) params.set("buyGroupCode", gc);
-      }
-      if (subgroupFilterId !== "all") {
-        const sc = (filterSubgroups as any[]).find((s: any) => s.id === subgroupFilterId)?.code;
-        if (sc) params.set("buySubgroupCode", sc);
-      }
+      if (statusFilter !== "all")  params.set("status",          statusFilter);
+      if (activeGroupCode)         params.set("buyGroupCode",    activeGroupCode);
+      if (activeSubgroupCode)      params.set("buySubgroupCode", activeSubgroupCode);
       return fetch(`/api/projects/${selectedProjectId}/buy-lists?${params.toString()}`, { credentials: "include" }).then(r => r.json());
     },
     enabled: !!selectedProjectId,
@@ -370,6 +368,14 @@ export default function EpcBuyListControlPage() {
       return linesSortOrder === "subgroup_asc" ? cmp : -cmp;
     });
   }, [expandedLines, linesSortOrder]);
+
+  // Filter lines within expanded header by active group / subgroup
+  const displayLines = useMemo(() => {
+    let lines = sortedLines;
+    if (activeGroupCode)    lines = lines.filter((l: any) => l.buy_group_code    === activeGroupCode);
+    if (activeSubgroupCode) lines = lines.filter((l: any) => l.buy_subgroup_code === activeSubgroupCode);
+    return lines;
+  }, [sortedLines, activeGroupCode, activeSubgroupCode]);
 
   function cycleSubgroupSort() {
     setLinesSortOrder(prev =>
@@ -1510,7 +1516,7 @@ export default function EpcBuyListControlPage() {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {sortedLines.map((line: any) => {
+                                  {displayLines.map((line: any) => {
                                     const canRaisePr =
                                       line.status === "approved" &&
                                       !line.planning_record_id &&
