@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, CheckCircle2, XCircle, Send, Zap, X, Clock } from "lucide-react";
-import { useUser } from "@/hooks/use-user";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ const SENIOR_ROLES = ["Superuser", "General Manager", "Senior Manager"];
 
 export function PoGroupDetail({ pogId, onClose, onMutated }: { pogId: number; onClose: () => void; onMutated: () => void }) {
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
   const isSenior = user && SENIOR_ROLES.includes(user.role);
 
   const [actionDialog, setActionDialog] = useState<"submit" | "approve" | "reject" | "cancel" | "issue-po" | null>(null);
