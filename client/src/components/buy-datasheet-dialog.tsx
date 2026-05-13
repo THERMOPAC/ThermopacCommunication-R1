@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FileSpreadsheet, Download, Loader2 } from "lucide-react";
+import { buildDatasheetEntries } from "@/lib/buy-subgroup-fields";
 
 export interface DatasheetLine {
   line_number?: number | null;
@@ -53,15 +54,11 @@ const S = StyleSheet.create({
 
 // ── PDF Document component ─────────────────────────────────────────────────────
 function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
-  const attrs = line.technical_attributes ?? {};
-  const entries = Object.entries(attrs).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  const entries = buildDatasheetEntries(line.buy_subgroup_code, line.technical_attributes);
   const subgroupDisplay = line.buy_subgroup_label || line.buy_subgroup_code || "—";
   const groupDisplay    = line.buy_group_label    || line.buy_group_code    || "—";
   const now     = new Date();
   const dateStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
-
-  const toTitleCase = (s: string) =>
-    s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <Document>
@@ -116,15 +113,15 @@ function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
           </View>
         )}
 
-        {/* ── Technical Attributes ── */}
+        {/* ── Technical Specifications ── */}
         {entries.length > 0 && (
           <View style={{ marginBottom: 12 }}>
             <Text style={S.secTitle}>Technical Specifications</Text>
             <View style={S.attrTable}>
-              {entries.map(([key, value], idx) => (
-                <View key={key} style={idx % 2 === 0 ? S.attrRowEven : S.attrRowOdd}>
-                  <Text style={S.attrKey}>{toTitleCase(key)}</Text>
-                  <Text style={S.attrVal}>{String(value)}</Text>
+              {entries.map(({ label, value }, idx) => (
+                <View key={label + idx} style={idx % 2 === 0 ? S.attrRowEven : S.attrRowOdd}>
+                  <Text style={S.attrKey}>{label}</Text>
+                  <Text style={S.attrVal}>{value}</Text>
                 </View>
               ))}
             </View>
@@ -174,8 +171,7 @@ export function DatasheetPreviewDialog({
 
   if (!line) return null;
 
-  const attrs   = line.technical_attributes ?? {};
-  const entries = Object.entries(attrs).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  const entries  = buildDatasheetEntries(line.buy_subgroup_code, line.technical_attributes);
   const subLabel = line.buy_subgroup_label || line.buy_subgroup_code || "";
 
   async function handleDownload() {
@@ -216,10 +212,10 @@ export function DatasheetPreviewDialog({
 
           {entries.length > 0 ? (
             <div className="rounded-md border divide-y text-sm">
-              {entries.map(([key, value]) => (
-                <div key={key} className="flex items-center justify-between px-3 py-1.5">
-                  <span className="text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
-                  <span className="font-medium text-right ml-4">{String(value)}</span>
+              {entries.map(({ label, value }, idx) => (
+                <div key={label + idx} className="flex items-center justify-between px-3 py-1.5">
+                  <span className="text-muted-foreground text-xs">{label}</span>
+                  <span className="font-medium text-right ml-4 text-xs">{value}</span>
                 </div>
               ))}
             </div>
