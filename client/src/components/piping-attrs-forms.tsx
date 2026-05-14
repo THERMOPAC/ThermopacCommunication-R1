@@ -390,14 +390,13 @@ export function PipesAttrsForm({
     <div className="space-y-3">
       <SectionCard title="Pipe Specification" color="bg-sky-50/60 border-sky-200">
         {rf("material_grade", "Material Grade", PIPES_MATERIAL_GRADES, true)}
+        {rf("pipe_standard",  "Pipe Standard",  PIPES_STANDARD_OPTS,   true)}
         {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,             true)}
         {rf("schedule",       "Schedule",       PIPES_SCHEDULE,        true)}
         {rf("end_condition",  "End Condition",  endOpts)}
         {rf("length",         "Length",         PIPES_LENGTH_OPTS,     true)}
-        <div />
       </SectionCard>
       <SectionCard title="Standards & Quality" color="bg-emerald-50/60 border-emerald-200">
-        {rf("pipe_standard", "Pipe Standard", PIPES_STANDARD_OPTS, true)}
         {rf("mtr_required",  "MTR Required",  YES_NO,              true)}
       </SectionCard>
       <SectionCard title="Additional Options" color="bg-slate-50/80 border-slate-200">
