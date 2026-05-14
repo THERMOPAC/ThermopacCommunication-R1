@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Customer, InsertCustomer } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -194,10 +195,31 @@ type CustomerFormValues = z.infer<typeof customerSchema>;
 export default function CustomerManagement({ customers }: { customers: Customer[] }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [showSapSyncResult, setShowSapSyncResult] = useState(false);
+  const [sapSyncResult, setSapSyncResult] = useState<{
+    totalFetched: number; imported: number; skipped: number; failed: number; errors: string[];
+  } | null>(null);
+
+  const SAP_SYNC_ROLES = ['Superuser', 'General Manager', 'Senior Manager'];
+  const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
+
+  const sapSyncMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/customers/sap-sync', {}),
+    onSuccess: (data: any) => {
+      setSapSyncResult(data);
+      setShowSapSyncResult(true);
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      toast({ title: 'SAP Sync complete', description: `Imported ${data.imported}, skipped ${data.skipped}` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'SAP Sync failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
+    },
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
@@ -434,6 +456,19 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Import Customers
           </Button>
+          {canSapSync && (
+            <Button
+              variant="outline"
+              className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+              onClick={() => sapSyncMutation.mutate()}
+              disabled={sapSyncMutation.isPending}
+            >
+              {sapSyncMutation.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Search className="h-4 w-4" />}
+              Sync SAP Customers (BP &gt; C10300)
+            </Button>
+          )}
           <Button
             onClick={async () => {
               form.reset({
@@ -1219,6 +1254,51 @@ export default function CustomerManagement({ customers }: { customers: Customer[
         open={isImportDialogOpen} 
         onOpenChange={setIsImportDialogOpen} 
       />
+
+      {/* SAP Sync Result Dialog */}
+      <Dialog open={showSapSyncResult} onOpenChange={setShowSapSyncResult}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>SAP Customer Sync — Results</DialogTitle>
+            <DialogDescription>
+              Sync completed for BusinessPartners where CardCode &gt; C10300.
+            </DialogDescription>
+          </DialogHeader>
+          {sapSyncResult && (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-md border p-3 text-center">
+                  <p className="text-2xl font-bold text-slate-800">{sapSyncResult.totalFetched}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Fetched from SAP</p>
+                </div>
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-700">{sapSyncResult.imported}</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">Imported</p>
+                </div>
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-700">{sapSyncResult.skipped}</p>
+                  <p className="text-xs text-amber-600 mt-0.5">Skipped (already exist)</p>
+                </div>
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-center">
+                  <p className="text-2xl font-bold text-red-700">{sapSyncResult.failed}</p>
+                  <p className="text-xs text-red-600 mt-0.5">Failed</p>
+                </div>
+              </div>
+              {sapSyncResult.errors.length > 0 && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 max-h-40 overflow-y-auto">
+                  <p className="text-xs font-medium text-red-700 mb-1">Error details:</p>
+                  {sapSyncResult.errors.map((e, i) => (
+                    <p key={i} className="text-xs text-red-600">{e}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setShowSapSyncResult(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
