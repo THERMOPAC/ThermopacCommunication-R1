@@ -149,10 +149,20 @@ export async function getSharedSapSession(): Promise<string> {
   }
 }
 
-export function invalidateSharedSapSession() {
+export async function invalidateSharedSapSession(): Promise<void> {
+  const cookieToLogout = _sapSession?.cookie ?? null;
   _sapSession = null;
   _clearPersistedSapSession();
   console.log('[sap-session] Session invalidated (memory + disk cleared)');
+  if (cookieToLogout) {
+    try {
+      const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+      await sapHttpsClient.logout(cookieToLogout);
+      console.log('[sap-session] SAP logout successful — session terminated on server');
+    } catch (e) {
+      console.warn('[sap-session] SAP logout failed (non-fatal):', (e as any)?.message);
+    }
+  }
 }
 
 async function fetchSapVendors(): Promise<SapVendorRecord[]> {
@@ -196,7 +206,7 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
       if (!resp.ok) {
         const body = resp.body?.substring(0, 400) ?? '';
         if (isSapSessionConflict(body)) {
-          invalidateSharedSapSession();
+          await invalidateSharedSapSession();
           throw new Error(
             'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
             'Wait 1–2 minutes for it to expire, then try again.',
@@ -264,7 +274,7 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
   // The shared session may have been primed by Full Sync (which uses $select).
   // SAP only returns UDF fields (U_ERP_Group) on fresh sessions without
   // prior $select usage. Invalidate first to guarantee a clean login.
-  invalidateSharedSapSession();
+  await invalidateSharedSapSession();
   let sessionId: string;
   try {
     sessionId = await getSharedSapSession();
@@ -305,7 +315,7 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
       });
       if (!resp.ok) {
         const body = resp.body?.substring(0, 400) ?? '';
-        if (isSapSessionConflict(body)) { invalidateSharedSapSession(); throw new Error('SESSION_CONFLICT'); }
+        if (isSapSessionConflict(body)) { await invalidateSharedSapSession(); throw new Error('SESSION_CONFLICT'); }
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
       }
       const page: any[] = JSON.parse(resp.body).value ?? [];
@@ -469,7 +479,7 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
       if (!resp.ok) {
         const body = resp.body?.substring(0, 400) ?? '';
         if (isSapSessionConflict(body)) {
-          invalidateSharedSapSession();
+          await invalidateSharedSapSession();
           return { login: true, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
         }
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
@@ -719,10 +729,10 @@ export function setupProcurementRoutes(app: Router) {
    * Clears a stuck syncInProgress flag and invalidates the shared SAP session.
    * Use when Full Sync hangs and the 409 lock never releases.
    */
-  app.post('/api/vendors/sync/reset', ensureAuthenticated, (req: Request, res: Response) => {
+  app.post('/api/vendors/sync/reset', ensureAuthenticated, async (req: Request, res: Response) => {
     const wasSyncing = syncInProgress;
     syncInProgress = false;
-    invalidateSharedSapSession();
+    await invalidateSharedSapSession();
     console.log(`[vendors/sync/reset] forced reset — wasSyncing=${wasSyncing}`);
     res.json({ ok: true, wasSyncing, message: 'Sync lock cleared. SAP session invalidated.' });
   });
