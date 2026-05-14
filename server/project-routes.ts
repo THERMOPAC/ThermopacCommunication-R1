@@ -54,7 +54,6 @@ import { executeProjectCancellationCascade, executeProjectRestorationCascade, is
 import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
 import { isDwgGateRequired } from './utils/epc-dwg-linking';
 import { triggerInspectionOnPoIssuance, triggerInspectionOnWoRelease } from './utils/epc-inspection-trigger';
-import { getSharedSapSession } from './procurement-routes';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -3014,6 +3013,8 @@ export function setupProjectRoutes(app: express.Express) {
       logId = logRes.rows[0].id;
 
       // Reuse shared SAP session (same pool as vendor sync) — avoids -1102 login collision
+      // Dynamic import avoids circular-dependency issues with static imports
+      const { getSharedSapSession } = await import('./procurement-routes');
       const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
       sessionCookie = await getSharedSapSession();
 
