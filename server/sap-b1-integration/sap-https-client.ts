@@ -106,7 +106,7 @@ export class SapHttpsClient {
     });
   }
 
-  async login(username: string, password: string, companyDb: string): Promise<{ sessionId: string; response: SapResponse }> {
+  async login(username: string, password: string, companyDb: string): Promise<{ sessionId: string; sessionCookie: string; response: SapResponse }> {
     const loginData = {
       CompanyDB: companyDb,
       UserName: username,
@@ -123,18 +123,21 @@ export class SapHttpsClient {
       throw new Error(`SAP login failed: ${response.statusCode} - ${response.body}`);
     }
 
-    // Extract session ID from Set-Cookie header
+    // SAP B1 sets multiple cookies: B1SESSION, CompanyDB, UserName (and sometimes RouteId).
+    // ALL of them must be forwarded in every authenticated request — sending only B1SESSION
+    // causes -1102 "Switch company" errors because SAP cannot resolve the company context.
     const setCookieHeader = response.headers['set-cookie'];
     let sessionId = '';
-    
+    const cookieParts: string[] = [];
+
     if (setCookieHeader) {
       const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
       for (const cookie of cookieArray) {
+        // Each Set-Cookie entry: "NAME=value; Path=/; ..."  — take only the first NAME=value part
+        const nameValue = cookie.split(';')[0].trim();
+        if (nameValue) cookieParts.push(nameValue);
         const match = cookie.match(/B1SESSION=([^;]+)/);
-        if (match) {
-          sessionId = match[1];
-          break;
-        }
+        if (match) sessionId = match[1];
       }
     }
 
@@ -142,12 +145,20 @@ export class SapHttpsClient {
       throw new Error('No session ID received from SAP Service Layer');
     }
 
-    return { sessionId, response };
+    // Full cookie string to send verbatim in Cookie: header
+    const sessionCookie = cookieParts.join('; ');
+
+    return { sessionId, sessionCookie, response };
   }
 
-  async authenticatedRequest(sessionId: string, options: SapRequestOptions): Promise<SapResponse> {
+  /**
+   * Make an authenticated SAP B1 request.
+   * Pass the full `sessionCookie` string returned by `login()` — it includes
+   * B1SESSION, CompanyDB, UserName and any other SAP session cookies.
+   */
+  async authenticatedRequest(sessionCookie: string, options: SapRequestOptions): Promise<SapResponse> {
     const headers = {
-      'Cookie': `B1SESSION=${sessionId}`,
+      'Cookie': sessionCookie,
       ...options.headers
     };
 
@@ -158,13 +169,12 @@ export class SapHttpsClient {
   }
 
   /**
-   * Logout from SAP B1 Service Layer to immediately release the session.
-   * Always call this in a finally block after any SAP operation.
+   * Logout from SAP B1 Service Layer.
    * Swallows errors silently — a failed logout is never fatal.
    */
-  async logout(sessionId: string): Promise<void> {
+  async logout(sessionCookie: string): Promise<void> {
     try {
-      await this.authenticatedRequest(sessionId, {
+      await this.authenticatedRequest(sessionCookie, {
         method: 'POST',
         url: '',
         path: '/b1s/v1/Logout',

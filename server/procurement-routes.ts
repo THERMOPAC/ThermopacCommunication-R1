@@ -41,7 +41,10 @@ function isSapSessionConflict(raw: string): boolean {
 // SAP B1 sessions don't release immediately after /Logout (server-side expiry
 // takes 1-2 min). Sharing one session across Test / UDF Check / Full Sync
 // eliminates the login-collision that causes -1102 between operations.
-interface SapSessionCache { id: string; createdAt: number; }
+// Cache stores the FULL cookie string (B1SESSION + CompanyDB + UserName + …) so
+// every authenticated request carries the complete session context SAP requires.
+// Sending only B1SESSION causes -1102 "Switch company" errors on subsequent calls.
+interface SapSessionCache { cookie: string; createdAt: number; }
 let _sapSession: SapSessionCache | null = null;
 const SAP_SESSION_TTL_MS = 25 * 60 * 1000; // 25 min (SAP default is 30 min idle)
 
@@ -54,15 +57,15 @@ async function getSharedSapSession(): Promise<string> {
 
   if (_sapSession && (Date.now() - _sapSession.createdAt) < SAP_SESSION_TTL_MS) {
     console.log('[sap-session] Reusing existing session');
-    return _sapSession.id;
+    return _sapSession.cookie;
   }
 
   _sapSession = null; // clear stale entry before attempting login
   try {
     const r = await sapHttpsClient.login(user, pass, db_);
-    _sapSession = { id: r.sessionId, createdAt: Date.now() };
-    console.log('[sap-session] New session created');
-    return _sapSession.id;
+    _sapSession = { cookie: r.sessionCookie, createdAt: Date.now() };
+    console.log(`[sap-session] New session created — cookies: ${r.sessionCookie.replace(/=[^;]+/g, '=***')}`);
+    return _sapSession.cookie;
   } catch (err) {
     _sapSession = null;
     throw err; // propagates including -1102
