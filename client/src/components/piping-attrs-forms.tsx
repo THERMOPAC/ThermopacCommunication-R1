@@ -955,12 +955,17 @@ const GASKET_STANDARD            = ["ASME B16.20","ASME B16.21","API 601"];
 const GASKETS_FACING_OPTS        = ["RF","FF","RTJ"];
 const GASKET_CAMPROFILE_CORE     = ["SS316","SS304","CS","Inconel 625"];
 const GASKET_CAMPROFILE_FACING   = ["Graphite","PTFE"];
+const GASKET_SHEET_GRADES        = [
+  "Grade 20","Grade 25","Grade 30","Grade 40","Grade 45",
+  "Grade 50","Grade 59","Grade 60","Grade 65","Grade 80",
+];
 const GASKETS_ALL_OPTS: Record<string, string[]> = {
   gasket_type:            GASKET_TYPES,
   nominal_bore:           COMMON_NB,
   pressure_class:         PRESSURE_CLASS_OPTS,
   facing:                 GASKETS_FACING_OPTS,
   gasket_standard:        GASKET_STANDARD,
+  sheet_grade:            GASKET_SHEET_GRADES,
   winding_material:       GASKET_WINDING_MATERIAL,
   inner_ring_material:    GASKET_INNER_RING_MATERIAL,
   rtj_ring_material:      GASKET_RTJ_RING_MATERIAL,
@@ -1051,12 +1056,12 @@ export function GasketsAttrsForm({
   return (
     <div className="space-y-3">
       <SectionCard title="Gasket Specification" color="bg-sky-50/60 border-sky-200">
-        {rf("gasket_type",    "Gasket Type",    GASKET_TYPES,        true)}
-        {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,           true)}
-        {rf("pressure_class", "Pressure Class", PRESSURE_CLASS_OPTS, true)}
-        {rf("facing",         "Facing",         GASKETS_FACING_OPTS, true)}
-        {rf("gasket_standard","Standard",       GASKET_STANDARD,     true)}
-        <div />
+        {rf("gasket_type",    "Gasket Type",          GASKET_TYPES,        true)}
+        {rf("nominal_bore",   "Nominal Bore",         COMMON_NB,           true)}
+        {rf("pressure_class", "Pressure Class",       PRESSURE_CLASS_OPTS, true)}
+        {rf("facing",         "Facing",               GASKETS_FACING_OPTS, true)}
+        {rf("gasket_standard","Standard",             GASKET_STANDARD,     true)}
+        {rf("sheet_grade",    "Gasket Sheet Grade",   GASKET_SHEET_GRADES)}
       </SectionCard>
       {(isSW || isRTJ || isFlat || isCamp) && (
         <SectionCard title="Materials" color="bg-violet-50/60 border-violet-200">
