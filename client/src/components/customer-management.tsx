@@ -220,6 +220,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       toast({ title: 'SAP Sync failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
+
+  const forceResetSapMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/sap/session/force-reset'),
+    onSuccess: (data: any) => {
+      toast({ title: 'SAP Session Reset', description: data?.message ?? 'Session cleared — next sync will do a fresh login.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Force Reset Failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
+    },
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
