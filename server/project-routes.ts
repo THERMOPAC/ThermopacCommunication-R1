@@ -3018,13 +3018,13 @@ export function setupProjectRoutes(app: express.Express) {
       let sapSkip = 0;
       const allRows: Array<{
         CardCode: string; CardName: string; ContactPerson: string;
-        Phone1: string; Address: string; City: string; Country: string; E_Mail: string;
+        Phone1: string; Address: string; City: string; Country: string; EmailAddress: string;
       }> = [];
 
       // Paginate SAP with $select — standard fields only, no UDF, so $select is safe
       while (true) {
         const qs = new URLSearchParams({
-          '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,E_Mail',
+          '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
           '$filter': "CardType eq 'C' AND CardCode gt 'C10300'",
           '$top':    String(PAGE_SIZE),
           '$skip':   String(sapSkip),
@@ -3050,7 +3050,7 @@ export function setupProjectRoutes(app: express.Express) {
             Address:       String(bp.Address       ?? '').trim(),
             City:          String(bp.City          ?? '').trim(),
             Country:       String(bp.Country       ?? '').trim(),
-            E_Mail:        String(bp.E_Mail        ?? '').trim(),
+            EmailAddress:  String(bp.EmailAddress   ?? '').trim(),
           });
         }
 
@@ -3088,7 +3088,7 @@ export function setupProjectRoutes(app: express.Express) {
              ON CONFLICT DO NOTHING`,
             [
               row.CardCode, row.CardName, shortCode, row.CardCode,
-              row.ContactPerson || null, row.E_Mail || null, row.Phone1 || null,
+              row.ContactPerson || null, row.EmailAddress || null, row.Phone1 || null,
               row.Address || null, row.City || null, row.Country || null,
             ],
           );
