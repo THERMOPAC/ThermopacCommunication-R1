@@ -29,25 +29,12 @@ interface SapVendorRecord {
   U_ERP_Group: string | null;
 }
 
-// Helper: SAP login with session-conflict awareness.
-// -1102 "Switch company error" means a previous SAP session for this user is still active.
-// Retrying immediately does nothing — the old session takes 1–2 minutes to expire on its own.
-// Detect it early and throw a user-facing message so they know to wait.
-async function sapLogin(sapHttpsClient: any, user: string, pass: string, db_: string): Promise<string> {
-  try {
-    const { sessionId } = await sapHttpsClient.login(user, pass, db_);
-    return sessionId;
-  } catch (err: any) {
-    const msg: string = err?.message ?? String(err);
-    const is1102 = msg.includes('-1102') || msg.toLowerCase().includes('switch company');
-    if (is1102) {
-      throw new Error(
-        'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
-        'Wait 1–2 minutes for it to expire, then sync again.',
-      );
-    }
-    throw err;
-  }
+// ── Concurrency guard — only one sync may run at a time ──────────────────────
+let syncInProgress = false;
+
+// Parse -1102 session conflict from a SAP error message or body string
+function isSapSessionConflict(raw: string): boolean {
+  return raw.includes('-1102') || raw.toLowerCase().includes('switch company');
 }
 
 async function fetchSapVendors(): Promise<SapVendorRecord[]> {
@@ -57,15 +44,27 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   const db_  = process.env.SAP_COMPANY_DB || '';
   if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
 
-  const PAGE_SIZE = 20;
+  // Login — detect session conflict immediately and surface a user-facing message
+  let sessionId: string;
+  try {
+    const result = await sapHttpsClient.login(user, pass, db_);
+    sessionId = result.sessionId;
+  } catch (err: any) {
+    const msg: string = err?.message ?? String(err);
+    if (isSapSessionConflict(msg)) {
+      throw new Error(
+        'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
+        'Wait 1–2 minutes for it to expire, then try again.',
+      );
+    }
+    throw err;
+  }
 
-  // ── Phase 1: Fetch all suppliers using $select (fast, proven) ─────────────
-  // $select keeps each page response small; UDFs are NOT included here (SAP OData rejects
-  // UDFs in $select). vendor_type is populated separately in Phase 2.
-  let sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
-  const phase1: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
+  const PAGE_SIZE = 20;
+  const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
   let skip = 0;
 
+  // Fetch all suppliers using $select (fast, small pages, no UDFs — SAP OData rejects UDFs in $select)
   while (true) {
     const qs = new URLSearchParams({
       '$filter': "CardType eq 'cSupplier'",
@@ -79,92 +78,38 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
     });
 
     if (!resp.ok) {
-      // "Switch company" 500 — refresh session and retry once
-      if (resp.statusCode === 500) {
-        console.warn('[vendors/sync] Phase 1 got 500 — refreshing session and retrying page');
-        sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
-        continue;
+      // Any SAP error — check for session conflict, otherwise throw generic error
+      const body = resp.body?.substring(0, 400) ?? '';
+      if (isSapSessionConflict(body)) {
+        throw new Error(
+          'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
+          'Wait 1–2 minutes for it to expire, then try again.',
+        );
       }
-      throw new Error(`SAP Phase 1 returned ${resp.statusCode}: ${resp.body.substring(0, 300)}`);
+      throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
     }
 
-    const page = (JSON.parse(resp.body).value || []) as typeof phase1;
-    phase1.push(...page);
+    const page = (JSON.parse(resp.body).value || []) as typeof allSuppliers;
+    allSuppliers.push(...page);
     if (page.length < PAGE_SIZE) break;
     skip += PAGE_SIZE;
-    if (phase1.length >= 3000) { console.warn('[vendors/sync] Phase 1 capped at 3000'); break; }
+    if (allSuppliers.length >= 3000) { console.warn('[vendors/sync] SAP supplier count capped at 3000'); break; }
   }
 
-  const eligible = phase1.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-  console.log(`[vendors/sync] Phase 1: ${phase1.length} total → ${eligible.length} eligible (excluded groups: ${[...EXCLUDED_GROUP_CODES].join(',')})`);
+  const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
+  console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total → ${eligible.length} eligible`);
 
-  // ── Phase 2: Best-effort — fetch U_ERP_Group from full BP records ──────────
-  // Full records include UDFs. Refresh SAP session every 5 pages to avoid session expiry.
-  // If this phase fails, the sync still completes — vendor_type is left null.
-  const udfMap: Record<string, string | null> = {};
-  const eligibleSet = new Set(eligible.map((s) => s.CardCode?.trim()));
-
-  try {
-    sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
-    skip = 0;
-    let pageCount = 0;
-    const SESSION_REFRESH_EVERY = 5;   // refresh SAP session every 5 pages (~100 vendors)
-
-    while (true) {
-      // Proactive session refresh before it can expire
-      if (pageCount > 0 && pageCount % SESSION_REFRESH_EVERY === 0) {
-        try {
-          sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
-          console.log(`[vendors/sync] Phase 2: session refreshed at page ${pageCount}`);
-        } catch {
-          console.warn('[vendors/sync] Phase 2: session refresh failed — aborting UDF fetch');
-          break;
-        }
-      }
-
-      const qs = new URLSearchParams({
-        '$filter': "CardType eq 'cSupplier'",
-        // No $select — full record so UDFs are returned
-        '$top':  String(PAGE_SIZE),
-        '$skip': String(skip),
-      }).toString();
-
-      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
-      });
-
-      if (!resp.ok) {
-        console.warn(`[vendors/sync] Phase 2 page ${pageCount} returned ${resp.statusCode} — aborting UDF fetch`);
-        break;
-      }
-
-      const page: any[] = JSON.parse(resp.body).value || [];
-      for (const bp of page) {
-        const code = bp.CardCode?.trim();
-        if (code && eligibleSet.has(code)) {
-          const udf = bp['U_ERP_Group']?.trim();
-          udfMap[code] = VALID_VENDOR_TYPES.has(udf ?? '') ? udf : null;
-        }
-      }
-
-      pageCount++;
-      if (page.length < PAGE_SIZE) break;
-      skip += PAGE_SIZE;
-    }
-
-    console.log(`[vendors/sync] Phase 2: U_ERP_Group mapped for ${Object.keys(udfMap).length}/${eligible.length} vendors`);
-  } catch (phase2Err: any) {
-    console.warn('[vendors/sync] Phase 2 aborted — vendor_type will be null:', phase2Err?.message);
-  }
-
-  // Merge phase 1 + phase 2 results
+  // vendor_type (U_ERP_Group) is intentionally null for now — SAP OData rejects UDFs in
+  // $select and fetching full records causes session timeouts at scale.
+  // All eligible vendors are synced with vendor_type=null and can be classified later.
   return eligible.map((s) => ({
     CardCode:    s.CardCode,
     CardName:    s.CardName,
     GroupCode:   s.GroupCode,
-    U_ERP_Group: udfMap[s.CardCode?.trim()] ?? null,
+    U_ERP_Group: null,
   }));
 }
+
 
 // ─── Vendor list endpoint ──────────────────────────────────────────────────
 export function setupProcurementRoutes(app: Router) {
@@ -205,6 +150,10 @@ export function setupProcurementRoutes(app: Router) {
    * Marks vendors no longer in SAP as inactive.
    */
   app.post('/api/vendors/sync', ensureAuthenticated, async (req: Request, res: Response) => {
+    if (syncInProgress) {
+      return res.status(409).json({ error: 'A sync is already in progress. Please wait for it to finish.' });
+    }
+    syncInProgress = true;
     const client = await pool.connect();
     try {
       const suppliers = await fetchSapVendors();
@@ -259,9 +208,15 @@ export function setupProcurementRoutes(app: Router) {
         message:     `Synced ${valid.length} vendors from SAP`,
       });
     } catch (err: any) {
-      console.error('[vendors/sync] SAP sync error:', err?.message || err);
-      res.status(502).json({ error: `SAP sync failed: ${err?.message || 'unknown error'}` });
+      const msg: string = err?.message || 'unknown error';
+      console.error('[vendors/sync] SAP sync error:', msg);
+      const isConflict = msg.includes('SAP_SESSION_CONFLICT');
+      const userMsg = isConflict
+        ? msg.replace('SAP_SESSION_CONFLICT: ', '')
+        : `SAP sync failed: ${msg}`;
+      res.status(isConflict ? 503 : 502).json({ error: userMsg });
     } finally {
+      syncInProgress = false;
       client.release();
     }
   });
