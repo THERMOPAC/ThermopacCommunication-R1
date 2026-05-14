@@ -3,6 +3,7 @@ import multer from 'multer';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { requireSapAccess } from '../middleware/sap-auth-middleware';
 import { sapHttpsClient, SapHttpsClient } from './sap-https-client';
+import { sapSession } from './sap-central-session';
 import { sapSessionManager } from '../sap-session-manager';
 import { pool } from '../db';
 import { getGrpoQcChecklistConfig, validateGrpoQcPayload, toSapPayload } from '@shared/grpo-qc-config';
@@ -179,18 +180,19 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
     try {
       const sapClient = new SapHttpsClient();
       const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
-      const loginResponse = await sapClient.request({
-        method: 'POST', url: `${sapServiceUrl}/Login`,
-        headers: { 'Content-Type': 'application/json' },
-        body: getSapLoginBody(req),
-        timeout: 15000
-      });
+      // Use central session to avoid creating a competing B1SESSION on every dashboard load
+      let centralCookie: string | undefined;
+      try {
+        centralCookie = await sapSession.getSession();
+      } catch (loginErr: any) {
+        console.warn('[SAP Stats] Central session unavailable (non-fatal):', loginErr.message);
+      }
 
-      if (loginResponse.statusCode === 200) {
+      if (centralCookie) {
         sapAvailable = true;
         const requestHeaders = {
           'Content-Type': 'application/json',
-          'Cookie': parseSapCookies(loginResponse.headers['set-cookie'])
+          'Cookie': centralCookie
         };
 
         const [allPOResp, openPOResp, recentPOResp, invoiceResp, openInvoiceResp, grpoResp, openGrpoResp, vendorResp] = await Promise.all([
@@ -922,46 +924,13 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
       console.log(`Using SAP Service Layer URL: ${sapServiceUrl}`);
       
-      // Login to SAP B1 Service Layer with retry logic
-      let loginResponse;
-      let retryCount = 0;
-      const maxRetries = 2;
-      
-      while (retryCount <= maxRetries) {
-        try {
-          console.log(`SAP login attempt ${retryCount + 1}/${maxRetries + 1} for user ${userId}`);
-            
-          loginResponse = await sapClient.request({
-            method: 'POST',
-            url: `${sapServiceUrl}/Login`,
-            headers: { 'Content-Type': 'application/json' },
-            body: getSapLoginBody(req),
-            timeout: 300000
-          });
-          
-          if (loginResponse.statusCode === 200) {
-            console.log(`SAP login successful for user ${userId}`);
-            break;
-          }
-          
-        } catch (loginError: any) {
-          console.error(`SAP login attempt ${retryCount + 1} failed:`, loginError.message);
-          if (retryCount === maxRetries) {
-            throw new Error(`SAP connection timeout - please verify SAP system is accessible at ${sapServiceUrl}. Error: ${loginError.message}`);
-          }
-          retryCount++;
-          // Wait 5 seconds before retry
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-      }
-
-      if (loginResponse.statusCode !== 200) {
-        throw new Error(`SAP login failed: ${loginResponse.statusCode}`);
-      }
+      // Use central session — avoids creating a competing B1SESSION during sync
+      console.log(`[sync/purchase-orders] Obtaining central SAP session for user ${userId}`);
+      const centralCookieSync = await sapSession.getSession();
 
       const requestHeaders = {
         'Content-Type': 'application/json',
-        'Cookie': parseSapCookies(loginResponse.headers['set-cookie'])
+        'Cookie': centralCookieSync
       };
 
       // Get sync date filter from settings
@@ -1488,6 +1457,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
   const startTime = Date.now();
   let requestFingerprint: any = {};
   let sapSessionId: string | null = null;
+  let usingCentralSession = false;
   const sapClient = new SapHttpsClient();
   const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
 
@@ -1558,30 +1528,20 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       requestHeaders['Cookie'] = `B1SESSION=${sapSessionId}${routeId ? `; ROUTEID=${routeId}` : ''}`;
       console.log(`[GRPO] Using user's existing SAP session`);
     } else {
-      let loginResponse;
+      // No user session — use the central system session to avoid creating a competing B1SESSION
+      let centralCookie: string;
       try {
-        loginResponse = await sapClient.request({
-          method: 'POST', url: `${sapServiceUrl}/Login`,
-          headers: { 'Content-Type': 'application/json' },
-          body: getSapLoginBody(req),
-          timeout: 60000
-        });
+        centralCookie = await sapSession.getSession();
       } catch (connErr: any) {
         grpoLocks.delete(poDocEntry);
-        console.error(`[GRPO] SAP connection failed:`, connErr.message);
+        console.error(`[GRPO] Central SAP session unavailable:`, connErr.message);
         return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
       }
-
-      if (loginResponse.statusCode !== 200) {
-        grpoLocks.delete(poDocEntry);
-        return res.status(502).json({ success: false, error: `SAP login failed: ${loginResponse.statusCode}`, code: 'SAP_LOGIN_FAILED' });
-      }
-
-      const loginCookies = loginResponse.headers['set-cookie'];
-      requestHeaders['Cookie'] = parseSapCookies(loginCookies);
-      const sessionMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
+      requestHeaders['Cookie'] = centralCookie;
+      const sessionMatch = centralCookie.match(/B1SESSION=([^;]+)/);
       sapSessionId = sessionMatch ? sessionMatch[1] : null;
-      console.log(`[GRPO] Using fresh SAP login session, Cookie: ${requestHeaders.Cookie}`);
+      usingCentralSession = true;
+      console.log(`[GRPO] Using central SAP session (no user session available)`);
     }
 
     // === LAYER 2: Live SAP Validation (MANDATORY) ===
@@ -1595,27 +1555,21 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       });
 
       if (livePOResponse.statusCode === 401) {
-        console.warn(`[GRPO] User SAP session expired (401). Retrying with fresh login to ${getSapCompanyDb(req)}...`);
+        console.warn(`[GRPO] Session expired (401) — refreshing central session...`);
         try {
-          const retryLogin = await sapClient.request({
-            method: 'POST', url: `${sapServiceUrl}/Login`,
-            headers: { 'Content-Type': 'application/json' },
-            body: getSapLoginBody(req),
-            timeout: 60000
+          await sapSession.invalidate();
+          const freshCookie = await sapSession.getSession();
+          requestHeaders['Cookie'] = freshCookie;
+          const retryMatch = freshCookie.match(/B1SESSION=([^;]+)/);
+          sapSessionId = retryMatch ? retryMatch[1] : null;
+          usingCentralSession = true;
+          console.log(`[GRPO] Central session refreshed, retrying PO fetch`);
+          livePOResponse = await sapClient.request({
+            method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
+            headers: requestHeaders, timeout: 60000
           });
-          if (retryLogin.statusCode === 200) {
-            const retryCookies = retryLogin.headers['set-cookie'];
-            requestHeaders['Cookie'] = parseSapCookies(retryCookies);
-            const retryMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
-            sapSessionId = retryMatch ? retryMatch[1] : null;
-            console.log(`[GRPO] Fresh login successful, retrying PO fetch, Cookie: ${requestHeaders.Cookie}`);
-            livePOResponse = await sapClient.request({
-              method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
-              headers: requestHeaders, timeout: 60000
-            });
-          }
         } catch (retryErr: any) {
-          console.error(`[GRPO] Fresh login retry failed:`, retryErr.message);
+          console.error(`[GRPO] Central session refresh failed:`, retryErr.message);
         }
       }
 
@@ -1956,7 +1910,8 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     console.error(`[GRPO] Unexpected error:`, error);
     await persistGrpoAudit({ poDocEntry: requestFingerprint.poDocEntry, fingerprint: requestFingerprint, status: 'ERROR', sapError: error.message, durationMs: Date.now() - startTime, createdBy: requestFingerprint.userId });
 
-    if (sapSessionId) {
+    // Only logout if we own the session (user session) — never logout the central session
+    if (sapSessionId && !usingCentralSession) {
       try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: { Cookie: `B1SESSION=${sapSessionId}` } }); } catch {}
     }
 
@@ -2003,26 +1958,17 @@ router.post('/grpo/direct', async (req: any, res) => {
 
     console.log(`[GRPO-DIRECT] Validation+Post attempt for PO DocEntry ${poDocEntry}, ${docLines.length} lines, user ${userId}`);
 
-    let loginResponse;
+    // Use central session — avoids creating a competing B1SESSION
+    let centralCookieDirect: string;
     try {
-      loginResponse = await sapClient.request({
-        method: 'POST', url: `${sapServiceUrl}/Login`,
-        headers: { 'Content-Type': 'application/json' },
-        body: getSapLoginBody(req),
-        timeout: 60000
-      });
+      centralCookieDirect = await sapSession.getSession();
     } catch (connErr: any) {
       return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
     }
 
-    if (loginResponse.statusCode !== 200) {
-      return res.status(502).json({ success: false, error: `SAP login failed: ${loginResponse.statusCode}`, code: 'SAP_LOGIN_FAILED' });
-    }
-
-    const loginCookies = loginResponse.headers['set-cookie'];
     const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Cookie': parseSapCookies(loginCookies)
+      'Cookie': centralCookieDirect
     };
 
     // === STEP 1: Fetch live PO ===
@@ -2216,18 +2162,11 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
   const sapClient = new SapHttpsClient();
   const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
 
+  // Use central session — avoids creating a competing B1SESSION on each attachment upload
   async function doFreshLogin(): Promise<Record<string, string>> {
-    const companyDb = getSapCompanyDb(req);
-    console.log(`[ATTACHMENT] Fresh login to company: ${companyDb}`);
-    const loginResp = await sapClient.request({
-      method: 'POST', url: `${sapServiceUrl}/Login`,
-      headers: { 'Content-Type': 'application/json' },
-      body: getSapLoginBody(req),
-      timeout: 60000
-    });
-    if (loginResp.statusCode !== 200) throw new Error(`SAP login failed (${loginResp.statusCode})`);
-    const cookies = loginResp.headers['set-cookie'];
-    return { Cookie: parseSapCookies(cookies) };
+    console.log(`[ATTACHMENT] Obtaining central SAP session`);
+    const centralCookie = await sapSession.getSession();
+    return { Cookie: centralCookie };
   }
 
   try {

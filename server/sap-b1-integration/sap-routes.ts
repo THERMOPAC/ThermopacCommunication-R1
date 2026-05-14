@@ -1640,6 +1640,35 @@ router.post('/sync/purchase-orders', ensureAuthenticated, async (req, res) => {
 });
 
 /**
+ * GET /session/debug — full runtime diagnostics for the central SAP session.
+ * Shows stats, health, disk-file state, and env (no secrets).
+ */
+router.get('/session/debug', ensureAuthenticated, async (_req, res) => {
+  try {
+    const info = sapSession.getDebugInfo();
+    res.json({ success: true, data: info });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /session/force-reset — admin action: hard-invalidates the central session,
+ * waits 2 s, then re-initializes so the next request triggers a clean fresh login.
+ * Use this when -1102 persists and you cannot wait 30 minutes.
+ */
+router.post('/session/force-reset', ensureAuthenticated, async (_req, res) => {
+  try {
+    console.log('[SapRoutes] POST /session/force-reset — initiating admin force-reset');
+    const result = await sapSession.forceReset();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error('[SapRoutes] force-reset failed:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * Get sync status
  */
 router.get('/sync/status', ensureAuthenticated, async (req, res) => {
