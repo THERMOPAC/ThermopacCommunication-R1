@@ -2691,6 +2691,10 @@ export const vendors = pgTable('vendors', {
   displayName: text('display_name'),
   sapCardCode: varchar('sap_card_code', { length: 50 }).unique(),
   vendorType: varchar('vendor_type', { length: 1 }),   // R P M I V E B — from SAP UDF U_ERP_Group
+  sapGroupCode: integer('sap_group_code'),              // SAP BusinessPartner GroupCode
+  sapGroupName: text('sap_group_name'),                 // SAP BusinessPartner GroupName
+  sapSyncStatus: varchar('sap_sync_status', { length: 20 }), // 'synced' | 'inactive'
+  lastSyncedAt: timestamp('last_synced_at'),            // timestamp of last SAP sync
   contactPerson: text('contact_person'),
   email: text('email'),
   phone: text('phone'),

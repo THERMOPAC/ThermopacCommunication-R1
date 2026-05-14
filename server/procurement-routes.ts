@@ -23,9 +23,10 @@ const EXCLUDED_GROUP_CODES = new Set([105, 106]);
 const VALID_VENDOR_TYPES = new Set(['R', 'P', 'M', 'I', 'V', 'E', 'B']);
 
 interface SapVendorRecord {
-  CardCode: string;
-  CardName: string;
-  GroupCode: number;
+  CardCode:    string;
+  CardName:    string;
+  GroupCode:   number;
+  GroupName:   string | null;
   U_ERP_Group: string | null;
 }
 
@@ -145,12 +146,12 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   // server-side. With $select the limit does not apply so we get everything.
   {
     const PAGE_SIZE = 20;
-    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
+    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number; GroupName: string | null }> = [];
     let skip = 0;
 
     while (true) {
       const qs = new URLSearchParams({
-        '$select': 'CardCode,CardName,GroupCode',
+        '$select': 'CardCode,CardName,GroupCode,GroupName',
         '$filter': "CardType eq 'cSupplier'",
         '$top':    String(PAGE_SIZE),
         '$skip':   String(skip),
@@ -178,6 +179,7 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
           CardCode:  String(bp.CardCode  ?? ''),
           CardName:  String(bp.CardName  ?? ''),
           GroupCode: Number(bp.GroupCode ?? 0),
+          GroupName: bp.GroupName ? String(bp.GroupName) : null,
         });
       }
       if (page.length < PAGE_SIZE) break;
@@ -195,6 +197,7 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
       CardCode:    s.CardCode,
       CardName:    s.CardName,
       GroupCode:   s.GroupCode,
+      GroupName:   s.GroupName,
       U_ERP_Group: null,
     }));
   }
@@ -322,16 +325,20 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
       const names  = classified.map((r) => r.cardName);
       const vtypes = classified.map((r) => r.vendorType);
       const res = await pool.query(
-        `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
-         SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
+        `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type,
+                              sap_sync_status, last_synced_at, created_at, updated_at)
+         SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt,
+                'synced', NOW(), NOW(), NOW()
          FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
          ON CONFLICT (sap_card_code)
          DO UPDATE SET
-           name         = EXCLUDED.name,
-           display_name = EXCLUDED.name,
-           vendor_type  = EXCLUDED.vendor_type,
-           is_active    = true,
-           updated_at   = NOW()`,
+           name            = EXCLUDED.name,
+           display_name    = EXCLUDED.name,
+           vendor_type     = EXCLUDED.vendor_type,
+           sap_sync_status = 'synced',
+           last_synced_at  = NOW(),
+           is_active       = true,
+           updated_at      = NOW()`,
         [names, codes, vtypes],
       );
       upserted = res.rowCount ?? 0;
@@ -595,9 +602,11 @@ export function setupProcurementRoutes(app: Router) {
       // Build arrays for batch upsert
       const valid = suppliers
         .map((s) => ({
-          code:        s.CardCode?.trim(),
-          name:        (s.CardName?.trim() || s.CardCode?.trim()),
-          vendorType:  VALID_VENDOR_TYPES.has(s.U_ERP_Group?.trim() ?? '') ? (s.U_ERP_Group!.trim()) : null,
+          code:       s.CardCode?.trim(),
+          name:       (s.CardName?.trim() || s.CardCode?.trim()),
+          vendorType: VALID_VENDOR_TYPES.has(s.U_ERP_Group?.trim() ?? '') ? (s.U_ERP_Group!.trim()) : null,
+          groupCode:  s.GroupCode ?? null,
+          groupName:  s.GroupName ?? null,
         }))
         .filter((s) => !!s.code);
 
@@ -605,34 +614,50 @@ export function setupProcurementRoutes(app: Router) {
         const codes       = valid.map((s) => s.code);
         const names       = valid.map((s) => s.name);
         const vendorTypes = valid.map((s) => s.vendorType);
+        const groupCodes  = valid.map((s) => s.groupCode);
+        const groupNames  = valid.map((s) => s.groupName);
 
         // Batch upsert via unnest.
         // vendor_type is intentionally NOT overwritten if the incoming value is null —
         // classifications set by "Test SAP" are preserved across full syncs.
         await client.query(
-          `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
-           SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
-           FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
+          `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type,
+                                sap_group_code, sap_group_name, sap_sync_status, last_synced_at,
+                                created_at, updated_at)
+           SELECT DISTINCT ON (sap_code)
+             n, n, true, sap_code, vt,
+             gc::integer, gn, 'synced', NOW(),
+             NOW(), NOW()
+           FROM unnest($1::text[], $2::varchar[], $3::varchar[], $4::integer[], $5::text[])
+             AS t(n, sap_code, vt, gc, gn)
            ON CONFLICT (sap_card_code)
            DO UPDATE SET
-             name         = EXCLUDED.name,
-             display_name = EXCLUDED.name,
-             vendor_type  = CASE
-                              WHEN EXCLUDED.vendor_type IS NOT NULL THEN EXCLUDED.vendor_type
-                              ELSE vendors.vendor_type
-                            END,
-             is_active    = true,
-             updated_at   = NOW()`,
-          [names, codes, vendorTypes],
+             name            = EXCLUDED.name,
+             display_name    = EXCLUDED.name,
+             vendor_type     = CASE
+                                 WHEN EXCLUDED.vendor_type IS NOT NULL THEN EXCLUDED.vendor_type
+                                 ELSE vendors.vendor_type
+                               END,
+             sap_group_code  = EXCLUDED.sap_group_code,
+             sap_group_name  = EXCLUDED.sap_group_name,
+             sap_sync_status = 'synced',
+             last_synced_at  = NOW(),
+             is_active       = true,
+             updated_at      = NOW()`,
+          [names, codes, vendorTypes, groupCodes, groupNames],
         );
       }
 
       // Deactivate vendors no longer in SAP
       const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
       const deactResult = await client.query(
-        `UPDATE vendors SET is_active = false, updated_at = NOW()
-         WHERE sap_card_code IS NOT NULL
-           AND sap_card_code <> ALL($1::varchar[])
+        `UPDATE vendors
+            SET is_active       = false,
+                sap_sync_status = 'inactive',
+                last_synced_at  = NOW(),
+                updated_at      = NOW()
+          WHERE sap_card_code IS NOT NULL
+            AND sap_card_code <> ALL($1::varchar[])
          RETURNING id`,
         [sapCodes],
       );
