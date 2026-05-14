@@ -402,9 +402,9 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                       {/* Summary row */}
                       <div className="grid grid-cols-3 gap-2">
                         {[
-                          { label: "Login", ok: testResult.login },
-                          { label: "U_ERP_Group found", ok: testResult.udfAvailable },
-                          { label: "Upserted to DB", ok: testResult.upserted > 0 },
+                          { label: "SAP login",        ok: testResult.login },
+                          { label: "U_ERP_Group field", ok: testResult.udfAvailable },
+                          { label: "Saved to DB",       ok: testResult.upserted > 0 },
                         ].map(({ label, ok }) => (
                           <div key={label} className="flex items-center gap-1">
                             {ok
@@ -417,80 +417,63 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
                       {/* Counts */}
                       <div className="flex gap-4 text-muted-foreground">
-                        <span>Fetched: <strong className="text-foreground">{testResult.fetched}</strong></span>
-                        <span>Excluded: <strong className="text-foreground">{testResult.excluded}</strong></span>
-                        <span>Eligible: <strong className="text-foreground">{testResult.eligible}</strong></span>
-                        <span>Upserted: <strong className="text-foreground">{testResult.upserted}</strong></span>
+                        <span>Scanned: <strong className="text-foreground">{testResult.fetched}</strong></span>
+                        <span>Classified (U_ERP_Group set): <strong className="text-green-700">{testResult.eligible}</strong></span>
+                        <span>Saved to DB: <strong className="text-foreground">{testResult.upserted}</strong></span>
                       </div>
 
-                      {/* UDF field name */}
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <HelpCircle className="h-3 w-3" />
-                        UDF field in SAP response:{" "}
-                        <code className={cn(
-                          "ml-1 px-1 rounded font-mono",
-                          testResult.udfAvailable ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"
-                        )}>
-                          {testResult.udfFieldName}
-                        </code>
-                      </div>
-
-                      {/* Sample table */}
-                      {testResult.sample.length > 0 && (
+                      {/* Result table — mirrors SAP SQL output */}
+                      {testResult.sample.length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs border-collapse">
                             <thead>
-                              <tr className="border-b border-gray-200">
-                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">CardCode</th>
-                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">Name</th>
-                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">GrpCode</th>
-                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">U_ERP_Group</th>
-                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">vendor_type</th>
-                                <th className="text-left py-1 font-medium text-muted-foreground">Status</th>
+                              <tr className="border-b border-gray-300 bg-gray-100">
+                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">BP Code</th>
+                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">BP Name</th>
+                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">ERP Group</th>
+                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">DB Status</th>
                               </tr>
                             </thead>
                             <tbody>
                               {testResult.sample.map((row: any) => (
-                                <tr key={row.cardCode} className={cn(
-                                  "border-b border-gray-100",
-                                  row.excluded ? "opacity-50" : ""
-                                )}>
-                                  <td className="py-0.5 pr-2 font-mono">{row.cardCode}</td>
-                                  <td className="py-0.5 pr-2 max-w-[140px] truncate">{row.cardName}</td>
-                                  <td className="py-0.5 pr-2">{row.groupCode}</td>
-                                  <td className="py-0.5 pr-2 font-mono">
-                                    {row.udfRaw === null
-                                      ? <span className="text-muted-foreground italic">null</span>
-                                      : row.udfRaw || <span className="text-muted-foreground italic">empty</span>}
+                                <tr key={row.cardCode} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="py-0.5 px-2 font-mono text-blue-700">{row.cardCode}</td>
+                                  <td className="py-0.5 px-2 max-w-[180px] truncate">{row.cardName}</td>
+                                  <td className="py-0.5 px-2">
+                                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-mono font-semibold">
+                                      {row.udfRaw}
+                                    </span>
                                   </td>
-                                  <td className="py-0.5 pr-2">
-                                    {row.vendorType
-                                      ? <span className="px-1 rounded bg-blue-100 text-blue-800 font-mono">{row.vendorType}</span>
-                                      : <span className="text-muted-foreground italic">—</span>}
-                                  </td>
-                                  <td className="py-0.5">
-                                    {row.excluded
-                                      ? <span className="text-orange-600">excluded</span>
-                                      : row.upsertedToDb
-                                        ? <span className="text-green-600">✓ saved</span>
-                                        : <span className="text-muted-foreground">—</span>}
+                                  <td className="py-0.5 px-2">
+                                    {row.upsertedToDb
+                                      ? <span className="text-green-600 font-medium">✓ saved</span>
+                                      : <span className="text-muted-foreground">—</span>}
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
-                      )}
+                      ) : testResult.udfAvailable ? (
+                        <p className="text-muted-foreground italic text-center py-2">
+                          No vendors with U_ERP_Group set found in the first {testResult.fetched} scanned.
+                        </p>
+                      ) : null}
 
                       {/* Recommendation */}
-                      {testResult.udfAvailable && testResult.upserted > 0 && (
+                      {testResult.udfAvailable && testResult.eligible > 0 && (
                         <p className="text-green-800 font-medium">
-                          ✓ Test passed — U_ERP_Group is readable and DB upsert works. Safe to run Full Sync.
+                          ✓ Found {testResult.eligible} classified vendor{testResult.eligible !== 1 ? "s" : ""} — U_ERP_Group is readable. Safe to run Full Sync.
+                        </p>
+                      )}
+                      {testResult.udfAvailable && testResult.eligible === 0 && (
+                        <p className="text-amber-800 font-medium">
+                          ⚠ U_ERP_Group field is present but no vendors have it set in the first {testResult.fetched} scanned.
                         </p>
                       )}
                       {!testResult.udfAvailable && (
-                        <p className="text-amber-800 font-medium">
-                          ⚠ U_ERP_Group not found in SAP response — vendor_type will be null after full sync.
+                        <p className="text-red-700 font-medium">
+                          ✗ U_ERP_Group not found in SAP response — vendor_type will be null after full sync.
                         </p>
                       )}
                     </>

@@ -171,7 +171,7 @@ interface VendorTestResult {
   }>;
 }
 
-async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
+async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
 
   // ── 1. Shared session ─────────────────────────────────────────────────────
@@ -191,64 +191,78 @@ async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // No logout — shared session stays alive for subsequent operations.
+  // ── 2. Mirror SAP SQL: SELECT CardCode, CardName, U_ERP_Group FROM OCRD WHERE U_ERP_Group IS NOT NULL
+  //    Fetch pages without $select (SAP OData rejects UDFs in $select) and
+  //    filter in memory. Cap at 500 records — enough to find all classified vendors.
   {
-    // ── 2. Fetch small sample WITHOUT $select (so UDFs are included) ────────
-    const qs = new URLSearchParams({
-      '$filter': "CardType eq 'cSupplier'",
-      // No $select — full record returns UDFs automatically
-      '$top': String(Math.min(limit, 20)),
-    }).toString();
+    const PAGE_SIZE  = 20;
+    const MAX_SCAN   = 500;
+    const allRows: any[] = [];
+    let   skip       = 0;
+    let   udfPresent = false;
 
-    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
-    });
+    while (allRows.length < MAX_SCAN) {
+      const qs = new URLSearchParams({
+        '$filter': "CardType eq 'cSupplier'",
+        '$top':    String(PAGE_SIZE),
+        '$skip':   String(skip),
+      }).toString();
 
-    if (!resp.ok) {
-      const body = resp.body?.substring(0, 400) ?? '';
-      if (isSapSessionConflict(body)) {
-        invalidateSharedSapSession();
-        return {
-          login: true, sessionConflict: true,
-          fetched: 0, excluded: 0, eligible: 0,
-          udfAvailable: false, udfFieldName: 'not_checked',
-          upserted: 0, sample: [],
-        };
+      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+      });
+
+      if (!resp.ok) {
+        const body = resp.body?.substring(0, 400) ?? '';
+        if (isSapSessionConflict(body)) {
+          invalidateSharedSapSession();
+          return {
+            login: true, sessionConflict: true,
+            fetched: 0, excluded: 0, eligible: 0,
+            udfAvailable: false, udfFieldName: 'not_checked',
+            upserted: 0, sample: [],
+          };
+        }
+        throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
       }
-      throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
+
+      const page: any[] = JSON.parse(resp.body).value || [];
+      if (page.length > 0 && !udfPresent) udfPresent = 'U_ERP_Group' in page[0];
+      allRows.push(...page);
+      if (page.length < PAGE_SIZE) break;
+      skip += PAGE_SIZE;
     }
 
-    const raw: any[] = JSON.parse(resp.body).value || [];
-
-    // ── 3. Inspect UDF availability ─────────────────────────────────────────
-    const firstBp = raw[0] ?? {};
-    const udfAvailable = 'U_ERP_Group' in firstBp;
+    const udfAvailable = udfPresent;
     const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
 
-    // ── 4. Map, exclude, classify ───────────────────────────────────────────
-    const sampleRows: VendorTestResult['sample'] = raw.map((bp: any) => {
-      const isExcluded = EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode));
-      const udfRaw: string | null = bp['U_ERP_Group'] ?? null;
-      const vendorType = VALID_VENDOR_TYPES.has(udfRaw?.trim() ?? '') ? (udfRaw!.trim()) : null;
+    // ── 3. Filter in memory: U_ERP_Group IS NOT NULL (excludes employees too)
+    const classified = allRows.filter((bp: any) => {
+      if (EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode))) return false;
+      const raw = bp['U_ERP_Group'];
+      return raw !== null && raw !== undefined && String(raw).trim() !== '';
+    });
+
+    const sampleRows: VendorTestResult['sample'] = classified.map((bp: any) => {
+      const udfRaw    = String(bp['U_ERP_Group']).trim();
+      const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
       return {
         cardCode:     String(bp.CardCode ?? ''),
         cardName:     String(bp.CardName ?? ''),
         groupCode:    Number(bp.GroupCode ?? 0),
-        udfRaw:       udfRaw,
+        udfRaw,
         vendorType,
-        excluded:     isExcluded,
+        excluded:     false,
         upsertedToDb: false,
       };
     });
 
-    const eligibleRows = sampleRows.filter((r) => !r.excluded);
-
-    // ── 5. Upsert eligible rows to vendors table ────────────────────────────
+    // ── 4. Upsert all classified vendors to DB ───────────────────────────────
     let upserted = 0;
-    if (eligibleRows.length > 0) {
-      const codes  = eligibleRows.map((r) => r.cardCode);
-      const names  = eligibleRows.map((r) => r.cardName);
-      const vtypes = eligibleRows.map((r) => r.vendorType);
+    if (sampleRows.length > 0) {
+      const codes  = sampleRows.map((r) => r.cardCode);
+      const names  = sampleRows.map((r) => r.cardName);
+      const vtypes = sampleRows.map((r) => r.vendorType);
 
       const res = await pool.query(
         `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
@@ -264,19 +278,18 @@ async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
         [names, codes, vtypes],
       );
       upserted = res.rowCount ?? 0;
-
       const upsertedSet = new Set(codes);
-      for (const r of sampleRows) { if (upsertedSet.has(r.cardCode) && !r.excluded) r.upsertedToDb = true; }
+      for (const r of sampleRows) { if (upsertedSet.has(r.cardCode)) r.upsertedToDb = true; }
     }
 
-    console.log(`[vendors/test] fetched=${raw.length}, excluded=${raw.length - eligibleRows.length}, eligible=${eligibleRows.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
+    console.log(`[vendors/test] scanned=${allRows.length}, classifiedFound=${sampleRows.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
 
     return {
       login:           true,
       sessionConflict: false,
-      fetched:         raw.length,
-      excluded:        raw.length - eligibleRows.length,
-      eligible:        eligibleRows.length,
+      fetched:         allRows.length,      // total records scanned
+      excluded:        0,                   // no excluded in this query (employees pre-filtered)
+      eligible:        sampleRows.length,   // vendors with U_ERP_Group set
       udfAvailable,
       udfFieldName,
       upserted,
