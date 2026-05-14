@@ -257,9 +257,146 @@ async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
   }
 }
 
+// ─── SAP U_ERP_Group distribution query ────────────────────────────────────
+const UDF_CODE_LABELS: Record<string, string> = {
+  R: 'Raw Materials', P: 'Pumps Blowers', M: 'Motors',
+  I: 'Instruments',  V: 'Valves',        E: 'Electrical Control', B: 'Packages',
+};
+
+interface UdfGroupResult {
+  code:        string;       // e.g. 'R'
+  label:       string;       // e.g. 'Raw Materials'
+  count:       number;       // vendors with this code (capped at 200 per group)
+  capped:      boolean;      // true if SAP returned exactly 200 (may be more)
+  samples:     Array<{ cardCode: string; cardName: string; udfRaw: string }>;
+}
+interface UdfDistributionResult {
+  login:          boolean;
+  sessionConflict: boolean;
+  totalClassified: number;
+  nullOrEmpty:    number;    // vendors with blank / null U_ERP_Group
+  groups:         UdfGroupResult[];
+  queryError:     string | null;  // set if UDF $filter is unsupported in this SAP version
+}
+
+async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
+  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+  const user = process.env.SAP_USERNAME || '';
+  const pass = process.env.SAP_PASSWORD || '';
+  const db_  = process.env.SAP_COMPANY_DB || '';
+  if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
+
+  // Login
+  let sessionId: string;
+  try {
+    const r = await sapHttpsClient.login(user, pass, db_);
+    sessionId = r.sessionId;
+  } catch (err: any) {
+    const msg = String(err?.message ?? err);
+    if (isSapSessionConflict(msg)) {
+      return { login: false, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
+    }
+    throw err;
+  }
+
+  const CODES = ['R', 'P', 'M', 'I', 'V', 'E', 'B'] as const;
+  const CAP = 200;
+
+  async function fetchGroup(code: string): Promise<UdfGroupResult> {
+    const qs = new URLSearchParams({
+      '$filter': `CardType eq 'cSupplier' and U_ERP_Group eq '${code}'`,
+      '$top':    String(CAP),
+    }).toString();
+    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+    });
+    if (!resp.ok) {
+      const body = resp.body?.substring(0, 400) ?? '';
+      throw new Error(`SAP ${resp.statusCode} on group ${code}: ${body}`);
+    }
+    const rows: any[] = JSON.parse(resp.body).value ?? [];
+    return {
+      code,
+      label:   UDF_CODE_LABELS[code] ?? code,
+      count:   rows.length,
+      capped:  rows.length === CAP,
+      samples: rows.slice(0, 3).map((r: any) => ({
+        cardCode: String(r.CardCode ?? ''),
+        cardName: String(r.CardName ?? ''),
+        udfRaw:   String(r.U_ERP_Group ?? ''),
+      })),
+    };
+  }
+
+  async function fetchNullCount(): Promise<number> {
+    // Try OData filter for empty string (SAP stores blank as empty string, not SQL NULL)
+    const qs = new URLSearchParams({
+      '$filter': `CardType eq 'cSupplier' and U_ERP_Group eq ''`,
+      '$top':    '500',
+      '$select': 'CardCode',
+    }).toString();
+    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+    });
+    if (!resp.ok) return -1;  // -1 = unknown
+    return (JSON.parse(resp.body).value ?? []).length;
+  }
+
+  try {
+    let queryError: string | null = null;
+    const groups: UdfGroupResult[] = [];
+
+    for (const code of CODES) {
+      try {
+        groups.push(await fetchGroup(code));
+      } catch (err: any) {
+        const msg = String(err?.message ?? '');
+        // UDF $filter might be unsupported — record and stop group queries
+        if (msg.includes('4000') || msg.toLowerCase().includes('filter') || msg.includes('U_ERP_Group')) {
+          queryError = `SAP rejected UDF $filter: ${msg.substring(0, 200)}`;
+          break;
+        }
+        throw err;
+      }
+    }
+
+    const totalClassified = groups.reduce((s, g) => s + g.count, 0);
+    const nullOrEmpty     = queryError ? -1 : await fetchNullCount();
+
+    console.log(`[vendors/udf-dist] classified=${totalClassified}, null/empty=${nullOrEmpty}, queryError=${queryError ?? 'none'}`);
+
+    return { login: true, sessionConflict: false, totalClassified, nullOrEmpty, groups, queryError };
+  } finally {
+    await sapHttpsClient.logout(sessionId);
+    console.log('[vendors/udf-dist] SAP session logged out');
+  }
+}
+
 // ─── Vendor list endpoint ──────────────────────────────────────────────────
 export function setupProcurementRoutes(app: Router) {
   // ==================== VENDORS MANAGEMENT ====================
+
+  /**
+   * POST /api/vendors/sap/udf-distribution
+   * Runs 7 SAP filter queries (one per valid U_ERP_Group code) + 1 null/empty query.
+   * Returns count, capped flag, and 3 sample vendors per code.
+   * Does NOT upsert to DB. Does NOT run full sync.
+   */
+  app.post('/api/vendors/sap/udf-distribution', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const result = await runUdfDistributionQuery();
+      if (result.sessionConflict) {
+        return res.status(503).json({
+          error: 'A previous SAP session is still active. Wait 1–2 minutes and try again.',
+          result,
+        });
+      }
+      res.status(200).json(result);
+    } catch (err: any) {
+      console.error('[vendors/udf-dist] Error:', err?.message);
+      res.status(502).json({ error: `UDF distribution query failed: ${err?.message ?? 'unknown error'}` });
+    }
+  });
 
   /**
    * POST /api/vendors/sync/test

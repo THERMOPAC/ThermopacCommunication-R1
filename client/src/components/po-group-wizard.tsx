@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw, FlaskConical, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw, FlaskConical, CheckCircle2, XCircle, HelpCircle, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -75,6 +75,8 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
   const [syncMessage,    setSyncMessage]    = useState<string | null>(null);
   const [testResult,     setTestResult]     = useState<any | null>(null);
   const [showTestPanel,  setShowTestPanel]  = useState(false);
+  const [udfDist,        setUdfDist]        = useState<any | null>(null);
+  const [showUdfDialog,  setShowUdfDialog]  = useState(false);
 
   const form = useForm<z.infer<typeof termsSchema>>({
     resolver: zodResolver(termsSchema),
@@ -110,6 +112,21 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     onError: (err: any) => {
       const raw: string = err?.message ?? "unknown error";
       const isConflict = err?.status === 503 || err?.status === 409 || raw.includes("session") || raw.includes("Wait");
+      setSyncMessage(`✗ ${raw}`);
+      setTimeout(() => setSyncMessage(null), isConflict ? 20000 : 8000);
+    },
+  });
+
+  // ── SAP UDF Distribution Query ────────────────────────────────────────────
+  const udfMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/vendors/sap/udf-distribution"),
+    onSuccess: (data: any) => {
+      setUdfDist(data);
+      setShowUdfDialog(true);
+    },
+    onError: (err: any) => {
+      const raw: string = err?.message ?? "unknown error";
+      const isConflict = raw.includes("session") || raw.includes("Wait");
       setSyncMessage(`✗ ${raw}`);
       setTimeout(() => setSyncMessage(null), isConflict ? 20000 : 8000);
     },
@@ -290,35 +307,49 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                 </SelectContent>
               </Select>
 
-              {/* Row 2: Test + Full Sync buttons */}
+              {/* Row 2: Test + UDF Check + Full Sync buttons */}
               <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="flex-1 gap-1.5 text-xs h-9 border-amber-300 text-amber-800 hover:bg-amber-50"
-                  disabled={testMutation.isPending || syncMutation.isPending}
+                  disabled={testMutation.isPending || syncMutation.isPending || udfMutation.isPending}
                   onClick={() => { setShowTestPanel(false); testMutation.mutate(); }}
                   title="Fetch 20 vendors from SAP and verify UDF + exclusion logic before full sync"
                 >
                   {testMutation.isPending
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <FlaskConical className="h-3.5 w-3.5" />}
-                  {testMutation.isPending ? "Testing SAP…" : "Test SAP (20 vendors)"}
+                  {testMutation.isPending ? "Testing…" : "Test SAP"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-1.5 text-xs h-9 border-blue-300 text-blue-800 hover:bg-blue-50"
+                  disabled={testMutation.isPending || syncMutation.isPending || udfMutation.isPending}
+                  onClick={() => udfMutation.mutate()}
+                  title="Query SAP for U_ERP_Group distribution across all vendor codes"
+                >
+                  {udfMutation.isPending
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <BarChart2 className="h-3.5 w-3.5" />}
+                  {udfMutation.isPending ? "Querying…" : "UDF Check"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="flex-1 gap-1.5 text-xs h-9"
-                  disabled={syncMutation.isPending || testMutation.isPending}
+                  disabled={syncMutation.isPending || testMutation.isPending || udfMutation.isPending}
                   onClick={() => syncMutation.mutate()}
                   title="Pull full vendor list from SAP (run test first)"
                 >
                   {syncMutation.isPending
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <RefreshCw className="h-3.5 w-3.5" />}
-                  {syncMutation.isPending ? "Syncing…" : "Full Sync from SAP"}
+                  {syncMutation.isPending ? "Syncing…" : "Full Sync"}
                 </Button>
               </div>
 
@@ -749,6 +780,136 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                 {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 Create PO Group
               </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+
+    {/* ── UDF Distribution Dialog ────────────────────────────────────────── */}
+    <Dialog open={showUdfDialog} onOpenChange={setShowUdfDialog}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BarChart2 className="h-4 w-4 text-blue-600" />
+            SAP U_ERP_Group Distribution
+          </DialogTitle>
+        </DialogHeader>
+
+        {udfDist && (
+          <div className="space-y-4 text-sm">
+
+            {/* Session conflict */}
+            {udfDist.sessionConflict && (
+              <p className="text-orange-700 font-medium bg-orange-50 border border-orange-200 rounded p-3">
+                SAP session conflict — wait 1–2 minutes and try again.
+              </p>
+            )}
+
+            {/* Query error (UDF filter unsupported) */}
+            {udfDist.queryError && (
+              <p className="text-red-700 bg-red-50 border border-red-200 rounded p-3 text-xs font-mono break-all">
+                ⚠ {udfDist.queryError}
+              </p>
+            )}
+
+            {!udfDist.sessionConflict && (
+              <>
+                {/* Summary bar */}
+                <div className="flex gap-6 bg-gray-50 border rounded p-3">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Classified vendors</div>
+                    <div className="text-2xl font-bold text-green-700">{udfDist.totalClassified}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Blank / unclassified</div>
+                    <div className="text-2xl font-bold text-amber-600">
+                      {udfDist.nullOrEmpty === -1 ? "unknown" : udfDist.nullOrEmpty}
+                    </div>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <div className="text-xs text-muted-foreground">Codes checked</div>
+                    <div className="text-2xl font-bold text-blue-700">{udfDist.groups?.length ?? 0} / 7</div>
+                  </div>
+                </div>
+
+                {/* Per-code breakdown */}
+                {(udfDist.groups ?? []).map((grp: any) => (
+                  <div key={grp.code} className="border rounded-lg overflow-hidden">
+                    {/* Group header */}
+                    <div className={cn(
+                      "flex items-center justify-between px-3 py-2",
+                      grp.count === 0 ? "bg-gray-50" : "bg-blue-50"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "inline-flex items-center justify-center w-7 h-7 rounded font-mono font-bold text-sm",
+                          grp.count > 0 ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-600"
+                        )}>
+                          {grp.code}
+                        </span>
+                        <div>
+                          <div className="font-medium text-sm">{grp.label}</div>
+                          <div className="text-xs text-muted-foreground">U_ERP_Group = '{grp.code}'</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={cn("text-xl font-bold", grp.count > 0 ? "text-blue-700" : "text-gray-400")}>
+                          {grp.count}{grp.capped ? "+" : ""}
+                        </div>
+                        <div className="text-xs text-muted-foreground">vendors</div>
+                      </div>
+                    </div>
+
+                    {/* Sample rows */}
+                    {grp.samples.length > 0 ? (
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-t bg-gray-50">
+                            <th className="text-left px-3 py-1 font-medium text-muted-foreground w-28">CardCode</th>
+                            <th className="text-left px-3 py-1 font-medium text-muted-foreground">CardName</th>
+                            <th className="text-left px-3 py-1 font-medium text-muted-foreground w-24">U_ERP_Group</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {grp.samples.map((s: any) => (
+                            <tr key={s.cardCode} className="border-t">
+                              <td className="px-3 py-1.5 font-mono text-indigo-700">{s.cardCode}</td>
+                              <td className="px-3 py-1.5 truncate max-w-[300px]">{s.cardName}</td>
+                              <td className="px-3 py-1.5 font-mono">
+                                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">{s.udfRaw || "—"}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="px-3 py-2 text-xs text-muted-foreground italic">
+                        No vendors with U_ERP_Group = '{grp.code}' found in SAP
+                      </p>
+                    )}
+                  </div>
+                ))}
+
+                {/* Unclassified note */}
+                {udfDist.nullOrEmpty > 0 && (
+                  <div className="border border-amber-200 rounded-lg p-3 bg-amber-50 text-xs text-amber-800">
+                    <strong>{udfDist.nullOrEmpty} vendors</strong> have a blank U_ERP_Group in SAP.
+                    These will sync with <code className="bg-amber-100 px-1 rounded">vendor_type = null</code> until
+                    the field is populated in the SAP Business Partner master record.
+                  </div>
+                )}
+
+                {udfDist.totalClassified === 0 && !udfDist.queryError && (
+                  <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                    No vendors found for any U_ERP_Group code. The UDF may not be populated in SAP yet.
+                  </p>
+                )}
+              </>
+            )}
+
+            <div className="flex justify-end pt-2 border-t">
+              <Button variant="outline" size="sm" onClick={() => setShowUdfDialog(false)}>Close</Button>
             </div>
           </div>
         )}
