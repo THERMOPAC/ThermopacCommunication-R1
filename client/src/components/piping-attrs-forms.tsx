@@ -168,7 +168,7 @@ const PLATES_MATERIAL_GRADES = [
   "SA 516 Gr 60","SA 516 Gr 70","ASTM A36",
   "SA-240 Gr 304","SA-240 Gr 304L","SA-240 Gr 316","SA-240 Gr 316L",
 ];
-const PLATES_THICKNESS = ["3","5","6","8","10","12","16","20","25","32","40","50"];
+const PLATES_THICKNESS = ["3","5","6","8","10","12","16","18","20","25","32","40","50"];
 const PLATES_WIDTH     = ["1000","1250","1500","1800","2000","2500"];
 const PLATES_LENGTH    = ["Mill Length","2000","2500","3000","4000","5000","6000","12000"];
 const PLATES_STANDARD  = [
