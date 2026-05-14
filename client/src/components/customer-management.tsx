@@ -495,19 +495,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-green-300 text-green-700 hover:bg-green-50 gap-1 text-xs"
-                  onClick={checkSapBp}
-                  disabled={sapBpLookupPending || !testCardCode}
-                  title="Look up this CardCode in SAP and show its fields (email, phone, etc.)"
-                >
-                  {sapBpLookupPending
-                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                    : <Search className="h-3 w-3" />}
-                  Check SAP
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
                   className="border-amber-300 text-amber-700 hover:bg-amber-50 gap-1 text-xs"
                   onClick={() => testCardCode && sapSyncMutation.mutate(testCardCode)}
                   disabled={sapSyncMutation.isPending || !testCardCode}
