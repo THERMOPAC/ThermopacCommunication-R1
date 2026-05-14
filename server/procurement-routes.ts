@@ -111,9 +111,169 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
 }
 
 
+// ─── SAP test-run: fetch a small sample, verify UDF, upsert, report ────────
+interface VendorTestResult {
+  login:          boolean;
+  sessionConflict: boolean;
+  fetched:        number;           // raw BP records from SAP
+  excluded:       number;           // filtered by GroupCode 105/106
+  eligible:       number;           // after exclusion
+  udfAvailable:   boolean;          // was U_ERP_Group present in the response?
+  udfFieldName:   string;           // confirmed SAP field name (or "not found")
+  upserted:       number;
+  sample: Array<{
+    cardCode:    string;
+    cardName:    string;
+    groupCode:   number;
+    udfRaw:      string | null;     // raw value from SAP
+    vendorType:  string | null;     // after mapping (R/P/M/I/V/E/B or null)
+    excluded:    boolean;
+    upsertedToDb: boolean;
+  }>;
+}
+
+async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
+  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+  const user = process.env.SAP_USERNAME || '';
+  const pass = process.env.SAP_PASSWORD || '';
+  const db_  = process.env.SAP_COMPANY_DB || '';
+  if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
+
+  // ── 1. Login ──────────────────────────────────────────────────────────────
+  let sessionId: string;
+  try {
+    const result = await sapHttpsClient.login(user, pass, db_);
+    sessionId = result.sessionId;
+  } catch (err: any) {
+    const msg: string = err?.message ?? String(err);
+    if (isSapSessionConflict(msg)) {
+      return {
+        login: false, sessionConflict: true,
+        fetched: 0, excluded: 0, eligible: 0,
+        udfAvailable: false, udfFieldName: 'not_checked',
+        upserted: 0, sample: [],
+      };
+    }
+    throw err;
+  }
+
+  // ── 2. Fetch small sample WITHOUT $select (so UDFs are included) ──────────
+  const qs = new URLSearchParams({
+    '$filter': "CardType eq 'cSupplier'",
+    // No $select — full record returns UDFs automatically
+    '$top': String(Math.min(limit, 20)),
+  }).toString();
+
+  const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+    method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+  });
+
+  if (!resp.ok) {
+    const body = resp.body?.substring(0, 400) ?? '';
+    if (isSapSessionConflict(body)) {
+      return {
+        login: true, sessionConflict: true,
+        fetched: 0, excluded: 0, eligible: 0,
+        udfAvailable: false, udfFieldName: 'not_checked',
+        upserted: 0, sample: [],
+      };
+    }
+    throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
+  }
+
+  const raw: any[] = JSON.parse(resp.body).value || [];
+
+  // ── 3. Inspect UDF availability ───────────────────────────────────────────
+  const firstBp = raw[0] ?? {};
+  const udfAvailable = 'U_ERP_Group' in firstBp;
+  const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
+
+  // ── 4. Map, exclude, classify ─────────────────────────────────────────────
+  const sampleRows: VendorTestResult['sample'] = raw.map((bp: any) => {
+    const isExcluded = EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode));
+    const udfRaw: string | null = bp['U_ERP_Group'] ?? null;
+    const vendorType = VALID_VENDOR_TYPES.has(udfRaw?.trim() ?? '') ? (udfRaw!.trim()) : null;
+    return {
+      cardCode:     String(bp.CardCode ?? ''),
+      cardName:     String(bp.CardName ?? ''),
+      groupCode:    Number(bp.GroupCode ?? 0),
+      udfRaw:       udfRaw,
+      vendorType,
+      excluded:     isExcluded,
+      upsertedToDb: false,       // filled after upsert
+    };
+  });
+
+  const eligibleRows = sampleRows.filter((r) => !r.excluded);
+
+  // ── 5. Upsert eligible rows to vendors table ──────────────────────────────
+  let upserted = 0;
+  if (eligibleRows.length > 0) {
+    const codes  = eligibleRows.map((r) => r.cardCode);
+    const names  = eligibleRows.map((r) => r.cardName);
+    const vtypes = eligibleRows.map((r) => r.vendorType);
+
+    const res = await pool.query(
+      `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
+       SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
+       FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
+       ON CONFLICT (sap_card_code)
+       DO UPDATE SET
+         name         = EXCLUDED.name,
+         display_name = EXCLUDED.name,
+         vendor_type  = EXCLUDED.vendor_type,
+         is_active    = true,
+         updated_at   = NOW()`,
+      [names, codes, vtypes],
+    );
+    upserted = res.rowCount ?? 0;
+
+    // Mark which rows were upserted
+    const upsertedSet = new Set(codes);
+    for (const r of sampleRows) { if (upsertedSet.has(r.cardCode) && !r.excluded) r.upsertedToDb = true; }
+  }
+
+  console.log(`[vendors/test] SAP test run: fetched=${raw.length}, excluded=${raw.length - eligibleRows.length}, eligible=${eligibleRows.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
+
+  return {
+    login:           true,
+    sessionConflict: false,
+    fetched:         raw.length,
+    excluded:        raw.length - eligibleRows.length,
+    eligible:        eligibleRows.length,
+    udfAvailable,
+    udfFieldName,
+    upserted,
+    sample:          sampleRows,
+  };
+}
+
 // ─── Vendor list endpoint ──────────────────────────────────────────────────
 export function setupProcurementRoutes(app: Router) {
   // ==================== VENDORS MANAGEMENT ====================
+
+  /**
+   * POST /api/vendors/sync/test
+   * Lightweight SAP test run — fetches a small sample (default 20), verifies
+   * session, U_ERP_Group UDF availability, exclusion logic, and upserts the sample.
+   * Returns detailed per-row results. Does NOT run the full sync.
+   */
+  app.post('/api/vendors/sync/test', ensureAuthenticated, async (req: Request, res: Response) => {
+    const limit = Math.min(parseInt(String(req.query.limit ?? '20'), 10) || 20, 20);
+    try {
+      const result = await runVendorSapTest(limit);
+      if (result.sessionConflict) {
+        return res.status(503).json({
+          error: 'A previous sync session is still active in SAP B1. Wait 1–2 minutes for it to expire, then try again.',
+          testResult: result,
+        });
+      }
+      res.status(200).json(result);
+    } catch (err: any) {
+      console.error('[vendors/test] Error:', err?.message);
+      res.status(502).json({ error: `Test run failed: ${err?.message ?? 'unknown error'}` });
+    }
+  });
 
   /**
    * GET /api/vendors — reads local DB only. No SAP call.

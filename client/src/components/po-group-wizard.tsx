@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw, FlaskConical, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -73,17 +73,37 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
   const [avlIssues,      setAvlIssues]      = useState<{ subgroupCode: string; status: string }[]>([]);
   const [submitting,     setSubmitting]     = useState(false);
   const [syncMessage,    setSyncMessage]    = useState<string | null>(null);
+  const [testResult,     setTestResult]     = useState<any | null>(null);
+  const [showTestPanel,  setShowTestPanel]  = useState(false);
 
   const form = useForm<z.infer<typeof termsSchema>>({
     resolver: zodResolver(termsSchema),
     defaultValues: { deliveryTerms: "", paymentTerms: "", groupNotes: "" },
   });
 
-  // ── SAP Vendor Sync ───────────────────────────────────────────────────────
+  // ── SAP Vendor Test Run ───────────────────────────────────────────────────
+  const testMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/vendors/sync/test?limit=20"),
+    onSuccess: (data: any) => {
+      setTestResult(data);
+      setShowTestPanel(true);
+      qc.invalidateQueries({ queryKey: ["/api/vendors"] });
+    },
+    onError: (err: any) => {
+      const raw: string = err?.message ?? "unknown error";
+      const isConflict = raw.includes("session") || raw.includes("Wait");
+      setSyncMessage(`✗ ${raw}`);
+      setTimeout(() => setSyncMessage(null), isConflict ? 20000 : 8000);
+    },
+  });
+
+  // ── SAP Full Vendor Sync ──────────────────────────────────────────────────
   const syncMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/vendors/sync"),
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["/api/vendors"] });
+      setTestResult(null);
+      setShowTestPanel(false);
       setSyncMessage(`✓ ${data?.message ?? `Synced ${data?.synced ?? 0} vendors`}`);
       setTimeout(() => setSyncMessage(null), 5000);
     },
@@ -240,62 +260,210 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
             </div>
 
             {/* Vendor selector + SAP sync */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Select Vendor *</label>
-              <div className="flex gap-2 items-start">
-                <Select
-                  value={selectedVendorId?.toString() ?? ""}
-                  onValueChange={(v) => {
-                    const vend = vendors.find((x) => x.id === parseInt(v));
-                    setSelectedVendorId(parseInt(v));
-                    setSelectedVendorName(vend?.name ?? "");
-                    setAvlIssues([]);
-                    setAvlBypassAck({});
-                  }}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Choose vendor…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vendors.length === 0 ? (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">
-                        No vendors — click Sync to load from SAP
-                      </div>
-                    ) : (
-                      vendors.map((v) => (
-                        <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Select Vendor *</label>
+
+              {/* Row 1: dropdown */}
+              <Select
+                value={selectedVendorId?.toString() ?? ""}
+                onValueChange={(v) => {
+                  const vend = vendors.find((x) => x.id === parseInt(v));
+                  setSelectedVendorId(parseInt(v));
+                  setSelectedVendorName(vend?.name ?? "");
+                  setAvlIssues([]);
+                  setAvlBypassAck({});
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={vendors.length === 0 ? "Run Test SAP first to load vendors…" : "Choose vendor…"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendors.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      No vendors — run Test SAP to verify, then Full Sync
+                    </div>
+                  ) : (
+                    vendors.map((v) => (
+                      <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+
+              {/* Row 2: Test + Full Sync buttons */}
+              <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="shrink-0 gap-1.5 text-xs h-10"
-                  disabled={syncMutation.isPending}
+                  className="flex-1 gap-1.5 text-xs h-9 border-amber-300 text-amber-800 hover:bg-amber-50"
+                  disabled={testMutation.isPending || syncMutation.isPending}
+                  onClick={() => { setShowTestPanel(false); testMutation.mutate(); }}
+                  title="Fetch 20 vendors from SAP and verify UDF + exclusion logic before full sync"
+                >
+                  {testMutation.isPending
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <FlaskConical className="h-3.5 w-3.5" />}
+                  {testMutation.isPending ? "Testing SAP…" : "Test SAP (20 vendors)"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-1.5 text-xs h-9"
+                  disabled={syncMutation.isPending || testMutation.isPending}
                   onClick={() => syncMutation.mutate()}
-                  title="Pull latest vendor list from SAP"
+                  title="Pull full vendor list from SAP (run test first)"
                 >
                   {syncMutation.isPending
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <RefreshCw className="h-3.5 w-3.5" />}
-                  {syncMutation.isPending ? "Syncing…" : "Sync from SAP"}
+                  {syncMutation.isPending ? "Syncing…" : "Full Sync from SAP"}
                 </Button>
               </div>
-              {/* Sync result message */}
+
+              {/* Sync / error message */}
               {syncMessage && (
                 <p className={cn(
-                  "text-xs mt-1.5 font-medium",
+                  "text-xs font-medium",
                   syncMessage.startsWith("✓") ? "text-green-700" : "text-destructive"
                 )}>
                   {syncMessage}
                 </p>
               )}
-              {vendors.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
+
+              {/* Vendor count hint */}
+              {vendors.length > 0 && !syncMessage && (
+                <p className="text-xs text-muted-foreground">
                   {vendors.length} vendor{vendors.length !== 1 ? "s" : ""} available — sync if vendor not listed
                 </p>
+              )}
+
+              {/* Test results panel */}
+              {showTestPanel && testResult && (
+                <div className={cn(
+                  "rounded-lg border p-3 space-y-2 text-xs",
+                  testResult.sessionConflict
+                    ? "border-orange-300 bg-orange-50"
+                    : testResult.udfAvailable
+                      ? "border-green-300 bg-green-50"
+                      : "border-amber-300 bg-amber-50"
+                )}>
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">SAP Test Run Results</span>
+                    <button
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowTestPanel(false)}
+                    ><X className="h-3.5 w-3.5" /></button>
+                  </div>
+
+                  {/* Session conflict warning */}
+                  {testResult.sessionConflict && (
+                    <p className="text-orange-800 font-medium">
+                      Session conflict — wait 1–2 min and try again.
+                    </p>
+                  )}
+
+                  {!testResult.sessionConflict && (
+                    <>
+                      {/* Summary row */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: "Login", ok: testResult.login },
+                          { label: "U_ERP_Group found", ok: testResult.udfAvailable },
+                          { label: "Upserted to DB", ok: testResult.upserted > 0 },
+                        ].map(({ label, ok }) => (
+                          <div key={label} className="flex items-center gap-1">
+                            {ok
+                              ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                              : <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+                            <span className={ok ? "text-green-800" : "text-red-700"}>{label}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Counts */}
+                      <div className="flex gap-4 text-muted-foreground">
+                        <span>Fetched: <strong className="text-foreground">{testResult.fetched}</strong></span>
+                        <span>Excluded: <strong className="text-foreground">{testResult.excluded}</strong></span>
+                        <span>Eligible: <strong className="text-foreground">{testResult.eligible}</strong></span>
+                        <span>Upserted: <strong className="text-foreground">{testResult.upserted}</strong></span>
+                      </div>
+
+                      {/* UDF field name */}
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <HelpCircle className="h-3 w-3" />
+                        UDF field in SAP response:{" "}
+                        <code className={cn(
+                          "ml-1 px-1 rounded font-mono",
+                          testResult.udfAvailable ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"
+                        )}>
+                          {testResult.udfFieldName}
+                        </code>
+                      </div>
+
+                      {/* Sample table */}
+                      {testResult.sample.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs border-collapse">
+                            <thead>
+                              <tr className="border-b border-gray-200">
+                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">CardCode</th>
+                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">Name</th>
+                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">GrpCode</th>
+                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">U_ERP_Group</th>
+                                <th className="text-left py-1 pr-2 font-medium text-muted-foreground">vendor_type</th>
+                                <th className="text-left py-1 font-medium text-muted-foreground">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {testResult.sample.map((row: any) => (
+                                <tr key={row.cardCode} className={cn(
+                                  "border-b border-gray-100",
+                                  row.excluded ? "opacity-50" : ""
+                                )}>
+                                  <td className="py-0.5 pr-2 font-mono">{row.cardCode}</td>
+                                  <td className="py-0.5 pr-2 max-w-[140px] truncate">{row.cardName}</td>
+                                  <td className="py-0.5 pr-2">{row.groupCode}</td>
+                                  <td className="py-0.5 pr-2 font-mono">
+                                    {row.udfRaw === null
+                                      ? <span className="text-muted-foreground italic">null</span>
+                                      : row.udfRaw || <span className="text-muted-foreground italic">empty</span>}
+                                  </td>
+                                  <td className="py-0.5 pr-2">
+                                    {row.vendorType
+                                      ? <span className="px-1 rounded bg-blue-100 text-blue-800 font-mono">{row.vendorType}</span>
+                                      : <span className="text-muted-foreground italic">—</span>}
+                                  </td>
+                                  <td className="py-0.5">
+                                    {row.excluded
+                                      ? <span className="text-orange-600">excluded</span>
+                                      : row.upsertedToDb
+                                        ? <span className="text-green-600">✓ saved</span>
+                                        : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {/* Recommendation */}
+                      {testResult.udfAvailable && testResult.upserted > 0 && (
+                        <p className="text-green-800 font-medium">
+                          ✓ Test passed — U_ERP_Group is readable and DB upsert works. Safe to run Full Sync.
+                        </p>
+                      )}
+                      {!testResult.udfAvailable && (
+                        <p className="text-amber-800 font-medium">
+                          ⚠ U_ERP_Group not found in SAP response — vendor_type will be null after full sync.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
