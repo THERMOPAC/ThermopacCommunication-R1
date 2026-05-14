@@ -54,7 +54,7 @@ import { executeProjectCancellationCascade, executeProjectRestorationCascade, is
 import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
 import { isDwgGateRequired } from './utils/epc-dwg-linking';
 import { triggerInspectionOnPoIssuance, triggerInspectionOnWoRelease } from './utils/epc-inspection-trigger';
-import { invalidateSharedSapSession } from './procurement-routes';
+import { getSharedSapSession } from './procurement-routes';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -3013,11 +3013,9 @@ export function setupProjectRoutes(app: express.Express) {
       );
       logId = logRes.rows[0].id;
 
-      // Clear shared vendor-sync session before fresh login to prevent -1102
-      invalidateSharedSapSession();
+      // Reuse shared SAP session (same pool as vendor sync) — avoids -1102 login collision
       const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-      const loginResp = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sessionCookie = loginResp.sessionCookie;
+      sessionCookie = await getSharedSapSession();
 
       const PAGE_SIZE = 20;
       let sapSkip = 0;
@@ -3106,8 +3104,7 @@ export function setupProjectRoutes(app: express.Express) {
         }
       }
 
-      // Logout (non-fatal)
-      sapHttpsClient.logout(sessionCookie).catch(() => {});
+      // Do NOT logout — shared session must stay alive for vendor sync
 
       // Update audit log — success
       if (logId) {
@@ -3130,12 +3127,7 @@ export function setupProjectRoutes(app: express.Express) {
 
     } catch (err: any) {
       console.error('[customer-sap-sync] fatal error:', err.message);
-      if (sessionCookie) {
-        try {
-          const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-          sapHttpsClient.logout(sessionCookie).catch(() => {});
-        } catch {}
-      }
+      // Do NOT logout — shared session must stay alive for vendor sync
       if (logId) {
         await pool.query(
           `UPDATE sap_customer_sync_logs SET

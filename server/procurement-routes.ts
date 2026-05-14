@@ -94,7 +94,7 @@ interface SapSessionCache { cookie: string; createdAt: number; }
 let _sapSession: SapSessionCache | null = null;
 const SAP_SESSION_TTL_MS = 25 * 60 * 1000; // 25 min (SAP default is 30 min idle)
 
-async function getSharedSapSession(): Promise<string> {
+export async function getSharedSapSession(): Promise<string> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
   const user = process.env.SAP_USERNAME  || '';
   const pass = process.env.SAP_PASSWORD  || '';
