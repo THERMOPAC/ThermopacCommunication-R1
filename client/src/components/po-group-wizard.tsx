@@ -442,7 +442,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
                       {/* Counts */}
                       <div className="flex gap-4 text-muted-foreground">
-                        <span>Vendors checked: <strong className="text-foreground">{testResult.fetched}</strong></span>
+                        <span>Scanned (asc+desc): <strong className="text-foreground">{testResult.fetched}</strong></span>
                         <span>Classified (U_ERP_Group set): <strong className="text-green-700">{testResult.eligible}</strong></span>
                         <span>Saved to DB: <strong className="text-foreground">{testResult.upserted}</strong></span>
                       </div>

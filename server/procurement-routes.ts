@@ -223,6 +223,8 @@ interface VendorTestResult {
 }
 
 async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
+  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+
   // ── 1. Shared session ─────────────────────────────────────────────────────
   let sessionId: string;
   try {
@@ -240,58 +242,76 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // ── 2. Get all CardCodes from our DB (avoids SAP's 500-row server-side cap) ──
-  // SAP B1 Service Layer caps full-record OData results at 500 rows. The 14
-  // classified vendors are V-codes (alphabetically late), so they fall beyond
-  // that cut-off. Instead we enumerate our local vendor list and fetch each
-  // record individually from SAP — parallel batches of 20 keep this fast.
-  {
-    const dbRows = await pool.query<{ sap_card_code: string; name: string }>(
-      `SELECT sap_card_code, name FROM vendors
-       WHERE sap_card_code IS NOT NULL AND sap_card_code != ''
-       ORDER BY sap_card_code`,
-    );
-    const dbVendors = dbRows.rows;
+  // ── 2. Dual bulk scan — mirrors SAP SQL: WHERE U_ERP_Group IS NOT NULL ─────
+  // Key insight: SAP bulk list fetches (without $select) INCLUDE UDF fields.
+  // Individual record fetches (/BusinessPartners('code')) do NOT.
+  // SAP caps each bulk scan at ~500 rows server-side.
+  //
+  // Strategy: scan TWICE —
+  //   Pass A: ascending order  (SAP's default creation order — finds early V-codes)
+  //   Pass B: descending CardCode order — V-codes appear FIRST, all found in
+  //           the first pages regardless of how many vendors exist.
+  // The two sets are merged and deduplicated before classification.
 
-    // ── 3. Verify U_ERP_Group availability with a single probe record ───────
-    let udfAvailable = false;
-    let udfFieldName = 'not found';
-    if (dbVendors.length > 0) {
-      const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-      const probeResp = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(dbVendors[0].sap_card_code)}')`,
+  const PAGE_SIZE  = 20;
+  const MAX_PER_PASS = 500;
+
+  async function bulkScan(orderby: string): Promise<any[]> {
+    const rows: any[] = [];
+    let skip = 0;
+    while (rows.length < MAX_PER_PASS) {
+      const qs = new URLSearchParams({
+        '$filter':  "CardType eq 'cSupplier'",
+        '$orderby': orderby,
+        '$top':     String(PAGE_SIZE),
+        '$skip':    String(skip),
+      }).toString();
+      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
       });
-      if (probeResp.ok) {
-        const bp = JSON.parse(probeResp.body);
-        udfAvailable = 'U_ERP_Group' in bp;
-        udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
+      if (!resp.ok) {
+        const body = resp.body?.substring(0, 400) ?? '';
+        if (isSapSessionConflict(body)) { invalidateSharedSapSession(); throw new Error('SESSION_CONFLICT'); }
+        throw new Error(`SAP ${resp.statusCode}: ${body}`);
       }
+      const page: any[] = JSON.parse(resp.body).value ?? [];
+      rows.push(...page);
+      if (page.length < PAGE_SIZE) break;
+      skip += PAGE_SIZE;
+    }
+    return rows;
+  }
+
+  try {
+    const [passAsc, passDesc] = await Promise.all([
+      bulkScan('CardCode asc'),
+      bulkScan('CardCode desc'),
+    ]);
+
+    // Merge and deduplicate by CardCode
+    const seen = new Set<string>();
+    const allRows: any[] = [];
+    for (const bp of [...passAsc, ...passDesc]) {
+      const code = String(bp.CardCode ?? '');
+      if (code && !seen.has(code)) { seen.add(code); allRows.push(bp); }
     }
 
-    if (!udfAvailable) {
-      console.log(`[vendors/test] U_ERP_Group not present in SAP response — stopping`);
-      return {
-        login: true, sessionConflict: false,
-        fetched: dbVendors.length, excluded: 0, eligible: 0,
-        udfAvailable: false, udfFieldName,
-        upserted: 0, sample: [],
-      };
-    }
+    // Detect UDF presence from the merged set
+    const udfAvailable = allRows.some((bp) => 'U_ERP_Group' in bp);
+    const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
 
-    // ── 4. Enrich all DB vendors with U_ERP_Group in parallel batches ───────
-    const cardCodes = dbVendors.map((r) => r.sap_card_code);
-    const udfMap = await enrichWithUdfGroups(cardCodes, sessionId);
-
-    // ── 5. Filter: only those with U_ERP_Group set (mirrors SAP SQL WHERE IS NOT NULL)
+    // Filter: U_ERP_Group IS NOT NULL AND not excluded GroupCode
     const classified: VendorTestResult['sample'] = [];
-    for (const v of dbVendors) {
-      const udfRaw = udfMap.get(v.sap_card_code) ?? null;
-      if (!udfRaw) continue;
+    for (const bp of allRows) {
+      if (EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode))) continue;
+      const raw = bp['U_ERP_Group'];
+      if (raw === null || raw === undefined || String(raw).trim() === '') continue;
+      const udfRaw    = String(raw).trim();
       const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
       classified.push({
-        cardCode:     v.sap_card_code,
-        cardName:     v.name,
-        groupCode:    0,
+        cardCode:     String(bp.CardCode ?? ''),
+        cardName:     String(bp.CardName ?? ''),
+        groupCode:    Number(bp.GroupCode ?? 0),
         udfRaw,
         vendorType,
         excluded:     false,
@@ -299,37 +319,53 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
       });
     }
 
-    // ── 6. Upsert classified vendors to DB ───────────────────────────────────
+    // Upsert classified vendors to DB
     let upserted = 0;
     if (classified.length > 0) {
       const codes  = classified.map((r) => r.cardCode);
       const names  = classified.map((r) => r.cardName);
       const vtypes = classified.map((r) => r.vendorType);
-
       const res = await pool.query(
-        `UPDATE vendors SET vendor_type = t.vt, updated_at = NOW()
-         FROM unnest($1::varchar[], $2::varchar[]) AS t(sap_code, vt)
-         WHERE vendors.sap_card_code = t.sap_code`,
-        [codes, vtypes],
+        `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
+         SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
+         FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
+         ON CONFLICT (sap_card_code)
+         DO UPDATE SET
+           name         = EXCLUDED.name,
+           display_name = EXCLUDED.name,
+           vendor_type  = EXCLUDED.vendor_type,
+           is_active    = true,
+           updated_at   = NOW()`,
+        [names, codes, vtypes],
       );
       upserted = res.rowCount ?? 0;
       const upsertedSet = new Set(codes);
       for (const r of classified) { if (upsertedSet.has(r.cardCode)) r.upsertedToDb = true; }
     }
 
-    console.log(`[vendors/test] dbVendors=${dbVendors.length}, classifiedFound=${classified.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
+    console.log(`[vendors/test] passAsc=${passAsc.length}, passDesc=${passDesc.length}, unique=${allRows.length}, classifiedFound=${classified.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
 
     return {
       login:           true,
       sessionConflict: false,
-      fetched:         dbVendors.length,  // total vendors checked
+      fetched:         allRows.length,    // unique records across both passes
       excluded:        0,
-      eligible:        classified.length, // vendors with U_ERP_Group IS NOT NULL
+      eligible:        classified.length,
       udfAvailable,
       udfFieldName,
       upserted,
       sample:          classified,
     };
+  } catch (err: any) {
+    if (String(err?.message).includes('SESSION_CONFLICT')) {
+      return {
+        login: true, sessionConflict: true,
+        fetched: 0, excluded: 0, eligible: 0,
+        udfAvailable: false, udfFieldName: 'not_checked',
+        upserted: 0, sample: [],
+      };
+    }
+    throw err;
   }
 }
 
