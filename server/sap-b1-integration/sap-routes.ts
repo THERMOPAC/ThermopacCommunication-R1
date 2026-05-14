@@ -29,8 +29,8 @@ router.get('/connection/ssl-bypass-test', (req, res, next) => {
 }, async (req, res) => {
   try {
     const serviceLayerUrl = 'https://192.168.1.100:50000/b1s/v1/';
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME || process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD || process.env.SAP_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     console.log('🧪 DIRECT SSL BYPASS TEST - Service Layer confirmed accessible');

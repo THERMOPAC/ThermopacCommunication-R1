@@ -288,7 +288,7 @@ class SapCentralSession {
       expiresAt: this.expiresAt?.toISOString() ?? null,
       loginInProgress: !!this.loginPromise,
       companyDb: process.env.SAP_COMPANY_DB || '',
-      username: process.env.SAP_USERNAME || '',
+      username: process.env.SAP_B1_USERNAME || process.env.SAP_USERNAME || '',
     };
   }
 
@@ -315,7 +315,8 @@ class SapCentralSession {
       hasDiskFile: fs.existsSync(DISK_PATH),
       diskFile: diskInfo,
       env: {
-        SAP_USERNAME: process.env.SAP_USERNAME || '(not set)',
+        SAP_B1_USERNAME: process.env.SAP_B1_USERNAME || '(not set)',
+        SAP_USERNAME: process.env.SAP_USERNAME || '(not set, fallback)',
         SAP_COMPANY_DB: process.env.SAP_COMPANY_DB || '(not set)',
         SAP_SERVICE_LAYER_URL: process.env.SAP_SERVICE_LAYER_URL || '(not set)',
       },
@@ -358,13 +359,13 @@ class SapCentralSession {
   // ─── Private ──────────────────────────────────────────────────────────────
 
   private async _doLogin(): Promise<string> {
-    const user = process.env.SAP_USERNAME || '';
-    const pass = process.env.SAP_PASSWORD || '';
+    const user = process.env.SAP_B1_USERNAME || process.env.SAP_USERNAME || '';
+    const pass = process.env.SAP_B1_PASSWORD || process.env.SAP_PASSWORD || '';
     const db   = process.env.SAP_COMPANY_DB || '';
 
     if (!user || !pass || !db) {
       throw new Error(
-        'SAP credentials not configured — SAP_USERNAME / SAP_PASSWORD / SAP_COMPANY_DB must be set',
+        'SAP credentials not configured — SAP_B1_USERNAME / SAP_B1_PASSWORD / SAP_COMPANY_DB must be set',
       );
     }
 
