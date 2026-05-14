@@ -3018,13 +3018,15 @@ export function setupProjectRoutes(app: express.Express) {
       let sapSkip = 0;
       const allRows: Array<{
         CardCode: string; CardName: string; ContactPerson: string;
-        Phone1: string; Address: string; City: string; Country: string; EmailAddress: string;
+        Phone1: string; Address: string; City: string; Country: string;
       }> = [];
 
-      // Paginate SAP with $select — standard fields only, no UDF, so $select is safe
+      // Paginate SAP with $select — standard fields only, no UDF, so $select is safe.
+      // Email is intentionally excluded: SAP rejects both 'E_Mail' and 'EmailAddress' for
+      // CustomerBP $select on some versions; email can be filled manually after import.
       while (true) {
         const qs = new URLSearchParams({
-          '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
+          '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country',
           '$filter': "CardType eq 'C' AND CardCode gt 'C10300'",
           '$top':    String(PAGE_SIZE),
           '$skip':   String(sapSkip),
@@ -3050,7 +3052,6 @@ export function setupProjectRoutes(app: express.Express) {
             Address:       String(bp.Address       ?? '').trim(),
             City:          String(bp.City          ?? '').trim(),
             Country:       String(bp.Country       ?? '').trim(),
-            EmailAddress:  String(bp.EmailAddress   ?? '').trim(),
           });
         }
 
@@ -3081,14 +3082,14 @@ export function setupProjectRoutes(app: express.Express) {
           const shortCode = row.CardCode.substring(0, 10);
           await pool.query(
             `INSERT INTO customers
-               (bp_code, bp_name, short_code, sap_card_code, contact_person, email, phone1,
+               (bp_code, bp_name, short_code, sap_card_code, contact_person, phone1,
                 bill_to_address, sap_mail_city, sap_mail_country,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'synced',NOW(),NOW(),NOW())
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
               row.CardCode, row.CardName, shortCode, row.CardCode,
-              row.ContactPerson || null, row.EmailAddress || null, row.Phone1 || null,
+              row.ContactPerson || null, row.Phone1 || null,
               row.Address || null, row.City || null, row.Country || null,
             ],
           );
