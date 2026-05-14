@@ -237,7 +237,8 @@ export default function EpcBuyListControlPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const role    = (user as any)?.role as string | undefined;
-  const userId  = (user as any)?.id as number | undefined;
+  const userId      = (user as any)?.id as number | undefined;
+  const isSuperuser = role === "Superuser";
   const canWrite  = isManager(role);
   const canAction = isSeniorManager(role);
 
@@ -1011,7 +1012,7 @@ export default function EpcBuyListControlPage() {
     if (st === "draft" && canWrite) actions.push("submit-for-review");
     if (st === "under_review" && canWrite) {
       actions.push("revert-to-draft");
-      if (lst.submitted_by !== userId) actions.push("review");
+      if (lst.submitted_by !== userId || isSuperuser) actions.push("review");
     }
     if (st === "under_review" && canAction && lst.reviewed_by) actions.push("release");
     if (st === "released" && canAction) { actions.push("lock"); actions.push("supersede"); }
