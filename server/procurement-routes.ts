@@ -98,14 +98,15 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   // No logout here — session is shared; it expires naturally after 30 min idle.
   {
     const PAGE_SIZE = 20;
-    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
+    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number; U_ERP_Group: string | null }> = [];
     let skip = 0;
 
-    // Fetch all suppliers using $select (fast, small pages, no UDFs — SAP OData rejects UDFs in $select)
+    // Fetch WITHOUT $select — SAP OData rejects UDFs in $select, but returns them
+    // in full-record fetches. Only 14 of 1,458 vendors have U_ERP_Group set, so
+    // we must fetch full records to capture those classifications.
     while (true) {
       const qs = new URLSearchParams({
         '$filter': "CardType eq 'cSupplier'",
-        '$select': 'CardCode,CardName,GroupCode',
         '$top':    String(PAGE_SIZE),
         '$skip':   String(skip),
       }).toString();
@@ -126,22 +127,25 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
         throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
       }
 
-      const page = (JSON.parse(resp.body).value || []) as typeof allSuppliers;
-      allSuppliers.push(...page);
+      const page = JSON.parse(resp.body).value || [];
+      for (const bp of page) {
+        allSuppliers.push({
+          CardCode:    String(bp.CardCode  ?? ''),
+          CardName:    String(bp.CardName  ?? ''),
+          GroupCode:   Number(bp.GroupCode ?? 0),
+          U_ERP_Group: typeof bp.U_ERP_Group !== 'undefined' ? (bp.U_ERP_Group ?? null) : null,
+        });
+      }
       if (page.length < PAGE_SIZE) break;
       skip += PAGE_SIZE;
       if (allSuppliers.length >= 3000) { console.warn('[vendors/sync] SAP supplier count capped at 3000'); break; }
     }
 
     const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-    console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total → ${eligible.length} eligible`);
+    const classified = eligible.filter((s) => VALID_VENDOR_TYPES.has((s.U_ERP_Group ?? '').trim()));
+    console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total → ${eligible.length} eligible, ${classified.length} with U_ERP_Group set`);
 
-    return eligible.map((s) => ({
-      CardCode:    s.CardCode,
-      CardName:    s.CardName,
-      GroupCode:   s.GroupCode,
-      U_ERP_Group: null,
-    }));
+    return eligible;
   }
 }
 
