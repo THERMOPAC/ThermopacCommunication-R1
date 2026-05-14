@@ -1,4 +1,4 @@
-import { sapHttpsClient } from './sap-https-client';
+import { sapSession } from './sap-central-session';
 
 interface SapBPAddress {
   AddressName: string;
@@ -27,76 +27,6 @@ interface SapBPData {
 }
 
 class SapBPSyncService {
-  private sessionId: string | null = null;
-  private routeId: string | null = null;
-  private sessionExpiresAt: Date | null = null;
-
-  private async ensureSession(): Promise<string> {
-    if (this.sessionId && this.sessionExpiresAt && this.sessionExpiresAt > new Date()) {
-      return this.sessionId;
-    }
-
-    const username = process.env.SAP_USERNAME;
-    const password = process.env.SAP_PASSWORD;
-    const companyDb = process.env.SAP_COMPANY_DB;
-
-    if (!username || !password || !companyDb) {
-      throw new Error('SAP credentials not configured (SAP_USERNAME, SAP_PASSWORD, SAP_COMPANY_DB)');
-    }
-
-    const { sessionId, response } = await sapHttpsClient.login(username, password, companyDb);
-    this.sessionId = sessionId;
-
-    const setCookieHeader = response.headers['set-cookie'];
-    if (setCookieHeader) {
-      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-      for (const cookie of cookieArray) {
-        const match = cookie.match(/ROUTEID=([^;]+)/);
-        if (match) {
-          this.routeId = match[1];
-          break;
-        }
-      }
-    }
-
-    this.sessionExpiresAt = new Date(Date.now() + 25 * 60 * 1000);
-    console.log('🔐 SAP BP Sync: Auto-login successful');
-    return sessionId;
-  }
-
-  private async makeRequest(method: 'GET' | 'POST' | 'PATCH', path: string, body?: any) {
-    const sessionId = await this.ensureSession();
-    const headers: Record<string, string> = {};
-    if (this.routeId) {
-      headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${this.routeId}`;
-    }
-
-    const response = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method,
-      path,
-      body,
-      headers
-    });
-
-    if (response.statusCode === 401) {
-      this.sessionId = null;
-      this.sessionExpiresAt = null;
-      const retrySessionId = await this.ensureSession();
-      const retryHeaders: Record<string, string> = {};
-      if (this.routeId) {
-        retryHeaders['Cookie'] = `B1SESSION=${retrySessionId}; ROUTEID=${this.routeId}`;
-      }
-      return await sapHttpsClient.authenticatedRequest(retrySessionId, {
-        method,
-        path,
-        body,
-        headers: retryHeaders
-      });
-    }
-
-    return response;
-  }
-
   private countryNameToCode(countryName: string): string | undefined {
     const map: Record<string, string> = {
       'Afghanistan': 'AF', 'Albania': 'AL', 'Algeria': 'DZ', 'Angola': 'AO', 'Argentina': 'AR',
@@ -247,7 +177,7 @@ class SapBPSyncService {
 
   async checkBPExists(cardCode: string): Promise<boolean> {
     try {
-      const response = await this.makeRequest('GET', `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')?$select=CardCode`);
+      const response = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')?$select=CardCode` });
       return response.ok;
     } catch (error) {
       console.error('SAP BP Sync: Error checking BP existence:', error);
@@ -272,7 +202,7 @@ class SapBPSyncService {
         return await this.updateBusinessPartner(customer, _retryDepth + 1);
       }
 
-      const response = await this.makeRequest('POST', '/b1s/v1/BusinessPartners', bpData);
+      const response = await sapSession.request({ method: 'POST', path: '/b1s/v1/BusinessPartners', body: bpData });
 
       if (response.ok) {
         console.log(`✅ SAP BP Sync: BP ${bpData.CardCode} created successfully`);
@@ -310,7 +240,7 @@ class SapBPSyncService {
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
       console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));
 
-      const response = await this.makeRequest('PATCH', `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, bpData);
+      const response = await sapSession.request({ method: 'PATCH', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, body: bpData });
 
       if (response.ok || response.statusCode === 204) {
         console.log(`✅ SAP BP Sync: BP ${cardCode} updated successfully`);
