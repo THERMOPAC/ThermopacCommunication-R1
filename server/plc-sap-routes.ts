@@ -23,8 +23,7 @@ import { Request, Response, Express } from 'express';
 import { pool } from './db';
 import { requirePageAccess } from './utils/permission-utils';
 import { logPlcAudit } from './plc-line-service';
-import { sapSessionManager } from './sap-session-manager';
-import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
+import { sapSession } from './sap-b1-integration/sap-central-session';
 import {
   notifyPlcSapSyncError,
   notifyPlcSapMismatch,
@@ -55,37 +54,28 @@ function requireManager(req: Request, res: Response): boolean {
   return true;
 }
 
-// ─── SAP session helper ──────────────────────────────────────────────────────
+// ─── SAP helpers — Phase 2 migration: central session only ───────────────────
+// All SAP calls route through sapSession.request() (SapCentralSession).
+// Per-user session gate replaced with sapSession.getHealth() availability check.
+// Ref: SAP Session Unification Migration Plan v1.2, Phase 2.
 
-function getSapSession(req: Request): { sessionId: string; routeId?: string } | null {
-  const userId = (req as any).user?.id;
-  if (!userId) return null;
-  const session = sapSessionManager.getSession(userId);
-  if (!session) return null;
-  return { sessionId: session.sessionId, routeId: (session as any).routeId };
+function requireSapAvailable(res: Response): boolean {
+  const health = sapSession.getHealth();
+  if (!health.alive) {
+    res.status(503).json({ error: 'SAP B1 not reachable. Check VPN and session status.', code: 'SAP_UNAVAILABLE' });
+    return false;
+  }
+  return true;
 }
 
-function buildSapCookieHeader(session: { sessionId: string; routeId?: string }): string {
-  return `B1SESSION=${session.sessionId}${session.routeId ? `; ROUTEID=${session.routeId}` : ''}`;
-}
-
-async function sapGet(session: { sessionId: string; routeId?: string }, path: string): Promise<any> {
-  const resp = await sapHttpsClient.authenticatedRequest(session.sessionId, {
-    method: 'GET',
-    path,
-    headers: { Cookie: buildSapCookieHeader(session) },
-  });
+async function sapGet(path: string): Promise<any> {
+  const resp = await sapSession.request({ method: 'GET', path });
   if (!resp.ok) throw new Error(`SAP GET ${path} failed (${resp.statusCode}): ${resp.body.slice(0, 300)}`);
   return JSON.parse(resp.body);
 }
 
-async function sapPost(session: { sessionId: string; routeId?: string }, path: string, body: any): Promise<any> {
-  const resp = await sapHttpsClient.authenticatedRequest(session.sessionId, {
-    method: 'POST',
-    path,
-    body,
-    headers: { Cookie: buildSapCookieHeader(session) },
-  });
+async function sapPost(path: string, body: any): Promise<any> {
+  const resp = await sapSession.request({ method: 'POST', path, body });
   if (!resp.ok) throw new Error(`SAP POST ${path} failed (${resp.statusCode}): ${resp.body.slice(0, 300)}`);
   return JSON.parse(resp.body);
 }
@@ -188,8 +178,7 @@ export function setupPlcSapRoutes(app: Express): void {
     if (isNaN(epcPoId)) return badReq(res, 'Invalid epcPoId');
     const userId = (req as any).user.id;
 
-    const sapSession = getSapSession(req);
-    if (!sapSession) return res.status(409).json({ error: 'No active SAP B1 session. Please login to SAP B1 first.', code: 'SAP_SESSION_REQUIRED' });
+    if (!requireSapAvailable(res)) return;
 
     const client = await pool.connect();
     try {
@@ -219,7 +208,7 @@ export function setupPlcSapRoutes(app: Express): void {
 
       try {
         const payload = await buildSapPoPayload(epcPoId);
-        const sapResp = await sapPost(sapSession, '/b1s/v1/PurchaseOrders', payload);
+        const sapResp = await sapPost('/b1s/v1/PurchaseOrders', payload);
         sapDocEntry = sapResp.DocEntry;
         sapDocNum = String(sapResp.DocNum || '');
       } catch (err: any) {
@@ -281,8 +270,7 @@ export function setupPlcSapRoutes(app: Express): void {
     if (isNaN(grnId)) return badReq(res, 'Invalid grnId');
     const userId = (req as any).user.id;
 
-    const sapSession = getSapSession(req);
-    if (!sapSession) return res.status(409).json({ error: 'No active SAP B1 session', code: 'SAP_SESSION_REQUIRED' });
+    if (!requireSapAvailable(res)) return;
 
     const client = await pool.connect();
     try {
@@ -310,7 +298,7 @@ export function setupPlcSapRoutes(app: Express): void {
 
       try {
         const payload = await buildSapGrnPayload(grnId);
-        const sapResp = await sapPost(sapSession, '/b1s/v1/GoodsReceiptPO', payload);
+        const sapResp = await sapPost('/b1s/v1/GoodsReceiptPO', payload);
         sapDocEntry = sapResp.DocEntry;
         sapGrnNumber = String(sapResp.DocNum || '');
       } catch (err: any) {
@@ -362,8 +350,7 @@ export function setupPlcSapRoutes(app: Express): void {
     const epcPoId = parseInt(req.params.epcPoId);
     if (isNaN(epcPoId)) return badReq(res, 'Invalid epcPoId');
 
-    const sapSession = getSapSession(req);
-    if (!sapSession) return res.status(409).json({ error: 'No active SAP B1 session', code: 'SAP_SESSION_REQUIRED' });
+    if (!requireSapAvailable(res)) return;
 
     try {
       const poRes = await pool.query(
@@ -381,7 +368,6 @@ export function setupPlcSapRoutes(app: Express): void {
       // Pull GRNs referencing this PO from SAP B1
       const filter = encodeURIComponent(`BaseEntry eq ${po.sap_po_doc_entry} and BaseType eq 22`);
       const sapData = await sapGet(
-        sapSession,
         `/b1s/v1/GoodsReceiptPO?$filter=${filter}&$select=DocEntry,DocNum,DocDate,CardCode,DocumentLines`,
       );
 
@@ -445,8 +431,7 @@ export function setupPlcSapRoutes(app: Express): void {
     if (isNaN(epcPoId)) return badReq(res, 'Invalid epcPoId');
     const userId = (req as any).user.id;
 
-    const sapSession = getSapSession(req);
-    if (!sapSession) return res.status(409).json({ error: 'No active SAP B1 session', code: 'SAP_SESSION_REQUIRED' });
+    if (!requireSapAvailable(res)) return;
 
     try {
       const poRes = await pool.query(
@@ -467,7 +452,7 @@ export function setupPlcSapRoutes(app: Express): void {
       }
 
       // Fetch SAP PO lines
-      const sapPo = await sapGet(sapSession, `/b1s/v1/PurchaseOrders(${po.sap_po_doc_entry})?$select=DocEntry,DocNum,DocumentLines`);
+      const sapPo = await sapGet(`/b1s/v1/PurchaseOrders(${po.sap_po_doc_entry})?$select=DocEntry,DocNum,DocumentLines`);
       const sapLines: any[] = sapPo?.DocumentLines || [];
 
       // Fetch THERMOPAC PO items
