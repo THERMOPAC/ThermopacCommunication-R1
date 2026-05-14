@@ -299,97 +299,97 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
     throw err;
   }
 
-  const CODES = ['R', 'P', 'M', 'I', 'V', 'E', 'B'] as const;
-  const CAP = 200;
-
-  // Sentinel thrown when -1102 appears mid-session (during a group query)
-  const SESSION_CONFLICT_SENTINEL = '__SAP_SESSION_CONFLICT__';
-
-  async function fetchGroup(code: string): Promise<UdfGroupResult> {
-    const qs = new URLSearchParams({
-      '$filter': `CardType eq 'cSupplier' and U_ERP_Group eq '${code}'`,
-      '$top':    String(CAP),
-    }).toString();
-    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
-    });
-    if (!resp.ok) {
-      const body = resp.body?.substring(0, 400) ?? '';
-      // -1102 can appear on ANY authenticated request, not just login
-      if (isSapSessionConflict(body)) throw new Error(SESSION_CONFLICT_SENTINEL);
-      throw new Error(`SAP ${resp.statusCode} on group ${code}: ${body}`);
-    }
-    const rows: any[] = JSON.parse(resp.body).value ?? [];
-    return {
-      code,
-      label:   UDF_CODE_LABELS[code] ?? code,
-      count:   rows.length,
-      capped:  rows.length === CAP,
-      samples: rows.slice(0, 3).map((r: any) => ({
-        cardCode: String(r.CardCode ?? ''),
-        cardName: String(r.CardName ?? ''),
-        udfRaw:   String(r.U_ERP_Group ?? ''),
-      })),
-    };
-  }
-
-  async function fetchNullCount(): Promise<number> {
-    // SAP stores blank U_ERP_Group as empty string, not SQL NULL
-    const qs = new URLSearchParams({
-      '$filter': `CardType eq 'cSupplier' and U_ERP_Group eq ''`,
-      '$top':    '500',
-      '$select': 'CardCode',
-    }).toString();
-    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
-    });
-    if (!resp.ok) {
-      const body = resp.body?.substring(0, 200) ?? '';
-      if (isSapSessionConflict(body)) throw new Error(SESSION_CONFLICT_SENTINEL);
-      return -1;  // filter unsupported or other error — unknown count
-    }
-    return (JSON.parse(resp.body).value ?? []).length;
-  }
+  // SAP B1 Service Layer does NOT support UDF fields in OData $filter — attempts
+  // to filter by U_ERP_Group cause an internal "Switch company error -1102".
+  // Strategy: fetch vendors in small pages WITHOUT $select (so UDFs are present
+  // in the response), then group by U_ERP_Group in memory.
+  const PAGE_SIZE   = 20;
+  const MAX_RECORDS = 300;  // 15 pages — fast enough, wide enough sample
 
   try {
-    let queryError: string | null = null;
-    const groups: UdfGroupResult[] = [];
+    const allRows: Array<{
+      cardCode: string; cardName: string;
+      groupCode: number; udfRaw: string | null;
+    }> = [];
+    let skip = 0;
 
-    for (const code of CODES) {
-      try {
-        groups.push(await fetchGroup(code));
-      } catch (err: any) {
-        const msg = String(err?.message ?? '');
-        // Session conflict mid-query — stop immediately and surface to caller
-        if (msg === SESSION_CONFLICT_SENTINEL) {
-          console.warn(`[vendors/udf-dist] Session conflict on group ${code} — aborting`);
+    while (allRows.length < MAX_RECORDS) {
+      const qs = new URLSearchParams({
+        '$filter': "CardType eq 'cSupplier'",
+        '$top':    String(PAGE_SIZE),
+        '$skip':   String(skip),
+      }).toString();
+
+      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+      });
+
+      if (!resp.ok) {
+        const body = resp.body?.substring(0, 400) ?? '';
+        if (isSapSessionConflict(body)) {
           return { login: true, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
         }
-        // UDF $filter unsupported in this SAP version — record and stop
-        if (msg.includes('4000') || msg.toLowerCase().includes('filter') || msg.includes('U_ERP_Group')) {
-          queryError = `SAP rejected UDF $filter: ${msg.substring(0, 200)}`;
-          break;
-        }
-        throw err;
+        throw new Error(`SAP ${resp.statusCode}: ${body}`);
       }
+
+      const page: any[] = JSON.parse(resp.body).value ?? [];
+      for (const bp of page) {
+        allRows.push({
+          cardCode:  String(bp.CardCode  ?? ''),
+          cardName:  String(bp.CardName  ?? ''),
+          groupCode: Number(bp.GroupCode ?? 0),
+          udfRaw:    typeof bp['U_ERP_Group'] !== 'undefined' ? (bp['U_ERP_Group'] ?? null) : undefined as any,
+        });
+      }
+      if (page.length < PAGE_SIZE) break;
+      skip += PAGE_SIZE;
     }
+
+    // UDF availability: check if U_ERP_Group key was present in ANY record
+    const udfPresent = allRows.some((r) => r.udfRaw !== (undefined as any));
+
+    // Exclude employees (GroupCode 105/106)
+    const eligible = allRows.filter((r) => !EXCLUDED_GROUP_CODES.has(r.groupCode));
+
+    // Group by U_ERP_Group code in memory
+    const byCode = new Map<string, typeof eligible>();
+    for (const r of eligible) {
+      const raw = (r.udfRaw ?? '').trim();
+      const key = VALID_VENDOR_TYPES.has(raw) ? raw : '__null__';
+      if (!byCode.has(key)) byCode.set(key, []);
+      byCode.get(key)!.push(r);
+    }
+
+    const CODES = ['R', 'P', 'M', 'I', 'V', 'E', 'B'] as const;
+    const groups: UdfGroupResult[] = CODES.map((code) => {
+      const members = byCode.get(code) ?? [];
+      return {
+        code,
+        label:   UDF_CODE_LABELS[code],
+        count:   members.length,
+        capped:  false,   // counts are from this sample window, not all-time
+        samples: members.slice(0, 3).map((r) => ({
+          cardCode: r.cardCode,
+          cardName: r.cardName,
+          udfRaw:   r.udfRaw ?? '',
+        })),
+      };
+    });
 
     const totalClassified = groups.reduce((s, g) => s + g.count, 0);
-    let nullOrEmpty = -1;
-    if (!queryError) {
-      try {
-        nullOrEmpty = await fetchNullCount();
-      } catch (err: any) {
-        if (String(err?.message ?? '') === SESSION_CONFLICT_SENTINEL) {
-          // Session expired right at the null-count step — return what we have
-          console.warn('[vendors/udf-dist] Session conflict on null-count — returning partial result');
-        }
-      }
-    }
+    const nullOrEmpty     = (byCode.get('__null__') ?? []).length;
 
-    console.log(`[vendors/udf-dist] classified=${totalClassified}, null/empty=${nullOrEmpty}, queryError=${queryError ?? 'none'}`);
+    console.log(`[vendors/udf-dist] sampled=${allRows.length} total (excl=${allRows.length - eligible.length}), classified=${totalClassified}, null/empty=${nullOrEmpty}, udfPresent=${udfPresent}`);
 
-    return { login: true, sessionConflict: false, totalClassified, nullOrEmpty, groups, queryError };
+    return {
+      login:           true,
+      sessionConflict: false,
+      totalClassified,
+      nullOrEmpty,
+      groups,
+      queryError:      udfPresent ? null : 'U_ERP_Group field not present in SAP response for this sample — UDF may not be configured',
+      sampledTotal:    allRows.length,
+    } as any;
   } finally {
     await sapHttpsClient.logout(sessionId);
     console.log('[vendors/udf-dist] SAP session logged out');

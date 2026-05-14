@@ -816,21 +816,37 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
             {!udfDist.sessionConflict && (
               <>
+                {/* Method note */}
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded p-2.5">
+                  <HelpCircle className="h-3.5 w-3.5 mt-0.5 text-blue-500 shrink-0" />
+                  <span>
+                    SAP OData does not support filtering by UDF fields — counts below are from the first{" "}
+                    <strong>{udfDist.sampledTotal ?? 300}</strong> vendors sampled (no {"`"}$select{"`"}, UDFs included in full record).
+                    Counts reflect the sample window, not the full 1,458-vendor population.
+                  </span>
+                </div>
+
                 {/* Summary bar */}
                 <div className="flex gap-6 bg-gray-50 border rounded p-3">
                   <div>
-                    <div className="text-xs text-muted-foreground">Classified vendors</div>
+                    <div className="text-xs text-muted-foreground">Sampled vendors</div>
+                    <div className="text-2xl font-bold text-blue-700">{udfDist.sampledTotal ?? "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Classified (in sample)</div>
                     <div className="text-2xl font-bold text-green-700">{udfDist.totalClassified}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Blank / unclassified</div>
                     <div className="text-2xl font-bold text-amber-600">
-                      {udfDist.nullOrEmpty === -1 ? "unknown" : udfDist.nullOrEmpty}
+                      {udfDist.nullOrEmpty === -1 ? "—" : udfDist.nullOrEmpty}
                     </div>
                   </div>
                   <div className="ml-auto text-right">
-                    <div className="text-xs text-muted-foreground">Codes checked</div>
-                    <div className="text-2xl font-bold text-blue-700">{udfDist.groups?.length ?? 0} / 7</div>
+                    <div className="text-xs text-muted-foreground">Codes found</div>
+                    <div className="text-2xl font-bold text-indigo-700">
+                      {(udfDist.groups ?? []).filter((g: any) => g.count > 0).length} / 7
+                    </div>
                   </div>
                 </div>
 
