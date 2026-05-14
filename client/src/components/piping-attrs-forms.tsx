@@ -88,18 +88,26 @@ const HEAT_TREATMENT_OPTS  = ["None","Normalized","PWHT","Quenched & Tempered","
 
 // ── Dynamic helpers ───────────────────────────────────────────────────────────
 function derivePipeStandard(grade: string): string {
-  const g = grade.toUpperCase();
-  if (g.startsWith("A106"))    return "ASTM A106";
-  if (g.startsWith("A312"))    return "ASTM A312";
-  if (g.startsWith("A335"))    return "ASTM A335";
-  if (g.startsWith("A53"))     return "ASTM A53";
-  if (g.startsWith("IS 1239")) return "IS 1239";
-  if (g.startsWith("IS 3589")) return "IS 3589";
-  if (g.startsWith("IS 6630")) return "IS 6630";
-  if (g.includes("DUPLEX"))    return "ASTM A790";
-  if (g.includes("ERW"))       return "IS 3589";
-  if (g.startsWith("API 5L"))  return "API 5L";
-  return "";
+  const MAP: Record<string, string> = {
+    "IS 1239 Class A":   "IS 1239",
+    "IS 1239 Class B":   "IS 1239",
+    "IS 1239 Class C":   "IS 1239",
+    "IS 3589 Fe 330":    "IS 3589",
+    "IS 3589 Fe 410":    "IS 3589",
+    "SA-106 Gr B":       "ASME Sec. II Part A",
+    "SA-53 Gr B":        "ASME Sec. II Part A",
+    "SS304 Pipe":        "IS 6913",
+    "SS304L Pipe":       "IS 6913",
+    "SS316 Pipe":        "IS 6913",
+    "SS316L Pipe":       "IS 6913",
+    "SA-312 TP304":      "ASME Sec. II Part A",
+    "SA-312 TP304L":     "ASME Sec. II Part A",
+    "SA-312 TP316":      "ASME Sec. II Part A",
+    "SA-312 TP316L":     "ASME Sec. II Part A",
+    "Copper Pipe":       "ASME Sec. II Part B",
+    "Aluminium Pipe":    "ASME Sec. II Part B",
+  };
+  return MAP[grade] ?? "";
 }
 
 function deriveFlangeStandard(nb: string): string {
@@ -273,15 +281,12 @@ export function PlatesAttrsForm({
 // 2. PIPES
 // ─────────────────────────────────────────────────────────────────────────────
 const PIPES_MATERIAL_GRADES = [
-  "A106 Gr.A","A106 Gr.B","A106 Gr.C",
-  "A312 TP304","A312 TP304L","A312 TP316","A312 TP316L",
-  "A335 P11","A335 P22","A335 P5","A335 P9",
-  "A53 Gr.A","A53 Gr.B",
-  "IS 1239 Light","IS 1239 Medium","IS 1239 Heavy",
-  "IS 3589 Gr.330","IS 3589 Gr.410",
-  "IS 6630",
-  "Duplex S31803","Super Duplex S32750",
-  "ERW CS","API 5L Gr.B","API 5L X42","API 5L X52","API 5L X65",
+  "IS 1239 Class A","IS 1239 Class B","IS 1239 Class C",
+  "IS 3589 Fe 330","IS 3589 Fe 410",
+  "SA-106 Gr B","SA-53 Gr B",
+  "SS304 Pipe","SS304L Pipe","SS316 Pipe","SS316L Pipe",
+  "SA-312 TP304","SA-312 TP304L","SA-312 TP316","SA-312 TP316L",
+  "Copper Pipe","Aluminium Pipe",
 ];
 const PIPES_SCHEDULE        = [
   "SCH 5","SCH 5S","SCH 10","SCH 10S","SCH 20",
@@ -300,8 +305,7 @@ function pipeNeedsHeatTreatment(grade: string): boolean {
 }
 const PIPES_LENGTH_OPTS     = ["Random (5–7m)","Fixed 6m","Fixed 12m","Double Random Length"];
 const PIPES_STANDARD_OPTS   = [
-  "ASTM A106","ASTM A312","ASTM A335","ASTM A53",
-  "IS 1239","IS 3589","IS 6630","API 5L","ASTM A790",
+  "IS 1239","IS 3589","IS 6913","ASME Sec. II Part A","ASME Sec. II Part B",
 ];
 const PIPES_SURFACE         = ["Black (As-rolled)","Pickled & Passivated","Hot-Dip Galvanized"];
 const PIPES_NDT             = ["None","Hydrotest","Ultrasonic (UT)","Radiography (RT)","Magnetic Particle (MT)"];
@@ -356,9 +360,8 @@ export function PipesAttrsForm({
     else {
       setCustom(c => ({ ...c, [key]: false }));
       if (key === "material_grade") {
-        const derived  = derivePipeStandard(val);
-        const existing = (attrs.pipe_standard as string) ?? "";
-        onChange({ ...attrs, material_grade: val, pipe_standard: existing || derived });
+        const derived = derivePipeStandard(val);
+        onChange({ ...attrs, material_grade: val, pipe_standard: derived });
       } else {
         set(key, val);
       }
