@@ -31,9 +31,9 @@ router.post('/connect',
   sapLoginLimiter,
   async (req, res) => {
     try {
-      // Prefer SAP_B1_USERNAME/PASSWORD; fall back to SAP_USERNAME/PASSWORD; then request body
-      const username  = process.env.SAP_B1_USERNAME || process.env.SAP_USERNAME  || req.body?.username;
-      const password  = process.env.SAP_B1_PASSWORD || process.env.SAP_PASSWORD  || req.body?.password;
+      // Use SAP_B1_USERNAME/SAP_B1_PASSWORD from Secrets; fall back to request body for manual override
+      const username  = process.env.SAP_B1_USERNAME || req.body?.username;
+      const password  = process.env.SAP_B1_PASSWORD || req.body?.password;
       const companyDb = process.env.SAP_COMPANY_DB || req.body?.companyDb;
       const userId = req.user!.id;
 

@@ -30,8 +30,8 @@ function getSapCompanyDb(req?: express.Request): string {
 function getSapLoginBody(req?: express.Request): string {
   return JSON.stringify({
     CompanyDB: getSapCompanyDb(req),
-    UserName: process.env.SAP_B1_USERNAME || process.env.SAP_USERNAME,
-    Password: process.env.SAP_B1_PASSWORD || process.env.SAP_PASSWORD
+    UserName: process.env.SAP_B1_USERNAME,
+    Password: process.env.SAP_B1_PASSWORD
   });
 }
 
