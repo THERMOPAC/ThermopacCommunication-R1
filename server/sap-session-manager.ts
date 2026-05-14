@@ -1,3 +1,18 @@
+/**
+ * SAP USER SESSION MANAGER — user-only, per-request session store.
+ *
+ * PURPOSE: Stores per-user SAP B1 login sessions acquired via POST /api/sap/connect.
+ * These sessions are required by routes that have NOT yet been migrated to the
+ * central session singleton (SapCentralSession in sap-central-session.ts):
+ *   - server/sap-b1-integration/sap-purchase-routes.ts  (via requireSapAccess middleware)
+ *   - server/plc-sap-routes.ts
+ *   - server/sap-b1-integration/credentials-routes.ts   (getSessionsSummary display)
+ *
+ * DO NOT use this for new routes. New SAP routes must use sapSession.request()
+ * from sap-central-session.ts (the system singleton, auto-managed, conflict-free).
+ *
+ * This file will be removed once the above consumers are migrated.
+ */
 import { Request } from 'express';
 
 interface SapSession {

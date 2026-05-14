@@ -1,3 +1,17 @@
+/**
+ * SAP USER AUTH ROUTES — user-facing SAP login/logout/session-status endpoints.
+ *
+ * PURPOSE: Allows individual users to authenticate with SAP B1 Service Layer via
+ * POST /api/sap/connect. The resulting per-user session is stored in SapSessionManager
+ * and consumed by routes that have NOT yet been migrated to the central session singleton:
+ *   - server/sap-b1-integration/sap-purchase-routes.ts  (via requireSapAccess middleware)
+ *   - server/plc-sap-routes.ts
+ *
+ * This is SEPARATE from SapCentralSession (sap-central-session.ts), which is the
+ * system singleton used by all other migrated routes and must NOT be called from here.
+ *
+ * This file will be removed once all consumers above are migrated to sapSession.request().
+ */
 import express from 'express';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { sapLoginLimiter } from '../middleware/sap-rate-limiter';
