@@ -252,8 +252,8 @@ class SapCentralSession {
     this.loginPromise = null;
 
     await this.invalidate();
-    console.log('[SapCentralSession] forceReset() — waiting 2 s before re-initialize...');
-    await new Promise<void>(r => setTimeout(r, 2000));
+    console.log('[SapCentralSession] forceReset() — waiting 5 s for SAP to release stale session...');
+    await new Promise<void>(r => setTimeout(r, 5000));
     await this.initialize();
 
     const debugInfo = this.getDebugInfo();
@@ -330,29 +330,58 @@ class SapCentralSession {
   async testCredentials(
     username: string, password: string, companyDb: string,
   ): Promise<{ success: boolean; error?: string }> {
-    let sessionCookie: string | undefined;
-    console.log(`[SapCentralSession] testCredentials() — ephemeral login for user=${username} db=${companyDb}`);
-    try {
-      const { sessionCookie: sc } = await sapHttpsClient.login(username, password, companyDb);
-      sessionCookie = sc;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      let sessionCookie: string | undefined;
+      console.log(`[SapCentralSession] testCredentials() — ephemeral login attempt ${attempt}/2 for user=${username} db=${companyDb}`);
+      try {
+        const { sessionCookie: sc } = await sapHttpsClient.login(username, password, companyDb);
+        sessionCookie = sc;
 
-      await sapHttpsClient.authenticatedRequest(sessionCookie, {
-        method: 'GET', url: '', path: '/b1s/v1/PurchaseOrders?$top=1',
-      });
+        await sapHttpsClient.authenticatedRequest(sessionCookie, {
+          method: 'GET', url: '', path: '/b1s/v1/PurchaseOrders?$top=1',
+        });
 
-      console.log('[SapCentralSession] testCredentials() — OK');
-      return { success: true };
-    } catch (err: any) {
-      console.warn('[SapCentralSession] testCredentials() — failed:', err.message);
-      return { success: false, error: err.message };
-    } finally {
-      if (sessionCookie) {
-        try {
-          await sapHttpsClient.logout(sessionCookie);
-          console.log('[SapCentralSession] testCredentials() — ephemeral session logged out');
-        } catch { /* non-fatal */ }
+        console.log('[SapCentralSession] testCredentials() — OK');
+        return { success: true };
+      } catch (err: any) {
+        const msg: string = err?.message ?? String(err);
+        const is1102 = this._is1102(msg);
+
+        // Always try to logout the ephemeral cookie if we managed to get one
+        if (sessionCookie) {
+          try { await sapHttpsClient.logout(sessionCookie); } catch { /* non-fatal */ }
+          sessionCookie = undefined;
+        }
+
+        if (is1102 && attempt === 1) {
+          console.warn(
+            '[SapCentralSession] testCredentials() — -1102 on attempt 1. ' +
+            'Also attempting stale disk-cookie logout, then waiting 5 s before retry...',
+          );
+          // Best-effort: kill any stale session we know about from disk
+          try {
+            if (fs.existsSync(DISK_PATH)) {
+              const raw = fs.readFileSync(DISK_PATH, 'utf-8');
+              const diskState: DiskState = JSON.parse(raw);
+              const staleCookie = diskState.pendingLogout || diskState.cookie;
+              if (staleCookie) {
+                await sapHttpsClient.logout(staleCookie);
+                try { fs.unlinkSync(DISK_PATH); } catch { /* non-fatal */ }
+                console.log('[SapCentralSession] testCredentials() — stale disk cookie force-logged-out ✅');
+              }
+            }
+          } catch (fe: any) {
+            console.warn('[SapCentralSession] testCredentials() — stale disk logout failed (non-fatal):', fe.message);
+          }
+          await new Promise<void>(r => setTimeout(r, 5000));
+          continue; // retry attempt 2
+        }
+
+        console.warn('[SapCentralSession] testCredentials() — failed:', msg);
+        return { success: false, error: msg };
       }
     }
+    return { success: false, error: 'SAP login failed after 2 attempts' };
   }
 
   // ─── Private ──────────────────────────────────────────────────────────────
