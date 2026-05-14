@@ -417,7 +417,8 @@ export function PipesAttrsForm({
 // 3. FITTINGS
 // ─────────────────────────────────────────────────────────────────────────────
 const FITTINGS_TYPES = [
-  "90° LR Elbow","45° LR Elbow","90° SR Elbow",
+  "90° 1D Elbow","90° 1.5D Elbow","90° 2D Elbow",
+  "45° 1D Elbow","45° 1.5D Elbow","45° 2D Elbow",
   "Equal Tee","Reducing Tee","Cross",
   "Concentric Reducer","Eccentric Reducer",
   "End Cap","Stub End","Swage Nipple",
@@ -510,7 +511,7 @@ export function FittingsAttrsForm({
 
   const ftype    = (attrs.fitting_type as string) ?? "";
   const ftLower  = ftype.toLowerCase();
-  const isLRElbow = ftype === "90° LR Elbow" || ftype === "45° LR Elbow";
+  const isLRElbow = ftype.includes("Elbow");
   const isReduce  = ftLower.includes("reducer") || ftype === "Reducing Tee";
   const nb        = (attrs.nominal_bore as string) ?? "";
   const nbNum     = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "999");
