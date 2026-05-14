@@ -309,17 +309,19 @@ const PIPES_STANDARD_OPTS   = [
 ];
 const PIPES_SURFACE         = ["Black (As-rolled)","Pickled & Passivated","Hot-Dip Galvanized"];
 const PIPES_NDT             = ["None","Hydrotest","Ultrasonic (UT)","Radiography (RT)","Magnetic Particle (MT)"];
+const PIPES_TESTING         = ["UT (Ultrasonic)","Hydrotest","Radiography (RT)","Magnetic Particle (MT)","Charpy Test","HIC Test","NACE MR-0175"];
 const PIPES_ALL_OPTS: Record<string, string[]> = {
-  material_grade:    PIPES_MATERIAL_GRADES,
-  nominal_bore:      COMMON_NB,
-  schedule:          PIPES_SCHEDULE,
-  end_condition:     PIPES_END_CONDITION,
-  length:            PIPES_LENGTH_OPTS,
-  pipe_standard:     PIPES_STANDARD_OPTS,
-  mtr_required:      YES_NO,
-  surface_condition: PIPES_SURFACE,
-  ndt_requirement:   PIPES_NDT,
-  heat_treatment:    HEAT_TREATMENT_OPTS,
+  material_grade:     PIPES_MATERIAL_GRADES,
+  nominal_bore:       COMMON_NB,
+  schedule:           PIPES_SCHEDULE,
+  end_condition:      PIPES_END_CONDITION,
+  length:             PIPES_LENGTH_OPTS,
+  pipe_standard:      PIPES_STANDARD_OPTS,
+  mtr_required:       YES_NO,
+  additional_testing: PIPES_TESTING,
+  surface_condition:  PIPES_SURFACE,
+  ndt_requirement:    PIPES_NDT,
+  heat_treatment:     HEAT_TREATMENT_OPTS,
 };
 
 export function buildPipesRequirement(attrs: Record<string, unknown>): string {
@@ -397,7 +399,8 @@ export function PipesAttrsForm({
         {rf("length",         "Length",         PIPES_LENGTH_OPTS,     true)}
       </SectionCard>
       <SectionCard title="Standards & Quality" color="bg-emerald-50/60 border-emerald-200">
-        {rf("mtr_required",  "MTR Required",  YES_NO,              true)}
+        {rf("mtr_required",       "MTR Required",       YES_NO,        true)}
+        {rf("additional_testing", "Additional Testing", PIPES_TESTING)}
       </SectionCard>
       <SectionCard title="Additional Options" color="bg-slate-50/80 border-slate-200">
         {rf("surface_condition", "Surface Condition", PIPES_SURFACE)}
