@@ -484,17 +484,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
         <div className="flex gap-2">
           {canSapSync && (
             <>
-              <Button
-                variant="outline"
-                className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
-                onClick={() => sapSyncMutation.mutate(undefined)}
-                disabled={sapSyncMutation.isPending}
-              >
-                {sapSyncMutation.isPending
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <Search className="h-4 w-4" />}
-                Sync SAP Customers (BP &gt; C10300)
-              </Button>
               <div className="flex items-center gap-1">
                 <input
                   type="text"
