@@ -242,29 +242,25 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // ── 2. Dual bulk scan — mirrors SAP SQL: WHERE U_ERP_Group IS NOT NULL ─────
-  // Key insight: SAP bulk list fetches (without $select) INCLUDE UDF fields.
-  // Individual record fetches (/BusinessPartners('code')) do NOT.
-  // SAP caps each bulk scan at ~500 rows server-side.
+  // ── 2. Three-pass bulk scan — mirrors SAP SQL: WHERE U_ERP_Group IS NOT NULL ─
+  // Key insight: SAP bulk list fetches (without $select OR $orderby) INCLUDE UDF
+  // fields. Adding $orderby causes SAP to strip UDF fields from the response.
+  // SAP caps each un-ordered bulk scan at ~500 rows server-side.
   //
-  // Strategy: scan TWICE —
-  //   Pass A: ascending order  (SAP's default creation order — finds early V-codes)
-  //   Pass B: descending CardCode order — V-codes appear FIRST, all found in
-  //           the first pages regardless of how many vendors exist.
-  // The two sets are merged and deduplicated before classification.
+  // Strategy: 3 parallel passes at $skip=0, 500, 1000 — covers all 1,458
+  // vendors in SAP's default (creation-order) sequence with no $orderby.
 
-  const PAGE_SIZE  = 20;
+  const PAGE_SIZE    = 20;
   const MAX_PER_PASS = 500;
 
-  async function bulkScan(orderby: string): Promise<any[]> {
+  async function bulkScan(startSkip: number): Promise<any[]> {
     const rows: any[] = [];
-    let skip = 0;
+    let skip = startSkip;
     while (rows.length < MAX_PER_PASS) {
       const qs = new URLSearchParams({
-        '$filter':  "CardType eq 'cSupplier'",
-        '$orderby': orderby,
-        '$top':     String(PAGE_SIZE),
-        '$skip':    String(skip),
+        '$filter': "CardType eq 'cSupplier'",
+        '$top':    String(PAGE_SIZE),
+        '$skip':   String(skip),
       }).toString();
       const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
         method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
@@ -276,22 +272,24 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
       }
       const page: any[] = JSON.parse(resp.body).value ?? [];
       rows.push(...page);
-      if (page.length < PAGE_SIZE) break;
+      if (page.length < PAGE_SIZE) break; // last page — no more records at this offset
       skip += PAGE_SIZE;
     }
     return rows;
   }
 
   try {
-    const [passAsc, passDesc] = await Promise.all([
-      bulkScan('CardCode asc'),
-      bulkScan('CardCode desc'),
+    // Parallel: pass0=records 1-500, pass500=501-1000, pass1000=1001-1458
+    const [pass0, pass500, pass1000] = await Promise.all([
+      bulkScan(0),
+      bulkScan(500),
+      bulkScan(1000),
     ]);
 
     // Merge and deduplicate by CardCode
     const seen = new Set<string>();
     const allRows: any[] = [];
-    for (const bp of [...passAsc, ...passDesc]) {
+    for (const bp of [...pass0, ...pass500, ...pass1000]) {
       const code = String(bp.CardCode ?? '');
       if (code && !seen.has(code)) { seen.add(code); allRows.push(bp); }
     }
@@ -343,7 +341,7 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
       for (const r of classified) { if (upsertedSet.has(r.cardCode)) r.upsertedToDb = true; }
     }
 
-    console.log(`[vendors/test] passAsc=${passAsc.length}, passDesc=${passDesc.length}, unique=${allRows.length}, classifiedFound=${classified.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
+    console.log(`[vendors/test] pass0=${pass0.length}, pass500=${pass500.length}, pass1000=${pass1000.length}, unique=${allRows.length}, classifiedFound=${classified.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
 
     return {
       login:           true,
