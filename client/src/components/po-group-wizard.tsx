@@ -88,8 +88,16 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
       setTimeout(() => setSyncMessage(null), 5000);
     },
     onError: (err: any) => {
-      setSyncMessage(`✗ Sync failed: ${err?.message ?? "unknown error"}`);
-      setTimeout(() => setSyncMessage(null), 6000);
+      const raw: string = err?.message ?? "unknown error";
+      const isSessionConflict = raw.includes("SAP_SESSION_CONFLICT");
+      if (isSessionConflict) {
+        // Strip the sentinel prefix — the rest is the user-friendly message
+        setSyncMessage(`✗ ${raw.replace("SAP_SESSION_CONFLICT: ", "")}`);
+        setTimeout(() => setSyncMessage(null), 20000);  // long dismiss — user needs to act
+      } else {
+        setSyncMessage(`✗ Sync failed: ${raw}`);
+        setTimeout(() => setSyncMessage(null), 8000);
+      }
     },
   });
 

@@ -29,6 +29,27 @@ interface SapVendorRecord {
   U_ERP_Group: string | null;
 }
 
+// Helper: SAP login with session-conflict awareness.
+// -1102 "Switch company error" means a previous SAP session for this user is still active.
+// Retrying immediately does nothing — the old session takes 1–2 minutes to expire on its own.
+// Detect it early and throw a user-facing message so they know to wait.
+async function sapLogin(sapHttpsClient: any, user: string, pass: string, db_: string): Promise<string> {
+  try {
+    const { sessionId } = await sapHttpsClient.login(user, pass, db_);
+    return sessionId;
+  } catch (err: any) {
+    const msg: string = err?.message ?? String(err);
+    const is1102 = msg.includes('-1102') || msg.toLowerCase().includes('switch company');
+    if (is1102) {
+      throw new Error(
+        'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
+        'Wait 1–2 minutes for it to expire, then sync again.',
+      );
+    }
+    throw err;
+  }
+}
+
 async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
   const user = process.env.SAP_USERNAME || '';
@@ -36,48 +57,113 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   const db_  = process.env.SAP_COMPANY_DB || '';
   if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
 
-  const { sessionId } = await sapHttpsClient.login(user, pass, db_);
-
   const PAGE_SIZE = 20;
-  const allSuppliers: SapVendorRecord[] = [];
+
+  // ── Phase 1: Fetch all suppliers using $select (fast, proven) ─────────────
+  // $select keeps each page response small; UDFs are NOT included here (SAP OData rejects
+  // UDFs in $select). vendor_type is populated separately in Phase 2.
+  let sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
+  const phase1: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
   let skip = 0;
 
   while (true) {
-    // NOTE: Do NOT use $select — SAP B1 OData rejects UDFs (e.g. U_ERP_Group) in $select.
-    // Fetching without $select returns the full BP record including all UDFs automatically.
     const qs = new URLSearchParams({
       '$filter': "CardType eq 'cSupplier'",
-      '$top': String(PAGE_SIZE),
-      '$skip': String(skip),
+      '$select': 'CardCode,CardName,GroupCode',
+      '$top':    String(PAGE_SIZE),
+      '$skip':   String(skip),
     }).toString();
 
-    const response = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET',
-      url: '',
-      path: `/b1s/v1/BusinessPartners?${qs}`,
+    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
     });
 
-    if (!response.ok) {
-      throw new Error(`SAP BusinessPartners returned ${response.statusCode}: ${response.body.substring(0, 200)}`);
+    if (!resp.ok) {
+      // "Switch company" 500 — refresh session and retry once
+      if (resp.statusCode === 500) {
+        console.warn('[vendors/sync] Phase 1 got 500 — refreshing session and retrying page');
+        sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
+        continue;
+      }
+      throw new Error(`SAP Phase 1 returned ${resp.statusCode}: ${resp.body.substring(0, 300)}`);
     }
 
-    const data = JSON.parse(response.body);
-    const page: SapVendorRecord[] = data.value || [];
-    allSuppliers.push(...page);
-
+    const page = (JSON.parse(resp.body).value || []) as typeof phase1;
+    phase1.push(...page);
     if (page.length < PAGE_SIZE) break;
     skip += PAGE_SIZE;
-
-    if (allSuppliers.length >= 3000) {
-      console.warn('[vendors/sync] SAP supplier count exceeded 3000 — truncating');
-      break;
-    }
+    if (phase1.length >= 3000) { console.warn('[vendors/sync] Phase 1 capped at 3000'); break; }
   }
 
-  // Filter out employee group codes
-  const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-  console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total, ${eligible.length} eligible after excluding groups ${[...EXCLUDED_GROUP_CODES].join(',')}`);
-  return eligible;
+  const eligible = phase1.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
+  console.log(`[vendors/sync] Phase 1: ${phase1.length} total → ${eligible.length} eligible (excluded groups: ${[...EXCLUDED_GROUP_CODES].join(',')})`);
+
+  // ── Phase 2: Best-effort — fetch U_ERP_Group from full BP records ──────────
+  // Full records include UDFs. Refresh SAP session every 5 pages to avoid session expiry.
+  // If this phase fails, the sync still completes — vendor_type is left null.
+  const udfMap: Record<string, string | null> = {};
+  const eligibleSet = new Set(eligible.map((s) => s.CardCode?.trim()));
+
+  try {
+    sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
+    skip = 0;
+    let pageCount = 0;
+    const SESSION_REFRESH_EVERY = 5;   // refresh SAP session every 5 pages (~100 vendors)
+
+    while (true) {
+      // Proactive session refresh before it can expire
+      if (pageCount > 0 && pageCount % SESSION_REFRESH_EVERY === 0) {
+        try {
+          sessionId = await sapLogin(sapHttpsClient, user, pass, db_);
+          console.log(`[vendors/sync] Phase 2: session refreshed at page ${pageCount}`);
+        } catch {
+          console.warn('[vendors/sync] Phase 2: session refresh failed — aborting UDF fetch');
+          break;
+        }
+      }
+
+      const qs = new URLSearchParams({
+        '$filter': "CardType eq 'cSupplier'",
+        // No $select — full record so UDFs are returned
+        '$top':  String(PAGE_SIZE),
+        '$skip': String(skip),
+      }).toString();
+
+      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+      });
+
+      if (!resp.ok) {
+        console.warn(`[vendors/sync] Phase 2 page ${pageCount} returned ${resp.statusCode} — aborting UDF fetch`);
+        break;
+      }
+
+      const page: any[] = JSON.parse(resp.body).value || [];
+      for (const bp of page) {
+        const code = bp.CardCode?.trim();
+        if (code && eligibleSet.has(code)) {
+          const udf = bp['U_ERP_Group']?.trim();
+          udfMap[code] = VALID_VENDOR_TYPES.has(udf ?? '') ? udf : null;
+        }
+      }
+
+      pageCount++;
+      if (page.length < PAGE_SIZE) break;
+      skip += PAGE_SIZE;
+    }
+
+    console.log(`[vendors/sync] Phase 2: U_ERP_Group mapped for ${Object.keys(udfMap).length}/${eligible.length} vendors`);
+  } catch (phase2Err: any) {
+    console.warn('[vendors/sync] Phase 2 aborted — vendor_type will be null:', phase2Err?.message);
+  }
+
+  // Merge phase 1 + phase 2 results
+  return eligible.map((s) => ({
+    CardCode:    s.CardCode,
+    CardName:    s.CardName,
+    GroupCode:   s.GroupCode,
+    U_ERP_Group: udfMap[s.CardCode?.trim()] ?? null,
+  }));
 }
 
 // ─── Vendor list endpoint ──────────────────────────────────────────────────
