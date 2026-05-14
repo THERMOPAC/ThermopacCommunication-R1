@@ -503,7 +503,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   {sapSyncMutation.isPending
                     ? <Loader2 className="h-3 w-3 animate-spin" />
                     : <Search className="h-3 w-3" />}
-                  Test
+                  Sync Specific Customer
                 </Button>
               </div>
             </>
