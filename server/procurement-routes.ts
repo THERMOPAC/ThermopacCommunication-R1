@@ -1,4 +1,6 @@
 import { Response, Router, Request } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { db, pool } from './db';
 import { 
   projects, projectItems, masterItems, vendors,
@@ -90,9 +92,36 @@ function isSapSessionConflict(raw: string): boolean {
 // Cache stores the FULL cookie string (B1SESSION + CompanyDB + UserName + …) so
 // every authenticated request carries the complete session context SAP requires.
 // Sending only B1SESSION causes -1102 "Switch company" errors on subsequent calls.
+//
+// PERSISTENCE: session is written to .sap-session-cache.json so it survives
+// server restarts — prevents -1102 on first post-restart SAP call.
 interface SapSessionCache { cookie: string; createdAt: number; }
-let _sapSession: SapSessionCache | null = null;
+
+const SAP_SESSION_FILE = path.join(process.cwd(), '.sap-session-cache.json');
 const SAP_SESSION_TTL_MS = 25 * 60 * 1000; // 25 min (SAP default is 30 min idle)
+
+function _loadPersistedSapSession(): SapSessionCache | null {
+  try {
+    const raw = fs.readFileSync(SAP_SESSION_FILE, 'utf8');
+    const data: SapSessionCache = JSON.parse(raw);
+    if (data.cookie && data.createdAt && (Date.now() - data.createdAt) < SAP_SESSION_TTL_MS) {
+      console.log('[sap-session] Loaded persisted session from disk (still within TTL)');
+      return data;
+    }
+  } catch { /* no file or invalid JSON — treat as no session */ }
+  return null;
+}
+
+function _persistSapSession(s: SapSessionCache): void {
+  try { fs.writeFileSync(SAP_SESSION_FILE, JSON.stringify(s)); } catch { /* non-fatal */ }
+}
+
+function _clearPersistedSapSession(): void {
+  try { fs.unlinkSync(SAP_SESSION_FILE); } catch { /* non-fatal */ }
+}
+
+// Initialise from disk on module load so restarts reuse the existing SAP session
+let _sapSession: SapSessionCache | null = _loadPersistedSapSession();
 
 export async function getSharedSapSession(): Promise<string> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
@@ -107,9 +136,11 @@ export async function getSharedSapSession(): Promise<string> {
   }
 
   _sapSession = null; // clear stale entry before attempting login
+  _clearPersistedSapSession();
   try {
     const r = await sapHttpsClient.login(user, pass, db_);
     _sapSession = { cookie: r.sessionCookie, createdAt: Date.now() };
+    _persistSapSession(_sapSession);
     console.log(`[sap-session] New session created — cookies: ${r.sessionCookie.replace(/=[^;]+/g, '=***')}`);
     return _sapSession.cookie;
   } catch (err) {
@@ -120,7 +151,8 @@ export async function getSharedSapSession(): Promise<string> {
 
 export function invalidateSharedSapSession() {
   _sapSession = null;
-  console.log('[sap-session] Session invalidated');
+  _clearPersistedSapSession();
+  console.log('[sap-session] Session invalidated (memory + disk cleared)');
 }
 
 async function fetchSapVendors(): Promise<SapVendorRecord[]> {
