@@ -109,14 +109,22 @@ function deriveFlangeStandard(nb: string): string {
 }
 
 function derivePlateStandard(grade: string): string {
-  const g = grade.toUpperCase();
-  if (g.startsWith("SA-516"))       return "ASME SA-516";
-  if (g.startsWith("SA-537"))       return "ASME SA-537";
-  if (g.startsWith("IS 2062"))      return "IS 2062";
-  if (g.startsWith("SS") || g.startsWith("DUPLEX") || g.startsWith("SUPER DUPLEX")) return "ASME SA-240";
-  if (g.startsWith("MONEL"))        return "ASTM B127";
-  if (g.startsWith("HASTELLOY"))    return "ASTM B575";
-  return "";
+  const MAP: Record<string, string> = {
+    "IS 2062 E250":   "IS 2062",
+    "IS 2062 E350":   "IS 2062",
+    "SS304":          "IS 6911",
+    "SS304L":         "IS 6911",
+    "SS316":          "IS 6911",
+    "SS316L":         "IS 6911",
+    "SA 516 Gr 60":   "ASME Sec. II Part A",
+    "SA 516 Gr 70":   "ASME Sec. II Part A",
+    "ASTM A36":       "ASME Sec. II Part A",
+    "SA-240 Gr 304":  "ASME Sec. II Part A",
+    "SA-240 Gr 304L": "ASME Sec. II Part A",
+    "SA-240 Gr 316":  "ASME Sec. II Part A",
+    "SA-240 Gr 316L": "ASME Sec. II Part A",
+  };
+  return MAP[grade] ?? "";
 }
 
 function getStructuralMtrDefault(grade: string): string {
@@ -155,17 +163,16 @@ function QtyField({ qty, onQtyChange }: { qty?: string; onQtyChange?: (q: string
 // 1. PLATES
 // ─────────────────────────────────────────────────────────────────────────────
 const PLATES_MATERIAL_GRADES = [
-  "SA-516 Gr.60","SA-516 Gr.70","SA-537 Cl.1","SA-537 Cl.2",
-  "IS 2062 E250 BR","IS 2062 E250 C","IS 2062 E300","IS 2062 E350",
-  "SS 304","SS 304L","SS 316","SS 316L",
-  "Duplex 2205","Super Duplex 2507","Monel 400","Hastelloy C-276",
+  "IS 2062 E250","IS 2062 E350",
+  "SS304","SS304L","SS316","SS316L",
+  "SA 516 Gr 60","SA 516 Gr 70","ASTM A36",
+  "SA-240 Gr 304","SA-240 Gr 304L","SA-240 Gr 316","SA-240 Gr 316L",
 ];
 const PLATES_THICKNESS = ["3","5","6","8","10","12","16","20","25","32","40","50"];
 const PLATES_WIDTH     = ["1000","1250","1500","1800","2000","2500"];
 const PLATES_LENGTH    = ["Mill Length","2000","2500","3000","4000","5000","6000","12000"];
 const PLATES_STANDARD  = [
-  "ASME SA-516","ASME SA-537","ASME SA-240",
-  "IS 2062","EN 10028","ASTM B127","ASTM B575",
+  "IS 2062","IS 6911","ASME Sec. II Part A",
 ];
 const PLATES_SURFACE   = ["No.1 (HR)","No.2B (CR)","No.4 (Brushed)","Pickled & Oiled"];
 const PLATES_TESTING   = ["UT (Ultrasonic)","NACE MR-0175","HIC Test","Impact Test","Charpy Test"];
@@ -220,9 +227,8 @@ export function PlatesAttrsForm({
     else {
       setCustom(c => ({ ...c, [key]: false }));
       if (key === "material_grade") {
-        const derived  = derivePlateStandard(val);
-        const existing = (attrs.plate_standard as string) ?? "";
-        onChange({ ...attrs, material_grade: val, plate_standard: existing || derived });
+        const derived = derivePlateStandard(val);
+        onChange({ ...attrs, material_grade: val, plate_standard: derived });
       } else {
         set(key, val);
       }
