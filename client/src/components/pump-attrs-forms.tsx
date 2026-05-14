@@ -83,7 +83,7 @@ const CENTRIFUGAL_COMMON_OPTS = {
   fluid:                 ["Water","Hot Water","Cooling Water","Oil","Chemical","Slurry","Effluent","Hydrocarbons","Acid","Alkali"],
   operating_temp:        ["Ambient","50°C","80°C","100°C","120°C","150°C","200°C","250°C"],
   area_class:            ["Safe Area","Zone 1","Zone 2"],
-  certification:         ["ATEX","IECEx","PESO"],
+  certification:         ["ATEX","IECEx","PESO","API 610","CE"],
   speed_rpm:             ["960 RPM","1450 RPM","1750 RPM","2900 RPM","2950 RPM","3500 RPM","Variable"],
   motor_power_kw:        ["1.5 kW","2.2 kW","3.7 kW","5.5 kW","7.5 kW","11 kW","15 kW","18.5 kW",
                           "22 kW","30 kW","37 kW","45 kW","55 kW","75 kW","90 kW","110 kW",
