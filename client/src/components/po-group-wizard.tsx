@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -16,9 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, ChevronRight, ChevronLeft, Check, Loader2, Package } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -44,39 +43,41 @@ interface WizardProps {
   onSuccess: () => void;
 }
 
-// ─── Step configuration ───────────────────────────────────────────────────────
+// ─── Steps: 3-step flow ──────────────────────────────────────────────────────
 
 const STEPS = [
   { id: 1, label: "Vendor & AVL" },
-  { id: 2, label: "Line Selection" },
-  { id: 3, label: "Rates & Details" },
-  { id: 4, label: "Review & Create" },
+  { id: 2, label: "Rates & Details" },
+  { id: 3, label: "Review & Create" },
 ];
 
-const step3Schema = z.object({
+const POG_ELIGIBLE_STATUSES = ["pr_raised", "vendor_selected"];
+
+const termsSchema = z.object({
   deliveryTerms: z.string().optional(),
-  paymentTerms: z.string().optional(),
-  groupNotes: z.string().optional(),
+  paymentTerms:  z.string().optional(),
+  groupNotes:    z.string().optional(),
 });
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSuccess }: WizardProps) {
   const [step, setStep] = useState(1);
-  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null);
+  const [selectedVendorId,   setSelectedVendorId]   = useState<number | null>(null);
   const [selectedVendorName, setSelectedVendorName] = useState<string>("");
-  const [selectedLineIds, setSelectedLineIds] = useState<number[]>(preselectedLineIds);
-  const [lineRates, setLineRates] = useState<Record<number, { qty: string; unitRate: string }>>({});
-  const [avlBypassAck, setAvlBypassAck] = useState<Record<string, boolean>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [avlIssues, setAvlIssues] = useState<{ subgroupCode: string; status: string }[]>([]);
+  // activeLineIds starts as the pre-selected set; user may only remove, never add
+  const [activeLineIds,  setActiveLineIds]  = useState<number[]>(preselectedLineIds);
+  const [lineRates,      setLineRates]      = useState<Record<number, { qty: string; unitRate: string }>>({});
+  const [avlBypassAck,   setAvlBypassAck]   = useState<Record<string, boolean>>({});
+  const [avlIssues,      setAvlIssues]      = useState<{ subgroupCode: string; status: string }[]>([]);
+  const [submitting,     setSubmitting]     = useState(false);
 
-  const form = useForm<z.infer<typeof step3Schema>>({
-    resolver: zodResolver(step3Schema),
+  const form = useForm<z.infer<typeof termsSchema>>({
+    resolver: zodResolver(termsSchema),
     defaultValues: { deliveryTerms: "", paymentTerms: "", groupNotes: "" },
   });
 
-  // Data queries
+  // ── Data ──────────────────────────────────────────────────────────────────
   const { data: lines = [], isLoading: linesLoading } = useQuery<PlcLine[]>({
     queryKey: ["/api/projects", projectId, "procurement-list"],
     queryFn: () => apiRequest("GET", `/api/projects/${projectId}/procurement-list`),
@@ -87,94 +88,77 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     queryFn: () => apiRequest("GET", "/api/vendors"),
   });
 
-  const POG_ELIGIBLE_STATUSES = ["pr_raised", "vendor_selected"];
-  const eligibleLines = lines.filter(
-    (l) => POG_ELIGIBLE_STATUSES.includes(l.status) && !l.activePoGroupId,
-  );
-
-  // When the wizard is opened with pre-selected lines, those lines must always
-  // appear in the Step 2 list even if their status falls outside the eligible
-  // filter (e.g. approved, ordered, etc.).
-  const preselectedSet = new Set(preselectedLineIds);
-  const displayLines = preselectedLineIds.length > 0
-    ? [
-        ...eligibleLines,
-        ...lines.filter((l) => preselectedSet.has(l.id) && !eligibleLines.some((e) => e.id === l.id)),
-      ]
-    : eligibleLines;
-
-  // Auto-populate vendor when all pre-selected lines share the same CBE-selected vendor
+  // Auto-populate vendor when all pre-selected lines share the same CBE vendor
   useEffect(() => {
-    if (lines.length === 0 || preselectedLineIds.length === 0) return;
-    if (selectedVendorId) return;
-    const preselected = lines.filter((l) => preselectedLineIds.includes(l.id));
-    const uniqueVendorIds = [...new Set(preselected.map((l) => l.vendorId).filter(Boolean))];
-    if (uniqueVendorIds.length === 1 && uniqueVendorIds[0]) {
-      const ref = preselected.find((l) => l.vendorId === uniqueVendorIds[0]);
-      setSelectedVendorId(uniqueVendorIds[0] as number);
+    if (lines.length === 0 || preselectedLineIds.length === 0 || selectedVendorId) return;
+    const pre = lines.filter((l) => preselectedLineIds.includes(l.id));
+    const uids = [...new Set(pre.map((l) => l.vendorId).filter(Boolean))];
+    if (uids.length === 1 && uids[0]) {
+      const ref = pre.find((l) => l.vendorId === uids[0]);
+      setSelectedVendorId(uids[0] as number);
       setSelectedVendorName(ref?.vendorName ?? "");
     }
   }, [lines, preselectedLineIds]);
 
-  const selectedLines = lines.filter((l) => selectedLineIds.includes(l.id));
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const activeLines = lines.filter((l) => activeLineIds.includes(l.id));
 
-  // Check AVL for selected vendor + subgroups
+  function isEligible(l: PlcLine) {
+    return POG_ELIGIBLE_STATUSES.includes(l.status) && !l.activePoGroupId;
+  }
+  const ineligibleLines = activeLines.filter((l) => !isEligible(l));
+
+  // ── AVL check ─────────────────────────────────────────────────────────────
   async function checkAvl(): Promise<{ subgroupCode: string; status: string }[]> {
     if (!selectedVendorId) return [];
-    const subgroups = [...new Set(selectedLines.map((l) => l.subgroupCode).filter(Boolean) as string[])];
+    const subgroups = [...new Set(activeLines.map((l) => l.subgroupCode).filter(Boolean) as string[])];
     const issues: { subgroupCode: string; status: string }[] = [];
     for (const sg of subgroups) {
-      const data: AvlCheck = await apiRequest("GET", `/api/vendor-subgroup-qualification/check?vendorId=${selectedVendorId}&subgroupCode=${sg}`);
-      if (!data.qualified) {
-        issues.push({ subgroupCode: sg, status: data.status ?? "not_checked" });
-      }
+      const data: AvlCheck = await apiRequest(
+        "GET",
+        `/api/vendor-subgroup-qualification/check?vendorId=${selectedVendorId}&subgroupCode=${sg}`,
+      );
+      if (!data.qualified) issues.push({ subgroupCode: sg, status: data.status ?? "not_checked" });
     }
     return issues;
   }
 
-  async function handleNextFromStep1() {
+  // ── Navigation ────────────────────────────────────────────────────────────
+  async function handleStep1Next() {
     if (!selectedVendorId) return;
     const issues = await checkAvl();
     setAvlIssues(issues);
+    // Pre-populate rates from PLC qty on first entry
+    setLineRates((prev) => {
+      const next = { ...prev };
+      for (const l of activeLines) {
+        if (!next[l.id]) next[l.id] = { qty: l.qtyRequired, unitRate: "0" };
+      }
+      return next;
+    });
     setStep(2);
   }
 
-  function handleNextFromStep2() {
-    if (selectedLineIds.length === 0) return;
-    // Initialise rates from PLC qty
-    const initRates: Record<number, { qty: string; unitRate: string }> = {};
-    for (const l of selectedLines) {
-      initRates[l.id] = lineRates[l.id] ?? { qty: l.qtyRequired, unitRate: "0" };
-    }
-    setLineRates(initRates);
-    setStep(3);
-  }
-
+  // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit() {
-    if (!selectedVendorId) return;
+    if (!selectedVendorId || activeLineIds.length === 0) return;
     setSubmitting(true);
     try {
       const vals = form.getValues();
-      const lineDetails = selectedLineIds.map((id) => ({
-        plcLineId: id,
-        qty: lineRates[id]?.qty ?? "0",
-        unitRate: lineRates[id]?.unitRate ?? "0",
-      }));
-      const body = {
+      await apiRequest("POST", "/api/epc-po-groups", {
         projectId,
         vendorId: selectedVendorId,
         vendorName: selectedVendorName,
-        plcLineIds: selectedLineIds,
-        lineDetails,
+        plcLineIds: activeLineIds,
+        lineDetails: activeLineIds.map((id) => ({
+          plcLineId: id,
+          qty:      lineRates[id]?.qty      ?? "0",
+          unitRate: lineRates[id]?.unitRate ?? "0",
+        })),
         deliveryTerms: vals.deliveryTerms,
-        paymentTerms: vals.paymentTerms,
-        groupNotes: vals.groupNotes,
-      };
-      const r = await apiRequest("POST", "/api/epc-po-groups", body);
-      if (!r.ok) {
-        const err = await r.json();
-        throw new Error(err.error ?? "Failed to create PO Group");
-      }
+        paymentTerms:  vals.paymentTerms,
+        groupNotes:    vals.groupNotes,
+      });
       onSuccess();
     } catch (e: any) {
       alert(e.message);
@@ -185,6 +169,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
   const unacknowledgedIssues = avlIssues.filter((i) => !avlBypassAck[i.subgroupCode]);
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -195,7 +180,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
           </DialogTitle>
         </DialogHeader>
 
-        {/* Step indicator */}
+        {/* ── Step indicator ─────────────────────────────────────────────── */}
         <div className="flex items-center gap-1 mb-4">
           {STEPS.map((s, i) => (
             <div key={s.id} className="flex items-center">
@@ -224,9 +209,19 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
           ))}
         </div>
 
-        {/* ── Step 1: Vendor & AVL ─────────────────────────────────────────── */}
+        {/* ── Step 1: Vendor & AVL ───────────────────────────────────────── */}
         {step === 1 && (
           <div className="space-y-4">
+
+            {/* Locked line summary */}
+            <div className="rounded-lg border bg-slate-50 px-3 py-2.5 text-sm flex items-center justify-between">
+              <span className="text-muted-foreground">
+                <strong className="text-foreground">{activeLineIds.length}</strong> line(s) selected for this PO Group
+              </span>
+              {linesLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </div>
+
+            {/* Vendor selector */}
             <div>
               <label className="block text-sm font-medium mb-1.5">Select Vendor *</label>
               <Select
@@ -235,6 +230,8 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                   const vend = vendors.find((x) => x.id === parseInt(v));
                   setSelectedVendorId(parseInt(v));
                   setSelectedVendorName(vend?.name ?? "");
+                  setAvlIssues([]);
+                  setAvlBypassAck({});
                 }}
               >
                 <SelectTrigger>
@@ -248,6 +245,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
               </Select>
             </div>
 
+            {/* AVL issues */}
             {avlIssues.length > 0 && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
                 <div className="flex items-center gap-2 text-amber-800 font-medium text-sm">
@@ -264,8 +262,9 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                       className="mt-0.5"
                     />
                     <span className="text-sm text-amber-900">
-                      Vendor is <strong>{issue.status ?? "not qualified"}</strong> for subgroup <strong>{issue.subgroupCode}</strong>.
-                      I acknowledge this and confirm this vendor has been approved for use by management.
+                      Vendor is <strong>{issue.status ?? "not qualified"}</strong> for subgroup{" "}
+                      <strong>{issue.subgroupCode}</strong>. I acknowledge this and confirm this vendor
+                      has been approved for use by management.
                     </span>
                   </label>
                 ))}
@@ -275,7 +274,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <Button
-                onClick={handleNextFromStep1}
+                onClick={handleStep1Next}
                 disabled={!selectedVendorId || unacknowledgedIssues.length > 0}
               >
                 Next <ChevronRight className="h-4 w-4 ml-1" />
@@ -284,108 +283,56 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
           </div>
         )}
 
-        {/* ── Step 2: Line Selection ───────────────────────────────────────── */}
+        {/* ── Step 2: Rates & Details ────────────────────────────────────── */}
         {step === 2 && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Select the PLC lines to include in this PO Group.{" "}
-              {preselectedLineIds.length > 0
-                ? <>Your <strong>{preselectedLineIds.length} pre-selected line(s)</strong> are shown together with other eligible lines (<strong>PR Raised</strong> / <strong>Vendor Selected</strong>, no existing PO Group).</>
-                : <>Lines in <strong>PR Raised</strong> or <strong>Vendor Selected</strong> status without an existing PO Group are shown.</>}
-            </p>
-            {linesLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-6 justify-center">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading lines…
-              </div>
-            ) : displayLines.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">No eligible lines available.</p>
-            ) : (
-              <div className="border rounded-lg overflow-hidden max-h-80 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="p-2 w-8">
-                        <Checkbox
-                          checked={selectedLineIds.length === displayLines.length}
-                          onCheckedChange={(v) => setSelectedLineIds(v ? displayLines.map((l) => l.id) : [])}
-                        />
-                      </th>
-                      <th className="p-2 text-left font-semibold">PLC No</th>
-                      <th className="p-2 text-left font-semibold">Tag No</th>
-                      <th className="p-2 text-left font-semibold">Subgroup</th>
-                      <th className="p-2 text-right font-semibold">Qty Reqd</th>
-                      <th className="p-2 text-left font-semibold">UOM</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayLines.map((l) => (
-                      <tr
-                        key={l.id}
-                        className={cn("border-t cursor-pointer hover:bg-gray-50", selectedLineIds.includes(l.id) ? "bg-blue-50/60" : "")}
-                        onClick={() =>
-                          setSelectedLineIds((prev) =>
-                            prev.includes(l.id) ? prev.filter((x) => x !== l.id) : [...prev, l.id],
-                          )
-                        }
-                      >
-                        <td className="p-2">
-                          <Checkbox checked={selectedLineIds.includes(l.id)} />
-                        </td>
-                        <td className="p-2 font-mono text-indigo-700 font-medium">{l.plcNumber}</td>
-                        <td className="p-2">{l.tagNo ?? "—"}</td>
-                        <td className="p-2">{l.subgroupLabel ?? l.subgroupCode ?? "—"}</td>
-                        <td className="p-2 text-right tabular-nums">{parseFloat(l.qtyRequired).toFixed(2)}</td>
-                        <td className="p-2 text-gray-500">{l.uom ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">{selectedLineIds.length} line(s) selected.</p>
-
-            <div className="flex justify-between gap-2 pt-2">
-              <Button variant="outline" onClick={() => setStep(1)}>
-                <ChevronLeft className="h-4 w-4 mr-1" /> Back
-              </Button>
-              <Button onClick={handleNextFromStep2} disabled={selectedLineIds.length === 0}>
-                Next <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 3: Rates & Terms ────────────────────────────────────────── */}
-        {step === 3 && (
           <Form {...form}>
             <div className="space-y-4">
-              <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+
+              {/* Ineligibility warning */}
+              {ineligibleLines.length > 0 && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    <strong>{ineligibleLines.length}</strong> line(s) below are not in{" "}
+                    <strong>PR Raised</strong> or <strong>Vendor Selected</strong> status, or already
+                    belong to a PO Group. Remove them before submitting.
+                  </span>
+                </div>
+              )}
+
+              {/* Lines table — locked input, Remove only */}
+              <div className="border rounded-lg overflow-hidden max-h-72 overflow-y-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="p-2 text-left font-semibold">PLC No</th>
                       <th className="p-2 text-left font-semibold">Tag / Description</th>
-                      <th className="p-2 text-right font-semibold w-24">Qty</th>
-                      <th className="p-2 text-right font-semibold w-32">Unit Rate (₹)</th>
-                      <th className="p-2 text-right font-semibold w-32">Amount (₹)</th>
+                      <th className="p-2 text-right font-semibold w-20">Qty</th>
+                      <th className="p-2 text-right font-semibold w-28">Unit Rate (₹)</th>
+                      <th className="p-2 text-right font-semibold w-28">Amount (₹)</th>
+                      <th className="p-2 w-8" />
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedLines.map((l) => {
-                      const qty = parseFloat(lineRates[l.id]?.qty ?? l.qtyRequired) || 0;
-                      const rate = parseFloat(lineRates[l.id]?.unitRate ?? "0") || 0;
+                    {activeLines.map((l) => {
+                      const eligible = isEligible(l);
+                      const qty  = parseFloat(lineRates[l.id]?.qty      ?? l.qtyRequired) || 0;
+                      const rate = parseFloat(lineRates[l.id]?.unitRate ?? "0")           || 0;
                       return (
-                        <tr key={l.id} className="border-t">
-                          <td className="p-2 font-mono text-indigo-700">{l.plcNumber}</td>
-                          <td className="p-2 max-w-[160px] truncate">
+                        <tr key={l.id} className={cn("border-t", !eligible && "bg-amber-50/60")}>
+                          <td className="p-2 font-mono text-indigo-700 whitespace-nowrap">
+                            {l.plcNumber}
+                            {!eligible && (
+                              <AlertTriangle className="inline h-3 w-3 ml-1 text-amber-500" />
+                            )}
+                          </td>
+                          <td className="p-2 max-w-[150px] truncate">
                             {l.tagNo ? <><strong>{l.tagNo}</strong> — </> : null}
                             {l.serviceDescription ?? l.itemDescription ?? "—"}
                           </td>
                           <td className="p-2">
                             <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
+                              type="number" min="0" step="0.01"
                               className="h-7 text-right text-xs"
                               value={lineRates[l.id]?.qty ?? l.qtyRequired}
                               onChange={(e) =>
@@ -398,9 +345,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                           </td>
                           <td className="p-2">
                             <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
+                              type="number" min="0" step="0.01"
                               className="h-7 text-right text-xs"
                               value={lineRates[l.id]?.unitRate ?? "0"}
                               onChange={(e) =>
@@ -414,27 +359,46 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                           <td className="p-2 text-right tabular-nums font-medium">
                             {(qty * rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </td>
+                          <td className="p-2">
+                            <button
+                              type="button"
+                              title="Remove line"
+                              className="text-gray-400 hover:text-red-500 transition-colors"
+                              onClick={() => setActiveLineIds((prev) => prev.filter((x) => x !== l.id))}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
                   </tbody>
                   <tfoot className="bg-gray-50 border-t font-semibold">
                     <tr>
-                      <td colSpan={4} className="p-2 text-right">Total Amount</td>
-                      <td className="p-2 text-right tabular-nums">
-                        ₹ {selectedLines
+                      <td colSpan={4} className="p-2 text-right text-xs">Total Amount</td>
+                      <td className="p-2 text-right tabular-nums text-xs">
+                        ₹{" "}
+                        {activeLines
                           .reduce((sum, l) => {
-                            const qty = parseFloat(lineRates[l.id]?.qty ?? l.qtyRequired) || 0;
-                            const rate = parseFloat(lineRates[l.id]?.unitRate ?? "0") || 0;
+                            const qty  = parseFloat(lineRates[l.id]?.qty      ?? l.qtyRequired) || 0;
+                            const rate = parseFloat(lineRates[l.id]?.unitRate ?? "0")           || 0;
                             return sum + qty * rate;
                           }, 0)
                           .toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                       </td>
+                      <td />
                     </tr>
                   </tfoot>
                 </table>
               </div>
 
+              {activeLineIds.length === 0 && (
+                <p className="text-xs text-destructive text-center py-1">
+                  All lines removed — go back and re-open the wizard with lines selected.
+                </p>
+              )}
+
+              {/* Terms */}
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
                   <FormItem>
@@ -455,16 +419,21 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
               <FormField control={form.control} name="groupNotes" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs">Group Notes</FormLabel>
-                  <FormControl><Textarea {...field} rows={2} placeholder="Any notes for this PO Group…" /></FormControl>
+                  <FormControl>
+                    <Textarea {...field} rows={2} placeholder="Any notes for this PO Group…" />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
 
               <div className="flex justify-between gap-2 pt-2">
-                <Button variant="outline" onClick={() => setStep(2)}>
+                <Button variant="outline" onClick={() => setStep(1)}>
                   <ChevronLeft className="h-4 w-4 mr-1" /> Back
                 </Button>
-                <Button onClick={() => setStep(4)}>
+                <Button
+                  onClick={() => setStep(3)}
+                  disabled={activeLineIds.length === 0 || ineligibleLines.length > 0}
+                >
                   Review <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
@@ -472,21 +441,38 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
           </Form>
         )}
 
-        {/* ── Step 4: Review & Create ──────────────────────────────────────── */}
-        {step === 4 && (
+        {/* ── Step 3: Review & Create ────────────────────────────────────── */}
+        {step === 3 && (
           <div className="space-y-4">
+            {/* Summary card */}
             <div className="rounded-lg border bg-gray-50 p-4 space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground text-xs">Vendor</span><p className="font-medium">{selectedVendorName}</p></div>
-                <div><span className="text-muted-foreground text-xs">Lines</span><p className="font-medium">{selectedLineIds.length}</p></div>
-                <div><span className="text-muted-foreground text-xs">Delivery Terms</span><p>{form.getValues("deliveryTerms") || "—"}</p></div>
-                <div><span className="text-muted-foreground text-xs">Payment Terms</span><p>{form.getValues("paymentTerms") || "—"}</p></div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Vendor</span>
+                  <p className="font-medium">{selectedVendorName}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Lines</span>
+                  <p className="font-medium">{activeLineIds.length}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Delivery Terms</span>
+                  <p>{form.getValues("deliveryTerms") || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Payment Terms</span>
+                  <p>{form.getValues("paymentTerms") || "—"}</p>
+                </div>
               </div>
               {form.getValues("groupNotes") && (
-                <div><span className="text-muted-foreground text-xs">Notes</span><p className="text-sm">{form.getValues("groupNotes")}</p></div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Notes</span>
+                  <p className="text-sm">{form.getValues("groupNotes")}</p>
+                </div>
               )}
             </div>
 
+            {/* Lines review table */}
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
@@ -494,38 +480,52 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                     <th className="p-2 text-left font-semibold">PLC No</th>
                     <th className="p-2 text-left font-semibold">Tag</th>
                     <th className="p-2 text-right font-semibold">Qty</th>
-                    <th className="p-2 text-right font-semibold">Rate</th>
-                    <th className="p-2 text-right font-semibold">Amount</th>
+                    <th className="p-2 text-right font-semibold">Rate (₹)</th>
+                    <th className="p-2 text-right font-semibold">Amount (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedLines.map((l) => {
-                    const qty = parseFloat(lineRates[l.id]?.qty ?? l.qtyRequired) || 0;
-                    const rate = parseFloat(lineRates[l.id]?.unitRate ?? "0") || 0;
+                  {activeLines.map((l) => {
+                    const qty  = parseFloat(lineRates[l.id]?.qty      ?? l.qtyRequired) || 0;
+                    const rate = parseFloat(lineRates[l.id]?.unitRate ?? "0")           || 0;
                     return (
                       <tr key={l.id} className="border-t">
                         <td className="p-2 font-mono text-indigo-700">{l.plcNumber}</td>
                         <td className="p-2">{l.tagNo ?? "—"}</td>
                         <td className="p-2 text-right tabular-nums">{qty.toFixed(2)}</td>
                         <td className="p-2 text-right tabular-nums">{rate.toFixed(2)}</td>
-                        <td className="p-2 text-right tabular-nums font-medium">{(qty * rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td className="p-2 text-right tabular-nums font-medium">
+                          {(qty * rate).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
+                <tfoot className="bg-gray-50 border-t font-semibold">
+                  <tr>
+                    <td colSpan={4} className="p-2 text-right">Total Amount</td>
+                    <td className="p-2 text-right tabular-nums">
+                      ₹{" "}
+                      {activeLines
+                        .reduce((sum, l) => {
+                          const qty  = parseFloat(lineRates[l.id]?.qty      ?? l.qtyRequired) || 0;
+                          const rate = parseFloat(lineRates[l.id]?.unitRate ?? "0")           || 0;
+                          return sum + qty * rate;
+                        }, 0)
+                        .toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              The PO Group will be saved as <strong>Draft</strong>. You can add rates and submit for approval after creation.
-            </p>
-
             <div className="flex justify-between gap-2 pt-2">
-              <Button variant="outline" onClick={() => setStep(3)}>
+              <Button variant="outline" onClick={() => setStep(2)}>
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
               <Button onClick={handleSubmit} disabled={submitting}>
-                {submitting ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Creating…</> : "Create PO Group"}
+                {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Create PO Group
               </Button>
             </div>
           </div>
