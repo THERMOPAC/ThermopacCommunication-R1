@@ -67,6 +67,7 @@ function SearchableSelect({
 // ─────────────────────────────────────────────────────────────────────────────
 const CENTRIFUGAL_PUMP_TYPES = [
   "End Suction","Split Case","Multistage","Vertical Inline","Vertical Turbine",
+  "Back Pull-Out (BPO)","Close-Coupled","Monobloc",
 ];
 const CENTRIFUGAL_COMMON_OPTS = {
   mounting:              ["Base Mounted","Skid Mounted","Inline","Sump"],
@@ -91,7 +92,7 @@ const CENTRIFUGAL_COMMON_OPTS = {
   api_610:               ["OH1","OH2","OH3","OH4","OH5","BB1","BB2","BB3","BB4","BB5",
                           "VS1","VS2","VS3","VS4","VS5","VS6","VS7","Non-API"],
   yes_no:                ["Yes","No"],
-  casing_type:           ["Back Pull-Out (BPO)","Close-Coupled","Monobloc","Volute Casing","Diffuser Casing","Single Volute","Double Volute","Axially Split Case","Radially Split Case","Vertical Split Case","Vortex Casing"],
+  casing_type:           ["Volute Casing","Diffuser Casing","Single Volute","Double Volute","Axially Split Case","Radially Split Case","Vertical Split Case","Vortex Casing"],
   impeller_type:         ["Open","Semi-Open","Closed"],
   coupling_type:         ["Flexible Coupling","Direct Drive","V-Belt","Spacer Coupling"],
   impeller_type_sc:      ["Double Suction","Single Suction"],
