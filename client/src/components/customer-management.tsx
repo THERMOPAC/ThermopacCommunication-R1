@@ -519,18 +519,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   Test
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                className="border-red-300 text-red-700 hover:bg-red-50 gap-2"
-                onClick={() => forceResetSapMutation.mutate()}
-                disabled={forceResetSapMutation.isPending}
-                title="Use when SAP shows -1102 session conflict. Logs out the stale session and forces a fresh login."
-              >
-                {forceResetSapMutation.isPending
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <RefreshCw className="h-4 w-4" />}
-                Force Reset SAP Session
-              </Button>
             </>
           )}
           <Button
