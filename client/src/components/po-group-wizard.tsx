@@ -92,6 +92,17 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     (l) => POG_ELIGIBLE_STATUSES.includes(l.status) && !l.activePoGroupId,
   );
 
+  // When the wizard is opened with pre-selected lines, those lines must always
+  // appear in the Step 2 list even if their status falls outside the eligible
+  // filter (e.g. approved, ordered, etc.).
+  const preselectedSet = new Set(preselectedLineIds);
+  const displayLines = preselectedLineIds.length > 0
+    ? [
+        ...eligibleLines,
+        ...lines.filter((l) => preselectedSet.has(l.id) && !eligibleLines.some((e) => e.id === l.id)),
+      ]
+    : eligibleLines;
+
   // Auto-populate vendor when all pre-selected lines share the same CBE-selected vendor
   useEffect(() => {
     if (lines.length === 0 || preselectedLineIds.length === 0) return;
@@ -113,8 +124,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     const subgroups = [...new Set(selectedLines.map((l) => l.subgroupCode).filter(Boolean) as string[])];
     const issues: { subgroupCode: string; status: string }[] = [];
     for (const sg of subgroups) {
-      const r = await apiRequest("GET", `/api/vendor-subgroup-qualification/check?vendorId=${selectedVendorId}&subgroupCode=${sg}`);
-      const data: AvlCheck = await r.json();
+      const data: AvlCheck = await apiRequest("GET", `/api/vendor-subgroup-qualification/check?vendorId=${selectedVendorId}&subgroupCode=${sg}`);
       if (!data.qualified) {
         issues.push({ subgroupCode: sg, status: data.status ?? "not_checked" });
       }
@@ -278,13 +288,16 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
         {step === 2 && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Select the PLC lines to include in this PO Group. Lines in <strong>PR Raised</strong> or <strong>Vendor Selected</strong> status without an existing PO Group are shown.
+              Select the PLC lines to include in this PO Group.{" "}
+              {preselectedLineIds.length > 0
+                ? <>Your <strong>{preselectedLineIds.length} pre-selected line(s)</strong> are shown together with other eligible lines (<strong>PR Raised</strong> / <strong>Vendor Selected</strong>, no existing PO Group).</>
+                : <>Lines in <strong>PR Raised</strong> or <strong>Vendor Selected</strong> status without an existing PO Group are shown.</>}
             </p>
             {linesLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground py-6 justify-center">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading lines…
               </div>
-            ) : eligibleLines.length === 0 ? (
+            ) : displayLines.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">No eligible lines available.</p>
             ) : (
               <div className="border rounded-lg overflow-hidden max-h-80 overflow-y-auto">
@@ -293,8 +306,8 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                     <tr>
                       <th className="p-2 w-8">
                         <Checkbox
-                          checked={selectedLineIds.length === eligibleLines.length}
-                          onCheckedChange={(v) => setSelectedLineIds(v ? eligibleLines.map((l) => l.id) : [])}
+                          checked={selectedLineIds.length === displayLines.length}
+                          onCheckedChange={(v) => setSelectedLineIds(v ? displayLines.map((l) => l.id) : [])}
                         />
                       </th>
                       <th className="p-2 text-left font-semibold">PLC No</th>
@@ -305,7 +318,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                     </tr>
                   </thead>
                   <tbody>
-                    {eligibleLines.map((l) => (
+                    {displayLines.map((l) => (
                       <tr
                         key={l.id}
                         className={cn("border-t cursor-pointer hover:bg-gray-50", selectedLineIds.includes(l.id) ? "bg-blue-50/60" : "")}
