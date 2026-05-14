@@ -242,23 +242,29 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // ── 2. Three-pass bulk scan — mirrors SAP SQL: WHERE U_ERP_Group IS NOT NULL ─
-  // Key insight: SAP bulk list fetches (without $select OR $orderby) INCLUDE UDF
-  // fields. Adding $orderby causes SAP to strip UDF fields from the response.
-  // SAP caps each un-ordered bulk scan at ~500 rows server-side.
+  // ── 2. Direct OData filter on U_ERP_Group with $select ───────────────────
+  // SAP B1 Service Layer supports filtering on UDF fields and returns them
+  // when explicitly listed in $select. This is the authoritative approach —
+  // field name is exactly "U_ERP_Group" as confirmed in SAP SQL.
   //
-  // Strategy: 3 parallel passes at $skip=0, 500, 1000 — covers all 1,458
-  // vendors in SAP's default (creation-order) sequence with no $orderby.
+  // Mirrors:  WHERE U_ERP_Group IN ('R','P','M','I','V','E','B')
+  // $select:  CardCode,CardName,GroupCode,U_ERP_Group  (explicit — no ambiguity)
 
-  const PAGE_SIZE    = 20;
-  const MAX_PER_PASS = 500;
+  const UDF_FILTER =
+    "CardType eq 'cSupplier' and " +
+    "(U_ERP_Group eq 'R' or U_ERP_Group eq 'P' or U_ERP_Group eq 'M' or " +
+    " U_ERP_Group eq 'I' or U_ERP_Group eq 'V' or U_ERP_Group eq 'E' or " +
+    " U_ERP_Group eq 'B')";
 
-  async function bulkScan(startSkip: number): Promise<any[]> {
+  const PAGE_SIZE = 20;
+
+  async function fetchClassified(): Promise<any[]> {
     const rows: any[] = [];
-    let skip = startSkip;
-    while (rows.length < MAX_PER_PASS) {
+    let skip = 0;
+    while (true) {
       const qs = new URLSearchParams({
-        '$filter': "CardType eq 'cSupplier'",
+        '$filter': UDF_FILTER,
+        '$select': 'CardCode,CardName,GroupCode,U_ERP_Group',
         '$top':    String(PAGE_SIZE),
         '$skip':   String(skip),
       }).toString();
@@ -271,50 +277,36 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
       }
       const page: any[] = JSON.parse(resp.body).value ?? [];
+      // Log first raw row so we can verify field names exactly
+      if (skip === 0 && page.length > 0) {
+        console.log('[vendors/test] RAW first row from SAP:', JSON.stringify(page[0]));
+      }
       rows.push(...page);
-      if (page.length < PAGE_SIZE) break; // last page — no more records at this offset
+      if (page.length < PAGE_SIZE) break; // last page
       skip += PAGE_SIZE;
     }
     return rows;
   }
 
-  // Small helper so we don't hammer SAP between passes
-  const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
   try {
-    // Sequential — SAP B1 returns -1102 if the same session is used for
-    // concurrent requests. Run passes one after another with a brief gap.
-    const pass0    = await bulkScan(0);
-    await pause(300);
-    const pass500  = await bulkScan(500);
-    await pause(300);
-    const pass1000 = await bulkScan(1000);
+    const allRows = await fetchClassified();
 
-    // Merge and deduplicate by CardCode
-    const seen = new Set<string>();
-    const allRows: any[] = [];
-    for (const bp of [...pass0, ...pass500, ...pass1000]) {
-      const code = String(bp.CardCode ?? '');
-      if (code && !seen.has(code)) { seen.add(code); allRows.push(bp); }
-    }
+    // U_ERP_Group is guaranteed present (it's in $select AND was the filter key)
+    const udfAvailable = allRows.length > 0 ? ('U_ERP_Group' in allRows[0]) : true;
+    const udfFieldName = 'U_ERP_Group';
 
-    // Detect UDF presence from the merged set
-    const udfAvailable = allRows.some((bp) => 'U_ERP_Group' in bp);
-    const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
-
-    // Filter: U_ERP_Group IS NOT NULL AND not excluded GroupCode
+    // Build classified list — exclude GroupCode 105/106, map vendorType
     const classified: VendorTestResult['sample'] = [];
     for (const bp of allRows) {
       if (EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode))) continue;
       const raw = bp['U_ERP_Group'];
-      if (raw === null || raw === undefined || String(raw).trim() === '') continue;
-      const udfRaw    = String(raw).trim();
+      const udfRaw     = raw != null ? String(raw).trim() : '';
       const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
       classified.push({
         cardCode:     String(bp.CardCode ?? ''),
         cardName:     String(bp.CardName ?? ''),
         groupCode:    Number(bp.GroupCode ?? 0),
-        udfRaw,
+        udfRaw:       udfRaw || null,
         vendorType,
         excluded:     false,
         upsertedToDb: false,
@@ -345,7 +337,7 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
       for (const r of classified) { if (upsertedSet.has(r.cardCode)) r.upsertedToDb = true; }
     }
 
-    console.log(`[vendors/test] pass0=${pass0.length}, pass500=${pass500.length}, pass1000=${pass1000.length}, unique=${allRows.length}, classifiedFound=${classified.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
+    console.log(`[vendors/test] totalFromSAP=${allRows.length}, classified=${classified.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
 
     return {
       login:           true,
