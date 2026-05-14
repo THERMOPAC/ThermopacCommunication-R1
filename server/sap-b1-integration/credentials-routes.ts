@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
 import { sapSession } from './sap-central-session';
-import { sapSessionManager } from '../sap-session-manager';
 
 const router = Router();
 
@@ -95,15 +94,13 @@ router.get('/connection/status', async (req, res) => {
     }
 
     const health = sapSession.getHealth();
-    // Also check per-user interactive sessions for the activeSessions count
-    const userSessions = sapSessionManager.getSessionsSummary();
 
     res.json({
       success: true,
       status: health.alive ? 'connected' : 'configured',
       isConnected: health.alive,
       credentialsConfigured: true,
-      activeSessions: userSessions.length,
+      activeSessions: 0,
       systemSession: {
         alive: health.alive,
         ttlSeconds: health.ttlSeconds,

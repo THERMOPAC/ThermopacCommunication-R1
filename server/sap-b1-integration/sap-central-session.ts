@@ -19,8 +19,9 @@
  *   import { sapSession } from '../sap-b1-integration/sap-central-session';
  *   const resp = await sapSession.request({ method: 'GET', path: '/b1s/v1/...' });
  *
- * Per-user sessions for GRPO / user-attributed SAP postings are handled separately
- * by sap-session-manager.ts and sap-auth-routes.ts — NOT this module.
+ * This is the sole authorised SAP session authority. Per-user session infrastructure
+ * (sap-session-manager.ts, sap-auth-routes.ts, sap-auth-middleware.ts) has been
+ * permanently deleted as part of SAP Session Unification Migration v1.2.
  */
 
 import fs from 'fs';
