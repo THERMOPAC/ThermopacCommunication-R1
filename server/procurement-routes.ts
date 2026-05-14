@@ -118,7 +118,7 @@ async function getSharedSapSession(): Promise<string> {
   }
 }
 
-function invalidateSharedSapSession() {
+export function invalidateSharedSapSession() {
   _sapSession = null;
   console.log('[sap-session] Session invalidated');
 }

@@ -54,6 +54,7 @@ import { executeProjectCancellationCascade, executeProjectRestorationCascade, is
 import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
 import { isDwgGateRequired } from './utils/epc-dwg-linking';
 import { triggerInspectionOnPoIssuance, triggerInspectionOnWoRelease } from './utils/epc-inspection-trigger';
+import { invalidateSharedSapSession } from './procurement-routes';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -3012,6 +3013,8 @@ export function setupProjectRoutes(app: express.Express) {
       );
       logId = logRes.rows[0].id;
 
+      // Clear shared vendor-sync session before fresh login to prevent -1102
+      invalidateSharedSapSession();
       const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
       const loginResp = await sapHttpsClient.login(sapUser, sapPass, sapDb);
       sessionCookie = loginResp.sessionCookie;
