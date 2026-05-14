@@ -176,6 +176,102 @@ export function setupProcurementRoutes(app: Router) {
     }
   });
   
+  // ─── Vendor Discovery: fetch all SAP supplier groups (no DB changes) ──────
+  /**
+   * GET /api/vendors/discover-sap-groups
+   * Fetches every cSupplier from SAP B1 with GroupCode, joins with
+   * BusinessPartnerGroups for GroupName, returns unique groups + counts.
+   * No local DB changes. Manager-only.
+   */
+  app.get('/api/vendors/discover-sap-groups', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      if (!['Superuser', 'GM', 'SM', 'General Manager', 'Senior Manager'].includes(user?.role)) {
+        return res.status(403).json({ error: 'Manager access required' });
+      }
+
+      const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+      const sapUser = process.env.SAP_USERNAME || '';
+      const sapPass = process.env.SAP_PASSWORD || '';
+      const sapDb   = process.env.SAP_COMPANY_DB || '';
+      if (!sapUser || !sapPass || !sapDb) {
+        return res.status(503).json({ error: 'SAP credentials not configured' });
+      }
+
+      const { sessionId } = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+
+      // ── 1. Fetch all BusinessPartnerGroups (code→name map) ───────────────
+      const grpResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET',
+        path: `/b1s/v1/BusinessPartnerGroups?$select=Code,Name&$top=200`,
+      });
+      const grpData  = grpResp.ok ? JSON.parse(grpResp.body) : { value: [] };
+      const groupMap: Record<number, string> = {};
+      for (const g of (grpData.value || [])) {
+        groupMap[g.Code] = g.Name;
+      }
+
+      // ── 2. Paginate all cSupplier BusinessPartners with GroupCode ─────────
+      const PAGE_SIZE = 20;
+      const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
+      let skip = 0;
+      while (true) {
+        const qs = new URLSearchParams({
+          '$filter': "CardType eq 'cSupplier'",
+          '$select': 'CardCode,CardName,GroupCode',
+          '$top':  String(PAGE_SIZE),
+          '$skip': String(skip),
+        }).toString();
+        const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'GET',
+          path: `/b1s/v1/BusinessPartners?${qs}`,
+        });
+        if (!resp.ok) break;
+        const page = JSON.parse(resp.body).value || [];
+        allSuppliers.push(...page);
+        if (page.length < PAGE_SIZE) break;
+        skip += PAGE_SIZE;
+        if (allSuppliers.length >= 2000) break;
+      }
+
+      // ── 3. Logout ─────────────────────────────────────────────────────────
+      await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'POST', path: '/b1s/v1/Logout',
+      }).catch(() => {});
+
+      // ── 4. Aggregate groups ───────────────────────────────────────────────
+      const groupCounts: Record<string, { groupCode: number; groupName: string; count: number; sampleVendors: string[] }> = {};
+      for (const s of allSuppliers) {
+        const code = s.GroupCode ?? -1;
+        const name = groupMap[code] ?? `GroupCode_${code}`;
+        const key  = String(code);
+        if (!groupCounts[key]) {
+          groupCounts[key] = { groupCode: code, groupName: name, count: 0, sampleVendors: [] };
+        }
+        groupCounts[key].count++;
+        if (groupCounts[key].sampleVendors.length < 3) {
+          groupCounts[key].sampleVendors.push(`${s.CardCode} — ${s.CardName}`);
+        }
+      }
+
+      const groups = Object.values(groupCounts).sort((a, b) => b.count - a.count);
+
+      console.log(`[vendor-discovery] SAP returned ${allSuppliers.length} suppliers across ${groups.length} groups:`);
+      for (const g of groups) {
+        console.log(`  GroupCode=${g.groupCode}  GroupName="${g.groupName}"  count=${g.count}`);
+      }
+
+      res.json({
+        totalSapSuppliers: allSuppliers.length,
+        totalGroups: groups.length,
+        groups,
+      });
+    } catch (err: any) {
+      console.error('[vendor-discovery] Error:', err?.message || err);
+      res.status(500).json({ error: err?.message || 'Discovery failed' });
+    }
+  });
+
   // ==================== PURCHASE ORDERS ====================
   
   /**
