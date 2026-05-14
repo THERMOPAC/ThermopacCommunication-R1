@@ -196,7 +196,7 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
   //    filter in memory. Cap at 500 records — enough to find all classified vendors.
   {
     const PAGE_SIZE  = 20;
-    const MAX_SCAN   = 500;
+    const MAX_SCAN   = 2000;  // cover all vendors (currently 1,458) — stops earlier if SAP runs out
     const allRows: any[] = [];
     let   skip       = 0;
     let   udfPresent = false;
