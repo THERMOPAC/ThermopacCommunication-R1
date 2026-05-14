@@ -226,6 +226,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
+    <>
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -915,5 +916,6 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }
