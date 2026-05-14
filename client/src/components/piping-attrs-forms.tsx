@@ -426,6 +426,7 @@ const FITTINGS_TYPES = [
   "Barrel Nipple","Pipe Nipple",
 ];
 const FITTINGS_MATERIAL = [
+  "A 105","A 182 F304","A 182 F316",
   "A234 WPB","A234 WPC","A234 WP11","A234 WP22",
   "A403 WP304","A403 WP304L","A403 WP316","A403 WP316L","A403 WP321","A403 WP347",
   "A860 WPHY 60","Duplex F51","Super Duplex F53",
