@@ -43,9 +43,10 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   let skip = 0;
 
   while (true) {
+    // NOTE: Do NOT use $select — SAP B1 OData rejects UDFs (e.g. U_ERP_Group) in $select.
+    // Fetching without $select returns the full BP record including all UDFs automatically.
     const qs = new URLSearchParams({
       '$filter': "CardType eq 'cSupplier'",
-      '$select': 'CardCode,CardName,GroupCode,U_ERP_Group',
       '$top': String(PAGE_SIZE),
       '$skip': String(skip),
     }).toString();
