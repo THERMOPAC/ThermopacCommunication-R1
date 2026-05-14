@@ -32,6 +32,39 @@ interface SapVendorRecord {
 // ── Concurrency guard — only one sync may run at a time ──────────────────────
 let syncInProgress = false;
 
+// ── Enrich a list of CardCodes with U_ERP_Group via individual SAP record fetches ──
+// SAP B1 Service Layer caps full-record OData results at 500 rows server-side.
+// Individual fetches (/b1s/v1/BusinessPartners('CODE')) bypass this limit.
+// We run them in parallel batches of 20 for speed (~7-15 s for 1,458 vendors).
+async function enrichWithUdfGroups(
+  cardCodes: string[],
+  sessionCookie: string,
+): Promise<Map<string, string | null>> {
+  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+  const result = new Map<string, string | null>();
+  const BATCH = 20;
+
+  for (let i = 0; i < cardCodes.length; i += BATCH) {
+    const batch = cardCodes.slice(i, i + BATCH);
+    const settled = await Promise.allSettled(
+      batch.map(async (code) => {
+        const resp = await sapHttpsClient.authenticatedRequest(sessionCookie, {
+          method: 'GET', url: '', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(code)}')`,
+        });
+        if (!resp.ok) return { code, udfRaw: null as string | null };
+        const bp = JSON.parse(resp.body);
+        const raw = bp['U_ERP_Group'] ?? null;
+        return { code, udfRaw: raw ? String(raw).trim() || null : null };
+      }),
+    );
+    for (const r of settled) {
+      if (r.status === 'fulfilled') result.set(r.value.code, r.value.udfRaw);
+    }
+  }
+  console.log(`[vendors/enrich] enriched ${result.size} of ${cardCodes.length} — found ${[...result.values()].filter(Boolean).length} with U_ERP_Group`);
+  return result;
+}
+
 // Parse -1102 session conflict from a SAP error message or body string
 function isSapSessionConflict(raw: string): boolean {
   return raw.includes('-1102') || raw.toLowerCase().includes('switch company');
@@ -95,17 +128,17 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
     throw err;
   }
 
-  // No logout here — session is shared; it expires naturally after 30 min idle.
+  // Phase 1: $select pagination — gets ALL vendors (proven to return all 1,458).
+  // SAP B1 Service Layer caps full-record (no $select) OData fetches at 500 rows
+  // server-side. With $select the limit does not apply so we get everything.
   {
     const PAGE_SIZE = 20;
-    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number; U_ERP_Group: string | null }> = [];
+    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
     let skip = 0;
 
-    // Fetch WITHOUT $select — SAP OData rejects UDFs in $select, but returns them
-    // in full-record fetches. Only 14 of 1,458 vendors have U_ERP_Group set, so
-    // we must fetch full records to capture those classifications.
     while (true) {
       const qs = new URLSearchParams({
+        '$select': 'CardCode,CardName,GroupCode',
         '$filter': "CardType eq 'cSupplier'",
         '$top':    String(PAGE_SIZE),
         '$skip':   String(skip),
@@ -130,22 +163,35 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
       const page = JSON.parse(resp.body).value || [];
       for (const bp of page) {
         allSuppliers.push({
-          CardCode:    String(bp.CardCode  ?? ''),
-          CardName:    String(bp.CardName  ?? ''),
-          GroupCode:   Number(bp.GroupCode ?? 0),
-          U_ERP_Group: typeof bp.U_ERP_Group !== 'undefined' ? (bp.U_ERP_Group ?? null) : null,
+          CardCode:  String(bp.CardCode  ?? ''),
+          CardName:  String(bp.CardName  ?? ''),
+          GroupCode: Number(bp.GroupCode ?? 0),
         });
       }
       if (page.length < PAGE_SIZE) break;
       skip += PAGE_SIZE;
-      if (allSuppliers.length >= 3000) { console.warn('[vendors/sync] SAP supplier count capped at 3000'); break; }
+      if (allSuppliers.length >= 5000) { console.warn('[vendors/sync] SAP supplier count capped at 5000'); break; }
     }
 
     const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-    const classified = eligible.filter((s) => VALID_VENDOR_TYPES.has((s.U_ERP_Group ?? '').trim()));
-    console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total → ${eligible.length} eligible, ${classified.length} with U_ERP_Group set`);
+    console.log(`[vendors/sync] Phase 1: ${allSuppliers.length} total SAP suppliers → ${eligible.length} eligible`);
 
-    return eligible;
+    // Phase 2: Enrich every eligible vendor with U_ERP_Group via individual record
+    // fetches in parallel batches. This bypasses the 500-row server-side cap.
+    const cardCodes = eligible.map((s) => s.CardCode);
+    const udfMap = await enrichWithUdfGroups(cardCodes, sessionId);
+
+    const result: SapVendorRecord[] = eligible.map((s) => ({
+      CardCode:    s.CardCode,
+      CardName:    s.CardName,
+      GroupCode:   s.GroupCode,
+      U_ERP_Group: udfMap.get(s.CardCode) ?? null,
+    }));
+
+    const classified = result.filter((s) => VALID_VENDOR_TYPES.has((s.U_ERP_Group ?? '').trim()));
+    console.log(`[vendors/sync] Phase 2: enriched ${result.length} vendors — ${classified.length} with valid U_ERP_Group`);
+
+    return result;
   }
 }
 
@@ -172,8 +218,6 @@ interface VendorTestResult {
 }
 
 async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
-  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-
   // ── 1. Shared session ─────────────────────────────────────────────────────
   let sessionId: string;
   try {
@@ -191,109 +235,95 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // ── 2. Mirror SAP SQL: SELECT CardCode, CardName, U_ERP_Group FROM OCRD WHERE U_ERP_Group IS NOT NULL
-  //    Fetch pages without $select (SAP OData rejects UDFs in $select) and
-  //    filter in memory. Cap at 500 records — enough to find all classified vendors.
+  // ── 2. Get all CardCodes from our DB (avoids SAP's 500-row server-side cap) ──
+  // SAP B1 Service Layer caps full-record OData results at 500 rows. The 14
+  // classified vendors are V-codes (alphabetically late), so they fall beyond
+  // that cut-off. Instead we enumerate our local vendor list and fetch each
+  // record individually from SAP — parallel batches of 20 keep this fast.
   {
-    const PAGE_SIZE  = 20;
-    const MAX_SCAN   = 2000;  // cover all vendors (currently 1,458) — stops earlier if SAP runs out
-    const allRows: any[] = [];
-    let   skip       = 0;
-    let   udfPresent = false;
+    const dbRows = await pool.query<{ sap_card_code: string; name: string }>(
+      `SELECT sap_card_code, name FROM vendors
+       WHERE sap_card_code IS NOT NULL AND sap_card_code != ''
+       ORDER BY sap_card_code`,
+    );
+    const dbVendors = dbRows.rows;
 
-    while (allRows.length < MAX_SCAN) {
-      const qs = new URLSearchParams({
-        '$filter': "CardType eq 'cSupplier'",
-        '$top':    String(PAGE_SIZE),
-        '$skip':   String(skip),
-      }).toString();
-
-      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+    // ── 3. Verify U_ERP_Group availability with a single probe record ───────
+    let udfAvailable = false;
+    let udfFieldName = 'not found';
+    if (dbVendors.length > 0) {
+      const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+      const probeResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(dbVendors[0].sap_card_code)}')`,
       });
-
-      if (!resp.ok) {
-        const body = resp.body?.substring(0, 400) ?? '';
-        if (isSapSessionConflict(body)) {
-          invalidateSharedSapSession();
-          return {
-            login: true, sessionConflict: true,
-            fetched: 0, excluded: 0, eligible: 0,
-            udfAvailable: false, udfFieldName: 'not_checked',
-            upserted: 0, sample: [],
-          };
-        }
-        throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
+      if (probeResp.ok) {
+        const bp = JSON.parse(probeResp.body);
+        udfAvailable = 'U_ERP_Group' in bp;
+        udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
       }
-
-      const page: any[] = JSON.parse(resp.body).value || [];
-      if (page.length > 0 && !udfPresent) udfPresent = 'U_ERP_Group' in page[0];
-      allRows.push(...page);
-      if (page.length < PAGE_SIZE) break;
-      skip += PAGE_SIZE;
     }
 
-    const udfAvailable = udfPresent;
-    const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
-
-    // ── 3. Filter in memory: U_ERP_Group IS NOT NULL (excludes employees too)
-    const classified = allRows.filter((bp: any) => {
-      if (EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode))) return false;
-      const raw = bp['U_ERP_Group'];
-      return raw !== null && raw !== undefined && String(raw).trim() !== '';
-    });
-
-    const sampleRows: VendorTestResult['sample'] = classified.map((bp: any) => {
-      const udfRaw    = String(bp['U_ERP_Group']).trim();
-      const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
+    if (!udfAvailable) {
+      console.log(`[vendors/test] U_ERP_Group not present in SAP response — stopping`);
       return {
-        cardCode:     String(bp.CardCode ?? ''),
-        cardName:     String(bp.CardName ?? ''),
-        groupCode:    Number(bp.GroupCode ?? 0),
+        login: true, sessionConflict: false,
+        fetched: dbVendors.length, excluded: 0, eligible: 0,
+        udfAvailable: false, udfFieldName,
+        upserted: 0, sample: [],
+      };
+    }
+
+    // ── 4. Enrich all DB vendors with U_ERP_Group in parallel batches ───────
+    const cardCodes = dbVendors.map((r) => r.sap_card_code);
+    const udfMap = await enrichWithUdfGroups(cardCodes, sessionId);
+
+    // ── 5. Filter: only those with U_ERP_Group set (mirrors SAP SQL WHERE IS NOT NULL)
+    const classified: VendorTestResult['sample'] = [];
+    for (const v of dbVendors) {
+      const udfRaw = udfMap.get(v.sap_card_code) ?? null;
+      if (!udfRaw) continue;
+      const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
+      classified.push({
+        cardCode:     v.sap_card_code,
+        cardName:     v.name,
+        groupCode:    0,
         udfRaw,
         vendorType,
         excluded:     false,
         upsertedToDb: false,
-      };
-    });
+      });
+    }
 
-    // ── 4. Upsert all classified vendors to DB ───────────────────────────────
+    // ── 6. Upsert classified vendors to DB ───────────────────────────────────
     let upserted = 0;
-    if (sampleRows.length > 0) {
-      const codes  = sampleRows.map((r) => r.cardCode);
-      const names  = sampleRows.map((r) => r.cardName);
-      const vtypes = sampleRows.map((r) => r.vendorType);
+    if (classified.length > 0) {
+      const codes  = classified.map((r) => r.cardCode);
+      const names  = classified.map((r) => r.cardName);
+      const vtypes = classified.map((r) => r.vendorType);
 
       const res = await pool.query(
-        `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
-         SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
-         FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
-         ON CONFLICT (sap_card_code)
-         DO UPDATE SET
-           name         = EXCLUDED.name,
-           display_name = EXCLUDED.name,
-           vendor_type  = EXCLUDED.vendor_type,
-           is_active    = true,
-           updated_at   = NOW()`,
-        [names, codes, vtypes],
+        `UPDATE vendors SET vendor_type = t.vt, updated_at = NOW()
+         FROM unnest($1::varchar[], $2::varchar[]) AS t(sap_code, vt)
+         WHERE vendors.sap_card_code = t.sap_code`,
+        [codes, vtypes],
       );
       upserted = res.rowCount ?? 0;
       const upsertedSet = new Set(codes);
-      for (const r of sampleRows) { if (upsertedSet.has(r.cardCode)) r.upsertedToDb = true; }
+      for (const r of classified) { if (upsertedSet.has(r.cardCode)) r.upsertedToDb = true; }
     }
 
-    console.log(`[vendors/test] scanned=${allRows.length}, classifiedFound=${sampleRows.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
+    console.log(`[vendors/test] dbVendors=${dbVendors.length}, classifiedFound=${classified.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
 
     return {
       login:           true,
       sessionConflict: false,
-      fetched:         allRows.length,      // total records scanned
-      excluded:        0,                   // no excluded in this query (employees pre-filtered)
-      eligible:        sampleRows.length,   // vendors with U_ERP_Group set
+      fetched:         dbVendors.length,  // total vendors checked
+      excluded:        0,
+      eligible:        classified.length, // vendors with U_ERP_Group IS NOT NULL
       udfAvailable,
       udfFieldName,
       upserted,
-      sample:          sampleRows,
+      sample:          classified,
     };
   }
 }
