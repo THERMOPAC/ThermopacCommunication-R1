@@ -317,3 +317,19 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 })();
+
+// Graceful shutdown — logout SAP session before exit so the next startup
+// can create a fresh session without hitting -1102 "Switch company" error.
+const _gracefulShutdown = async (signal: string) => {
+  console.log(`[shutdown] ${signal} received — logging out SAP session before exit`);
+  try {
+    const { invalidateSharedSapSession } = await import('./procurement-routes');
+    await invalidateSharedSapSession();
+    console.log('[shutdown] SAP session terminated cleanly');
+  } catch (e) {
+    console.warn('[shutdown] SAP logout failed (non-fatal):', (e as any)?.message);
+  }
+  process.exit(0);
+};
+process.on('SIGTERM', () => _gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => _gracefulShutdown('SIGINT'));

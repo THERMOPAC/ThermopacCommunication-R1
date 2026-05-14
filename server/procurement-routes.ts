@@ -137,15 +137,50 @@ export async function getSharedSapSession(): Promise<string> {
 
   _sapSession = null; // clear stale entry before attempting login
   _clearPersistedSapSession();
-  try {
+
+  const attemptLogin = async (): Promise<string> => {
     const r = await sapHttpsClient.login(user, pass, db_);
     _sapSession = { cookie: r.sessionCookie, createdAt: Date.now() };
     _persistSapSession(_sapSession);
     console.log(`[sap-session] New session created — cookies: ${r.sessionCookie.replace(/=[^;]+/g, '=***')}`);
     return _sapSession.cookie;
-  } catch (err) {
+  };
+
+  try {
+    return await attemptLogin();
+  } catch (err: any) {
     _sapSession = null;
-    throw err; // propagates including -1102
+    const msg = String(err?.message ?? err);
+    if (!isSapSessionConflict(msg)) throw err;
+
+    // ── -1102 recovery ────────────────────────────────────────────────────
+    // There is an active SAP session we don't have the cookie for (e.g. from
+    // a previous server run that restarted before persisting the session).
+    // Strategy: construct a partial cookie from known env vars and attempt a
+    // best-effort logout, then wait 1 s and retry the login once.
+    console.warn('[sap-session] -1102 detected — attempting force-logout with constructed cookie');
+    const constructedCookie = `CompanyDB=${db_}; UserName=${user}`;
+    try {
+      await sapHttpsClient.logout(constructedCookie);
+      console.log('[sap-session] Force-logout sent (best-effort)');
+    } catch { /* non-fatal */ }
+
+    await new Promise(r => setTimeout(r, 1500));
+
+    try {
+      return await attemptLogin();
+    } catch (err2: any) {
+      _sapSession = null;
+      const msg2 = String(err2?.message ?? err2);
+      if (isSapSessionConflict(msg2)) {
+        throw new Error(
+          'SAP session conflict (-1102): another session is active on the SAP server. ' +
+          'Please wait ~30 minutes for it to expire, then try again. ' +
+          'If this persists, ask your SAP administrator to clear active sessions for this user.',
+        );
+      }
+      throw err2;
+    }
   }
 }
 
