@@ -924,12 +924,23 @@ export function FastenersAttrsForm({
 const GASKET_TYPES = [
   "Spiral Wound (Inner + Outer Ring)",
   "Spiral Wound (Outer Ring only)",
+  "Spiral Wound",
+  "Corrugated Metal Gasket",
   "RTJ — Oval",
   "RTJ — Octagonal",
   "Flat Sheet — Full Face",
   "Flat Sheet — Raised Face",
   "Camprofile (Grooved)",
   "Kammprofile",
+  "PTFE Gasket",
+  "CAF Gasket",
+  "Rubber Gasket",
+  "Graphite Gasket",
+  "O-Ring",
+  "CNAF Gasket",
+  "EPDM Gasket",
+  "Neoprene Gasket",
+  "Silicon Gasket",
 ];
 const GASKET_WINDING_MATERIAL    = [
   "SS316 / Graphite","SS304 / Graphite","SS316 / PTFE","SS304 / PTFE",
