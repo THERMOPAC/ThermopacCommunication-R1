@@ -60,54 +60,58 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
     throw err;
   }
 
-  const PAGE_SIZE = 20;
-  const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
-  let skip = 0;
+  // Always logout when done — releases the SAP B1 session immediately so the
+  // next sync/test can login without hitting the -1102 session conflict.
+  try {
+    const PAGE_SIZE = 20;
+    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
+    let skip = 0;
 
-  // Fetch all suppliers using $select (fast, small pages, no UDFs — SAP OData rejects UDFs in $select)
-  while (true) {
-    const qs = new URLSearchParams({
-      '$filter': "CardType eq 'cSupplier'",
-      '$select': 'CardCode,CardName,GroupCode',
-      '$top':    String(PAGE_SIZE),
-      '$skip':   String(skip),
-    }).toString();
+    // Fetch all suppliers using $select (fast, small pages, no UDFs — SAP OData rejects UDFs in $select)
+    while (true) {
+      const qs = new URLSearchParams({
+        '$filter': "CardType eq 'cSupplier'",
+        '$select': 'CardCode,CardName,GroupCode',
+        '$top':    String(PAGE_SIZE),
+        '$skip':   String(skip),
+      }).toString();
 
-    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
-    });
+      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+      });
 
-    if (!resp.ok) {
-      // Any SAP error — check for session conflict, otherwise throw generic error
-      const body = resp.body?.substring(0, 400) ?? '';
-      if (isSapSessionConflict(body)) {
-        throw new Error(
-          'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
-          'Wait 1–2 minutes for it to expire, then try again.',
-        );
+      if (!resp.ok) {
+        // Any SAP error — check for session conflict, otherwise throw generic error
+        const body = resp.body?.substring(0, 400) ?? '';
+        if (isSapSessionConflict(body)) {
+          throw new Error(
+            'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
+            'Wait 1–2 minutes for it to expire, then try again.',
+          );
+        }
+        throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
       }
-      throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
+
+      const page = (JSON.parse(resp.body).value || []) as typeof allSuppliers;
+      allSuppliers.push(...page);
+      if (page.length < PAGE_SIZE) break;
+      skip += PAGE_SIZE;
+      if (allSuppliers.length >= 3000) { console.warn('[vendors/sync] SAP supplier count capped at 3000'); break; }
     }
 
-    const page = (JSON.parse(resp.body).value || []) as typeof allSuppliers;
-    allSuppliers.push(...page);
-    if (page.length < PAGE_SIZE) break;
-    skip += PAGE_SIZE;
-    if (allSuppliers.length >= 3000) { console.warn('[vendors/sync] SAP supplier count capped at 3000'); break; }
+    const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
+    console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total → ${eligible.length} eligible`);
+
+    return eligible.map((s) => ({
+      CardCode:    s.CardCode,
+      CardName:    s.CardName,
+      GroupCode:   s.GroupCode,
+      U_ERP_Group: null,
+    }));
+  } finally {
+    await sapHttpsClient.logout(sessionId);
+    console.log('[vendors/sync] SAP session logged out');
   }
-
-  const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-  console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total → ${eligible.length} eligible`);
-
-  // vendor_type (U_ERP_Group) is intentionally null for now — SAP OData rejects UDFs in
-  // $select and fetching full records causes session timeouts at scale.
-  // All eligible vendors are synced with vendor_type=null and can be classified later.
-  return eligible.map((s) => ({
-    CardCode:    s.CardCode,
-    CardName:    s.CardName,
-    GroupCode:   s.GroupCode,
-    U_ERP_Group: null,
-  }));
 }
 
 
@@ -157,95 +161,100 @@ async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // ── 2. Fetch small sample WITHOUT $select (so UDFs are included) ──────────
-  const qs = new URLSearchParams({
-    '$filter': "CardType eq 'cSupplier'",
-    // No $select — full record returns UDFs automatically
-    '$top': String(Math.min(limit, 20)),
-  }).toString();
+  // Always logout when done — releases the SAP B1 session immediately.
+  try {
+    // ── 2. Fetch small sample WITHOUT $select (so UDFs are included) ────────
+    const qs = new URLSearchParams({
+      '$filter': "CardType eq 'cSupplier'",
+      // No $select — full record returns UDFs automatically
+      '$top': String(Math.min(limit, 20)),
+    }).toString();
 
-  const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-    method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
-  });
+    const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+    });
 
-  if (!resp.ok) {
-    const body = resp.body?.substring(0, 400) ?? '';
-    if (isSapSessionConflict(body)) {
-      return {
-        login: true, sessionConflict: true,
-        fetched: 0, excluded: 0, eligible: 0,
-        udfAvailable: false, udfFieldName: 'not_checked',
-        upserted: 0, sample: [],
-      };
+    if (!resp.ok) {
+      const body = resp.body?.substring(0, 400) ?? '';
+      if (isSapSessionConflict(body)) {
+        return {
+          login: true, sessionConflict: true,
+          fetched: 0, excluded: 0, eligible: 0,
+          udfAvailable: false, udfFieldName: 'not_checked',
+          upserted: 0, sample: [],
+        };
+      }
+      throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
     }
-    throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
-  }
 
-  const raw: any[] = JSON.parse(resp.body).value || [];
+    const raw: any[] = JSON.parse(resp.body).value || [];
 
-  // ── 3. Inspect UDF availability ───────────────────────────────────────────
-  const firstBp = raw[0] ?? {};
-  const udfAvailable = 'U_ERP_Group' in firstBp;
-  const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
+    // ── 3. Inspect UDF availability ─────────────────────────────────────────
+    const firstBp = raw[0] ?? {};
+    const udfAvailable = 'U_ERP_Group' in firstBp;
+    const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
 
-  // ── 4. Map, exclude, classify ─────────────────────────────────────────────
-  const sampleRows: VendorTestResult['sample'] = raw.map((bp: any) => {
-    const isExcluded = EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode));
-    const udfRaw: string | null = bp['U_ERP_Group'] ?? null;
-    const vendorType = VALID_VENDOR_TYPES.has(udfRaw?.trim() ?? '') ? (udfRaw!.trim()) : null;
+    // ── 4. Map, exclude, classify ───────────────────────────────────────────
+    const sampleRows: VendorTestResult['sample'] = raw.map((bp: any) => {
+      const isExcluded = EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode));
+      const udfRaw: string | null = bp['U_ERP_Group'] ?? null;
+      const vendorType = VALID_VENDOR_TYPES.has(udfRaw?.trim() ?? '') ? (udfRaw!.trim()) : null;
+      return {
+        cardCode:     String(bp.CardCode ?? ''),
+        cardName:     String(bp.CardName ?? ''),
+        groupCode:    Number(bp.GroupCode ?? 0),
+        udfRaw:       udfRaw,
+        vendorType,
+        excluded:     isExcluded,
+        upsertedToDb: false,
+      };
+    });
+
+    const eligibleRows = sampleRows.filter((r) => !r.excluded);
+
+    // ── 5. Upsert eligible rows to vendors table ────────────────────────────
+    let upserted = 0;
+    if (eligibleRows.length > 0) {
+      const codes  = eligibleRows.map((r) => r.cardCode);
+      const names  = eligibleRows.map((r) => r.cardName);
+      const vtypes = eligibleRows.map((r) => r.vendorType);
+
+      const res = await pool.query(
+        `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
+         SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
+         FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
+         ON CONFLICT (sap_card_code)
+         DO UPDATE SET
+           name         = EXCLUDED.name,
+           display_name = EXCLUDED.name,
+           vendor_type  = EXCLUDED.vendor_type,
+           is_active    = true,
+           updated_at   = NOW()`,
+        [names, codes, vtypes],
+      );
+      upserted = res.rowCount ?? 0;
+
+      const upsertedSet = new Set(codes);
+      for (const r of sampleRows) { if (upsertedSet.has(r.cardCode) && !r.excluded) r.upsertedToDb = true; }
+    }
+
+    console.log(`[vendors/test] fetched=${raw.length}, excluded=${raw.length - eligibleRows.length}, eligible=${eligibleRows.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
+
     return {
-      cardCode:     String(bp.CardCode ?? ''),
-      cardName:     String(bp.CardName ?? ''),
-      groupCode:    Number(bp.GroupCode ?? 0),
-      udfRaw:       udfRaw,
-      vendorType,
-      excluded:     isExcluded,
-      upsertedToDb: false,       // filled after upsert
+      login:           true,
+      sessionConflict: false,
+      fetched:         raw.length,
+      excluded:        raw.length - eligibleRows.length,
+      eligible:        eligibleRows.length,
+      udfAvailable,
+      udfFieldName,
+      upserted,
+      sample:          sampleRows,
     };
-  });
-
-  const eligibleRows = sampleRows.filter((r) => !r.excluded);
-
-  // ── 5. Upsert eligible rows to vendors table ──────────────────────────────
-  let upserted = 0;
-  if (eligibleRows.length > 0) {
-    const codes  = eligibleRows.map((r) => r.cardCode);
-    const names  = eligibleRows.map((r) => r.cardName);
-    const vtypes = eligibleRows.map((r) => r.vendorType);
-
-    const res = await pool.query(
-      `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
-       SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
-       FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
-       ON CONFLICT (sap_card_code)
-       DO UPDATE SET
-         name         = EXCLUDED.name,
-         display_name = EXCLUDED.name,
-         vendor_type  = EXCLUDED.vendor_type,
-         is_active    = true,
-         updated_at   = NOW()`,
-      [names, codes, vtypes],
-    );
-    upserted = res.rowCount ?? 0;
-
-    // Mark which rows were upserted
-    const upsertedSet = new Set(codes);
-    for (const r of sampleRows) { if (upsertedSet.has(r.cardCode) && !r.excluded) r.upsertedToDb = true; }
+  } finally {
+    await sapHttpsClient.logout(sessionId);
+    console.log('[vendors/test] SAP session logged out');
   }
-
-  console.log(`[vendors/test] SAP test run: fetched=${raw.length}, excluded=${raw.length - eligibleRows.length}, eligible=${eligibleRows.length}, udfAvailable=${udfAvailable}, upserted=${upserted}`);
-
-  return {
-    login:           true,
-    sessionConflict: false,
-    fetched:         raw.length,
-    excluded:        raw.length - eligibleRows.length,
-    eligible:        eligibleRows.length,
-    udfAvailable,
-    udfFieldName,
-    upserted,
-    sample:          sampleRows,
-  };
 }
 
 // ─── Vendor list endpoint ──────────────────────────────────────────────────

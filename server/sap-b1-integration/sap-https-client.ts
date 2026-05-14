@@ -157,6 +157,23 @@ export class SapHttpsClient {
     });
   }
 
+  /**
+   * Logout from SAP B1 Service Layer to immediately release the session.
+   * Always call this in a finally block after any SAP operation.
+   * Swallows errors silently — a failed logout is never fatal.
+   */
+  async logout(sessionId: string): Promise<void> {
+    try {
+      await this.authenticatedRequest(sessionId, {
+        method: 'POST',
+        url: '',
+        path: '/b1s/v1/Logout',
+      });
+    } catch {
+      // Logout failure is non-fatal — session will expire on its own
+    }
+  }
+
   destroy() {
     this.agent.destroy();
   }
