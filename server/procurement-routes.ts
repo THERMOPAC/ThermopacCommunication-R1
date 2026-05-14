@@ -278,13 +278,17 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     return rows;
   }
 
+  // Small helper so we don't hammer SAP between passes
+  const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
   try {
-    // Parallel: pass0=records 1-500, pass500=501-1000, pass1000=1001-1458
-    const [pass0, pass500, pass1000] = await Promise.all([
-      bulkScan(0),
-      bulkScan(500),
-      bulkScan(1000),
-    ]);
+    // Sequential — SAP B1 returns -1102 if the same session is used for
+    // concurrent requests. Run passes one after another with a brief gap.
+    const pass0    = await bulkScan(0);
+    await pause(300);
+    const pass500  = await bulkScan(500);
+    await pause(300);
+    const pass1000 = await bulkScan(1000);
 
     // Merge and deduplicate by CardCode
     const seen = new Set<string>();
