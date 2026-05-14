@@ -3024,10 +3024,12 @@ export function setupProjectRoutes(app: express.Express) {
       // Paginate SAP with $select — standard fields only, no UDF, so $select is safe.
       // Email is intentionally excluded: SAP rejects both 'E_Mail' and 'EmailAddress' for
       // CustomerBP $select on some versions; email can be filled manually after import.
+      // NOTE: SAP silently ignores $filter when combined with $select (documented behaviour).
+      // We fetch all Customers (CardType=C) and filter client-side to CardCode > 'C10300'.
       while (true) {
         const qs = new URLSearchParams({
           '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country',
-          '$filter': "CardType eq 'C' AND CardCode gt 'C10300'",
+          '$filter': "CardType eq 'C'",
           '$top':    String(PAGE_SIZE),
           '$skip':   String(sapSkip),
         }).toString();
@@ -3063,8 +3065,11 @@ export function setupProjectRoutes(app: express.Express) {
         }
       }
 
-      totalFetched = allRows.length;
-      console.log(`[customer-sap-sync] fetched ${totalFetched} customers from SAP`);
+      // Client-side filter: SAP silently ignores $filter when $select is present,
+      // so we enforce CardCode > 'C10300' here (lexicographic, same as SAP OData intent).
+      const filteredRows = allRows.filter((r) => r.CardCode > 'C10300');
+      totalFetched = filteredRows.length;
+      console.log(`[customer-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass CardCode > 'C10300' filter`);
 
       // Load existing sap_card_codes in one query to avoid per-row round-trips
       const existingRes = await pool.query<{ sap_card_code: string }>(
@@ -3072,14 +3077,15 @@ export function setupProjectRoutes(app: express.Express) {
       );
       const existingCodes = new Set(existingRes.rows.map((r) => r.sap_card_code));
 
-      for (const row of allRows) {
+      for (const row of filteredRows) {
         if (existingCodes.has(row.CardCode)) {
           skipped++;
           continue;
         }
         try {
-          // Derive a short_code (max 10 chars) from CardCode for the NOT NULL constraint
-          const shortCode = row.CardCode.substring(0, 10);
+          // short_code is varchar(5) NOT NULL UNIQUE.
+          // Strip the leading 'C' and take up to 5 digits — e.g. C10301 → '10301'.
+          const shortCode = row.CardCode.replace(/^[Cc]/, '').slice(0, 5);
           await pool.query(
             `INSERT INTO customers
                (bp_code, bp_name, short_code, sap_card_code, contact_person, phone1,
