@@ -3046,7 +3046,7 @@ export function setupProjectRoutes(app: express.Express) {
       );
       logId = logRes.rows[0].id;
 
-      type BPRow = { CardCode: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; };
+      type BPRow = { CardCode: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
       let filteredRows: BPRow[] = [];
 
       if (testCardCode) {
@@ -3070,6 +3070,7 @@ export function setupProjectRoutes(app: express.Express) {
             Address:       String(bp.Address       ?? '').trim(),
             City:          String(bp.City          ?? '').trim(),
             Country:       String(bp.Country       ?? '').trim(),
+            EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
           }];
         }
         totalFetched = filteredRows.length;
@@ -3077,7 +3078,7 @@ export function setupProjectRoutes(app: express.Express) {
       } else {
         // ── Bulk sync mode ─────────────────────────────────────────────────────
         // Paginate SAP with $select — standard fields only, no UDF, so $select is safe.
-        // Email excluded: SAP rejects both 'E_Mail' and 'EmailAddress' in $select.
+        // EmailAddress is a standard BP field (not a UDF) — included in $select.
         // NOTE: SAP silently ignores $filter when combined with $select (documented).
         // We fetch all Customers (CardType=C) and filter client-side to CardCode > 'C10300'.
         const PAGE_SIZE = 20;
@@ -3086,7 +3087,7 @@ export function setupProjectRoutes(app: express.Express) {
 
         while (true) {
           const qs = new URLSearchParams({
-            '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country',
+            '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
             '$filter': "CardType eq 'C'",
             '$top':    String(PAGE_SIZE),
             '$skip':   String(sapSkip),
@@ -3112,6 +3113,7 @@ export function setupProjectRoutes(app: express.Express) {
               Address:       String(bp.Address       ?? '').trim(),
               City:          String(bp.City          ?? '').trim(),
               Country:       String(bp.Country       ?? '').trim(),
+              EmailAddress:  String(bp.EmailAddress  ?? '').trim(),
             });
           }
 
@@ -3137,6 +3139,14 @@ export function setupProjectRoutes(app: express.Express) {
 
       for (const row of filteredRows) {
         if (existingCodes.has(row.CardCode)) {
+          // In single-card test mode, patch email on the existing record if SAP has one.
+          if (testCardCode && row.EmailAddress) {
+            await pool.query(
+              `UPDATE customers SET sap_email = $1, sap_synced_at = NOW(), updated_at = NOW()
+               WHERE sap_card_code = $2 AND (sap_email IS NULL OR sap_email = '')`,
+              [row.EmailAddress, row.CardCode],
+            );
+          }
           skipped++;
           continue;
         }
@@ -3147,14 +3157,15 @@ export function setupProjectRoutes(app: express.Express) {
           await pool.query(
             `INSERT INTO customers
                (bp_code, bp_name, short_code, sap_card_code, contact_person, phone1,
-                bill_to_address, sap_mail_city, sap_mail_country,
+                bill_to_address, sap_mail_city, sap_mail_country, sap_email,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'synced',NOW(),NOW(),NOW())
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
               row.CardCode, row.CardName, shortCode, row.CardCode,
               row.ContactPerson || null, row.Phone1 || null,
               row.Address || null, row.City || null, row.Country || null,
+              row.EmailAddress || null,
             ],
           );
           existingCodes.add(row.CardCode);
