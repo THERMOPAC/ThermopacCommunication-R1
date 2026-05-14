@@ -108,6 +108,10 @@ const CENTRIFUGAL_COMMON_OPTS = {
   bowl_diameter:         ["4\"","6\"","8\"","10\"","12\"","14\""],
   motor_platform:        ["Standard","Extended"],
   coupling_type_vi:      ["Close-Coupled","Flexible Coupling"],
+  suction_size:          ["25 NB","32 NB","40 NB","50 NB","65 NB","80 NB","100 NB","125 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB","450 NB","500 NB","600 NB"],
+  discharge_size:        ["25 NB","32 NB","40 NB","50 NB","65 NB","80 NB","100 NB","125 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB","450 NB","500 NB","600 NB"],
+  connection_type:       ["Flanged (RF)","Flanged (FF)","Flanged (RTJ)","Threaded (NPT)","Socket Weld"],
+  rating:                ["150#","300#","600#","900#","1500#","PN 10","PN 16","PN 25","PN 40"],
 };
 const CENTRIFUGAL_ALL_FIELD_OPTS: Record<string, string[]> = {
   pump_type:             CENTRIFUGAL_PUMP_TYPES,
@@ -128,6 +132,10 @@ const CENTRIFUGAL_ALL_FIELD_OPTS: Record<string, string[]> = {
   api_610_category:      CENTRIFUGAL_COMMON_OPTS.api_610,
   strainer_fitted:       CENTRIFUGAL_COMMON_OPTS.yes_no,
   casing_type:           CENTRIFUGAL_COMMON_OPTS.casing_type,
+  suction_size:          CENTRIFUGAL_COMMON_OPTS.suction_size,
+  discharge_size:        CENTRIFUGAL_COMMON_OPTS.discharge_size,
+  connection_type:       CENTRIFUGAL_COMMON_OPTS.connection_type,
+  rating:                CENTRIFUGAL_COMMON_OPTS.rating,
   impeller_type:         CENTRIFUGAL_COMMON_OPTS.impeller_type,
   coupling_type:         CENTRIFUGAL_COMMON_OPTS.coupling_type,
   impeller_type_sc:      CENTRIFUGAL_COMMON_OPTS.impeller_type_sc,
@@ -167,6 +175,7 @@ export function buildCentrifugalPumpDefaults(type: string): Record<string, unkno
     operating_temp: "", motor_power_kw: "", speed_rpm: "", npsha: "",
     api_610_category: "", area_classification: "", certification: "", spare_parts: "",
     casing_type: "", impeller_type: "", coupling_type: "",
+    suction_size: "", discharge_size: "", connection_type: "", rating: "",
     impeller_type_sc: "", orientation: "", coupling_type_sc: "",
     num_stages: "", balance_method: "", coupling_type_ms: "", orientation_ms: "",
     coupling_type_vi: "",
@@ -373,13 +382,16 @@ export function CentrifugalPumpAttrsForm({
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
             {renderField("casing_type",    "Casing Type",       CENTRIFUGAL_COMMON_OPTS.casing_type,   true)}
+            {renderField("suction_size",   "Suction Size",      CENTRIFUGAL_COMMON_OPTS.suction_size,  true)}
+            {renderField("discharge_size", "Discharge Size",    CENTRIFUGAL_COMMON_OPTS.discharge_size,true)}
+            {renderField("connection_type","Connection Type",   CENTRIFUGAL_COMMON_OPTS.connection_type,true)}
+            {renderField("rating",         "Rating",            CENTRIFUGAL_COMMON_OPTS.rating,        true)}
             {renderField("impeller_type",  "Impeller Type",     CENTRIFUGAL_COMMON_OPTS.impeller_type, true)}
             {renderField("coupling_type",  "Coupling Type",     CENTRIFUGAL_COMMON_OPTS.coupling_type, true)}
             {renderField("api_610_category","API 610 Category", CENTRIFUGAL_COMMON_OPTS.api_610)}
             {renderField("speed_rpm",      "Speed (RPM)",       CENTRIFUGAL_COMMON_OPTS.speed_rpm)}
             {renderFreeText("npsha",       "NPSHa (m)",         "e.g. 4.5 m")}
             {renderField("motor_power_kw", "Motor Power (kW)",  CENTRIFUGAL_COMMON_OPTS.motor_power_kw)}
-            <div />
           </div>
         </div>
       )}
