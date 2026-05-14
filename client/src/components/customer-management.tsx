@@ -210,6 +210,25 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
 
   const [testCardCode, setTestCardCode] = useState('');
+  const [sapBpLookupPending, setSapBpLookupPending] = useState(false);
+
+  const checkSapBp = async () => {
+    if (!testCardCode) return;
+    setSapBpLookupPending(true);
+    try {
+      const data: any = await apiRequest('GET', `/api/customers/sap-bp/${testCardCode}`);
+      const email = data.EmailAddress || data.contactEmail || '(none in SAP)';
+      toast({
+        title: `SAP BP: ${data.CardCode}`,
+        description: `Name: ${data.CardName}\nEmail: ${email}\nPhone: ${data.Phone1 || '—'}\nContact: ${data.ContactPerson || '—'}`,
+        duration: 8000,
+      });
+    } catch (err: any) {
+      toast({ title: 'SAP Lookup failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
+    } finally {
+      setSapBpLookupPending(false);
+    }
+  };
 
   const sapSyncMutation = useMutation({
     mutationFn: (cardCode?: string) => apiRequest('POST', '/api/customers/sap-sync', cardCode ? { cardCode } : {}),
@@ -491,6 +510,19 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   onChange={(e) => setTestCardCode(e.target.value.toUpperCase())}
                   className="border border-gray-300 rounded px-2 py-1 text-xs w-24 font-mono"
                 />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-green-300 text-green-700 hover:bg-green-50 gap-1 text-xs"
+                  onClick={checkSapBp}
+                  disabled={sapBpLookupPending || !testCardCode}
+                  title="Look up this CardCode in SAP and show its fields (email, phone, etc.)"
+                >
+                  {sapBpLookupPending
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <Search className="h-3 w-3" />}
+                  Check SAP
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

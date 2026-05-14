@@ -2981,6 +2981,35 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  // ─── GET /api/customers/sap-bp/:cardCode ─────────────────────────────────
+  // Fetches raw SAP BP fields (including email) for a single CardCode — read-only lookup.
+  app.get('/api/customers/sap-bp/:cardCode', ensureAuthenticated, async (req: Request, res: Response) => {
+    const role: string = ((req.user as any)?.role) ?? '';
+    const ALLOWED = ['Superuser', 'General Manager', 'Senior Manager'];
+    if (!ALLOWED.includes(role)) return res.status(403).json({ message: 'Forbidden' });
+
+    const cardCode = req.params.cardCode.trim().toUpperCase();
+    try {
+      const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${cardCode}')` });
+      if (!resp.ok) return res.status(resp.statusCode).json({ message: `SAP ${resp.statusCode}: ${resp.body?.substring(0, 200)}` });
+      const bp = JSON.parse(resp.body);
+      // Return the key fields the UI cares about
+      return res.json({
+        CardCode:      bp.CardCode,
+        CardName:      bp.CardName,
+        EmailAddress:  bp.EmailAddress   ?? null,
+        Phone1:        bp.Phone1         ?? null,
+        ContactPerson: bp.ContactPerson  ?? null,
+        City:          bp.City           ?? null,
+        Country:       bp.Country        ?? null,
+        // First contact employee email as fallback
+        contactEmail:  bp.ContactEmployees?.[0]?.E_Mail ?? null,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // ─── POST /api/customers/sap-sync ────────────────────────────────────────
   // Syncs customers from SAP BusinessPartners (CardType=C, CardCode > C10300)
   // Only inserts NEW records — existing sap_card_code rows are skipped.
