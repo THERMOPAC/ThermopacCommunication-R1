@@ -17,7 +17,8 @@ import {
   Users,
   FileText,
   Clock,
-  TrendingUp
+  TrendingUp,
+  RotateCcw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -208,6 +209,25 @@ export default function SapIntegrationPage() {
       toast({
         title: "Purchase Orders Sync Error",
         description: "Failed to sync purchase order data",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const forceResetSessionMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/sap/session/force-reset'),
+    onSuccess: (data: any) => {
+      toast({
+        title: "Session Force Reset",
+        description: data?.message || "SAP central session has been reset. A fresh login will be attempted on the next request.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sap/connection/status'] });
+    },
+    onError: () => {
+      toast({
+        title: "Force Reset Failed",
+        description: "Could not force-reset the SAP session. Check server logs.",
         variant: "destructive",
       });
     },
@@ -622,6 +642,21 @@ export default function SapIntegrationPage() {
                         <Database className="h-4 w-4 mr-2" />
                       )}
                       Test SAP B1 Connection
+                    </Button>
+
+                    <Button
+                      className="w-full"
+                      variant="destructive"
+                      onClick={() => forceResetSessionMutation.mutate()}
+                      disabled={forceResetSessionMutation.isPending}
+                      title="Use when SAP shows -1102 session conflict. Logs out the stale session and forces a fresh login."
+                    >
+                      {forceResetSessionMutation.isPending ? (
+                        <RotateCcw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                      )}
+                      Force Reset SAP Session
                     </Button>
 
                     <div className="space-y-2">
