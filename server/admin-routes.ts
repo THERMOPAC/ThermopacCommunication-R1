@@ -48,8 +48,6 @@ import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
 import { applySalaryIncrement, autoApplyDueIncrements } from './salary-increment-service';
 import { verifyPayslipRelease } from './payroll-calculation-verifier';
 import { glAccountMappings } from '../shared/schema';
-import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
-import { sapSessionManager } from './sap-session-manager';
 import { sapSession } from './sap-b1-integration/sap-central-session';
 import {
   adminCreateLeave,
@@ -4688,93 +4686,6 @@ function buildSalaryJePayload(
 }
 
 /**
- * Get a SAP session — reuse existing or create new one
- */
-async function getSapSession(userId: number, forceNew = false): Promise<string> {
-  if (!forceNew) {
-    const existing = sapSessionManager.getSession(userId);
-    if (existing) return existing.sessionId;
-  } else {
-    sapSessionManager.clearSession(userId);
-  }
-
-  const sapUser = process.env.SAP_USERNAME || '';
-  const sapPass = process.env.SAP_PASSWORD || '';
-  const sapDb = process.env.SAP_COMPANY_DB || '';
-  if (!sapUser || !sapPass || !sapDb) throw new Error('SAP credentials not configured');
-
-  const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-  // Extract ROUTEID from login Set-Cookie so authenticated requests use sticky routing
-  let routeId: string | undefined;
-  const setCookie = loginResult.response.headers['set-cookie'];
-  if (setCookie) {
-    const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
-    for (const c of cookies) {
-      const m = c.match(/ROUTEID=([^;]+)/);
-      if (m) { routeId = m[1]; break; }
-    }
-  }
-  // Use the correct setSession(userId, sessionId, routeId?, companyDb?) signature
-  sapSessionManager.setSession(userId, loginResult.sessionId, routeId, sapDb);
-  return loginResult.sessionId;
-}
-
-function isSapSessionTimeout(error: string): boolean {
-  return error.includes('session') && (error.includes('timeout') || error.includes('invalid') || error.includes('expired'));
-}
-
-function isSapRetryableError(error: string): boolean {
-  // Session expired → re-authenticate
-  if (isSapSessionTimeout(error)) return true;
-  // Socket-level connection drops → SAP server closed connection, worth one retry
-  if (error.includes('socket hang up') || error.includes('econnreset') || error.includes('econnrefused') || error.includes('etimedout')) return true;
-  // HTTP gateway errors → SAP Service Layer backend temporarily unavailable
-  if (error.includes('502') || error.includes('503') || error.includes('bad gateway') || error.includes('service unavailable')) return true;
-  // SAP B1 session limit / switch company conflict — worth retrying after a short delay
-  if (error.includes('-1102') || error.includes('switch company')) return true;
-  return false;
-}
-
-/** Extract a clean user-facing error from a SAP login throw or SAP response body */
-function extractSapLoginError(err: any): string {
-  const raw: string = typeof err === 'string' ? err : (err?.message || String(err));
-  // "SAP login failed: 500 - {json}" → extract inner message
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try {
-      const parsed = JSON.parse(jsonMatch[0]);
-      const msg = parsed?.error?.message?.value;
-      if (msg) {
-        if (msg.toLowerCase().includes('switch company') || raw.includes('-1102')) {
-          return `SAP session conflict (-1102): The Manager account already has an active session in SAP B1 (likely from a recent SAP Diagnostic run). Wait 1–2 minutes for the previous session to expire, then click "Retry SAP" again.`;
-        }
-        return msg;
-      }
-    } catch (_) {}
-  }
-  // Fallback: strip "SAP login failed: NNN - " prefix
-  return raw.replace(/^SAP login failed:\s*\d+\s*-\s*/, '').substring(0, 300);
-}
-
-/** Strip HTML tags from SAP error responses and return a clean one-liner. */
-function cleanSapErrorMessage(raw: string, statusCode: number): string {
-  if (!raw) return `SAP posting failed (HTTP ${statusCode})`;
-  // Try JSON first (normal SAP Service Layer error)
-  try {
-    const parsed = JSON.parse(raw);
-    const msg = parsed?.error?.message?.value;
-    if (msg) return msg;
-  } catch (_) {}
-  // Strip HTML tags if SAP returned an HTML page (e.g. 502 IIS error)
-  if (raw.includes('<html') || raw.includes('<!DOCTYPE')) {
-    const stripped = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    const meaningful = stripped.substring(0, 200).trim();
-    return `SAP HTTP ${statusCode}: ${meaningful || 'Gateway error — SAP B1 Service Layer unavailable'}`;
-  }
-  return raw.substring(0, 300);
-}
-
-/**
  * Post payroll salary JE to SAP B1
  */
 router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -4943,65 +4854,44 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       updatedAt: new Date(),
     }).where(eq(payrollRecords.id, recordId));
 
-    let lastError = '';
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const sessionId = await getSapSession(currentUser.id, attempt > 0);
-        const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-          method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload,
+    try {
+      const sapResponse = await sapSession.request({ method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload });
+
+      if (sapResponse.ok) {
+        const responseData = JSON.parse(sapResponse.body);
+        await db.update(payrollRecords).set({
+          sapDocEntry: responseData.DocEntry,
+          sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+          sapPostedAt: new Date(),
+          sapPostingStatus: 'posted',
+          sapPayloadStatus: 'posted',
+          status: 'transferred',
+          sapErrorMessage: null,
+          sapResponseLog: responseData as any,
+          updatedAt: new Date(),
+        }).where(eq(payrollRecords.id, recordId));
+
+        return res.json({
+          success: true,
+          message: `Salary JE posted to SAP successfully`,
+          sapDocEntry: responseData.DocEntry,
+          sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
         });
-
-        if (sapResponse.ok) {
-          const responseData = JSON.parse(sapResponse.body);
-          await db.update(payrollRecords).set({
-            sapDocEntry: responseData.DocEntry,
-            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
-            sapPostedAt: new Date(),
-            sapPostingStatus: 'posted',
-            sapPayloadStatus: 'posted',
-            status: 'transferred',
-            sapErrorMessage: null,
-            sapResponseLog: responseData as any,
-            updatedAt: new Date(),
-          }).where(eq(payrollRecords.id, recordId));
-
-          return res.json({
-            success: true,
-            message: `Salary JE posted to SAP successfully`,
-            sapDocEntry: responseData.DocEntry,
-            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
-          });
-        } else {
-          const errorMsg = cleanSapErrorMessage(sapResponse.body, sapResponse.statusCode);
-
-          if (attempt === 0 && isSapRetryableError(errorMsg.toLowerCase())) {
-            console.log(`[Salary JE] Retryable error for record #${recordId}: ${errorMsg}. Retrying with fresh session...`);
-            await new Promise(r => setTimeout(r, 1500));
-            continue;
-          }
-
-          await db.update(payrollRecords).set({
-            sapPostingStatus: 'failed', sapErrorMessage: errorMsg,
-            sapResponseLog: { statusCode: sapResponse.statusCode, body: sapResponse.body } as any,
-            updatedAt: new Date(),
-          }).where(eq(payrollRecords.id, recordId));
-          return res.status(500).json({ error: errorMsg });
-        }
-      } catch (sapErr: any) {
-        lastError = extractSapLoginError(sapErr);
-        const is1102 = sapErr.message?.includes('-1102') || sapErr.message?.toLowerCase().includes('switch company');
-        if (attempt === 0 && isSapRetryableError(sapErr.message?.toLowerCase() || '')) {
-          const delay = is1102 ? 5000 : 1500; // longer wait for session conflict
-          console.log(`[Salary JE] Retryable${is1102 ? ' (-1102 session conflict)' : ''} error for record #${recordId}: ${sapErr.message}. Waiting ${delay}ms then retrying with fresh session...`);
-          await new Promise(r => setTimeout(r, delay));
-          continue;
-        }
-        await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
-        return res.status(500).json({ error: lastError });
+      } else {
+        let errorMsg = sapResponse.body;
+        try { const p = JSON.parse(sapResponse.body); errorMsg = p?.error?.message?.value || errorMsg; } catch (_) {}
+        await db.update(payrollRecords).set({
+          sapPostingStatus: 'failed', sapErrorMessage: errorMsg,
+          sapResponseLog: { statusCode: sapResponse.statusCode, body: sapResponse.body } as any,
+          updatedAt: new Date(),
+        }).where(eq(payrollRecords.id, recordId));
+        return res.status(500).json({ error: errorMsg });
       }
+    } catch (sapErr: any) {
+      const errMsg = sapErr.message || 'SAP connection error';
+      await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
+      return res.status(500).json({ error: errMsg });
     }
-    await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError || 'SAP session retry exhausted', updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
-    return res.status(500).json({ error: lastError || 'SAP session retry exhausted' });
   } catch (error: any) {
     console.error('Error posting salary JE to SAP:', error);
     sendError(res, error);
@@ -5068,10 +4958,7 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     };
 
     try {
-      const sessionId = await getSapSession(currentUser.id);
-      const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload,
-      });
+      const sapResponse = await sapSession.request({ method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload });
 
       const userName = currentUser.firstName && currentUser.lastName ? `${currentUser.firstName} ${currentUser.lastName}` : currentUser.username;
 
