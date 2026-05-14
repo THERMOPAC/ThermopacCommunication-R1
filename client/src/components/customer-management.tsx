@@ -482,13 +482,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           )}
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsImportDialogOpen(true)}
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Import Customers
-          </Button>
           {canSapSync && (
             <>
               <Button
