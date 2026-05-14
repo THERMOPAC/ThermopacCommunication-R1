@@ -491,6 +491,15 @@ export function setupProcurementListRoutes(app: Express): void {
       const proj = await pool.query(`SELECT code FROM projects WHERE id = $1`, [projectId]);
       if (!proj.rows[0]) return notFound(res, 'Project', projectId);
 
+      // ── Vendor validation ──────────────────────────────────────────────────
+      if (!vendorId) return badRequest(res, 'vendorId is required');
+      const vendorCheck = await pool.query<{ id: number; is_active: boolean; sap_card_code: string | null }>(
+        `SELECT id, is_active, sap_card_code FROM vendors WHERE id = $1`, [vendorId],
+      );
+      if (!vendorCheck.rows[0]) return res.status(422).json({ error: 'Selected vendor does not exist in the local vendor list. Sync vendors from SAP first.' });
+      if (!vendorCheck.rows[0].is_active) return res.status(422).json({ error: 'Selected vendor is inactive and cannot be used for PO Group creation.' });
+      if (!vendorCheck.rows[0].sap_card_code) return res.status(422).json({ error: 'Selected vendor has no SAP Card Code. Only SAP-synced vendors may be used for PO Groups.' });
+
       const client = await pool.connect();
       try {
         await client.query('BEGIN');

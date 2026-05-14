@@ -2688,6 +2688,9 @@ export type InsertProjectKeyStage = z.infer<typeof insertProjectKeyStageSchema>;
 export const vendors = pgTable('vendors', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
+  displayName: text('display_name'),
+  sapCardCode: varchar('sap_card_code', { length: 50 }).unique(),
+  vendorType: varchar('vendor_type', { length: 1 }),   // R P M I V E B — from SAP UDF U_ERP_Group
   contactPerson: text('contact_person'),
   email: text('email'),
   phone: text('phone'),

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -62,6 +62,7 @@ const termsSchema = z.object({
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSuccess }: WizardProps) {
+  const qc = useQueryClient();
   const [step, setStep] = useState(1);
   const [selectedVendorId,   setSelectedVendorId]   = useState<number | null>(null);
   const [selectedVendorName, setSelectedVendorName] = useState<string>("");
@@ -71,10 +72,25 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
   const [avlBypassAck,   setAvlBypassAck]   = useState<Record<string, boolean>>({});
   const [avlIssues,      setAvlIssues]      = useState<{ subgroupCode: string; status: string }[]>([]);
   const [submitting,     setSubmitting]     = useState(false);
+  const [syncMessage,    setSyncMessage]    = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof termsSchema>>({
     resolver: zodResolver(termsSchema),
     defaultValues: { deliveryTerms: "", paymentTerms: "", groupNotes: "" },
+  });
+
+  // ── SAP Vendor Sync ───────────────────────────────────────────────────────
+  const syncMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/vendors/sync"),
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ["/api/vendors"] });
+      setSyncMessage(`✓ ${data?.message ?? `Synced ${data?.synced ?? 0} vendors`}`);
+      setTimeout(() => setSyncMessage(null), 5000);
+    },
+    onError: (err: any) => {
+      setSyncMessage(`✗ Sync failed: ${err?.message ?? "unknown error"}`);
+      setTimeout(() => setSyncMessage(null), 6000);
+    },
   });
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -221,28 +237,64 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
               {linesLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             </div>
 
-            {/* Vendor selector */}
+            {/* Vendor selector + SAP sync */}
             <div>
               <label className="block text-sm font-medium mb-1.5">Select Vendor *</label>
-              <Select
-                value={selectedVendorId?.toString() ?? ""}
-                onValueChange={(v) => {
-                  const vend = vendors.find((x) => x.id === parseInt(v));
-                  setSelectedVendorId(parseInt(v));
-                  setSelectedVendorName(vend?.name ?? "");
-                  setAvlIssues([]);
-                  setAvlBypassAck({});
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose vendor…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vendors.map((v) => (
-                    <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2 items-start">
+                <Select
+                  value={selectedVendorId?.toString() ?? ""}
+                  onValueChange={(v) => {
+                    const vend = vendors.find((x) => x.id === parseInt(v));
+                    setSelectedVendorId(parseInt(v));
+                    setSelectedVendorName(vend?.name ?? "");
+                    setAvlIssues([]);
+                    setAvlBypassAck({});
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Choose vendor…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendors.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        No vendors — click Sync to load from SAP
+                      </div>
+                    ) : (
+                      vendors.map((v) => (
+                        <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5 text-xs h-10"
+                  disabled={syncMutation.isPending}
+                  onClick={() => syncMutation.mutate()}
+                  title="Pull latest vendor list from SAP"
+                >
+                  {syncMutation.isPending
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <RefreshCw className="h-3.5 w-3.5" />}
+                  {syncMutation.isPending ? "Syncing…" : "Sync from SAP"}
+                </Button>
+              </div>
+              {/* Sync result message */}
+              {syncMessage && (
+                <p className={cn(
+                  "text-xs mt-1.5 font-medium",
+                  syncMessage.startsWith("✓") ? "text-green-700" : "text-destructive"
+                )}>
+                  {syncMessage}
+                </p>
+              )}
+              {vendors.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {vendors.length} vendor{vendors.length !== 1 ? "s" : ""} available — sync if vendor not listed
+                </p>
+              )}
             </div>
 
             {/* AVL issues */}

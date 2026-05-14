@@ -15,8 +15,21 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 }
 
 // ─── SAP B1 vendor sync helpers ───────────────────────────────────────────
-// Uses the proven sapHttpsClient (same client as /api/sap/vendors route)
-async function fetchSapSuppliersViaClient(): Promise<Array<{ CardCode: string; CardName: string }>> {
+
+// SAP GroupCodes to exclude from vendor sync (Employees, Employee Loans)
+const EXCLUDED_GROUP_CODES = new Set([105, 106]);
+
+// Vendor type mapping from SAP UDF U_ERP_Group
+const VALID_VENDOR_TYPES = new Set(['R', 'P', 'M', 'I', 'V', 'E', 'B']);
+
+interface SapVendorRecord {
+  CardCode: string;
+  CardName: string;
+  GroupCode: number;
+  U_ERP_Group: string | null;
+}
+
+async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
   const user = process.env.SAP_USERNAME || '';
   const pass = process.env.SAP_PASSWORD || '';
@@ -25,16 +38,14 @@ async function fetchSapSuppliersViaClient(): Promise<Array<{ CardCode: string; C
 
   const { sessionId } = await sapHttpsClient.login(user, pass, db_);
 
-  // SAP B1 Service Layer hard-caps at 20 rows per page — paginate with $skip
   const PAGE_SIZE = 20;
-  const allSuppliers: Array<{ CardCode: string; CardName: string }> = [];
+  const allSuppliers: SapVendorRecord[] = [];
   let skip = 0;
 
   while (true) {
-    // Build query string using URLSearchParams so all values are properly encoded
     const qs = new URLSearchParams({
       '$filter': "CardType eq 'cSupplier'",
-      '$select': 'CardCode,CardName',
+      '$select': 'CardCode,CardName,GroupCode,U_ERP_Group',
       '$top': String(PAGE_SIZE),
       '$skip': String(skip),
     }).toString();
@@ -50,127 +61,119 @@ async function fetchSapSuppliersViaClient(): Promise<Array<{ CardCode: string; C
     }
 
     const data = JSON.parse(response.body);
-    const page: Array<{ CardCode: string; CardName: string }> = data.value || [];
+    const page: SapVendorRecord[] = data.value || [];
     allSuppliers.push(...page);
 
-    // If fewer than PAGE_SIZE rows returned, we've reached the last page
     if (page.length < PAGE_SIZE) break;
     skip += PAGE_SIZE;
 
-    // Safety cap to avoid infinite loops
-    if (allSuppliers.length >= 2000) {
-      console.warn('[vendors] SAP supplier count exceeded 2000 — truncating');
+    if (allSuppliers.length >= 3000) {
+      console.warn('[vendors/sync] SAP supplier count exceeded 3000 — truncating');
       break;
     }
   }
 
-  console.log(`[vendors] SAP fetched ${allSuppliers.length} suppliers (${skip / PAGE_SIZE + 1} pages)`);
-  return allSuppliers;
-}
-
-async function ensureSapCardCodeColumn(client: any): Promise<void> {
-  await client.query(
-    `ALTER TABLE vendors ADD COLUMN IF NOT EXISTS sap_card_code VARCHAR(50)`,
-  );
-  // display_name is referenced by plc-rfq-routes JOINs
-  await client.query(
-    `ALTER TABLE vendors ADD COLUMN IF NOT EXISTS display_name TEXT`,
-  );
-  // Drop old partial index if it still exists, then ensure full unique constraint
-  await client.query(`DROP INDEX IF EXISTS vendors_sap_card_code_key`);
-  await client.query(
-    `ALTER TABLE vendors ADD CONSTRAINT vendors_sap_card_code_unique UNIQUE (sap_card_code)`,
-  ).catch(() => { /* already exists — ignore */ });
-  // Drop the old unique constraint on `name` — no longer valid after SAP sync
-  // (SAP has suppliers with duplicate CardNames; sap_card_code is the authoritative key now)
-  await client.query(`DROP INDEX IF EXISTS vendors_name_idx`).catch(() => {});
-  await client.query(
-    `ALTER TABLE vendors DROP CONSTRAINT IF EXISTS vendors_name_key`,
-  ).catch(() => {});
-  // Back-fill display_name for any rows that have it null
-  await client.query(`UPDATE vendors SET display_name = name WHERE display_name IS NULL`);
+  // Filter out employee group codes
+  const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
+  console.log(`[vendors/sync] SAP fetched ${allSuppliers.length} total, ${eligible.length} eligible after excluding groups ${[...EXCLUDED_GROUP_CODES].join(',')}`);
+  return eligible;
 }
 
 // ─── Vendor list endpoint ──────────────────────────────────────────────────
 export function setupProcurementRoutes(app: Router) {
   // ==================== VENDORS MANAGEMENT ====================
-  
+
   /**
-   * GET /api/vendors — returns supplier list from SAP B1 (with local-DB fallback).
-   *
-   * Strategy:
-   *  1. Login to SAP B1 Service Layer.
-   *  2. Fetch all BusinessPartners where CardType='cSupplier'.
-   *  3. Upsert each into the local `vendors` table (keyed on sap_card_code).
-   *  4. Return the full local vendor list so integer PKs stay valid for all FK references.
-   *  5. If SAP is unreachable, fall back silently to whatever is already in the local table.
+   * GET /api/vendors — reads local DB only. No SAP call.
+   * Use POST /api/vendors/sync to pull fresh data from SAP.
    */
   app.get('/api/vendors', ensureAuthenticated, async (req: Request, res: Response) => {
-    const client = await pool.connect();
     try {
-      // Ensure the sap_card_code column exists (idempotent DDL)
-      await ensureSapCardCodeColumn(client);
-
-      // --- Try to sync from SAP B1 ---
-      try {
-        const suppliers = await fetchSapSuppliersViaClient();
-        if (suppliers.length > 0) {
-          // Batch upsert — single statement via unnest to avoid 1600+ round-trips
-          const valid = suppliers
-            .map((s) => ({ code: s.CardCode?.trim(), name: s.CardName?.trim() || s.CardCode?.trim() }))
-            .filter((s) => !!s.code);
-          if (valid.length > 0) {
-            const codes = valid.map((s) => s.code);
-            const names = valid.map((s) => s.name);
-            await client.query(
-              `INSERT INTO vendors (name, display_name, is_active, sap_card_code, created_at, updated_at)
-               SELECT DISTINCT ON (sap_code) n, n, true, sap_code, NOW(), NOW()
-               FROM unnest($1::text[], $2::varchar[]) AS t(n, sap_code)
-               ON CONFLICT (sap_card_code)
-               DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.name, is_active = true, updated_at = NOW()`,
-              [names, codes],
-            );
-          }
-          const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
-          if (sapCodes.length > 0) {
-            await client.query(
-              `UPDATE vendors SET is_active = false, updated_at = NOW()
-               WHERE sap_card_code IS NOT NULL
-                 AND sap_card_code <> ALL($1::varchar[])`,
-              [sapCodes],
-            );
-          }
-          await client.query(
-            `UPDATE vendors SET is_active = false, updated_at = NOW()
-             WHERE sap_card_code IS NULL`,
-          );
-          console.log(`✅ [vendors] SAP sync: upserted ${suppliers.length} suppliers, legacy rows deactivated`);
-        }
-      } catch (sapErr: any) {
-        console.warn('⚠️  [vendors] SAP sync failed — serving local vendor list:', sapErr?.message || sapErr);
-      }
-
-      // Return local vendor list (now enriched with SAP data)
-      const result = await client.query(
-        `SELECT id, name, display_name, email, phone, sap_card_code
+      const result = await pool.query(
+        `SELECT id, name, display_name, email, phone, sap_card_code, vendor_type
          FROM vendors
          WHERE is_active = true
          ORDER BY name ASC`,
       );
-      // Map to shape expected by frontend: { id, name, display_name }
       const list = result.rows.map((r: any) => ({
-        id:           r.id,
-        name:         r.name,
-        display_name: r.name,
-        email:        r.email,
-        phone:        r.phone,
+        id:            r.id,
+        name:          r.name,
+        display_name:  r.display_name ?? r.name,
+        email:         r.email,
+        phone:         r.phone,
         sap_card_code: r.sap_card_code,
+        vendor_type:   r.vendor_type,
       }));
-
       res.status(200).json(list);
     } catch (error) {
-      console.error('Error fetching vendors:', error);
+      console.error('[vendors] Error fetching vendors:', error);
       res.status(500).json({ error: 'Failed to fetch vendors' });
+    }
+  });
+
+  /**
+   * POST /api/vendors/sync
+   * Pulls all eligible suppliers from SAP B1 (excludes GroupCodes 105, 106),
+   * reads U_ERP_Group UDF for vendor_type, upserts by sap_card_code.
+   * Marks vendors no longer in SAP as inactive.
+   */
+  app.post('/api/vendors/sync', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      const suppliers = await fetchSapVendors();
+      if (suppliers.length === 0) {
+        return res.status(200).json({ synced: 0, deactivated: 0, message: 'SAP returned no eligible suppliers' });
+      }
+
+      // Build arrays for batch upsert
+      const valid = suppliers
+        .map((s) => ({
+          code:        s.CardCode?.trim(),
+          name:        (s.CardName?.trim() || s.CardCode?.trim()),
+          vendorType:  VALID_VENDOR_TYPES.has(s.U_ERP_Group?.trim() ?? '') ? (s.U_ERP_Group!.trim()) : null,
+        }))
+        .filter((s) => !!s.code);
+
+      if (valid.length > 0) {
+        const codes       = valid.map((s) => s.code);
+        const names       = valid.map((s) => s.name);
+        const vendorTypes = valid.map((s) => s.vendorType);
+
+        // Batch upsert via unnest — upserts name, display_name, vendor_type, is_active
+        await client.query(
+          `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
+           SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
+           FROM unnest($1::text[], $2::varchar[], $3::varchar[]) AS t(n, sap_code, vt)
+           ON CONFLICT (sap_card_code)
+           DO UPDATE SET
+             name         = EXCLUDED.name,
+             display_name = EXCLUDED.name,
+             vendor_type  = EXCLUDED.vendor_type,
+             is_active    = true,
+             updated_at   = NOW()`,
+          [names, codes, vendorTypes],
+        );
+      }
+
+      // Deactivate vendors no longer in SAP
+      const sapCodes = suppliers.map((s) => s.CardCode?.trim()).filter(Boolean);
+      const deactResult = await client.query(
+        `UPDATE vendors SET is_active = false, updated_at = NOW()
+         WHERE sap_card_code IS NOT NULL
+           AND sap_card_code <> ALL($1::varchar[])
+         RETURNING id`,
+        [sapCodes],
+      );
+
+      console.log(`✅ [vendors/sync] upserted=${valid.length}, deactivated=${deactResult.rowCount}`);
+      res.status(200).json({
+        synced:      valid.length,
+        deactivated: deactResult.rowCount ?? 0,
+        message:     `Synced ${valid.length} vendors from SAP`,
+      });
+    } catch (err: any) {
+      console.error('[vendors/sync] SAP sync error:', err?.message || err);
+      res.status(502).json({ error: `SAP sync failed: ${err?.message || 'unknown error'}` });
     } finally {
       client.release();
     }
