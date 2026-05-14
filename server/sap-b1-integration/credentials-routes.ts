@@ -166,7 +166,8 @@ router.get('/connection/status', async (req, res) => {
 });
 
 // Active connection ping — used by the "Test SAP B1 Connection" button.
-// Performs a real login → API check → immediate logout. No orphaned session left behind.
+// Reuses the shared SAP session (avoiding -1102 conflicts). Falls back to a
+// fresh login only when no shared session exists, with automatic -1102 recovery.
 router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
@@ -182,29 +183,25 @@ router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[SAP Ping] Testing login → user=${sapUser} db=${sapDb}`);
+    console.log(`[SAP Ping] Testing connection → user=${sapUser} db=${sapDb}`);
     let isConnected = false;
     let connectionError: string | undefined;
-    let sessionId: string | undefined;
 
     try {
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sessionId = loginResult.sessionId;
-      isConnected = true;
-      console.log(`[SAP Ping] ✅ Login OK — ${sapDb}`);
+      // Reuse the shared session — creates one (with -1102 force-logout retry) if none exists
+      const { getSharedSapSession } = await import('../procurement-routes');
+      const sessionCookie = await getSharedSapSession();
+
+      // Verify the session is alive with a lightweight API call
+      const testResp = await sapHttpsClient.authenticatedRequest(sessionCookie, {
+        method: 'GET', url: '', path: '/b1s/v1/$metadata',
+        timeout: 10000,
+      });
+      isConnected = testResp.statusCode < 500;
+      console.log(`[SAP Ping] ✅ Connection OK — status=${testResp.statusCode}`);
     } catch (err: any) {
       connectionError = err.message;
-      console.error(`[SAP Ping] ❌ Login failed — db=${sapDb} user=${sapUser}: ${err.message}`);
-    }
-
-    if (sessionId) {
-      // Logout immediately — we never leave orphaned sessions that block payroll logins
-      try {
-        await sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' });
-        console.log(`[SAP Ping] Session released (logout OK)`);
-      } catch (logoutErr: any) {
-        console.warn(`[SAP Ping] Logout warning (non-fatal): ${logoutErr.message}`);
-      }
+      console.error(`[SAP Ping] ❌ Connection failed — db=${sapDb} user=${sapUser}: ${err.message}`);
     }
 
     res.json({
