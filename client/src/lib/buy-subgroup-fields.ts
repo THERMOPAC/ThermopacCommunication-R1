@@ -367,7 +367,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
   plates: [
     { key: "plate_type",     label: "Plate Type",     type: "select", opts: ["MS","SS 304","SS 316","Chequered","Boiler Quality Plate"] },
     { key: "material_grade", label: "Material Grade", type: "select", opts: ["IS 2062 E250","IS 2062 E350","SA 516 Gr 60","SA 516 Gr 70","ASTM A36","SS 304","SS 316"] },
-    { key: "thickness_mm",   label: "Thickness (mm)", type: "select", opts: ["3","5","6","8","10","12","16","20","25","32","40"] },
+    { key: "thickness_mm",   label: "Thickness (mm)", type: "select", opts: ["3","5","6","8","10","12","16","18","20","25","32","40"] },
     { key: "width_mm",       label: "Width (mm)",     type: "select", opts: ["1000","1250","1500","2000","2500"] },
     { key: "length_mm",      label: "Length (mm)",    type: "select", opts: ["2000","2500","3000","6000"] },
     { key: "standard",       label: "Standard",       type: "select", opts: ["IS 2062","ASTM A36","ASTM A516","ASME SA-516","DIN","EN"] },
