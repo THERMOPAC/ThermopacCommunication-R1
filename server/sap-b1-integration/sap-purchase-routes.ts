@@ -684,6 +684,7 @@ router.get('/invoices', async (req, res) => {
       `$top=${limit}`,
       `$skip=${skip}`,
       '$orderby=DocDate desc',
+      '$inlinecount=allpages',
       filterString
     ].filter(Boolean).join('&');
     
@@ -700,7 +701,7 @@ router.get('/invoices', async (req, res) => {
         pagination: {
           page: Number(page),
           limit: Number(limit),
-          total: data['@odata.count'] || data.value?.length || 0
+          total: data['@odata.count'] ?? data.value?.length ?? 0
         }
       }
     });

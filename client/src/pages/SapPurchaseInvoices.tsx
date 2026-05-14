@@ -99,18 +99,19 @@ function PurchaseInvoicesContent() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  const listParams = new URLSearchParams({
+    page: String(currentPage),
+    limit: String(pageSize),
+    status: statusFilter,
+  });
+  if (debouncedSearch.trim()) listParams.set('search', debouncedSearch.trim());
+
   const { data, isLoading, error } = useQuery<{ success: boolean; data: PurchaseInvoicesData }>({
-    queryKey: ['/api/sap/b1/purchase/invoices', { 
-      page: currentPage, 
-      limit: pageSize, 
-      ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
-      status: statusFilter 
-    }],
-    enabled: true,
+    queryKey: [`/api/sap/b1/purchase/invoices?${listParams}`],
   });
 
   const { data: detailData, isLoading: detailLoading } = useQuery<{ success: boolean; data: InvoiceDetail }>({
-    queryKey: ['/api/sap/b1/purchase/invoices', selectedDocEntry],
+    queryKey: [`/api/sap/b1/purchase/invoices/${selectedDocEntry}`],
     enabled: selectedDocEntry !== null,
   });
 
