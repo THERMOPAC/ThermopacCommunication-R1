@@ -309,7 +309,7 @@ const PIPES_STANDARD_OPTS   = [
 ];
 const PIPES_SURFACE         = ["Black (As-rolled)","Pickled & Passivated","Hot-Dip Galvanized"];
 const PIPES_NDT             = ["None","Hydrotest","Ultrasonic (UT)","Radiography (RT)","Magnetic Particle (MT)"];
-const PIPES_TESTING         = ["UT (Ultrasonic)","Hydrotest","Radiography (RT)","Magnetic Particle (MT)","Charpy Test","HIC Test","NACE MR-0175"];
+const PIPES_TESTING         = ["UT (Ultrasonic)","Hydrotest","Radiography (RT)","Magnetic Particle (MT)","Impact Testing","Charpy Test","HIC Test","NACE MR-0175"];
 const PIPES_ALL_OPTS: Record<string, string[]> = {
   material_grade:     PIPES_MATERIAL_GRADES,
   nominal_bore:       COMMON_NB,
