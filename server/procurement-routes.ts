@@ -33,24 +33,35 @@ interface SapVendorRecord {
 let syncInProgress = false;
 
 // ── Enrich a list of CardCodes with U_ERP_Group via individual SAP record fetches ──
-// SAP B1 Service Layer caps full-record OData results at 500 rows server-side.
+// SAP B1 Service Layer caps full-record (no $select) OData results at ~500 rows.
 // Individual fetches (/b1s/v1/BusinessPartners('CODE')) bypass this limit.
-// We run them in parallel batches of 20 for speed (~7-15 s for 1,458 vendors).
+// Used by Test SAP only — Full Sync uses $select + preserves existing vendor_type.
+// Per-request timeout for individual SAP enrichment calls (10 s).
+// The sap-https-client default is 5 min — far too long for bulk enrichment.
+const ENRICH_TIMEOUT_MS = 10_000;
+
 async function enrichWithUdfGroups(
   cardCodes: string[],
   sessionCookie: string,
 ): Promise<Map<string, string | null>> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
   const result = new Map<string, string | null>();
-  const BATCH = 20;
+  const BATCH = 5; // keep concurrent requests low to avoid overwhelming SAP
 
   for (let i = 0; i < cardCodes.length; i += BATCH) {
     const batch = cardCodes.slice(i, i + BATCH);
     const settled = await Promise.allSettled(
       batch.map(async (code) => {
-        const resp = await sapHttpsClient.authenticatedRequest(sessionCookie, {
+        // Race the SAP request against a hard timeout so hung sockets don't
+        // block the entire batch indefinitely.
+        const fetchPromise = sapHttpsClient.authenticatedRequest(sessionCookie, {
           method: 'GET', url: '', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(code)}')`,
+          timeout: ENRICH_TIMEOUT_MS,
         });
+        const timeoutPromise = new Promise<never>((_, rej) =>
+          setTimeout(() => rej(new Error(`timeout:${code}`)), ENRICH_TIMEOUT_MS + 2000),
+        );
+        const resp = await Promise.race([fetchPromise, timeoutPromise]);
         if (!resp.ok) return { code, udfRaw: null as string | null };
         const bp = JSON.parse(resp.body);
         const raw = bp['U_ERP_Group'] ?? null;
@@ -59,6 +70,7 @@ async function enrichWithUdfGroups(
     );
     for (const r of settled) {
       if (r.status === 'fulfilled') result.set(r.value.code, r.value.udfRaw);
+      // rejected = timeout or HTTP error → treated as null UDF (not thrown)
     }
   }
   console.log(`[vendors/enrich] enriched ${result.size} of ${cardCodes.length} — found ${[...result.values()].filter(Boolean).length} with U_ERP_Group`);
@@ -174,24 +186,17 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
     }
 
     const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-    console.log(`[vendors/sync] Phase 1: ${allSuppliers.length} total SAP suppliers → ${eligible.length} eligible`);
+    console.log(`[vendors/sync] $select fetch: ${allSuppliers.length} total SAP suppliers → ${eligible.length} eligible`);
 
-    // Phase 2: Enrich every eligible vendor with U_ERP_Group via individual record
-    // fetches in parallel batches. This bypasses the 500-row server-side cap.
-    const cardCodes = eligible.map((s) => s.CardCode);
-    const udfMap = await enrichWithUdfGroups(cardCodes, sessionId);
-
-    const result: SapVendorRecord[] = eligible.map((s) => ({
+    // Return without U_ERP_Group — the Full Sync upsert preserves existing
+    // vendor_type values already set by Test SAP. To classify vendors use
+    // Test SAP (which individually fetches all records to find U_ERP_Group).
+    return eligible.map((s) => ({
       CardCode:    s.CardCode,
       CardName:    s.CardName,
       GroupCode:   s.GroupCode,
-      U_ERP_Group: udfMap.get(s.CardCode) ?? null,
+      U_ERP_Group: null,
     }));
-
-    const classified = result.filter((s) => VALID_VENDOR_TYPES.has((s.U_ERP_Group ?? '').trim()));
-    console.log(`[vendors/sync] Phase 2: enriched ${result.length} vendors — ${classified.length} with valid U_ERP_Group`);
-
-    return result;
   }
 }
 
@@ -569,7 +574,9 @@ export function setupProcurementRoutes(app: Router) {
         const names       = valid.map((s) => s.name);
         const vendorTypes = valid.map((s) => s.vendorType);
 
-        // Batch upsert via unnest — upserts name, display_name, vendor_type, is_active
+        // Batch upsert via unnest.
+        // vendor_type is intentionally NOT overwritten if the incoming value is null —
+        // classifications set by "Test SAP" are preserved across full syncs.
         await client.query(
           `INSERT INTO vendors (name, display_name, is_active, sap_card_code, vendor_type, created_at, updated_at)
            SELECT DISTINCT ON (sap_code) n, n, true, sap_code, vt, NOW(), NOW()
@@ -578,7 +585,10 @@ export function setupProcurementRoutes(app: Router) {
            DO UPDATE SET
              name         = EXCLUDED.name,
              display_name = EXCLUDED.name,
-             vendor_type  = EXCLUDED.vendor_type,
+             vendor_type  = CASE
+                              WHEN EXCLUDED.vendor_type IS NOT NULL THEN EXCLUDED.vendor_type
+                              ELSE vendors.vendor_type
+                            END,
              is_active    = true,
              updated_at   = NOW()`,
           [names, codes, vendorTypes],
@@ -614,7 +624,20 @@ export function setupProcurementRoutes(app: Router) {
       client.release();
     }
   });
-  
+
+  /**
+   * POST /api/vendors/sync/reset
+   * Clears a stuck syncInProgress flag and invalidates the shared SAP session.
+   * Use when Full Sync hangs and the 409 lock never releases.
+   */
+  app.post('/api/vendors/sync/reset', ensureAuthenticated, (req: Request, res: Response) => {
+    const wasSyncing = syncInProgress;
+    syncInProgress = false;
+    invalidateSharedSapSession();
+    console.log(`[vendors/sync/reset] forced reset — wasSyncing=${wasSyncing}`);
+    res.json({ ok: true, wasSyncing, message: 'Sync lock cleared. SAP session invalidated.' });
+  });
+
   // ─── Vendor Discovery: fetch all SAP supplier groups (no DB changes) ──────
   /**
    * GET /api/vendors/discover-sap-groups

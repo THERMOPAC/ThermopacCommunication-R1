@@ -132,6 +132,19 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     },
   });
 
+  // ── SAP Sync Reset (clear stuck lock) ────────────────────────────────────
+  const resetMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/vendors/sync/reset"),
+    onSuccess: () => {
+      setSyncMessage("✓ Sync lock cleared — you can retry now.");
+      setTimeout(() => setSyncMessage(null), 6000);
+    },
+    onError: () => {
+      setSyncMessage("✗ Reset failed — try reloading the page.");
+      setTimeout(() => setSyncMessage(null), 6000);
+    },
+  });
+
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: lines = [], isLoading: linesLoading } = useQuery<PlcLine[]>({
     queryKey: ["/api/projects", projectId, "procurement-list"],
@@ -392,9 +405,21 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
                   {/* Session conflict warning */}
                   {testResult.sessionConflict && (
-                    <p className="text-orange-800 font-medium">
-                      Session conflict — wait 1–2 min and try again.
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-orange-800 font-medium">
+                        SAP session busy — another sync may be running. Wait 1–2 min or force-clear the lock.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 text-xs border-orange-400 text-orange-700 hover:bg-orange-100 h-7 px-2"
+                        onClick={() => resetMutation.mutate()}
+                        disabled={resetMutation.isPending}
+                      >
+                        {resetMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Force Reset"}
+                      </Button>
+                    </div>
                   )}
 
                   {!testResult.sessionConflict && (
