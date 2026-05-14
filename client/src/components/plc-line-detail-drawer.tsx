@@ -164,7 +164,7 @@ export function PlcLineDetailDrawer({
           <div className="flex items-center justify-between flex-wrap gap-2">
             <SheetTitle className="font-mono text-indigo-700">{line.plcNumber}</SheetTitle>
             <div className="flex items-center gap-2">
-              {line.revisionActionRequired !== "none" && (
+              {line.revisionActionRequired && line.revisionActionRequired !== "none" && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
                   <AlertTriangle className="h-3 w-3" />
                   {line.revisionActionRequired.replace(/_/g, " ")}

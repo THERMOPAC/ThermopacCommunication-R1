@@ -222,7 +222,7 @@ async function processGcsFile(
       assurance_flags, gcs_updated_at, last_synced_at
     ) VALUES (
       ${bucketName}, ${file.name}, ${parsed.fileName}, ${parsed.folderPath},
-      ${parsed.continentCode}, ${continentName || parsed.continentCode}, ${parsed.countryCode}, ${countryName || parsed.countryCode},
+      ${parsed.continentCode && parsed.continentCode.length <= 5 ? parsed.continentCode : null}, ${continentName || null}, ${parsed.countryCode && parsed.countryCode.length <= 5 ? parsed.countryCode : null}, ${countryName || null},
       ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode}, ${fyLabel},
       ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType ? parsed.docType.substring(0, 100) : null}, ${parsed.revision ? parsed.revision.substring(0, 50) : null},
       ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? sql`${'{' + unresolvedFields.join(',') + '}'}::text[]` : null},
