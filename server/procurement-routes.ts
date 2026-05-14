@@ -302,6 +302,9 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
   const CODES = ['R', 'P', 'M', 'I', 'V', 'E', 'B'] as const;
   const CAP = 200;
 
+  // Sentinel thrown when -1102 appears mid-session (during a group query)
+  const SESSION_CONFLICT_SENTINEL = '__SAP_SESSION_CONFLICT__';
+
   async function fetchGroup(code: string): Promise<UdfGroupResult> {
     const qs = new URLSearchParams({
       '$filter': `CardType eq 'cSupplier' and U_ERP_Group eq '${code}'`,
@@ -312,6 +315,8 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
     });
     if (!resp.ok) {
       const body = resp.body?.substring(0, 400) ?? '';
+      // -1102 can appear on ANY authenticated request, not just login
+      if (isSapSessionConflict(body)) throw new Error(SESSION_CONFLICT_SENTINEL);
       throw new Error(`SAP ${resp.statusCode} on group ${code}: ${body}`);
     }
     const rows: any[] = JSON.parse(resp.body).value ?? [];
@@ -329,7 +334,7 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
   }
 
   async function fetchNullCount(): Promise<number> {
-    // Try OData filter for empty string (SAP stores blank as empty string, not SQL NULL)
+    // SAP stores blank U_ERP_Group as empty string, not SQL NULL
     const qs = new URLSearchParams({
       '$filter': `CardType eq 'cSupplier' and U_ERP_Group eq ''`,
       '$top':    '500',
@@ -338,7 +343,11 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
     const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
     });
-    if (!resp.ok) return -1;  // -1 = unknown
+    if (!resp.ok) {
+      const body = resp.body?.substring(0, 200) ?? '';
+      if (isSapSessionConflict(body)) throw new Error(SESSION_CONFLICT_SENTINEL);
+      return -1;  // filter unsupported or other error — unknown count
+    }
     return (JSON.parse(resp.body).value ?? []).length;
   }
 
@@ -351,7 +360,12 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
         groups.push(await fetchGroup(code));
       } catch (err: any) {
         const msg = String(err?.message ?? '');
-        // UDF $filter might be unsupported — record and stop group queries
+        // Session conflict mid-query — stop immediately and surface to caller
+        if (msg === SESSION_CONFLICT_SENTINEL) {
+          console.warn(`[vendors/udf-dist] Session conflict on group ${code} — aborting`);
+          return { login: true, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
+        }
+        // UDF $filter unsupported in this SAP version — record and stop
         if (msg.includes('4000') || msg.toLowerCase().includes('filter') || msg.includes('U_ERP_Group')) {
           queryError = `SAP rejected UDF $filter: ${msg.substring(0, 200)}`;
           break;
@@ -361,7 +375,17 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
     }
 
     const totalClassified = groups.reduce((s, g) => s + g.count, 0);
-    const nullOrEmpty     = queryError ? -1 : await fetchNullCount();
+    let nullOrEmpty = -1;
+    if (!queryError) {
+      try {
+        nullOrEmpty = await fetchNullCount();
+      } catch (err: any) {
+        if (String(err?.message ?? '') === SESSION_CONFLICT_SENTINEL) {
+          // Session expired right at the null-count step — return what we have
+          console.warn('[vendors/udf-dist] Session conflict on null-count — returning partial result');
+        }
+      }
+    }
 
     console.log(`[vendors/udf-dist] classified=${totalClassified}, null/empty=${nullOrEmpty}, queryError=${queryError ?? 'none'}`);
 
