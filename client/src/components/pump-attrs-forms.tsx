@@ -176,6 +176,7 @@ export function buildCentrifugalPumpDefaults(type: string): Record<string, unkno
     api_610_category: "", area_classification: "", certification: "", spare_parts: "",
     casing_type: "", impeller_type: "", coupling_type: "",
     suction_size: "", discharge_size: "", connection_type: "", rating: "",
+    density: "", viscosity: "", solid_content: "", specific_gravity: "",
     impeller_type_sc: "", orientation: "", coupling_type_sc: "",
     num_stages: "", balance_method: "", coupling_type_ms: "", orientation_ms: "",
     coupling_type_vi: "",
@@ -479,6 +480,10 @@ export function CentrifugalPumpAttrsForm({
             {renderField("head",           "Head / TDH",        CENTRIFUGAL_COMMON_OPTS.head,           true)}
             {renderField("fluid",          "Fluid",             CENTRIFUGAL_COMMON_OPTS.fluid,          true)}
             {renderField("operating_temp", "Operating Temp",    CENTRIFUGAL_COMMON_OPTS.operating_temp)}
+            {renderFreeText("density",         "Density (kg/m³)",   "e.g. 1000")}
+            {renderFreeText("viscosity",       "Viscosity (cP)",    "e.g. 1.0")}
+            {renderFreeText("solid_content",   "Solid Content (%)", "e.g. 5")}
+            {renderFreeText("specific_gravity","Specific Gravity",  "e.g. 1.0")}
           </div>
         </div>
 
