@@ -225,7 +225,11 @@ interface VendorTestResult {
 async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
 
-  // ── 1. Shared session ─────────────────────────────────────────────────────
+  // ── 1. Fresh session — always force a new login for Test SAP ────────────
+  // The shared session may have been primed by Full Sync (which uses $select).
+  // SAP only returns UDF fields (U_ERP_Group) on fresh sessions without
+  // prior $select usage. Invalidate first to guarantee a clean login.
+  invalidateSharedSapSession();
   let sessionId: string;
   try {
     sessionId = await getSharedSapSession();
@@ -242,29 +246,22 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // ── 2. Direct OData filter on U_ERP_Group with $select ───────────────────
-  // SAP B1 Service Layer supports filtering on UDF fields and returns them
-  // when explicitly listed in $select. This is the authoritative approach —
-  // field name is exactly "U_ERP_Group" as confirmed in SAP SQL.
-  //
-  // Mirrors:  WHERE U_ERP_Group IN ('R','P','M','I','V','E','B')
-  // $select:  CardCode,CardName,GroupCode,U_ERP_Group  (explicit — no ambiguity)
-
-  const UDF_FILTER =
-    "CardType eq 'cSupplier' and " +
-    "(U_ERP_Group eq 'R' or U_ERP_Group eq 'P' or U_ERP_Group eq 'M' or " +
-    " U_ERP_Group eq 'I' or U_ERP_Group eq 'V' or U_ERP_Group eq 'E' or " +
-    " U_ERP_Group eq 'B')";
+  // ── 2. Full scan — no $select, no $orderby, no artificial cap ────────────
+  // Confirmed approach from UDF Check: SAP returns U_ERP_Group ONLY when:
+  //   • No $select  (adding $select strips UDF fields from response)
+  //   • No $orderby (adding $orderby strips UDF fields from response)
+  //   • No $filter on U_ERP_Group (SAP ignores UDF filters, returns all records)
+  // Strategy: paginate ALL vendors with only CardType filter, collect in memory,
+  // then filter by U_ERP_Group value locally.
 
   const PAGE_SIZE = 20;
 
-  async function fetchClassified(): Promise<any[]> {
+  async function fullScan(): Promise<any[]> {
     const rows: any[] = [];
     let skip = 0;
     while (true) {
       const qs = new URLSearchParams({
-        '$filter': UDF_FILTER,
-        '$select': 'CardCode,CardName,GroupCode,U_ERP_Group',
+        '$filter': "CardType eq 'cSupplier'",   // NO $select, NO $orderby
         '$top':    String(PAGE_SIZE),
         '$skip':   String(skip),
       }).toString();
@@ -277,36 +274,41 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
       }
       const page: any[] = JSON.parse(resp.body).value ?? [];
-      // Log first raw row so we can verify field names exactly
+      // Log keys of first row once — confirms U_ERP_Group presence/absence
       if (skip === 0 && page.length > 0) {
-        console.log('[vendors/test] RAW first row from SAP:', JSON.stringify(page[0]));
+        const keys = Object.keys(page[0]).join(', ');
+        const udfVal = page[0]['U_ERP_Group'];
+        console.log(`[vendors/test] First row keys: ${keys}`);
+        console.log(`[vendors/test] First row U_ERP_Group = ${JSON.stringify(udfVal)}`);
       }
       rows.push(...page);
-      if (page.length < PAGE_SIZE) break; // last page
+      if (page.length < PAGE_SIZE) break; // reached last page
       skip += PAGE_SIZE;
     }
     return rows;
   }
 
   try {
-    const allRows = await fetchClassified();
+    const allRows = await fullScan();
 
-    // U_ERP_Group is guaranteed present (it's in $select AND was the filter key)
-    const udfAvailable = allRows.length > 0 ? ('U_ERP_Group' in allRows[0]) : true;
-    const udfFieldName = 'U_ERP_Group';
+    // Check if U_ERP_Group key was present in any response row
+    const udfAvailable = allRows.some((bp) => 'U_ERP_Group' in bp);
+    const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
 
-    // Build classified list — exclude GroupCode 105/106, map vendorType
+    // Build classified list — only rows where U_ERP_Group is a valid vendor type
+    // Skip GroupCode 105/106 (employees), skip blank/absent U_ERP_Group
     const classified: VendorTestResult['sample'] = [];
     for (const bp of allRows) {
       if (EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode))) continue;
       const raw = bp['U_ERP_Group'];
-      const udfRaw     = raw != null ? String(raw).trim() : '';
+      if (raw === null || raw === undefined || String(raw).trim() === '') continue;
+      const udfRaw     = String(raw).trim();
       const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
       classified.push({
         cardCode:     String(bp.CardCode ?? ''),
         cardName:     String(bp.CardName ?? ''),
         groupCode:    Number(bp.GroupCode ?? 0),
-        udfRaw:       udfRaw || null,
+        udfRaw,
         vendorType,
         excluded:     false,
         upsertedToDb: false,
