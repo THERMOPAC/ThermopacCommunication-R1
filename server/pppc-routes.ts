@@ -1254,7 +1254,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (hdr.rowCount === 0) return sendNotFound(res, 'Buy list', id);
       if (hdr.rows[0].status !== 'under_review') return sendBusinessError(res, 'Only under_review lists can be reviewed.');
       const userId = (req.user as any)?.id;
-      if (hdr.rows[0].submitted_by === userId) return sendBusinessError(res, 'Submitter cannot be the reviewer.');
+      const userRole = (req.user as any)?.role;
+      if (hdr.rows[0].submitted_by === userId && userRole !== 'Superuser') return sendBusinessError(res, 'Submitter cannot be the reviewer.');
       const { recommendation, reviewNote } = req.body;
       const VALID_RECS = ['approve', 'reject', 'approve_with_comments'];
       if (!VALID_RECS.includes(recommendation)) return sendValidationError(res, 'Invalid recommendation value.');
