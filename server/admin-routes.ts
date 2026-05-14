@@ -50,6 +50,7 @@ import { verifyPayslipRelease } from './payroll-calculation-verifier';
 import { glAccountMappings } from '../shared/schema';
 import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
 import { sapSessionManager } from './sap-session-manager';
+import { sapSession } from './sap-b1-integration/sap-central-session';
 import {
   adminCreateLeave,
   adminApproveLeave,
@@ -3507,31 +3508,10 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
  * Fetch GL accounts from SAP Chart of Accounts
  */
 router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request, res: Response) => {
-  let sessionId = '';
   try {
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
-
-    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    sessionId = loginResult.sessionId;
-    let routeId = '';
-    const setCookieHeader = loginResult.response.headers['set-cookie'];
-    if (setCookieHeader) {
-      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-      for (const cookie of cookieArray) {
-        const match = cookie.match(/ROUTEID=([^;]+)/);
-        if (match) { routeId = match[1]; break; }
-      }
-    }
-    const headers: Record<string, string> = {};
-    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
-
-    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    const sapResponse = await sapSession.request({
       method: 'GET',
       path: "/b1s/v1/ChartOfAccounts?$select=Code,Name,ActiveAccount&$top=500",
-      headers,
     });
 
     if (sapResponse.ok) {
@@ -3544,49 +3524,26 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
     }
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
-  } finally {
-    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
 router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, res: Response) => {
-  let sessionId = '';
   try {
     const search = (req.query.q as string || '').trim();
     if (!search || search.length < 2) {
       return res.status(400).json({ error: 'Search query (q) must be at least 2 characters' });
     }
 
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
-
-    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    sessionId = loginResult.sessionId;
-    let routeId = '';
-    const setCookieHeader = loginResult.response.headers['set-cookie'];
-    if (setCookieHeader) {
-      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-      for (const cookie of cookieArray) {
-        const match = cookie.match(/ROUTEID=([^;]+)/);
-        if (match) { routeId = match[1]; break; }
-      }
-    }
-    const headers: Record<string, string> = {};
-    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
-
     let allSapAccounts: any[] = [];
     let nextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
-    const sapHeaders = { ...headers, 'Prefer': 'odata.maxpagesize=500' };
 
     console.log(`[SAP CoA Search] Fetching all accounts from SAP (bulk fetch with pagination)...`);
     while (nextLink) {
       try {
-        const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        const resp = await sapSession.request({
           method: 'GET',
           path: nextLink,
-          headers: sapHeaders,
         });
         if (resp.ok) {
           const data = JSON.parse(resp.body);
@@ -3596,10 +3553,9 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
           nextLink = data['odata.nextLink'] || null;
           if (!nextLink && batch.length > 0) {
             const currentSkip = allSapAccounts.length;
-            const testResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+            const testResp = await sapSession.request({
               method: 'GET',
               path: `/b1s/v1/ChartOfAccounts?$skip=${currentSkip}&$top=500`,
-              headers: sapHeaders,
             });
             if (testResp.ok) {
               const testData = JSON.parse(testResp.body);
@@ -3655,43 +3611,23 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     return res.json({ accounts: matched, total: matched.length, totalInSap: allSapAccounts.length, search, companyDb: sapDb });
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
-  } finally {
-    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
 router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, res: Response) => {
-  let sessionId = '';
   try {
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
+    const sapUser = process.env.SAP_USERNAME || '';
 
     const results: any = { companyDb: sapDb, sapUser, tests: {} };
 
     console.log(`\n========== SAP DIAGNOSTIC START ==========`);
     console.log(`[SAP Diag] Company DB: ${sapDb}, User: ${sapUser}`);
 
-    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    sessionId = loginResult.sessionId;
-    let routeId = '';
-    const setCookieHeader = loginResult.response.headers['set-cookie'];
-    if (setCookieHeader) {
-      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-      for (const cookie of cookieArray) {
-        const match = cookie.match(/ROUTEID=([^;]+)/);
-        if (match) { routeId = match[1]; break; }
-      }
-    }
-    const headers: Record<string, string> = { 'Prefer': 'odata.maxpagesize=500' };
-    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
-    console.log(`[SAP Diag] Login OK. SessionId=${sessionId}, RouteId=${routeId}`);
-
     const test1Path = `/b1s/v1/ChartOfAccounts('50207350101-ARL')`;
     console.log(`[SAP Diag] Test 1: GET ${test1Path}`);
     try {
-      const r1 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: test1Path, headers });
+      const r1 = await sapSession.request({ method: 'GET', path: test1Path });
       console.log(`[SAP Diag] Test 1 result: ${r1.statusCode} ${r1.body.substring(0, 500)}`);
       results.tests.directLookup1 = { status: r1.statusCode, ok: r1.ok, body: JSON.parse(r1.body) };
     } catch (e: any) {
@@ -3702,7 +3638,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
     const test2Path = `/b1s/v1/ChartOfAccounts('20302070300-ARL')`;
     console.log(`[SAP Diag] Test 2: GET ${test2Path}`);
     try {
-      const r2 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: test2Path, headers });
+      const r2 = await sapSession.request({ method: 'GET', path: test2Path });
       console.log(`[SAP Diag] Test 2 result: ${r2.statusCode} ${r2.body.substring(0, 500)}`);
       results.tests.directLookup2 = { status: r2.statusCode, ok: r2.ok, body: JSON.parse(r2.body) };
     } catch (e: any) {
@@ -3713,7 +3649,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
     const test3Path = `/b1s/v1/ChartOfAccounts?$select=Code,AcctName,FormatCode,ActiveAccount,AccountType&$top=20`;
     console.log(`[SAP Diag] Test 3: GET ${test3Path}`);
     try {
-      const r3 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: test3Path, headers });
+      const r3 = await sapSession.request({ method: 'GET', path: test3Path });
       console.log(`[SAP Diag] Test 3 result: ${r3.statusCode}`);
       if (r3.ok) {
         const d3 = JSON.parse(r3.body);
@@ -3735,7 +3671,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
     const test4Path = `/b1s/v1/CompanyService_GetCompanyInfo`;
     console.log(`[SAP Diag] Test 4: POST ${test4Path}`);
     try {
-      const r4 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: test4Path, headers });
+      const r4 = await sapSession.request({ method: 'POST', path: test4Path });
       console.log(`[SAP Diag] Test 4 result: ${r4.statusCode} ${r4.body.substring(0, 500)}`);
       if (r4.ok) {
         const ci = JSON.parse(r4.body);
@@ -3760,7 +3696,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
     let diagNextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
     while (diagNextLink) {
       try {
-        const r = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: diagNextLink, headers });
+        const r = await sapSession.request({ method: 'GET', path: diagNextLink });
         if (r.ok) {
           const d = JSON.parse(r.body);
           const batch = d.value || [];
@@ -3768,8 +3704,8 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
           diagNextLink = d['odata.nextLink'] || null;
           if (!diagNextLink && batch.length > 0) {
             const skip = allAccts.length;
-            const nr = await sapHttpsClient.authenticatedRequest(sessionId, {
-              method: 'GET', path: `/b1s/v1/ChartOfAccounts?$skip=${skip}&$top=500`, headers
+            const nr = await sapSession.request({
+              method: 'GET', path: `/b1s/v1/ChartOfAccounts?$skip=${skip}&$top=500`
             });
             if (nr.ok) {
               const nd = JSON.parse(nr.body);
@@ -3808,12 +3744,6 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
   } catch (e: any) {
     console.error('[SAP Diag] Fatal error:', e);
     return res.status(500).json({ error: e.message });
-  } finally {
-    if (sessionId) {
-      sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' })
-        .then(() => console.log('[SAP Diag] Session logged out cleanly'))
-        .catch(() => {});
-    }
   }
 });
 
@@ -3835,37 +3765,17 @@ router.get('/payroll/gl-mappings', ensureAuthenticated, async (req: Request, res
 });
 
 router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Request, res: Response) => {
-  let sessionId = '';
   try {
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
-
-    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    sessionId = loginResult.sessionId;
-    let routeId = '';
-    const setCookieHeader = loginResult.response.headers['set-cookie'];
-    if (setCookieHeader) {
-      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-      for (const cookie of cookieArray) {
-        const match = cookie.match(/ROUTEID=([^;]+)/);
-        if (match) { routeId = match[1]; break; }
-      }
-    }
-    const headers: Record<string, string> = {};
-    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
 
     console.log(`[Validate GL] Bulk-fetching SAP Chart of Accounts...`);
     let allSapAccounts: any[] = [];
     let valNextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
-    const sapHeaders = { ...headers, 'Prefer': 'odata.maxpagesize=500' };
     while (valNextLink) {
       try {
-        const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        const resp = await sapSession.request({
           method: 'GET',
           path: valNextLink,
-          headers: sapHeaders,
         });
         if (resp.ok) {
           const data = JSON.parse(resp.body);
@@ -3875,10 +3785,9 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
           valNextLink = data['odata.nextLink'] || null;
           if (!valNextLink && batch.length > 0) {
             const skip = allSapAccounts.length;
-            const testResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+            const testResp = await sapSession.request({
               method: 'GET',
               path: `/b1s/v1/ChartOfAccounts?$skip=${skip}&$top=500`,
-              headers: sapHeaders,
             });
             if (testResp.ok) {
               const td = JSON.parse(testResp.body);
@@ -4029,8 +3938,6 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
     });
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
-  } finally {
-    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
@@ -4061,7 +3968,6 @@ router.post('/payroll/gl-mapping/:id/set-sap-code', ensureAuthenticated, async (
  * Test SAP JE posting with custom payload
  */
 router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, res: Response) => {
-  let sessionId = '';
   try {
     const currentUser = req.user as any;
     const jePayload = req.body.jePayload;
@@ -4070,47 +3976,14 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       return res.status(400).json({ error: 'jePayload is required' });
     }
 
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
-
-    if (!sapUser || !sapPass || !sapDb) {
-      return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || '(empty)'}` });
-    }
-
-    console.log(`[Test SAP JE] Fresh login to ${sapDb} as ${sapUser}...`);
-    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    sessionId = loginResult.sessionId;
-
-    let routeId = '';
-    const setCookieHeader = loginResult.response.headers['set-cookie'];
-    if (setCookieHeader) {
-      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
-      for (const cookie of cookieArray) {
-        const match = cookie.match(/ROUTEID=([^;]+)/);
-        if (match) {
-          routeId = match[1];
-          break;
-        }
-      }
-    }
-    console.log(`[Test SAP JE] Login OK, sessionId=${sessionId}, routeId=${routeId}`);
-
-    const headers: Record<string, string> = {};
-    if (routeId) {
-      headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
-    }
-
     console.log(`[Test SAP JE] Bulk-fetching all SAP Chart of Accounts to build FormatCode→Code map...`);
     let allSapAccounts: any[] = [];
     let jeNextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
-    const sapHeaders = { ...headers, 'Prefer': 'odata.maxpagesize=500' };
     while (jeNextLink) {
       try {
-        const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        const resp = await sapSession.request({
           method: 'GET',
           path: jeNextLink,
-          headers: sapHeaders,
         });
         if (resp.ok) {
           const data = JSON.parse(resp.body);
@@ -4120,10 +3993,9 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
           jeNextLink = data['odata.nextLink'] || null;
           if (!jeNextLink && batch.length > 0) {
             const skip = allSapAccounts.length;
-            const testResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+            const testResp = await sapSession.request({
               method: 'GET',
               path: `/b1s/v1/ChartOfAccounts?$skip=${skip}&$top=500`,
-              headers: sapHeaders,
             });
             if (testResp.ok) {
               const td = JSON.parse(testResp.body);
@@ -4193,10 +4065,9 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       } else {
         console.log(`[Test SAP JE] No valid NET_PAY GL in config (got: "${configuredGL}"). Querying SAP BP for control GL...`);
         try {
-          const bpResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+          const bpResponse = await sapSession.request({
             method: 'GET',
             path: `/b1s/v1/BusinessPartners('${bpCode}')`,
-            headers,
           });
           if (bpResponse.ok) {
             const bpFull = JSON.parse(bpResponse.body);
@@ -4314,11 +4185,10 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
 
     console.log(`[Test SAP JE] Posting JE with ${finalPayload.JournalEntryLines?.length || 0} lines:`, JSON.stringify(finalPayload));
 
-    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    const sapResponse = await sapSession.request({
       method: 'POST',
       path: '/b1s/v1/JournalEntries',
       body: finalPayload,
-      headers,
     });
 
     if (sapResponse.ok) {
@@ -4343,8 +4213,6 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
   } catch (error: any) {
     console.error('Error in test SAP JE:', error);
     sendError(res, error);
-  } finally {
-    if (sessionId) sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
@@ -4539,7 +4407,7 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
  * Auto-resolve GL mappings by looking up FormatCode in SAP Chart of Accounts.
  * Stores the resolved _SYS code in sap_acct_code for reuse.
  */
-async function resolveGlMappingsFromSap(sessionId: string): Promise<{ resolved: number; failed: string[]; alreadyResolved: number }> {
+async function resolveGlMappingsFromSap(): Promise<{ resolved: number; failed: string[]; alreadyResolved: number }> {
   const unresolvedMappings = await db.select().from(glAccountMappings)
     .where(and(
       eq(glAccountMappings.isActive, true),
@@ -4555,10 +4423,9 @@ async function resolveGlMappingsFromSap(sessionId: string): Promise<{ resolved: 
 
   let allSapAccounts: any[] = [];
   let nextLink: string | null = '/b1s/v1/ChartOfAccounts?$select=Code,Name,FormatCode&$top=500';
-  const sapHeaders = { 'Prefer': 'odata.maxpagesize=500' };
 
   while (nextLink) {
-    const resp = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: nextLink, headers: sapHeaders });
+    const resp = await sapSession.request({ method: 'GET', path: nextLink });
     if (!resp.ok) break;
     const data = JSON.parse(resp.body);
     allSapAccounts = allSapAccounts.concat(data.value || []);
@@ -4644,21 +4511,11 @@ router.get('/payroll/records/:id/je-preview', ensureAuthenticated, async (req: R
 });
 
 router.post('/payroll/gl-mapping/auto-resolve', ensureAuthenticated, async (req: Request, res: Response) => {
-  let autoResolveSessionId = '';
   try {
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(503).json({ error: `SAP credentials not configured. SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || "(empty)"}` });
-
-    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-    autoResolveSessionId = loginResult.sessionId;
-    const result = await resolveGlMappingsFromSap(autoResolveSessionId);
+    const result = await resolveGlMappingsFromSap();
     res.json({ success: true, ...result });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
-  } finally {
-    if (autoResolveSessionId) sapHttpsClient.authenticatedRequest(autoResolveSessionId, { method: 'POST', path: '/b1s/v1/Logout' }).catch(() => {});
   }
 });
 
@@ -4998,8 +4855,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     if (unresolvedCodes.length > 0) {
       console.log(`[Salary JE] ${unresolvedCodes.length} unresolved GLs — attempting auto-resolution...`);
       try {
-        const sessionId = await getSapSession(currentUser.id);
-        const resolveResult = await resolveGlMappingsFromSap(sessionId);
+        const resolveResult = await resolveGlMappingsFromSap();
         console.log(`[Salary JE] Auto-resolved: ${resolveResult.resolved}, failed: ${resolveResult.failed.length}`);
 
         if (resolveResult.resolved > 0) {

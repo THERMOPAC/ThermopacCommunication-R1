@@ -2,8 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from './db';
 import { employeeLoans, employeeLoanRepayments, employeeAdvances, employeeAdvanceRecoveries, users, glAccountMappings } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
-import { sapSessionManager } from './sap-session-manager';
+import { sapSession } from './sap-b1-integration/sap-central-session';
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 
 const router = Router();
@@ -392,23 +391,7 @@ async function postDisbursementJE(
   }
 
   try {
-    let sessionId: string;
-    const existingSession = sapSessionManager.getSession(currentUserId);
-    if (existingSession) {
-      sessionId = existingSession.sessionId;
-    } else {
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sessionId = loginResult.sessionId;
-      sapSessionManager.setSession(currentUserId, {
-        sessionId: loginResult.sessionId,
-        routeId: undefined,
-        userId: currentUserId,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 60000),
-      });
-    }
-
-    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    const sapResponse = await sapSession.request({
       method: 'POST',
       path: '/b1s/v1/JournalEntries',
       body: jePayload,
@@ -592,23 +575,7 @@ export async function postReversalJE(
   }
 
   try {
-    let sessionId: string;
-    const existingSession = sapSessionManager.getSession(currentUserId);
-    if (existingSession) {
-      sessionId = existingSession.sessionId;
-    } else {
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sessionId = loginResult.sessionId;
-      sapSessionManager.setSession(currentUserId, {
-        sessionId: loginResult.sessionId,
-        routeId: undefined,
-        userId: currentUserId,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 60000),
-      });
-    }
-
-    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    const sapResponse = await sapSession.request({
       method: 'POST',
       path: '/b1s/v1/JournalEntries',
       body: jePayload,

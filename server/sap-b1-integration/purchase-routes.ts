@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db';
-import { sapHttpsClient } from './sap-https-client';
+import { sapSession } from './sap-central-session';
 import { sapB1Connector } from './sap-connector';
 import { 
   sapPurchaseOrders, 
@@ -19,43 +19,6 @@ function getIndianFinancialYearStart(): string {
   return `${year}-04-01`;
 }
 
-// Helper function to get SAP Service Layer login credentials
-function getSapCredentials() {
-  const companyDb = process.env.SAP_COMPANY_DB;
-  if (!companyDb) throw new Error('SAP_COMPANY_DB environment secret is not configured');
-  return {
-    CompanyDB: companyDb,
-    UserName: process.env.SAP_USERNAME || 'manager',
-    Password: process.env.SAP_PASSWORD || 'admin'
-  };
-}
-
-// Helper function for SAP Service Layer connection
-async function createSapConnection() {
-  const publicIP = '59.152.52.58';
-  const serviceLayerPort = '50000';
-  const baseURL = `https://${publicIP}:${serviceLayerPort}/b1s/v1`;
-  
-  // Using custom HTTPS client with SSL bypass for self-signed certificates
-
-  const credentials = getSapCredentials();
-  console.log('🔑 SAP Login with credentials:', {
-    serviceLayerUrl: baseURL,
-    companyDb: credentials.CompanyDB,
-    passwordSet: !!credentials.Password
-  });
-
-  // Login to Service Layer with SSL bypass
-  // Use custom HTTPS client for SSL bypass
-  const { sessionId } = await sapHttpsClient.login(
-    credentials.UserName,
-    credentials.Password,
-    credentials.CompanyDB
-  );
-
-  console.log('✅ SAP Service Layer login successful');
-  return { baseURL, sessionId, httpsClient: sapHttpsClient };
-}
 
 // Purchase Orders Endpoints - Live SAP B1 Integration
 router.get('/purchase-orders', async (req, res) => {
@@ -77,9 +40,6 @@ router.get('/purchase-orders', async (req, res) => {
 
     // Note: Removed faulty credential validation that was blocking real SAP credentials
     // The dashboard stats endpoint successfully uses the same credentials, so we should too
-
-    // Connect to SAP Service Layer with configured credentials
-    const { baseURL, sessionId, httpsClient } = await createSapConnection();
 
     // Build query parameters - using correct SAP B1 field names for PurchaseOrders
     let selectFields = 'DocEntry,DocNum,DocDate,CardCode,CardName,DocTotal,DocCurrency,DocumentStatus,Comments,VatSum';
@@ -103,7 +63,7 @@ router.get('/purchase-orders', async (req, res) => {
     // Fetch purchase orders using custom HTTPS client with SSL bypass  
     const queryPath = `/b1s/v1/PurchaseOrders?$select=${selectFields}&$top=${limit}&$skip=${offset}${filterQuery}`;
     
-    const poResponse = await httpsClient.authenticatedRequest(sessionId, {
+    const poResponse = await sapSession.request({
       method: 'GET',
       path: queryPath
     });
@@ -124,12 +84,6 @@ router.get('/purchase-orders', async (req, res) => {
 
     const poData = JSON.parse(poResponse.body);
     const rawPurchaseOrders = poData.value || [];
-
-    // Logout from Service Layer using custom HTTPS client
-    await httpsClient.authenticatedRequest(sessionId, {
-      method: 'POST',
-      path: '/b1s/v1/Logout'
-    }).catch(() => {}); // Ignore logout errors
 
     // Process and classify each purchase order
     const processedPurchaseOrders = rawPurchaseOrders.map((po: any) => {
@@ -244,15 +198,10 @@ router.get('/dashboard-stats', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   
   try {
-    const credentials = getSapCredentials();
-    
-    // Connect to SAP and fetch real stats using custom HTTPS client
-    const { baseURL, sessionId, httpsClient } = await createSapConnection();
-
-    // Fetch summary statistics using custom HTTPS client with SSL bypass - using correct field names  
+    // Fetch summary statistics using centralized SAP session
     const statsPath = '/b1s/v1/PurchaseOrders?$select=DocTotal,DocumentStatus,DocCurrency&$top=1000';
     
-    const statsResponse = await httpsClient.authenticatedRequest(sessionId, {
+    const statsResponse = await sapSession.request({
       method: 'GET',
       path: statsPath
     });
@@ -269,12 +218,6 @@ router.get('/dashboard-stats', async (req, res) => {
     const pendingOrders = orders.filter((o: any) => o.DocStatus === 'O').length;
     const totalValue = orders.reduce((sum: number, o: any) => sum + parseFloat(o.DocTotal || 0), 0);
     const avgOrderValue = totalOrders > 0 ? Math.round(totalValue / totalOrders) : 0;
-
-    // Logout from Service Layer using custom HTTPS client
-    await httpsClient.authenticatedRequest(sessionId, {
-      method: 'POST',
-      path: '/b1s/v1/Logout'
-    }).catch(() => {});
 
     console.log(`✅ Retrieved real SAP statistics: ${totalOrders} orders, total value ₹${totalValue.toLocaleString()}`);
 
@@ -334,11 +277,9 @@ router.get('/purchase-requisitions', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   
   try {
-    const { baseURL, sessionId, httpsClient } = await createSapConnection();
-    
     const requisitionsPath = '/b1s/v1/PurchaseRequests?$top=100';
     
-    const requisitionsResponse = await httpsClient.authenticatedRequest(sessionId, {
+    const requisitionsResponse = await sapSession.request({
       method: 'GET',
       path: requisitionsPath
     });
@@ -349,12 +290,6 @@ router.get('/purchase-requisitions', async (req, res) => {
 
     const requisitionsData = JSON.parse(requisitionsResponse.body);
     
-    // Logout
-    await httpsClient.authenticatedRequest(sessionId, {
-      method: 'POST',
-      path: '/b1s/v1/Logout'
-    }).catch(() => {});
-
     res.json({
       success: true,
       source: 'sap_service_layer',
@@ -379,11 +314,9 @@ router.get('/goods-receipt', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   
   try {
-    const { baseURL, sessionId, httpsClient } = await createSapConnection();
-    
     const goodsReceiptPath = '/b1s/v1/PurchaseDeliveryNotes?$top=100';
     
-    const goodsReceiptResponse = await httpsClient.authenticatedRequest(sessionId, {
+    const goodsReceiptResponse = await sapSession.request({
       method: 'GET',
       path: goodsReceiptPath
     });
@@ -394,12 +327,6 @@ router.get('/goods-receipt', async (req, res) => {
 
     const goodsReceiptData = JSON.parse(goodsReceiptResponse.body);
     
-    // Logout
-    await httpsClient.authenticatedRequest(sessionId, {
-      method: 'POST',
-      path: '/b1s/v1/Logout'
-    }).catch(() => {});
-
     res.json({
       success: true,
       source: 'sap_service_layer',
@@ -424,11 +351,9 @@ router.get('/purchase-invoices', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   
   try {
-    const { baseURL, sessionId, httpsClient } = await createSapConnection();
-    
     const invoicesPath = '/b1s/v1/PurchaseInvoices?$top=100';
     
-    const invoicesResponse = await httpsClient.authenticatedRequest(sessionId, {
+    const invoicesResponse = await sapSession.request({
       method: 'GET',
       path: invoicesPath
     });
@@ -439,12 +364,6 @@ router.get('/purchase-invoices', async (req, res) => {
 
     const invoicesData = JSON.parse(invoicesResponse.body);
     
-    // Logout
-    await httpsClient.authenticatedRequest(sessionId, {
-      method: 'POST',
-      path: '/b1s/v1/Logout'
-    }).catch(() => {});
-
     res.json({
       success: true,
       source: 'sap_service_layer',
@@ -469,12 +388,10 @@ router.get('/vendors', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   
   try {
-    const { baseURL, sessionId, httpsClient } = await createSapConnection();
-    
     // Simplified vendors endpoint without filter to avoid URL encoding issues
     const vendorsPath = '/b1s/v1/BusinessPartners?$top=100';
     
-    const vendorsResponse = await httpsClient.authenticatedRequest(sessionId, {
+    const vendorsResponse = await sapSession.request({
       method: 'GET',
       path: vendorsPath
     });
@@ -485,12 +402,6 @@ router.get('/vendors', async (req, res) => {
 
     const vendorsData = JSON.parse(vendorsResponse.body);
     
-    // Logout
-    await httpsClient.authenticatedRequest(sessionId, {
-      method: 'POST',
-      path: '/b1s/v1/Logout'
-    }).catch(() => {});
-
     res.json({
       success: true,
       source: 'sap_service_layer',

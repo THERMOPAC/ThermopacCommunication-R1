@@ -1,6 +1,7 @@
 import express from 'express';
 import { sapB1Connector } from './sap-connector';
 import { sapSyncService } from './sync-service';
+import { sapSession } from './sap-central-session';
 import { ensureAuthenticated } from '../auth-middleware';
 import { vpnManager } from '../vpn/vpn-manager';
 import purchaseRoutes from './purchase-routes';
@@ -1455,16 +1456,9 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
  */
 router.get('/vendors', ensureAuthenticated, async (req, res) => {
   try {
-    const { sapHttpsClient } = await import('./sap-https-client');
-    const sapUsername = process.env.SAP_USERNAME || '';
-    const sapPassword = process.env.SAP_PASSWORD || '';
-    const sapCompanyDb = process.env.SAP_COMPANY_DB || '';
-
-    const { sessionId } = await sapHttpsClient.login(sapUsername, sapPassword, sapCompanyDb);
-
-    const vendorsResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    const vendorsResponse = await sapSession.request({
       method: 'GET',
-      url: `https://59.152.52.58:50000/b1s/v1/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$top=500`,
+      path: `/b1s/v1/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$top=500`,
     });
 
     if (!vendorsResponse.ok) {

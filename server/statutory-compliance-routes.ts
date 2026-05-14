@@ -10,8 +10,7 @@ import {
 import { eq, and, sql, desc, asc, inArray, isNull } from 'drizzle-orm';
 import { payrollSettings } from '@shared/schema';
 import { ensureAuthenticated } from './auth-middleware';
-import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
-import { sapSessionManager } from './sap-session-manager';
+import { sapSession } from './sap-b1-integration/sap-central-session';
 
 const router = Router();
 router.use(ensureAuthenticated);
@@ -807,44 +806,12 @@ router.get('/reconciliation/:moduleType', async (req: Request, res: Response) =>
 });
 
 async function postJeToSap(userId: number, jePayload: any): Promise<{ success: boolean; docEntry?: number; jeNumber?: string; error?: string }> {
-  const session = sapSessionManager.getSession(userId);
-  const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
-  const sapUser = process.env.SAP_USERNAME || '';
-  const sapPass = process.env.SAP_PASSWORD || '';
-  const sapDb = process.env.SAP_COMPANY_DB || '';
-
-  if (!sapUser || !sapPass || !sapDb) {
-    return { success: false, error: 'SAP credentials not configured. Please set SAP_USERNAME, SAP_PASSWORD, and SAP_COMPANY_DB.' };
-  }
-
   try {
-    let sessionId: string;
-    if (session) {
-      sessionId = session.sessionId;
-    } else {
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sapSessionManager.setSession(userId, { sessionId: loginResult.sessionId, routeId: undefined, userId, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
-      sessionId = loginResult.sessionId;
-    }
-
-    let sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    const sapResponse = await sapSession.request({
       method: 'POST',
       path: '/b1s/v1/JournalEntries',
       body: jePayload,
     });
-
-    if (sapResponse.statusCode === 401 || (sapResponse.statusCode === 500 && sapResponse.body?.includes('session'))) {
-      sapSessionManager.clearSession(userId);
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sapSessionManager.setSession(userId, { sessionId: loginResult.sessionId, routeId: undefined, userId, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
-      sessionId = loginResult.sessionId;
-
-      sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'POST',
-        path: '/b1s/v1/JournalEntries',
-        body: jePayload,
-      });
-    }
 
     if (sapResponse.ok) {
       const responseData = JSON.parse(sapResponse.body);
@@ -875,26 +842,7 @@ function getGlCode(mappings: any[], code: string, context: string): string | nul
 
 router.get('/sap-bank-accounts', async (req: Request, res: Response) => {
   try {
-    const currentUser = (req as any).user;
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
-
-    if (!sapUser || !sapPass || !sapDb) {
-      return res.status(500).json({ error: 'SAP credentials not configured' });
-    }
-
-    const session = sapSessionManager.getSession(currentUser.id);
-    let sessionId: string;
-    if (session) {
-      sessionId = session.sessionId;
-    } else {
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sapSessionManager.setSession(currentUser.id, { sessionId: loginResult.sessionId, routeId: undefined, userId: currentUser.id, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
-      sessionId = loginResult.sessionId;
-    }
-
-    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    const sapResponse = await sapSession.request({
       method: 'GET',
       path: "/b1s/v1/ChartOfAccounts?$filter=ActiveAccount eq 'tYES' and (AccountType eq 'at_Other')&$select=Code,Name,AccountType&$top=500",
     });
@@ -1436,27 +1384,6 @@ router.post('/tds/deep-je-verify', async (req: Request, res: Response) => {
     const tolerance = parseFloat(tolResult.length ? tolResult[0].settingValue || '1.00' : '1.00');
 
     const currentUser = (req as any).user;
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
-    const sapDb = process.env.SAP_COMPANY_DB || '';
-
-    if (!sapUser || !sapPass || !sapDb) {
-      return res.status(500).json({ error: 'SAP credentials not configured' });
-    }
-
-    const session = sapSessionManager.getSession(currentUser.id);
-    let sessionId: string;
-    if (session) {
-      sessionId = session.sessionId;
-    } else {
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sapSessionManager.setSession(currentUser.id, {
-        sessionId: loginResult.sessionId, routeId: undefined,
-        userId: currentUser.id, createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 60000),
-      });
-      sessionId = loginResult.sessionId;
-    }
 
     let matched = 0, withinTolerance = 0, mismatched = 0, verificationErrors = 0;
     const now = new Date();
@@ -1464,7 +1391,7 @@ router.post('/tds/deep-je-verify', async (req: Request, res: Response) => {
 
     for (const row of postedRows) {
       try {
-        const jeResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        const jeResp = await sapSession.request({
           method: 'GET',
           path: `/b1s/v1/JournalEntries(${row.sapDocEntry})?$select=JournalEntryLines`,
         });
@@ -1662,36 +1589,7 @@ function validatePan(pan: string | null | undefined): { status: string; error?: 
   return { status: 'valid' };
 }
 
-async function sapServiceLayerLogin(): Promise<{ sessionId: string; routeId: string }> {
-  const sapUrl = 'https://59.152.52.58:50000/b1s/v1';
-  const sapUsername = process.env.SAP_USERNAME;
-  const sapPassword = process.env.SAP_PASSWORD;
-  const sapCompanyDb = process.env.SAP_COMPANY_DB;
-
-  if (!sapUsername || !sapPassword || !sapCompanyDb) {
-    throw new Error('SAP credentials not configured (SAP_USERNAME, SAP_PASSWORD, SAP_COMPANY_DB)');
-  }
-
-  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
-
-  const loginResponse = await fetch(`${sapUrl}/Login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ CompanyDB: sapCompanyDb, UserName: sapUsername, Password: sapPassword }),
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!loginResponse.ok) {
-    const errorText = await loginResponse.text();
-    throw new Error(`SAP login failed: ${loginResponse.status} - ${errorText}`);
-  }
-
-  const loginData = await loginResponse.json() as any;
-  return { sessionId: loginData.SessionId, routeId: loginData.RouteId || '.node1' };
-}
-
-async function fetchSapWhtDocuments(sessionId: string, routeId: string, docType: string, dateFilter: string): Promise<any[]> {
-  const sapUrl = 'https://59.152.52.58:50000/b1s/v1';
+async function fetchSapWhtDocuments(docType: string, dateFilter: string): Promise<any[]> {
   const results: any[] = [];
   let skip = 0;
   const top = 50;
@@ -1706,29 +1604,18 @@ async function fetchSapWhtDocuments(sessionId: string, routeId: string, docType:
   if (!config) return [];
   const { endpoint: entity, whtProp } = config;
 
-  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
-
   while (true) {
-    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(dateFilter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,${whtProp}`;
+    const path = `/${entity}?$filter=${encodeURIComponent(dateFilter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,${whtProp}`;
 
     try {
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cookie': `B1SESSION=${sessionId}; ROUTEID=${routeId}`,
-          'Prefer': 'odata.maxpagesize=50',
-        },
-        signal: AbortSignal.timeout(30000),
-      });
+      const response = await sapSession.request({ method: 'GET', path });
 
       if (!response.ok) {
-        const errBody = await response.text();
-        console.error(`SAP WHT fetch error for ${docType}: ${response.status} - ${errBody}`);
+        console.error(`SAP WHT fetch error for ${docType}: ${response.statusCode} - ${response.body.substring(0, 200)}`);
         break;
       }
 
-      const data = await response.json() as any;
+      const data = JSON.parse(response.body);
       const items = data.value || [];
       if (items.length > 0 && skip === 0) {
         console.log(`SAP WHT ${docType}: fetched ${items.length} docs (first batch). Sample keys:`, Object.keys(items[0]).join(', '));
@@ -1759,15 +1646,6 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     const fy = getFinancialYear(m, y);
     const qtr = getTdsQuarter(m);
 
-    let sapSession: { sessionId: string; routeId: string };
-    try {
-      sapSession = await sapServiceLayerLogin();
-      console.log('✅ SAP WHT Sync: Service Layer login successful');
-    } catch (loginErr: any) {
-      console.error('SAP WHT Sync login failed:', loginErr.message);
-      return res.status(503).json({ error: `SAP Service Layer login failed: ${loginErr.message}`, code: 'SAP_LOGIN_FAILED' });
-    }
-
     const batchId = `WHT-${fy}-${String(m).padStart(2, '0')}-${Date.now()}`;
 
     await db.insert(sapWhtSyncLog).values({
@@ -1790,7 +1668,7 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     let allDocs: any[] = [];
 
     for (const docType of docTypes) {
-      const docs = await fetchSapWhtDocuments(sapSession.sessionId, sapSession.routeId, docType, dateFilter);
+      const docs = await fetchSapWhtDocuments(docType, dateFilter);
       allDocs = allDocs.concat(docs);
     }
 
@@ -1800,18 +1678,12 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
       if (!cardCode) return null;
       if (cardCode in panCache) return panCache[cardCode];
       try {
-        process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
-        const sapUrl = 'https://59.152.52.58:50000/b1s/v1';
-        const bpUrl = `${sapUrl}/BusinessPartners('${encodeURIComponent(cardCode)}')`;
-        const bpResp = await fetch(bpUrl, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Cookie': `B1SESSION=${sapSession.sessionId}; ROUTEID=${sapSession.routeId}`,
-          },
+        const bpResp = await sapSession.request({
+          method: 'GET',
+          path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
         });
         if (bpResp.ok) {
-          const bpData = await bpResp.json() as any;
+          const bpData = JSON.parse(bpResp.body);
           let pan = bpData.U_PAN_Number?.trim() || bpData.FederalTaxID?.trim() || null;
           if (!pan && bpData.BPFiscalTaxIDCollection?.length > 0) {
             pan = bpData.BPFiscalTaxIDCollection[0]?.TaxId0?.trim() || null;
