@@ -37,18 +37,50 @@ function isSapSessionConflict(raw: string): boolean {
   return raw.includes('-1102') || raw.toLowerCase().includes('switch company');
 }
 
-async function fetchSapVendors(): Promise<SapVendorRecord[]> {
+// ── Shared SAP session cache ─────────────────────────────────────────────────
+// SAP B1 sessions don't release immediately after /Logout (server-side expiry
+// takes 1-2 min). Sharing one session across Test / UDF Check / Full Sync
+// eliminates the login-collision that causes -1102 between operations.
+interface SapSessionCache { id: string; createdAt: number; }
+let _sapSession: SapSessionCache | null = null;
+const SAP_SESSION_TTL_MS = 25 * 60 * 1000; // 25 min (SAP default is 30 min idle)
+
+async function getSharedSapSession(): Promise<string> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-  const user = process.env.SAP_USERNAME || '';
-  const pass = process.env.SAP_PASSWORD || '';
+  const user = process.env.SAP_USERNAME  || '';
+  const pass = process.env.SAP_PASSWORD  || '';
   const db_  = process.env.SAP_COMPANY_DB || '';
   if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
 
-  // Login — detect session conflict immediately and surface a user-facing message
+  if (_sapSession && (Date.now() - _sapSession.createdAt) < SAP_SESSION_TTL_MS) {
+    console.log('[sap-session] Reusing existing session');
+    return _sapSession.id;
+  }
+
+  _sapSession = null; // clear stale entry before attempting login
+  try {
+    const r = await sapHttpsClient.login(user, pass, db_);
+    _sapSession = { id: r.sessionId, createdAt: Date.now() };
+    console.log('[sap-session] New session created');
+    return _sapSession.id;
+  } catch (err) {
+    _sapSession = null;
+    throw err; // propagates including -1102
+  }
+}
+
+function invalidateSharedSapSession() {
+  _sapSession = null;
+  console.log('[sap-session] Session invalidated');
+}
+
+async function fetchSapVendors(): Promise<SapVendorRecord[]> {
+  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
+
+  // Use shared session — avoids -1102 login collision between operations
   let sessionId: string;
   try {
-    const result = await sapHttpsClient.login(user, pass, db_);
-    sessionId = result.sessionId;
+    sessionId = await getSharedSapSession();
   } catch (err: any) {
     const msg: string = err?.message ?? String(err);
     if (isSapSessionConflict(msg)) {
@@ -60,9 +92,8 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
     throw err;
   }
 
-  // Always logout when done — releases the SAP B1 session immediately so the
-  // next sync/test can login without hitting the -1102 session conflict.
-  try {
+  // No logout here — session is shared; it expires naturally after 30 min idle.
+  {
     const PAGE_SIZE = 20;
     const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number }> = [];
     let skip = 0;
@@ -81,9 +112,9 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
       });
 
       if (!resp.ok) {
-        // Any SAP error — check for session conflict, otherwise throw generic error
         const body = resp.body?.substring(0, 400) ?? '';
         if (isSapSessionConflict(body)) {
+          invalidateSharedSapSession();
           throw new Error(
             'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
             'Wait 1–2 minutes for it to expire, then try again.',
@@ -108,9 +139,6 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
       GroupCode:   s.GroupCode,
       U_ERP_Group: null,
     }));
-  } finally {
-    await sapHttpsClient.logout(sessionId);
-    console.log('[vendors/sync] SAP session logged out');
   }
 }
 
@@ -138,16 +166,11 @@ interface VendorTestResult {
 
 async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-  const user = process.env.SAP_USERNAME || '';
-  const pass = process.env.SAP_PASSWORD || '';
-  const db_  = process.env.SAP_COMPANY_DB || '';
-  if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
 
-  // ── 1. Login ──────────────────────────────────────────────────────────────
+  // ── 1. Shared session ─────────────────────────────────────────────────────
   let sessionId: string;
   try {
-    const result = await sapHttpsClient.login(user, pass, db_);
-    sessionId = result.sessionId;
+    sessionId = await getSharedSapSession();
   } catch (err: any) {
     const msg: string = err?.message ?? String(err);
     if (isSapSessionConflict(msg)) {
@@ -161,8 +184,8 @@ async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
     throw err;
   }
 
-  // Always logout when done — releases the SAP B1 session immediately.
-  try {
+  // No logout — shared session stays alive for subsequent operations.
+  {
     // ── 2. Fetch small sample WITHOUT $select (so UDFs are included) ────────
     const qs = new URLSearchParams({
       '$filter': "CardType eq 'cSupplier'",
@@ -177,6 +200,7 @@ async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
     if (!resp.ok) {
       const body = resp.body?.substring(0, 400) ?? '';
       if (isSapSessionConflict(body)) {
+        invalidateSharedSapSession();
         return {
           login: true, sessionConflict: true,
           fetched: 0, excluded: 0, eligible: 0,
@@ -251,9 +275,6 @@ async function runVendorSapTest(limit: number): Promise<VendorTestResult> {
       upserted,
       sample:          sampleRows,
     };
-  } finally {
-    await sapHttpsClient.logout(sessionId);
-    console.log('[vendors/test] SAP session logged out');
   }
 }
 
@@ -281,16 +302,11 @@ interface UdfDistributionResult {
 
 async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
   const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-  const user = process.env.SAP_USERNAME || '';
-  const pass = process.env.SAP_PASSWORD || '';
-  const db_  = process.env.SAP_COMPANY_DB || '';
-  if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
 
-  // Login
+  // Use shared session — avoids -1102 login collision between operations
   let sessionId: string;
   try {
-    const r = await sapHttpsClient.login(user, pass, db_);
-    sessionId = r.sessionId;
+    sessionId = await getSharedSapSession();
   } catch (err: any) {
     const msg = String(err?.message ?? err);
     if (isSapSessionConflict(msg)) {
@@ -306,7 +322,7 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
   const PAGE_SIZE   = 20;
   const MAX_RECORDS = 300;  // 15 pages — fast enough, wide enough sample
 
-  try {
+  {
     const allRows: Array<{
       cardCode: string; cardName: string;
       groupCode: number; udfRaw: string | null;
@@ -327,6 +343,7 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
       if (!resp.ok) {
         const body = resp.body?.substring(0, 400) ?? '';
         if (isSapSessionConflict(body)) {
+          invalidateSharedSapSession();
           return { login: true, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
         }
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
@@ -390,9 +407,6 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
       queryError:      udfPresent ? null : 'U_ERP_Group field not present in SAP response for this sample — UDF may not be configured',
       sampledTotal:    allRows.length,
     } as any;
-  } finally {
-    await sapHttpsClient.logout(sessionId);
-    console.log('[vendors/udf-dist] SAP session logged out');
   }
 }
 
