@@ -3000,6 +3000,11 @@ export function setupProjectRoutes(app: express.Express) {
       return res.status(500).json({ message: 'SAP credentials not configured' });
     }
 
+    // Optional: single-card test mode — body { cardCode: 'C10301' }
+    const testCardCode: string | undefined = typeof req.body?.cardCode === 'string'
+      ? req.body.cardCode.trim().toUpperCase()
+      : undefined;
+
     let logId: number | null = null;
     const errors: string[] = [];
     let totalFetched = 0, imported = 0, skipped = 0, failed = 0;
@@ -3012,41 +3017,23 @@ export function setupProjectRoutes(app: express.Express) {
       );
       logId = logRes.rows[0].id;
 
-      // Use the central SAP session manager — safe static import, no circular dependency
+      type BPRow = { CardCode: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; };
+      let filteredRows: BPRow[] = [];
 
-      const PAGE_SIZE = 20;
-      let sapSkip = 0;
-      const allRows: Array<{
-        CardCode: string; CardName: string; ContactPerson: string;
-        Phone1: string; Address: string; City: string; Country: string;
-      }> = [];
-
-      // Paginate SAP with $select — standard fields only, no UDF, so $select is safe.
-      // Email is intentionally excluded: SAP rejects both 'E_Mail' and 'EmailAddress' for
-      // CustomerBP $select on some versions; email can be filled manually after import.
-      // NOTE: SAP silently ignores $filter when combined with $select (documented behaviour).
-      // We fetch all Customers (CardType=C) and filter client-side to CardCode > 'C10300'.
-      while (true) {
-        const qs = new URLSearchParams({
-          '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country',
-          '$filter': "CardType eq 'C'",
-          '$top':    String(PAGE_SIZE),
-          '$skip':   String(sapSkip),
-        }).toString();
-
+      if (testCardCode) {
+        // ── Single-card test mode ──────────────────────────────────────────────
+        // Fetch one BP by primary key — no $select/$filter so no SAP-filter issues.
+        console.log(`[customer-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
         const resp = await sapSession.request({
-          method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
+          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
         });
-
         if (!resp.ok) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
         }
-
-        const page = JSON.parse(resp.body).value ?? [];
-        for (const bp of page) {
-          const code = String(bp.CardCode ?? '').trim();
-          if (!code) continue;
-          allRows.push({
+        const bp = JSON.parse(resp.body);
+        const code = String(bp.CardCode ?? '').trim();
+        if (code) {
+          filteredRows = [{
             CardCode:      code,
             CardName:      String(bp.CardName      ?? '').trim(),
             ContactPerson: String(bp.ContactPerson ?? '').trim(),
@@ -3054,22 +3041,64 @@ export function setupProjectRoutes(app: express.Express) {
             Address:       String(bp.Address       ?? '').trim(),
             City:          String(bp.City          ?? '').trim(),
             Country:       String(bp.Country       ?? '').trim(),
+          }];
+        }
+        totalFetched = filteredRows.length;
+        console.log(`[customer-sap-sync] TEST fetched ${totalFetched} record(s)`);
+      } else {
+        // ── Bulk sync mode ─────────────────────────────────────────────────────
+        // Paginate SAP with $select — standard fields only, no UDF, so $select is safe.
+        // Email excluded: SAP rejects both 'E_Mail' and 'EmailAddress' in $select.
+        // NOTE: SAP silently ignores $filter when combined with $select (documented).
+        // We fetch all Customers (CardType=C) and filter client-side to CardCode > 'C10300'.
+        const PAGE_SIZE = 20;
+        let sapSkip = 0;
+        const allRows: BPRow[] = [];
+
+        while (true) {
+          const qs = new URLSearchParams({
+            '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country',
+            '$filter': "CardType eq 'C'",
+            '$top':    String(PAGE_SIZE),
+            '$skip':   String(sapSkip),
+          }).toString();
+
+          const resp = await sapSession.request({
+            method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
           });
+
+          if (!resp.ok) {
+            throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
+          }
+
+          const page = JSON.parse(resp.body).value ?? [];
+          for (const bp of page) {
+            const code = String(bp.CardCode ?? '').trim();
+            if (!code) continue;
+            allRows.push({
+              CardCode:      code,
+              CardName:      String(bp.CardName      ?? '').trim(),
+              ContactPerson: String(bp.ContactPerson ?? '').trim(),
+              Phone1:        String(bp.Phone1        ?? '').trim(),
+              Address:       String(bp.Address       ?? '').trim(),
+              City:          String(bp.City          ?? '').trim(),
+              Country:       String(bp.Country       ?? '').trim(),
+            });
+          }
+
+          if (page.length < PAGE_SIZE) break;
+          sapSkip += PAGE_SIZE;
+          if (allRows.length >= 10000) {
+            console.warn('[customer-sap-sync] capped at 10 000 records');
+            break;
+          }
         }
 
-        if (page.length < PAGE_SIZE) break;
-        sapSkip += PAGE_SIZE;
-        if (allRows.length >= 10000) {
-          console.warn('[customer-sap-sync] capped at 10 000 records');
-          break;
-        }
+        // Client-side filter: enforce CardCode > 'C10300' (lexicographic).
+        filteredRows = allRows.filter((r) => r.CardCode > 'C10300');
+        totalFetched = filteredRows.length;
+        console.log(`[customer-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass CardCode > 'C10300' filter`);
       }
-
-      // Client-side filter: SAP silently ignores $filter when $select is present,
-      // so we enforce CardCode > 'C10300' here (lexicographic, same as SAP OData intent).
-      const filteredRows = allRows.filter((r) => r.CardCode > 'C10300');
-      totalFetched = filteredRows.length;
-      console.log(`[customer-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass CardCode > 'C10300' filter`);
 
       // Load existing sap_card_codes in one query to avoid per-row round-trips
       const existingRes = await pool.query<{ sap_card_code: string }>(

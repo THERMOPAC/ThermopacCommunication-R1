@@ -209,8 +209,10 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   const SAP_SYNC_ROLES = ['Superuser', 'General Manager', 'Senior Manager'];
   const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
 
+  const [testCardCode, setTestCardCode] = useState('');
+
   const sapSyncMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/customers/sap-sync', {}),
+    mutationFn: (cardCode?: string) => apiRequest('POST', '/api/customers/sap-sync', cardCode ? { cardCode } : {}),
     onSuccess: (data: any) => {
       setSapSyncResult(data);
       setShowSapSyncResult(true);
@@ -473,7 +475,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               <Button
                 variant="outline"
                 className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
-                onClick={() => sapSyncMutation.mutate()}
+                onClick={() => sapSyncMutation.mutate(undefined)}
                 disabled={sapSyncMutation.isPending}
               >
                 {sapSyncMutation.isPending
@@ -481,6 +483,28 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   : <Search className="h-4 w-4" />}
                 Sync SAP Customers (BP &gt; C10300)
               </Button>
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  placeholder="C10301"
+                  value={testCardCode}
+                  onChange={(e) => setTestCardCode(e.target.value.toUpperCase())}
+                  className="border border-gray-300 rounded px-2 py-1 text-xs w-24 font-mono"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-50 gap-1 text-xs"
+                  onClick={() => testCardCode && sapSyncMutation.mutate(testCardCode)}
+                  disabled={sapSyncMutation.isPending || !testCardCode}
+                  title="Test sync a single CardCode"
+                >
+                  {sapSyncMutation.isPending
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <Search className="h-3 w-3" />}
+                  Test
+                </Button>
+              </div>
               <Button
                 variant="outline"
                 className="border-red-300 text-red-700 hover:bg-red-50 gap-2"
