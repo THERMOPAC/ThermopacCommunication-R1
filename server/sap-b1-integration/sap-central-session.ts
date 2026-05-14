@@ -45,6 +45,10 @@ interface SapRequestOptions {
   path: string;
   body?: any;
   timeout?: number;
+  /** Binary body for multipart uploads (e.g. SAP Attachments2). Skips JSON stringify. */
+  rawBody?: Buffer;
+  /** Override Content-Type header (e.g. 'multipart/form-data; boundary=...'). */
+  contentType?: string;
 }
 
 interface SessionStats {
@@ -168,26 +172,24 @@ class SapCentralSession {
   async request(opts: SapRequestOptions): Promise<any> {
     const cookie = await this.getSession();
 
-    let resp = await sapHttpsClient.authenticatedRequest(cookie, {
+    const baseOpts = {
       method: opts.method,
       path: opts.path,
       url: '',
       ...(opts.body !== undefined ? { body: opts.body } : {}),
       ...(opts.timeout !== undefined ? { timeout: opts.timeout } : {}),
-    });
+      ...(opts.rawBody !== undefined ? { rawBody: opts.rawBody } : {}),
+      ...(opts.contentType !== undefined ? { headers: { 'Content-Type': opts.contentType } } : {}),
+    };
+
+    let resp = await sapHttpsClient.authenticatedRequest(cookie, baseOpts);
 
     // Session expired — invalidate and retry once
     if (resp.statusCode === 401) {
       console.warn('[SapCentralSession] request() — 401 received, session expired, refreshing...');
       await this.invalidate();
       const freshCookie = await this.getSession();
-      resp = await sapHttpsClient.authenticatedRequest(freshCookie, {
-        method: opts.method,
-        path: opts.path,
-        url: '',
-        ...(opts.body !== undefined ? { body: opts.body } : {}),
-        ...(opts.timeout !== undefined ? { timeout: opts.timeout } : {}),
-      });
+      resp = await sapHttpsClient.authenticatedRequest(freshCookie, baseOpts);
     }
 
     // -1102 in response body — competing session appeared mid-flight
@@ -196,13 +198,7 @@ class SapCentralSession {
       this.stats.retryOn1102++;
       await this.invalidate();
       const freshCookie = await this.getSession();
-      resp = await sapHttpsClient.authenticatedRequest(freshCookie, {
-        method: opts.method,
-        path: opts.path,
-        url: '',
-        ...(opts.body !== undefined ? { body: opts.body } : {}),
-        ...(opts.timeout !== undefined ? { timeout: opts.timeout } : {}),
-      });
+      resp = await sapHttpsClient.authenticatedRequest(freshCookie, baseOpts);
     }
 
     return resp;

@@ -1,39 +1,11 @@
 import express from 'express';
 import multer from 'multer';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
-import { requireSapAccess } from '../middleware/sap-auth-middleware';
-import { sapHttpsClient, SapHttpsClient } from './sap-https-client';
 import { sapSession } from './sap-central-session';
-import { sapSessionManager } from '../sap-session-manager';
 import { pool } from '../db';
 import { getGrpoQcChecklistConfig, validateGrpoQcPayload, toSapPayload } from '@shared/grpo-qc-config';
 
 const router = express.Router();
-
-function parseSapCookies(setCookieHeaders: string | string[] | undefined): string {
-  if (!setCookieHeaders) return '';
-  const headers = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
-  const cookies: string[] = [];
-  for (const header of headers) {
-    const nameValue = header.split(';')[0].trim();
-    if (nameValue) cookies.push(nameValue);
-  }
-  return cookies.join('; ');
-}
-
-function getSapCompanyDb(req?: express.Request): string {
-  const db = req?.sapSession?.companyDb || process.env.SAP_COMPANY_DB;
-  if (!db) throw new Error('SAP_COMPANY_DB environment secret is not set');
-  return db;
-}
-
-function getSapLoginBody(req?: express.Request): string {
-  return JSON.stringify({
-    CompanyDB: getSapCompanyDb(req),
-    UserName: process.env.SAP_B1_USERNAME,
-    Password: process.env.SAP_B1_PASSWORD
-  });
-}
 
 function getIndianFinancialYearStart(): string {
   const now = new Date();
@@ -44,53 +16,22 @@ function getIndianFinancialYearStart(): string {
 // Settings-only routes that don't need SAP session
 const settingsRouter = express.Router();
 settingsRouter.use(ensureAuthenticated);
-settingsRouter.use(requireSapAccess);
 
-// Apply full middleware to SAP data routes
+// Apply authentication to SAP data routes
 router.use(ensureAuthenticated);
-router.use(requireSapAccess);
-router.use((req: express.Request, _res: express.Response, next: express.NextFunction) => {
-  const userId = req.user?.id;
-  if (userId) {
-    const session = sapSessionManager.getSession(userId);
-    if (session) {
-      req.sapSession = {
-        sessionId: session.sessionId,
-        routeId: session.routeId,
-        companyDb: session.companyDb,
-        userId: session.userId
-      };
-    }
-  }
-  next();
-});
 
-// Helper function to make authenticated SAP requests with ROUTEID stickiness
-async function makeSapRequest(req: express.Request, path: string, options: any = {}) {
-  if (!req.sapSession) {
-    const err: any = new Error('SAP session expired. Please login again.');
-    err.code = 'SAP_SESSION_EXPIRED';
-    err.statusCode = 401;
-    throw err;
-  }
-  const { sessionId, routeId } = req.sapSession;
-  
-  const headers = {
-    'Cookie': `B1SESSION=${sessionId}${routeId ? `; ROUTEID=${routeId}` : ''}`,
-    ...options.headers
-  };
-
-  return await sapHttpsClient.authenticatedRequest(sessionId, {
-    ...options,
+// Central session helper — Phase 3 (SAP Session Unification Migration Plan v1.2)
+// Replaces per-user makeSapRequest(). All SAP calls route through SapCentralSession.
+async function sapReq(path: string, opts: { method?: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE'; body?: any; timeout?: number } = {}): Promise<any> {
+  return sapSession.request({
+    method: opts.method ?? 'GET',
     path,
-    headers
+    ...(opts.body !== undefined ? { body: opts.body } : {}),
+    ...(opts.timeout !== undefined ? { timeout: opts.timeout } : {}),
   });
 }
 
 function handleSapError(error: any, res: express.Response, fallbackMessage: string) {
-  if (error?.code === 'SAP_SESSION_EXPIRED') {
-    return res.status(401).json({ success: false, error: error.message, code: 'SAP_SESSION_EXPIRED' });
-  }
   console.error(fallbackMessage, error?.message || error);
   return res.status(500).json({ success: false, error: fallbackMessage, code: 'SAP_ERROR' });
 }
@@ -178,64 +119,18 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
     let sapAvailable = false;
 
     try {
-      const sapClient = new SapHttpsClient();
-      const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
-      // Use central session to avoid creating a competing B1SESSION on every dashboard load
-      let centralCookie: string | undefined;
-      try {
-        centralCookie = await sapSession.getSession();
-      } catch (loginErr: any) {
-        console.warn('[SAP Stats] Central session unavailable (non-fatal):', loginErr.message);
-      }
-
-      if (centralCookie) {
+      if (sapSession.getHealth().alive) {
         sapAvailable = true;
-        const requestHeaders = {
-          'Content-Type': 'application/json',
-          'Cookie': centralCookie
-        };
 
         const [allPOResp, openPOResp, recentPOResp, invoiceResp, openInvoiceResp, grpoResp, openGrpoResp, vendorResp] = await Promise.all([
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}'`,
-            headers: requestHeaders, timeout: 30000
-          }),
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
-            headers: requestHeaders, timeout: 30000
-          }),
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocEntry,DocNum,DocDate,CardName,DocTotal,DocumentStatus&$orderby=DocDate desc&$top=5`,
-            headers: requestHeaders, timeout: 30000
-          }),
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseInvoices/$count?$filter=DocDate ge '${fyStartDate}'`,
-            headers: requestHeaders, timeout: 30000
-          }),
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseInvoices/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
-            headers: requestHeaders, timeout: 30000
-          }),
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseDeliveryNotes/$count?$filter=DocDate ge '${fyStartDate}'`,
-            headers: requestHeaders, timeout: 30000
-          }),
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseDeliveryNotes/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
-            headers: requestHeaders, timeout: 30000
-          }),
-          sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/BusinessPartners/$count?$filter=CardType eq 'cSupplier' and Valid eq 'tYES'`,
-            headers: requestHeaders, timeout: 30000
-          }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}'`, timeout: 30000 }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`, timeout: 30000 }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocEntry,DocNum,DocDate,CardName,DocTotal,DocumentStatus&$orderby=DocDate desc&$top=5`, timeout: 30000 }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseInvoices/$count?$filter=DocDate ge '${fyStartDate}'`, timeout: 30000 }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseInvoices/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`, timeout: 30000 }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseDeliveryNotes/$count?$filter=DocDate ge '${fyStartDate}'`, timeout: 30000 }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseDeliveryNotes/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`, timeout: 30000 }),
+          sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners/$count?$filter=CardType eq 'cSupplier' and Valid eq 'tYES'`, timeout: 30000 }),
         ]);
 
         if (allPOResp.statusCode === 200) {
@@ -283,11 +178,7 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
         }
 
         try {
-          const poValueResp = await sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocTotal&$top=1&$inlinecount=allpages`,
-            headers: requestHeaders, timeout: 15000
-          });
+          const poValueResp = await sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocTotal&$top=1&$inlinecount=allpages`, timeout: 15000 });
           if (poValueResp.statusCode === 200) {
             const valData = JSON.parse(poValueResp.body);
             totalValue = (valData.value || []).reduce((s: number, o: any) => s + (parseFloat(o.DocTotal) || 0), 0);
@@ -295,18 +186,12 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
         } catch {}
 
         try {
-          const invValueResp = await sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseInvoices?$filter=DocDate ge '${fyStartDate}'&$select=DocTotal&$top=1&$inlinecount=allpages`,
-            headers: requestHeaders, timeout: 15000
-          });
+          const invValueResp = await sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseInvoices?$filter=DocDate ge '${fyStartDate}'&$select=DocTotal&$top=1&$inlinecount=allpages`, timeout: 15000 });
           if (invValueResp.statusCode === 200) {
             const valData = JSON.parse(invValueResp.body);
             invoiceTotalValue = (valData.value || []).reduce((s: number, o: any) => s + (parseFloat(o.DocTotal) || 0), 0);
           }
         } catch {}
-
-        try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
       }
     } catch (sapErr: any) {
       console.warn(`[Dashboard] SAP unavailable: ${sapErr.message}`);
@@ -379,7 +264,7 @@ router.get('/quotations', async (req, res) => {
       filter
     ].filter(Boolean).join('&');
     
-    const response = await makeSapRequest(req, `/b1s/v1/PurchaseQuotations?${queryParams}`);
+    const response = await sapReq(`/b1s/v1/PurchaseQuotations?${queryParams}`);
     const errorResponse = handleSapResponse(response, res, 'Quotations query');
     if (errorResponse) return;
 
@@ -405,9 +290,7 @@ router.get('/quotations', async (req, res) => {
 // Purchase Order Series from SAP
 router.get('/orders/series', async (req, res) => {
   try {
-    const response = await makeSapRequest(req, `/b1s/v1/SeriesService_GetDocumentSeries`, 'POST', {
-      DocumentTypeParams: { Document: '22' }
-    });
+    const response = await sapReq(`/b1s/v1/SeriesService_GetDocumentSeries`, { method: 'POST', body: { DocumentTypeParams: { Document: '22' } } });
     const errResp = handleSapResponse(response, res, 'PO series query');
     if (errResp) return;
     const data = JSON.parse(response.body);
@@ -449,7 +332,7 @@ router.get('/orders', async (req, res) => {
     const filterStr = filterParts.join(' and ');
     const queryStr = `$top=${Number(limit)}&$skip=${offset}&$orderby=DocDate desc&$filter=${filterStr}&$inlinecount=allpages`;
 
-    const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders?${queryStr}`);
+    const response = await sapReq(`/b1s/v1/PurchaseOrders?${queryStr}`);
     const errResp = handleSapResponse(response, res, 'Purchase orders query');
     if (errResp) return;
 
@@ -556,7 +439,7 @@ router.get('/orders/:docEntry', async (req, res) => {
     if (!docEntry || isNaN(Number(docEntry))) {
       return res.status(400).json({ success: false, error: 'Valid DocEntry is required' });
     }
-    const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders(${docEntry})`);
+    const response = await sapReq(`/b1s/v1/PurchaseOrders(${docEntry})`);
     const errorResponse = handleSapResponse(response, res, 'Purchase order detail');
     if (errorResponse) return;
     const po = JSON.parse(response.body);
@@ -601,7 +484,7 @@ router.get('/orders/:docEntry/items', async (req, res) => {
       });
     }
 
-    const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders(${docEntry})/DocumentLines`);
+    const response = await sapReq(`/b1s/v1/PurchaseOrders(${docEntry})/DocumentLines`);
     const errorResponse = handleSapResponse(response, res, 'Purchase order items query');
     if (errorResponse) return;
 
@@ -640,7 +523,7 @@ router.get('/receipts', async (req, res) => {
       filter
     ].filter(Boolean).join('&');
     
-    const response = await makeSapRequest(req, `/b1s/v1/PurchaseDeliveryNotes?${queryParams}`);
+    const response = await sapReq(`/b1s/v1/PurchaseDeliveryNotes?${queryParams}`);
     const errorResponse = handleSapResponse(response, res, 'Goods receipts query');
     if (errorResponse) return;
 
@@ -688,7 +571,7 @@ router.get('/invoices', async (req, res) => {
       filterString
     ].filter(Boolean).join('&');
     
-    const response = await makeSapRequest(req, `/b1s/v1/PurchaseInvoices?${queryParams}`);
+    const response = await sapReq(`/b1s/v1/PurchaseInvoices?${queryParams}`);
     const errorResponse = handleSapResponse(response, res, 'Purchase invoices query');
     if (errorResponse) return;
 
@@ -714,7 +597,7 @@ router.get('/invoices', async (req, res) => {
 router.get('/invoices/:docEntry', async (req, res) => {
   try {
     const { docEntry } = req.params;
-    const response = await makeSapRequest(req, `/b1s/v1/PurchaseInvoices(${docEntry})`);
+    const response = await sapReq(`/b1s/v1/PurchaseInvoices(${docEntry})`);
     const errorResponse = handleSapResponse(response, res, 'Purchase invoice detail');
     if (errorResponse) return;
 
@@ -918,21 +801,8 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
     let errorMessage = null;
     
     try {
-      // Create direct SAP connection for sync (bypass session requirement)
-      const sapClient = new SapHttpsClient();
-      
-      // Force correct SAP Service Layer URL - override incorrect env var
-      const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
-      console.log(`Using SAP Service Layer URL: ${sapServiceUrl}`);
-      
-      // Use central session — avoids creating a competing B1SESSION during sync
-      console.log(`[sync/purchase-orders] Obtaining central SAP session for user ${userId}`);
-      const centralCookieSync = await sapSession.getSession();
-
-      const requestHeaders = {
-        'Content-Type': 'application/json',
-        'Cookie': centralCookieSync
-      };
+      // Use central session for sync — avoids competing B1SESSION during sync
+      console.log(`[sync/purchase-orders] Using central SAP session for user ${userId}`);
 
       // Get sync date filter from settings
       const syncSettings = await pool.query(
@@ -947,21 +817,20 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       }
       
       // Sync Purchase Orders with pagination - process each batch immediately
-      console.log(`Starting Purchase Orders sync from ${fyStartDate} using ${sapServiceUrl}`);
+      console.log(`Starting Purchase Orders sync from ${fyStartDate}`);
       
       let totalOrdersProcessed = 0;
       let skip = 0;
-      const pageSize = 20; // Use 20 since SAP is limiting to 20 per request
+      const pageSize = 20;
       let hasMoreData = true;
       
       while (hasMoreData) {
         console.log(`Fetching orders batch: skip=${skip}, top=${pageSize}`);
         
-        const ordersResponse = await sapClient.request({
+        const ordersResponse = await sapSession.request({
           method: 'GET',
-          url: `${sapServiceUrl}/PurchaseOrders?$top=${pageSize}&$skip=${skip}&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
-          headers: requestHeaders,
-          timeout: 300000 // 5 minutes timeout
+          path: `/b1s/v1/PurchaseOrders?$top=${pageSize}&$skip=${skip}&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
+          timeout: 300000
         });
         
         console.log(`Purchase Orders batch response: ${ordersResponse.statusCode}`);
@@ -973,7 +842,6 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
           console.log(`SAP returned ${batchOrders.length} orders in this batch (skip=${skip})`);
           
           if (batchOrders.length > 0) {
-            // Process this batch immediately
             console.log(`Processing batch of ${batchOrders.length} orders`);
             
             for (let i = 0; i < batchOrders.length; i++) {
@@ -995,7 +863,6 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
             console.log(`Completed batch processing. Total processed so far: ${totalOrdersProcessed}`);
             skip += pageSize;
             
-            // Check if we got fewer results than requested - means we're at the end
             if (batchOrders.length < pageSize) {
               hasMoreData = false;
               console.log(`Reached end of data. Got ${batchOrders.length} < ${pageSize} records`);
@@ -1009,7 +876,6 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
           hasMoreData = false;
         }
         
-        // Safety check to prevent infinite loops
         if (skip > 10000) {
           console.log('Safety limit reached at 10,000 records');
           hasMoreData = false;
@@ -1020,27 +886,15 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       documentsProcessed += totalOrdersProcessed;
       
       // Sync Purchase Invoices with date filter
-      const invoicesResponse = await sapClient.request({
+      const invoicesResponse = await sapSession.request({
         method: 'GET',
-        url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/PurchaseInvoices?$top=50&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
-        headers: requestHeaders
+        path: `/b1s/v1/PurchaseInvoices?$top=50&$orderby=DocDate%20desc&$filter=DocDate%20ge%20'${fyStartDate}'`,
       });
 
       if (invoicesResponse.statusCode === 200) {
         const invoicesData = JSON.parse(invoicesResponse.body);
         documentsProcessed += invoicesData.value?.length || 0;
         // Lean model: No local cache writes. Invoice count tracked for sync_history only.
-      }
-
-      // Logout from SAP session
-      try {
-        await sapClient.request({
-          method: 'POST',
-          url: `${process.env.SAP_SERVICE_LAYER_URL}/b1s/v1/Logout`,
-          headers: requestHeaders
-        });
-      } catch (logoutError) {
-        console.warn('SAP logout warning:', logoutError);
       }
       
     } catch (syncError: any) {
@@ -1291,7 +1145,7 @@ async function performSyncOperation(req: express.Request, userId: number, syncId
       try {
         console.log(`Syncing ${docType.type} documents...`);
         
-        const response = await makeSapRequest(req, 
+        const response = await sapReq(
           `/b1s/v1/${docType.endpoint}?$select=DocEntry,DocNum,DocDate,DocTotal,DocumentStatus,CardCode,CardName,Cancelled,DocumentStatus&$filter=${fyFilter}&$orderby=DocEntry desc`
         );
         
@@ -1457,10 +1311,6 @@ const grpoUpload = multer({
 router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) => {
   const startTime = Date.now();
   let requestFingerprint: any = {};
-  let sapSessionId: string | null = null;
-  let usingCentralSession = false;
-  const sapClient = new SapHttpsClient();
-  const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
 
   try {
     cleanExpiredLocks();
@@ -1520,59 +1370,14 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     // === Set lock before SAP calls ===
     grpoLocks.set(poDocEntry, { timestamp: Date.now(), userId });
 
-    // === SAP Session: Use user's authenticated session first, fallback to fresh login ===
-    let requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-
-    if (req.sapSession?.sessionId) {
-      sapSessionId = req.sapSession.sessionId;
-      const routeId = req.sapSession.routeId;
-      requestHeaders['Cookie'] = `B1SESSION=${sapSessionId}${routeId ? `; ROUTEID=${routeId}` : ''}`;
-      console.log(`[GRPO] Using user's existing SAP session`);
-    } else {
-      // No user session — use the central system session to avoid creating a competing B1SESSION
-      let centralCookie: string;
-      try {
-        centralCookie = await sapSession.getSession();
-      } catch (connErr: any) {
-        grpoLocks.delete(poDocEntry);
-        console.error(`[GRPO] Central SAP session unavailable:`, connErr.message);
-        return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
-      }
-      requestHeaders['Cookie'] = centralCookie;
-      const sessionMatch = centralCookie.match(/B1SESSION=([^;]+)/);
-      sapSessionId = sessionMatch ? sessionMatch[1] : null;
-      usingCentralSession = true;
-      console.log(`[GRPO] Using central SAP session (no user session available)`);
-    }
-
-    // === LAYER 2: Live SAP Validation (MANDATORY) ===
-    console.log(`[GRPO] Layer 2: Fetching live PO by DocEntry=${poDocEntry} from SAP (company: ${getSapCompanyDb(req)})`);
+    // === LAYER 2: Live SAP Validation (MANDATORY) — via central session ===
+    console.log(`[GRPO] Layer 2: Fetching live PO by DocEntry=${poDocEntry} from SAP`);
 
     let livePo: any;
     try {
-      let livePOResponse = await sapClient.request({
-        method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
-        headers: requestHeaders, timeout: 60000
+      const livePOResponse = await sapSession.request({
+        method: 'GET', path: `/b1s/v1/PurchaseOrders(${poDocEntry})`, timeout: 60000
       });
-
-      if (livePOResponse.statusCode === 401) {
-        console.warn(`[GRPO] Session expired (401) — refreshing central session...`);
-        try {
-          await sapSession.invalidate();
-          const freshCookie = await sapSession.getSession();
-          requestHeaders['Cookie'] = freshCookie;
-          const retryMatch = freshCookie.match(/B1SESSION=([^;]+)/);
-          sapSessionId = retryMatch ? retryMatch[1] : null;
-          usingCentralSession = true;
-          console.log(`[GRPO] Central session refreshed, retrying PO fetch`);
-          livePOResponse = await sapClient.request({
-            method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
-            headers: requestHeaders, timeout: 60000
-          });
-        } catch (retryErr: any) {
-          console.error(`[GRPO] Central session refresh failed:`, retryErr.message);
-        }
-      }
 
       if (livePOResponse.statusCode !== 200) {
         grpoLocks.delete(poDocEntry);
@@ -1714,18 +1519,11 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
         const multipartBody = buildMultipartBody(files, boundary, poDocEntry);
         files.forEach((f: any) => attachmentFileNames.push(f.originalname));
 
-        const attachHeaders: Record<string, string> = {
-          ...requestHeaders,
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        };
-        delete attachHeaders['Content-Type'];
-        attachHeaders['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
-
-        const attachResponse = await sapClient.request({
+        const attachResponse = await sapSession.request({
           method: 'POST',
-          url: `${sapServiceUrl}/Attachments2`,
-          headers: attachHeaders,
+          path: '/b1s/v1/Attachments2',
           rawBody: multipartBody,
+          contentType: `multipart/form-data; boundary=${boundary}`,
           timeout: 120000
         });
 
@@ -1744,10 +1542,10 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
             const fileName = sapName.replace(/\.[^.]+$/, '');
             const fileExt = sapName.split('.').pop() || '';
             if (attachmentEntry === null) {
-              const fallbackResponse = await sapClient.request({
-                method: 'POST', url: `${sapServiceUrl}/Attachments2`,
-                headers: requestHeaders,
-                body: JSON.stringify({ Attachments2_Lines: [{ SourcePath: '', FileName: fileName, FileExtension: fileExt, Override: 'tYES' }] }),
+              const fallbackResponse = await sapSession.request({
+                method: 'POST',
+                path: '/b1s/v1/Attachments2',
+                body: { Attachments2_Lines: [{ SourcePath: '', FileName: fileName, FileExtension: fileExt, Override: 'tYES' }] },
                 timeout: 60000
               });
               if (fallbackResponse.statusCode === 200 || fallbackResponse.statusCode === 201) {
@@ -1803,9 +1601,11 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     let grpoResponse: any;
     try {
-      grpoResponse = await sapClient.request({
-        method: 'POST', url: `${sapServiceUrl}/PurchaseDeliveryNotes`,
-        headers: requestHeaders, body: JSON.stringify(grpoPayload), timeout: 300000
+      grpoResponse = await sapSession.request({
+        method: 'POST',
+        path: '/b1s/v1/PurchaseDeliveryNotes',
+        body: grpoPayload,
+        timeout: 300000
       });
     } catch (postErr: any) {
       grpoLocks.delete(poDocEntry);
@@ -1880,11 +1680,6 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       attachmentEntry, attachmentFiles: attachmentFileNames
     })}`);
 
-    // SAP Logout
-    try {
-      await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders });
-    } catch {}
-
     const linesPosted = grpoDocumentLines.map((l: any) => {
       const liveLine = liveLines.find((ll: any) => ll.LineNum === l.BaseLine);
       return { lineNum: l.BaseLine, itemCode: liveLine?.ItemCode || '', quantityReceived: l.Quantity, warehouseCode: l.WarehouseCode };
@@ -1911,11 +1706,6 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     console.error(`[GRPO] Unexpected error:`, error);
     await persistGrpoAudit({ poDocEntry: requestFingerprint.poDocEntry, fingerprint: requestFingerprint, status: 'ERROR', sapError: error.message, durationMs: Date.now() - startTime, createdBy: requestFingerprint.userId });
 
-    // Only logout if we own the session (user session) — never logout the central session
-    if (sapSessionId && !usingCentralSession) {
-      try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: { Cookie: `B1SESSION=${sapSessionId}` } }); } catch {}
-    }
-
     res.status(500).json({ success: false, error: 'GRPO creation failed unexpectedly', code: 'GRPO_UNEXPECTED_ERROR', message: error.message });
   }
 });
@@ -1923,8 +1713,6 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 // === Direct GRPO endpoint — accepts SAP-native JSON format ===
 router.post('/grpo/direct', async (req: any, res) => {
   const startTime = Date.now();
-  const sapClient = new SapHttpsClient();
-  const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
   const userId = req.user!.id;
 
   try {
@@ -1959,26 +1747,12 @@ router.post('/grpo/direct', async (req: any, res) => {
 
     console.log(`[GRPO-DIRECT] Validation+Post attempt for PO DocEntry ${poDocEntry}, ${docLines.length} lines, user ${userId}`);
 
-    // Use central session — avoids creating a competing B1SESSION
-    let centralCookieDirect: string;
-    try {
-      centralCookieDirect = await sapSession.getSession();
-    } catch (connErr: any) {
-      return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
-    }
-
-    const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Cookie': centralCookieDirect
-    };
-
     // === STEP 1: Fetch live PO ===
     console.log(`[GRPO-DIRECT] Fetching live PO ${poDocEntry} from SAP`);
     let livePo: any;
     try {
-      const livePOResponse = await sapClient.request({
-        method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
-        headers: requestHeaders, timeout: 60000
+      const livePOResponse = await sapSession.request({
+        method: 'GET', path: `/b1s/v1/PurchaseOrders(${poDocEntry})`, timeout: 60000
       });
       if (livePOResponse.statusCode !== 200) {
         return res.status(400).json({ success: false, error: `PO ${poDocEntry} not found in SAP (HTTP ${livePOResponse.statusCode})`, code: 'SAP_PO_NOT_FOUND' });
@@ -2042,7 +1816,6 @@ router.post('/grpo/direct', async (req: any, res) => {
 
     if (validationErrors.length > 0) {
       console.log(`[GRPO-DIRECT] Validation FAILED: ${validationErrors.length} errors`, JSON.stringify(validationErrors));
-      try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
       return res.status(400).json({
         success: false,
         error: 'Pre-validation failed — GRPO NOT posted',
@@ -2079,9 +1852,11 @@ router.post('/grpo/direct', async (req: any, res) => {
     // === STEP 5: POST to SAP ===
     let grpoResponse: any;
     try {
-      grpoResponse = await sapClient.request({
-        method: 'POST', url: `${sapServiceUrl}/PurchaseDeliveryNotes`,
-        headers: requestHeaders, body: JSON.stringify(sapGrpoPayload), timeout: 300000
+      grpoResponse = await sapSession.request({
+        method: 'POST',
+        path: '/b1s/v1/PurchaseDeliveryNotes',
+        body: sapGrpoPayload,
+        timeout: 300000
       });
     } catch (postErr: any) {
       console.error(`[GRPO-DIRECT] TIMEOUT/ERROR:`, postErr.message);
@@ -2103,7 +1878,6 @@ router.post('/grpo/direct', async (req: any, res) => {
       } catch {}
 
       console.error(`[GRPO-DIRECT] SAP rejected (${grpoResponse.statusCode}):`, sapErrorMsg);
-      try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
       return res.status(400).json({
         success: false, error: 'SAP rejected the GRPO', code: 'SAP_POSTING_FAILED',
         sapError: { httpStatus: grpoResponse.statusCode, message: sapErrorMsg, detail: sapErrorDetail },
@@ -2115,8 +1889,6 @@ router.post('/grpo/direct', async (req: any, res) => {
     const duration = Date.now() - startTime;
 
     console.log(`[GRPO-DIRECT] SUCCESS — DocEntry: ${grpoResult.DocEntry}, DocNum: ${grpoResult.DocNum}, Duration: ${duration}ms`);
-
-    try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
 
     const linesPosted = validatedLines.map((l: any) => {
       const liveLine = liveLines.find((ll: any) => ll.LineNum === l.BaseLine);
@@ -2160,75 +1932,23 @@ const attachmentUpload = multer({
 });
 
 router.post('/attachments/upload', attachmentUpload.array('files', 10), async (req: any, res) => {
-  const sapClient = new SapHttpsClient();
-  const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
-
-  // Use central session — avoids creating a competing B1SESSION on each attachment upload
-  async function doFreshLogin(): Promise<Record<string, string>> {
-    console.log(`[ATTACHMENT] Obtaining central SAP session`);
-    const centralCookie = await sapSession.getSession();
-    return { Cookie: centralCookie };
-  }
-
   try {
     const files: any[] = req.files || [];
     if (files.length === 0) {
       return res.status(400).json({ success: false, error: 'No files provided' });
     }
 
-    let requestHeaders: Record<string, string> = {};
-    let usedUserSession = false;
-    if (req.sapSession?.sessionId) {
-      const routeId = req.sapSession.routeId;
-      requestHeaders = { Cookie: `B1SESSION=${req.sapSession.sessionId}${routeId ? `; ROUTEID=${routeId}` : ''}` };
-      usedUserSession = true;
-    } else {
-      requestHeaders = await doFreshLogin();
-    }
-
     const poDocEntry = req.body?.poDocEntry;
     const boundary = `----SAPBoundary${Date.now()}`;
     const multipartBody = buildMultipartBody(files, boundary, poDocEntry);
 
-    const attachHeaders: Record<string, string> = {
-      ...requestHeaders,
-      'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      'Content-Length': String(multipartBody.length)
-    };
-
-    let attachResponse = await sapClient.request({
+    const attachResponse = await sapSession.request({
       method: 'POST',
-      url: `${sapServiceUrl}/Attachments2`,
-      headers: attachHeaders,
+      path: '/b1s/v1/Attachments2',
       rawBody: multipartBody,
+      contentType: `multipart/form-data; boundary=${boundary}`,
       timeout: 120000
     });
-
-    if (attachResponse.statusCode === 401 && usedUserSession) {
-      console.warn(`[ATTACHMENT] User SAP session expired (401). Retrying with fresh login...`);
-      try {
-        requestHeaders = await doFreshLogin();
-        const retryBoundary = `----SAPBoundary${Date.now()}`;
-        const retryBody = buildMultipartBody(files, retryBoundary, poDocEntry);
-        const retryHeaders: Record<string, string> = {
-          ...requestHeaders,
-          'Content-Type': `multipart/form-data; boundary=${retryBoundary}`,
-          'Content-Length': String(retryBody.length)
-        };
-        attachResponse = await sapClient.request({
-          method: 'POST',
-          url: `${sapServiceUrl}/Attachments2`,
-          headers: retryHeaders,
-          rawBody: retryBody,
-          timeout: 120000
-        });
-        console.log(`[ATTACHMENT] Retry result: ${attachResponse.statusCode}`);
-      } catch (retryErr: any) {
-        console.error(`[ATTACHMENT] Fresh login retry failed:`, retryErr.message);
-      }
-    }
-
-    try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
 
     if (attachResponse.statusCode === 200 || attachResponse.statusCode === 201) {
       const attachData = JSON.parse(attachResponse.body);
