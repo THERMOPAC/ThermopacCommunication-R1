@@ -469,29 +469,31 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             Import Customers
           </Button>
           {canSapSync && (
-            <Button
-              variant="outline"
-              className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
-              onClick={() => sapSyncMutation.mutate()}
-              disabled={sapSyncMutation.isPending}
-            >
-              {sapSyncMutation.isPending
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Search className="h-4 w-4" />}
-              Sync SAP Customers (BP &gt; C10300)
-            </Button>
-            <Button
-              variant="outline"
-              className="border-red-300 text-red-700 hover:bg-red-50 gap-2"
-              onClick={() => forceResetSapMutation.mutate()}
-              disabled={forceResetSapMutation.isPending}
-              title="Use when SAP shows -1102 session conflict. Logs out the stale session and forces a fresh login."
-            >
-              {forceResetSapMutation.isPending
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <RefreshCw className="h-4 w-4" />}
-              Force Reset SAP Session
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                onClick={() => sapSyncMutation.mutate()}
+                disabled={sapSyncMutation.isPending}
+              >
+                {sapSyncMutation.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Search className="h-4 w-4" />}
+                Sync SAP Customers (BP &gt; C10300)
+              </Button>
+              <Button
+                variant="outline"
+                className="border-red-300 text-red-700 hover:bg-red-50 gap-2"
+                onClick={() => forceResetSapMutation.mutate()}
+                disabled={forceResetSapMutation.isPending}
+                title="Use when SAP shows -1102 session conflict. Logs out the stale session and forces a fresh login."
+              >
+                {forceResetSapMutation.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <RefreshCw className="h-4 w-4" />}
+                Force Reset SAP Session
+              </Button>
+            </>
           )}
           <Button
             onClick={async () => {
