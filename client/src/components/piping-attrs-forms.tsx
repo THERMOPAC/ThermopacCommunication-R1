@@ -81,7 +81,7 @@ const COMMON_NB = [
   "650NB","700NB","750NB","800NB","900NB","1000NB","1200NB",
 ];
 const COMMON_SCHEDULE      = ["SCH 10","SCH 20","SCH 40","SCH 80","SCH 160","XXS","STD","XS"];
-const PRESSURE_CLASS_OPTS  = ["150#","300#","600#","900#","1500#","2500#"];
+const PRESSURE_CLASS_OPTS  = ["150#","300#","600#","900#","1500#","2500#","PN 10","PN 16","PN 20","PN 25"];
 const FACING_OPTS          = ["RF (Raised Face)","FF (Flat Face)","RTJ (Ring Type Joint)"];
 const YES_NO               = ["Yes","No"];
 const HEAT_TREATMENT_OPTS  = ["None","Normalized","PWHT","Quenched & Tempered","Annealed","Stress Relieved"];
