@@ -108,7 +108,11 @@ function TechnicalAttrsSection({
           <Select
             value={inOpts ? strVal : (strVal ? "__custom__" : undefined)}
             onValueChange={(v) => {
-              if (v !== "__custom__") set(f.key, v);
+              if (v !== "__custom__") {
+                const updates: Record<string, unknown> = { [f.key]: v };
+                if (f.cascade?.map[v]) updates[f.cascade.targetKey] = f.cascade.map[v];
+                onChange({ ...attrs, ...updates });
+              }
             }}
           >
             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>

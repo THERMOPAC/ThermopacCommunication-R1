@@ -9,6 +9,7 @@ export type SubgroupField = {
   type?: "text" | "number" | "select";
   opts?: string[];
   colSpan?: boolean;
+  cascade?: { targetKey: string; map: Record<string, string> };
 };
 
 // ── Shared field sets ─────────────────────────────────────────────────────────
@@ -366,11 +367,38 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
   // ── RAW MATERIALS / PIPING ───────────────────────────────────────────────────
   plates: [
     { key: "plate_type",     label: "Plate Type",     type: "select", opts: ["MS","SS 304","SS 316","Chequered","Boiler Quality Plate"] },
-    { key: "material_grade", label: "Material Grade", type: "select", opts: ["IS 2062 E250","IS 2062 E350","SA 516 Gr 60","SA 516 Gr 70","ASTM A36","SS 304","SS 316"] },
+    { key: "material_grade", label: "Material Grade", type: "select",
+      opts: [
+        "IS 2062 E250","IS 2062 E350",
+        "SS304","SS304L","SS316","SS316L",
+        "SA-516 Gr 60","SA-516 Gr 70","ASTM A36",
+        "SA-240 Gr 304","SA-240 Gr 304L","SA-240 Gr 316","SA-240 Gr 316L",
+        "Aluminium Alloys",
+      ],
+      cascade: {
+        targetKey: "standard",
+        map: {
+          "IS 2062 E250":    "IS 2062",
+          "IS 2062 E350":    "IS 2062",
+          "SS304":           "IS 6911",
+          "SS304L":          "IS 6911",
+          "SS316":           "IS 6911",
+          "SS316L":          "IS 6911",
+          "SA-516 Gr 60":    "ASME Sec. II Part A",
+          "SA-516 Gr 70":    "ASME Sec. II Part A",
+          "ASTM A36":        "ASME Sec. II Part A",
+          "SA-240 Gr 304":   "ASME Sec. II Part A",
+          "SA-240 Gr 304L":  "ASME Sec. II Part A",
+          "SA-240 Gr 316":   "ASME Sec. II Part A",
+          "SA-240 Gr 316L":  "ASME Sec. II Part A",
+          "Aluminium Alloys":"ASME Sec. II Part B",
+        },
+      },
+    },
     { key: "thickness_mm",   label: "Thickness (mm)", type: "select", opts: ["3","5","6","8","10","12","16","18","20","25","32","40"] },
     { key: "width_mm",       label: "Width (mm)",     type: "select", opts: ["1000","1250","1500","2000","2500"] },
     { key: "length_mm",      label: "Length (mm)",    type: "select", opts: ["2000","2500","3000","6000"] },
-    { key: "standard",       label: "Standard",       type: "select", opts: ["IS 2062","ASTM A36","ASTM A516","ASME SA-516","DIN","EN"] },
+    { key: "standard",       label: "Standard",       type: "select", opts: ["IS 2062","IS 6911","ASME Sec. II Part A","ASME Sec. II Part B"] },
   ],
   pipes: [
     { key: "section_type",   label: "Pipe / Section Type", type: "select", opts: ["Round Pipe","Square Pipe","Rectangular Pipe","Seamless","ERW","GI","MS","SS"] },
