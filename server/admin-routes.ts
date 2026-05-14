@@ -5612,35 +5612,38 @@ router.post('/payroll/trial/:recordId/post-sap-je', ensureAuthenticated, async (
       return res.status(400).json({ error: `JE payload build failed: ${buildErr.message}` });
     }
 
-    const sapClient = getSapClient();
-    let lastError = '';
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const session = await sapClient.login();
-        const jeResp = await session.post('/JournalEntries', jePayload);
-        const docEntry = jeResp.data?.DocEntry;
-        const jeNumber = jeResp.data?.JournalEntryLines?.[0]?.LineID !== undefined ? jeResp.data?.JournalEntryNumber ?? docEntry : docEntry;
-
-        await db.update(payrollRecords).set({
-          trialStatus: 'sap_posted',
-          sapPostingStatus: 'posted',
-          sapDocEntry: String(docEntry),
-          sapJeNumber: String(jeNumber ?? docEntry),
-          sapPostedAt: new Date(),
-          sapPostedBy: currentUser.id,
-          updatedAt: new Date(),
-        } as any).where(eq(payrollRecords.id, recordId));
-
-        console.log(`✅ [TrialSapJE] Posted trial #${record.trialRunNo} to SAP. DocEntry=${docEntry}`);
-        return res.json({ success: true, trialRunNo: record.trialRunNo, sapDocEntry: docEntry, sapJeNumber: jeNumber ?? docEntry, message: `Trial #${record.trialRunNo} JE posted to SAP.` });
-      } catch (sapErr: any) {
-        lastError = sapErr.message || String(sapErr);
-        if (attempt === 0) { await new Promise(r => setTimeout(r, 1500)); continue; }
-        await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
-        return res.status(500).json({ error: lastError });
+    // Phase 1.1 — SAP Session Unification: use central session (sapSession.request) only.
+    // getSapClient() was undefined (ReferenceError). Replaced with sapSession (imported line 51).
+    // Central session handles retry, -1102 recovery, and cookie management internally.
+    console.log(`[TrialSapJE] Posting trial #${record.trialRunNo} via central SAP session...`);
+    try {
+      const jeResp = await sapSession.request({ method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload });
+      if (!jeResp.ok) {
+        const errBody = typeof jeResp.body === 'string' ? jeResp.body : JSON.stringify(jeResp.body);
+        await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errBody, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
+        return res.status(500).json({ error: `SAP JE posting failed (${jeResp.statusCode}): ${errBody}` });
       }
+      const jeData = typeof jeResp.body === 'string' ? JSON.parse(jeResp.body) : jeResp.body;
+      const docEntry = jeData?.DocEntry;
+      const jeNumber = jeData?.JournalEntryNumber ?? docEntry;
+
+      await db.update(payrollRecords).set({
+        trialStatus: 'sap_posted',
+        sapPostingStatus: 'posted',
+        sapDocEntry: String(docEntry),
+        sapJeNumber: String(jeNumber ?? docEntry),
+        sapPostedAt: new Date(),
+        sapPostedBy: currentUser.id,
+        updatedAt: new Date(),
+      } as any).where(eq(payrollRecords.id, recordId));
+
+      console.log(`✅ [TrialSapJE] Posted trial #${record.trialRunNo} to SAP. DocEntry=${docEntry} sap_session_source=central`);
+      return res.json({ success: true, trialRunNo: record.trialRunNo, sapDocEntry: docEntry, sapJeNumber: jeNumber ?? docEntry, message: `Trial #${record.trialRunNo} JE posted to SAP.` });
+    } catch (sapErr: any) {
+      const errMsg = sapErr.message || String(sapErr);
+      await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
+      return res.status(500).json({ error: errMsg });
     }
-    return res.status(500).json({ error: lastError || 'SAP session retry exhausted' });
   } catch (error: any) {
     console.error('Error posting trial JE to SAP:', error);
     sendError(res, error);

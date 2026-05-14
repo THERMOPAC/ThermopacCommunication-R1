@@ -1,11 +1,15 @@
-import { SapHttpsClient } from '../../sap-b1-integration/sap-https-client';
+/**
+ * SAP Live Queries — v2.0 (Phase 1.2 — SAP Session Unification)
+ *
+ * All SAP requests now route through sapSession.request() (SapCentralSession).
+ * No independent logins. No direct SapHttpsClient usage. No independent sessions.
+ *
+ * Ref: SAP Session Unification Migration Plan v1.2, Phase 1.2
+ */
+import { sapSession } from '../../sap-b1-integration/sap-central-session';
 
-const SAP_SERVICE_URL = 'https://59.152.52.58:50000/b1s/v1';
-
-interface SapSession {
-  sessionId: string;
-  routeId: string;
-}
+const SAP_BASE_PATH = '/b1s/v1';
+const MAX_PAGES = 500;
 
 export interface SapOpenPO {
   DocEntry: number;
@@ -42,70 +46,31 @@ export interface SapLiveResult<T> {
   error?: string;
 }
 
-async function sapLogin(client: SapHttpsClient): Promise<SapSession | null> {
-  try {
-    const resp = await client.request({
-      method: 'POST',
-      url: `${SAP_SERVICE_URL}/Login`,
-      body: {
-        CompanyDB: process.env.SAP_COMPANY_DB,
-        UserName: process.env.SAP_B1_USERNAME,
-        Password: process.env.SAP_B1_PASSWORD,
-      },
-      timeout: 15000,
-    });
-    if (resp.statusCode === 200) {
-      const data = JSON.parse(resp.body);
-      return { sessionId: data.SessionId, routeId: resp.headers['set-cookie']?.match(/ROUTEID=([^;]+)/)?.[1] || '' };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function makeHeaders(session: SapSession): Record<string, string> {
-  return {
-    Cookie: `B1SESSION=${session.sessionId}; ROUTEID=${session.routeId}`,
-  };
-}
-
-async function sapLogout(client: SapHttpsClient, headers: Record<string, string>): Promise<void> {
-  try { await client.request({ method: 'POST', url: `${SAP_SERVICE_URL}/Logout`, headers, timeout: 5000 }); } catch {}
-}
-
 export async function fetchOpenPurchaseOrders(): Promise<SapLiveResult<SapOpenPO[]>> {
-  const client = new SapHttpsClient();
-  const session = await sapLogin(client);
-  if (!session) {
-    console.warn('[SAP-Agent] Cannot connect to SAP — purchase order data unavailable for agent run');
-    return { available: false, data: [], error: 'SAP Service Layer unavailable' };
-  }
-
-  const headers = makeHeaders(session);
   const now = new Date();
+  const filter = `DocumentStatus eq 'bost_Open' and Cancelled eq 'tNO'`;
+  const select = 'DocEntry,DocNum,CardCode,CardName,DocDate,DocDueDate,DocTotal,DocCurrency,DocumentStatus,Project,Comments';
+  const allPOs: SapOpenPO[] = [];
+  let skip = 0;
+  const batchSize = 100;
+  let pageCount = 0;
 
+  console.log('[SapLiveQueries] fetchOpenPurchaseOrders — start');
   try {
-    const filter = `DocumentStatus eq 'bost_Open' and Cancelled eq 'tNO'`;
-    const select = 'DocEntry,DocNum,CardCode,CardName,DocDate,DocDueDate,DocTotal,DocCurrency,DocumentStatus,Project,Comments';
-    const allPOs: SapOpenPO[] = [];
-    let skip = 0;
-    const batchSize = 100;
-
     while (true) {
-      const resp = await client.request({
+      if (++pageCount > MAX_PAGES) {
+        console.warn('[SapLiveQueries] fetchOpenPurchaseOrders — capped at MAX_PAGES');
+        break;
+      }
+      const resp = await sapSession.request({
         method: 'GET',
-        url: `${SAP_SERVICE_URL}/PurchaseOrders?$filter=${encodeURIComponent(filter)}&$select=${select}&$orderby=DocDueDate asc&$top=${batchSize}&$skip=${skip}`,
-        headers,
+        path: `${SAP_BASE_PATH}/PurchaseOrders?$filter=${encodeURIComponent(filter)}&$select=${select}&$orderby=DocDueDate asc&$top=${batchSize}&$skip=${skip}`,
         timeout: 30000,
       });
-
       if (resp.statusCode !== 200) break;
-
       const data = JSON.parse(resp.body);
       const batch = (data.value || []) as any[];
       if (batch.length === 0) break;
-
       for (const po of batch) {
         const dueDate = po.DocDueDate ? new Date(po.DocDueDate) : null;
         const docDate = po.DocDate ? new Date(po.DocDate) : now;
@@ -125,54 +90,44 @@ export async function fetchOpenPurchaseOrders(): Promise<SapLiveResult<SapOpenPO
           daysSinceCreated: Math.floor((now.getTime() - docDate.getTime()) / 86400000),
         });
       }
-
+      if (skip % 100 === 0 && skip > 0) console.log(`[SapLiveQueries] fetchOpenPurchaseOrders — processed ${skip} records so far`);
       if (batch.length < batchSize) break;
       skip += batchSize;
     }
-
-    console.log(`[SAP-Agent] Fetched ${allPOs.length} open POs from SAP live`);
+    console.log(`[SapLiveQueries] fetchOpenPurchaseOrders — done (${allPOs.length} records)`);
     return { available: true, data: allPOs };
   } catch (err: any) {
-    console.error(`[SAP-Agent] Error fetching open POs: ${err.message}`);
+    console.warn(`[SapLiveQueries] fetchOpenPurchaseOrders — unavailable: ${err.message}`);
     return { available: false, data: [], error: err.message };
-  } finally {
-    await sapLogout(client, headers);
   }
 }
 
 export async function fetchRecentGRPOs(daysBback: number = 14): Promise<SapLiveResult<SapGRPO[]>> {
-  const client = new SapHttpsClient();
-  const session = await sapLogin(client);
-  if (!session) {
-    console.warn('[SAP-Agent] Cannot connect to SAP — GRPO data unavailable for agent run');
-    return { available: false, data: [], error: 'SAP Service Layer unavailable' };
-  }
-
-  const headers = makeHeaders(session);
   const sinceDate = new Date();
   sinceDate.setDate(sinceDate.getDate() - daysBback);
   const sinceDateStr = sinceDate.toISOString().split('T')[0];
+  const filter = `DocDate ge '${sinceDateStr}' and Cancelled eq 'tNO'`;
+  const allGRPOs: SapGRPO[] = [];
+  let skip = 0;
+  const batchSize = 50;
+  let pageCount = 0;
 
+  console.log(`[SapLiveQueries] fetchRecentGRPOs — start (last ${daysBback} days)`);
   try {
-    const filter = `DocDate ge '${sinceDateStr}' and Cancelled eq 'tNO'`;
-    const allGRPOs: SapGRPO[] = [];
-    let skip = 0;
-    const batchSize = 50;
-
     while (true) {
-      const resp = await client.request({
+      if (++pageCount > MAX_PAGES) {
+        console.warn('[SapLiveQueries] fetchRecentGRPOs — capped at MAX_PAGES');
+        break;
+      }
+      const resp = await sapSession.request({
         method: 'GET',
-        url: `${SAP_SERVICE_URL}/PurchaseDeliveryNotes?$filter=${encodeURIComponent(filter)}&$select=DocEntry,DocNum,CardName,DocDate,DocumentLines&$orderby=DocDate desc&$top=${batchSize}&$skip=${skip}`,
-        headers,
+        path: `${SAP_BASE_PATH}/PurchaseDeliveryNotes?$filter=${encodeURIComponent(filter)}&$select=DocEntry,DocNum,CardName,DocDate,DocumentLines&$orderby=DocDate desc&$top=${batchSize}&$skip=${skip}`,
         timeout: 30000,
       });
-
       if (resp.statusCode !== 200) break;
-
       const data = JSON.parse(resp.body);
       const batch = (data.value || []) as any[];
       if (batch.length === 0) break;
-
       for (const gr of batch) {
         allGRPOs.push({
           DocEntry: gr.DocEntry,
@@ -187,55 +142,41 @@ export async function fetchRecentGRPOs(daysBback: number = 14): Promise<SapLiveR
           })),
         });
       }
-
       if (batch.length < batchSize) break;
       skip += batchSize;
     }
-
-    console.log(`[SAP-Agent] Fetched ${allGRPOs.length} GRPOs from SAP live (last ${daysBback} days)`);
+    console.log(`[SapLiveQueries] fetchRecentGRPOs — done (${allGRPOs.length} records)`);
     return { available: true, data: allGRPOs };
   } catch (err: any) {
-    console.error(`[SAP-Agent] Error fetching GRPOs: ${err.message}`);
+    console.warn(`[SapLiveQueries] fetchRecentGRPOs — unavailable: ${err.message}`);
     return { available: false, data: [], error: err.message };
-  } finally {
-    await sapLogout(client, headers);
   }
 }
 
 export async function fetchGRPOCountByWeek(): Promise<SapLiveResult<{ prevWeek: number; currWeek: number }>> {
-  const client = new SapHttpsClient();
-  const session = await sapLogin(client);
-  if (!session) {
-    return { available: false, data: { prevWeek: 0, currWeek: 0 }, error: 'SAP Service Layer unavailable' };
-  }
-
-  const headers = makeHeaders(session);
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0];
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000).toISOString().split('T')[0];
 
   try {
     const [currResp, prevResp] = await Promise.all([
-      client.request({
+      sapSession.request({
         method: 'GET',
-        url: `${SAP_SERVICE_URL}/PurchaseDeliveryNotes/$count?$filter=${encodeURIComponent(`DocDate ge '${sevenDaysAgo}' and Cancelled eq 'tNO'`)}`,
-        headers, timeout: 15000,
+        path: `${SAP_BASE_PATH}/PurchaseDeliveryNotes/$count?$filter=${encodeURIComponent(`DocDate ge '${sevenDaysAgo}' and Cancelled eq 'tNO'`)}`,
+        timeout: 15000,
       }),
-      client.request({
+      sapSession.request({
         method: 'GET',
-        url: `${SAP_SERVICE_URL}/PurchaseDeliveryNotes/$count?$filter=${encodeURIComponent(`DocDate ge '${fourteenDaysAgo}' and DocDate lt '${sevenDaysAgo}' and Cancelled eq 'tNO'`)}`,
-        headers, timeout: 15000,
+        path: `${SAP_BASE_PATH}/PurchaseDeliveryNotes/$count?$filter=${encodeURIComponent(`DocDate ge '${fourteenDaysAgo}' and DocDate lt '${sevenDaysAgo}' and Cancelled eq 'tNO'`)}`,
+        timeout: 15000,
       }),
     ]);
-
     const currWeek = currResp.statusCode === 200 ? parseInt(currResp.body) || 0 : 0;
     const prevWeek = prevResp.statusCode === 200 ? parseInt(prevResp.body) || 0 : 0;
-
     return { available: true, data: { prevWeek, currWeek } };
   } catch (err: any) {
+    console.warn(`[SapLiveQueries] fetchGRPOCountByWeek — unavailable: ${err.message}`);
     return { available: false, data: { prevWeek: 0, currWeek: 0 }, error: err.message };
-  } finally {
-    await sapLogout(client, headers);
   }
 }
 

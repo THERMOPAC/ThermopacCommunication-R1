@@ -107,6 +107,27 @@ export class SapHttpsClient {
   }
 
   async login(username: string, password: string, companyDb: string): Promise<{ sessionId: string; sessionCookie: string; response: SapResponse }> {
+    // ─── Runtime Governance Guard ─────────────────────────────────────────────
+    // sapHttpsClient.login() is RESTRICTED. Authorized callers:
+    //   1. sap-central-session.ts  — system session singleton (_doLogin / testCredentials)
+    //   2. sap-routes.ts           — diagnostic routes ONLY (user-supplied creds, no persistence)
+    // Any other caller creates a competing B1SESSION and WILL cause -1102 conflicts.
+    // Ref: SAP Session Unification Migration Plan v1.2, Section 12 — Control E.
+    const stack = new Error().stack || '';
+    const isAuthorized =
+      stack.includes('sap-central-session') ||
+      stack.includes('sap-routes');
+    if (!isAuthorized) {
+      const callerLine = (stack.split('\n')[2] || stack.split('\n')[1] || '').trim();
+      const msg = `[SAP GOVERNANCE VIOLATION] unauthorized sapHttpsClient.login() caller detected. ` +
+        `This call creates a competing B1SESSION and will cause -1102 conflicts. Caller: ${callerLine}`;
+      console.error(msg);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(msg);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const loginData = {
       CompanyDB: companyDb,
       UserName: username,
