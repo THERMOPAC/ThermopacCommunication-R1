@@ -1,60 +1,36 @@
 import { Router } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
-import { sapHttpsClient } from './sap-https-client';
+import { sapSession } from './sap-central-session';
 import { sapSessionManager } from '../sap-session-manager';
 
 const router = Router();
 
-// Test SAP connection with provided credentials
+// ─── Credential Test ─────────────────────────────────────────────────────────
+// Tests user-supplied credentials without touching the system session.
+// Login/logout is handled inside sapSession.testCredentials().
 router.post('/connection/test', ensureAuthenticated, async (req, res) => {
   try {
     const { username, password, companyDb } = req.body;
-    
+
     if (!username || !password || !companyDb) {
       return res.status(400).json({
         success: false,
-        error: 'Username, password, and company database are required'
+        error: 'Username, password, and company database are required',
       });
     }
 
-    console.log('🔥 SAP CONNECTION TEST STARTED - Testing Service Layer');
-    console.log('🔑 SAP Credentials Check:', {
-      passwordLength: password.length,
-      sapCompanyDb: companyDb
-    });
+    console.log(`[SAP CredTest] Testing credentials → user=${username} db=${companyDb}`);
+    const result = await sapSession.testCredentials(username, password, companyDb);
 
-    console.log('🔐 Attempting HTTPS connection with SSL bypass...');
-
-    // Test login using custom HTTPS client
-    const { sessionId } = await sapHttpsClient.login(username, password, companyDb);
-
-    console.log('✅ HTTPS SSL bypass successful - Service Layer login working');
-
-    // Test a simple API call to verify permissions
-    const testResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET',
-      path: '/b1s/v1/PurchaseOrders?$top=1'
-    });
-
-    // Always logout immediately — orphaned sessions block subsequent logins
-    try {
-      await sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: '/b1s/v1/Logout' });
-    } catch (_) {}
-
-    if (!testResponse.ok) {
-      console.log('❌ Purchase Orders API test failed:', testResponse.statusCode);
+    if (!result.success) {
       return res.status(400).json({
         success: false,
-        error: `API access test failed: ${testResponse.statusCode}`,
-        details: {
-          message: 'Login successful but unable to access purchase order data',
-          response: testResponse.body
-        }
+        error: result.error || 'Connection test failed',
+        details: { message: 'Login failed or API access denied', response: result.error },
       });
     }
 
-    console.log('✅ Service Layer API test successful');
-
+    console.log('[SAP CredTest] ✅ Credentials valid');
     res.json({
       success: true,
       message: 'SAP connection test successful',
@@ -62,63 +38,46 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
       testedAt: new Date().toISOString(),
       details: {
         serviceLayerUrl: 'https://59.152.52.58:50000/b1s/v1',
-        companyDb: companyDb,
-        username: username
-      }
+        companyDb,
+        username,
+      },
     });
-
   } catch (error: any) {
     console.error('❌ SAP connection test error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Connection test failed',
-      details: error.message
-    });
+    res.status(500).json({ success: false, error: 'Connection test failed', details: error.message });
   }
 });
 
-// Save SAP credentials to environment
+// ─── Save Credentials ─────────────────────────────────────────────────────────
 router.post('/credentials', ensureAuthenticated, async (req, res) => {
   try {
     const { username, password, companyDb } = req.body;
-    
+
     if (!username || !password || !companyDb) {
       return res.status(400).json({
         success: false,
-        error: 'Username, password, and company database are required'
+        error: 'Username, password, and company database are required',
       });
     }
 
-    // In a production environment, you would want to store these securely
-    // For now, we'll update the process environment variables
-    process.env.SAP_USERNAME = username;
-    process.env.SAP_PASSWORD = password;
+    process.env.SAP_USERNAME   = username;
+    process.env.SAP_PASSWORD   = password;
     process.env.SAP_COMPANY_DB = companyDb;
 
-    console.log('🔐 SAP credentials updated:', {
-      companyDb: companyDb,
-      passwordSet: !!password
-    });
+    // Invalidate the system session so the next request re-logins with new creds
+    await sapSession.invalidate();
 
-    res.json({
-      success: true,
-      message: 'SAP credentials saved successfully',
-      savedAt: new Date().toISOString()
-    });
-
+    console.log(`[SAP Credentials] Updated → companyDb=${companyDb}`);
+    res.json({ success: true, message: 'SAP credentials saved successfully', savedAt: new Date().toISOString() });
   } catch (error: any) {
     console.error('❌ Error saving SAP credentials:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to save credentials',
-      details: error.message
-    });
+    res.status(500).json({ success: false, error: 'Failed to save credentials', details: error.message });
   }
 });
 
-// Lightweight passive connection status — NO login, NO SAP session created.
+// ─── Passive Connection Status ────────────────────────────────────────────────
 // Called every 30 seconds by the SapIntegrationPage polling query.
-// Reports whether credentials are configured and whether a cached session exists.
+// No login, no SAP session created. Reports system session health.
 router.get('/connection/status', async (req, res) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
@@ -131,28 +90,33 @@ router.get('/connection/status', async (req, res) => {
         status: 'disconnected',
         isConnected: false,
         error: `SAP credentials not configured — SAP_USERNAME=${!!sapUser}, SAP_PASSWORD=${!!sapPass}, SAP_COMPANY_DB=${sapDb || '(empty)'}`,
-        details: { companyDb: sapDb, username: sapUser }
+        details: { companyDb: sapDb, username: sapUser },
       });
     }
 
-    // Check if any user has a valid cached SAP session
-    const summary = sapSessionManager.getSessionsSummary();
-    const hasActiveSession = summary.some(s => s.ttlSeconds > 0);
+    const health = sapSession.getHealth();
+    // Also check per-user interactive sessions for the activeSessions count
+    const userSessions = sapSessionManager.getSessionsSummary();
 
     res.json({
       success: true,
-      status: hasActiveSession ? 'connected' : 'configured',
-      isConnected: hasActiveSession,
+      status: health.alive ? 'connected' : 'configured',
+      isConnected: health.alive,
       credentialsConfigured: true,
-      activeSessions: summary.length,
+      activeSessions: userSessions.length,
+      systemSession: {
+        alive: health.alive,
+        ttlSeconds: health.ttlSeconds,
+        expiresAt: health.expiresAt,
+        loginInProgress: health.loginInProgress,
+      },
       lastTestTime: new Date().toISOString(),
       details: {
         serviceLayerUrl: 'https://59.152.52.58:50000/b1s/v1',
         companyDb: sapDb,
-        username: sapUser
-      }
+        username: sapUser,
+      },
     });
-
   } catch (error: any) {
     console.error('❌ SAP status check error:', error);
     res.json({
@@ -160,14 +124,14 @@ router.get('/connection/status', async (req, res) => {
       status: 'error',
       isConnected: false,
       error: error.message,
-      lastTestTime: new Date().toISOString()
+      lastTestTime: new Date().toISOString(),
     });
   }
 });
 
-// Active connection ping — used by the "Test SAP B1 Connection" button.
-// Reuses the shared SAP session (avoiding -1102 conflicts). Falls back to a
-// fresh login only when no shared session exists, with automatic -1102 recovery.
+// ─── Active Connection Ping ───────────────────────────────────────────────────
+// Used by the "Test SAP B1 Connection" button.
+// Reuses / creates the system session — no orphaned sessions.
 router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
@@ -183,25 +147,19 @@ router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[SAP Ping] Testing connection → user=${sapUser} db=${sapDb}`);
+    console.log(`[SAP Ping] Testing system session → user=${sapUser} db=${sapDb}`);
     let isConnected = false;
     let connectionError: string | undefined;
 
     try {
-      // Reuse the shared session — creates one (with -1102 force-logout retry) if none exists
-      const { getSharedSapSession } = await import('../procurement-routes');
-      const sessionCookie = await getSharedSapSession();
-
-      // Verify the session is alive with a lightweight API call
-      const testResp = await sapHttpsClient.authenticatedRequest(sessionCookie, {
-        method: 'GET', url: '', path: '/b1s/v1/$metadata',
-        timeout: 10000,
+      const testResp = await sapSession.request({
+        method: 'GET', path: '/b1s/v1/$metadata', timeout: 15000,
       });
       isConnected = testResp.statusCode < 500;
       console.log(`[SAP Ping] ✅ Connection OK — status=${testResp.statusCode}`);
     } catch (err: any) {
       connectionError = err.message;
-      console.error(`[SAP Ping] ❌ Connection failed — db=${sapDb} user=${sapUser}: ${err.message}`);
+      console.error(`[SAP Ping] ❌ Connection failed: ${err.message}`);
     }
 
     res.json({
@@ -213,10 +171,9 @@ router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
       details: {
         serviceLayerUrl: 'https://59.152.52.58:50000/b1s/v1',
         companyDb: sapDb,
-        username: sapUser
-      }
+        username: sapUser,
+      },
     });
-
   } catch (error: any) {
     console.error('❌ SAP ping error:', error);
     res.json({
@@ -224,11 +181,63 @@ router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
       status: 'error',
       isConnected: false,
       error: error.message,
-      lastTestTime: new Date().toISOString()
+      lastTestTime: new Date().toISOString(),
     });
   }
 });
 
+// ─── System Session Health ────────────────────────────────────────────────────
+// GET /api/sap/session/health
+// Returns live health of the ONE system SAP session.
+router.get('/session/health', ensureAuthenticated, async (req, res) => {
+  try {
+    const health = sapSession.getHealth();
+    const credentialsConfigured = !!(
+      process.env.SAP_USERNAME &&
+      process.env.SAP_PASSWORD &&
+      process.env.SAP_COMPANY_DB
+    );
+
+    res.json({
+      success: true,
+      credentialsConfigured,
+      systemSession: health,
+      checkedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── Clear System Session ─────────────────────────────────────────────────────
+// POST /api/sap/session/clear
+// Invalidates the system SAP session (logs out from SAP, clears memory + disk).
+// Use to manually recover from -1102 or a stuck session.
+router.post('/session/clear', ensureAuthenticated, async (req, res) => {
+  try {
+    const user = req.user as any;
+    const role: string = user?.role ?? '';
+    const ALLOWED = ['Superuser', 'General Manager', 'Senior Manager'];
+    if (!ALLOWED.includes(role)) {
+      return res.status(403).json({ success: false, error: 'Insufficient role — Superuser/GM/SM required' });
+    }
+
+    console.log(`[SAP Session Clear] Triggered by user=${user?.username} role=${role}`);
+    await sapSession.invalidate();
+
+    res.json({
+      success: true,
+      message: 'SAP system session cleared. The next SAP operation will create a fresh login.',
+      clearedAt: new Date().toISOString(),
+      clearedBy: user?.username,
+    });
+  } catch (error: any) {
+    console.error('❌ SAP session clear error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── Config ───────────────────────────────────────────────────────────────────
 router.get('/config', ensureAuthenticated, async (req, res) => {
   const companyDb = process.env.SAP_COMPANY_DB || '';
   console.log(`[SAP Config] Returning companyDb: ${companyDb}`);

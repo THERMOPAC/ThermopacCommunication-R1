@@ -195,6 +195,16 @@ app.use((req, res, next) => {
   const { registerProjectItemPlanningSubscriber } = await import('./project-item-planning-subscriber');
   registerProjectItemPlanningSubscriber();
 
+  // Invalidate any stale persisted SAP session from a previous server run.
+  // This prevents -1102 "Switch company" on the very first SAP call after restart.
+  try {
+    const { sapSession } = await import('./sap-b1-integration/sap-central-session');
+    await sapSession.initialize();
+    console.log('✅ SAP central session initialized (old session cleared)');
+  } catch (e) {
+    console.warn('⚠️ SAP session init warning (non-fatal):', (e as any)?.message);
+  }
+
   const server = await registerRoutes(app);
 
   // Add a special middleware to ensure all API routes return JSON even for errors
@@ -318,16 +328,16 @@ app.use((req, res, next) => {
   }
 })();
 
-// Graceful shutdown — logout SAP session before exit so the next startup
-// can create a fresh session without hitting -1102 "Switch company" error.
+// Graceful shutdown — release the central SAP session before exit so the
+// next startup doesn't hit -1102 "Switch company" from a dangling session.
 const _gracefulShutdown = async (signal: string) => {
-  console.log(`[shutdown] ${signal} received — logging out SAP session before exit`);
+  console.log(`[shutdown] ${signal} received — releasing SAP session before exit`);
   try {
-    const { invalidateSharedSapSession } = await import('./procurement-routes');
-    await invalidateSharedSapSession();
+    const { sapSession } = await import('./sap-b1-integration/sap-central-session');
+    await sapSession.shutdown();
     console.log('[shutdown] SAP session terminated cleanly');
   } catch (e) {
-    console.warn('[shutdown] SAP logout failed (non-fatal):', (e as any)?.message);
+    console.warn('[shutdown] SAP session shutdown failed (non-fatal):', (e as any)?.message);
   }
   process.exit(0);
 };

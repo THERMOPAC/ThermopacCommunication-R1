@@ -1,5 +1,6 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import express, { Request, Response } from 'express';
+import { sapSession } from './sap-b1-integration/sap-central-session';
 import { storage } from './storage';
 import { 
   insertProjectSchema, 
@@ -3000,7 +3001,6 @@ export function setupProjectRoutes(app: express.Express) {
     }
 
     let logId: number | null = null;
-    let sessionCookie = '';
     const errors: string[] = [];
     let totalFetched = 0, imported = 0, skipped = 0, failed = 0;
 
@@ -3012,11 +3012,7 @@ export function setupProjectRoutes(app: express.Express) {
       );
       logId = logRes.rows[0].id;
 
-      // Reuse shared SAP session (same pool as vendor sync) — avoids -1102 login collision
-      // Dynamic import avoids circular-dependency issues with static imports
-      const { getSharedSapSession } = await import('./procurement-routes');
-      const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-      sessionCookie = await getSharedSapSession();
+      // Use the central SAP session manager — safe static import, no circular dependency
 
       const PAGE_SIZE = 20;
       let sapSkip = 0;
@@ -3034,8 +3030,8 @@ export function setupProjectRoutes(app: express.Express) {
           '$skip':   String(sapSkip),
         }).toString();
 
-        const resp = await sapHttpsClient.authenticatedRequest(sessionCookie, {
-          method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+        const resp = await sapSession.request({
+          method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
         });
 
         if (!resp.ok) {

@@ -1,7 +1,6 @@
 import { Response, Router, Request } from 'express';
-import fs from 'fs';
-import path from 'path';
 import { db, pool } from './db';
+import { sapSession } from './sap-b1-integration/sap-central-session';
 import { 
   projects, projectItems, masterItems, vendors,
   purchaseOrders, purchaseOrderItems, purchaseOrderHistory
@@ -45,9 +44,7 @@ const ENRICH_TIMEOUT_MS = 10_000;
 
 async function enrichWithUdfGroups(
   cardCodes: string[],
-  sessionCookie: string,
 ): Promise<Map<string, string | null>> {
-  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
   const result = new Map<string, string | null>();
   const BATCH = 5; // keep concurrent requests low to avoid overwhelming SAP
 
@@ -57,8 +54,8 @@ async function enrichWithUdfGroups(
       batch.map(async (code) => {
         // Race the SAP request against a hard timeout so hung sockets don't
         // block the entire batch indefinitely.
-        const fetchPromise = sapHttpsClient.authenticatedRequest(sessionCookie, {
-          method: 'GET', url: '', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(code)}')`,
+        const fetchPromise = sapSession.request({
+          method: 'GET', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(code)}')`,
           timeout: ENRICH_TIMEOUT_MS,
         });
         const timeoutPromise = new Promise<never>((_, rej) =>
@@ -86,138 +83,11 @@ function isSapSessionConflict(raw: string): boolean {
 }
 
 // ── Shared SAP session cache ─────────────────────────────────────────────────
-// SAP B1 sessions don't release immediately after /Logout (server-side expiry
-// takes 1-2 min). Sharing one session across Test / UDF Check / Full Sync
-// eliminates the login-collision that causes -1102 between operations.
-// Cache stores the FULL cookie string (B1SESSION + CompanyDB + UserName + …) so
-// every authenticated request carries the complete session context SAP requires.
-// Sending only B1SESSION causes -1102 "Switch company" errors on subsequent calls.
-//
-// PERSISTENCE: session is written to .sap-session-cache.json so it survives
-// server restarts — prevents -1102 on first post-restart SAP call.
-interface SapSessionCache { cookie: string; createdAt: number; }
-
-const SAP_SESSION_FILE = path.join(process.cwd(), '.sap-session-cache.json');
-const SAP_SESSION_TTL_MS = 25 * 60 * 1000; // 25 min (SAP default is 30 min idle)
-
-function _loadPersistedSapSession(): SapSessionCache | null {
-  try {
-    const raw = fs.readFileSync(SAP_SESSION_FILE, 'utf8');
-    const data: SapSessionCache = JSON.parse(raw);
-    if (data.cookie && data.createdAt && (Date.now() - data.createdAt) < SAP_SESSION_TTL_MS) {
-      console.log('[sap-session] Loaded persisted session from disk (still within TTL)');
-      return data;
-    }
-  } catch { /* no file or invalid JSON — treat as no session */ }
-  return null;
-}
-
-function _persistSapSession(s: SapSessionCache): void {
-  try { fs.writeFileSync(SAP_SESSION_FILE, JSON.stringify(s)); } catch { /* non-fatal */ }
-}
-
-function _clearPersistedSapSession(): void {
-  try { fs.unlinkSync(SAP_SESSION_FILE); } catch { /* non-fatal */ }
-}
-
-// Initialise from disk on module load so restarts reuse the existing SAP session
-let _sapSession: SapSessionCache | null = _loadPersistedSapSession();
-
-export async function getSharedSapSession(): Promise<string> {
-  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-  const user = process.env.SAP_USERNAME  || '';
-  const pass = process.env.SAP_PASSWORD  || '';
-  const db_  = process.env.SAP_COMPANY_DB || '';
-  if (!user || !pass || !db_) throw new Error('SAP credentials not configured');
-
-  if (_sapSession && (Date.now() - _sapSession.createdAt) < SAP_SESSION_TTL_MS) {
-    console.log('[sap-session] Reusing existing session');
-    return _sapSession.cookie;
-  }
-
-  _sapSession = null; // clear stale entry before attempting login
-  _clearPersistedSapSession();
-
-  const attemptLogin = async (): Promise<string> => {
-    const r = await sapHttpsClient.login(user, pass, db_);
-    _sapSession = { cookie: r.sessionCookie, createdAt: Date.now() };
-    _persistSapSession(_sapSession);
-    console.log(`[sap-session] New session created — cookies: ${r.sessionCookie.replace(/=[^;]+/g, '=***')}`);
-    return _sapSession.cookie;
-  };
-
-  try {
-    return await attemptLogin();
-  } catch (err: any) {
-    _sapSession = null;
-    const msg = String(err?.message ?? err);
-    if (!isSapSessionConflict(msg)) throw err;
-
-    // ── -1102 recovery ────────────────────────────────────────────────────
-    // There is an active SAP session we don't have the cookie for (e.g. from
-    // a previous server run that restarted before persisting the session).
-    // Strategy: construct a partial cookie from known env vars and attempt a
-    // best-effort logout, then wait 1 s and retry the login once.
-    console.warn('[sap-session] -1102 detected — attempting force-logout with constructed cookie');
-    const constructedCookie = `CompanyDB=${db_}; UserName=${user}`;
-    try {
-      await sapHttpsClient.logout(constructedCookie);
-      console.log('[sap-session] Force-logout sent (best-effort)');
-    } catch { /* non-fatal */ }
-
-    await new Promise(r => setTimeout(r, 1500));
-
-    try {
-      return await attemptLogin();
-    } catch (err2: any) {
-      _sapSession = null;
-      const msg2 = String(err2?.message ?? err2);
-      if (isSapSessionConflict(msg2)) {
-        throw new Error(
-          'SAP session conflict (-1102): another session is active on the SAP server. ' +
-          'Please wait ~30 minutes for it to expire, then try again. ' +
-          'If this persists, ask your SAP administrator to clear active sessions for this user.',
-        );
-      }
-      throw err2;
-    }
-  }
-}
-
-export async function invalidateSharedSapSession(): Promise<void> {
-  const cookieToLogout = _sapSession?.cookie ?? null;
-  _sapSession = null;
-  _clearPersistedSapSession();
-  console.log('[sap-session] Session invalidated (memory + disk cleared)');
-  if (cookieToLogout) {
-    try {
-      const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-      await sapHttpsClient.logout(cookieToLogout);
-      console.log('[sap-session] SAP logout successful — session terminated on server');
-    } catch (e) {
-      console.warn('[sap-session] SAP logout failed (non-fatal):', (e as any)?.message);
-    }
-  }
-}
+// Session management is handled by the central SAP session manager.
+// All SAP calls in this file use: sapSession.request() / sapSession.invalidate()
+// See: server/sap-b1-integration/sap-central-session.ts
 
 async function fetchSapVendors(): Promise<SapVendorRecord[]> {
-  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-
-  // Use shared session — avoids -1102 login collision between operations
-  let sessionId: string;
-  try {
-    sessionId = await getSharedSapSession();
-  } catch (err: any) {
-    const msg: string = err?.message ?? String(err);
-    if (isSapSessionConflict(msg)) {
-      throw new Error(
-        'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
-        'Wait 1–2 minutes for it to expire, then try again.',
-      );
-    }
-    throw err;
-  }
-
   // Phase 1: $select pagination — gets ALL vendors (proven to return all 1,458).
   // SAP B1 Service Layer caps full-record (no $select) OData fetches at 500 rows
   // server-side. With $select the limit does not apply so we get everything.
@@ -234,14 +104,14 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
         '$skip':   String(skip),
       }).toString();
 
-      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+      const resp = await sapSession.request({
+        method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
       });
 
       if (!resp.ok) {
         const body = resp.body?.substring(0, 400) ?? '';
         if (isSapSessionConflict(body)) {
-          await invalidateSharedSapSession();
+          await sapSession.invalidate();
           throw new Error(
             'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
             'Wait 1–2 minutes for it to expire, then try again.',
@@ -303,16 +173,13 @@ interface VendorTestResult {
 }
 
 async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
-  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-
   // ── 1. Fresh session — always force a new login for Test SAP ────────────
   // The shared session may have been primed by Full Sync (which uses $select).
   // SAP only returns UDF fields (U_ERP_Group) on fresh sessions without
   // prior $select usage. Invalidate first to guarantee a clean login.
-  await invalidateSharedSapSession();
-  let sessionId: string;
+  await sapSession.invalidate();
   try {
-    sessionId = await getSharedSapSession();
+    await sapSession.getSession(); // trigger a fresh login
   } catch (err: any) {
     const msg: string = err?.message ?? String(err);
     if (isSapSessionConflict(msg)) {
@@ -345,12 +212,12 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
         '$top':    String(PAGE_SIZE),
         '$skip':   String(skip),
       }).toString();
-      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+      const resp = await sapSession.request({
+        method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
       });
       if (!resp.ok) {
         const body = resp.body?.substring(0, 400) ?? '';
-        if (isSapSessionConflict(body)) { await invalidateSharedSapSession(); throw new Error('SESSION_CONFLICT'); }
+        if (isSapSessionConflict(body)) { await sapSession.invalidate(); throw new Error('SESSION_CONFLICT'); }
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
       }
       const page: any[] = JSON.parse(resp.body).value ?? [];
@@ -472,20 +339,6 @@ interface UdfDistributionResult {
 }
 
 async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
-  const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
-
-  // Use shared session — avoids -1102 login collision between operations
-  let sessionId: string;
-  try {
-    sessionId = await getSharedSapSession();
-  } catch (err: any) {
-    const msg = String(err?.message ?? err);
-    if (isSapSessionConflict(msg)) {
-      return { login: false, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
-    }
-    throw err;
-  }
-
   // SAP B1 Service Layer does NOT support UDF fields in OData $filter — attempts
   // to filter by U_ERP_Group cause an internal "Switch company error -1102".
   // Strategy: fetch vendors in small pages WITHOUT $select (so UDFs are present
@@ -507,14 +360,14 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
         '$skip':   String(skip),
       }).toString();
 
-      const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET', url: '', path: `/b1s/v1/BusinessPartners?${qs}`,
+      const resp = await sapSession.request({
+        method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
       });
 
       if (!resp.ok) {
         const body = resp.body?.substring(0, 400) ?? '';
         if (isSapSessionConflict(body)) {
-          await invalidateSharedSapSession();
+          await sapSession.invalidate();
           return { login: true, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
         }
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
@@ -767,7 +620,7 @@ export function setupProcurementRoutes(app: Router) {
   app.post('/api/vendors/sync/reset', ensureAuthenticated, async (req: Request, res: Response) => {
     const wasSyncing = syncInProgress;
     syncInProgress = false;
-    await invalidateSharedSapSession();
+    await sapSession.invalidate();
     console.log(`[vendors/sync/reset] forced reset — wasSyncing=${wasSyncing}`);
     res.json({ ok: true, wasSyncing, message: 'Sync lock cleared. SAP session invalidated.' });
   });
@@ -786,7 +639,6 @@ export function setupProcurementRoutes(app: Router) {
         return res.status(403).json({ error: 'Manager access required' });
       }
 
-      const { sapHttpsClient } = await import('./sap-b1-integration/sap-https-client');
       const sapUser = process.env.SAP_USERNAME || '';
       const sapPass = process.env.SAP_PASSWORD || '';
       const sapDb   = process.env.SAP_COMPANY_DB || '';
@@ -794,10 +646,8 @@ export function setupProcurementRoutes(app: Router) {
         return res.status(503).json({ error: 'SAP credentials not configured' });
       }
 
-      const { sessionId } = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-
       // ── 1. Fetch all BusinessPartnerGroups (code→name map) ───────────────
-      const grpResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+      const grpResp = await sapSession.request({
         method: 'GET',
         path: `/b1s/v1/BusinessPartnerGroups?$select=Code,Name&$top=200`,
       });
@@ -818,7 +668,7 @@ export function setupProcurementRoutes(app: Router) {
           '$top':  String(PAGE_SIZE),
           '$skip': String(skip),
         }).toString();
-        const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        const resp = await sapSession.request({
           method: 'GET',
           path: `/b1s/v1/BusinessPartners?${qs}`,
         });
@@ -830,10 +680,7 @@ export function setupProcurementRoutes(app: Router) {
         if (allSuppliers.length >= 2000) break;
       }
 
-      // ── 3. Logout ─────────────────────────────────────────────────────────
-      await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'POST', path: '/b1s/v1/Logout',
-      }).catch(() => {});
+      // ── 3. Session lifecycle managed by sapSession — no manual logout needed ─
 
       // ── 4. Aggregate groups ───────────────────────────────────────────────
       const groupCounts: Record<string, { groupCode: number; groupName: string; count: number; sampleVendors: string[] }> = {};
