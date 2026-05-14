@@ -60,8 +60,8 @@ router.post('/credentials', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    process.env.SAP_USERNAME   = username;
-    process.env.SAP_PASSWORD   = password;
+    process.env.SAP_B1_USERNAME   = username;
+    process.env.SAP_B1_PASSWORD   = password;
     process.env.SAP_COMPANY_DB = companyDb;
 
     // Invalidate the system session so the next request re-logins with new creds
@@ -80,8 +80,8 @@ router.post('/credentials', ensureAuthenticated, async (req, res) => {
 // No login, no SAP session created. Reports system session health.
 router.get('/connection/status', async (req, res) => {
   try {
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapUser = process.env.SAP_B1_USERNAME || '';
+    const sapPass = process.env.SAP_B1_PASSWORD || '';
     const sapDb   = process.env.SAP_COMPANY_DB || '';
 
     if (!sapUser || !sapPass || !sapDb) {
@@ -134,8 +134,8 @@ router.get('/connection/status', async (req, res) => {
 // Reuses / creates the system session — no orphaned sessions.
 router.post('/connection/ping', ensureAuthenticated, async (req, res) => {
   try {
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapUser = process.env.SAP_B1_USERNAME || '';
+    const sapPass = process.env.SAP_B1_PASSWORD || '';
     const sapDb   = process.env.SAP_COMPANY_DB || '';
 
     if (!sapUser || !sapPass || !sapDb) {
@@ -193,8 +193,8 @@ router.get('/session/health', ensureAuthenticated, async (req, res) => {
   try {
     const health = sapSession.getHealth();
     const credentialsConfigured = !!(
-      process.env.SAP_USERNAME &&
-      process.env.SAP_PASSWORD &&
+      process.env.SAP_B1_USERNAME &&
+      process.env.SAP_B1_PASSWORD &&
       process.env.SAP_COMPANY_DB
     );
 

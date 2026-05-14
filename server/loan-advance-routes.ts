@@ -377,8 +377,8 @@ async function postDisbursementJE(
   } as any).where(eq(table.id, recordId));
 
   const sapUrl = process.env.SAP_SERVICE_LAYER_URL || '';
-  const sapUser = process.env.SAP_USERNAME || '';
-  const sapPass = process.env.SAP_PASSWORD || '';
+  const sapUser = process.env.SAP_B1_USERNAME || '';
+  const sapPass = process.env.SAP_B1_PASSWORD || '';
   const sapDb = process.env.SAP_COMPANY_DB || '';
 
   if (!sapUser || !sapPass || !sapDb || !sapUrl) {
@@ -566,8 +566,8 @@ export async function postReversalJE(
   };
 
   const sapUrl = process.env.SAP_SERVICE_LAYER_URL || '';
-  const sapUser = process.env.SAP_USERNAME || '';
-  const sapPass = process.env.SAP_PASSWORD || '';
+  const sapUser = process.env.SAP_B1_USERNAME || '';
+  const sapPass = process.env.SAP_B1_PASSWORD || '';
   const sapDb = process.env.SAP_COMPANY_DB || '';
 
   if (!sapUser || !sapPass || !sapDb || !sapUrl) {

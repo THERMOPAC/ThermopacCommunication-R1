@@ -390,8 +390,8 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
     
     // Try public IP first since it's been working
     const serviceLayerUrl = publicServiceLayerUrl;
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     if (!sapUsername || !sapPassword || !sapCompanyDb) {
@@ -710,8 +710,8 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
 router.get('/connection/config', ensureAuthenticated, async (req, res) => {
   try {
     const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL;
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     res.json({
@@ -766,8 +766,8 @@ router.get('/connection/test', async (req, res) => {
   
   try {
     const serviceLayerUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://DESKTOP-NH04TP:50000/b1s/v1';
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     console.log('🔑 SAP Credentials Check:', {
@@ -1168,8 +1168,8 @@ router.post('/sync/full', ensureAuthenticated, async (req, res) => {
     
     // Use the working public IP connection for sync
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     // Login to get session with SSL bypass
@@ -1245,8 +1245,8 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
     
     // Use the working public IP connection for purchase sync
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     // Login to get session with SSL bypass
@@ -1490,8 +1490,8 @@ router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
     console.log('🏪 Starting SAP B1 Vendors synchronization...');
     
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     const https = await import('https');
@@ -1569,8 +1569,8 @@ router.post('/sync/purchase-orders', ensureAuthenticated, async (req, res) => {
     console.log('📋 Starting SAP B1 Purchase Orders synchronization...');
     
     const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
+    const sapUsername = process.env.SAP_B1_USERNAME;
+    const sapPassword = process.env.SAP_B1_PASSWORD;
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     const https = await import('https');

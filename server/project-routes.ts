@@ -2993,8 +2993,8 @@ export function setupProjectRoutes(app: express.Express) {
       return res.status(403).json({ message: 'Forbidden: insufficient role' });
     }
 
-    const sapUser = process.env.SAP_USERNAME || '';
-    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapUser = process.env.SAP_B1_USERNAME || '';
+    const sapPass = process.env.SAP_B1_PASSWORD || '';
     const sapDb   = process.env.SAP_COMPANY_DB || '';
     if (!sapUser || !sapPass || !sapDb) {
       return res.status(500).json({ message: 'SAP credentials not configured' });

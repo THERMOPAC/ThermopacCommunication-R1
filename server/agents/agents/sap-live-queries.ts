@@ -49,8 +49,8 @@ async function sapLogin(client: SapHttpsClient): Promise<SapSession | null> {
       url: `${SAP_SERVICE_URL}/Login`,
       body: {
         CompanyDB: process.env.SAP_COMPANY_DB,
-        UserName: process.env.SAP_USERNAME,
-        Password: process.env.SAP_PASSWORD,
+        UserName: process.env.SAP_B1_USERNAME,
+        Password: process.env.SAP_B1_PASSWORD,
       },
       timeout: 15000,
     });

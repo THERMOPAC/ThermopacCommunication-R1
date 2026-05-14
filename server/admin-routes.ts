@@ -3615,7 +3615,7 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
 router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    const sapUser = process.env.SAP_USERNAME || '';
+    const sapUser = process.env.SAP_B1_USERNAME || '';
 
     const results: any = { companyDb: sapDb, sapUser, tests: {} };
 

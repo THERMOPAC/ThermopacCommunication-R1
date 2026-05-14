@@ -20,8 +20,8 @@ import { SapHttpsClient } from './sap-b1-integration/sap-https-client';
 
 export async function syncProjectItemToSap(pi: any): Promise<{ sapResult?: any; error?: string }> {
   const sapCompanyDB = process.env.SAP_COMPANY_DB;
-  const sapUsername = process.env.SAP_USERNAME;
-  const sapPassword = process.env.SAP_PASSWORD;
+  const sapUsername = process.env.SAP_B1_USERNAME;
+  const sapPassword = process.env.SAP_B1_PASSWORD;
 
   if (!sapCompanyDB) return { error: 'SAP_COMPANY_DB environment secret is not set' };
   if (!sapUsername || !sapPassword) return { error: 'SAP_USERNAME or SAP_PASSWORD environment secret is not set' };

@@ -26,8 +26,8 @@ export class SAPB1Connector {
       const config: sql.config = {
         server: process.env.SAP_SERVER || 'localhost',
         database: process.env.SAP_COMPANY_DB,
-        user: process.env.SAP_USERNAME || 'sa',
-        password: process.env.SAP_PASSWORD || '',
+        user: process.env.SAP_B1_USERNAME || 'sa',
+        password: process.env.SAP_B1_PASSWORD || '',
         options: {
           encrypt: true,
           trustServerCertificate: true,
