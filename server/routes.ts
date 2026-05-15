@@ -3912,6 +3912,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { setupPlcSapRoutes } = await import('./plc-sap-routes');
   setupPlcSapRoutes(app);
 
+  // ── Document Path & Folder Template Governance ───────────────────────────
+  const { setupDocumentPathRoutes } = await import('./document-path-routes');
+  setupDocumentPathRoutes(app);
+
   const { setupPlcEscalationJob, setupCockpitSummaryRefresh } = await import('./plc-escalation-job');
   setupPlcEscalationJob();
   setupCockpitSummaryRefresh();

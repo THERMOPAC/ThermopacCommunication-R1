@@ -14034,3 +14034,106 @@ export const plcRfqDispatchLog = pgTable('plc_rfq_dispatch_log', {
   resendNumber:         integer('resend_number').notNull().default(0),
 });
 export type PlcRfqDispatchLog = typeof plcRfqDispatchLog.$inferSelect;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOCUMENT PATH & FOLDER TEMPLATE GOVERNANCE
+// Phase 2 — Database Tables (baseline v1.0)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── 1. Document Path Templates ───────────────────────────────────────────
+export const documentPathTemplates = pgTable('document_path_templates', {
+  id:                     serial('id').primaryKey(),
+  templateCode:           varchar('template_code', { length: 50 }).notNull().unique(),
+  documentType:           varchar('document_type', { length: 50 }).notNull(),
+  documentCategory:       varchar('document_category', { length: 80 }),
+  relativePathTemplate:   text('relative_path_template').notNull(),
+  fileNameTemplate:       varchar('file_name_template', { length: 255 }),
+  revisionMode:           varchar('revision_mode', { length: 20 }).notNull().default('folder'),
+  // folder = revision embedded in path segment (rev-{rev}), suffix = revision in filename
+  fileExtension:          varchar('file_extension', { length: 20 }),
+  active:                 boolean('active').notNull().default(true),
+  createdAt:              timestamp('created_at').notNull().defaultNow(),
+  updatedAt:              timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertDocumentPathTemplateSchema = createInsertSchema(documentPathTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDocumentPathTemplate = z.infer<typeof insertDocumentPathTemplateSchema>;
+export type DocumentPathTemplate = typeof documentPathTemplates.$inferSelect;
+
+// ─── 2. Folder Templates ──────────────────────────────────────────────────
+export const folderTemplates = pgTable('folder_templates', {
+  id:           serial('id').primaryKey(),
+  templateCode: varchar('template_code', { length: 50 }).notNull().unique(),
+  templateName: varchar('template_name', { length: 120 }).notNull(),
+  description:  text('description'),
+  companyCode:  varchar('company_code', { length: 20 }).notNull().default('TPEL'),
+  active:       boolean('active').notNull().default(true),
+  version:      varchar('version', { length: 20 }).notNull().default('1'),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+  updatedAt:    timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertFolderTemplateSchema = createInsertSchema(folderTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertFolderTemplate = z.infer<typeof insertFolderTemplateSchema>;
+export type FolderTemplate = typeof folderTemplates.$inferSelect;
+
+// ─── 3. Folder Template Nodes ─────────────────────────────────────────────
+export const folderTemplateNodes = pgTable('folder_template_nodes', {
+  id:                   serial('id').primaryKey(),
+  folderTemplateId:     integer('folder_template_id').notNull().references(() => folderTemplates.id, { onDelete: 'cascade' }),
+  parentId:             integer('parent_id'),
+  // null = root-level node under the project root
+  folderCode:           varchar('folder_code', { length: 80 }).notNull(),
+  folderNameTemplate:   varchar('folder_name_template', { length: 255 }).notNull(),
+  // may contain tokens: {Assembly}, {YYMMDD}, etc.
+  sequence:             integer('sequence').notNull().default(0),
+  module:               varchar('module', { length: 40 }),
+  // sales | design | purchase | production | accounts | after_sales
+  isDynamic:            boolean('is_dynamic').notNull().default(false),
+  dynamicSource:        varchar('dynamic_source', { length: 80 }),
+  // e.g. 'project_assemblies', 'meeting_dates'
+  isRevisionControlled: boolean('is_revision_controlled').notNull().default(false),
+  autoCreate:           boolean('auto_create').notNull().default(true),
+  active:               boolean('active').notNull().default(true),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertFolderTemplateNodeSchema = createInsertSchema(folderTemplateNodes).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertFolderTemplateNode = z.infer<typeof insertFolderTemplateNodeSchema>;
+export type FolderTemplateNode = typeof folderTemplateNodes.$inferSelect;
+
+// ─── 4. Resolved Project Folders ──────────────────────────────────────────
+export const resolvedProjectFolders = pgTable('resolved_project_folders', {
+  id:               serial('id').primaryKey(),
+  projectId:        integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  folderTemplateId: integer('folder_template_id').notNull().references(() => folderTemplates.id),
+  folderNodeId:     integer('folder_node_id').references(() => folderTemplateNodes.id),
+  relativePath:     text('relative_path').notNull(),
+  folderCode:       varchar('folder_code', { length: 80 }),
+  status:           varchar('status', { length: 20 }).notNull().default('pending'),
+  // pending | agent_created | agent_failed | skipped
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertResolvedProjectFolderSchema = createInsertSchema(resolvedProjectFolders).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertResolvedProjectFolder = z.infer<typeof insertResolvedProjectFolderSchema>;
+export type ResolvedProjectFolder = typeof resolvedProjectFolders.$inferSelect;
+
+// ─── 5. Project Document Files ────────────────────────────────────────────
+export const projectDocumentFiles = pgTable('project_document_files', {
+  id:                 serial('id').primaryKey(),
+  projectId:          integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  documentType:       varchar('document_type', { length: 50 }).notNull(),
+  documentCategory:   varchar('document_category', { length: 80 }),
+  relativeFolderPath: text('relative_folder_path').notNull(),
+  fileName:           varchar('file_name', { length: 255 }).notNull(),
+  relativeFilePath:   text('relative_file_path').notNull(),
+  revision:           varchar('revision', { length: 10 }).notNull().default('00'),
+  sha256:             varchar('sha256', { length: 64 }),
+  fileSizeBytes:      bigint('file_size_bytes', { mode: 'number' }),
+  storageStatus:      varchar('storage_status', { length: 20 }).notNull().default('pending'),
+  // pending | synced | missing | error
+  createdAt:          timestamp('created_at').notNull().defaultNow(),
+  updatedAt:          timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertProjectDocumentFileSchema = createInsertSchema(projectDocumentFiles).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProjectDocumentFile = z.infer<typeof insertProjectDocumentFileSchema>;
+export type ProjectDocumentFile = typeof projectDocumentFiles.$inferSelect;

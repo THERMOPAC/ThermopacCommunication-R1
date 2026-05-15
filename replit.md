@@ -64,6 +64,7 @@ Preferred communication style: Simple, everyday language.
 - **Tag No Control (PPPC)**: Tags auto-generated using `server/tag-generation-service.ts`; prefix map: PT/TT/FT/LT/XV/CV/PSV/P/CT/JB/M. Raw Materials group → no tag. Qty>1 on taggable subgroups → N separate lines each qty=1 with sequential tags. All tag generation uses `pg_advisory_xact_lock(projectId)`. Manual changes audited in `tag_no_audit_log`. Project-wide uniqueness enforced by partial unique index + 409 responses. Taggable subgroup codes defined in both `tag-generation-service.ts` and `TAGGABLE_SUBGROUP_CODES` constant in buy-list-control-page.
 
 ## Pointers
+- **Document Path & Folder Template Baseline v1.0**: `docs/document-path-folder-template-baseline-v1.md`
 - **GCS Governance**: `docs/gcs-governance-rev4-closure.md`
 - **SolidWorks Agent Baseline**: `docs/slddrw-extraction-agent-baseline-v3.md`
 - **Leave Management Correction Plan**: `docs/leave-management-correction-plan-baseline-v1.0.md`
