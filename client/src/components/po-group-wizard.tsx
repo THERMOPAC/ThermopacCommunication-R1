@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,7 +32,7 @@ interface PlcLine {
   uom: string | null;
 }
 
-interface Vendor { id: number; name: string; code?: string; }
+interface Vendor { id: number; name: string; display_name?: string; sap_card_code?: string; code?: string; }
 
 interface AvlCheck { qualified: boolean; status: string | null; record: any; }
 
@@ -77,6 +77,9 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
   const [showTestPanel,  setShowTestPanel]  = useState(false);
   const [udfDist,        setUdfDist]        = useState<any | null>(null);
   const [showUdfDialog,  setShowUdfDialog]  = useState(false);
+  const [vendorSearch,   setVendorSearch]   = useState("");
+  const [vendorOpen,     setVendorOpen]     = useState(false);
+  const vendorRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<z.infer<typeof termsSchema>>({
     resolver: zodResolver(termsSchema),
@@ -167,6 +170,29 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
       setSelectedVendorName(ref?.vendorName ?? "");
     }
   }, [lines, preselectedLineIds]);
+
+  // ── Vendor search: close dropdown on outside click ────────────────────────
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (vendorRef.current && !vendorRef.current.contains(e.target as Node)) {
+        setVendorOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // ── Vendor search filter ──────────────────────────────────────────────────
+  const filteredVendors = vendorSearch.trim() === ""
+    ? vendors
+    : vendors.filter((v) => {
+        const q = vendorSearch.toLowerCase();
+        return (
+          v.name.toLowerCase().includes(q) ||
+          (v.display_name ?? "").toLowerCase().includes(q) ||
+          (v.sap_card_code ?? "").toLowerCase().includes(q)
+        );
+      });
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const activeLines = lines.filter((l) => activeLineIds.includes(l.id));
@@ -294,32 +320,67 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
             <div className="space-y-2">
               <label className="block text-sm font-medium">Select Vendor *</label>
 
-              {/* Row 1: dropdown */}
-              <Select
-                value={selectedVendorId?.toString() ?? ""}
-                onValueChange={(v) => {
-                  const vend = vendors.find((x) => x.id === parseInt(v));
-                  setSelectedVendorId(parseInt(v));
-                  setSelectedVendorName(vend?.name ?? "");
-                  setAvlIssues([]);
-                  setAvlBypassAck({});
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={vendors.length === 0 ? "Run Test SAP first to load vendors…" : "Choose vendor…"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {vendors.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">
-                      No vendors — run Test SAP to verify, then Full Sync
-                    </div>
-                  ) : (
-                    vendors.map((v) => (
-                      <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
-                    ))
+              {/* Row 1: searchable vendor combobox */}
+              <div ref={vendorRef} className="relative">
+                <div
+                  className={cn(
+                    "flex items-center w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-text",
+                    vendorOpen && "outline-none ring-2 ring-ring ring-offset-2",
                   )}
-                </SelectContent>
-              </Select>
+                  onClick={() => { setVendorOpen(true); }}
+                >
+                  {vendorOpen ? (
+                    <input
+                      autoFocus
+                      className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+                      placeholder="Type vendor name or SAP code…"
+                      value={vendorSearch}
+                      onChange={(e) => setVendorSearch(e.target.value)}
+                    />
+                  ) : (
+                    <span className={cn("flex-1 truncate", !selectedVendorId && "text-muted-foreground")}>
+                      {selectedVendorId
+                        ? (vendors.find((v) => v.id === selectedVendorId)?.name ?? selectedVendorName)
+                        : (vendors.length === 0 ? "Run Test SAP first to load vendors…" : "Choose vendor…")}
+                    </span>
+                  )}
+                  <svg className="h-4 w-4 text-muted-foreground shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+
+                {vendorOpen && (
+                  <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-lg max-h-60 overflow-y-auto">
+                    {vendors.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No vendors — run Test SAP to verify, then Full Sync</div>
+                    ) : filteredVendors.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No vendor found</div>
+                    ) : (
+                      filteredVendors.map((v) => (
+                        <div
+                          key={v.id}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                            selectedVendorId === v.id && "bg-accent font-medium",
+                          )}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSelectedVendorId(v.id);
+                            setSelectedVendorName(v.name);
+                            setVendorSearch("");
+                            setVendorOpen(false);
+                            setAvlIssues([]);
+                            setAvlBypassAck({});
+                          }}
+                        >
+                          <span className="truncate">{v.name}</span>
+                          {v.sap_card_code && (
+                            <span className="ml-2 text-xs text-muted-foreground shrink-0">{v.sap_card_code}</span>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Row 2: Test + UDF Check + Full Sync buttons */}
               <div className="flex gap-2">
