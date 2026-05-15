@@ -514,7 +514,7 @@ export default function EpcBomControlPage() {
             <SelectTrigger className="w-52 h-8 text-xs"><SelectValue placeholder="Select Project" /></SelectTrigger>
             <SelectContent>
               {filteredProjects.map((p: any) => (
-                <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}</SelectItem>
+                <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}{p.clientName && p.clientName !== p.name ? ` — ${p.name}` : ""}</SelectItem>
               ))}
             </SelectContent>
           </Select>

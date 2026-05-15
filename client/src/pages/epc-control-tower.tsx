@@ -168,7 +168,7 @@ export default function EpcControlTower() {
             <Radar className="h-6 w-6" /> EPC Control Tower
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {projectId ? `Filtered: ${(projects as any[]).find((p: any) => p.id === projectId)?.code || ''} — ${(projects as any[]).find((p: any) => p.id === projectId)?.clientName || (projects as any[]).find((p: any) => p.id === projectId)?.client_name || (projects as any[]).find((p: any) => p.id === projectId)?.name || ''}` : 'Program-level EPC monitoring — all projects'}
+            {projectId ? (() => { const fp = (projects as any[]).find((p: any) => p.id === projectId); if (!fp) return 'Program-level EPC monitoring — all projects'; const cn = fp.clientName || fp.client_name || ''; return `Filtered: ${fp.code} — ${cn || fp.name}${cn && cn !== fp.name ? ` — ${fp.name}` : ''}`; })() : 'Program-level EPC monitoring — all projects'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export default function EpcControlTower() {
               <SelectItem value="all" className="text-xs">All Projects</SelectItem>
               {filteredProjects.map((p: any) => (
                 <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
-                  {p.code} — {p.clientName || p.client_name || p.name}
+                  {p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -851,7 +851,7 @@ export default function EpcControlTower() {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground mb-1.5">Projects Without Manager ({ownership.projectsNoManager.length})</p>
                       {ownership.projectsNoManager.map((p: any) => (
-                        <div key={p.id} className="text-xs py-1 border-b last:border-0 font-medium">{p.code} — {p.clientName || p.name}</div>
+                        <div key={p.id} className="text-xs py-1 border-b last:border-0 font-medium">{p.code} — {p.clientName || p.name}{p.clientName && p.clientName !== p.name ? ` — ${p.name}` : ""}</div>
                       ))}
                     </div>
                   )}

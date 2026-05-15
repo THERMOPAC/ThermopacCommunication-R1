@@ -432,7 +432,7 @@ export default function MaterialIdentificationListNewPage() {
                       <option value="">-- Select a project --</option>
                       {activeProjects.map(project => (
                         <option key={project.id} value={project.id}>
-                          {project.code} — {project.clientName || project.name}
+                          {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
                         </option>
                       ))}
                     </select>

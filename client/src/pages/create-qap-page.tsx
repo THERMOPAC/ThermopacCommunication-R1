@@ -1027,7 +1027,7 @@ export default function CreateQAPPage() {
                           <SelectContent>
                             {(showAllQapProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.code} — {project.clientName || project.name}
+                                {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>

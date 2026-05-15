@@ -367,7 +367,7 @@ export default function EpcDrawingControlPage() {
                 <SelectContent>
                   {filteredProjects.map((p: any) => (
                     <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
-                      {p.code} — {p.clientName || p.client_name || p.name}
+                      {p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

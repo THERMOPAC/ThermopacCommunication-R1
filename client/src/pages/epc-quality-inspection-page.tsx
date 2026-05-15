@@ -572,7 +572,7 @@ export default function EpcQualityInspectionPage() {
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select project…" /></SelectTrigger>
               <SelectContent>
                 {filteredProjects.map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}</SelectItem>
+                    <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}{p.clientName && p.clientName !== p.name ? ` — ${p.name}` : ""}</SelectItem>
                   ))}
               </SelectContent>
             </Select>

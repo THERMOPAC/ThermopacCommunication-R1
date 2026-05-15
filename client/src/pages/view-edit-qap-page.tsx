@@ -183,7 +183,7 @@ export default function ViewEditQAPPage() {
           projectId: safeQap.projectId,
           title: safeQap.title,
           status: safeQap.status,
-          project: `${safeQap.project.code} — ${safeQap.project.clientName || safeQap.project.name}`
+          project: `${safeQap.project.code} — ${safeQap.project.clientName || safeQap.project.name}${safeQap.project.clientName && safeQap.project.clientName !== safeQap.project.name ? ` — ${safeQap.project.name}` : ''}`
         });
         
         return safeQap;
@@ -881,7 +881,7 @@ export default function ViewEditQAPPage() {
                               <FormControl>
                                 <Input 
                                   {...field}
-                                  value={qap?.projectInfo || (qap?.project ? `${qap.project.code} — ${qap.project.clientName || qap.project.name}` : "")}
+                                  value={qap?.projectInfo || (qap?.project ? `${qap.project.code} — ${qap.project.clientName || qap.project.name}${qap.project.clientName && qap.project.clientName !== qap.project.name ? ` — ${qap.project.name}` : ''}` : "")}
                                   disabled={true}
                                   className="bg-muted/30"
                                   readOnly
@@ -1328,7 +1328,7 @@ export default function ViewEditQAPPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground">Project</h3>
-                    <p className="text-sm">{qap?.projectInfo || (qap?.project ? `${qap.project.code} — ${qap.project.clientName || qap.project.name}` : "Not specified")}</p>
+                    <p className="text-sm">{qap?.projectInfo || (qap?.project ? `${qap.project.code} — ${qap.project.clientName || qap.project.name}${qap.project.clientName && qap.project.clientName !== qap.project.name ? ` — ${qap.project.name}` : ''}` : "Not specified")}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground">Customer</h3>

@@ -938,7 +938,7 @@ export default function DispatchShippingPage() {
                       <SelectContent>
                         {projects && (showAllDspProjects ? projects : projects.filter((p: Project) => p.status === 'active')).map((project: Project) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
-                            {project.code} — {project.clientName || project.name}
+                            {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>

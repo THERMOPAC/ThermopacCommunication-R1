@@ -661,7 +661,7 @@ export default function ProductionPlanningPage() {
                         selectedProject && !projects?.filter((p: any) => p.status === 'active').find((p: any) => p.id === selectedProject) ? projects?.filter((p: any) => p.id === selectedProject) : []
                       ))?.map((project: any) => (
                         <SelectItem key={project.id} value={project.id.toString()}>
-                          {project.code} — {project.clientName || project.name}
+                          {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -965,7 +965,7 @@ export default function ProductionPlanningPage() {
                             <SelectContent>
                               {(showAllProdProjects ? projects : projects?.filter((p: any) => p.status === 'active'))?.map((project: any) => (
                                 <SelectItem key={project.id} value={project.id.toString()}>
-                                  {project.code} — {project.clientName || project.name}
+                                  {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
