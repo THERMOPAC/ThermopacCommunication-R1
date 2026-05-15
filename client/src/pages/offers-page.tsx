@@ -873,20 +873,18 @@ export function OffersContent() {
       const qty = parseFloat(item.quantity || "0");
       const price = parseFloat(item.unitPrice || "0");
       const disc = parseFloat(item.discountPercent || "0");
-      const lt = isSubItem ? "" : qty * price * (1 - disc / 100);
+      const lt = qty * price * (1 - disc / 100);
       if (!isSubItem) mainItemSeq++;
       const label = isSubItem ? `   └ ${item.description}` : item.description;
       const seqLabel = isSubItem ? "" : mainItemSeq;
-      const iRow = ws.addRow([seqLabel, label, item.unit || "", qty || "", price || "", disc > 0 ? disc : "", lt]);
+      const iRow = ws.addRow([seqLabel, label, item.unit || "", qty, price, disc > 0 ? disc : "", lt]);
       iRow.height = 16;
       iRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-      [2].forEach(c => { iRow.getCell(c).alignment = { horizontal: "left", vertical: "middle", wrapText: true }; });
+      iRow.getCell(2).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
       [3, 4, 5, 6, 7].forEach(c => { iRow.getCell(c).alignment = { horizontal: "right", vertical: "middle" }; });
-      if (typeof lt === "number") {
-        iRow.getCell(5).numFmt = "#,##0.00";
-        iRow.getCell(7).numFmt = "#,##0.00";
-      }
       iRow.getCell(4).numFmt = "#,##0.00";
+      iRow.getCell(5).numFmt = "#,##0.00";
+      iRow.getCell(7).numFmt = "#,##0.00";
       iRow.eachCell({ includeEmpty: true }, cell => {
         cell.border = allBorders;
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isSubItem ? "FFF5F7FF" : "FFFFFFFF" } };
