@@ -242,20 +242,21 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     const udfAvailable = allRows.some((bp) => 'U_ERP_Group' in bp);
     const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
 
-    // Build classified list — only rows where U_ERP_Group is a valid vendor type
-    // Skip GroupCode 105/106 (employees), skip blank/absent U_ERP_Group
+    // Build classified list — all non-excluded vendors (GroupCode 105/106 = employees)
+    // vendor_type set from U_ERP_Group if present and valid, otherwise null
+    // Per governance: vendors with null/blank U_ERP_Group are synced with vendor_type = null
     const classified: VendorTestResult['sample'] = [];
     for (const bp of allRows) {
       if (EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode))) continue;
-      const raw = bp['U_ERP_Group'];
-      if (raw === null || raw === undefined || String(raw).trim() === '') continue;
-      const udfRaw     = String(raw).trim();
-      const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
+      const raw        = bp['U_ERP_Group'];
+      const rawStr     = (raw !== null && raw !== undefined) ? String(raw).trim() : '';
+      const udfRaw     = rawStr || null;
+      const vendorType = (udfRaw && VALID_VENDOR_TYPES.has(udfRaw)) ? udfRaw : null;
       classified.push({
         cardCode:     String(bp.CardCode ?? ''),
         cardName:     String(bp.CardName ?? ''),
         groupCode:    Number(bp.GroupCode ?? 0),
-        udfRaw,
+        udfRaw:       udfRaw ?? '',
         vendorType,
         excluded:     false,
         upsertedToDb: false,
