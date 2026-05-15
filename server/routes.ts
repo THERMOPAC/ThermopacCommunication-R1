@@ -3916,6 +3916,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { setupDocumentPathRoutes } = await import('./document-path-routes');
   setupDocumentPathRoutes(app);
 
+  // ── GCS Document Governance (Phase 0 — Monitor Mode) ─────────────────────
+  const { setupGcsGovernanceRoutes } = await import('./gcs-governance-routes');
+  setupGcsGovernanceRoutes(app);
+  const { seedGovernanceData } = await import('./services/gcs-governance-service');
+  seedGovernanceData();
+
   const { setupPlcEscalationJob, setupCockpitSummaryRefresh } = await import('./plc-escalation-job');
   setupPlcEscalationJob();
   setupCockpitSummaryRefresh();

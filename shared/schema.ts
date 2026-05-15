@@ -14137,3 +14137,62 @@ export const projectDocumentFiles = pgTable('project_document_files', {
 export const insertProjectDocumentFileSchema = createInsertSchema(projectDocumentFiles).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertProjectDocumentFile = z.infer<typeof insertProjectDocumentFileSchema>;
 export type ProjectDocumentFile = typeof projectDocumentFiles.$inferSelect;
+
+// ─── GCS Governance Phase 0 ───────────────────────────────────────────────
+
+// 1. Token Registry — master list of valid path tokens
+export const gcsGovernanceTokenRegistry = pgTable('gcs_governance_token_registry', {
+  id:                serial('id').primaryKey(),
+  tokenName:         varchar('token_name', { length: 50 }).notNull().unique(),
+  description:       text('description').notNull(),
+  exampleValue:      varchar('example_value', { length: 100 }).notNull(),
+  sourceDescription: text('source_description').notNull(),
+  active:            boolean('active').notNull().default(true),
+  createdAt:         timestamp('created_at').notNull().defaultNow(),
+});
+export type GcsGovernanceToken = typeof gcsGovernanceTokenRegistry.$inferSelect;
+export const insertGcsGovernanceTokenSchema = createInsertSchema(gcsGovernanceTokenRegistry).omit({ id: true, createdAt: true });
+export type InsertGcsGovernanceToken = z.infer<typeof insertGcsGovernanceTokenSchema>;
+
+// 2. Governance Rules — one row per module + document_type combination
+export const gcsGovernanceRules = pgTable('gcs_governance_rules', {
+  id:               serial('id').primaryKey(),
+  moduleKey:        varchar('module_key', { length: 50 }).notNull(),
+  submoduleKey:     varchar('submodule_key', { length: 50 }),
+  documentType:     varchar('document_type', { length: 80 }).notNull(),
+  displayName:      varchar('display_name', { length: 120 }).notNull(),
+  rootPrefix:       text('root_prefix').notNull(),
+  pathTemplate:     text('path_template').notNull(),
+  revisionMode:     varchar('revision_mode', { length: 20 }).notNull().default('none'),
+  allowedTokens:    text('allowed_tokens').array(),
+  requiredTokens:   text('required_tokens').array(),
+  maxFileSizeMb:    integer('max_file_size_mb'),
+  allowedMimeTypes: text('allowed_mime_types').array(),
+  active:           boolean('active').notNull().default(true),
+  notes:            text('notes'),
+  createdBy:        integer('created_by'),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+export type GcsGovernanceRule = typeof gcsGovernanceRules.$inferSelect;
+export const insertGcsGovernanceRuleSchema = createInsertSchema(gcsGovernanceRules).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGcsGovernanceRule = z.infer<typeof insertGcsGovernanceRuleSchema>;
+
+// 3. Upload Monitor Log — audit log in monitor-only mode (no blocking)
+export const gcsUploadMonitorLog = pgTable('gcs_upload_monitor_log', {
+  id:              serial('id').primaryKey(),
+  detectedAt:      timestamp('detected_at').notNull().defaultNow(),
+  matchedRuleId:   integer('matched_rule_id').references(() => gcsGovernanceRules.id),
+  moduleKey:       varchar('module_key', { length: 50 }),
+  documentType:    varchar('document_type', { length: 80 }),
+  detectedGcsPath: text('detected_gcs_path').notNull(),
+  pathConforms:    boolean('path_conforms'),
+  violationReason: text('violation_reason'),
+  fileSizeBytes:   bigint('file_size_bytes', { mode: 'number' }),
+  mimeType:        varchar('mime_type', { length: 120 }),
+  uploadedBy:      integer('uploaded_by'),
+  routeFile:       varchar('route_file', { length: 200 }),
+});
+export type GcsUploadMonitorLog = typeof gcsUploadMonitorLog.$inferSelect;
+export const insertGcsUploadMonitorLogSchema = createInsertSchema(gcsUploadMonitorLog).omit({ id: true, detectedAt: true });
+export type InsertGcsUploadMonitorLog = z.infer<typeof insertGcsUploadMonitorLogSchema>;

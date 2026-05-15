@@ -343,6 +343,7 @@ function Layout({ children }: LayoutProps) {
       toggle: () => setIsDocumentControlMenuOpen(!isDocumentControlMenuOpen),
       children: [
         { icon: FolderTree, label: "Doc Governance", href: "/document-control/doc-governance" },
+        { icon: FolderTree, label: "GCS Doc Governance", href: "/document-control/gcs-doc-governance" },
       ]
     },
     ...(hasViewPermission("Administration") ? [{ 
