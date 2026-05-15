@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
@@ -245,6 +245,9 @@ export function OffersContent() {
   const isSuperuser = user?.role === 'Superuser';
   const { showTestData, toggle: toggleTestData } = useTestDataToggle();
   const [searchQuery, setSearchQuery] = useState("");
+  const [customerComboOpen, setCustomerComboOpen] = useState(false);
+  const [customerSearchInput, setCustomerSearchInput] = useState("");
+  const customerComboRef = useRef<HTMLDivElement>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [fyFilter, setFyFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -527,6 +530,25 @@ export function OffersContent() {
       form.setValue("contactPerson", customer.contactPerson || "");
     }
   };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (customerComboRef.current && !customerComboRef.current.contains(e.target as Node)) {
+        setCustomerComboOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearchInput.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c: any) =>
+      (c.bpCode ?? "").toLowerCase().includes(q) ||
+      (c.bpName ?? "").toLowerCase().includes(q)
+    );
+  }, [customers, customerSearchInput]);
 
   const handleAddProduct = (product: Product) => {
     const children = childProductsMap.get(product.id) || [];
@@ -1270,20 +1292,54 @@ export function OffersContent() {
                     </div>
                     <div className="p-4 space-y-3">
                       <div className="grid grid-cols-4 gap-3">
-                        <div>
+                        <div ref={customerComboRef} className="relative">
                           <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Select Customer</Label>
-                          <Select onValueChange={handleSelectCustomer}>
-                            <SelectTrigger className="h-9 text-sm">
-                              <SelectValue placeholder="Search customer..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {customers.map((c: any) => (
-                                <SelectItem key={c.id} value={c.id.toString()}>
-                                  {c.bpCode} - {c.bpName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div
+                            className="flex items-center h-9 w-full rounded-md border border-input bg-background px-3 text-sm cursor-pointer gap-2"
+                            onClick={() => setCustomerComboOpen(o => !o)}
+                          >
+                            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate text-muted-foreground">
+                              {form.watch("customerId")
+                                ? (() => { const c = customers.find((x: any) => x.id === form.watch("customerId")); return c ? `${c.bpCode} - ${c.bpName}` : "Select customer…"; })()
+                                : "Select customer…"}
+                            </span>
+                          </div>
+                          {customerComboOpen && (
+                            <div className="absolute z-50 mt-1 w-[340px] rounded-md border bg-popover shadow-md overflow-hidden">
+                              <div className="p-2 border-b">
+                                <input
+                                  autoFocus
+                                  className="w-full h-8 px-2 text-sm rounded border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+                                  placeholder="Search by code or name…"
+                                  value={customerSearchInput}
+                                  onChange={e => setCustomerSearchInput(e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </div>
+                              <div className="max-h-52 overflow-y-auto">
+                                {filteredCustomers.length === 0 ? (
+                                  <p className="p-3 text-xs text-muted-foreground text-center">No customer found</p>
+                                ) : (
+                                  filteredCustomers.map((c: any) => (
+                                    <div
+                                      key={c.id}
+                                      className="px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                      onMouseDown={e => e.preventDefault()}
+                                      onClick={() => {
+                                        handleSelectCustomer(c.id.toString());
+                                        setCustomerSearchInput("");
+                                        setCustomerComboOpen(false);
+                                      }}
+                                    >
+                                      <span className="font-medium text-xs text-muted-foreground mr-1.5">{c.bpCode}</span>
+                                      {c.bpName}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <FormField control={form.control} name="customerName" render={({ field }) => (
                           <FormItem>
