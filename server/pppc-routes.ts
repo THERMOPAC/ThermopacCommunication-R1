@@ -2671,6 +2671,104 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // ─── POST /api/buy-lists/:id/raise-pr-all ─────────────────────────────────
+  // Raises PR for all eligible lines (open/selected/approved) without needing lineIds from caller.
+  app.post('/api/buy-lists/:id/raise-pr-all', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const headerId = parseInt(req.params.id);
+      if (isNaN(headerId)) return sendValidationError(res, 'Invalid buy list id');
+      const hdr = await pool.query(`SELECT h.status, h.project_id, p.status AS proj_status, p.cost_lock_status, p.code AS project_code FROM project_buy_list_headers h JOIN projects p ON p.id = h.project_id WHERE h.id = $1`, [headerId]);
+      if (!hdr.rowCount || hdr.rowCount === 0) return sendNotFound(res, 'Buy list', headerId);
+      const h = hdr.rows[0];
+      if (!['released', 'locked'].includes(h.status)) return sendBusinessError(res, 'Raise-all requires buy list to be released or locked.');
+      if (isProjectFrozen(h.proj_status)) return sendBusinessError(res, 'Project is frozen — no new records allowed.');
+      if ((h.cost_lock_status ?? 'unlocked') === 'approved') return sendBusinessError(res, 'Cost is locked — project items cannot be modified.');
+      // Fetch all eligible line IDs
+      const eligibleRows = await pool.query(
+        `SELECT id FROM project_buy_list_lines WHERE buy_list_header_id=$1 AND status NOT IN ('canceled','obsolete','pr_raised') ORDER BY line_number`,
+        [headerId],
+      );
+      const lineIds: number[] = eligibleRows.rows.map((r: any) => r.id);
+      if (lineIds.length === 0) return res.json({ succeeded: 0, errors: [], results: [], message: 'No eligible lines to raise.' });
+      // Delegate to bulk-raise-pr logic via internal re-route
+      req.body = { lineIds };
+      // fall through by calling the shared handler inline
+      const userId = (req.user as any).id;
+      const results: any[] = []; const errors: any[] = [];
+      let succeeded = 0;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const lineId of lineIds) {
+          const spName = `sp_${lineId}`;
+          await client.query(`SAVEPOINT ${spName}`);
+          try {
+            const lineRow = await client.query(
+              `SELECT l.id, l.status, l.tag_no, l.service_description, l.generic_requirement,
+                      l.equipment_reference, l.quantity, l.selected_master_item_id, l.planning_record_id
+               FROM project_buy_list_lines l WHERE l.id = $1 AND l.buy_list_header_id = $2`,
+              [lineId, headerId],
+            );
+            if (!lineRow.rowCount || lineRow.rowCount === 0) throw new Error('Line not found');
+            const line = lineRow.rows[0];
+            if (line.planning_record_id) {
+              const pr = await client.query(`SELECT status FROM item_planning_records WHERE id = $1`, [line.planning_record_id]);
+              if (pr.rows[0] && !['canceled', 'superseded'].includes(pr.rows[0].status)) throw new Error('Active planning record already exists');
+            }
+            const qty = parseFloat(line.quantity) || 1;
+            let projectItemId: number;
+            if (line.selected_master_item_id) {
+              const piDedup = await client.query(`SELECT id FROM project_items WHERE project_id=$1 AND item_id=$2 AND tag_no=$3 AND source='buy_list' AND status!='Cancelled' LIMIT 1`, [h.project_id, line.selected_master_item_id, line.tag_no]);
+              if (piDedup.rows[0]) {
+                projectItemId = piDedup.rows[0].id;
+                await client.query(`UPDATE project_items SET required_quantity=$1, updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
+              } else {
+                const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
+                  [h.project_id, h.project_code, line.selected_master_item_id, qty, qty, line.tag_no,
+                   `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
+                projectItemId = piIns.rows[0].id;
+              }
+            } else {
+              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,NULL,$3,$4,'buy_list',$5,$6,'Not Started',NOW(),NOW()) RETURNING id`,
+                [h.project_id, h.project_code, qty, qty, line.tag_no,
+                 `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
+              projectItemId = piIns.rows[0].id;
+            }
+            const seq = await getNextDocSeq('PLN', h.project_id, pool);
+            const planningNumber = `${h.project_code}-PLN-${seq}`;
+            const notes = [line.tag_no ? `Tag: ${line.tag_no}` : null, line.service_description || null, line.equipment_reference || null].filter(Boolean).join(' | ');
+            const plnIns = await client.query<{ id: number }>(
+              `INSERT INTO item_planning_records (project_id,project_item_id,master_item_id,planning_type,source,source_buy_list_header_id,source_buy_list_line_id,quantity,notes,planning_number,status,created_by,created_at,updated_at) VALUES($1,$2,$3,'procurement','buy_list',$4,$5,$6,$7,$8,'draft',$9,NOW(),NOW()) RETURNING id`,
+              [h.project_id, projectItemId, line.selected_master_item_id, headerId, lineId, qty, notes, planningNumber, userId],
+            );
+            const planningRecordId = plnIns.rows[0].id;
+            await client.query(`UPDATE project_buy_list_lines SET planning_record_id=$1, updated_at=NOW() WHERE id=$2`, [planningRecordId, lineId]);
+            try {
+              await createPlcLineInTx(client, {
+                projectId: h.project_id, projectCode: h.project_code, planningRecordId, planningNumber,
+                sourceBuyListHeaderId: headerId, sourceBuyListLineId: lineId,
+                masterItemId: line.selected_master_item_id, tagNo: line.tag_no ?? null,
+                serviceDescription: line.service_description || line.generic_requirement || null,
+                equipmentReference: line.equipment_reference ?? null,
+                subgroupCode: null, subgroupLabel: null, qtyRequired: qty, createdBy: userId,
+              });
+            } catch (plcErr: any) {
+              console.warn('[PLC] createPlcLineInTx failed in raise-pr-all for line', lineId, plcErr.message);
+            }
+            await client.query(`RELEASE SAVEPOINT ${spName}`);
+            succeeded++; results.push({ lineId, status: 'ok', planningRecordId });
+          } catch (e: any) {
+            await client.query(`ROLLBACK TO SAVEPOINT ${spName}`);
+            errors.push({ lineId, error: e.message });
+          }
+        }
+        await client.query('COMMIT');
+      } catch (txErr) { await client.query('ROLLBACK'); throw txErr; }
+      finally { client.release(); }
+      res.json({ succeeded, errors, results });
+    } catch (err) { sendError(res, err); }
+  });
+
   // ─── POST /api/buy-lists/:id/bulk-raise-pr ────────────────────────────────
   app.post('/api/buy-lists/:id/bulk-raise-pr', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {
@@ -2706,7 +2804,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             );
             if (!lineRow.rowCount || lineRow.rowCount === 0) throw new Error('Line not found in this buy list');
             const line = lineRow.rows[0];
-            if (line.status !== 'approved') throw new Error(`Line status is '${line.status}' — must be approved`);
+            if (['canceled', 'obsolete', 'pr_raised'].includes(line.status)) throw new Error(`Line status is '${line.status}' — cannot raise PR`);
 
             if (line.planning_record_id) {
               const pr = await client.query(`SELECT status FROM item_planning_records WHERE id = $1`, [line.planning_record_id]);

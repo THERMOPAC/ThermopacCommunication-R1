@@ -671,6 +671,26 @@ export default function EpcBuyListControlPage() {
     onError: (e: any) => toast({ title: "Bulk raise-pr error", description: e.message, variant: "destructive" }),
   });
 
+  const raiseAllPr = useMutation({
+    mutationFn: (headerId: number) =>
+      apiRequest("POST", `/api/buy-lists/${headerId}/raise-pr-all`, {}),
+    onSuccess: (data: any, headerId: number) => {
+      const errCount = data.errors?.length ?? 0;
+      if (errCount > 0) {
+        const uniqueReasons = [...new Set((data.errors as any[]).map((e: any) => e.error))];
+        toast({
+          title: `Raise PR for All: ${data.succeeded} raised, ${errCount} failed`,
+          description: uniqueReasons.slice(0, 3).join(" | "),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `Raise PR for All done`, description: `${data.succeeded} PR(s) raised and sent to Procurement List` });
+      }
+      invalidateLines(headerId); invalidateProcChain(headerId);
+    },
+    onError: (e: any) => toast({ title: "Raise PR for All error", description: e.message, variant: "destructive" }),
+  });
+
   const bulkDirectApprove = useMutation({
     mutationFn: ({ headerId, lineIds }: { headerId: number; lineIds: number[] }) =>
       apiRequest("POST", `/api/buy-lists/${headerId}/bulk-direct-approve`, { lineIds }),
@@ -1468,6 +1488,25 @@ export default function EpcBuyListControlPage() {
                               <Plus className="h-3.5 w-3.5 mr-1" />Add Line
                             </Button>
                           )}
+                          {["released", "locked"].includes(lst.status) && canWrite && (
+                            <Button size="sm" variant="outline"
+                              className="h-7 text-xs px-2 border-emerald-400 text-emerald-700 hover:bg-emerald-50"
+                              disabled={bulkRaisePr.isPending}
+                              onClick={e => {
+                                e.stopPropagation();
+                                const eligible = (expandedId === lst.id ? expandedLines : [])
+                                  .filter((l: any) => !["canceled", "obsolete", "pr_raised"].includes(l.status))
+                                  .map((l: any) => l.id);
+                                if (eligible.length === 0) {
+                                  toast({ title: "All lines already raised", description: "No eligible lines remaining.", variant: "destructive" });
+                                  return;
+                                }
+                                setConfirmBulkRaisePr({ headerId: lst.id, lineIds: eligible });
+                              }}
+                            >
+                              <TrendingUp className="h-3.5 w-3.5 mr-1" />Raise PR for All
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1545,13 +1584,9 @@ export default function EpcBuyListControlPage() {
                                     disabled={bulkRaisePr.isPending}
                                     onClick={() => {
                                       const checkedLineObjs = expandedLines.filter((l: any) => checkedLines.has(l.id));
-                                      const notApproved = checkedLineObjs.filter((l: any) => l.status !== "approved");
-                                      if (notApproved.length > 0) {
-                                        toast({
-                                          title: `${notApproved.length} line${notApproved.length > 1 ? "s are" : " is"} not yet approved`,
-                                          description: "Lines must be approved before a PR can be raised.",
-                                          variant: "destructive",
-                                        });
+                                      const blocked = checkedLineObjs.filter((l: any) => ["canceled", "obsolete", "pr_raised"].includes(l.status));
+                                      if (blocked.length === checkedLineObjs.length) {
+                                        toast({ title: "No eligible lines", description: "Selected lines are already raised, cancelled or obsolete.", variant: "destructive" });
                                         return;
                                       }
                                       setConfirmBulkRaisePr({ headerId: lst.id, lineIds: Array.from(checkedLines) });
