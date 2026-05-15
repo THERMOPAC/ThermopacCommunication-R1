@@ -540,12 +540,14 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button
-                onClick={handleStep1Next}
-                disabled={!selectedVendorId || unacknowledgedIssues.length > 0}
-              >
-                Next <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+              {vendors.length > 0 && (
+                <Button
+                  onClick={handleStep1Next}
+                  disabled={!selectedVendorId || unacknowledgedIssues.length > 0}
+                >
+                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
             </div>
           </div>
         )}

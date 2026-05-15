@@ -237,11 +237,29 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     return rows;
   }
 
-  try {
-    const allRows = await fullScan();
+  // Helper: one full attempt = invalidate + wait + login + scan
+  async function freshLoginAndScan(): Promise<{ rows: any[]; udfAvailable: boolean }> {
+    await sapSession.invalidate();
+    await new Promise<void>((r) => setTimeout(r, 5000)); // let SAP release stale session
+    await sapSession.getSession();                        // fresh login
+    const rows = await fullScan();
+    const udfAvailable = rows.some((bp) => 'U_ERP_Group' in bp);
+    return { rows, udfAvailable };
+  }
 
-    // Check if U_ERP_Group key was present in any response row
-    const udfAvailable = allRows.some((bp) => 'U_ERP_Group' in bp);
+  try {
+    // First attempt — session was already invalidated+waited above, just scan
+    let allRows = await fullScan();
+    let udfAvailable = allRows.some((bp) => 'U_ERP_Group' in bp);
+
+    // Auto-retry once if UDF field was absent (session contamination recovery)
+    if (!udfAvailable) {
+      console.log('[vendors/test] UDF absent on first scan — auto-retrying with a clean session...');
+      const retry = await freshLoginAndScan();
+      allRows = retry.rows;
+      udfAvailable = retry.udfAvailable;
+    }
+
     const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
 
     // Build classified list — only vendors with a valid U_ERP_Group (R/P/M/I/V/E/B)
