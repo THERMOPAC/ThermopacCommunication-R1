@@ -807,13 +807,18 @@ function deriveJointEfficiencyDefault(radiography: string | null | undefined): s
 
 const TESTING_GROUP_BY_RADIOGRAPHY: Record<string, string> = {
   'FULL RADIOGRAPHY (100% RT)':  'Testing Group 1',
-  'SPOT RADIOGRAPHY (10% RT)':   'Testing Group 1',
-  'SPOT RADIOGRAPHY (5% RT)':    'Testing Group 2',
-  'NO RADIOGRAPHY':              'Testing Group 3',
+  'SPOT RADIOGRAPHY (10% RT)':   'Testing Group 2',
+  'SPOT RADIOGRAPHY (5% RT)':    'Testing Group 3',
+  'NO RADIOGRAPHY':              'Testing Group 4',
 };
 
 function isTestingGroupApplicable(appliedCode: string | null | undefined): boolean {
-  return appliedCode === 'EN 13445' || appliedCode === 'PED 2014/68/EU';
+  return (
+    appliedCode === 'EN 13445' ||
+    appliedCode === 'PED 2014/68/EU' ||
+    appliedCode === 'ASME SEC VIII Div-1' ||
+    appliedCode === 'AS 4343:2014'
+  );
 }
 
 function deriveTestingGroupDefault(radiography: string | null | undefined): string {
