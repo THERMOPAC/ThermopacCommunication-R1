@@ -1438,11 +1438,10 @@ function DocGovernanceTab() {
   const handlePreview = async (pathTemplate: DocPathTemplate) => {
     setPreviewLoading(true);
     try {
-      const res = await apiRequest("POST", "/api/doc-path-templates/preview", {
+      const data = await apiRequest("POST", "/api/doc-path-templates/preview", {
         relativePathTemplate: pathTemplate.relativePathTemplate,
         fileNameTemplate: pathTemplate.fileNameTemplate ?? undefined,
       });
-      const data = await res.json();
       setPreviewResult(data);
     } catch {
       toast({ title: "Preview failed", variant: "destructive" });
@@ -1457,11 +1456,10 @@ function DocGovernanceTab() {
     setSelectedFolderTemplate(ft);
     setFolderPreview(null);
     try {
-      const res = await apiRequest("POST", `/api/folder-templates/${ft.templateCode}/preview`, {
+      const data = await apiRequest("POST", `/api/folder-templates/${ft.templateCode}/preview`, {
         companyCode: "TPEL", cc: "EPC", co: "C10357", cust: "ApolloRefinery",
         fy: "2627", nnn: "017", assemblies: ["Assembly_1", "Assembly_2"],
       });
-      const data = await res.json();
       setFolderPreview(data);
       // Auto-expand top-level
       const topKeys = new Set((data.nodes ?? []).map((n: PreviewNode) => n.relativePath));
