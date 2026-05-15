@@ -1593,8 +1593,8 @@ export function OffersContent() {
                                   <TableCell className="px-2 py-1.5 w-[90px]">
                                     <Input
                                       value={item?.quantity ? parseFloat(item.quantity).toFixed(2) : ""}
-                                      onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true })}
-                                      onBlur={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) form.setValue(`items.${index}.quantity`, v.toFixed(2), { shouldDirty: true }); }}
+                                      onChange={(e) => form.setValue(`items.${index}.quantity`, e.target.value, { shouldDirty: true, shouldTouch: true })}
+                                      onBlur={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) form.setValue(`items.${index}.quantity`, v.toFixed(2), { shouldDirty: true, shouldTouch: true }); }}
                                       className="h-7 text-xs text-right px-1 border-transparent bg-transparent focus:border-input focus:bg-white"
                                       type="number" step="0.01"
                                     />
@@ -1602,7 +1602,7 @@ export function OffersContent() {
                                   <TableCell className="px-2 py-1.5 w-[114px]">
                                     <Input
                                       value={item?.unitPrice || ""}
-                                      onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true })}
+                                      onChange={(e) => form.setValue(`items.${index}.unitPrice`, e.target.value, { shouldDirty: true, shouldTouch: true })}
                                       className="h-7 text-xs text-right px-1 border-transparent bg-transparent focus:border-input focus:bg-white"
                                       type="number" step="0.01"
                                     />
@@ -1610,7 +1610,7 @@ export function OffersContent() {
                                   <TableCell className="px-2 py-1.5 w-[66px]">
                                     <Input
                                       value={item?.discountPercent || ""}
-                                      onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true })}
+                                      onChange={(e) => form.setValue(`items.${index}.discountPercent`, e.target.value, { shouldDirty: true, shouldTouch: true })}
                                       className="h-7 text-xs text-right px-1 border-transparent bg-transparent focus:border-input focus:bg-white"
                                       type="number" step="0.01"
                                     />
