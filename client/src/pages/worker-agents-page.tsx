@@ -1466,8 +1466,9 @@ function DocGovernanceTab() {
       // Auto-expand top-level
       const topKeys = new Set((data.nodes ?? []).map((n: PreviewNode) => n.relativePath));
       setExpandedNodes(topKeys as Set<string>);
-    } catch {
-      toast({ title: "Preview failed", variant: "destructive" });
+    } catch (e: any) {
+      const msg = e?.body?.error ?? e?.message ?? "Server error";
+      toast({ title: "Preview failed", description: msg, variant: "destructive" });
     } finally {
       setFolderPreviewLoading(false);
     }

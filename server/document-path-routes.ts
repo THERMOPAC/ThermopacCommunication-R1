@@ -214,13 +214,16 @@ router.post('/folder-templates/:code/preview', ensureAuthenticated, async (req, 
   try {
     const { companyCode = 'TPEL', cc = 'EPC', co = 'C10357', cust = 'ApolloRefinery',
             fy = '2627', nnn = '017', assemblies = [], projectId = 0 } = req.body;
+    console.log(`[DocPath] folder-template preview: code=${req.params.code} assemblies=${JSON.stringify(assemblies)}`);
     const preview = await previewFolderTree(req.params.code, {
       projectId, companyCode, cc, co, cust, fy, nnn, assemblies,
     });
     if (!preview) return res.status(404).json({ error: 'Template not found' });
+    console.log(`[DocPath] preview OK: ${preview.totalFolders} folders`);
     res.json(preview);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error('[DocPath] folder-template preview error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack?.split('\n').slice(0, 5) });
   }
 });
 
