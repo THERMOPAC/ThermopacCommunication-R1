@@ -999,7 +999,7 @@ export default function EpcBuyListControlPage() {
   const ACTION_META: Record<string, { label: string; icon: any; needsNote: boolean; noteLabel: string; senior?: boolean }> = {
     "submit-for-review": { label: "Submit for Review", icon: Send,        needsNote: false, noteLabel: "Submission Note" },
     "revert-to-draft":   { label: "Revert to Draft",   icon: RotateCcw,   needsNote: false, noteLabel: "" },
-    "review":            { label: "Record Review",     icon: Eye,         needsNote: true,  noteLabel: "Review Note" },
+    "review":            { label: "Approve",            icon: Eye,         needsNote: true,  noteLabel: "Review Note" },
     "release":           { label: "Release",           icon: ShieldCheck, needsNote: false, noteLabel: "Release Note", senior: true },
     "lock":              { label: "Lock",              icon: Lock,        needsNote: false, noteLabel: "",             senior: true },
     "cancel":            { label: "Cancel",            icon: XCircle,     needsNote: true,  noteLabel: "Cancel Reason",      senior: true },
