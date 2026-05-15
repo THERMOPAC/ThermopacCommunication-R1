@@ -1115,7 +1115,7 @@ export function OffersContent() {
                               const subjectToProjectType: Record<string, string> = {
                                 'Continuous Polishing System': 'CPS System',
                                 'Continuous Polishing Sys...': 'CPS System',
-                                'Used Engine Oil Refinery Equipment': 'Re-refining Plant',
+                                'Used Engine Oil Refinery': 'Re-refining Plant',
                                 'Automatic Lubricant Blending Plant': 'Lube Blending Plant',
                                 'Automatic Lubricant Blen...': 'Lube Blending Plant',
                                 'Spares for Refinery Equipment': 'Spares',
