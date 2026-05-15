@@ -70,7 +70,8 @@ import {
   Star,
   PenTool,
   Layers,
-  ClipboardList
+  ClipboardList,
+  FolderTree
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -131,6 +132,7 @@ function Layout({ children }: LayoutProps) {
   const [isDesignMenuOpen, setIsDesignMenuOpen] = useState(false);
   const [isSapPurchasingMenuOpen, setIsSapPurchasingMenuOpen] = useState(false);
   const [isDrawingVerificationMenuOpen, setIsDrawingVerificationMenuOpen] = useState(false);
+  const [isDocumentControlMenuOpen, setIsDocumentControlMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -221,6 +223,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on the Drawing Verification module
   const isOnDvsPage = location.startsWith('/dvs');
 
+  // Check if we're on any Document Control page
+  const isOnDocumentControlPage = location.startsWith('/document-control');
+
 
   
   // Auto-open menus based on current page
@@ -272,7 +277,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnDvsPage && !isDrawingVerificationMenuOpen) {
       setIsDrawingVerificationMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage]);
+
+    if (isOnDocumentControlPage && !isDocumentControlMenuOpen) {
+      setIsDocumentControlMenuOpen(true);
+    }
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage, isOnDocumentControlPage, isDocumentControlMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -326,6 +335,16 @@ function Layout({ children }: LayoutProps) {
         { icon: Settings, label: "Google Calendar Settings", href: "/google-calendar-settings" }
       ]
     }] : []),
+    {
+      icon: FolderTree,
+      label: "Document Control",
+      isSubmenu: true,
+      isOpen: isDocumentControlMenuOpen,
+      toggle: () => setIsDocumentControlMenuOpen(!isDocumentControlMenuOpen),
+      children: [
+        { icon: FolderTree, label: "Doc Governance", href: "/document-control/doc-governance" },
+      ]
+    },
     ...(hasViewPermission("Administration") ? [{ 
       icon: Settings, 
       label: "Administration", 
@@ -617,6 +636,7 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Meetings & Commitments' },
                     { type: 'single', href: '/sap-integration', label: 'SAP B1 Integration' },
                     { type: 'submenu', label: 'SAP Purchasing' },
+                    { type: 'submenu', label: 'Document Control' },
                     { type: 'submenu', label: 'Administration' },
                     { type: 'submenu', label: 'Finance' },
                     { type: 'submenu', label: 'Digital Marketing' },
