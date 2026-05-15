@@ -22,8 +22,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
-  Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw, FlaskConical, EyeOff
+  Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw, FlaskConical, EyeOff,
+  FileSpreadsheet
 } from "lucide-react";
+import { ExcelJS } from "@/lib/excel-client-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Product } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
@@ -749,6 +751,215 @@ export function OffersContent() {
     window.open(`/api/sales-marketing/offers/${offerId}/pdf?priceMode=${priceMode}`, '_blank');
     queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     setPdfDownloadOfferId(null);
+  };
+
+  const handleExportExcel = async () => {
+    const data = form.getValues();
+    const items = data.items || [];
+
+    const discPct = parseFloat(data.discountPercent || "0");
+    const taxPct = parseFloat(data.taxPercent || "0");
+    const subtotal = items.reduce((sum, item) => {
+      if (item.isSubItem) return sum;
+      const qty = parseFloat(item.quantity || "0");
+      const price = parseFloat(item.unitPrice || "0");
+      const disc = parseFloat(item.discountPercent || "0");
+      return sum + qty * price * (1 - disc / 100);
+    }, 0);
+    const discountAmount = subtotal * (discPct / 100);
+    const afterDiscount = subtotal - discountAmount;
+    const taxAmount = afterDiscount * (taxPct / 100);
+    const totalAmount = afterDiscount + taxAmount;
+    const cur = data.currency || "USD";
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "THERMOPAC QMS";
+    const ws = workbook.addWorksheet("Quotation");
+
+    const BRAND_BLUE = "FF1E3A5F";
+    const LIGHT_BLUE = "FFE8F0FE";
+    const ACCENT = "FF2563EB";
+    const SUB_ROW = "FFF8FAFF";
+    const TOTAL_BG = "FFF0F4FF";
+
+    const thin: ExcelJS.Border = { style: "thin", color: { argb: "FFCBD5E1" } };
+    const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
+
+    ws.columns = [
+      { key: "col1", width: 5 },
+      { key: "col2", width: 46 },
+      { key: "col3", width: 10 },
+      { key: "col4", width: 10 },
+      { key: "col5", width: 16 },
+      { key: "col6", width: 10 },
+      { key: "col7", width: 16 },
+    ];
+
+    const addRow = (values: any[], options?: {
+      bold?: boolean; bg?: string; fontSize?: number;
+      height?: number; border?: boolean; align?: ExcelJS.Alignment["horizontal"];
+      numFmt?: string; color?: string;
+    }) => {
+      const row = ws.addRow(values);
+      if (options?.height) row.height = options.height;
+      row.eachCell({ includeEmpty: true }, (cell, col) => {
+        if (col > values.length) return;
+        if (options?.bold) cell.font = { ...cell.font, bold: true };
+        if (options?.fontSize) cell.font = { ...cell.font, size: options.fontSize };
+        if (options?.color) cell.font = { ...cell.font, color: { argb: options.color } };
+        if (options?.bg) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: options.bg } };
+        if (options?.border) cell.border = allBorders;
+        if (options?.align) cell.alignment = { horizontal: options.align, vertical: "middle", wrapText: true };
+        if (options?.numFmt) cell.numFmt = options.numFmt;
+      });
+      return row;
+    };
+
+    const merge = (startRow: number, startCol: number, endRow: number, endCol: number) =>
+      ws.mergeCells(startRow, startCol, endRow, endCol);
+
+    const offerLabel = editingOffer?.offerNumber || "DRAFT";
+    const customerLine = [data.customerName, data.customerEmail].filter(Boolean).join(" · ");
+
+    const r1 = addRow(["THERMOPAC", "", "", "", "", "", ""], { bold: true, bg: BRAND_BLUE, fontSize: 14, height: 28, align: "left", color: "FFFFFFFF" });
+    merge(r1.number, 1, r1.number, 4);
+    r1.getCell(5).value = "QUOTATION";
+    r1.getCell(5).font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+    r1.getCell(5).alignment = { horizontal: "right", vertical: "middle" };
+    merge(r1.number, 5, r1.number, 7);
+    r1.eachCell({ includeEmpty: true }, c => { c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_BLUE } }; });
+
+    addRow([]);
+
+    const infoRows: [string, string, string, string][] = [
+      ["Offer No.", offerLabel, "Date", editingOffer ? fmtDate(editingOffer.offerDate) : fmtDate(new Date().toISOString())],
+      ["Customer", data.customerName || "", "Valid Until", data.validUntil ? fmtDate(data.validUntil) : ""],
+      ["Contact", data.contactPerson || "", "Currency", cur],
+      ["Subject", data.subject || "", "Payment", data.paymentTerms || ""],
+      ["Address", data.customerAddress || "", "Delivery", data.deliveryTerms || ""],
+    ];
+    for (const [lbl1, val1, lbl2, val2] of infoRows) {
+      const r = ws.addRow([lbl1, val1, "", lbl2, "", val2, ""]);
+      r.height = 18;
+      r.getCell(1).font = { bold: true, size: 9, color: { argb: "FF475569" } };
+      r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: LIGHT_BLUE } };
+      r.getCell(2).font = { size: 9 };
+      r.getCell(4).font = { bold: true, size: 9, color: { argb: "FF475569" } };
+      r.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: { argb: LIGHT_BLUE } };
+      r.getCell(6).font = { size: 9 };
+      r.getCell(2).alignment = { vertical: "middle", wrapText: false };
+      r.getCell(6).alignment = { vertical: "middle", wrapText: false };
+      merge(r.number, 2, r.number, 3);
+      merge(r.number, 5, r.number, 5);
+      merge(r.number, 6, r.number, 7);
+      [1, 2, 4, 6].forEach(c => { r.getCell(c).border = allBorders; r.getCell(3).border = allBorders; r.getCell(5).border = allBorders; r.getCell(7).border = allBorders; });
+    }
+
+    addRow([]);
+
+    const hdrs = ["#", "Description", "Unit", "Qty", `Unit Price (${cur})`, "Disc %", `Line Total (${cur})`];
+    const hRow = ws.addRow(hdrs);
+    hRow.height = 20;
+    hRow.eachCell({ includeEmpty: true }, (cell, col) => {
+      cell.font = { bold: true, size: 9, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACCENT } };
+      cell.border = allBorders;
+      cell.alignment = { horizontal: col >= 4 ? "right" : "left", vertical: "middle" };
+    });
+
+    let mainItemSeq = 0;
+    for (const item of items) {
+      const isSubItem = item.isSubItem || false;
+      const qty = parseFloat(item.quantity || "0");
+      const price = parseFloat(item.unitPrice || "0");
+      const disc = parseFloat(item.discountPercent || "0");
+      const lt = isSubItem ? "" : qty * price * (1 - disc / 100);
+      if (!isSubItem) mainItemSeq++;
+      const label = isSubItem ? `   └ ${item.description}` : item.description;
+      const seqLabel = isSubItem ? "" : mainItemSeq;
+      const iRow = ws.addRow([seqLabel, label, item.unit || "", qty || "", price || "", disc > 0 ? disc : "", lt]);
+      iRow.height = 16;
+      iRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+      [2].forEach(c => { iRow.getCell(c).alignment = { horizontal: "left", vertical: "middle", wrapText: true }; });
+      [3, 4, 5, 6, 7].forEach(c => { iRow.getCell(c).alignment = { horizontal: "right", vertical: "middle" }; });
+      if (typeof lt === "number") {
+        iRow.getCell(5).numFmt = "#,##0.00";
+        iRow.getCell(7).numFmt = "#,##0.00";
+      }
+      iRow.getCell(4).numFmt = "#,##0.00";
+      iRow.eachCell({ includeEmpty: true }, cell => {
+        cell.border = allBorders;
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isSubItem ? "FFF5F7FF" : "FFFFFFFF" } };
+        if (isSubItem) cell.font = { size: 9, italic: true, color: { argb: "FF64748B" } };
+        else cell.font = { size: 9 };
+      });
+    }
+
+    addRow([]);
+
+    const totals: [string, number][] = [
+      ["Subtotal", subtotal],
+      ...(discountAmount > 0 ? [[`Discount (${discPct}%)`, -discountAmount] as [string, number]] : []),
+      ...(taxAmount > 0 ? [[`Tax / GST (${taxPct}%)`, taxAmount] as [string, number]] : []),
+    ];
+    for (const [lbl, val] of totals) {
+      const tRow = ws.addRow(["", "", "", "", "", lbl, val]);
+      tRow.height = 16;
+      tRow.getCell(6).font = { size: 9, color: { argb: "FF475569" } };
+      tRow.getCell(6).alignment = { horizontal: "right", vertical: "middle" };
+      tRow.getCell(7).font = { size: 9 };
+      tRow.getCell(7).numFmt = "#,##0.00";
+      tRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
+      tRow.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
+      tRow.getCell(6).fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
+      [6, 7].forEach(c => tRow.getCell(c).border = allBorders);
+      merge(tRow.number, 6, tRow.number, 6);
+    }
+
+    const totRow = ws.addRow(["", "", "", "", "", `TOTAL (${cur})`, totalAmount]);
+    totRow.height = 20;
+    totRow.getCell(6).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+    totRow.getCell(6).fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_BLUE } };
+    totRow.getCell(6).alignment = { horizontal: "right", vertical: "middle" };
+    totRow.getCell(7).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+    totRow.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_BLUE } };
+    totRow.getCell(7).numFmt = "#,##0.00";
+    totRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
+    [6, 7].forEach(c => totRow.getCell(c).border = allBorders);
+
+    if (data.notes) {
+      addRow([]);
+      const nLbl = ws.addRow(["Notes"]);
+      nLbl.getCell(1).font = { bold: true, size: 9 };
+      const nVal = ws.addRow([data.notes]);
+      nVal.getCell(1).font = { size: 9 };
+      nVal.getCell(1).alignment = { wrapText: true };
+      nVal.height = 36;
+      merge(nVal.number, 1, nVal.number, 7);
+    }
+    if (data.termsAndConditions) {
+      addRow([]);
+      const tLbl = ws.addRow(["Terms & Conditions"]);
+      tLbl.getCell(1).font = { bold: true, size: 9 };
+      const tVal = ws.addRow([data.termsAndConditions]);
+      tVal.getCell(1).font = { size: 9 };
+      tVal.getCell(1).alignment = { wrapText: true };
+      tVal.height = 36;
+      merge(tVal.number, 1, tVal.number, 7);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = (data.customerName || "Customer").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20);
+    a.download = `${offerLabel}_${safeName}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Excel exported", description: `${a.download} downloaded.` });
   };
 
   const offersContent = (
@@ -1720,6 +1931,10 @@ export function OffersContent() {
                   </p>
                   <div className="flex items-center gap-2">
                     <Button type="button" variant="ghost" size="sm" className="h-8" onClick={resetAndClose}>Cancel</Button>
+                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                      onClick={handleExportExcel}>
+                      <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
+                    </Button>
                     {editingOffer && (
                       <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5"
                         onClick={() => setPdfDownloadOfferId(editingOffer.id)}>
