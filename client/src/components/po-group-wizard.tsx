@@ -497,9 +497,14 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                         </p>
                       )}
                       {!testResult.udfAvailable && (
-                        <p className="text-red-700 font-medium">
-                          ✗ U_ERP_Group not found in SAP response — vendor_type will be null after full sync.
-                        </p>
+                        <div className="space-y-1">
+                          <p className="text-red-700 font-medium">
+                            ✗ U_ERP_Group field missing from SAP response — no vendors were saved.
+                          </p>
+                          <p className="text-amber-800 text-xs">
+                            This usually means the SAP session was contaminated by a prior operation that used <code>$select</code>. Click <strong>Test SAP</strong> again — the session is now reset and a 4 s cooldown has been applied so the next run should return UDF fields correctly.
+                          </p>
+                        </div>
                       )}
                     </>
                   )}

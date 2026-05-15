@@ -176,8 +176,10 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
   // ── 1. Fresh session — always force a new login for Test SAP ────────────
   // The shared session may have been primed by Full Sync (which uses $select).
   // SAP only returns UDF fields (U_ERP_Group) on fresh sessions without
-  // prior $select usage. Invalidate first to guarantee a clean login.
+  // prior $select usage. Invalidate first, wait 4 s for SAP to release the
+  // stale session server-side (same pattern as forceReset()), then re-login.
   await sapSession.invalidate();
+  await new Promise<void>((r) => setTimeout(r, 4000)); // let SAP release stale session
   try {
     await sapSession.getSession(); // trigger a fresh login
   } catch (err: any) {
@@ -242,21 +244,20 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
     const udfAvailable = allRows.some((bp) => 'U_ERP_Group' in bp);
     const udfFieldName = udfAvailable ? 'U_ERP_Group' : 'not found';
 
-    // Build classified list — all non-excluded vendors (GroupCode 105/106 = employees)
-    // vendor_type set from U_ERP_Group if present and valid, otherwise null
-    // Per governance: vendors with null/blank U_ERP_Group are synced with vendor_type = null
+    // Build classified list — only vendors with a valid U_ERP_Group (R/P/M/I/V/E/B)
+    // Skip GroupCode 105/106 (employees). Vendors with blank/absent U_ERP_Group are NOT saved.
     const classified: VendorTestResult['sample'] = [];
     for (const bp of allRows) {
       if (EXCLUDED_GROUP_CODES.has(Number(bp.GroupCode))) continue;
-      const raw        = bp['U_ERP_Group'];
-      const rawStr     = (raw !== null && raw !== undefined) ? String(raw).trim() : '';
-      const udfRaw     = rawStr || null;
-      const vendorType = (udfRaw && VALID_VENDOR_TYPES.has(udfRaw)) ? udfRaw : null;
+      const raw = bp['U_ERP_Group'];
+      if (raw === null || raw === undefined || String(raw).trim() === '') continue;
+      const udfRaw     = String(raw).trim();
+      const vendorType = VALID_VENDOR_TYPES.has(udfRaw) ? udfRaw : null;
       classified.push({
         cardCode:     String(bp.CardCode ?? ''),
         cardName:     String(bp.CardName ?? ''),
         groupCode:    Number(bp.GroupCode ?? 0),
-        udfRaw:       udfRaw ?? '',
+        udfRaw,
         vendorType,
         excluded:     false,
         upsertedToDb: false,
