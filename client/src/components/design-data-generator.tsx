@@ -796,8 +796,8 @@ function seedLocationAndQty(
 
 const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
   'FULL RADIOGRAPHY (100% RT)':  '1 / 1 / 1',
-  'SPOT RADIOGRAPHY (10% RT)':   '1 / 1 / 1',
-  'SPOT RADIOGRAPHY (5% RT)':    '0.85 / 0.85 / 0.85',
+  'SPOT RADIOGRAPHY (10% RT)':   '0.85 / 0.85 / 0.85',
+  'SPOT RADIOGRAPHY (5% RT)':    '0.75 / 0.75 / 0.75',
   'NO RADIOGRAPHY':              '0.70 / 0.70 / 0.70',
 };
 
