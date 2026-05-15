@@ -1432,7 +1432,11 @@ export function OffersContent() {
                         <SelectItem value="380V / 50 Hz">380V / 50 Hz</SelectItem>
                         <SelectItem value="400V / 50 Hz">400V / 50 Hz</SelectItem>
                         <SelectItem value="415V / 50 Hz">415V / 50 Hz</SelectItem>
+                        <SelectItem value="380V / 60 Hz">380V / 60 Hz</SelectItem>
+                        <SelectItem value="400V / 60 Hz">400V / 60 Hz</SelectItem>
+                        <SelectItem value="415V / 60 Hz">415V / 60 Hz</SelectItem>
                         <SelectItem value="440V / 60 Hz">440V / 60 Hz</SelectItem>
+                        <SelectItem value="460V / 60 Hz">460V / 60 Hz</SelectItem>
                         <SelectItem value="480V / 60 Hz">480V / 60 Hz</SelectItem>
                       </SelectContent>
                     </Select>
