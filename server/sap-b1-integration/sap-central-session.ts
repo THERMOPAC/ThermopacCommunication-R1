@@ -62,6 +62,7 @@ interface SessionStats {
   retryOn1102: number;
   lastLoginAt: string | null;
   lastInvalidateAt: string | null;
+  lastForceResetAt: string | null;
   lastErrorAt: string | null;
   lastError: string | null;
 }
@@ -83,6 +84,7 @@ class SapCentralSession {
     retryOn1102: 0,
     lastLoginAt: null,
     lastInvalidateAt: null,
+    lastForceResetAt: null,
     lastErrorAt: null,
     lastError: null,
   };
@@ -249,6 +251,7 @@ class SapCentralSession {
     this.loginPromise = null;
 
     await this.invalidate();
+    this.stats.lastForceResetAt = new Date().toISOString();
     console.log('[SapCentralSession] forceReset() — waiting 5 s for SAP to release stale session...');
     await new Promise<void>(r => setTimeout(r, 5000));
     await this.initialize();
@@ -259,6 +262,40 @@ class SapCentralSession {
       ok: true,
       message: 'SAP central session force-reset complete. Next request will trigger a fresh login.',
       debugInfo,
+    };
+  }
+
+  /**
+   * Lightweight diagnostics snapshot for attaching to -1102 error payloads.
+   * Safe to call at any time — does not mutate state.
+   */
+  getSessionDiagnostics(): {
+    username: string;
+    isManagerUser: boolean;
+    sessionAlive: boolean;
+    sessionTtlSeconds: number;
+    lastInvalidateAt: string | null;
+    lastForceResetAt: string | null;
+    loginAttempts: number;
+    sessionReuses: number;
+    retryOn1102: number;
+  } {
+    const now = new Date();
+    const alive = !!(this.cookie && this.expiresAt && this.expiresAt > now);
+    const ttl = alive && this.expiresAt
+      ? Math.max(0, Math.floor((this.expiresAt.getTime() - now.getTime()) / 1000))
+      : 0;
+    const username = process.env.SAP_B1_USERNAME || '(not set)';
+    return {
+      username,
+      isManagerUser: username.toLowerCase() === 'manager',
+      sessionAlive:  alive,
+      sessionTtlSeconds: ttl,
+      lastInvalidateAt:  this.stats.lastInvalidateAt,
+      lastForceResetAt:  this.stats.lastForceResetAt,
+      loginAttempts:     this.stats.loginAttempts,
+      sessionReuses:     this.stats.sessionReuses,
+      retryOn1102:       this.stats.retryOn1102,
     };
   }
 
@@ -461,12 +498,19 @@ class SapCentralSession {
         this.expiresAt = null;
 
         if (is1102) {
+          const integUser = process.env.SAP_B1_USERNAME || '(not set)';
+          const isManager = integUser.toLowerCase() === 'manager';
+          const sessionAlive = !!(this.cookie && this.expiresAt && this.expiresAt > new Date());
+          const managerWarn = isManager
+            ? ' ⚠️  Integration user is "Manager" — SAP B1 "Manager" is a shared superuser account and is highly likely to conflict with SAP desktop sessions.'
+            : '';
           const errMsg =
-            'SAP session conflict (-1102): another session is active on the SAP server. ' +
-            'Possible causes: (1) SAP desktop client logged in with same user, ' +
-            '(2) another app/server using same credentials, ' +
-            '(3) previous server process session still alive (wait ~30 min or use Force Reset). ' +
-            'Use POST /api/sap/session/force-reset to attempt recovery.';
+            `SAP session conflict (-1102): a competing session is active for integration user "${integUser}".${managerWarn} ` +
+            `Current server session alive: ${sessionAlive}. ` +
+            `Possible causes: (1) SAP desktop client or SAP Web Client logged in with the same user, ` +
+            `(2) a parallel Full Sync or GRPO request is mid-flight in this server. ` +
+            `Session stats — login_attempts: ${this.stats.loginAttempts}, retry_on_1102: ${this.stats.retryOn1102}. ` +
+            `Use POST /api/sap/session/force-reset to attempt recovery.`;
           console.error(`[SapCentralSession] ❌ login_failure #${this.stats.loginFailures} — -1102: ${errMsg}`);
           throw new Error(errMsg);
         }

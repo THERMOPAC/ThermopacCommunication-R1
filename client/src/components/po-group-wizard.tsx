@@ -464,22 +464,59 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                     ><X className="h-3.5 w-3.5" /></button>
                   </div>
 
-                  {/* Session conflict warning */}
+                  {/* Session conflict panel */}
                   {testResult.sessionConflict && (
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-orange-800 font-medium">
-                        SAP session busy — another sync may be running. Wait 1–2 min or force-clear the lock.
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-orange-800 font-semibold">
+                          SAP session conflict (-1102) — a competing session is blocking login.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0 text-xs border-orange-400 text-orange-700 hover:bg-orange-100 h-7 px-2"
+                          onClick={() => resetMutation.mutate()}
+                          disabled={resetMutation.isPending}
+                        >
+                          {resetMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Force Reset"}
+                        </Button>
+                      </div>
+
+                      {testResult.diagnostics && (
+                        <div className="rounded bg-orange-100 border border-orange-200 p-2 space-y-1 text-xs font-mono">
+                          <div className="flex gap-4 flex-wrap">
+                            <span>
+                              <span className="text-orange-600">integration user:</span>{" "}
+                              <strong className={testResult.diagnostics.isManagerUser ? "text-red-700" : "text-orange-900"}>
+                                {testResult.diagnostics.username}
+                              </strong>
+                            </span>
+                            <span>
+                              <span className="text-orange-600">server session alive:</span>{" "}
+                              <strong>{testResult.diagnostics.sessionAlive ? `yes (${testResult.diagnostics.sessionTtlSeconds}s)` : "no"}</strong>
+                            </span>
+                            <span>
+                              <span className="text-orange-600">retry_on_1102:</span>{" "}
+                              <strong>{testResult.diagnostics.retryOn1102}</strong>
+                            </span>
+                          </div>
+                          <div className="flex gap-4 flex-wrap text-orange-700">
+                            <span>last_invalidate: {testResult.diagnostics.lastInvalidateAt ?? "—"}</span>
+                            <span>last_force_reset: {testResult.diagnostics.lastForceResetAt ?? "—"}</span>
+                          </div>
+                          {testResult.diagnostics.isManagerUser && (
+                            <p className="text-red-700 font-semibold pt-1">
+                              ⚠ Integration user is "Manager" — SAP B1 "Manager" is a shared superuser account. Any active SAP desktop or Web Client session will block this login. Use a dedicated service account.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-orange-700 text-xs">
+                        Likely cause: SAP desktop client or Web Client is open with the same integration user, or a parallel sync is in flight.
+                        Click <strong>Force Reset</strong> to invalidate the server session and retry.
                       </p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 text-xs border-orange-400 text-orange-700 hover:bg-orange-100 h-7 px-2"
-                        onClick={() => resetMutation.mutate()}
-                        disabled={resetMutation.isPending}
-                      >
-                        {resetMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Force Reset"}
-                      </Button>
                     </div>
                   )}
 
@@ -878,9 +915,29 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
 
             {/* Session conflict */}
             {udfDist.sessionConflict && (
-              <p className="text-orange-700 font-medium bg-orange-50 border border-orange-200 rounded p-3">
-                SAP session conflict — wait 1–2 minutes and try again.
-              </p>
+              <div className="bg-orange-50 border border-orange-200 rounded p-3 space-y-2 text-sm">
+                <p className="text-orange-800 font-semibold">
+                  SAP session conflict (-1102) — a competing session is blocking the UDF query.
+                </p>
+                {udfDist.diagnostics && (
+                  <div className="text-xs font-mono text-orange-700 space-y-1">
+                    <div className="flex gap-4 flex-wrap">
+                      <span>
+                        integration user:{" "}
+                        <strong className={udfDist.diagnostics.isManagerUser ? "text-red-700" : ""}>
+                          {udfDist.diagnostics.username}
+                        </strong>
+                      </span>
+                      <span>server session alive: <strong>{udfDist.diagnostics.sessionAlive ? `yes (${udfDist.diagnostics.sessionTtlSeconds}s)` : "no"}</strong></span>
+                      <span>retry_on_1102: <strong>{udfDist.diagnostics.retryOn1102}</strong></span>
+                    </div>
+                    {udfDist.diagnostics.isManagerUser && (
+                      <p className="text-red-700 font-semibold">⚠ Integration user is "Manager" — likely conflicts with active SAP desktop sessions.</p>
+                    )}
+                  </div>
+                )}
+                <p className="text-orange-700 text-xs">Likely cause: SAP desktop or Web Client open with same user. Close the SAP session and retry UDF Check.</p>
+              </div>
             )}
 
             {/* Query error (UDF filter unsupported) */}

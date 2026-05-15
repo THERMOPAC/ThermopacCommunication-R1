@@ -152,6 +152,18 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
 
 
 // ─── SAP test-run: fetch a small sample, verify UDF, upsert, report ────────
+interface SapSessionDiagnostics {
+  username: string;
+  isManagerUser: boolean;
+  sessionAlive: boolean;
+  sessionTtlSeconds: number;
+  lastInvalidateAt: string | null;
+  lastForceResetAt: string | null;
+  loginAttempts: number;
+  sessionReuses: number;
+  retryOn1102: number;
+}
+
 interface VendorTestResult {
   login:          boolean;
   sessionConflict: boolean;
@@ -161,6 +173,7 @@ interface VendorTestResult {
   udfAvailable:   boolean;          // was U_ERP_Group present in the response?
   udfFieldName:   string;           // confirmed SAP field name (or "not found")
   upserted:       number;
+  diagnostics?:   SapSessionDiagnostics;
   sample: Array<{
     cardCode:    string;
     cardName:    string;
@@ -190,6 +203,7 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
         fetched: 0, excluded: 0, eligible: 0,
         udfAvailable: false, udfFieldName: 'not_checked',
         upserted: 0, sample: [],
+        diagnostics: sapSession.getSessionDiagnostics(),
       };
     }
     throw err;
@@ -330,6 +344,7 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
         fetched: 0, excluded: 0, eligible: 0,
         udfAvailable: false, udfFieldName: 'not_checked',
         upserted: 0, sample: [],
+        diagnostics: sapSession.getSessionDiagnostics(),
       };
     }
     throw err;
@@ -388,7 +403,7 @@ async function runUdfDistributionQuery(): Promise<UdfDistributionResult> {
         const body = resp.body?.substring(0, 400) ?? '';
         if (isSapSessionConflict(body)) {
           await sapSession.invalidate();
-          return { login: true, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null };
+          return { login: true, sessionConflict: true, totalClassified: 0, nullOrEmpty: 0, groups: [], queryError: null, diagnostics: sapSession.getSessionDiagnostics() };
         }
         throw new Error(`SAP ${resp.statusCode}: ${body}`);
       }
