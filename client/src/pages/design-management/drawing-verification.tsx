@@ -240,7 +240,7 @@ export default function DrawingVerificationPage() {
                 <SelectContent>
                   <SelectItem value="all">All projects</SelectItem>
                   {(projects as any[]).map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.name}</SelectItem>
+                    <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -366,7 +366,7 @@ export default function DrawingVerificationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {(projects as any[]).map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.name}</SelectItem>
+                    <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

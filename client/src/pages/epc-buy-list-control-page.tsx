@@ -1324,7 +1324,7 @@ export default function EpcBuyListControlPage() {
                   <SelectTrigger><SelectValue placeholder="Select a project…" /></SelectTrigger>
                   <SelectContent>
                     {(projects as any[]).map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.name}</SelectItem>
+                      <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

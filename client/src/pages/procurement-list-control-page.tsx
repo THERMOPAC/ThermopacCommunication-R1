@@ -457,7 +457,7 @@ export default function ProcurementListControlPage() {
               <SelectContent>
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={String(p.id)}>
-                    {p.code} — {p.name}
+                    {p.code} — {(p as any).clientName || (p as any).client_name || p.name}{((p as any).clientName || (p as any).client_name) && ((p as any).clientName || (p as any).client_name) !== p.name ? ` — ${p.name}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
