@@ -11,10 +11,13 @@ import {
   gcsGovernanceTokenRegistry,
   gcsUploadMonitorLog,
   gcsUploadTokens,
+  gcsGovernanceRuleVersions,
+  gcsGovernanceAuditLog,
+  gcsPathMigrationLog,
   insertGcsGovernanceRuleSchema,
   insertGcsGovernanceTokenSchema,
 } from '@shared/schema';
-import { eq, desc, and, or, ilike, isNull, isNotNull, count, sql } from 'drizzle-orm';
+import { eq, desc, and, or, ilike, isNull, isNotNull, count, sql, ne } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import {
   previewPath,
@@ -24,6 +27,7 @@ import {
   getIssuedTokenStats,
   getIssuedTokens,
 } from './services/gcs-governance-service';
+import { runZeroTrustValidation } from './services/gcs-governance-zero-trust';
 
 function superuserOnly(req: Request, res: Response): boolean {
   const user = (req as any).user;
@@ -388,6 +392,388 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       // Never return the token hash — return only safe fields
       const safe = tokens.map(({ tokenHash: _h, ...rest }) => rest);
       res.json(safe);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Phase 0: Rule Version Lifecycle ─────────────────────────────────────
+
+  async function logGovernanceEvent(opts: {
+    eventType: string;
+    ruleId?: number;
+    versionId?: number;
+    actorId?: number;
+    actorRole?: string;
+    payload?: Record<string, unknown>;
+    req: Request;
+  }) {
+    try {
+      const ip = opts.req.ip ?? (opts.req as any).connection?.remoteAddress ?? null;
+      await db.insert(gcsGovernanceAuditLog).values({
+        eventType: opts.eventType,
+        ruleId: opts.ruleId ?? null,
+        versionId: opts.versionId ?? null,
+        actorId: opts.actorId ?? null,
+        actorRole: opts.actorRole ?? null,
+        payload: opts.payload ?? null,
+        ipAddress: typeof ip === 'string' ? ip.slice(0, 45) : null,
+      });
+    } catch (err) {
+      console.warn('[GCS-Governance] Audit log write failed:', err);
+    }
+  }
+
+  // List versions for a rule
+  app.get('/api/gcs-governance/rules/:ruleId/versions', ensureAuthenticated, async (req, res) => {
+    try {
+      const ruleId = parseInt(req.params.ruleId);
+      const versions = await db
+        .select()
+        .from(gcsGovernanceRuleVersions)
+        .where(eq(gcsGovernanceRuleVersions.ruleId, ruleId))
+        .orderBy(desc(gcsGovernanceRuleVersions.versionNumber));
+      res.json(versions);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Create a new draft version
+  app.post('/api/gcs-governance/rules/:ruleId/versions', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.ruleId);
+      const actorId = (req as any).user?.id;
+      const actorRole = (req as any).user?.role;
+
+      const [rule] = await db.select().from(gcsGovernanceRules).where(eq(gcsGovernanceRules.id, ruleId)).limit(1);
+      if (!rule) return res.status(404).json({ error: 'Rule not found' });
+
+      // Check no draft/pending_approval already exists
+      const [existingDraft] = await db
+        .select({ id: gcsGovernanceRuleVersions.id, status: gcsGovernanceRuleVersions.status })
+        .from(gcsGovernanceRuleVersions)
+        .where(and(
+          eq(gcsGovernanceRuleVersions.ruleId, ruleId),
+          sql`status IN ('draft', 'pending_approval')`,
+        ))
+        .limit(1);
+      if (existingDraft) {
+        return res.status(409).json({
+          error: `A version in "${existingDraft.status}" already exists for this rule. ` +
+            `Retire it before creating a new draft.`,
+        });
+      }
+
+      // Determine next version number
+      const [maxRow] = await db
+        .select({ max: sql<number>`MAX(version_number)` })
+        .from(gcsGovernanceRuleVersions)
+        .where(eq(gcsGovernanceRuleVersions.ruleId, ruleId));
+      const nextNum = (maxRow?.max ?? 0) + 1;
+
+      const { pathTemplate, revisionMode, rootPrefix, displayName, notes } = req.body;
+      if (!pathTemplate) return res.status(400).json({ error: 'pathTemplate required' });
+
+      const [created] = await db.insert(gcsGovernanceRuleVersions).values({
+        ruleId,
+        versionNumber: nextNum,
+        pathTemplate: pathTemplate.trim(),
+        revisionMode: revisionMode ?? rule.revisionMode,
+        rootPrefix: (rootPrefix ?? rule.rootPrefix).trim(),
+        displayName: (displayName ?? rule.displayName).trim(),
+        notes: notes ?? null,
+        status: 'draft',
+        createdBy: actorId ?? null,
+      }).returning();
+
+      await logGovernanceEvent({ eventType: 'version_created', ruleId, versionId: created.id, actorId, actorRole, req });
+      res.status(201).json(created);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Submit for approval — runs Zero-Trust validation
+  app.post('/api/gcs-governance/rules/:ruleId/versions/:versionId/submit', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.ruleId);
+      const versionId = parseInt(req.params.versionId);
+      const actorId = (req as any).user?.id;
+      const actorRole = (req as any).user?.role;
+
+      const [version] = await db.select().from(gcsGovernanceRuleVersions)
+        .where(and(eq(gcsGovernanceRuleVersions.id, versionId), eq(gcsGovernanceRuleVersions.ruleId, ruleId)))
+        .limit(1);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      if (version.status !== 'draft') return res.status(400).json({ error: `Can only submit draft versions. Current status: ${version.status}` });
+
+      const validation = await runZeroTrustValidation(versionId, actorId ?? null);
+
+      await db.update(gcsGovernanceRuleVersions)
+        .set({
+          status: 'pending_approval',
+          validationEvidence: validation as any,
+        })
+        .where(eq(gcsGovernanceRuleVersions.id, versionId));
+
+      await logGovernanceEvent({
+        eventType: 'version_submitted',
+        ruleId, versionId, actorId, actorRole,
+        payload: { validationOverall: validation.overall },
+        req,
+      });
+
+      res.json({ ...version, status: 'pending_approval', validationEvidence: validation });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Approve a pending version
+  app.post('/api/gcs-governance/rules/:ruleId/versions/:versionId/approve', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.ruleId);
+      const versionId = parseInt(req.params.versionId);
+      const actorId = (req as any).user?.id;
+      const actorRole = (req as any).user?.role;
+
+      const [version] = await db.select().from(gcsGovernanceRuleVersions)
+        .where(and(eq(gcsGovernanceRuleVersions.id, versionId), eq(gcsGovernanceRuleVersions.ruleId, ruleId)))
+        .limit(1);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      if (version.status !== 'pending_approval') return res.status(400).json({ error: `Can only approve pending_approval versions. Current status: ${version.status}` });
+      if (version.createdBy === actorId) return res.status(403).json({ error: 'The creator of a version cannot approve it. A different Superuser must approve.' });
+
+      const [updated] = await db.update(gcsGovernanceRuleVersions)
+        .set({ status: 'approved', approvedBy: actorId ?? null, approvedAt: new Date() })
+        .where(eq(gcsGovernanceRuleVersions.id, versionId))
+        .returning();
+
+      await logGovernanceEvent({ eventType: 'version_approved', ruleId, versionId, actorId, actorRole, req });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Activate an approved version (atomic — supersedes current active)
+  app.post('/api/gcs-governance/rules/:ruleId/versions/:versionId/activate', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.ruleId);
+      const versionId = parseInt(req.params.versionId);
+      const actorId = (req as any).user?.id;
+      const actorRole = (req as any).user?.role;
+
+      const [version] = await db.select().from(gcsGovernanceRuleVersions)
+        .where(and(eq(gcsGovernanceRuleVersions.id, versionId), eq(gcsGovernanceRuleVersions.ruleId, ruleId)))
+        .limit(1);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      if (version.status !== 'approved') return res.status(400).json({ error: `Can only activate approved versions. Current status: ${version.status}` });
+
+      // Atomic swap
+      await db.transaction(async (tx) => {
+        await tx.update(gcsGovernanceRuleVersions)
+          .set({ status: 'superseded', supersededAt: new Date() })
+          .where(and(
+            eq(gcsGovernanceRuleVersions.ruleId, ruleId),
+            eq(gcsGovernanceRuleVersions.status, 'active'),
+            ne(gcsGovernanceRuleVersions.id, versionId),
+          ));
+
+        await tx.update(gcsGovernanceRuleVersions)
+          .set({ status: 'active', activatedBy: actorId ?? null, activatedAt: new Date() })
+          .where(eq(gcsGovernanceRuleVersions.id, versionId));
+
+        // Also propagate pathTemplate to rule row for monitor-log compatibility (Phase 0)
+        await tx.update(gcsGovernanceRules)
+          .set({ pathTemplate: version.pathTemplate, rootPrefix: version.rootPrefix, updatedAt: new Date() })
+          .where(eq(gcsGovernanceRules.id, ruleId));
+      });
+
+      await logGovernanceEvent({ eventType: 'version_activated', ruleId, versionId, actorId, actorRole, req });
+
+      const [refreshed] = await db.select().from(gcsGovernanceRuleVersions)
+        .where(eq(gcsGovernanceRuleVersions.id, versionId)).limit(1);
+      res.json(refreshed);
+    } catch (err: any) {
+      if (err.message?.includes('unique') || err.message?.includes('gcs_rule_versions_one_active')) {
+        return res.status(409).json({ error: 'Concurrent activation detected. Refresh and try again.' });
+      }
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Rollback — restore a superseded version to approved (then re-activate)
+  app.post('/api/gcs-governance/rules/:ruleId/versions/:versionId/rollback', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.ruleId);
+      const versionId = parseInt(req.params.versionId);
+      const actorId = (req as any).user?.id;
+      const actorRole = (req as any).user?.role;
+
+      const [version] = await db.select().from(gcsGovernanceRuleVersions)
+        .where(and(eq(gcsGovernanceRuleVersions.id, versionId), eq(gcsGovernanceRuleVersions.ruleId, ruleId)))
+        .limit(1);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      if (version.status !== 'superseded') return res.status(400).json({ error: `Can only rollback superseded versions. Current status: ${version.status}` });
+
+      await db.transaction(async (tx) => {
+        // Mark current active as superseded
+        await tx.update(gcsGovernanceRuleVersions)
+          .set({ status: 'superseded', supersededAt: new Date() })
+          .where(and(
+            eq(gcsGovernanceRuleVersions.ruleId, ruleId),
+            eq(gcsGovernanceRuleVersions.status, 'active'),
+          ));
+
+        // Restore target to active
+        await tx.update(gcsGovernanceRuleVersions)
+          .set({ status: 'active', supersededAt: null, activatedBy: actorId ?? null, activatedAt: new Date() })
+          .where(eq(gcsGovernanceRuleVersions.id, versionId));
+
+        // Propagate to rule row
+        await tx.update(gcsGovernanceRules)
+          .set({ pathTemplate: version.pathTemplate, rootPrefix: version.rootPrefix, updatedAt: new Date() })
+          .where(eq(gcsGovernanceRules.id, ruleId));
+      });
+
+      await logGovernanceEvent({
+        eventType: 'version_rolled_back',
+        ruleId, versionId, actorId, actorRole,
+        payload: { fromVersionNumber: version.versionNumber },
+        req,
+      });
+
+      const [refreshed] = await db.select().from(gcsGovernanceRuleVersions)
+        .where(eq(gcsGovernanceRuleVersions.id, versionId)).limit(1);
+      res.json(refreshed);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Retire a draft or approved version
+  app.post('/api/gcs-governance/rules/:ruleId/versions/:versionId/retire', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.ruleId);
+      const versionId = parseInt(req.params.versionId);
+      const actorId = (req as any).user?.id;
+      const actorRole = (req as any).user?.role;
+
+      const [version] = await db.select().from(gcsGovernanceRuleVersions)
+        .where(and(eq(gcsGovernanceRuleVersions.id, versionId), eq(gcsGovernanceRuleVersions.ruleId, ruleId)))
+        .limit(1);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      if (!['draft', 'approved', 'pending_approval'].includes(version.status)) {
+        return res.status(400).json({ error: `Can only retire draft/pending_approval/approved versions. Current status: ${version.status}` });
+      }
+
+      const [updated] = await db.update(gcsGovernanceRuleVersions)
+        .set({ status: 'retired', supersededAt: new Date() })
+        .where(eq(gcsGovernanceRuleVersions.id, versionId))
+        .returning();
+
+      await logGovernanceEvent({ eventType: 'version_retired', ruleId, versionId, actorId, actorRole, req });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Force seed v1 versions for rules missing a version (admin/Superuser only)
+  app.post('/api/gcs-governance/rules/seed-v1-versions', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const allRules = await db.select().from(gcsGovernanceRules);
+      let seeded = 0;
+      for (const rule of allRules) {
+        const existingVersion = await db
+          .select({ id: gcsGovernanceRuleVersions.id })
+          .from(gcsGovernanceRuleVersions)
+          .where(eq(gcsGovernanceRuleVersions.ruleId, rule.id))
+          .limit(1);
+        if (existingVersion.length === 0) {
+          await db.insert(gcsGovernanceRuleVersions).values({
+            ruleId: rule.id,
+            versionNumber: 1,
+            pathTemplate: rule.pathTemplate,
+            revisionMode: rule.revisionMode,
+            rootPrefix: rule.rootPrefix,
+            displayName: rule.displayName,
+            notes: `v1: Admin-triggered Phase 0 bootstrap from rule definition.`,
+            status: 'active',
+            activatedAt: new Date(),
+            createdBy: (req as any).user?.id ?? null,
+          });
+          seeded++;
+        }
+      }
+      res.json({ seeded, total: allRules.length, message: `Seeded ${seeded} v1 version(s)` });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Migration Log ────────────────────────────────────────────────────────
+
+  app.get('/api/gcs-governance/migration-log', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const { status, ruleId } = req.query;
+      const conditions: any[] = [];
+      if (status) conditions.push(eq(gcsPathMigrationLog.status, status as string));
+      if (ruleId) conditions.push(eq(gcsPathMigrationLog.ruleId, parseInt(ruleId as string)));
+
+      const rows = conditions.length
+        ? await db.select().from(gcsPathMigrationLog).where(and(...conditions)).orderBy(gcsPathMigrationLog.ruleId)
+        : await db.select().from(gcsPathMigrationLog).orderBy(gcsPathMigrationLog.ruleId);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch('/api/gcs-governance/migration-log/:id', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const id = parseInt(req.params.id);
+      const { status, notes } = req.body;
+      const updates: any = {};
+      if (status) updates.status = status;
+      if (notes !== undefined) updates.notes = notes;
+      if (status === 'done') {
+        updates.migratedAt = new Date();
+        updates.migratedBy = (req as any).user?.id ?? null;
+      }
+      const [updated] = await db.update(gcsPathMigrationLog)
+        .set(updates)
+        .where(eq(gcsPathMigrationLog.id, id))
+        .returning();
+      if (!updated) return res.status(404).json({ error: 'Migration log entry not found' });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Governance audit log (read-only for Superuser)
+  app.get('/api/gcs-governance/audit-log', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const { ruleId, limit = '100' } = req.query;
+      const conditions: any[] = [];
+      if (ruleId) conditions.push(eq(gcsGovernanceAuditLog.ruleId, parseInt(ruleId as string)));
+      const rows = conditions.length
+        ? await db.select().from(gcsGovernanceAuditLog).where(and(...conditions)).orderBy(desc(gcsGovernanceAuditLog.eventAt)).limit(parseInt(limit as string))
+        : await db.select().from(gcsGovernanceAuditLog).orderBy(desc(gcsGovernanceAuditLog.eventAt)).limit(parseInt(limit as string));
+      res.json(rows);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

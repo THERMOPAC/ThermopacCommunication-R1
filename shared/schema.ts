@@ -14172,7 +14172,8 @@ export const gcsGovernanceRules = pgTable('gcs_governance_rules', {
   notes:            text('notes'),
   createdBy:        integer('created_by'),
   createdAt:        timestamp('created_at').notNull().defaultNow(),
-  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+  updatedAt:           timestamp('updated_at').notNull().defaultNow(),
+  routingDeprecatedAt: timestamp('routing_deprecated_at'),
 });
 export type GcsGovernanceRule = typeof gcsGovernanceRules.$inferSelect;
 export const insertGcsGovernanceRuleSchema = createInsertSchema(gcsGovernanceRules).omit({ id: true, createdAt: true, updatedAt: true });
@@ -14197,7 +14198,35 @@ export type GcsUploadMonitorLog = typeof gcsUploadMonitorLog.$inferSelect;
 export const insertGcsUploadMonitorLogSchema = createInsertSchema(gcsUploadMonitorLog).omit({ id: true, detectedAt: true });
 export type InsertGcsUploadMonitorLog = z.infer<typeof insertGcsUploadMonitorLogSchema>;
 
-// 4. Upload Tokens — short-lived pre-authorisation tokens (Phase 1)
+// 4. Rule Versions — immutable versioned snapshots of pathTemplate + routing config (Phase 0)
+export const gcsGovernanceRuleVersions = pgTable('gcs_governance_rule_versions', {
+  id:                 serial('id').primaryKey(),
+  ruleId:             integer('rule_id').notNull().references(() => gcsGovernanceRules.id),
+  versionNumber:      integer('version_number').notNull(),
+  pathTemplate:       text('path_template').notNull(),
+  revisionMode:       varchar('revision_mode', { length: 20 }).notNull().default('none'),
+  rootPrefix:         varchar('root_prefix', { length: 100 }).notNull(),
+  displayName:        text('display_name').notNull(),
+  notes:              text('notes'),
+  status:             varchar('status', { length: 20 }).notNull().default('draft'),
+  createdBy:          integer('created_by'),
+  createdAt:          timestamp('created_at').notNull().defaultNow(),
+  approvedBy:         integer('approved_by'),
+  approvedAt:         timestamp('approved_at'),
+  activatedBy:        integer('activated_by'),
+  activatedAt:        timestamp('activated_at'),
+  supersededAt:       timestamp('superseded_at'),
+  validationEvidence: jsonb('validation_evidence'),
+  diffFromPrev:       jsonb('diff_from_prev'),
+}, (t) => ([
+  uniqueIndex('gcs_rule_versions_one_active').on(t.ruleId).where(sql`status = 'active'`),
+  uniqueIndex('gcs_rule_versions_rule_ver_num').on(t.ruleId, t.versionNumber),
+]));
+export type GcsGovernanceRuleVersion = typeof gcsGovernanceRuleVersions.$inferSelect;
+export const insertGcsGovernanceRuleVersionSchema = createInsertSchema(gcsGovernanceRuleVersions).omit({ id: true, createdAt: true });
+export type InsertGcsGovernanceRuleVersion = z.infer<typeof insertGcsGovernanceRuleVersionSchema>;
+
+// 5. Upload Tokens — short-lived pre-authorisation tokens (Phase 1)
 export const gcsUploadTokens = pgTable('gcs_upload_tokens', {
   id:               serial('id').primaryKey(),
   ruleId:           integer('rule_id').notNull().references(() => gcsGovernanceRules.id),
@@ -14215,7 +14244,37 @@ export const gcsUploadTokens = pgTable('gcs_upload_tokens', {
   usedAt:           timestamp('used_at'),
   usedForPath:      text('used_for_path'),
   notes:            text('notes'),
+  versionId:        integer('version_id').references(() => gcsGovernanceRuleVersions.id),
 });
 export type GcsUploadToken = typeof gcsUploadTokens.$inferSelect;
 export const insertGcsUploadTokenSchema = createInsertSchema(gcsUploadTokens).omit({ id: true, issuedAt: true });
 export type InsertGcsUploadToken = z.infer<typeof insertGcsUploadTokenSchema>;
+
+// 6. Governance Audit Log — records all version lifecycle events (Phase 0)
+export const gcsGovernanceAuditLog = pgTable('gcs_governance_audit_log', {
+  id:          serial('id').primaryKey(),
+  eventType:   varchar('event_type', { length: 60 }).notNull(),
+  ruleId:      integer('rule_id').references(() => gcsGovernanceRules.id),
+  versionId:   integer('version_id').references(() => gcsGovernanceRuleVersions.id),
+  actorId:     integer('actor_id'),
+  actorRole:   varchar('actor_role', { length: 50 }),
+  eventAt:     timestamp('event_at').notNull().defaultNow(),
+  payload:     jsonb('payload'),
+  ipAddress:   varchar('ip_address', { length: 45 }),
+});
+export type GcsGovernanceAuditLog = typeof gcsGovernanceAuditLog.$inferSelect;
+
+// 7. Path Migration Log — tracks every hardcoded route pending migration (Phase 0)
+export const gcsPathMigrationLog = pgTable('gcs_path_migration_log', {
+  id:              serial('id').primaryKey(),
+  ruleId:          integer('rule_id').notNull().references(() => gcsGovernanceRules.id),
+  routeFile:       varchar('route_file', { length: 200 }).notNull(),
+  routeFunction:   varchar('route_function', { length: 100 }),
+  oldMethod:       varchar('old_method', { length: 100 }).notNull(),
+  migrationPhase:  varchar('migration_phase', { length: 10 }).notNull(),
+  migratedAt:      timestamp('migrated_at'),
+  migratedBy:      integer('migrated_by'),
+  status:          varchar('status', { length: 20 }).notNull().default('pending'),
+  notes:           text('notes'),
+});
+export type GcsPathMigrationLog = typeof gcsPathMigrationLog.$inferSelect;

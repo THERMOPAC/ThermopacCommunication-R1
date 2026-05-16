@@ -10,6 +10,7 @@ import {
   gcsGovernanceTokenRegistry,
   gcsUploadMonitorLog,
   gcsUploadTokens,
+  gcsGovernanceRuleVersions,
   type GcsGovernanceRule,
   type GcsUploadToken,
   type InsertGcsUploadMonitorLog,
@@ -139,7 +140,7 @@ export async function getMonitorStats(): Promise<{
   violations: number;
   unmatched: number;
 }> {
-  const [row] = await db.execute(sql`
+  const result = await db.execute(sql`
     SELECT
       COUNT(*)::int                                                        AS total,
       COUNT(*) FILTER (WHERE path_conforms = true)::int                   AS conforming,
@@ -147,6 +148,7 @@ export async function getMonitorStats(): Promise<{
       COUNT(*) FILTER (WHERE matched_rule_id IS NULL)::int                AS unmatched
     FROM gcs_upload_monitor_log
   `);
+  const [row] = result.rows as any[];
   return {
     total:      Number((row as any).total ?? 0),
     conforming: Number((row as any).conforming ?? 0),
@@ -312,7 +314,36 @@ export async function seedGovernanceData(): Promise<void> {
       }
     }
 
-    console.log('[GCS-Governance] Seed complete — tokens and rules loaded.');
+    // ── Seed v1 versions for any rules that don't have a version yet ──────
+    const allRules = await db.select().from(gcsGovernanceRules);
+    let seededVersions = 0;
+    for (const rule of allRules) {
+      const existingVersion = await db
+        .select({ id: gcsGovernanceRuleVersions.id })
+        .from(gcsGovernanceRuleVersions)
+        .where(eq(gcsGovernanceRuleVersions.ruleId, rule.id))
+        .limit(1);
+
+      if (existingVersion.length === 0) {
+        await db.insert(gcsGovernanceRuleVersions).values({
+          ruleId: rule.id,
+          versionNumber: 1,
+          pathTemplate: rule.pathTemplate,
+          revisionMode: rule.revisionMode,
+          rootPrefix: rule.rootPrefix,
+          displayName: rule.displayName,
+          notes: `v1: Phase 0 bootstrap from rule definition. ${rule.notes ?? ''}`.trim(),
+          status: 'active',
+          activatedAt: new Date(),
+        });
+        seededVersions++;
+      }
+    }
+    if (seededVersions > 0) {
+      console.log(`[GCS-Governance] Seeded ${seededVersions} v1 version(s) for rules without any version.`);
+    }
+
+    console.log('[GCS-Governance] Seed complete — tokens, rules, and v1 versions loaded.');
   } catch (err) {
     console.warn('[GCS-Governance] Seed failed (non-fatal):', err);
   }
@@ -336,18 +367,37 @@ export async function issueUploadToken(params: {
   expiresAt: Date;
   tokenId: number;
   unresolvedTokens: string[];
+  versionId: number;
+  versionNumber: number;
 }> {
   const { ruleId, tokenValues, issuedTo, ttlSeconds = 300, notes } = params;
 
-  // Load the rule
+  // Load the governance rule (identity: moduleKey, documentType, active check)
   const [rule] = await db.select().from(gcsGovernanceRules).where(eq(gcsGovernanceRules.id, ruleId)).limit(1);
   if (!rule) throw new Error(`Governance rule ${ruleId} not found`);
   if (!rule.active) throw new Error(`Governance rule ${ruleId} is inactive`);
 
-  // Resolve the path template
-  const { resolved, unresolvedTokens } = previewPath(rule.pathTemplate, tokenValues);
+  // Load the active VERSION — sole source of pathTemplate and rootPrefix (Phase 0+)
+  const [version] = await db
+    .select()
+    .from(gcsGovernanceRuleVersions)
+    .where(and(
+      eq(gcsGovernanceRuleVersions.ruleId, ruleId),
+      eq(gcsGovernanceRuleVersions.status, 'active'),
+    ))
+    .limit(1);
 
-  // Require all template tokens to be resolved
+  if (!version) {
+    throw new Error(
+      `[GCS Governance] No active version found for rule ${ruleId} ` +
+      `(${rule.moduleKey}/${rule.documentType}). Upload rejected — ` +
+      `run seed-v1 or create and activate a version first.`,
+    );
+  }
+
+  // Resolve the path template from the active version
+  const { resolved, unresolvedTokens } = previewPath(version.pathTemplate, tokenValues);
+
   if (unresolvedTokens.length > 0) {
     throw new Error(`Unresolved tokens: ${unresolvedTokens.map(t => `{${t}}`).join(', ')}. Provide values for all tokens.`);
   }
@@ -363,7 +413,7 @@ export async function issueUploadToken(params: {
     ruleId,
     tokenHash,
     resolvedPath: resolved,
-    rootPrefix: rule.rootPrefix,
+    rootPrefix: version.rootPrefix,
     moduleKey: rule.moduleKey,
     documentType: rule.documentType,
     tokenValues: tokenValues as any,
@@ -372,9 +422,18 @@ export async function issueUploadToken(params: {
     issuedTo,
     expiresAt,
     notes: notes ?? null,
+    versionId: version.id,
   }).returning();
 
-  return { rawToken, resolvedPath: resolved, expiresAt, tokenId: inserted.id, unresolvedTokens };
+  return {
+    rawToken,
+    resolvedPath: resolved,
+    expiresAt,
+    tokenId: inserted.id,
+    unresolvedTokens,
+    versionId: version.id,
+    versionNumber: version.versionNumber,
+  };
 }
 
 // ─── Phase 1: Upload Token Validation ────────────────────────────────────
@@ -419,7 +478,7 @@ export async function getIssuedTokenStats(): Promise<{
   expired: number;
 }> {
   const now = new Date();
-  const [row] = await db.execute(sql`
+  const tokenResult = await db.execute(sql`
     SELECT
       COUNT(*)::int                                                                       AS total,
       COUNT(*) FILTER (WHERE used_at IS NULL AND expires_at > NOW())::int               AS live,
@@ -427,6 +486,7 @@ export async function getIssuedTokenStats(): Promise<{
       COUNT(*) FILTER (WHERE used_at IS NULL AND expires_at <= NOW())::int              AS expired
     FROM gcs_upload_tokens
   `);
+  const [row] = tokenResult.rows as any[];
   return {
     total:   Number((row as any).total   ?? 0),
     live:    Number((row as any).live    ?? 0),

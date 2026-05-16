@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, Database, List, Plus, Eye, EyeOff, ChevronRight,
   AlertTriangle, CheckCircle, HelpCircle, RefreshCw, Info,
-  Edit2, X, ChevronDown, FileText, Settings, Key, Activity,
-  Ticket, Copy, Clock, Check, Zap, Lock,
+  Edit2, X, ChevronDown, ChevronUp, FileText, Settings, Key, Activity,
+  Ticket, Copy, Clock, Check, Zap, Lock, GitBranch, History,
+  ShieldCheck, AlertCircle, ArrowUpDown,
 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,46 @@ interface GcsGovernanceRule {
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
+  routingDeprecatedAt: string | null;
+}
+
+interface GcsRuleVersion {
+  id: number;
+  ruleId: number;
+  versionNumber: number;
+  pathTemplate: string;
+  revisionMode: string;
+  rootPrefix: string;
+  displayName: string;
+  notes: string | null;
+  status: string;
+  createdBy: number | null;
+  createdAt: string;
+  approvedBy: number | null;
+  approvedAt: string | null;
+  activatedBy: number | null;
+  activatedAt: string | null;
+  supersededAt: string | null;
+  validationEvidence: {
+    overall: 'PASS' | 'FAIL';
+    checks: { checkName: string; passed: boolean; detail: string; highImpact?: boolean }[];
+    ranAt: string;
+    syntheticExamples?: string[];
+  } | null;
+  diffFromPrev: Record<string, unknown> | null;
+}
+
+interface MigrationLogEntry {
+  id: number;
+  ruleId: number;
+  routeFile: string;
+  routeFunction: string | null;
+  oldMethod: string;
+  migrationPhase: string;
+  migratedAt: string | null;
+  migratedBy: number | null;
+  status: string;
+  notes: string | null;
 }
 
 interface GcsGovernanceToken {
@@ -661,6 +702,379 @@ function TokenForm({ open, onClose, initial }: { open: boolean; onClose: () => v
   );
 }
 
+// ─── Version Status Badge ──────────────────────────────────────────────────
+
+const VERSION_STATUS_STYLES: Record<string, string> = {
+  draft:            'bg-slate-100 text-slate-600 border-slate-200',
+  pending_approval: 'bg-amber-100 text-amber-700 border-amber-300',
+  approved:         'bg-blue-100 text-blue-700 border-blue-300',
+  active:           'bg-green-100 text-green-700 border-green-300',
+  superseded:       'bg-gray-100 text-gray-500 border-gray-200',
+  retired:          'bg-red-50 text-red-400 border-red-200',
+};
+
+function VersionStatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${VERSION_STATUS_STYLES[status] ?? 'bg-slate-100 text-slate-600'}`}>
+      {status === 'active' && <Zap className="w-2.5 h-2.5" />}
+      {status === 'approved' && <ShieldCheck className="w-2.5 h-2.5" />}
+      {status === 'pending_approval' && <Clock className="w-2.5 h-2.5" />}
+      {status.replace(/_/g, ' ')}
+    </span>
+  );
+}
+
+// ─── ZeroTrust Validation Evidence Panel ──────────────────────────────────
+
+function ValidationEvidencePanel({ evidence }: { evidence: GcsRuleVersion['validationEvidence'] }) {
+  if (!evidence) return null;
+  return (
+    <div className={`rounded-lg border p-3 mt-2 ${evidence.overall === 'PASS' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+      <div className="flex items-center gap-2 mb-2">
+        {evidence.overall === 'PASS'
+          ? <CheckCircle className="w-4 h-4 text-green-600" />
+          : <AlertCircle className="w-4 h-4 text-red-600" />
+        }
+        <span className={`text-xs font-bold ${evidence.overall === 'PASS' ? 'text-green-700' : 'text-red-700'}`}>
+          Zero-Trust Validation: {evidence.overall}
+        </span>
+        <span className="text-[10px] text-slate-400 ml-auto">{evidence.ranAt ? fmtDateTime(evidence.ranAt) : ''}</span>
+      </div>
+      <div className="space-y-1">
+        {evidence.checks.map((c, i) => (
+          <div key={i} className="flex items-start gap-2">
+            {c.passed
+              ? <Check className="w-3 h-3 text-green-600 mt-0.5 shrink-0" />
+              : <X className="w-3 h-3 text-red-500 mt-0.5 shrink-0" />
+            }
+            <div className="flex-1 min-w-0">
+              <span className={`text-[10px] font-mono font-medium ${c.passed ? 'text-slate-600' : 'text-red-700'}`}>{c.checkName}</span>
+              {c.highImpact && <span className="ml-1 text-[10px] font-bold text-amber-600">HIGH_IMPACT</span>}
+              <p className={`text-[10px] mt-0.5 break-words ${c.passed ? 'text-slate-500' : 'text-red-600'}`}>{c.detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      {evidence.syntheticExamples && evidence.syntheticExamples.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-slate-200">
+          <p className="text-[10px] font-medium text-slate-500 mb-1">Synthetic examples:</p>
+          {evidence.syntheticExamples.slice(0, 2).map((p, i) => (
+            <p key={i} className="text-[10px] font-mono text-slate-600 break-all">{p}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Rule Version Form (Sheet) ─────────────────────────────────────────────
+
+function RuleVersionForm({ open, onClose, rule }: {
+  open: boolean; onClose: () => void; rule: GcsGovernanceRule;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: versions = [] } = useQuery<GcsRuleVersion[]>({
+    queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'],
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/rules/${rule.id}/versions`),
+    enabled: open,
+  });
+
+  const activeVersion = versions.find(v => v.status === 'active');
+
+  const [form, setForm] = useState({
+    pathTemplate: activeVersion?.pathTemplate ?? rule.pathTemplate,
+    revisionMode: activeVersion?.revisionMode ?? rule.revisionMode,
+    rootPrefix:   activeVersion?.rootPrefix   ?? rule.rootPrefix,
+    displayName:  rule.displayName,
+    notes: '',
+  });
+
+  useEffect(() => {
+    if (open) {
+      const av = versions.find(v => v.status === 'active');
+      setForm({
+        pathTemplate: av?.pathTemplate ?? rule.pathTemplate,
+        revisionMode: av?.revisionMode ?? rule.revisionMode,
+        rootPrefix:   av?.rootPrefix   ?? rule.rootPrefix,
+        displayName:  rule.displayName,
+        notes: '',
+      });
+    }
+  }, [open, versions]);
+
+  const mutation = useMutation({
+    mutationFn: (data: typeof form) => apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/versions`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'] });
+      toast({ title: 'Draft version created' });
+      onClose();
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const templateChanged = form.pathTemplate !== (activeVersion?.pathTemplate ?? rule.pathTemplate);
+  const rootChanged = form.rootPrefix !== (activeVersion?.rootPrefix ?? rule.rootPrefix);
+
+  return (
+    <Sheet open={open} onOpenChange={v => !v && onClose()}>
+      <SheetContent side="right" className="w-[480px] overflow-y-auto">
+        <SheetHeader className="mb-4">
+          <SheetTitle className="flex items-center gap-2">
+            <GitBranch className="w-5 h-5 text-indigo-600" /> Create New Version Draft
+          </SheetTitle>
+          <SheetDescription>
+            Rule #{rule.id} · {rule.moduleKey}/{rule.documentType}. New versions start as drafts and must pass Zero-Trust validation before activation.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4">
+          {activeVersion && (
+            <div className="bg-slate-50 border rounded-lg p-3 text-[11px]">
+              <p className="font-medium text-slate-600 mb-1">Current active: v{activeVersion.versionNumber}</p>
+              <p className="font-mono text-slate-500 break-all">{activeVersion.pathTemplate}</p>
+            </div>
+          )}
+
+          <div>
+            <Label className="text-xs">Path Template *</Label>
+            <Textarea
+              className={`text-xs font-mono resize-none mt-1 ${templateChanged ? 'border-indigo-400 bg-indigo-50/30' : ''}`}
+              rows={3}
+              value={form.pathTemplate}
+              onChange={e => setForm(p => ({ ...p, pathTemplate: e.target.value }))}
+              placeholder="TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/..."
+            />
+            {templateChanged && <p className="text-[10px] text-indigo-600 mt-1">Changed from current active version</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Root Prefix *</Label>
+              <Input className={`h-8 text-xs font-mono mt-1 ${rootChanged ? 'border-amber-400' : ''}`}
+                value={form.rootPrefix}
+                onChange={e => setForm(p => ({ ...p, rootPrefix: e.target.value }))}
+              />
+              {rootChanged && <p className="text-[10px] text-amber-600 mt-1">⚠ Root changed — high impact</p>}
+            </div>
+            <div>
+              <Label className="text-xs">Revision Mode</Label>
+              <Select value={form.revisionMode} onValueChange={v => setForm(p => ({ ...p, revisionMode: v }))}>
+                <SelectTrigger className="h-8 text-xs mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['none', 'numeric', 'alphabetic'].map(m => <SelectItem key={m} value={m} className="text-xs capitalize">{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Change Notes *</Label>
+            <Textarea className="text-xs resize-none mt-1" rows={2}
+              value={form.notes}
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+              placeholder="Describe what changed and why (required for audit trail)"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button className="flex-1" disabled={mutation.isPending || !form.pathTemplate || !form.notes.trim()}
+              onClick={() => mutation.mutate(form)}>
+              {mutation.isPending ? 'Creating…' : 'Create Draft'}
+            </Button>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── Rule Version Panel (expandable per-rule card section) ─────────────────
+
+function RuleVersionPanel({ rule }: { rule: GcsGovernanceRule }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [expanded, setExpanded] = useState(false);
+  const [showNewVersionForm, setShowNewVersionForm] = useState(false);
+  const [confirmState, setConfirmState] = useState<{ action: string; versionId: number; input: string } | null>(null);
+  const [showEvidence, setShowEvidence] = useState<number | null>(null);
+
+  const { data: versions = [], isLoading } = useQuery<GcsRuleVersion[]>({
+    queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'],
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/rules/${rule.id}/versions`),
+    enabled: expanded,
+  });
+
+  const activeVersion = versions.find(v => v.status === 'active');
+  const pendingCount = versions.filter(v => ['draft', 'pending_approval', 'approved'].includes(v.status)).length;
+
+  const lifecycleMutation = useMutation({
+    mutationFn: ({ versionId, action }: { versionId: number; action: string }) =>
+      apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/versions/${versionId}/${action}`, {}),
+    onSuccess: (_, { action }) => {
+      qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'] });
+      qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules'] });
+      setConfirmState(null);
+      toast({ title: `Version ${action.replace(/_/g, ' ')} successful` });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const retireMutation = useMutation({
+    mutationFn: (versionId: number) =>
+      apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/versions/${versionId}/retire`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'] });
+      toast({ title: 'Version retired' });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const handleConfirmedAction = (action: string, versionId: number, input: string) => {
+    const expected = action === 'activate' ? 'ACTIVATE' : 'ROLLBACK';
+    if (input !== expected) {
+      toast({ title: `Type "${expected}" exactly to confirm`, variant: 'destructive' });
+      return;
+    }
+    lifecycleMutation.mutate({ versionId, action });
+  };
+
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2">
+      <button
+        className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-slate-700 select-none w-full"
+        onClick={() => setExpanded(v => !v)}
+      >
+        {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        <GitBranch className="w-3 h-3" />
+        <span>Version History</span>
+        {activeVersion && (
+          <span className="ml-1 font-mono text-[10px] text-green-700 bg-green-100 px-1 rounded">v{activeVersion.versionNumber} active</span>
+        )}
+        {pendingCount > 0 && (
+          <span className="ml-1 text-[10px] text-amber-600 bg-amber-100 px-1 rounded">{pendingCount} pending</span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          {isLoading && <p className="text-[11px] text-slate-400">Loading versions…</p>}
+
+          {!isLoading && versions.length === 0 && (
+            <p className="text-[11px] text-slate-400">No versions yet. Create a v1 via seed or the button below.</p>
+          )}
+
+          {versions.map(ver => (
+            <div key={ver.id} className={`rounded-lg border p-2 ${ver.status === 'active' ? 'border-green-200 bg-green-50/30' : ver.status === 'pending_approval' ? 'border-amber-200 bg-amber-50/20' : 'bg-slate-50/50 border-slate-100'}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-semibold text-slate-700">v{ver.versionNumber}</span>
+                <VersionStatusBadge status={ver.status} />
+                <span className="text-[10px] text-slate-400 ml-auto">{fmtDateTime(ver.createdAt)}</span>
+              </div>
+
+              <p className="text-[10px] font-mono text-slate-500 break-all mt-1">{ver.pathTemplate}</p>
+
+              {ver.notes && (
+                <p className="text-[10px] text-slate-500 mt-1 italic">{ver.notes.replace(/^v1: Phase 0 bootstrap from rule definition\. ?/, '').trim() || ver.notes}</p>
+              )}
+
+              {/* Evidence toggle */}
+              {ver.validationEvidence && (
+                <button className="text-[10px] text-blue-600 hover:underline mt-1" onClick={() => setShowEvidence(showEvidence === ver.id ? null : ver.id)}>
+                  {showEvidence === ver.id ? 'Hide' : 'Show'} validation evidence ({ver.validationEvidence.overall})
+                </button>
+              )}
+              {showEvidence === ver.id && <ValidationEvidencePanel evidence={ver.validationEvidence} />}
+
+              {/* Confirm input (ACTIVATE/ROLLBACK) */}
+              {confirmState?.versionId === ver.id && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Input
+                    className="h-7 text-xs font-mono w-32"
+                    placeholder={confirmState.action === 'activate' ? 'ACTIVATE' : 'ROLLBACK'}
+                    value={confirmState.input}
+                    onChange={e => setConfirmState(s => s ? { ...s, input: e.target.value } : s)}
+                  />
+                  <Button size="sm" className="h-7 text-[11px]"
+                    disabled={lifecycleMutation.isPending}
+                    onClick={() => handleConfirmedAction(confirmState.action, confirmState.versionId, confirmState.input)}>
+                    Confirm
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setConfirmState(null)}>Cancel</Button>
+                </div>
+              )}
+
+              {/* Action buttons per status */}
+              <div className="flex gap-1 mt-2 flex-wrap">
+                {ver.status === 'draft' && (
+                  <>
+                    <Button size="sm" variant="outline" className="h-6 text-[10px] px-2"
+                      disabled={lifecycleMutation.isPending}
+                      onClick={() => lifecycleMutation.mutate({ versionId: ver.id, action: 'submit' })}>
+                      Submit for Approval
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-red-500 hover:text-red-700"
+                      disabled={retireMutation.isPending}
+                      onClick={() => retireMutation.mutate(ver.id)}>
+                      Retire
+                    </Button>
+                  </>
+                )}
+                {ver.status === 'pending_approval' && (
+                  <>
+                    <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 border-blue-400 text-blue-700"
+                      disabled={lifecycleMutation.isPending}
+                      onClick={() => lifecycleMutation.mutate({ versionId: ver.id, action: 'approve' })}>
+                      Approve
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-red-500 hover:text-red-700"
+                      disabled={retireMutation.isPending}
+                      onClick={() => retireMutation.mutate(ver.id)}>
+                      Retire
+                    </Button>
+                  </>
+                )}
+                {ver.status === 'approved' && (
+                  <>
+                    <Button size="sm" className="h-6 text-[10px] px-2 bg-green-700 hover:bg-green-800"
+                      disabled={lifecycleMutation.isPending || !!confirmState}
+                      onClick={() => setConfirmState({ action: 'activate', versionId: ver.id, input: '' })}>
+                      Activate
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-red-500 hover:text-red-700"
+                      disabled={retireMutation.isPending}
+                      onClick={() => retireMutation.mutate(ver.id)}>
+                      Retire
+                    </Button>
+                  </>
+                )}
+                {ver.status === 'superseded' && (
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 border-amber-400 text-amber-700"
+                    disabled={lifecycleMutation.isPending || !!confirmState}
+                    onClick={() => setConfirmState({ action: 'rollback', versionId: ver.id, input: '' })}>
+                    Rollback to This
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1 w-full"
+            onClick={() => setShowNewVersionForm(true)}>
+            <Plus className="w-3 h-3" /> Create New Version Draft
+          </Button>
+        </div>
+      )}
+
+      <RuleVersionForm
+        open={showNewVersionForm}
+        onClose={() => setShowNewVersionForm(false)}
+        rule={rule}
+      />
+    </div>
+  );
+}
+
 // ─── Tab: Governance Rules ─────────────────────────────────────────────────
 
 function GovernanceRulesTab() {
@@ -758,6 +1172,7 @@ function GovernanceRulesTab() {
                         {rule.notes}
                       </p>
                     )}
+                    <RuleVersionPanel rule={rule} />
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setRuleForm({ open: true, rule })}>
@@ -1365,6 +1780,166 @@ function IssuedTokensTab({ rules }: { rules: GcsGovernanceRule[] }) {
   );
 }
 
+// ─── Tab: Migration Tracker ────────────────────────────────────────────────
+
+const MIGRATION_STATUS_STYLES: Record<string, string> = {
+  pending:     'bg-amber-100 text-amber-700',
+  in_progress: 'bg-blue-100 text-blue-700',
+  done:        'bg-green-100 text-green-700',
+  blocked:     'bg-red-100 text-red-600',
+};
+
+function MigrationTrackerTab() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editNotes, setEditNotes] = useState('');
+
+  const { data: rules = [] } = useQuery<GcsGovernanceRule[]>({
+    queryKey: ['/api/gcs-governance/rules'],
+  });
+
+  const { data: entries = [], isLoading } = useQuery<MigrationLogEntry[]>({
+    queryKey: ['/api/gcs-governance/migration-log', filterStatus],
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/migration-log${filterStatus !== 'all' ? `?status=${filterStatus}` : ''}`),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, status, notes }: { id: number; status: string; notes: string }) =>
+      apiRequest('PATCH', `/api/gcs-governance/migration-log/${id}`, { status, notes }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['/api/gcs-governance/migration-log'] });
+      setEditingId(null);
+      toast({ title: 'Migration entry updated' });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const getRuleName = (ruleId: number) => {
+    const r = rules.find(r => r.id === ruleId);
+    return r ? `${r.moduleKey}/${r.documentType}` : `Rule #${ruleId}`;
+  };
+
+  const statusCounts = entries.reduce<Record<string, number>>((acc, e) => {
+    acc[e.status] = (acc[e.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+        <ArrowUpDown className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-indigo-800">Path Migration Tracker — Phase 0</p>
+          <p className="text-xs text-indigo-700 mt-0.5">
+            Tracks all hardcoded GCS path builders pending migration to DB-driven routing. 
+            Entries are populated when migration work is registered via admin or Phase 1+.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: 'Total', value: entries.length, cls: 'text-slate-700', bg: 'bg-slate-50' },
+          { label: 'Pending', value: statusCounts.pending ?? 0, cls: 'text-amber-700', bg: 'bg-amber-50' },
+          { label: 'In Progress', value: statusCounts.in_progress ?? 0, cls: 'text-blue-700', bg: 'bg-blue-50' },
+          { label: 'Done', value: statusCounts.done ?? 0, cls: 'text-green-700', bg: 'bg-green-50' },
+        ].map(s => (
+          <Card key={s.label} className={`border-0 ${s.bg}`}>
+            <CardContent className="p-3">
+              <div className={`text-2xl font-bold ${s.cls}`}>{s.value}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">{s.label}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="h-8 text-xs w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+            <SelectItem value="pending" className="text-xs">Pending</SelectItem>
+            <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
+            <SelectItem value="done" className="text-xs">Done</SelectItem>
+            <SelectItem value="blocked" className="text-xs">Blocked</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => qc.invalidateQueries({ queryKey: ['/api/gcs-governance/migration-log'] })}>
+          <RefreshCw className="w-3.5 h-3.5" />
+        </Button>
+        <span className="text-xs text-slate-400 self-center">{entries.length} entr{entries.length !== 1 ? 'ies' : 'y'}</span>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-10 text-slate-400 text-sm">Loading…</div>
+      ) : entries.length === 0 ? (
+        <div className="text-center py-12 text-slate-400 text-sm">
+          <ArrowUpDown className="w-8 h-8 mx-auto mb-2 opacity-40" />
+          <p>No migration log entries yet.</p>
+          <p className="text-xs mt-1">Entries are added here as hardcoded builders are registered for migration in later phases.</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border overflow-x-auto">
+          <table className="w-full text-xs min-w-[700px]">
+            <thead className="bg-slate-50 border-b">
+              <tr>
+                {['Rule', 'Route File', 'Function', 'Old Method', 'Phase', 'Status', 'Notes', ''].map(h => (
+                  <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {entries.map(e => (
+                <tr key={e.id} className="hover:bg-slate-50">
+                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{getRuleName(e.ruleId)}</td>
+                  <td className="px-3 py-2 font-mono text-slate-500 text-[10px] max-w-[140px] truncate" title={e.routeFile}>{e.routeFile}</td>
+                  <td className="px-3 py-2 font-mono text-slate-400 text-[10px] max-w-[100px] truncate" title={e.routeFunction ?? ''}>{e.routeFunction ?? '—'}</td>
+                  <td className="px-3 py-2 font-mono text-slate-500 text-[10px] max-w-[120px] truncate" title={e.oldMethod}>{e.oldMethod}</td>
+                  <td className="px-3 py-2 font-mono text-[10px] text-slate-500">{e.migrationPhase}</td>
+                  <td className="px-3 py-2">
+                    {editingId === e.id ? (
+                      <Select value={e.status} onValueChange={(v) => updateMutation.mutate({ id: e.id, status: v, notes: editNotes })}>
+                        <SelectTrigger className="h-6 text-[10px] w-24"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {['pending', 'in_progress', 'done', 'blocked'].map(s => (
+                            <SelectItem key={s} value={s} className="text-[10px]">{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${MIGRATION_STATUS_STYLES[e.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                        {e.status.replace(/_/g, ' ')}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 max-w-[140px]">
+                    {editingId === e.id ? (
+                      <Input className="h-6 text-[10px]" value={editNotes} onChange={ev => setEditNotes(ev.target.value)} />
+                    ) : (
+                      <span className="text-slate-400 text-[10px] truncate" title={e.notes ?? ''}>{e.notes ?? '—'}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {editingId === e.id ? (
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-1" onClick={() => setEditingId(null)}>✕</Button>
+                    ) : (
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setEditingId(e.id); setEditNotes(e.notes ?? ''); }}>
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function GcsDocGovernancePage() {
@@ -1389,7 +1964,7 @@ export default function GcsDocGovernancePage() {
             </p>
           </div>
           <Badge variant="outline" className="ml-auto text-[11px] bg-indigo-50 text-indigo-700 border-indigo-200">
-            Phase 1 — Token Auth
+            Phase 0 — DB-Driven Routing
           </Badge>
         </div>
 
@@ -1431,6 +2006,11 @@ export default function GcsDocGovernancePage() {
                 <Ticket className="h-4 w-4" /> Issued Tokens
               </TabsTrigger>
             )}
+            {isSuperuser && (
+              <TabsTrigger value="migration" className="flex items-center gap-1.5">
+                <ArrowUpDown className="h-4 w-4" /> Migration
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="rules" className="mt-4">
@@ -1450,6 +2030,11 @@ export default function GcsDocGovernancePage() {
           {isSuperuser && (
             <TabsContent value="issued-tokens" className="mt-4">
               <IssuedTokensTab rules={allRules} />
+            </TabsContent>
+          )}
+          {isSuperuser && (
+            <TabsContent value="migration" className="mt-4">
+              <MigrationTrackerTab />
             </TabsContent>
           )}
         </Tabs>
