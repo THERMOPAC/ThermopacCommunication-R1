@@ -35,7 +35,8 @@ function superuserOnly(req: Request, res: Response): boolean {
 }
 
 function slugify(v: string): string {
-  return v.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  return v.trim().toLowerCase().replace(/\s+/g, '_');
+  // NOTE: no silent stripping — SLUG_RE validation below will reject hyphens, dots, slashes etc.
 }
 const SLUG_RE = /^[a-z0-9_]+$/;
 

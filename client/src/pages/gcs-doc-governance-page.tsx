@@ -100,7 +100,8 @@ const REVISION_MODES = ["none", "numeric", "alphabetic"];
 
 const SLUG_RE = /^[a-z0-9_]+$/;
 function toSlug(v: string): string {
-  return v.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  return v.trim().toLowerCase().replace(/\s+/g, '_');
+  // NOTE: no silent stripping — isSlugSafe validation will surface hyphens, dots, slashes etc. as errors
 }
 function isSlugSafe(v: string): boolean {
   return SLUG_RE.test(v);
