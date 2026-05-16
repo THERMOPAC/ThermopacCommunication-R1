@@ -590,14 +590,20 @@ function RuleForm({ open, onClose, initial, existingRules }: RuleFormProps) {
 
 // ─── Token Form (slide-over) ───────────────────────────────────────────────
 
+const BLANK_TOKEN: Partial<GcsGovernanceToken> = {
+  tokenName: "", description: "", exampleValue: "", sourceDescription: "", active: true,
+};
+
 function TokenForm({ open, onClose, initial }: { open: boolean; onClose: () => void; initial?: GcsGovernanceToken | null }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const isEdit = !!initial;
 
-  const [form, setForm] = useState<Partial<GcsGovernanceToken>>(initial ?? {
-    tokenName: "", description: "", exampleValue: "", sourceDescription: "", active: true,
-  });
+  const [form, setForm] = useState<Partial<GcsGovernanceToken>>(initial ?? BLANK_TOKEN);
+
+  useEffect(() => {
+    if (open) setForm(initial ?? BLANK_TOKEN);
+  }, [open]);
 
   const mutation = useMutation({
     mutationFn: (data: typeof form) => isEdit
