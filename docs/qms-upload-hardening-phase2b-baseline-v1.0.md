@@ -196,11 +196,41 @@ The path produced by `issueUploadToken()` using these token values is identical 
 ```
 This fallback writes to `/QMS/WPQR/{docId}.pdf` — a flat path with no revision folder, no DB revision record, no audit log, no checksum. If governance fails, the document exists in GCS with no traceability.
 
+**Transaction ordering issue — must fix during Phase 2B (POST handler only):**
+
+The current POST handler inserts the `wpqr_documents` row **before** calling `createRevision()`:
+
+```
+Line 395: db.insert(wpqrDocuments, { filePath: null })  ← DB committed first
+Line 415: try { createRevision() }                       ← GCS write second
+Line 430:   db.update(filePath = govResult.gcsPath)
+Line 436: catch { legacy fallback }                      ← TO BE REMOVED
+```
+
+After removing the fallback, a `createRevision()` failure leaves an orphan `wpqr_documents` row with `filePath: null` and no corresponding GCS file or revision record.
+
+**Required fix — GCS-first ordering for POST:**
+```typescript
+// 1. Generate document ID (no DB write)
+const documentId = await generateWpqrDocumentId();
+
+// 2. Call createRevision() FIRST — fails cleanly before any DB write
+const govResult = await createRevision({ ... });  // throws on failure → 500
+
+// 3. Only commit DB record after GCS write succeeded
+const [insertedDocument] = await db.insert(wpqrDocuments)
+  .values({ documentId, filePath: govResult.gcsPath, fileUrl: govResult.gcsPath, ... })
+  .returning();
+```
+
+The PATCH handler (`/api/quality/wpqr/:id`) is already ordered correctly — `createRevision()` runs first (line 602), DB update runs last (line 627), no change needed there.
+
 **Phase 2B change:**
 1. Look up `ruleId` from `gcs_governance_rules WHERE module_key='qms' AND document_type='WPQR'`
 2. Replace `generateQmsPath()` with `issueUploadToken()` inside `createRevision()` (or in a thin wrapper in the route)
 3. **Remove both legacy fallback blocks entirely** — governance error becomes a 500 response
-4. Mark token as used via `validateUploadToken()` after successful GCS write
+4. **Restructure POST handler to GCS-first ordering** (see above) — eliminates orphan row risk
+5. Mark token as used via `validateUploadToken()` after successful GCS write
 
 **Token values for WPQR:**
 ```typescript
@@ -496,6 +526,20 @@ LIMIT 5;
 - NCR document uploads — new module, not yet implemented
 - Migration of historical `QMS/WPQR/{id}.pdf` legacy fallback files — deferred (no current migration scope)
 - Family B TPEL path migration (`QMS/...` → `TPEL/QMS/{FY}/...`) — Rev 5 target path, separate future phase
+
+### Known gaps identified during pre-flight (outside Phase 2B scope)
+
+**Gap A — `server/standalone-routes.ts` active write to `QMS/Instrument/`:**  
+`server/standalone-routes.ts` (mounted at `/api/standalone`) still calls `uploadCalibrationCertificate()` and actively writes flat files to `QMS/Instrument/{INST-XXXXX}.pdf`. This route is separate from `server/quality/calibration-routes.ts`. Phase 2B does not touch `standalone-routes.ts`. This is a separate remediation item — the standalone handler must be migrated to `createRevision('Calibration')` in a dedicated follow-on task.
+
+**Gap B — `listCalibrationFilesFromGCS()` in `server/utils/gcs-operations.ts`:**  
+`buildCalibrationGcsPrefix()` and `buildCalibrationGcsPath()` hardcode `QMS/Instrument/` as a listing prefix. `listCalibrationFilesFromGCS()` uses this prefix to browse existing legacy files for a given instrument. This is READ-ONLY — no writes occur. The listing will find zero results for instruments whose certs were uploaded via `createRevision()` (which writes to `QMS/Calibration/...`). After Phase 2B, calibration download URLs are resolved from `qms_document_revisions` (via `getLatestRevision()`), not from this listing function — so it becomes a legacy-browse utility. Deferred.
+
+**Gap C — stale path references in frozen docs:**  
+`docs/document-type-vocabulary-v2.0.md` (FROZEN) references `WELDER_CERT` root as `QMS/WelderCertificates/` and `CALIBRATION_CERT` root as `QMS/Instrument/`. `docs/gcs-governance-rev5-option-c-baseline.md` has the same stale paths. These are documentation files with no runtime effect. A vocabulary v2.0 amendment note should be added post-Phase-2B. Non-blocking for implementation.
+
+**Gap D — stale UI display text in `calibration-management-page.tsx`:**  
+Lines 1171 and 1779 show hardcoded informational text `Path: QMS/Instrument/[instrument-id].pdf` as a UI placeholder label. This string is never sent to the server — it is display-only. After Phase 2B, the text will be misleading (correct path is `QMS/Calibration/...`). Update the display text as part of calibration module hardening; non-blocking for Phase 2B.
 
 ---
 
