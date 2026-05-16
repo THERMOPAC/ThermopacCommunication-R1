@@ -47,6 +47,23 @@ export function parseGcsPath(filePath: string): ParsedGcsPath {
 
   if (parts[0] !== 'TPEL') return result;
 
+  // ── STAGING paths: TPEL/STAGING/{DocType}/{projectCode}/{drawingNumber}/rev-{rev}/.../{file}
+  // These paths have NO CC/CO/Cust/FY segments. Applying the standard positional mapping
+  // would assign the drawing number to fyCode, crashing the varchar(10) DB column.
+  if (parts[1] === 'STAGING') {
+    result.docType    = parts[2] || null;   // e.g. DRAWINGS
+    result.projectCode = parts[3] || null;  // e.g. 2627-012
+    // parts[4] = drawing number — intentionally NOT mapped to any structured field
+    for (let i = 4; i < parts.length - 1; i++) {
+      if (parts[i] && parts[i].startsWith('rev-')) {
+        result.revision = parts[i].replace('rev-', '');
+        break;
+      }
+    }
+    return result;
+  }
+
+  // ── Standard TPEL paths: TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/...
   if (parts.length >= 2) result.continentCode = parts[1];
   if (parts.length >= 3) result.countryCode = parts[2];
   if (parts.length >= 4) result.customerCode = parts[3];
@@ -223,7 +240,7 @@ async function processGcsFile(
     ) VALUES (
       ${bucketName}, ${file.name}, ${parsed.fileName}, ${parsed.folderPath},
       ${parsed.continentCode && parsed.continentCode.length <= 5 ? parsed.continentCode : null}, ${continentName || null}, ${parsed.countryCode && parsed.countryCode.length <= 5 ? parsed.countryCode : null}, ${countryName || null},
-      ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode}, ${fyLabel},
+      ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode && parsed.fyCode.length <= 10 ? parsed.fyCode : null}, ${fyLabel},
       ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType ? parsed.docType.substring(0, 100) : null}, ${parsed.revision ? parsed.revision.substring(0, 50) : null},
       ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? sql`${'{' + unresolvedFields.join(',') + '}'}::text[]` : null},
       ${assuranceFlags.length > 0 ? sql`${'{' + assuranceFlags.join(',') + '}'}::text[]` : null},
