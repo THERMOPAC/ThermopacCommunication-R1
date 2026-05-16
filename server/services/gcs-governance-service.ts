@@ -183,6 +183,8 @@ const SEED_TOKENS = [
   { tokenName: 'ListNo',       description: 'Buy list number',             exampleValue: 'BL-001',       sourceDescription: 'PPPC buy list identifier' },
   { tokenName: 'WelderCode',   description: 'Welder identification code',  exampleValue: 'WLD-042',      sourceDescription: 'Welder code from QMS welder management' },
   { tokenName: 'Discipline',   description: 'Engineering discipline',      exampleValue: 'Mechanical',   sourceDescription: 'Discipline code from design management' },
+  { tokenName: 'OfferNo',      description: 'Offer / quotation number',    exampleValue: 'QTN-2025-042', sourceDescription: 'Offer or quotation number from the EPC quotation record' },
+  { tokenName: 'VendorCode',   description: 'SAP vendor / BP code',        exampleValue: 'V10042',       sourceDescription: 'Vendor code from SAP Business Partner record' },
 ];
 
 const SEED_RULES = [
@@ -194,20 +196,22 @@ const SEED_RULES = [
   { moduleKey: 'epc', submoduleKey: 'ecr',          documentType: 'ECR',             displayName: 'Engineering Change Request',  rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECR/{DocNumber}/rev-{rev}/{filename}',                      revisionMode: 'numeric',   notes: 'engineering-change-routes.ts' },
   { moduleKey: 'epc', submoduleKey: 'dispatch',     documentType: 'DISPATCH',        displayName: 'Dispatch Document',           rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/DISPATCH/{DocNumber}/rev-{rev}/{filename}',                  revisionMode: 'numeric',   notes: 'dispatch-routes.ts' },
   { moduleKey: 'epc', submoduleKey: 'procurement',  documentType: 'DATASHEET',       displayName: 'PPPC Procurement Datasheet',  rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/{ListNo}/{Tag}/{Seq}_ds-rev-{rev}.{ext}', revisionMode: 'numeric', notes: 'pppc-routes.ts — hardcoded, correct root' },
-  { moduleKey: 'epc', submoduleKey: 'quotation',    documentType: 'QUOTATION',       displayName: 'EPC Quotation PDF',           rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/Quotations/{filename}/rev-{rev}/{Seq}-{Label}.pdf',               revisionMode: 'alphabetic',notes: 'buildQuotationGcsPath() in epc-coding.ts' },
+  { moduleKey: 'epc', submoduleKey: 'quotation',    documentType: 'QUOTATION',       displayName: 'EPC Quotation PDF',           rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/QTN/{OfferNo}/rev-{rev}/{Seq}-{Label}.pdf',               revisionMode: 'alphabetic',notes: 'buildEpcQtnGcsPath() in epc-coding.ts — corrected 2026-05 (was missing {NNN}, used wrong folder Quotations/ and wrong token {filename})' },
   // DVS
   { moduleKey: 'dvs', submoduleKey: 'staging',      documentType: 'DVS_STAGING',     displayName: 'DVS Drawing Staging',         rootPrefix: 'TPEL/STAGING', pathTemplate: 'TPEL/STAGING/DRAWINGS/{ProjectCode}/{DrawingNo}/rev-{rev}/original/{filename}',        revisionMode: 'numeric',   notes: 'drawing-verification-routes.ts' },
-  // QMS — correct QMS root
-  { moduleKey: 'qms', submoduleKey: 'wpqr',         documentType: 'WPQR',            displayName: 'Welding Procedure Record',    rootPrefix: 'QMS', pathTemplate: 'QMS/WPQR/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                                        revisionMode: 'numeric',   notes: 'wpqr-routes.ts via qms-file-governance.ts' },
-  { moduleKey: 'qms', submoduleKey: 'pma',          documentType: 'PMA',             displayName: 'Production Management Agent Doc', rootPrefix: 'QMS', pathTemplate: 'QMS/PMA/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                                    revisionMode: 'numeric',   notes: 'pma-routes.ts via qms-file-governance.ts' },
-  { moduleKey: 'qms', submoduleKey: 'calibration',  documentType: 'CALIBRATION_CERT',displayName: 'Calibration Certificate',     rootPrefix: 'QMS', pathTemplate: 'QMS/Instrument/{filename}',                                                                 revisionMode: 'none',      notes: 'calibration-routes.ts — flat, no rev folder' },
-  { moduleKey: 'qms', submoduleKey: 'inspection',   documentType: 'INSPECTION_DOC',  displayName: 'Inspection Record Document',  rootPrefix: 'QMS', pathTemplate: 'QMS/Inspections_Records/{ProjectCode}/{IONum}/{TabName}/{filename}',                         revisionMode: 'none',      notes: 'inspection-document-routes.ts' },
-  { moduleKey: 'qms', submoduleKey: 'dossier',      documentType: 'FINAL_DOSSIER',   displayName: 'Final Inspection Dossier PDF',rootPrefix: 'QMS', pathTemplate: 'QMS/Inspections_Records/{ProjectCode}/{IONum}/Final_Dossier/{filename}',                    revisionMode: 'none',      notes: 'final-dossier-generator.ts' },
-  { moduleKey: 'qms', submoduleKey: 'welder_cert',  documentType: 'WELDER_CERT',     displayName: 'Welder Qualification Certificate', rootPrefix: 'QMS', pathTemplate: 'QMS/WelderCertificates/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                  revisionMode: 'numeric',   notes: 'welder-certificate-routes.ts via qms-file-governance.ts' },
-  { moduleKey: 'qms', submoduleKey: 'welder_photo', documentType: 'WELDER_PHOTO',    displayName: 'Welder ID Photo',             rootPrefix: 'QMS', pathTemplate: 'QMS/WELDERS/{WelderCode}/{filename}',                                                       revisionMode: 'none',      notes: 'welder-photo-routes.ts' },
-  { moduleKey: 'qms', submoduleKey: 'material_id',  documentType: 'MATERIAL_CERT',   displayName: 'Material Identification Doc', rootPrefix: 'QMS', pathTemplate: 'QMS/Material_Identification/{ProjectCode}/{Seq}/{filename}',                                revisionMode: 'none',      notes: 'material-identification-routes.ts' },
-  { moduleKey: 'qms', submoduleKey: 'test_proc',    documentType: 'TEST_PROCEDURE',  displayName: 'Test Procedure Document',     rootPrefix: 'QMS', pathTemplate: 'QMS/TestProcedures/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                             revisionMode: 'numeric',   notes: 'test-procedures-routes.ts via qms-file-governance.ts' },
-  { moduleKey: 'qms', submoduleKey: 'wps_pqr',      documentType: 'WPS_PQR',         displayName: 'Welding Spec / PQR Document', rootPrefix: 'QMS', pathTemplate: 'QMS/WPQR/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                                       revisionMode: 'numeric',   notes: 'wps-pqr-routes.ts' },
+  // QMS — TRANSITIONAL ROOT: QMS/ is approved for existing files only.
+  // Target migration: TPEL/QMS/{FY}/... — scheduled as a separate phase.
+  // No new modules should use QMS/ as root.
+  { moduleKey: 'qms', submoduleKey: 'wpqr',         documentType: 'WPQR',            displayName: 'Welder Performance Qualification Record', rootPrefix: 'QMS', pathTemplate: 'QMS/WPQR/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                           revisionMode: 'numeric',   notes: 'TRANSITIONAL ROOT — wpqr-routes.ts via qms-file-governance.ts. WPQR = Welder Performance Qualification Record. Distinct from WPS/PQR (QMS/WPS/).' },
+  { moduleKey: 'qms', submoduleKey: 'pma',          documentType: 'PMA',             displayName: 'Production Management Agent Doc', rootPrefix: 'QMS', pathTemplate: 'QMS/PMA/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                                    revisionMode: 'numeric',   notes: 'TRANSITIONAL ROOT — pma-routes.ts via qms-file-governance.ts. Target: TPEL/QMS/{FY}/PMA/...' },
+  { moduleKey: 'qms', submoduleKey: 'calibration',  documentType: 'CALIBRATION_CERT',displayName: 'Calibration Certificate',     rootPrefix: 'QMS', pathTemplate: 'QMS/Instrument/{filename}',                                                                 revisionMode: 'none',      notes: 'TRANSITIONAL ROOT — calibration-routes.ts — flat file, no revision folder. Target: TPEL/QMS/{FY}/Calibration/...' },
+  { moduleKey: 'qms', submoduleKey: 'inspection',   documentType: 'INSPECTION_DOC',  displayName: 'Inspection Record Document',  rootPrefix: 'QMS', pathTemplate: 'QMS/Inspections_Records/{ProjectCode}/{IONum}/{TabName}/{filename}',                         revisionMode: 'none',      notes: 'TRANSITIONAL ROOT — inspection-document-routes.ts. Project-specific: IONum anchors to project. Target: TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/Inspections/...' },
+  { moduleKey: 'qms', submoduleKey: 'dossier',      documentType: 'FINAL_DOSSIER',   displayName: 'Final Inspection Dossier PDF',rootPrefix: 'QMS', pathTemplate: 'QMS/Inspections_Records/{ProjectCode}/{IONum}/Final_Dossier/{filename}',                    revisionMode: 'none',      notes: 'TRANSITIONAL ROOT — final-dossier-generator.ts. Project-specific. Target: TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/Dossier/...' },
+  { moduleKey: 'qms', submoduleKey: 'welder_cert',  documentType: 'WELDER_CERT',     displayName: 'Welder Qualification Certificate', rootPrefix: 'QMS', pathTemplate: 'QMS/WelderCertificates/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                  revisionMode: 'numeric',   notes: 'TRANSITIONAL ROOT — welder-certificate-routes.ts via qms-file-governance.ts. Target: TPEL/QMS/{FY}/WelderCertificates/...' },
+  { moduleKey: 'qms', submoduleKey: 'welder_photo', documentType: 'WELDER_PHOTO',    displayName: 'Welder ID Photo',             rootPrefix: 'QMS', pathTemplate: 'QMS/WELDERS/{WelderCode}/{filename}',                                                       revisionMode: 'none',      notes: 'TRANSITIONAL ROOT — welder-photo-routes.ts — flat file, no revision. Target: TPEL/QMS/{FY}/Welders/{WelderCode}/...' },
+  { moduleKey: 'qms', submoduleKey: 'material_id',  documentType: 'MATERIAL_CERT',   displayName: 'Material Identification Doc', rootPrefix: 'QMS', pathTemplate: 'QMS/Material_Identification/{ProjectCode}/{Seq}/{filename}',                                revisionMode: 'none',      notes: 'TRANSITIONAL ROOT — material-identification-routes.ts. Project-specific. Target: TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/MaterialID/...' },
+  { moduleKey: 'qms', submoduleKey: 'test_proc',    documentType: 'TEST_PROCEDURE',  displayName: 'Test Procedure Document',     rootPrefix: 'QMS', pathTemplate: 'QMS/TestProcedures/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                             revisionMode: 'numeric',   notes: 'TRANSITIONAL ROOT — test-procedures-routes.ts via qms-file-governance.ts. Target: TPEL/QMS/{FY}/TestProcedures/...' },
+  { moduleKey: 'qms', submoduleKey: 'wps_pqr',      documentType: 'WPS_PQR',         displayName: 'Welding Procedure Spec / PQR',rootPrefix: 'QMS', pathTemplate: 'QMS/WPS/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}',                                        revisionMode: 'numeric',   notes: 'TRANSITIONAL ROOT — wps-pqr-routes.ts. WPS/PQR co-located under QMS/WPS/ (distinct from QMS/WPQR/ = Welder Performance Qualification). Corrected 2026-05: was incorrectly sharing QMS/WPQR/ path.' },
   // Design — note: some sub-modules use wrong root (flagged)
   { moduleKey: 'design', submoduleKey: 'drawings',  documentType: 'DESIGN_DRAWING',  displayName: 'Design Drawing (governed)',   rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/{ItemCode}/DWG/{DrawingNo}_rev-{rev}.{ext}',               revisionMode: 'alphabetic',notes: 'design-drawing-routes.ts — uses buildDrawingGcsPath' },
   { moduleKey: 'design', submoduleKey: 'basic',     documentType: 'BASIC_DRAWING',   displayName: 'Basic/Preliminary Drawing',   rootPrefix: 'Design_Management', pathTemplate: 'Design_Management/{ProjectCode}/Basic_Drawings/{Discipline}/{filename}',        revisionMode: 'none',      notes: '⚠ Wrong root — needs migration to TPEL/DESIGN/…' },
@@ -222,9 +226,11 @@ const SEED_RULES = [
   // Sales
   { moduleKey: 'sales', submoduleKey: 'offer_template',documentType: 'OFFER_TEMPLATE',displayName: 'Offer / Quotation Template',  rootPrefix: 'Offer_Templates', pathTemplate: 'Offer_Templates/{Seq}/{filename}',                                            revisionMode: 'none',      notes: '⚠ Non-standard root — needs migration to TPEL/SALES/…' },
   // SAP
-  { moduleKey: 'sap',   submoduleKey: 'attachments', documentType: 'SAP_ATTACHMENT',  displayName: 'SAP Purchase Attachment',     rootPrefix: 'Vendor_Quotes',   pathTemplate: 'Vendor_Quotes/{Seq}/{Seq}/{filename}',                                        revisionMode: 'none',      notes: '⚠ Wrong root — needs migration to TPEL/SAP/…' },
+  { moduleKey: 'sap',   submoduleKey: 'attachments', documentType: 'SAP_ATTACHMENT',  displayName: 'SAP Purchase Attachment',     rootPrefix: 'Vendor_Quotes',   pathTemplate: 'Vendor_Quotes/{VendorCode}/{Seq}/{filename}',                                 revisionMode: 'none',      notes: '⚠ Wrong root — needs migration to TPEL/SAP/{FY}/... — corrected 2026-05 (was malformed duplicate {Seq}/{Seq}). {VendorCode} = SAP BP code.' },
   // Legacy file storage
-  { moduleKey: 'legacy',submoduleKey: 'file_storage',documentType: 'LEGACY_FILE',     displayName: 'Legacy File Storage',         rootPrefix: 'THERMOPAC_PROJECTS', pathTemplate: 'THERMOPAC_PROJECTS/{FY}/{ProjectCode}/{Discipline}/{Seq}/{filename}',      revisionMode: 'none',      notes: '⚠ Legacy root — needs migration to TPEL/… in future phase' },
+  { moduleKey: 'legacy',submoduleKey: 'file_storage',documentType: 'LEGACY_FILE',     displayName: 'Legacy File Storage',         rootPrefix: 'THERMOPAC_PROJECTS', pathTemplate: 'THERMOPAC_PROJECTS/{FY}/{ProjectCode}/{Discipline}/{Seq}/{filename}',      revisionMode: 'none',      notes: '⚠ Legacy root — pre-TPEL standard. Read-only archive. Needs migration to TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/... in future phase.' },
+  // Internal / Ephemeral — not subject to document governance
+  { moduleKey: 'internal', submoduleKey: 'slddrw_jobs', documentType: 'SLDDRW_JOB_RESULT', displayName: 'SolidWorks Extraction Job Result', rootPrefix: 'epc-slddrw', pathTemplate: 'epc-slddrw/{DrawingControlId}/{Timestamp}-{filename}', revisionMode: 'none', active: false, notes: 'EPHEMERAL — internal SolidWorks extraction job results (JSON). Not a governed document. Processing artefacts only: input .slddrw downloaded, output JSON uploaded by local Windows agent. Recommended TTL: 30 days. Cleanup via scheduled admin job. Never expose via signed URL to end users. Do NOT migrate to TPEL/. Rule kept inactive — monitor will never match these paths.' },
 ];
 
 export async function seedGovernanceData(): Promise<void> {
@@ -236,7 +242,7 @@ export async function seedGovernanceData(): Promise<void> {
         .onConflictDoNothing();
     }
 
-    // Seed rules (upsert by moduleKey + documentType)
+    // Seed rules (insert new / refresh correctable fields on existing rows)
     for (const rule of SEED_RULES) {
       const existing = await db.select({ id: gcsGovernanceRules.id })
         .from(gcsGovernanceRules)
@@ -248,12 +254,33 @@ export async function seedGovernanceData(): Promise<void> {
         )
         .limit(1);
 
+      const derivedTokens = extractTemplateTokens(rule.pathTemplate);
+
       if (existing.length === 0) {
         await db.insert(gcsGovernanceRules).values({
           ...rule,
-          allowedTokens: extractTemplateTokens(rule.pathTemplate),
+          allowedTokens: derivedTokens,
           requiredTokens: [],
         });
+      } else {
+        // Always refresh these fields so seed corrections propagate to existing rows
+        await db.update(gcsGovernanceRules)
+          .set({
+            submoduleKey:  rule.submoduleKey,
+            displayName:   rule.displayName,
+            rootPrefix:    rule.rootPrefix,
+            pathTemplate:  rule.pathTemplate,
+            revisionMode:  rule.revisionMode as any,
+            allowedTokens: derivedTokens,
+            notes:         rule.notes ?? null,
+            ...(rule.active === false ? { active: false } : {}),
+          })
+          .where(
+            and(
+              eq(gcsGovernanceRules.moduleKey, rule.moduleKey),
+              eq(gcsGovernanceRules.documentType, rule.documentType),
+            )
+          );
       }
     }
 
