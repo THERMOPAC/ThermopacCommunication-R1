@@ -2,6 +2,7 @@ import { Request, Response, Router } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import { pool } from './db';
 import { storage } from './storage';
+import { issueUploadToken, validateUploadToken, logUploadEvent } from './services/gcs-governance-service';
 
 const router = Router();
 
@@ -1327,86 +1328,152 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
 });
 
 /**
- * Upload BRC document to GCS
+ * Phase 2A — Issue a governance-controlled upload token for a BRC document.
+ * The server computes and locks the GCS path; the client never constructs it.
+ */
+router.post('/brc/upload-token', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { invoiceId, invoiceNumber, issueDate } = req.body;
+    if (!invoiceId || !invoiceNumber || !issueDate) {
+      return res.status(400).json({ error: 'Missing required fields: invoiceId, invoiceNumber, issueDate' });
+    }
+
+    // Verify the invoice belongs to this user's accessible scope
+    const invoiceCheck = await pool.query(
+      'SELECT id FROM invoices WHERE id = $1 LIMIT 1',
+      [invoiceId]
+    );
+    if (invoiceCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    // Server-side path construction (moved from frontend)
+    // FY = calendar year of invoice issue date (preserves existing Accounts/{YYYY}/... pattern)
+    const date = new Date(issueDate);
+    const fy = String(date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1);
+    const filename = `${invoiceNumber}.pdf`;
+
+    // Look up the active BRC governance rule
+    const ruleResult = await pool.query(
+      `SELECT id FROM gcs_governance_rules WHERE module_key = 'finance' AND document_type = 'BRC_DOCUMENT' AND active = true LIMIT 1`
+    );
+    if (ruleResult.rows.length === 0) {
+      return res.status(500).json({ error: 'BRC governance rule not found — contact administrator' });
+    }
+    const ruleId = ruleResult.rows[0].id;
+
+    const userId = (req as any).user?.id;
+    const { rawToken, resolvedPath, expiresAt } = await issueUploadToken({
+      ruleId,
+      tokenValues: { FY: fy, filename },
+      issuedTo: userId,
+      ttlSeconds: 300,
+      notes: `BRC upload for invoice ${invoiceNumber}`,
+    });
+
+    console.log(`[BRC-Token] Issued token for invoice ${invoiceNumber} → ${resolvedPath} (user ${userId})`);
+    return res.json({ rawToken, resolvedPath, expiresAt });
+  } catch (error: any) {
+    console.error('[BRC-Token] Error issuing upload token:', error);
+    return res.status(500).json({ error: 'Failed to issue upload token', message: error.message });
+  }
+});
+
+/**
+ * Phase 2A — Governance-locked GCS upload for Finance BRC.
+ * Requires a valid upload token issued by POST /finance/brc/upload-token.
+ * The GCS path is taken from the validated token — never from the request body.
  */
 router.post('/upload/gcs', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Import multer and GCS Storage dynamically
     const multer = await import('multer');
     const { Storage } = await import('@google-cloud/storage');
-    
-    // Configure multer for memory storage
+
     const upload = multer.default({ storage: multer.default.memoryStorage() });
-    
-    // Handle the file upload
+
     upload.single('file')(req, res, async (err: any) => {
       if (err) {
         console.error('Multer error:', err);
         return res.status(400).json({ error: 'File upload error' });
       }
-      
+
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
-      
-      const { fileName, filePath } = req.body;
-      
-      if (!fileName || !filePath) {
-        return res.status(400).json({ error: 'Missing fileName or filePath' });
+
+      const { uploadToken } = req.body;
+      if (!uploadToken) {
+        return res.status(400).json({ error: 'Missing uploadToken — request a token first via POST /finance/brc/upload-token' });
       }
-      
+
+      // ── Phase 2A: validate the governance token ───────────────────────────
+      // First resolve the token record to get the locked path
+      const { createHash } = await import('crypto');
+      const tokenHash = createHash('sha256').update(uploadToken).digest('hex');
+      const tokenRow = await pool.query(
+        `SELECT id, resolved_path, expires_at, used_at FROM gcs_upload_tokens WHERE token_hash = $1 LIMIT 1`,
+        [tokenHash]
+      );
+
+      if (tokenRow.rows.length === 0) {
+        return res.status(403).json({ error: 'Invalid upload token' });
+      }
+
+      const tokenRecord = tokenRow.rows[0];
+      const resolvedPath: string = tokenRecord.resolved_path;
+
+      const validation = await validateUploadToken({ rawToken: uploadToken, actualPath: resolvedPath });
+      if (!validation.valid) {
+        const messages: Record<string, string> = {
+          not_found:    'Invalid upload token',
+          expired:      'Upload token has expired — request a new one',
+          already_used: 'Upload token has already been used',
+          path_mismatch:'Upload token path mismatch',
+        };
+        return res.status(403).json({ error: messages[validation.reason ?? 'not_found'] ?? 'Token validation failed' });
+      }
+
+      // ── Upload to the server-controlled path from the token ───────────────
       try {
-        // Initialize GCS client
         const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS || '{}');
-        const storage = new Storage({
-          credentials,
-          projectId: credentials.project_id
-        });
-        
+        const gcsStorage = new Storage({ credentials, projectId: credentials.project_id });
         const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
-        const bucket = storage.bucket(bucketName);
-        
-        // Create the file path in GCS
-        const gcsFileName = filePath;
-        const file = bucket.file(gcsFileName);
-        
-        // Upload the file
-        const stream = file.createWriteStream({
-          metadata: {
-            contentType: req.file.mimetype,
-          },
-        });
-        
+        const bucket = gcsStorage.bucket(bucketName);
+        const file = bucket.file(resolvedPath);
+
+        const stream = file.createWriteStream({ metadata: { contentType: req.file.mimetype } });
         await new Promise((resolve, reject) => {
           stream.on('error', reject);
           stream.on('finish', resolve);
-          stream.end(req.file.buffer);
+          stream.end(req.file!.buffer);
         });
-        
-        console.log(`File uploaded successfully to: ${bucketName}/${gcsFileName}`);
-        
-        res.json({
-          success: true,
-          filePath: gcsFileName,
-          fileName: fileName,
-          message: 'File uploaded successfully'
+
+        console.log(`[Finance-Upload] File uploaded to: ${bucketName}/${resolvedPath}`);
+
+        // ── Phase 0: governance monitor log ──────────────────────────────────
+        await logUploadEvent({
+          gcsPath:      resolvedPath,
+          moduleKey:    'finance',
+          documentType: 'BRC_DOCUMENT',
+          fileSizeBytes: req.file.size,
+          mimeType:     req.file.mimetype,
+          uploadedBy:   (req as any).user?.id,
+          routeFile:    'finance-routes-fixed.ts',
         });
-        
+
+        return res.json({
+          success:  true,
+          filePath: resolvedPath,
+          message:  'File uploaded successfully',
+        });
       } catch (gcsError: any) {
-        console.error('GCS upload error:', gcsError);
-        res.status(500).json({
-          error: 'Failed to upload to GCS',
-          message: gcsError.message
-        });
+        console.error('[Finance-Upload] GCS error:', gcsError);
+        return res.status(500).json({ error: 'Failed to upload to GCS', message: gcsError.message });
       }
     });
-    
   } catch (error: any) {
-    console.error('Upload endpoint error:', error);
-    res.status(500).json({
-      error: 'Upload failed',
-      message: error.message
-    });
+    console.error('[Finance-Upload] Endpoint error:', error);
+    return res.status(500).json({ error: 'Upload failed', message: error.message });
   }
 });
 

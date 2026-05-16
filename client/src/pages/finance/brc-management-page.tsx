@@ -155,34 +155,47 @@ export default function BrcManagementPage() {
   // Create/Update BRC mutation
   const brcMutation = useMutation({
     mutationFn: async (data: BrcFormData) => {
-      // If there's a file, upload it first and get the path
+      // Phase 2A governed upload: server issues a path-locked token, then file is
+      // uploaded with that token. The GCS path is never constructed client-side.
       let documentPath = null;
       if (data.file) {
-        // Find the invoice to get the invoice number and issue date
         const invoice = invoices?.find((inv: any) => inv.id === data.invoiceId);
         if (invoice) {
-          // Calculate financial year from issue date
-          const issueDate = new Date(invoice.issueDate);
-          const financialYear = issueDate.getMonth() >= 3 ? issueDate.getFullYear() : issueDate.getFullYear() - 1;
-          
-          // Create the GCS path: Accounts/{FY}/{Invoice Number}.pdf
-          const gcsPath = `Accounts/${financialYear}/${invoice.invoiceNumber}.pdf`;
-          
-          // Upload file to GCS
+          // Step 1: Request a governance upload token from the server.
+          // The server computes the GCS path and locks it into the token.
+          const tokenResponse = await fetch('/api/finance/brc/upload-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              invoiceId:     invoice.id,
+              invoiceNumber: invoice.invoiceNumber,
+              issueDate:     invoice.issueDate,
+            }),
+          });
+
+          if (!tokenResponse.ok) {
+            const err = await tokenResponse.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to obtain upload token');
+          }
+
+          const { rawToken, resolvedPath } = await tokenResponse.json();
+
+          // Step 2: Upload the file using the server-issued token.
+          // The endpoint uses resolvedPath from the token — filePath is not accepted.
           const formData = new FormData();
           formData.append('file', data.file);
-          formData.append('fileName', `${invoice.invoiceNumber}.pdf`);
-          formData.append('filePath', gcsPath);
-          
+          formData.append('uploadToken', rawToken);
+
           const uploadResponse = await fetch('/api/finance/upload/gcs', {
             method: 'POST',
             body: formData,
           });
-          
+
           if (!uploadResponse.ok) {
-            throw new Error('Failed to upload BRC document');
+            const err = await uploadResponse.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to upload BRC document');
           }
-          
+
           const uploadResult = await uploadResponse.json();
           documentPath = uploadResult.filePath;
         }
