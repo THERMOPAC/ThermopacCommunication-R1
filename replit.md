@@ -65,7 +65,8 @@ Preferred communication style: Simple, everyday language.
 
 ## Pointers
 - **Document Path & Folder Template Baseline v1.0**: `docs/document-path-folder-template-baseline-v1.md`
-- **GCS Governance**: `docs/gcs-governance-rev4-closure.md`
+- **GCS Governance Rev 5**: `docs/gcs-governance-rev5-option-c-baseline.md`
+- **Document Type Vocabulary v2.0 (FROZEN)**: `docs/document-type-vocabulary-v2.0.md`
 - **SolidWorks Agent Baseline**: `docs/slddrw-extraction-agent-baseline-v3.md`
 - **Leave Management Correction Plan**: `docs/leave-management-correction-plan-baseline-v1.0.md`
 - **Payroll Governance v4.1 Baseline**: `docs/payroll-governance-v4.1-baseline.md`
