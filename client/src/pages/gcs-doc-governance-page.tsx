@@ -143,17 +143,41 @@ function PathPreviewPanel({ template }: { template: string }) {
   const tokens = template.match(/\{(\w+)\}/g)?.map(t => t.slice(1, -1)) ?? [];
   const uniqueTokens = [...new Set(tokens)];
 
-  const handlePreview = async () => {
+  // Fetch token registry to seed example values
+  const { data: registryTokens = [] } = useQuery<GcsGovernanceToken[]>({
+    queryKey: ["/api/gcs-governance/tokens"],
+  });
+
+  // Auto-populate fields with example values from registry when template changes
+  useEffect(() => {
+    if (registryTokens.length === 0 || uniqueTokens.length === 0) return;
+    const seeded: Record<string, string> = {};
+    uniqueTokens.forEach(tok => {
+      const entry = registryTokens.find(r => r.tokenName === tok);
+      seeded[tok] = entry?.exampleValue ?? "";
+    });
+    setTokenValues(seeded);
+    setPreview(null);
+  }, [template, registryTokens.length]);
+
+  const handlePreview = async (vals?: Record<string, string>) => {
     try {
       const result = await apiRequest("POST", "/api/gcs-governance/rules/preview", {
         pathTemplate: template,
-        tokens: tokenValues,
+        tokens: vals ?? tokenValues,
       });
       setPreview(result);
     } catch {
       toast({ title: "Preview failed", variant: "destructive" });
     }
   };
+
+  // Auto-generate preview once example values are seeded
+  useEffect(() => {
+    if (Object.keys(tokenValues).length > 0 && uniqueTokens.length > 0) {
+      handlePreview(tokenValues);
+    }
+  }, [tokenValues]);
 
   return (
     <div className="space-y-3 border rounded-lg p-4 bg-slate-50">
@@ -177,8 +201,8 @@ function PathPreviewPanel({ template }: { template: string }) {
           ))}
         </div>
       )}
-      <Button size="sm" variant="outline" className="w-full text-xs" onClick={handlePreview}>
-        Generate Preview
+      <Button size="sm" variant="outline" className="w-full text-xs" onClick={() => handlePreview()}>
+        Refresh Preview
       </Button>
       {preview && (
         <div className="space-y-1">
