@@ -39,6 +39,17 @@
 
 ---
 
+## Amendment Record
+
+| # | Date | Type | Detail |
+|---|---|---|---|
+| AMD-001 | 2026-05-16 | Path correction | `CALIBRATION_CERT`: root corrected from `QMS/Instrument/` → `QMS/Calibration/`; revision mode NONE → NUMERIC. Implemented in Phase 2B (standalone-routes.ts Gap A). Legacy files retained as orphans. |
+| AMD-002 | 2026-05-16 | Path correction | `WELDER_CERT`: root corrected from `QMS/WelderCertificates/` → `QMS/WelderManagement/`. Implemented in Phase 2B. Legacy files retained as orphans. |
+
+*This document remains FROZEN. Amendments above are additive corrections only — no existing approved entries are altered.*
+
+---
+
 ## Canonical Naming Rules (Frozen)
 
 | Rule | Definition |
@@ -118,8 +129,8 @@ All QMS types currently use TRANSITIONAL ROOT `QMS/`. Family classifications and
 | `WPQR` | Welder Performance Qualification Record | QUALITY | B | REGULATORY | qms | NUMERIC | Company-level master record. Current root: `QMS/WPQR/` |
 | `PMA` | Particular Material Appraisal | QUALITY | B | LONG_TERM | qms | NUMERIC | Company material library. Current root: `QMS/PMA/` |
 | `WPS_PQR` | Welding Procedure Spec / PQR | QUALITY | B | REGULATORY | qms | NUMERIC | Company-level. Current root: `QMS/WPS/` |
-| `CALIBRATION_CERT` | Calibration Certificate | QUALITY | B | STANDARD | qms | NONE | Flat file. Current root: `QMS/Instrument/` |
-| `WELDER_CERT` | Welder Qualification Certificate | QUALITY | B | REGULATORY | qms | NUMERIC | Linked to welder personnel. Current root: `QMS/WelderCertificates/` |
+| `CALIBRATION_CERT` | Calibration Certificate | QUALITY | B | STANDARD | qms | NUMERIC | **AMENDMENT 2026-05-16 (Gap A / Phase 2B):** Root corrected from `QMS/Instrument/` to `QMS/Calibration/`. Revision mode upgraded from NONE to NUMERIC. Path template: `QMS/Calibration/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}`. Legacy flat files at `QMS/Instrument/{INST-XXXXX}.pdf` retained as GCS orphans (no deletion). `certificate_file_path` column deprecated — all new uploads write `certificate_gcs_key`. |
+| `WELDER_CERT` | Welder Qualification Certificate | QUALITY | B | REGULATORY | qms | NUMERIC | **AMENDMENT 2026-05-16 (Phase 2B):** Root corrected from `QMS/WelderCertificates/` to `QMS/WelderManagement/`. Path template: `QMS/WelderManagement/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}`. Legacy files at `QMS/WelderCertificates/` retained as GCS orphans (no deletion). |
 | `WELDER_PHOTO` | Welder ID Photo | ADMINISTRATIVE | B | SHORT_TERM | qms | NONE | Flat file. Current root: `QMS/WELDERS/` |
 | `TEST_PROCEDURE` | Test Procedure Document | QUALITY | B | STANDARD | qms | NUMERIC | Company NDT procedures. Current root: `QMS/TestProcedures/` |
 | `NCR` | Non-Conformance Report | QUALITY | A | STANDARD | qms | NUMERIC | Project-specific. Target path: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/NCR/{NcrNumber}/rev-{rev}/{filename}`. Raised by QA against EPC deliverables. GCS path pending — rule added at correct TPEL root. |

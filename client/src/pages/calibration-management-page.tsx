@@ -1168,7 +1168,7 @@ export default function CalibrationManagementPage() {
                               <span>Files will appear here after the instrument is created.</span>
                             </div>
                             <p className="text-xs mt-2">
-                              Path: QMS/Instrument/[instrument-id].pdf
+                              Path: QMS/Calibration/[instrument-id]/rev-1/1-certificate.pdf
                             </p>
                           </div>
                         </div>
@@ -1776,7 +1776,7 @@ export default function CalibrationManagementPage() {
                                 <span>No files found in cloud storage.</span>
                               </div>
                               <p className="text-xs mt-2">
-                                Path: QMS/Instrument/{selectedInstrument?.instrument_id || '[instrument-id]'}.pdf
+                                Path: QMS/Calibration/{selectedInstrument?.instrument_id || '[instrument-id]'}/rev-N/1-certificate.pdf
                               </p>
                             </div>
                           );
