@@ -10,7 +10,7 @@ import { ensureAuthenticated } from '../auth-middleware';
 import {
   createRevision, logDownload, logAuditEvent, softDeleteRevision,
   getLatestRevision, checkUploadPermission, checkDeletePermission,
-  type QmsModule,
+  resolveQmsRuleId, type QmsModule,
 } from '../utils/qms-file-governance';
 
 // Setup multer for handling file uploads
@@ -380,6 +380,7 @@ router.put('/:id', ensureAuthenticated, upload.single('file'), async (req: Reque
       const procedureNumber = data.procedureNumber || currentProcedure[0].procedureNumber;
       const revLabel = data.procedureRevision || currentProcedure[0].procedureRevision || 'R1';
 
+      const testProcRuleId = await resolveQmsRuleId('TEST_PROCEDURE');
       try {
         const govResult = await createRevision({
           module: 'TestProcedures' as QmsModule,
@@ -393,6 +394,7 @@ router.put('/:id', ensureAuthenticated, upload.single('file'), async (req: Reque
           userId,
           userRole,
           ipAddress: req.ip,
+          ruleId: testProcRuleId,
         });
 
         attachmentData = JSON.stringify([{
@@ -503,6 +505,7 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
     const revLabel = procedure.procedureRevision || 'R1';
     const label = req.body.label || `attachment-${revLabel}`;
 
+    const testProcRuleId = await resolveQmsRuleId('TEST_PROCEDURE');
     const govResult = await createRevision({
       module: 'TestProcedures' as QmsModule,
       documentNumber: procedure.procedureNumber,
@@ -515,6 +518,7 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
       userId,
       userRole,
       ipAddress: req.ip,
+      ruleId: testProcRuleId,
     });
 
     await db

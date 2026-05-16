@@ -9,7 +9,7 @@ import multer from 'multer';
 import {
   createRevision, logDownload, logAuditEvent, softDeleteRevision,
   getLatestRevision, checkUploadPermission, checkDeletePermission,
-  type QmsModule,
+  resolveQmsRuleId, type QmsModule,
 } from '../utils/qms-file-governance';
 
 const router = express.Router();
@@ -201,6 +201,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response) => {
 
     const created = newDocument[0];
 
+    const pmaRuleId = await resolveQmsRuleId('PMA');
     try {
       const govResult = await createRevision({
         module: 'PMA' as QmsModule,
@@ -214,6 +215,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response) => {
         userId: user.id,
         userRole,
         ipAddress: req.ip,
+        ruleId: pmaRuleId,
       });
 
       await db.update(pmaDocuments)
@@ -275,6 +277,7 @@ router.put('/:id', upload.single('file'), async (req: Request, res: Response) =>
         return res.status(403).json({ error: roleCheck.reason });
       }
 
+      const pmaRuleId = await resolveQmsRuleId('PMA');
       try {
         const govResult = await createRevision({
           module: 'PMA' as QmsModule,
@@ -288,6 +291,7 @@ router.put('/:id', upload.single('file'), async (req: Request, res: Response) =>
           userId: user.id,
           userRole,
           ipAddress: req.ip,
+          ruleId: pmaRuleId,
         });
 
         updateData.filePath = govResult.gcsPath;
@@ -362,6 +366,7 @@ router.post('/:id/upload', upload.single('document'), async (req: Request, res: 
       return res.status(403).json({ error: roleCheck.reason });
     }
 
+    const pmaRuleId = await resolveQmsRuleId('PMA');
     try {
       const govResult = await createRevision({
         module: 'PMA' as QmsModule,
@@ -375,6 +380,7 @@ router.post('/:id/upload', upload.single('document'), async (req: Request, res: 
         userId: user.id,
         userRole,
         ipAddress: req.ip,
+        ruleId: pmaRuleId,
       });
 
       const updatedDocument = await db

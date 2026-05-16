@@ -3,6 +3,7 @@ import { qmsDocumentRevisions, qmsDocumentAuditLog } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import { Storage } from '@google-cloud/storage';
+import { issueUploadToken, validateUploadToken } from '../services/gcs-governance-service';
 
 const MANAGER_PLUS_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 const ADMIN_ROLES = ['Superuser'];
@@ -74,6 +75,20 @@ export function checkDeletePermission(userRole: string): { allowed: boolean; rea
     return { allowed: true };
   }
   return { allowed: false, reason: `Delete requires Superuser role. Current role: ${userRole}` };
+}
+
+/**
+ * Resolves the governance rule ID for a QMS document type.
+ * Throws if the rule is missing or inactive — caller should surface as 500.
+ */
+export async function resolveQmsRuleId(documentType: string): Promise<number> {
+  const result = await db.execute(
+    sql`SELECT id FROM gcs_governance_rules WHERE module_key = 'qms' AND document_type = ${documentType} AND active = true LIMIT 1`
+  );
+  const rows = (result as any).rows ?? result;
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row?.id) throw new Error(`QMS governance rule '${documentType}' not found or inactive — check governance seed`);
+  return Number(row.id);
 }
 
 export async function logAuditEvent(params: {
@@ -179,6 +194,7 @@ export async function createRevision(params: {
   userId: number;
   userRole: string;
   ipAddress?: string;
+  ruleId?: number;
 }): Promise<QmsUploadResult> {
   const uploadCheck = checkUploadPermission(params.userRole);
   if (!uploadCheck.allowed) {
@@ -188,7 +204,31 @@ export async function createRevision(params: {
   const checksumSha256 = computeChecksum(params.fileBuffer);
   const nextRev = await getNextRevisionNumber(params.module, params.documentNumber);
   const ext = extractExtension(params.originalFileName, params.contentType);
-  const gcsPath = generateQmsPath(params.module, params.documentNumber, nextRev, 1, params.label, ext);
+
+  // Resolve GCS path — via governance token if ruleId provided; otherwise legacy path builder
+  let gcsPath: string;
+  let _tokenRaw: string | undefined;
+
+  if (params.ruleId != null) {
+    const tokenResult = await issueUploadToken({
+      ruleId: params.ruleId,
+      tokenValues: { DocNumber: params.documentNumber, rev: String(nextRev), Seq: '1', Label: params.label, ext },
+      issuedTo: params.userId,
+      ttlSeconds: 60,
+      notes: `QMS internal upload: ${params.module}/${params.documentNumber} rev ${nextRev}`,
+    });
+    const expectedPath = generateQmsPath(params.module, params.documentNumber, nextRev, 1, params.label, ext);
+    if (tokenResult.resolvedPath !== expectedPath) {
+      throw new Error(
+        `[QMS Gov] Path parity failure: token resolved "${tokenResult.resolvedPath}", expected "${expectedPath}". ` +
+        `Governance seed template is out of sync for module=${params.module}.`
+      );
+    }
+    gcsPath = tokenResult.resolvedPath;
+    _tokenRaw = tokenResult.rawToken;
+  } else {
+    gcsPath = generateQmsPath(params.module, params.documentNumber, nextRev, 1, params.label, ext);
+  }
 
   const { bucket } = getGcsStorage();
   const file = bucket.file(gcsPath);
@@ -198,6 +238,14 @@ export async function createRevision(params: {
   }
 
   await file.save(params.fileBuffer, { contentType: params.contentType, resumable: false });
+
+  // Validate and consume governance token — records used_at in gcs_upload_tokens ledger
+  if (_tokenRaw != null) {
+    const validation = await validateUploadToken({ rawToken: _tokenRaw, actualPath: gcsPath });
+    if (!validation.valid) {
+      console.error(`[QMS Gov] Token post-validation failed (${validation.reason}) for ${gcsPath} — upload succeeded, token ledger may be inconsistent`);
+    }
+  }
 
   const verified = await verifyUploadedChecksum(gcsPath, checksumSha256);
   if (!verified) {

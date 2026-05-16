@@ -5,13 +5,13 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
-import { uploadCalibrationCertificate, getCertificateUrl } from '../utils/calibration-certificate-upload';
+import { getCertificateUrl } from '../utils/calibration-certificate-upload';
 import { calculateNextCalibrationDate } from '../utils/date-utils';
 import { listCalibrationFilesFromGCS } from '../utils/gcs-operations';
 import {
   createRevision, logDownload, logAuditEvent, softDeleteRevision,
   getLatestRevision, getRevisionHistory, checkUploadPermission, checkDeletePermission,
-  type QmsModule,
+  resolveQmsRuleId, type QmsModule,
 } from '../utils/qms-file-governance';
 
 // Create the router
@@ -320,6 +320,7 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
         return res.status(403).json({ error: roleCheck.reason });
       }
 
+      const calibRuleId = await resolveQmsRuleId('CALIBRATION_CERT');
       try {
         const govResult = await createRevision({
           module: 'Calibration' as QmsModule,
@@ -333,6 +334,7 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
           userId: user?.id || 0,
           userRole,
           ipAddress: req.ip,
+          ruleId: calibRuleId,
         });
 
         await pool.query(`UPDATE calibration_instruments SET certificate_gcs_key = $1 WHERE id = $2`, [govResult.gcsPath, createdInstrument.id]);
@@ -340,6 +342,7 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
         console.log(`Certificate uploaded via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
       } catch (uploadError) {
         console.error('Error uploading certificate via governance:', uploadError);
+        return res.status(500).json({ error: 'Failed to upload calibration certificate', details: uploadError instanceof Error ? uploadError.message : String(uploadError) });
       }
     }
 
@@ -433,6 +436,7 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
         return res.status(403).end(JSON.stringify({ error: roleCheck.reason }));
       }
 
+      const calibRuleId = await resolveQmsRuleId('CALIBRATION_CERT');
       try {
         const govResult = await createRevision({
           module: 'Calibration' as QmsModule,
@@ -446,12 +450,14 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
           userId: user?.id || 0,
           userRole,
           ipAddress: req.ip,
+          ruleId: calibRuleId,
         });
 
         certificate_gcs_key = govResult.gcsPath;
         console.log(`Certificate revised via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
       } catch (uploadError) {
         console.error('Error uploading certificate via governance:', uploadError);
+        return res.status(500).json({ error: 'Failed to upload calibration certificate', details: uploadError instanceof Error ? uploadError.message : String(uploadError) });
       }
     }
     

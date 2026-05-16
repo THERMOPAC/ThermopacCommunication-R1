@@ -8,7 +8,7 @@ import { z } from 'zod';
 import {
   createRevision, logDownload, logAuditEvent, softDeleteRevision,
   getLatestRevision, checkUploadPermission, checkDeletePermission,
-  type QmsModule,
+  resolveQmsRuleId, type QmsModule,
 } from '../utils/qms-file-governance';
 
 // Helper function to safely handle GCS file paths
@@ -296,6 +296,7 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
     const certId = (result.rows[0] as any).id;
     const docNumber = `${welderIdString}-${certificateNo}`;
 
+    const welderRuleId = await resolveQmsRuleId('WELDER_CERT');
     try {
       const govResult = await createRevision({
         module: 'WelderManagement' as QmsModule,
@@ -309,6 +310,7 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
         userId: userId!,
         userRole,
         ipAddress: req.ip,
+        ruleId: welderRuleId,
       });
 
       await db.execute(sql`
@@ -535,6 +537,7 @@ router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), a
 
     const docNumber = `${welderIdString}-${certificate.certificate_no}`;
 
+    const welderRuleId = await resolveQmsRuleId('WELDER_CERT');
     const govResult = await createRevision({
       module: 'WelderManagement' as QmsModule,
       documentNumber: docNumber,
@@ -547,6 +550,7 @@ router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), a
       userId: userId || 0,
       userRole,
       ipAddress: req.ip,
+      ruleId: welderRuleId,
     });
 
     const updateResult = await db.execute(sql`

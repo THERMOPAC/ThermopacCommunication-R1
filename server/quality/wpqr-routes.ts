@@ -11,7 +11,6 @@ import os from 'os';
 import { promisify } from 'util';
 import fetch from 'node-fetch';
 import { 
-  uploadFileToGCS, 
   downloadFileFromGCS, 
   streamFileFromGCS,
   deleteFileFromGCS
@@ -19,7 +18,7 @@ import {
 import {
   createRevision, logDownload, logAuditEvent, softDeleteRevision,
   getLatestRevision, checkUploadPermission, checkDeletePermission,
-  type QmsModule,
+  resolveQmsRuleId, type QmsModule,
 } from '../utils/qms-file-governance';
 
 const router = express.Router();
@@ -392,6 +391,8 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       return res.status(403).json({ error: roleCheck.reason });
     }
 
+    const wpqrRuleId = await resolveQmsRuleId('WPQR');
+
     const insertedDocuments = await db.insert(wpqrDocuments)
       .values({
         documentId,
@@ -425,6 +426,7 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
         userId: userId!,
         userRole,
         ipAddress: req.ip,
+        ruleId: wpqrRuleId,
       });
 
       await db.update(wpqrDocuments)
@@ -434,17 +436,11 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       insertedDocument.fileUrl = govResult.gcsPath;
       console.log(`WPQR uploaded via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
     } catch (govErr) {
-      console.error('Governance upload failed, falling back to legacy:', govErr);
-      const filePath = `/QMS/WPQR/${documentId}.pdf`;
-      const uploadResult = await uploadFileToGCS(filePath, req.file.buffer, req.file.mimetype);
-      if (uploadResult.success) {
-        const fileUrl = uploadResult.url || `https://storage.googleapis.com/${bucketName}${filePath}`;
-        await db.update(wpqrDocuments)
-          .set({ filePath, fileUrl })
-          .where(eq(wpqrDocuments.id, insertedDocument.id));
-        insertedDocument.filePath = filePath;
-        insertedDocument.fileUrl = fileUrl;
-      }
+      console.error('[WPQR] Governance upload failed — rolling back DB record:', govErr);
+      await db.delete(wpqrDocuments)
+        .where(eq(wpqrDocuments.id, insertedDocument.id))
+        .catch(delErr => console.error('[WPQR] Failed to clean up orphan row:', delErr));
+      return res.status(500).json({ error: 'Failed to upload WPQR document file — please try again' });
     }
     
     // Handle welder linking if welderIds are provided
@@ -599,6 +595,7 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
         return res.status(403).json({ error: roleCheck.reason });
       }
 
+      const wpqrRuleId = await resolveQmsRuleId('WPQR');
       try {
         const govResult = await createRevision({
           module: 'WPQR' as QmsModule,
@@ -612,6 +609,7 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
           userId: userId!,
           userRole,
           ipAddress: req.ip,
+          ruleId: wpqrRuleId,
         });
 
         updateData.filePath = govResult.gcsPath;
