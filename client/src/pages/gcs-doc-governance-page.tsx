@@ -683,6 +683,7 @@ function GovernanceRulesTab() {
     if (filterModule !== "all" && r.moduleKey !== filterModule) return false;
     if (filterActive === "active" && !r.active) return false;
     if (filterActive === "inactive" && r.active) return false;
+    if (filterActive === "issues" && !hasWarning(r)) return false;
     return true;
   });
 
@@ -707,6 +708,7 @@ function GovernanceRulesTab() {
               <SelectItem value="all" className="text-xs">All status</SelectItem>
               <SelectItem value="active" className="text-xs">Active only</SelectItem>
               <SelectItem value="inactive" className="text-xs">Inactive only</SelectItem>
+              <SelectItem value="issues" className="text-xs text-amber-700">⚠ Issues only</SelectItem>
             </SelectContent>
           </Select>
           <span className="text-xs text-slate-400 self-center">{filtered.length} rule{filtered.length !== 1 ? "s" : ""}</span>
