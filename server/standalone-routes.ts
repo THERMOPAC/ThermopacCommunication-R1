@@ -2,7 +2,9 @@ import express, { Request, Response } from 'express';
 import { pool } from './db';
 import { format } from 'date-fns';
 import multer from 'multer';
-import { uploadCalibrationCertificate } from './utils/calibration-certificate-upload';
+import {
+  createRevision, resolveQmsRuleId, checkUploadPermission, type QmsModule,
+} from './utils/qms-file-governance';
 import { ensureAuthenticated } from './auth-middleware';
 
 const multerStorage = multer.memoryStorage();
@@ -288,111 +290,97 @@ router.post('/direct-update-instrument', async (req: Request, res: Response) => 
 });
 
 /**
- * POST endpoint that handles file uploads for calibration instruments
- * This route accepts a multipart/form-data containing instrumentId and certificate file
+ * POST endpoint that handles file uploads for calibration instruments.
+ * Gap A (2026-05-16): migrated from deprecated uploadCalibrationCertificate() to
+ * createRevision('Calibration') with CALIBRATION_CERT ruleId.
+ * Writes certificate_gcs_key (governed column). certificate_file_path is no longer written.
  */
 router.post('/calibration-instrument-file-upload', upload.single('certificate'), async (req: Request, res: Response) => {
-  // Force all response headers to ensure JSON
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
-  
+
   console.log('[STANDALONE] Received file upload request');
   console.log('[STANDALONE] Request body:', req.body);
   console.log('[STANDALONE] File info:', req.file ? { size: req.file.size, mimetype: req.file.mimetype } : 'No file');
-  
+
   try {
-    // Extract the instrument ID from the request body
     const dbInstrumentId = req.body.instrumentId;
-    
-    // Input validation
+
     if (!dbInstrumentId) {
-      return res.status(400).json({
-        success: false,
-        error: 'instrumentId is required'
-      });
+      return res.status(400).json({ success: false, error: 'instrumentId is required' });
     }
-    
+
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No certificate file uploaded'
-      });
+      return res.status(400).json({ success: false, error: 'No certificate file uploaded' });
     }
-    
+
+    const user = (req as any).user;
+    const userRole = user?.role || '';
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ success: false, error: roleCheck.reason });
+    }
+
     console.log(`[STANDALONE] Looking up instrument with database ID: ${dbInstrumentId}`);
-    
-    // Lookup the instrument in the database to get the instrument_id code
+
     const instrumentCheck = await pool.query(
       'SELECT * FROM calibration_instruments WHERE id = $1',
       [dbInstrumentId]
     );
-    
+
     if (instrumentCheck.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        error: `Calibration instrument with ID ${dbInstrumentId} not found` 
-      });
+      return res.status(404).json({ success: false, error: `Calibration instrument with ID ${dbInstrumentId} not found` });
     }
-    
+
     const instrument = instrumentCheck.rows[0];
-    const instrumentCode = instrument.instrument_id; // This is the code like "INST-00001"
-    
-    console.log(`[STANDALONE] Found instrument: ${JSON.stringify(instrument)}`);
-    console.log(`[STANDALONE] Instrument code for filename: ${instrumentCode}`);
-    
-    // Extra validation to make sure instrument_id code is present
+    const instrumentCode = instrument.instrument_id;
+
+    console.log(`[STANDALONE] Found instrument: ${instrumentCode}`);
+
     if (!instrumentCode || instrumentCode.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid instrument code, cannot generate proper file name'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid instrument code, cannot generate proper file name' });
     }
-    
-    // Upload the file to GCS using the instrument code for the filename
-    const uploadResult = await uploadCalibrationCertificate(
-      req.file.buffer,
-      instrumentCode, // Pass instrument code (like "INST-00001") as originalFilename parameter
-      req.file.mimetype || 'application/pdf',
-      instrumentCode  // Pass instrument code again as instrumentId parameter
-    );
-    
-    if (!uploadResult.success) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to upload certificate file',
-        details: uploadResult.error
-      });
-    }
-    
-    // Update the instrument record with the file path
+
+    const calibRuleId = await resolveQmsRuleId('CALIBRATION_CERT');
+
+    const govResult = await createRevision({
+      module: 'Calibration' as QmsModule,
+      documentNumber: instrumentCode,
+      label: 'certificate',
+      fileBuffer: req.file.buffer,
+      originalFileName: req.file.originalname,
+      contentType: req.file.mimetype,
+      parentEntityType: 'calibration_instrument',
+      parentEntityId: parseInt(dbInstrumentId),
+      userId: user?.id || 0,
+      userRole,
+      ipAddress: req.ip,
+      ruleId: calibRuleId,
+    });
+
     const updateResult = await pool.query(
-      `UPDATE calibration_instruments
-       SET certificate_file_path = $1, updated_at = NOW()
-       WHERE id = $2
-       RETURNING *`,
-      [uploadResult.filePath, dbInstrumentId]
+      `UPDATE calibration_instruments SET certificate_gcs_key = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [govResult.gcsPath, dbInstrumentId]
     );
-    
-    console.log('[STANDALONE] File upload and update successful');
-    
-    // Return the updated instrument
+
+    console.log(`[STANDALONE] Certificate uploaded via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+
     return res.status(200).json({
       success: true,
       message: 'Calibration certificate uploaded successfully',
       data: updateResult.rows[0],
       file: {
-        path: uploadResult.filePath,
-        url: uploadResult.url
-      }
+        path: govResult.gcsPath,
+        url: govResult.gcsPath,
+      },
     });
   } catch (error) {
     console.error('[STANDALONE] Error handling file upload:', error);
-    
     return res.status(500).json({
       success: false,
       error: 'Failed to process certificate upload',
-      details: error instanceof Error ? error.message : String(error)
+      details: error instanceof Error ? error.message : String(error),
     });
   }
 });

@@ -529,8 +529,14 @@ LIMIT 5;
 
 ### Known gaps identified during pre-flight (outside Phase 2B scope)
 
-**Gap A — `server/standalone-routes.ts` active write to `QMS/Instrument/`:**  
-`server/standalone-routes.ts` (mounted at `/api/standalone`) still calls `uploadCalibrationCertificate()` and actively writes flat files to `QMS/Instrument/{INST-XXXXX}.pdf`. This route is separate from `server/quality/calibration-routes.ts`. Phase 2B does not touch `standalone-routes.ts`. This is a separate remediation item — the standalone handler must be migrated to `createRevision('Calibration')` in a dedicated follow-on task.
+**Gap A — `server/standalone-routes.ts` active write to `QMS/Instrument/`: ✅ RESOLVED (2026-05-16)**  
+`standalone-routes.ts` `POST /calibration-instrument-file-upload` migrated from `uploadCalibrationCertificate()` to `createRevision('Calibration')` with `CALIBRATION_CERT` ruleId. Now writes `certificate_gcs_key` (governed column). `certificate_file_path` formally deprecated — no active route writes it. `uploadCalibrationCertificate()` function removed from `calibration-certificate-upload.ts` (zero call sites confirmed). `getCertificateUrl()` retained (still used by `calibration-routes.ts` line 692 for URL signing).
+
+**`certificate_file_path` column — FORMALLY DEPRECATED (2026-05-16):** No active route writes this column after Gap A. All governed uploads write `certificate_gcs_key` exclusively. Column DROP deferred — no migration scope. Do NOT add new writers to `certificate_file_path`.
+
+**`final-dossier-generator.ts` line 237** — reads `QMS/Instrument/{gauge}.pdf` via `.exists()` check for hydrotest pressure gauge certificates. READ-ONLY. No write. Legacy read; deferred to dossier module governance phase.
+
+**`gcs-operations.ts` `listCalibrationFilesFromGCS()`** — READ-ONLY listing of `QMS/Instrument/` prefix. Confirmed Gap B (deferred).
 
 **Gap B — `listCalibrationFilesFromGCS()` in `server/utils/gcs-operations.ts`:**  
 `buildCalibrationGcsPrefix()` and `buildCalibrationGcsPath()` hardcode `QMS/Instrument/` as a listing prefix. `listCalibrationFilesFromGCS()` uses this prefix to browse existing legacy files for a given instrument. This is READ-ONLY — no writes occur. The listing will find zero results for instruments whose certs were uploaded via `createRevision()` (which writes to `QMS/Calibration/...`). After Phase 2B, calibration download URLs are resolved from `qms_document_revisions` (via `getLatestRevision()`), not from this listing function — so it becomes a legacy-browse utility. Deferred.
