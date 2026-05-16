@@ -104,36 +104,64 @@ TTL for internal tokens is set to **60 seconds** (not 300s like BRC client-facin
 
 ---
 
-## 4. Pre-Implementation Corrections Required
+## 4. Pre-Implementation Corrections — RESOLVED (2026-05-16)
 
-These must be done **before** any Phase 2B route changes, as they affect which rule IDs the implementation will look up.
+All three conflict items were confirmed and resolved before implementation. Seed corrections have been applied to `server/services/gcs-governance-service.ts`.
 
-### 4.1 Governance Rule Path Template Corrections
+### 4.1 WELDER_CERT — RESOLVED ✓
 
-The following governance rules in `gcs-governance-service.ts` have path templates that **do not match** the actual paths currently being written by `generateQmsPath()`. The templates must be corrected to match reality (no GCS file movement; only the template string changes in the seed).
+**Decision:** `QMS/WelderManagement/...` is the authoritative path.
 
-| Submodule | Document Type | Current Template (in seed) | Actual Path Written Today | Action |
-|---|---|---|---|---|
-| `welder_cert` | `WELDER_CERT` | `QMS/WelderCertificates/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}` | `QMS/WelderManagement/{DocNumber}/rev-{revN}/{Seq}-{safeLabel}.{ext}` | Fix template to `QMS/WelderManagement/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}` |
-| `calibration` | `CALIBRATION_CERT` | `QMS/Instrument/{filename}` | `QMS/Calibration/{DocNumber}/rev-{revN}/{Seq}-{safeLabel}.{ext}` (via `createRevision()`) | See §4.2 — Calibration needs separate treatment |
+**Root cause:** The governance rule template was written as `QMS/WelderCertificates/...` but `welder-certificate-routes.ts` has always called `createRevision({ module: 'WelderManagement' })`, causing `generateQmsPath()` to produce `QMS/WelderManagement/...`. All files on GCS are at the `WelderManagement` prefix. The template was wrong; the files are correct.
 
-**Why the `WELDER_CERT` template is wrong:** `welder-certificate-routes.ts` calls `createRevision({ module: 'WelderManagement' })`. `generateQmsPath('WelderManagement', ...)` produces `QMS/WelderManagement/...`. The governance rule template says `QMS/WelderCertificates/...`. These diverge. All historical welder cert files are at `QMS/WelderManagement/...` and must stay there. The rule template is the thing to fix.
+**Action taken:** Seed corrected — `WELDER_CERT.pathTemplate` updated from `QMS/WelderCertificates/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}` to `QMS/WelderManagement/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}`. No GCS files moved. No DB records changed.
 
-### 4.2 Calibration Dual-Upload Path Conflict
+**Authoritative path going forward:** `QMS/WelderManagement/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}`
 
-`calibration-routes.ts` imports **both**:
-- `uploadCalibrationCertificate()` from `../utils/calibration-certificate-upload` — writes to `QMS/Instrument/{filename}` (flat, no revision folder). This is the pattern the governance rule template was designed for.
-- `createRevision()` from `../utils/qms-file-governance` — writes to `QMS/Calibration/{DocNumber}/rev-{N}/1-certificate.ext` (revision folder structure). This is a different path entirely.
+---
 
-The route uses both in different handler functions (instrument creation vs. certificate-specific upload). This conflict must be documented and a decision made before implementation:
+### 4.2 CALIBRATION_CERT — RESOLVED ✓ (Option A confirmed)
 
-**Option A (Recommended):** Standardise on `createRevision()` path (`QMS/Calibration/...` with revision structure). Update governance rule template from `QMS/Instrument/{filename}` to `QMS/Calibration/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}`. Deprecate `uploadCalibrationCertificate()` calls in favour of `createRevision()`.
+**Decision:** Consolidate on `createRevision()` path. `uploadCalibrationCertificate()` is deprecated.
 
-**Option B:** Keep `uploadCalibrationCertificate()` for its existing call sites (flat file path) and only connect `createRevision()` call sites to the token flow with a separate sub-rule. Requires a new governance rule entry for `CALIBRATION_CERT_REV` or similar.
+**Root cause:** Two upload utilities co-existed in `calibration-routes.ts`:
+- `uploadCalibrationCertificate()` (`server/utils/calibration-certificate-upload.ts`) — writes a flat overwrite-on-each-calibration file at `QMS/Instrument/{INST-XXXXX}.pdf`. No revision folder. No DB record. No checksum. No audit log.
+- `createRevision('Calibration')` (`server/utils/qms-file-governance.ts`) — writes `QMS/Calibration/{DocNumber}/rev-{N}/{Seq}-{Label}.{ext}`. Full revision tracking. Checksum. Audit log.
 
-The recommendation is Option A — consolidate on `createRevision()` to maintain consistent revision semantics across all QMS modules. The `uploadCalibrationCertificate()` utility becomes unused and can be removed.
+The governance rule template `QMS/Instrument/{filename}` was written for the legacy utility; `createRevision()` was added later with a different path prefix, leaving the rule template stale.
 
-### 4.3 Token Name Mapping
+**Action taken:** Seed corrected — `CALIBRATION_CERT.pathTemplate` updated from `QMS/Instrument/{filename}` to `QMS/Calibration/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}`. `revisionMode` changed from `'none'` to `'numeric'`. Existing flat files at `QMS/Instrument/{INST-XXXXX}.pdf` are **retained as-is in GCS** (no deletion); they are legacy orphans — their signed URLs in the DB will continue to resolve until the file is naturally superseded. Phase 2B implementation must replace all `uploadCalibrationCertificate()` call sites in `calibration-routes.ts` with `createRevision()`.
+
+**Authoritative path going forward:** `QMS/Calibration/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}`
+
+**`uploadCalibrationCertificate()` status:** DEPRECATED — to be removed from all `calibration-routes.ts` call sites during Phase 2B implementation. The utility file `server/utils/calibration-certificate-upload.ts` should be deleted once all call sites are removed.
+
+---
+
+### 4.3 WPQR Legacy Fallback — CONFIRMED FOR REMOVAL ✓
+
+**Decision:** Remove both legacy fallback blocks. Governance failure → HTTP 500. No silent ungoverned writes.
+
+**Current fallback (to be removed):**
+```typescript
+} catch (govErr) {
+  // ← THIS BLOCK MUST BE DELETED
+  console.error('Governance upload failed, falling back to legacy:', govErr);
+  const filePath = `/QMS/WPQR/${documentId}.pdf`;   // ungoverned flat path
+  const uploadResult = await uploadFileToGCS(filePath, req.file.buffer, req.file.mimetype);
+  // No revision record. No audit log. No checksum. Path bypasses governance entirely.
+}
+```
+
+This fallback exists in two handlers: `POST /api/quality/wpqr` (line ~436) and `PATCH /api/quality/wpqr/:id` (line ~622). Both blocks are removed during Phase 2B implementation.
+
+**Rationale:** The governance layer (`createRevision()`) has been in production since the initial QMS build. No legitimate upload relies on the fallback — it only fires if governance itself is broken (e.g., GCS credentials missing, DB unreachable). In that scenario, a visible 500 is the correct response. Silently writing to an ungoverned path is worse than failing loudly.
+
+**Post-removal behaviour:** Any error in `createRevision()` propagates as a 500 response. The DB record (e.g., `wpqr_documents` row) is rolled back or never committed, depending on whether the insert happened before the governance call. Refer to §5.1 for the correct transaction ordering to ensure DB insert is not committed without a successful GCS write.
+
+---
+
+### 4.4 Token Name Mapping
 
 `generateQmsPath()` uses parameter names that differ from the governance rule token names. The mapping is:
 
