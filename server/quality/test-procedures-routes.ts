@@ -258,6 +258,8 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
       })
       .returning();
 
+    const testProcRuleId = await resolveQmsRuleId('TEST_PROCEDURE');
+
     try {
       const govResult = await createRevision({
         module: 'TestProcedures' as QmsModule,
@@ -271,6 +273,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
         userId,
         userRole,
         ipAddress: req.ip,
+        ruleId: testProcRuleId,
       });
 
       await db.update(testProcedures)
@@ -576,7 +579,7 @@ router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) =
       return res.status(404).json({ error: 'Test procedure not found' });
     }
 
-    const latestRev = await getLatestRevision('test_procedure', id);
+    const latestRev = await getLatestRevision('TestProcedures', procedure.procedureNumber);
     if (latestRev) {
       await softDeleteRevision({
         revisionId: latestRev.id,
@@ -678,7 +681,7 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(404).json({ error: 'Test procedure not found' });
     }
 
-    const latestRev = await getLatestRevision('test_procedure', id);
+    const latestRev = await getLatestRevision('TestProcedures', procedure.procedureNumber);
 
     if (latestRev) {
       const { bucket } = await initializeGCS();
@@ -742,6 +745,19 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
     });
     pathStrategies.push(`QMS/Test_Procedures/${procedure.procedureNumber}.pdf`);
     pathStrategies.push(`QMS/Test_Procedures/${procedure.ndtMethod}/${procedure.procedureNumber}.pdf`);
+
+    // Governance root (QMS/TestProcedures/ — camelCase, no underscore).
+    // getLatestRevision above is the primary mechanism for governed revisions in the DB.
+    // These entries cover belt-and-suspenders cases where a file exists at the governance
+    // GCS prefix but has not yet been indexed into qms_document_revisions.
+    if (procedure.ndtMethod) {
+      pathStrategies.push(`QMS/TestProcedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`);
+      ['ASME', 'EN', 'Others'].filter(s => s !== standardType).forEach(alt => {
+        pathStrategies.push(`QMS/TestProcedures/${procedure.ndtMethod}/${alt}/${procedure.procedureNumber}.pdf`);
+      });
+      pathStrategies.push(`QMS/TestProcedures/${procedure.ndtMethod}/${procedure.procedureNumber}.pdf`);
+    }
+    pathStrategies.push(`QMS/TestProcedures/${procedure.procedureNumber}.pdf`);
 
     const { bucket } = await initializeGCS();
     let foundPath = '';
