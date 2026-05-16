@@ -27,7 +27,11 @@ import {
   getIssuedTokenStats,
   getIssuedTokens,
 } from './services/gcs-governance-service';
-import { runZeroTrustValidation } from './services/gcs-governance-zero-trust';
+import {
+  runZeroTrustValidation,
+  runDryRunSimulation,
+  checkActivationFreeze,
+} from './services/gcs-governance-zero-trust';
 
 function superuserOnly(req: Request, res: Response): boolean {
   const user = (req as any).user;
@@ -560,7 +564,9 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
-  // Activate an approved version (atomic — supersedes current active)
+  // Activate an approved version — two modes:
+  //   { dryRun: true }                              → simulate only, store evidence, no routing change
+  //   { dryRun: false, confirmation: "ACTIVATE" }   → freeze check then atomic swap
   app.post('/api/gcs-governance/rules/:ruleId/versions/:versionId/activate', ensureAuthenticated, async (req, res) => {
     if (!superuserOnly(req, res)) return;
     try {
@@ -568,6 +574,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const versionId = parseInt(req.params.versionId);
       const actorId = (req as any).user?.id;
       const actorRole = (req as any).user?.role;
+      const { dryRun = false, confirmation } = req.body ?? {};
 
       const [version] = await db.select().from(gcsGovernanceRuleVersions)
         .where(and(eq(gcsGovernanceRuleVersions.id, versionId), eq(gcsGovernanceRuleVersions.ruleId, ruleId)))
@@ -575,7 +582,69 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       if (!version) return res.status(404).json({ error: 'Version not found' });
       if (version.status !== 'approved') return res.status(400).json({ error: `Can only activate approved versions. Current status: ${version.status}` });
 
-      // Atomic swap
+      // ── DRY-RUN MODE ────────────────────────────────────────────────────
+      if (dryRun === true) {
+        const dryRunResult = await runDryRunSimulation(versionId, actorId ?? null);
+
+        // Merge dry_run into existing validation_evidence (preserve static checks)
+        const existingEvidence = (version.validationEvidence as Record<string, unknown>) ?? {};
+        const updatedEvidence = { ...existingEvidence, dry_run: dryRunResult };
+
+        await db.update(gcsGovernanceRuleVersions)
+          .set({ validationEvidence: updatedEvidence as any })
+          .where(eq(gcsGovernanceRuleVersions.id, versionId));
+
+        await logGovernanceEvent({
+          eventType: 'dry_run_ran',
+          ruleId, versionId, actorId, actorRole,
+          payload: {
+            overallDryRun: dryRunResult.overallDryRun,
+            sampleCount: dryRunResult.sampleCount,
+            sampleSource: dryRunResult.sampleSource,
+          },
+          req,
+        });
+
+        return res.json({ dryRun: true, ...dryRunResult });
+      }
+
+      // ── COMMIT MODE ──────────────────────────────────────────────────────
+
+      // Gate 1: dry-run must have already passed
+      const evidence = (version.validationEvidence as any) ?? {};
+      if (evidence?.dry_run?.overallDryRun !== 'PASS') {
+        return res.status(409).json({
+          error: 'DRY_RUN_REQUIRED',
+          message: 'A dry-run with overall_dry_run="PASS" must be completed before activation. Run dry-run first.',
+        });
+      }
+
+      // Gate 2: confirmation string
+      if (confirmation !== 'ACTIVATE') {
+        return res.status(400).json({ error: 'Confirmation "ACTIVATE" required' });
+      }
+
+      // Gate 3: freeze check — block if any live pending tokens exist for this rule
+      const freeze = await checkActivationFreeze(ruleId);
+      if (freeze.blocked) {
+        await logGovernanceEvent({
+          eventType: 'activation_freeze_blocked',
+          ruleId, versionId, actorId, actorRole,
+          payload: { count: freeze.count, tokenIds: freeze.tokenIds, latestExpiry: freeze.latestExpiry },
+          req,
+        });
+        return res.status(409).json({
+          error: 'ACTIVATION_FREEZE',
+          reason: 'live_pending_tokens',
+          count: freeze.count,
+          tokenIds: freeze.tokenIds,
+          earliestExpiry: freeze.earliestExpiry,
+          latestExpiry: freeze.latestExpiry,
+          message: `${freeze.count} upload token(s) are currently live for this rule. Wait for them to expire or be consumed before activating. Latest expiry: ${freeze.latestExpiry}`,
+        });
+      }
+
+      // Gate 4: Atomic routing swap
       await db.transaction(async (tx) => {
         await tx.update(gcsGovernanceRuleVersions)
           .set({ status: 'superseded', supersededAt: new Date() })
@@ -589,13 +658,18 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           .set({ status: 'active', activatedBy: actorId ?? null, activatedAt: new Date() })
           .where(eq(gcsGovernanceRuleVersions.id, versionId));
 
-        // Also propagate pathTemplate to rule row for monitor-log compatibility (Phase 0)
+        // Propagate pathTemplate to rule row for monitor-log compatibility (Phase 0)
         await tx.update(gcsGovernanceRules)
           .set({ pathTemplate: version.pathTemplate, rootPrefix: version.rootPrefix, updatedAt: new Date() })
           .where(eq(gcsGovernanceRules.id, ruleId));
       });
 
-      await logGovernanceEvent({ eventType: 'version_activated', ruleId, versionId, actorId, actorRole, req });
+      await logGovernanceEvent({
+        eventType: 'version_activated',
+        ruleId, versionId, actorId, actorRole,
+        payload: { activationFreezeCheckedAt: new Date().toISOString(), liveTokensAtActivation: 0 },
+        req,
+      });
 
       const [refreshed] = await db.select().from(gcsGovernanceRuleVersions)
         .where(eq(gcsGovernanceRuleVersions.id, versionId)).limit(1);
@@ -608,7 +682,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
-  // Rollback — restore a superseded version to approved (then re-activate)
+  // Rollback — restore a superseded version to active (with freeze check)
   app.post('/api/gcs-governance/rules/:ruleId/versions/:versionId/rollback', ensureAuthenticated, async (req, res) => {
     if (!superuserOnly(req, res)) return;
     try {
@@ -616,12 +690,37 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const versionId = parseInt(req.params.versionId);
       const actorId = (req as any).user?.id;
       const actorRole = (req as any).user?.role;
+      const { confirmation } = req.body ?? {};
 
       const [version] = await db.select().from(gcsGovernanceRuleVersions)
         .where(and(eq(gcsGovernanceRuleVersions.id, versionId), eq(gcsGovernanceRuleVersions.ruleId, ruleId)))
         .limit(1);
       if (!version) return res.status(404).json({ error: 'Version not found' });
       if (version.status !== 'superseded') return res.status(400).json({ error: `Can only rollback superseded versions. Current status: ${version.status}` });
+
+      if (confirmation !== 'ROLLBACK') {
+        return res.status(400).json({ error: 'Confirmation "ROLLBACK" required' });
+      }
+
+      // Freeze check — same guard as activation
+      const freeze = await checkActivationFreeze(ruleId);
+      if (freeze.blocked) {
+        await logGovernanceEvent({
+          eventType: 'activation_freeze_blocked',
+          ruleId, versionId, actorId, actorRole,
+          payload: { operation: 'rollback', count: freeze.count, tokenIds: freeze.tokenIds, latestExpiry: freeze.latestExpiry },
+          req,
+        });
+        return res.status(409).json({
+          error: 'ACTIVATION_FREEZE',
+          reason: 'live_pending_tokens',
+          count: freeze.count,
+          tokenIds: freeze.tokenIds,
+          earliestExpiry: freeze.earliestExpiry,
+          latestExpiry: freeze.latestExpiry,
+          message: `${freeze.count} upload token(s) are currently live. Rollback blocked until all live tokens expire or are consumed. Latest expiry: ${freeze.latestExpiry}`,
+        });
+      }
 
       await db.transaction(async (tx) => {
         // Mark current active as superseded
@@ -633,6 +732,8 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           ));
 
         // Restore target to active
+        // NOTE: existing tokens issued under any version retain their original
+        // version_id and resolved_path unchanged (§3.6 token immutability)
         await tx.update(gcsGovernanceRuleVersions)
           .set({ status: 'active', supersededAt: null, activatedBy: actorId ?? null, activatedAt: new Date() })
           .where(eq(gcsGovernanceRuleVersions.id, versionId));
@@ -646,7 +747,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       await logGovernanceEvent({
         eventType: 'version_rolled_back',
         ruleId, versionId, actorId, actorRole,
-        payload: { fromVersionNumber: version.versionNumber },
+        payload: {
+          fromVersionNumber: version.versionNumber,
+          activationFreezeCheckedAt: new Date().toISOString(),
+          liveTokensAtRollback: 0,
+        },
         req,
       });
 

@@ -9,9 +9,10 @@ import {
   gcsGovernanceRuleVersions,
   gcsGovernanceRules,
   gcsGovernanceTokenRegistry,
+  gcsGovernanceAuditLog,
   gcsUploadTokens,
 } from '@shared/schema';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq, and, ne, isNull, gt, desc } from 'drizzle-orm';
 import { extractTemplateTokens, resolvePathTemplate } from './gcs-governance-service';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -278,4 +279,205 @@ export async function runZeroTrustValidation(
   const overall = checks.every(c => c.passed) ? 'PASS' : 'FAIL';
 
   return { overall, checks, ranAt, ranBy: actorId, syntheticExamples };
+}
+
+// ─── Dry-Run Simulation (Check 8) ─────────────────────────────────────────
+
+export interface DryRunSampleResult {
+  originalResolvedPath: string;
+  simulatedResolvedPath: string | null;
+  assertPassed: boolean;
+  pathCollision: boolean;
+  parseError?: string;
+}
+
+export interface DryRunResult {
+  overallDryRun: 'PASS' | 'FAIL';
+  ranAt: string;
+  ranBy: number | null;
+  sampleCount: number;
+  sampleSource: 'real_tokens' | 'synthetic';
+  results: DryRunSampleResult[];
+  failureReason?: string;
+}
+
+/**
+ * Check 8 — Dry-Run Activation Simulation
+ * Uses stored tokenValues from the last 10 real tokens for this rule to simulate
+ * what paths the candidate version would generate. No routing change is made.
+ */
+export async function runDryRunSimulation(
+  versionId: number,
+  actorId: number | null,
+): Promise<DryRunResult> {
+  const ranAt = new Date().toISOString();
+
+  const [candidateVersion] = await db
+    .select()
+    .from(gcsGovernanceRuleVersions)
+    .where(eq(gcsGovernanceRuleVersions.id, versionId))
+    .limit(1);
+
+  if (!candidateVersion) {
+    return {
+      overallDryRun: 'FAIL', ranAt, ranBy: actorId,
+      sampleCount: 0, sampleSource: 'synthetic', results: [],
+      failureReason: `Version ${versionId} not found`,
+    };
+  }
+
+  const ruleId = candidateVersion.ruleId;
+
+  // Fetch last 10 real tokens for this rule (any status — we just want the tokenValues)
+  const recentTokens = await db
+    .select({
+      id: gcsUploadTokens.id,
+      resolvedPath: gcsUploadTokens.resolvedPath,
+      tokenValues: gcsUploadTokens.tokenValues,
+    })
+    .from(gcsUploadTokens)
+    .where(eq(gcsUploadTokens.ruleId, ruleId))
+    .orderBy(desc(gcsUploadTokens.issuedAt))
+    .limit(10);
+
+  let sampleSource: 'real_tokens' | 'synthetic' = 'real_tokens';
+  let samples: { tokenValues: Record<string, string>; originalResolvedPath: string }[] = [];
+
+  if (recentTokens.length > 0) {
+    // Use real token samples — tokenValues is stored as jsonb
+    samples = recentTokens
+      .filter(t => t.tokenValues && typeof t.tokenValues === 'object')
+      .map(t => ({
+        tokenValues: t.tokenValues as Record<string, string>,
+        originalResolvedPath: t.resolvedPath,
+      }));
+  }
+
+  if (samples.length === 0) {
+    // No real tokens or no tokenValues stored — fall back to synthetic samples
+    sampleSource = 'synthetic';
+    const registryTokens = await db.select().from(gcsGovernanceTokenRegistry);
+    const exampleMap = Object.fromEntries(registryTokens.map(t => [t.tokenName, t.exampleValue]));
+    const minMap = Object.fromEntries(registryTokens.map(t => [t.tokenName, t.exampleValue.slice(0, 3) || 'x']));
+    const upperMap = Object.fromEntries(registryTokens.map(t => [t.tokenName, t.exampleValue.toUpperCase()]));
+    // Synthesize 3 "original" paths using the candidate template as its own baseline
+    for (const tv of [exampleMap, minMap, upperMap]) {
+      const synPath = resolvePathTemplate(candidateVersion.pathTemplate, tv);
+      samples.push({ tokenValues: tv, originalResolvedPath: synPath });
+    }
+  }
+
+  const results: DryRunSampleResult[] = [];
+
+  for (const sample of samples) {
+    let simulatedPath: string | null = null;
+    let assertPassed = false;
+    let pathCollision = false;
+    let parseError: string | undefined;
+
+    try {
+      simulatedPath = resolvePathTemplate(candidateVersion.pathTemplate, sample.tokenValues);
+
+      // Basic path assertion
+      const issues: string[] = [];
+      if (simulatedPath.includes('{')) issues.push(`Unresolved tokens remain: ${simulatedPath}`);
+      if (simulatedPath.includes('//')) issues.push(`Double slash in path`);
+      if (simulatedPath.startsWith('/')) issues.push(`Path must not start with /`);
+      assertPassed = issues.length === 0;
+      if (!assertPassed) parseError = issues.join('; ');
+
+      // Collision check: does the simulated path already exist as a different token's resolved_path?
+      if (assertPassed && simulatedPath !== sample.originalResolvedPath) {
+        const [collision] = await db
+          .select({ id: gcsUploadTokens.id })
+          .from(gcsUploadTokens)
+          .where(eq(gcsUploadTokens.resolvedPath, simulatedPath))
+          .limit(1);
+        pathCollision = !!collision;
+      }
+    } catch (err: any) {
+      parseError = err.message;
+      assertPassed = false;
+    }
+
+    results.push({
+      originalResolvedPath: sample.originalResolvedPath,
+      simulatedResolvedPath: simulatedPath,
+      assertPassed,
+      pathCollision,
+      ...(parseError ? { parseError } : {}),
+    });
+  }
+
+  const overallDryRun: 'PASS' | 'FAIL' =
+    results.length > 0 && results.every(r => r.assertPassed && !r.pathCollision)
+      ? 'PASS'
+      : 'FAIL';
+
+  const failureReason = overallDryRun === 'FAIL'
+    ? results
+        .filter(r => !r.assertPassed || r.pathCollision)
+        .map(r => r.parseError ?? (r.pathCollision ? `Collision: ${r.simulatedResolvedPath}` : 'assertion failed'))
+        .slice(0, 3)
+        .join('; ')
+    : undefined;
+
+  return {
+    overallDryRun,
+    ranAt,
+    ranBy: actorId,
+    sampleCount: results.length,
+    sampleSource,
+    results,
+    ...(failureReason ? { failureReason } : {}),
+  };
+}
+
+// ─── Activation Freeze Check ───────────────────────────────────────────────
+
+export interface FreezeCheckResult {
+  blocked: boolean;
+  count: number;
+  tokenIds: number[];
+  earliestExpiry: string | null;
+  latestExpiry: string | null;
+}
+
+/**
+ * Checks whether any live (pending, unexpired) upload tokens exist for a rule.
+ * A pending token means an upload may be in progress — activating now could
+ * switch the routing template mid-flight.
+ *
+ * Token is "live" when: usedAt IS NULL AND expiresAt > NOW()
+ */
+export async function checkActivationFreeze(ruleId: number): Promise<FreezeCheckResult> {
+  const now = new Date();
+
+  const liveTokens = await db
+    .select({
+      id: gcsUploadTokens.id,
+      expiresAt: gcsUploadTokens.expiresAt,
+    })
+    .from(gcsUploadTokens)
+    .where(
+      and(
+        eq(gcsUploadTokens.ruleId, ruleId),
+        isNull(gcsUploadTokens.usedAt),
+        gt(gcsUploadTokens.expiresAt, now),
+      )
+    );
+
+  if (liveTokens.length === 0) {
+    return { blocked: false, count: 0, tokenIds: [], earliestExpiry: null, latestExpiry: null };
+  }
+
+  const sortedExpiries = liveTokens.map(t => t.expiresAt).sort((a, b) => a.getTime() - b.getTime());
+
+  return {
+    blocked: true,
+    count: liveTokens.length,
+    tokenIds: liveTokens.map(t => t.id),
+    earliestExpiry: sortedExpiries[0].toISOString(),
+    latestExpiry:   sortedExpiries[sortedExpiries.length - 1].toISOString(),
+  };
 }

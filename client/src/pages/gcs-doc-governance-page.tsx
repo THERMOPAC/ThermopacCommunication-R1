@@ -908,16 +908,47 @@ function RuleVersionPanel({ rule }: { rule: GcsGovernanceRule }) {
   const activeVersion = versions.find(v => v.status === 'active');
   const pendingCount = versions.filter(v => ['draft', 'pending_approval', 'approved'].includes(v.status)).length;
 
+  const [dryRunState, setDryRunState] = useState<{ versionId: number; result: any } | null>(null);
+  const [freezeError, setFreezeError] = useState<{ versionId: number; message: string; latestExpiry: string | null } | null>(null);
+
+  const dryRunMutation = useMutation({
+    mutationFn: (versionId: number) =>
+      apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/versions/${versionId}/activate`, { dryRun: true }),
+    onSuccess: (result: any, versionId) => {
+      setDryRunState({ versionId, result });
+      qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'] });
+      if (result.overallDryRun === 'PASS') {
+        toast({ title: `Dry-run PASS — ${result.sampleCount} sample(s) validated (${result.sampleSource})` });
+      } else {
+        toast({ title: 'Dry-run FAIL', description: result.failureReason ?? 'See results below', variant: 'destructive' });
+      }
+    },
+    onError: (err: any) => toast({ title: 'Dry-run error', description: err.message, variant: 'destructive' }),
+  });
+
   const lifecycleMutation = useMutation({
-    mutationFn: ({ versionId, action }: { versionId: number; action: string }) =>
-      apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/versions/${versionId}/${action}`, {}),
+    mutationFn: ({ versionId, action, body }: { versionId: number; action: string; body?: Record<string, unknown> }) =>
+      apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/versions/${versionId}/${action}`, body ?? {}),
     onSuccess: (_, { action }) => {
       qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'] });
       qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules'] });
       setConfirmState(null);
+      setDryRunState(null);
+      setFreezeError(null);
       toast({ title: `Version ${action.replace(/_/g, ' ')} successful` });
     },
-    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+    onError: (err: any) => {
+      const body = (err as any)?.responseBody ?? {};
+      if (body?.error === 'ACTIVATION_FREEZE' || body?.error === 'ROLLBACK_FREEZE') {
+        setFreezeError({
+          versionId: (err as any)._versionId ?? 0,
+          message: body.message ?? 'Live tokens exist — wait for expiry',
+          latestExpiry: body.latestExpiry ?? null,
+        });
+        setConfirmState(null);
+      }
+      toast({ title: 'Error', description: body.message ?? err.message, variant: 'destructive' });
+    },
   });
 
   const retireMutation = useMutation({
@@ -936,7 +967,11 @@ function RuleVersionPanel({ rule }: { rule: GcsGovernanceRule }) {
       toast({ title: `Type "${expected}" exactly to confirm`, variant: 'destructive' });
       return;
     }
-    lifecycleMutation.mutate({ versionId, action });
+    if (action === 'activate') {
+      lifecycleMutation.mutate({ versionId, action, body: { dryRun: false, confirmation: 'ACTIVATE' } });
+    } else {
+      lifecycleMutation.mutate({ versionId, action, body: { confirmation: 'ROLLBACK' } });
+    }
   };
 
   return (
@@ -1004,6 +1039,58 @@ function RuleVersionPanel({ rule }: { rule: GcsGovernanceRule }) {
                 </div>
               )}
 
+              {/* Freeze error banner */}
+              {freezeError?.versionId === ver.id && (
+                <div className="mt-2 rounded border border-orange-300 bg-orange-50 p-2 flex items-start gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-orange-600 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-semibold text-orange-700">Activation Blocked — Live Tokens</p>
+                    <p className="text-[10px] text-orange-600 mt-0.5">{freezeError.message}</p>
+                    {freezeError.latestExpiry && (
+                      <p className="text-[10px] text-orange-500 mt-0.5">Retry after: {fmtDateTime(freezeError.latestExpiry)}</p>
+                    )}
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0 shrink-0"
+                    onClick={() => setFreezeError(null)}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Dry-run result panel */}
+              {dryRunState?.versionId === ver.id && (
+                <div className={`mt-2 rounded border p-2 ${dryRunState.result.overallDryRun === 'PASS' ? 'border-green-200 bg-green-50/40' : 'border-red-200 bg-red-50/40'}`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {dryRunState.result.overallDryRun === 'PASS'
+                      ? <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                      : <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                    }
+                    <span className={`text-[10px] font-bold ${dryRunState.result.overallDryRun === 'PASS' ? 'text-green-700' : 'text-red-700'}`}>
+                      Dry-Run: {dryRunState.result.overallDryRun}
+                    </span>
+                    <span className="text-[10px] text-slate-400 ml-auto">
+                      {dryRunState.result.sampleCount} sample{dryRunState.result.sampleCount !== 1 ? 's' : ''} · {dryRunState.result.sampleSource === 'synthetic' ? 'synthetic' : 'real tokens'}
+                    </span>
+                  </div>
+                  {dryRunState.result.results?.slice(0, 3).map((r: any, i: number) => (
+                    <div key={i} className="flex items-start gap-1 mt-0.5">
+                      {r.assertPassed && !r.pathCollision
+                        ? <Check className="w-2.5 h-2.5 text-green-600 mt-0.5 shrink-0" />
+                        : <X className="w-2.5 h-2.5 text-red-500 mt-0.5 shrink-0" />
+                      }
+                      <p className="text-[9px] font-mono text-slate-500 break-all leading-tight">
+                        {r.simulatedResolvedPath ?? 'simulation failed'}
+                        {r.pathCollision && <span className="text-red-600 ml-1">[COLLISION]</span>}
+                        {r.parseError && <span className="text-red-600 ml-1">{r.parseError}</span>}
+                      </p>
+                    </div>
+                  ))}
+                  {dryRunState.result.failureReason && (
+                    <p className="text-[10px] text-red-600 mt-1">{dryRunState.result.failureReason}</p>
+                  )}
+                </div>
+              )}
+
               {/* Action buttons per status */}
               <div className="flex gap-1 mt-2 flex-wrap">
                 {ver.status === 'draft' && (
@@ -1034,20 +1121,42 @@ function RuleVersionPanel({ rule }: { rule: GcsGovernanceRule }) {
                     </Button>
                   </>
                 )}
-                {ver.status === 'approved' && (
-                  <>
-                    <Button size="sm" className="h-6 text-[10px] px-2 bg-green-700 hover:bg-green-800"
-                      disabled={lifecycleMutation.isPending || !!confirmState}
-                      onClick={() => setConfirmState({ action: 'activate', versionId: ver.id, input: '' })}>
-                      Activate
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-red-500 hover:text-red-700"
-                      disabled={retireMutation.isPending}
-                      onClick={() => retireMutation.mutate(ver.id)}>
-                      Retire
-                    </Button>
-                  </>
-                )}
+                {ver.status === 'approved' && (() => {
+                  const storedDryRun = (ver.validationEvidence as any)?.dry_run;
+                  const inSessionDryRun = dryRunState?.versionId === ver.id ? dryRunState.result : null;
+                  const effectiveDryRun = inSessionDryRun ?? storedDryRun;
+                  const dryRunPassed = effectiveDryRun?.overallDryRun === 'PASS';
+
+                  return (
+                    <>
+                      {/* Step 1: Run Dry-Run */}
+                      <Button size="sm" variant="outline"
+                        className={`h-6 text-[10px] px-2 ${dryRunPassed ? 'border-green-400 text-green-700' : 'border-indigo-300 text-indigo-700'}`}
+                        disabled={dryRunMutation.isPending || !!confirmState}
+                        onClick={() => dryRunMutation.mutate(ver.id)}>
+                        {dryRunMutation.isPending && dryRunMutation.variables === ver.id
+                          ? 'Running…'
+                          : dryRunPassed ? '✓ Dry-Run PASS (re-run)' : 'Run Dry-Run'
+                        }
+                      </Button>
+
+                      {/* Step 2: Activate (only after dry-run PASS) */}
+                      <Button size="sm"
+                        className={`h-6 text-[10px] px-2 ${dryRunPassed ? 'bg-green-700 hover:bg-green-800' : 'bg-slate-300 text-slate-400 cursor-not-allowed'}`}
+                        disabled={!dryRunPassed || lifecycleMutation.isPending || !!confirmState}
+                        title={!dryRunPassed ? 'Run dry-run first — must PASS before activation' : undefined}
+                        onClick={() => dryRunPassed && setConfirmState({ action: 'activate', versionId: ver.id, input: '' })}>
+                        Activate
+                      </Button>
+
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-red-500 hover:text-red-700"
+                        disabled={retireMutation.isPending}
+                        onClick={() => retireMutation.mutate(ver.id)}>
+                        Retire
+                      </Button>
+                    </>
+                  );
+                })()}
                 {ver.status === 'superseded' && (
                   <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 border-amber-400 text-amber-700"
                     disabled={lifecycleMutation.isPending || !!confirmState}
