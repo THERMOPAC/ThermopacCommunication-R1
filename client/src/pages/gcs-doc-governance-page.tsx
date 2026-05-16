@@ -4,7 +4,7 @@ import {
   Shield, Database, List, Plus, Eye, EyeOff, ChevronRight,
   AlertTriangle, CheckCircle, HelpCircle, RefreshCw, Info,
   Edit2, X, ChevronDown, FileText, Settings, Key, Activity,
-  Ticket, Copy, Clock, Check, Zap,
+  Ticket, Copy, Clock, Check, Zap, Lock,
 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,14 @@ const MODULE_COLORS: Record<string, string> = {
 };
 
 const REVISION_MODES = ["none", "numeric", "alphabetic"];
+
+const SLUG_RE = /^[a-z0-9_]+$/;
+function toSlug(v: string): string {
+  return v.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+function isSlugSafe(v: string): boolean {
+  return SLUG_RE.test(v);
+}
 
 function ModuleBadge({ module }: { module: string }) {
   const cls = MODULE_COLORS[module] ?? "bg-gray-100 text-gray-700";
@@ -194,34 +202,249 @@ interface RuleFormProps {
   open: boolean;
   onClose: () => void;
   initial?: GcsGovernanceRule | null;
+  existingRules: GcsGovernanceRule[];
 }
 
-function RuleForm({ open, onClose, initial }: RuleFormProps) {
+const BLANK_FORM: Partial<GcsGovernanceRule> = {
+  moduleKey: "", submoduleKey: "", documentType: "", displayName: "",
+  rootPrefix: "", pathTemplate: "", revisionMode: "none",
+  maxFileSizeMb: undefined, notes: "", active: true,
+};
+
+function RuleForm({ open, onClose, initial, existingRules }: RuleFormProps) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const isEdit = !!initial;
 
-  const [form, setForm] = useState<Partial<GcsGovernanceRule>>(initial ?? {
-    moduleKey: "", submoduleKey: "", documentType: "", displayName: "",
-    rootPrefix: "", pathTemplate: "", revisionMode: "none",
-    maxFileSizeMb: undefined, notes: "", active: true,
-  });
+  const [form, setForm] = useState<Partial<GcsGovernanceRule>>(initial ?? BLANK_FORM);
+  const [moduleKeyInputMode, setModuleKeyInputMode] = useState(false);
+  const [submoduleKeyInputMode, setSubmoduleKeyInputMode] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Reset form when slide-over opens
+  useEffect(() => {
+    if (open) {
+      setForm(initial ?? BLANK_FORM);
+      setModuleKeyInputMode(false);
+      setSubmoduleKeyInputMode(false);
+      setErrors({});
+    }
+  }, [open]);
+
   const handleChange = useCallback((field: string, value: unknown) =>
     setForm(prev => ({ ...prev, [field]: value })), []);
 
+  // DB-driven module list (canonical + DB values merged)
+  const { data: moduleMeta } = useQuery<{ modules: string[] }>({
+    queryKey: ["/api/gcs-governance/rules/meta/modules"],
+    enabled: open,
+  });
+  const modules = moduleMeta?.modules ?? [];
+
+  // Dependent submodule list for the selected module (add mode only)
+  const selectedModule = form.moduleKey ?? "";
+  const { data: submoduleMeta } = useQuery<{ submodules: string[] }>({
+    queryKey: [`/api/gcs-governance/rules/meta/submodules?moduleKey=${encodeURIComponent(selectedModule)}`],
+    enabled: open && !!selectedModule && !isEdit,
+  });
+  const existingSubmodules = submoduleMeta?.submodules ?? [];
+
+  // Live duplicate detection — (moduleKey + submoduleKey + documentType) must be unique
+  const normalizedDocType = (form.documentType ?? "").trim().toUpperCase();
+  const duplicateRule = existingRules.find(r => {
+    if (isEdit && r.id === initial?.id) return false;
+    return (
+      r.moduleKey === (form.moduleKey ?? "") &&
+      (r.submoduleKey ?? "") === (form.submoduleKey ?? "") &&
+      r.documentType === normalizedDocType
+    );
+  });
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    const mk = form.moduleKey ?? "";
+    const sk = form.submoduleKey ?? "";
+    if (!mk) errs.moduleKey = "Module key is required.";
+    else if (!isSlugSafe(mk)) errs.moduleKey = "Must be slug-safe: lowercase letters, digits, underscores only (e.g. qms, test_procedures).";
+    if (sk && !isSlugSafe(sk)) errs.submoduleKey = "Must be slug-safe: lowercase letters, digits, underscores only (e.g. pma, wpqr).";
+    if (!normalizedDocType) errs.documentType = "Document type is required.";
+    if (!form.displayName?.trim()) errs.displayName = "Display name is required.";
+    if (!form.rootPrefix?.trim()) errs.rootPrefix = "Root prefix is required.";
+    if (!form.pathTemplate?.trim()) errs.pathTemplate = "Path template is required.";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const mutation = useMutation({
-    mutationFn: (data: typeof form) => isEdit
-      ? apiRequest("PATCH", `/api/gcs-governance/rules/${initial!.id}`, data)
-      : apiRequest("POST", "/api/gcs-governance/rules", data),
+    mutationFn: (data: typeof form) => {
+      const normalized = {
+        ...data,
+        moduleKey: toSlug(data.moduleKey ?? ""),
+        submoduleKey: data.submoduleKey ? toSlug(data.submoduleKey) : "",
+        documentType: (data.documentType ?? "").trim().toUpperCase(),
+        displayName: data.displayName?.trim(),
+        rootPrefix: data.rootPrefix?.trim(),
+        pathTemplate: data.pathTemplate?.trim(),
+      };
+      return isEdit
+        ? apiRequest("PATCH", `/api/gcs-governance/rules/${initial!.id}`, normalized)
+        : apiRequest("POST", "/api/gcs-governance/rules", normalized);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/gcs-governance/rules"] });
+      qc.invalidateQueries({ queryKey: ["/api/gcs-governance/rules/meta/modules"] });
+      qc.invalidateQueries({ queryKey: ["/api/gcs-governance/rules/meta/submodules"] });
       toast({ title: isEdit ? "Rule updated" : "Rule created" });
       onClose();
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Save failed", description: err.message, variant: "destructive" }),
   });
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    mutation.mutate(form);
+  };
+
+  // ── Module Key field ────────────────────────────────────────────────────────
+  const renderModuleKey = () => {
+    if (isEdit) {
+      return (
+        <div>
+          <Label className="text-xs flex items-center gap-1 text-slate-500">
+            <Lock className="w-3 h-3" /> Module Key
+          </Label>
+          <div className="h-8 px-3 mt-1 flex items-center bg-slate-50 border rounded text-xs font-mono text-slate-700">
+            {initial?.moduleKey}
+          </div>
+          <p className="text-[11px] text-amber-600 mt-1 flex items-start gap-1">
+            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+            Permanent governance identifier — cannot be changed after creation.
+          </p>
+        </div>
+      );
+    }
+    if (moduleKeyInputMode) {
+      return (
+        <div>
+          <Label className="text-xs">Module Key *</Label>
+          <div className="flex gap-1 mt-1">
+            <Input
+              className={`h-8 text-xs font-mono flex-1 ${errors.moduleKey ? "border-red-400" : ""}`}
+              value={form.moduleKey ?? ""}
+              onChange={e => handleChange("moduleKey", toSlug(e.target.value))}
+              placeholder="e.g. my_module"
+              autoFocus
+            />
+            <Button size="sm" variant="ghost" className="h-8 text-xs px-2 shrink-0"
+              onClick={() => { setModuleKeyInputMode(false); handleChange("moduleKey", ""); handleChange("submoduleKey", ""); setSubmoduleKeyInputMode(false); }}>
+              ← Back
+            </Button>
+          </div>
+          {errors.moduleKey && <p className="text-[11px] text-red-500 mt-1">{errors.moduleKey}</p>}
+          <p className="text-[11px] text-slate-400 mt-1">Slug-safe only. Auto-normalized as you type.</p>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <Label className="text-xs">Module Key *</Label>
+        <Select
+          value={form.moduleKey ?? ""}
+          onValueChange={v => {
+            if (v === "__new__") {
+              setModuleKeyInputMode(true);
+              setForm(prev => ({ ...prev, moduleKey: "", submoduleKey: "" }));
+              setSubmoduleKeyInputMode(false);
+            } else {
+              setForm(prev => ({ ...prev, moduleKey: v, submoduleKey: "" }));
+              setSubmoduleKeyInputMode(false);
+            }
+          }}
+        >
+          <SelectTrigger className={`h-8 text-xs mt-1 font-mono ${errors.moduleKey ? "border-red-400" : ""}`}>
+            <SelectValue placeholder="Select module key" />
+          </SelectTrigger>
+          <SelectContent>
+            {modules.map(m => (
+              <SelectItem key={m} value={m} className="text-xs font-mono">{m}</SelectItem>
+            ))}
+            <SelectItem value="__new__" className="text-xs text-blue-600">— Enter new module key…</SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.moduleKey && <p className="text-[11px] text-red-500 mt-1">{errors.moduleKey}</p>}
+        <p className="text-[11px] text-slate-400 mt-1">Major governance domain. Permanent once saved.</p>
+      </div>
+    );
+  };
+
+  // ── Submodule Key field ─────────────────────────────────────────────────────
+  const renderSubmoduleKey = () => {
+    if (isEdit) {
+      return (
+        <div>
+          <Label className="text-xs flex items-center gap-1 text-slate-500">
+            <Lock className="w-3 h-3" /> Submodule Key
+          </Label>
+          <div className="h-8 px-3 mt-1 flex items-center bg-slate-50 border rounded text-xs font-mono text-slate-700">
+            {initial?.submoduleKey || <span className="italic text-slate-400">none</span>}
+          </div>
+          <p className="text-[11px] text-amber-600 mt-1 flex items-start gap-1">
+            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+            Permanent governance identifier — cannot be changed after creation.
+          </p>
+        </div>
+      );
+    }
+    const disabled = !form.moduleKey;
+    if (submoduleKeyInputMode) {
+      return (
+        <div>
+          <Label className="text-xs">Submodule Key</Label>
+          <div className="flex gap-1 mt-1">
+            <Input
+              className={`h-8 text-xs font-mono flex-1 ${errors.submoduleKey ? "border-red-400" : ""}`}
+              value={form.submoduleKey ?? ""}
+              onChange={e => handleChange("submoduleKey", toSlug(e.target.value))}
+              placeholder="e.g. test_procedures"
+              autoFocus
+            />
+            <Button size="sm" variant="ghost" className="h-8 text-xs px-2 shrink-0"
+              onClick={() => { setSubmoduleKeyInputMode(false); handleChange("submoduleKey", ""); }}>
+              ← Back
+            </Button>
+          </div>
+          {errors.submoduleKey && <p className="text-[11px] text-red-500 mt-1">{errors.submoduleKey}</p>}
+          <p className="text-[11px] text-slate-400 mt-1">Slug-safe only. Permanent once saved.</p>
+        </div>
+      );
+    }
+    return (
+      <div>
+        <Label className="text-xs">Submodule Key</Label>
+        <Select
+          value={form.submoduleKey || "__none__"}
+          onValueChange={v => {
+            if (v === "__new__") { setSubmoduleKeyInputMode(true); handleChange("submoduleKey", ""); }
+            else if (v === "__none__") handleChange("submoduleKey", "");
+            else handleChange("submoduleKey", v);
+          }}
+          disabled={disabled}
+        >
+          <SelectTrigger className={`h-8 text-xs mt-1 font-mono ${errors.submoduleKey ? "border-red-400" : ""}`}>
+            <SelectValue placeholder={disabled ? "Select module key first" : "Select or enter submodule"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__" className="text-xs text-slate-400">— None (no submodule) —</SelectItem>
+            {existingSubmodules.map(s => (
+              <SelectItem key={s} value={s} className="text-xs font-mono">{s}</SelectItem>
+            ))}
+            <SelectItem value="__new__" className="text-xs text-blue-600">— Enter new submodule key…</SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.submoduleKey && <p className="text-[11px] text-red-500 mt-1">{errors.submoduleKey}</p>}
+        <p className="text-[11px] text-slate-400 mt-1">Optional subdivision within the module. Permanent once saved.</p>
+      </div>
+    );
+  };
 
   return (
     <Sheet open={open} onOpenChange={v => !v && onClose()}>
@@ -232,63 +455,78 @@ function RuleForm({ open, onClose, initial }: RuleFormProps) {
         </SheetHeader>
 
         <div className="space-y-4">
+          {/* Internal governance keys */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Module Key *</Label>
-              <Select value={form.moduleKey} onValueChange={v => handleChange("moduleKey", v)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select module" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(MODULE_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Submodule Key</Label>
-              <Input className="h-8 text-xs" value={form.submoduleKey ?? ""} onChange={e => handleChange("submoduleKey", e.target.value)} placeholder="e.g. procurement" />
-            </div>
+            {renderModuleKey()}
+            {renderSubmoduleKey()}
           </div>
 
+          {/* Document Type + Display Name */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Document Type *</Label>
-              <Input className="h-8 text-xs" value={form.documentType ?? ""} onChange={e => handleChange("documentType", e.target.value)} placeholder="e.g. DATASHEET" />
+              <Input
+                className={`h-8 text-xs font-mono mt-1 ${errors.documentType ? "border-red-400" : ""}`}
+                value={form.documentType ?? ""}
+                onChange={e => handleChange("documentType", e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))}
+                placeholder="e.g. TEST_PROCEDURE"
+              />
+              {errors.documentType && <p className="text-[11px] text-red-500 mt-1">{errors.documentType}</p>}
+              <p className="text-[11px] text-slate-400 mt-1">Uppercase. Auto-normalized.</p>
             </div>
             <div>
               <Label className="text-xs">Display Name *</Label>
-              <Input className="h-8 text-xs" value={form.displayName ?? ""} onChange={e => handleChange("displayName", e.target.value)} placeholder="Human-readable name" />
+              <Input
+                className={`h-8 text-xs mt-1 ${errors.displayName ? "border-red-400" : ""}`}
+                value={form.displayName ?? ""}
+                onChange={e => handleChange("displayName", e.target.value)}
+                placeholder="Human-readable name"
+              />
+              {errors.displayName && <p className="text-[11px] text-red-500 mt-1">{errors.displayName}</p>}
             </div>
           </div>
 
+          {/* Duplicate warning — live as user types */}
+          {duplicateRule && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-700">
+                Rule #{duplicateRule.id} ("{duplicateRule.displayName}") already uses this module / submodule / document type combination. Edit that rule instead.
+              </p>
+            </div>
+          )}
+
           <div>
             <Label className="text-xs">Root Prefix *</Label>
-            <Input className="h-8 text-xs font-mono" value={form.rootPrefix ?? ""} onChange={e => handleChange("rootPrefix", e.target.value)} placeholder="e.g. TPEL or QMS" />
+            <Input
+              className={`h-8 text-xs font-mono mt-1 ${errors.rootPrefix ? "border-red-400" : ""}`}
+              value={form.rootPrefix ?? ""}
+              onChange={e => handleChange("rootPrefix", e.target.value)}
+              placeholder="e.g. TPEL or QMS"
+            />
+            {errors.rootPrefix && <p className="text-[11px] text-red-500 mt-1">{errors.rootPrefix}</p>}
           </div>
 
           <div>
             <Label className="text-xs">Path Template *</Label>
             <Textarea
-              className="text-xs font-mono resize-none"
+              className={`text-xs font-mono resize-none mt-1 ${errors.pathTemplate ? "border-red-400" : ""}`}
               rows={3}
               value={form.pathTemplate ?? ""}
               onChange={e => handleChange("pathTemplate", e.target.value)}
               placeholder="TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/{DocType}/rev-{rev}/{Seq}-{Label}.{ext}"
             />
+            {errors.pathTemplate && <p className="text-[11px] text-red-500 mt-1">{errors.pathTemplate}</p>}
             <p className="text-[11px] text-slate-400 mt-1">Use {"{TOKEN}"} for variable segments. Tokens are auto-detected from the template.</p>
           </div>
 
-          {form.pathTemplate && (
-            <PathPreviewPanel template={form.pathTemplate} />
-          )}
+          {form.pathTemplate && <PathPreviewPanel template={form.pathTemplate} />}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Revision Mode</Label>
               <Select value={form.revisionMode ?? "none"} onValueChange={v => handleChange("revisionMode", v)}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {REVISION_MODES.map(m => <SelectItem key={m} value={m} className="text-xs capitalize">{m}</SelectItem>)}
                 </SelectContent>
@@ -296,13 +534,13 @@ function RuleForm({ open, onClose, initial }: RuleFormProps) {
             </div>
             <div>
               <Label className="text-xs">Max File Size (MB)</Label>
-              <Input className="h-8 text-xs" type="number" value={form.maxFileSizeMb ?? ""} onChange={e => handleChange("maxFileSizeMb", e.target.value ? parseInt(e.target.value) : null)} placeholder="No limit" />
+              <Input className="h-8 text-xs mt-1" type="number" value={form.maxFileSizeMb ?? ""} onChange={e => handleChange("maxFileSizeMb", e.target.value ? parseInt(e.target.value) : null)} placeholder="No limit" />
             </div>
           </div>
 
           <div>
             <Label className="text-xs">Notes</Label>
-            <Textarea className="text-xs resize-none" rows={2} value={form.notes ?? ""} onChange={e => handleChange("notes", e.target.value)} placeholder="Migration status, source route file, etc." />
+            <Textarea className="text-xs resize-none mt-1" rows={2} value={form.notes ?? ""} onChange={e => handleChange("notes", e.target.value)} placeholder="Migration status, source route file, etc." />
           </div>
 
           <div className="flex items-center gap-2">
@@ -313,8 +551,8 @@ function RuleForm({ open, onClose, initial }: RuleFormProps) {
           <div className="flex gap-2 pt-2">
             <Button
               className="flex-1"
-              disabled={mutation.isPending}
-              onClick={() => mutation.mutate(form)}
+              disabled={mutation.isPending || !!duplicateRule}
+              onClick={handleSubmit}
             >
               {mutation.isPending ? "Saving…" : isEdit ? "Save Changes" : "Create Rule"}
             </Button>
@@ -513,6 +751,7 @@ function GovernanceRulesTab() {
         open={ruleForm.open}
         onClose={() => setRuleForm({ open: false, rule: null })}
         initial={ruleForm.rule}
+        existingRules={rules}
       />
     </div>
   );

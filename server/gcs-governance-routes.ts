@@ -34,6 +34,11 @@ function superuserOnly(req: Request, res: Response): boolean {
   return true;
 }
 
+function slugify(v: string): string {
+  return v.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+const SLUG_RE = /^[a-z0-9_]+$/;
+
 export function setupGcsGovernanceRoutes(app: Express): void {
 
   // ── Token Registry ──────────────────────────────────────────────────────
@@ -81,7 +86,6 @@ export function setupGcsGovernanceRoutes(app: Express): void {
   app.get('/api/gcs-governance/rules', ensureAuthenticated, async (req, res) => {
     try {
       const { module: moduleKey, active } = req.query;
-      let query = db.select().from(gcsGovernanceRules);
       const conditions = [];
       if (moduleKey) conditions.push(eq(gcsGovernanceRules.moduleKey, moduleKey as string));
       if (active !== undefined) conditions.push(eq(gcsGovernanceRules.active, active === 'true'));
@@ -94,11 +98,80 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
+  // ── Meta: distinct module keys (DB + canonical list) ──────────────────────
+  app.get('/api/gcs-governance/rules/meta/modules', ensureAuthenticated, async (req, res) => {
+    try {
+      const rows = await db
+        .select({ moduleKey: gcsGovernanceRules.moduleKey })
+        .from(gcsGovernanceRules)
+        .groupBy(gcsGovernanceRules.moduleKey)
+        .orderBy(gcsGovernanceRules.moduleKey);
+      const dbModules = rows.map(r => r.moduleKey);
+      const canonical = ['design', 'dvs', 'epc', 'finance', 'hr', 'internal', 'legal', 'legacy', 'qms', 'sales', 'sap'];
+      const merged = [...new Set([...canonical, ...dbModules])].sort();
+      res.json({ modules: merged });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Meta: distinct submodule keys for a given module ──────────────────────
+  app.get('/api/gcs-governance/rules/meta/submodules', ensureAuthenticated, async (req, res) => {
+    try {
+      const { moduleKey } = req.query;
+      if (!moduleKey) return res.status(400).json({ error: 'moduleKey query param required' });
+      const rows = await db
+        .select({ submoduleKey: gcsGovernanceRules.submoduleKey })
+        .from(gcsGovernanceRules)
+        .where(and(
+          eq(gcsGovernanceRules.moduleKey, moduleKey as string),
+          isNotNull(gcsGovernanceRules.submoduleKey),
+        ))
+        .groupBy(gcsGovernanceRules.submoduleKey)
+        .orderBy(gcsGovernanceRules.submoduleKey);
+      const submodules = rows.map(r => r.submoduleKey).filter(Boolean) as string[];
+      res.json({ submodules });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/gcs-governance/rules', ensureAuthenticated, async (req, res) => {
     if (!superuserOnly(req, res)) return;
     try {
+      const body = { ...req.body };
+
+      // Normalize internal keys
+      body.moduleKey = slugify(body.moduleKey ?? '');
+      body.submoduleKey = body.submoduleKey ? slugify(body.submoduleKey) : null;
+      body.documentType = (body.documentType ?? '').trim().toUpperCase().replace(/[^A-Z0-9_]/g, '');
+
+      // Validate slug-safety
+      if (!body.moduleKey || !SLUG_RE.test(body.moduleKey)) {
+        return res.status(400).json({ error: 'module_key must be slug-safe: lowercase letters, digits, underscores only (e.g. qms, test_procedures)' });
+      }
+      if (body.submoduleKey !== null && !SLUG_RE.test(body.submoduleKey)) {
+        return res.status(400).json({ error: 'submodule_key must be slug-safe: lowercase letters, digits, underscores only (e.g. pma, wpqr)' });
+      }
+
+      // Duplicate check: (module_key, submodule_key, document_type) must be unique
+      const dupCheck = await db
+        .select({ id: gcsGovernanceRules.id, displayName: gcsGovernanceRules.displayName })
+        .from(gcsGovernanceRules)
+        .where(and(
+          eq(gcsGovernanceRules.moduleKey, body.moduleKey),
+          body.submoduleKey ? eq(gcsGovernanceRules.submoduleKey, body.submoduleKey) : isNull(gcsGovernanceRules.submoduleKey),
+          eq(gcsGovernanceRules.documentType, body.documentType),
+        ))
+        .limit(1);
+      if (dupCheck.length > 0) {
+        return res.status(409).json({
+          error: `A rule already exists for module_key="${body.moduleKey}", submodule_key="${body.submoduleKey ?? ''}", document_type="${body.documentType}" (id=${dupCheck[0].id} — "${dupCheck[0].displayName}"). Edit that rule instead.`,
+        });
+      }
+
       const parsed = insertGcsGovernanceRuleSchema.safeParse({
-        ...req.body,
+        ...body,
         createdBy: (req as any).user?.id,
       });
       if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -114,6 +187,49 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     try {
       const id = parseInt(req.params.id);
       const { id: _id, createdAt, createdBy, ...updates } = req.body;
+
+      // Fetch current rule to enforce key immutability
+      const [current] = await db.select().from(gcsGovernanceRules).where(eq(gcsGovernanceRules.id, id)).limit(1);
+      if (!current) return res.status(404).json({ error: 'Rule not found' });
+
+      // Reject changes to immutable governance keys
+      if (updates.moduleKey !== undefined && slugify(updates.moduleKey) !== current.moduleKey) {
+        return res.status(400).json({ error: 'module_key is a permanent governance identifier and cannot be changed after creation. Create a new rule with the correct key instead.' });
+      }
+      if (updates.submoduleKey !== undefined) {
+        const normalizedNew = updates.submoduleKey ? slugify(updates.submoduleKey) : null;
+        const normalizedCurrent = current.submoduleKey ?? null;
+        if (normalizedNew !== normalizedCurrent) {
+          return res.status(400).json({ error: 'submodule_key is a permanent governance identifier and cannot be changed after creation. Create a new rule with the correct key instead.' });
+        }
+      }
+
+      // Normalize non-key fields
+      if (updates.documentType) {
+        updates.documentType = updates.documentType.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '');
+      }
+      if (updates.displayName) updates.displayName = updates.displayName.trim();
+      if (updates.rootPrefix)  updates.rootPrefix  = updates.rootPrefix.trim();
+      if (updates.pathTemplate) updates.pathTemplate = updates.pathTemplate.trim();
+
+      // Duplicate check if document_type is changing
+      if (updates.documentType && updates.documentType !== current.documentType) {
+        const dupCheck = await db
+          .select({ id: gcsGovernanceRules.id, displayName: gcsGovernanceRules.displayName })
+          .from(gcsGovernanceRules)
+          .where(and(
+            eq(gcsGovernanceRules.moduleKey, current.moduleKey),
+            current.submoduleKey ? eq(gcsGovernanceRules.submoduleKey, current.submoduleKey) : isNull(gcsGovernanceRules.submoduleKey),
+            eq(gcsGovernanceRules.documentType, updates.documentType),
+          ))
+          .limit(1);
+        if (dupCheck.length > 0 && dupCheck[0].id !== id) {
+          return res.status(409).json({
+            error: `Rule #${dupCheck[0].id} ("${dupCheck[0].displayName}") already uses document_type="${updates.documentType}" in this module/submodule. Choose a different document type.`,
+          });
+        }
+      }
+
       const [updated] = await db.update(gcsGovernanceRules)
         .set({ ...updates, updatedAt: new Date() })
         .where(eq(gcsGovernanceRules.id, id))
