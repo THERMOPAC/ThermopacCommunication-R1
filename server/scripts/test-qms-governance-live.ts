@@ -7,12 +7,14 @@
  * Run: npx tsx server/scripts/test-qms-governance-live.ts
  */
 
-import { createRevision, resolveQmsRuleId, generateQmsPath } from '../utils/qms-file-governance';
-import { db } from '../db';
+import { createRevision, resolveQmsRuleId, generateQmsPath, type QmsModule } from '../utils/qms-file-governance';
+import { db, pool } from '../db';
 import { qmsDocumentRevisions, qmsDocumentAuditLog } from '@shared/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { Storage } from '@google-cloud/storage';
 import * as crypto from 'crypto';
+import { getCertificateUrl } from '../utils/calibration-certificate-upload';
+import { buildCalibrationGcsPrefix } from '../utils/gcs-operations';
 
 // ── Minimal synthetic PDF (22 bytes — valid PDF header + EOF) ────────────────
 const SYNTHETIC_PDF = Buffer.from('%PDF-1.0\n1 0 obj<</Type /Catalog>>endobj\n%%EOF');
@@ -185,6 +187,161 @@ async function cleanup(paths: string[]) {
   console.log('  Token rows cleaned.\n');
 }
 
+// ─── Test 4: Gap B listing rewire ────────────────────────────────────────────
+async function runTest4GapB(): Promise<{ pass: boolean; notes: string[] }> {
+  const notes: string[] = [];
+  let pass = true;
+  let govGcsPath = '';
+
+  try {
+    // ── 4a: Create a real governed revision for INST-00001 (id=1) ────────────
+    const calibRuleId = await resolveQmsRuleId('CALIBRATION_CERT');
+    const govResult = await createRevision({
+      module: 'Calibration' as QmsModule,
+      documentNumber: 'INST-00001',
+      label: 'certificate',
+      fileBuffer: SYNTHETIC_PDF,
+      originalFileName: SYNTHETIC_FILENAME,
+      contentType: SYNTHETIC_CONTENT_TYPE,
+      parentEntityType: 'calibration_instrument',
+      parentEntityId: 1,
+      userId: TEST_USER_ID,
+      userRole: TEST_USER_ROLE,
+      ipAddress: TEST_IP,
+      ruleId: calibRuleId,
+    });
+    govGcsPath = govResult.gcsPath;
+    notes.push(`  Gov revision created: ${govGcsPath} (rev ${govResult.revisionNumber})`);
+
+    // ── 4b: Latency — DB-backed listing (new handler SQL) ────────────────────
+    const t0db = Date.now();
+    const revRows = await pool.query(
+      `SELECT id, revision_number, original_file_name, file_size_bytes, created_at,
+              content_type, gcs_path, checksum_sha256, is_latest, created_by
+       FROM qms_document_revisions
+       WHERE parent_entity_type = 'calibration_instrument'
+         AND parent_entity_id   = 1
+         AND module             = 'Calibration'
+         AND is_active          = true
+       ORDER BY revision_number DESC`,
+    );
+    const dbMs = Date.now() - t0db;
+    notes.push(`  DB query latency: ${dbMs}ms (${revRows.rows.length} row(s))`);
+
+    // ── 4c: Latency — legacy GCS prefix scan (old path) ──────────────────────
+    const t0gcs = Date.now();
+    const bucket = getGcsBucket();
+    const prefix = buildCalibrationGcsPrefix('INST-00001'); // 'QMS/Instrument/'
+    const [legacyFiles] = await bucket.getFiles({ prefix });
+    const legacyFiltered = legacyFiles.filter(f => (f.name.split('/').pop() || '').startsWith('INST-00001'));
+    const gcsMs = Date.now() - t0gcs;
+    notes.push(`  GCS prefix scan latency: ${gcsMs}ms (${legacyFiltered.length} file(s) matched under QMS/Instrument/)`);
+    notes.push(`  Latency improvement: ${gcsMs}ms → ${dbMs}ms (${Math.round(gcsMs / Math.max(dbMs, 1))}x faster)`);
+
+    // ── 4d: Response shape verification ──────────────────────────────────────
+    if (revRows.rows.length === 0) {
+      notes.push('  ✗ FAIL: DB query returned 0 rows — expected ≥1');
+      pass = false;
+    } else {
+      const row = revRows.rows[0];
+      const hasAllFields = ['revision_number', 'original_file_name', 'file_size_bytes',
+        'created_at', 'content_type', 'gcs_path', 'checksum_sha256', 'is_latest', 'created_by']
+        .every(f => f in row);
+
+      notes.push(`  revisionNumber:    ${row.revision_number}`);
+      notes.push(`  originalFileName:  ${row.original_file_name}`);
+      notes.push(`  gcsPath:           ${row.gcs_path}`);
+      notes.push(`  isLatest:          ${row.is_latest}`);
+      notes.push(`  checksumSha256:    ${(row.checksum_sha256 || '').slice(0, 12)}…`);
+      notes.push(`  contentType:       ${row.content_type}`);
+      notes.push(`  allFieldsPresent:  ${hasAllFields}`);
+
+      if (!hasAllFields) { notes.push('  ✗ FAIL: missing DB columns'); pass = false; }
+
+      // Verify gcsPath does not contain QMS/Instrument/
+      if (row.gcs_path.includes('QMS/Instrument/')) {
+        notes.push('  ✗ FAIL: gcs_path contains deprecated QMS/Instrument/ prefix');
+        pass = false;
+      } else {
+        notes.push('  ✓ PASS: no QMS/Instrument/ in gcs_path');
+      }
+
+      // Verify is_latest
+      if (!row.is_latest) { notes.push('  ✗ FAIL: is_latest is false'); pass = false; }
+      else { notes.push('  ✓ PASS: is_latest = true'); }
+
+      // Verify signed URL generation (getCertificateUrl on governed path)
+      const signedUrl = await getCertificateUrl(row.gcs_path);
+      if (!signedUrl) { notes.push('  ✗ FAIL: getCertificateUrl returned null for governed path'); pass = false; }
+      else { notes.push(`  ✓ PASS: signed URL generated (${signedUrl.slice(0, 60)}…)`); }
+    }
+
+    // ── 4e: Legacy fallback — INST-00073 (legacy-only instrument) ────────────
+    notes.push('\n  ── Legacy fallback (INST-00073) ──');
+    const legacyInstrResult = await pool.query(
+      `SELECT id, instrument_id, certificate_file_path, certificate_gcs_key, updated_at
+       FROM calibration_instruments WHERE instrument_id = 'INST-00073'`
+    );
+
+    if (legacyInstrResult.rows.length === 0) {
+      notes.push('  INST-00073 not found — skipping legacy test');
+    } else {
+      const li = legacyInstrResult.rows[0];
+      const legacyRevResult = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM qms_document_revisions
+         WHERE parent_entity_type = 'calibration_instrument'
+           AND parent_entity_id = $1 AND module = 'Calibration' AND is_active = true`,
+        [li.id]
+      );
+      const legacyRevCount = Number(legacyRevResult.rows[0].cnt);
+      notes.push(`  INST-00073 governed revisions: ${legacyRevCount} (expected: 0)`);
+      if (legacyRevCount !== 0) { notes.push('  ✗ FAIL: expected 0 governed revisions for legacy instrument'); pass = false; }
+      else { notes.push('  ✓ PASS: 0 governed revisions — fallback will activate'); }
+
+      // Resolve legacy path (mirrors handler logic)
+      const certGcsKey: string = li.certificate_gcs_key || '';
+      const certFilePath: string = li.certificate_file_path || '';
+      let legacyPath: string | null = null;
+      if (certGcsKey.startsWith('QMS/')) legacyPath = certGcsKey;
+      else if (certGcsKey.trim()) legacyPath = `QMS/Instrument/${certGcsKey}`;
+      else if (certFilePath.startsWith('QMS/')) legacyPath = certFilePath;
+
+      notes.push(`  Resolved legacy path: ${legacyPath}`);
+      if (!legacyPath) { notes.push('  ✗ FAIL: no legacy path resolved'); pass = false; }
+      else {
+        const legacySignedUrl = await getCertificateUrl(legacyPath);
+        if (!legacySignedUrl) {
+          notes.push('  ⚠ Legacy GCS file not found in bucket (getCertificateUrl=null) — synthesized entry would be empty []');
+          notes.push('  ✓ PASS (acceptable): no signed URL = empty list; download endpoint unaffected');
+        } else {
+          notes.push(`  ✓ PASS: legacy signed URL generated — synthesized entry would return name=${legacyPath.split('/').pop()}`);
+        }
+      }
+    }
+
+  } catch (err: any) {
+    notes.push(`  ✗ ERROR: ${err?.message ?? String(err)}`);
+    pass = false;
+  }
+
+  // Cleanup Test 4 governed revision
+  if (govGcsPath) {
+    try { await getGcsBucket().file(govGcsPath).delete(); } catch {}
+    await db.execute(sql`
+      DELETE FROM qms_document_audit_log WHERE gcs_path = ${govGcsPath}
+    `).catch(() => {});
+    await db.execute(sql`
+      DELETE FROM qms_document_revisions WHERE gcs_path = ${govGcsPath}
+    `).catch(() => {});
+    await db.execute(sql`
+      DELETE FROM gcs_upload_tokens WHERE resolved_path = ${govGcsPath}
+    `).catch(() => {});
+    notes.push('\n  Test 4 GCS file + DB rows cleaned up.');
+  }
+
+  return { pass, notes };
+}
+
 async function main() {
   console.log('\n══════════════════════════════════════════════════════');
   console.log('  QMS GOVERNANCE LIVE VALIDATION — ' + new Date().toISOString());
@@ -201,7 +358,7 @@ async function main() {
   console.log('► Test 3: WelderManagement certificate upload');
   results.push(await runTest('WelderManagement', TEST_WELDER_DOC, 'WELDER_CERT', 'welder_certificate', 2));
 
-  console.log('\n══════════════ EVIDENCE TABLE ══════════════\n');
+  console.log('\n══════════════ EVIDENCE TABLE (Tests 1-3) ══════════════\n');
 
   const checks = [
     'module', 'docNumber', 'ruleId',
@@ -227,25 +384,29 @@ async function main() {
     console.log('');
   }
 
-  // Overall pass/fail
-  const allPassed = results.every(r =>
-    !r.error &&
-    r.tokenIssued && r.tokenUsedAt &&
-    r.parityPassed && r.gcsWritten &&
+  const t123Passed = results.every(r =>
+    !r.error && r.tokenIssued && r.tokenUsedAt && r.parityPassed && r.gcsWritten &&
     r.revisionRowId !== null && r.isLatest === true &&
-    r.checksumPresent && r.checksumMatch &&
-    r.auditRowId !== null &&
-    !r.legacyPathWrite
+    r.checksumPresent && r.checksumMatch && r.auditRowId !== null && !r.legacyPathWrite
   );
 
-  console.log('══════════════════════════════════════════');
-  console.log(`  OVERALL RESULT: ${allPassed ? '✅ ALL CHECKS PASSED' : '❌ ONE OR MORE CHECKS FAILED'}`);
-  console.log('══════════════════════════════════════════\n');
-
-  // Cleanup
-  console.log('► Cleaning up test GCS files and DB rows...');
+  // Cleanup Tests 1-3
+  console.log('► Cleaning up Tests 1-3 GCS files and DB rows...');
   await cleanup(results.map(r => r.gcsPath));
   console.log('  Cleanup complete.\n');
+
+  // ── Test 4: Gap B listing rewire ──────────────────────────────────────────
+  console.log('► Test 4: Gap B — calibration listing endpoint rewire\n');
+  const { pass: t4Passed, notes: t4Notes } = await runTest4GapB();
+  for (const n of t4Notes) console.log(n);
+
+  const allPassed = t123Passed && t4Passed;
+
+  console.log('\n══════════════════════════════════════════');
+  console.log(`  Tests 1-3: ${t123Passed ? '✅ PASS' : '❌ FAIL'}`);
+  console.log(`  Test 4 (Gap B): ${t4Passed ? '✅ PASS' : '❌ FAIL'}`);
+  console.log(`  OVERALL: ${allPassed ? '✅ ALL CHECKS PASSED' : '❌ ONE OR MORE CHECKS FAILED'}`);
+  console.log('══════════════════════════════════════════\n');
 
   process.exit(allPassed ? 0 : 1);
 }

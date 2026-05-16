@@ -35,6 +35,12 @@ interface GCSFileMetadata {
   contentType: string;
   gcsPath: string;
   downloadUrl: string;
+  // Gap B (2026-05-16): additive governed fields — present for governed revisions, null for legacy entries
+  revisionNumber?: number | null;
+  isLatest?: boolean | null;
+  checksumSha256?: string | null;
+  uploadedBy?: number | null;
+  isLegacy?: boolean;
 }
 
 // Custom hook for fetching instrument certificate files from GCS

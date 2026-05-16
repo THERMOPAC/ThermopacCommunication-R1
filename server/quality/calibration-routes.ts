@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { getCertificateUrl } from '../utils/calibration-certificate-upload';
 import { calculateNextCalibrationDate } from '../utils/date-utils';
-import { listCalibrationFilesFromGCS } from '../utils/gcs-operations';
+// listCalibrationFilesFromGCS — DEPRECATED (Gap B, 2026-05-16). No longer called. See gcs-operations.ts.
 import {
   createRevision, logDownload, logAuditEvent, softDeleteRevision,
   getLatestRevision, getRevisionHistory, checkUploadPermission, checkDeletePermission,
@@ -780,42 +780,132 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
   }
 });
 
-// GCS-first endpoint: List certificate files for a specific instrument
+// Gap B (2026-05-16): DB-backed governed revision listing with hybrid legacy fallback.
+// Primary source: qms_document_revisions (parent_entity_type='calibration_instrument').
+// Fallback: synthesizes one legacy entry from certificate_gcs_key / certificate_file_path
+// when no governed revisions exist, preserving backward compat for legacy-only instruments.
+// No GCS prefix scan is performed for governed instruments.
 router.get('/instruments/:instrumentId/certificates', ensureAuthenticated, async (req: Request, res: Response) => {
   const instrumentId = req.params.instrumentId;
-  
-  console.log(`🔍 Calibration Certificates API called for instrument: ${instrumentId}`);
-  
+
+  console.log(`[CalibCerts] Listing certificates for instrument: ${instrumentId}`);
+
   try {
-    // Validate instrument_id format
     if (!instrumentId.match(/^INST-\d{5}$/)) {
       return res.status(400).json({ error: 'Invalid instrument ID format' });
     }
-    
-    // Verify instrument exists in database
+
+    // Fetch DB id + legacy cert columns + updated_at for legacy synthesized entry
     const instrumentResult = await pool.query(
-      'SELECT instrument_id FROM calibration_instruments WHERE instrument_id = $1',
+      `SELECT id, instrument_id, certificate_file_path, certificate_gcs_key, updated_at
+       FROM calibration_instruments WHERE instrument_id = $1`,
       [instrumentId]
     );
-    
+
     if (instrumentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Instrument not found' });
     }
-    
-    console.log(`📋 Found instrument: ${instrumentId}`);
-    
-    // List files from GCS for this specific instrument
-    const files = await listCalibrationFilesFromGCS(instrumentId);
-    
-    console.log(`📁 Found ${files.length} certificate files for instrument ${instrumentId}`);
-    
-    res.json(files);
-    
+
+    const instrument = instrumentResult.rows[0];
+    const dbId: number = instrument.id;
+
+    // ── PRIMARY: governed revisions from qms_document_revisions ─────────────
+    const revResult = await pool.query(
+      `SELECT id, revision_number, original_file_name, file_size_bytes, created_at,
+              content_type, gcs_path, checksum_sha256, is_latest, created_by
+       FROM qms_document_revisions
+       WHERE parent_entity_type = 'calibration_instrument'
+         AND parent_entity_id   = $1
+         AND module             = 'Calibration'
+         AND is_active          = true
+       ORDER BY revision_number DESC`,
+      [dbId]
+    );
+
+    if (revResult.rows.length > 0) {
+      console.log(`[CalibCerts] ${revResult.rows.length} governed revision(s) found for ${instrumentId}`);
+
+      const entries = await Promise.all(revResult.rows.map(async (row: any) => {
+        const signedUrl = await getCertificateUrl(row.gcs_path);
+        return {
+          // ── Core GCSFileMetadata fields (backward-compat) ──
+          name:            row.original_file_name,
+          size:            Number(row.file_size_bytes || 0),
+          updated:         row.created_at instanceof Date
+                             ? row.created_at.toISOString()
+                             : String(row.created_at),
+          contentType:     row.content_type || 'application/pdf',
+          gcsPath:         row.gcs_path,
+          downloadUrl:     signedUrl || '',
+          // ── Additive governed fields ──
+          revisionNumber:  row.revision_number,
+          isLatest:        row.is_latest,
+          checksumSha256:  row.checksum_sha256 || null,
+          uploadedBy:      row.created_by || null,
+          isLegacy:        false,
+        };
+      }));
+
+      return res.json(entries);
+    }
+
+    // ── FALLBACK: no governed revisions — synthesize one legacy entry ────────
+    console.log(`[CalibCerts] No governed revisions for ${instrumentId} — checking legacy cert columns`);
+
+    const certGcsKey: string = instrument.certificate_gcs_key || '';
+    const certFilePath: string = instrument.certificate_file_path || '';
+
+    // Resolve legacy GCS path — mirrors the logic in GET /instruments/:id/certificate
+    let legacyPath: string | null = null;
+    if (certGcsKey.startsWith('QMS/')) {
+      legacyPath = certGcsKey;
+    } else if (certGcsKey.trim()) {
+      legacyPath = `QMS/Instrument/${certGcsKey}`;
+    } else if (certFilePath.startsWith('QMS/')) {
+      legacyPath = certFilePath;
+    }
+
+    if (!legacyPath) {
+      console.log(`[CalibCerts] No cert reference for ${instrumentId} — returning empty list`);
+      return res.json([]);
+    }
+
+    const signedUrl = await getCertificateUrl(legacyPath);
+    if (!signedUrl) {
+      console.log(`[CalibCerts] Legacy GCS file not found at ${legacyPath} — returning empty list`);
+      return res.json([]);
+    }
+
+    const legacyUpdated = instrument.updated_at instanceof Date
+      ? instrument.updated_at.toISOString()
+      : instrument.updated_at
+        ? String(instrument.updated_at)
+        : new Date().toISOString();
+
+    const legacyEntry = {
+      // ── Core GCSFileMetadata fields (backward-compat) ──
+      name:           legacyPath.split('/').pop() || legacyPath,
+      size:           0,
+      updated:        legacyUpdated,
+      contentType:    'application/pdf',
+      gcsPath:        legacyPath,
+      downloadUrl:    signedUrl,
+      // ── Additive governed fields — null for legacy entries ──
+      revisionNumber: null,
+      isLatest:       null,
+      checksumSha256: null,
+      uploadedBy:     null,
+      isLegacy:       true,
+    };
+
+    console.log(`[CalibCerts] Synthesized legacy entry for ${instrumentId}: ${legacyPath}`);
+    return res.json([legacyEntry]);
+
   } catch (error) {
-    console.error('❌ Error listing calibration certificate files:', error);
-    res.status(500).json({ 
+    console.error('[CalibCerts] Error listing calibration certificate files:', error);
+    res.status(500).json({
       error: 'Failed to list certificate files',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });

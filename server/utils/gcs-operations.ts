@@ -727,28 +727,29 @@ export const listFilesFromGCS = async (prefixes: string[]): Promise<{
 };
 
 /**
- * Build GCS prefix for calibration certificate files
- * @param instrumentId - Instrument ID (e.g., INST-00001)
- * @returns GCS prefix for the instrument's certificate
+ * @deprecated (Gap B, 2026-05-16) — No longer called by any active route.
+ * calibration-routes.ts listing endpoint now queries qms_document_revisions (DB-backed).
+ * Retained for reference. Do NOT add new callers.
  */
 export const buildCalibrationGcsPrefix = (instrumentId: string): string => {
   return `QMS/Instrument/`;
 };
 
 /**
- * Build full GCS path for calibration certificate
- * @param instrumentId - Instrument ID (e.g., INST-00001)  
- * @param filename - Certificate filename (e.g., INST-00001.pdf)
- * @returns Full GCS path
+ * @deprecated (Gap B, 2026-05-16) — No longer called by any active route.
+ * calibration-routes.ts listing endpoint now queries qms_document_revisions (DB-backed).
+ * Retained for reference. Do NOT add new callers.
  */
 export const buildCalibrationGcsPath = (instrumentId: string, filename: string): string => {
   return `QMS/Instrument/${filename}`;
 };
 
 /**
- * List calibration certificate files for a specific instrument from GCS
- * @param instrumentId - Instrument ID to filter files
- * @returns Array of GCS file metadata
+ * @deprecated (Gap B, 2026-05-16) — No longer called by any active route.
+ * calibration-routes.ts GET /instruments/:instrumentId/certificates now queries
+ * qms_document_revisions as the primary source. Legacy instruments use a synthesized
+ * entry built from certificate_gcs_key / certificate_file_path columns — one targeted
+ * GCS call, not a prefix scan. Retained for reference. Do NOT add new callers.
  */
 export const listCalibrationFilesFromGCS = async (instrumentId: string): Promise<GCSFileMetadata[]> => {
   try {
