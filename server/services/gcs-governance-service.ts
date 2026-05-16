@@ -1,6 +1,7 @@
 /**
- * GCS Governance Service — Phase 0
+ * GCS Governance Service — Phase 0 + Phase 1
  * Monitor-only mode: logs uploads, validates paths against rules, never blocks.
+ * Phase 1: upload token issuance and validation.
  */
 
 import { db } from '../db';
@@ -8,10 +9,13 @@ import {
   gcsGovernanceRules,
   gcsGovernanceTokenRegistry,
   gcsUploadMonitorLog,
+  gcsUploadTokens,
   type GcsGovernanceRule,
+  type GcsUploadToken,
   type InsertGcsUploadMonitorLog,
 } from '@shared/schema';
-import { eq, desc, and, or, ilike, isNull, sql } from 'drizzle-orm';
+import { eq, desc, and, or, ilike, isNull, sql, lt, isNotNull, gte } from 'drizzle-orm';
+import { randomBytes, createHash } from 'crypto';
 
 // ─── Token substitution ───────────────────────────────────────────────────
 
@@ -257,4 +261,151 @@ export async function seedGovernanceData(): Promise<void> {
   } catch (err) {
     console.warn('[GCS-Governance] Seed failed (non-fatal):', err);
   }
+}
+
+// ─── Phase 1: Upload Token Issuance ──────────────────────────────────────
+
+function hashToken(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex');
+}
+
+export async function issueUploadToken(params: {
+  ruleId: number;
+  tokenValues: Record<string, string>;
+  issuedTo: number;
+  ttlSeconds?: number;
+  notes?: string;
+}): Promise<{
+  rawToken: string;
+  resolvedPath: string;
+  expiresAt: Date;
+  tokenId: number;
+  unresolvedTokens: string[];
+}> {
+  const { ruleId, tokenValues, issuedTo, ttlSeconds = 300, notes } = params;
+
+  // Load the rule
+  const [rule] = await db.select().from(gcsGovernanceRules).where(eq(gcsGovernanceRules.id, ruleId)).limit(1);
+  if (!rule) throw new Error(`Governance rule ${ruleId} not found`);
+  if (!rule.active) throw new Error(`Governance rule ${ruleId} is inactive`);
+
+  // Resolve the path template
+  const { resolved, unresolvedTokens } = previewPath(rule.pathTemplate, tokenValues);
+
+  // Require all template tokens to be resolved
+  if (unresolvedTokens.length > 0) {
+    throw new Error(`Unresolved tokens: ${unresolvedTokens.map(t => `{${t}}`).join(', ')}. Provide values for all tokens.`);
+  }
+
+  // Generate the raw token (32 bytes = 64 hex chars)
+  const rawToken = randomBytes(32).toString('hex');
+  const tokenHash = hashToken(rawToken);
+
+  const issuedAt = new Date();
+  const expiresAt = new Date(issuedAt.getTime() + ttlSeconds * 1000);
+
+  const [inserted] = await db.insert(gcsUploadTokens).values({
+    ruleId,
+    tokenHash,
+    resolvedPath: resolved,
+    rootPrefix: rule.rootPrefix,
+    moduleKey: rule.moduleKey,
+    documentType: rule.documentType,
+    tokenValues: tokenValues as any,
+    maxFileSizeBytes: rule.maxFileSizeMb ? rule.maxFileSizeMb * 1024 * 1024 : null,
+    allowedMimeTypes: rule.allowedMimeTypes ?? null,
+    issuedTo,
+    expiresAt,
+    notes: notes ?? null,
+  }).returning();
+
+  return { rawToken, resolvedPath: resolved, expiresAt, tokenId: inserted.id, unresolvedTokens };
+}
+
+// ─── Phase 1: Upload Token Validation ────────────────────────────────────
+
+export async function validateUploadToken(params: {
+  rawToken: string;
+  actualPath: string;
+}): Promise<{
+  valid: boolean;
+  tokenId?: number;
+  resolvedPath?: string;
+  reason?: 'not_found' | 'expired' | 'already_used' | 'path_mismatch';
+}> {
+  const { rawToken, actualPath } = params;
+  const tokenHash = hashToken(rawToken);
+
+  const [token] = await db.select().from(gcsUploadTokens)
+    .where(eq(gcsUploadTokens.tokenHash, tokenHash))
+    .limit(1);
+
+  if (!token) return { valid: false, reason: 'not_found' };
+  if (new Date() > token.expiresAt) return { valid: false, tokenId: token.id, reason: 'expired' };
+  if (token.usedAt !== null) return { valid: false, tokenId: token.id, reason: 'already_used' };
+  if (token.resolvedPath !== actualPath) {
+    return { valid: false, tokenId: token.id, reason: 'path_mismatch', resolvedPath: token.resolvedPath };
+  }
+
+  // Mark as used
+  await db.update(gcsUploadTokens)
+    .set({ usedAt: new Date(), usedForPath: actualPath })
+    .where(eq(gcsUploadTokens.id, token.id));
+
+  return { valid: true, tokenId: token.id, resolvedPath: token.resolvedPath };
+}
+
+// ─── Phase 1: Issued Token Queries ───────────────────────────────────────
+
+export async function getIssuedTokenStats(): Promise<{
+  total: number;
+  live: number;
+  used: number;
+  expired: number;
+}> {
+  const now = new Date();
+  const [row] = await db.execute(sql`
+    SELECT
+      COUNT(*)::int                                                                       AS total,
+      COUNT(*) FILTER (WHERE used_at IS NULL AND expires_at > NOW())::int               AS live,
+      COUNT(*) FILTER (WHERE used_at IS NOT NULL)::int                                  AS used,
+      COUNT(*) FILTER (WHERE used_at IS NULL AND expires_at <= NOW())::int              AS expired
+    FROM gcs_upload_tokens
+  `);
+  return {
+    total:   Number((row as any).total   ?? 0),
+    live:    Number((row as any).live    ?? 0),
+    used:    Number((row as any).used    ?? 0),
+    expired: Number((row as any).expired ?? 0),
+  };
+}
+
+export async function getIssuedTokens(filters: {
+  moduleKey?: string;
+  status?: 'live' | 'used' | 'expired' | 'all';
+  limit?: number;
+  offset?: number;
+}): Promise<GcsUploadToken[]> {
+  const { moduleKey, status = 'all', limit = 100, offset = 0 } = filters;
+
+  const conditions: any[] = [];
+  if (moduleKey) conditions.push(eq(gcsUploadTokens.moduleKey, moduleKey));
+  if (status === 'used')    conditions.push(isNotNull(gcsUploadTokens.usedAt));
+  if (status === 'live')    conditions.push(
+    sql`${gcsUploadTokens.usedAt} IS NULL AND ${gcsUploadTokens.expiresAt} > NOW()`
+  );
+  if (status === 'expired') conditions.push(
+    sql`${gcsUploadTokens.usedAt} IS NULL AND ${gcsUploadTokens.expiresAt} <= NOW()`
+  );
+
+  return conditions.length > 0
+    ? db.select().from(gcsUploadTokens)
+        .where(and(...conditions))
+        .orderBy(desc(gcsUploadTokens.issuedAt))
+        .limit(limit)
+        .offset(offset)
+    : db.select().from(gcsUploadTokens)
+        .orderBy(desc(gcsUploadTokens.issuedAt))
+        .limit(limit)
+        .offset(offset);
 }

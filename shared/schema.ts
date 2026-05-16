@@ -14196,3 +14196,26 @@ export const gcsUploadMonitorLog = pgTable('gcs_upload_monitor_log', {
 export type GcsUploadMonitorLog = typeof gcsUploadMonitorLog.$inferSelect;
 export const insertGcsUploadMonitorLogSchema = createInsertSchema(gcsUploadMonitorLog).omit({ id: true, detectedAt: true });
 export type InsertGcsUploadMonitorLog = z.infer<typeof insertGcsUploadMonitorLogSchema>;
+
+// 4. Upload Tokens — short-lived pre-authorisation tokens (Phase 1)
+export const gcsUploadTokens = pgTable('gcs_upload_tokens', {
+  id:               serial('id').primaryKey(),
+  ruleId:           integer('rule_id').notNull().references(() => gcsGovernanceRules.id),
+  tokenHash:        varchar('token_hash', { length: 64 }).notNull().unique(),
+  resolvedPath:     text('resolved_path').notNull(),
+  rootPrefix:       text('root_prefix').notNull(),
+  moduleKey:        varchar('module_key', { length: 50 }).notNull(),
+  documentType:     varchar('document_type', { length: 80 }).notNull(),
+  tokenValues:      jsonb('token_values'),
+  maxFileSizeBytes: bigint('max_file_size_bytes', { mode: 'number' }),
+  allowedMimeTypes: text('allowed_mime_types').array(),
+  issuedTo:         integer('issued_to').notNull(),
+  issuedAt:         timestamp('issued_at').notNull().defaultNow(),
+  expiresAt:        timestamp('expires_at').notNull(),
+  usedAt:           timestamp('used_at'),
+  usedForPath:      text('used_for_path'),
+  notes:            text('notes'),
+});
+export type GcsUploadToken = typeof gcsUploadTokens.$inferSelect;
+export const insertGcsUploadTokenSchema = createInsertSchema(gcsUploadTokens).omit({ id: true, issuedAt: true });
+export type InsertGcsUploadToken = z.infer<typeof insertGcsUploadTokenSchema>;

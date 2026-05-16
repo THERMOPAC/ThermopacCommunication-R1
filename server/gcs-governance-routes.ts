@@ -1,6 +1,6 @@
 /**
- * GCS Governance Routes — Phase 0
- * CRUD for rules, token registry, and monitor log.
+ * GCS Governance Routes — Phase 0 + Phase 1
+ * CRUD for rules, token registry, monitor log, and upload token issuance.
  * Monitor-only: reads existing data, never blocks uploads.
  */
 
@@ -10,12 +10,20 @@ import {
   gcsGovernanceRules,
   gcsGovernanceTokenRegistry,
   gcsUploadMonitorLog,
+  gcsUploadTokens,
   insertGcsGovernanceRuleSchema,
   insertGcsGovernanceTokenSchema,
 } from '@shared/schema';
 import { eq, desc, and, or, ilike, isNull, isNotNull, count, sql } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
-import { previewPath, getMonitorStats } from './services/gcs-governance-service';
+import {
+  previewPath,
+  getMonitorStats,
+  issueUploadToken,
+  validateUploadToken,
+  getIssuedTokenStats,
+  getIssuedTokens,
+} from './services/gcs-governance-service';
 
 function superuserOnly(req: Request, res: Response): boolean {
   const user = (req as any).user;
@@ -198,5 +206,75 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
-  console.log('[GCS-Governance] Routes registered at /api/gcs-governance/*');
+  // ── Phase 1: Upload Tokens ───────────────────────────────────────────────
+
+  // Issue a new short-lived upload token
+  app.post('/api/gcs-governance/upload-tokens/issue', ensureAuthenticated, async (req, res) => {
+    try {
+      const { ruleId, tokenValues, ttlSeconds, notes } = req.body;
+      if (!ruleId) return res.status(400).json({ error: 'ruleId required' });
+      if (!tokenValues || typeof tokenValues !== 'object') return res.status(400).json({ error: 'tokenValues object required' });
+
+      const userId = (req as any).user?.id;
+      if (!userId) return res.status(401).json({ error: 'Authenticated user required' });
+
+      const result = await issueUploadToken({
+        ruleId: parseInt(ruleId),
+        tokenValues,
+        issuedTo: userId,
+        ttlSeconds: ttlSeconds ? parseInt(ttlSeconds) : 300,
+        notes,
+      });
+
+      res.status(201).json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Validate a raw token against an actual GCS path
+  app.post('/api/gcs-governance/upload-tokens/validate', ensureAuthenticated, async (req, res) => {
+    try {
+      const { rawToken, actualPath } = req.body;
+      if (!rawToken) return res.status(400).json({ error: 'rawToken required' });
+      if (!actualPath) return res.status(400).json({ error: 'actualPath required' });
+
+      const result = await validateUploadToken({ rawToken, actualPath });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Stats: counts by status
+  app.get('/api/gcs-governance/upload-tokens/stats', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const stats = await getIssuedTokenStats();
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // List issued tokens with filters
+  app.get('/api/gcs-governance/upload-tokens', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const { module: moduleKey, status, limit = '100', offset = '0' } = req.query;
+      const tokens = await getIssuedTokens({
+        moduleKey: moduleKey as string | undefined,
+        status: status as any,
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+      });
+      // Never return the token hash — return only safe fields
+      const safe = tokens.map(({ tokenHash: _h, ...rest }) => rest);
+      res.json(safe);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  console.log('[GCS-Governance] Routes registered at /api/gcs-governance/* (Phase 0 + Phase 1)');
 }

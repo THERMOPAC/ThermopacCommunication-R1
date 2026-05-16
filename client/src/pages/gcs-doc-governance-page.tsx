@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, Database, List, Plus, Eye, EyeOff, ChevronRight,
   AlertTriangle, CheckCircle, HelpCircle, RefreshCw, Info,
   Edit2, X, ChevronDown, FileText, Settings, Key, Activity,
+  Ticket, Copy, Clock, Check, Zap,
 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -716,12 +717,383 @@ function MonitorLogTab() {
   );
 }
 
+// ─── Issued Tokens Tab (Phase 1) ───────────────────────────────────────────
+
+interface IssuedToken {
+  id: number;
+  ruleId: number;
+  resolvedPath: string;
+  rootPrefix: string;
+  moduleKey: string;
+  documentType: string;
+  tokenValues: Record<string, string> | null;
+  maxFileSizeBytes: number | null;
+  allowedMimeTypes: string[] | null;
+  issuedTo: number;
+  issuedAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+  usedForPath: string | null;
+  notes: string | null;
+}
+
+interface TokenStats {
+  total: number;
+  live: number;
+  used: number;
+  expired: number;
+}
+
+function computeTokenStatus(token: IssuedToken): 'live' | 'used' | 'expired' {
+  if (token.usedAt) return 'used';
+  if (new Date(token.expiresAt) <= new Date()) return 'expired';
+  return 'live';
+}
+
+function TokenStatusBadge({ token }: { token: IssuedToken }) {
+  const status = computeTokenStatus(token);
+  if (status === 'live') return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+      <Zap className="w-3 h-3" /> Live
+    </span>
+  );
+  if (status === 'used') return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+      <Check className="w-3 h-3" /> Used
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+      <Clock className="w-3 h-3" /> Expired
+    </span>
+  );
+}
+
+function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
+  const [remaining, setRemaining] = useState('');
+  useEffect(() => {
+    function calc() {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) { setRemaining('—'); return; }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setRemaining(`${m}m ${s}s`);
+    }
+    calc();
+    const interval = setInterval(calc, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+  return <span className="font-mono text-xs text-slate-500">{remaining}</span>;
+}
+
+function IssueTokenSheet({ rules, onIssued }: { rules: GcsGovernanceRule[]; onIssued: (raw: string, path: string, exp: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [selectedRuleId, setSelectedRuleId] = useState<string>('');
+  const [tokenValues, setTokenValues] = useState<Record<string, string>>({});
+  const [ttl, setTtl] = useState('300');
+  const [notes, setNotes] = useState('');
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const selectedRule = rules.find(r => r.id === parseInt(selectedRuleId));
+  const templateTokens = selectedRule
+    ? [...new Set((selectedRule.pathTemplate.match(/\{(\w+)\}/g) ?? []).map(t => t.slice(1, -1)))]
+    : [];
+
+  const issueMutation = useMutation({
+    mutationFn: (body: any) => apiRequest('POST', '/api/gcs-governance/upload-tokens/issue', body),
+    onSuccess: (data: any) => {
+      setOpen(false);
+      setSelectedRuleId('');
+      setTokenValues({});
+      setNotes('');
+      queryClient.invalidateQueries({ queryKey: ['/api/gcs-governance/upload-tokens'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gcs-governance/upload-tokens/stats'] });
+      onIssued(data.rawToken, data.resolvedPath, data.expiresAt);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Issue failed', description: err.message, variant: 'destructive' });
+    },
+  });
+
+  const handleIssue = () => {
+    if (!selectedRuleId) { toast({ title: 'Select a rule', variant: 'destructive' }); return; }
+    issueMutation.mutate({
+      ruleId: parseInt(selectedRuleId),
+      tokenValues,
+      ttlSeconds: parseInt(ttl) || 300,
+      notes: notes || undefined,
+    });
+  };
+
+  return (
+    <>
+      <Button size="sm" className="gap-2" onClick={() => setOpen(true)}>
+        <Ticket className="h-4 w-4" /> Issue Test Token
+      </Button>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className="w-[480px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2"><Ticket className="h-5 w-5 text-blue-600" /> Issue Upload Token</SheetTitle>
+            <SheetDescription>
+              Issue a short-lived authorisation token for a specific governed path. The raw token is shown once.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-5">
+            {/* Rule selector */}
+            <div className="space-y-1.5">
+              <Label>Governance Rule</Label>
+              <Select value={selectedRuleId} onValueChange={v => { setSelectedRuleId(v); setTokenValues({}); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a rule…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rules.filter(r => r.active).map(r => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      <span className="font-medium">{r.displayName}</span>
+                      <span className="ml-2 text-muted-foreground text-xs">{r.moduleKey.toUpperCase()}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Path template preview */}
+            {selectedRule && (
+              <div className="bg-slate-50 rounded-md border p-3 space-y-1">
+                <p className="text-xs font-medium text-slate-600">Path Template</p>
+                <p className="font-mono text-xs text-slate-700 break-all">{selectedRule.pathTemplate}</p>
+              </div>
+            )}
+
+            {/* Token value inputs */}
+            {templateTokens.length > 0 && (
+              <div className="space-y-3">
+                <Label className="text-sm">Token Values</Label>
+                {templateTokens.map(token => (
+                  <div key={token} className="space-y-1">
+                    <Label className="text-xs text-slate-600">{`{${token}}`}</Label>
+                    <Input
+                      placeholder={`Enter ${token}…`}
+                      value={tokenValues[token] ?? ''}
+                      onChange={e => setTokenValues(prev => ({ ...prev, [token]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Resolved path preview */}
+            {selectedRule && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-600">Resolved Path Preview</Label>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-2">
+                  <p className="font-mono text-xs text-blue-800 break-all">
+                    {selectedRule.pathTemplate.replace(/\{(\w+)\}/g, (_, t) => tokenValues[t] || `{${t}}`)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* TTL and Notes */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">TTL (seconds)</Label>
+                <Input type="number" min={30} max={3600} value={ttl} onChange={e => setTtl(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Notes (optional)</Label>
+                <Input placeholder="e.g. EPC C10357 upload" value={notes} onChange={e => setNotes(e.target.value)} />
+              </div>
+            </div>
+
+            <Button className="w-full gap-2" disabled={issueMutation.isPending} onClick={handleIssue}>
+              {issueMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
+              Issue Token
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
+  );
+}
+
+function RawTokenDisplay({ rawToken, resolvedPath, expiresAt, onDismiss }: {
+  rawToken: string; resolvedPath: string; expiresAt: string; onDismiss: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(rawToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="border border-green-300 bg-green-50 rounded-lg p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+          <p className="text-sm font-semibold text-green-800">Token Issued — Copy Now (shown once only)</p>
+        </div>
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onDismiss}><X className="h-4 w-4" /></Button>
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-slate-600 font-medium">Raw Token</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 bg-white border rounded px-2 py-1 text-xs font-mono text-slate-800 break-all">{rawToken}</code>
+          <Button variant="outline" size="sm" className="gap-1 shrink-0" onClick={handleCopy}>
+            {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? 'Copied' : 'Copy'}
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-slate-600 font-medium">Authorised Path</p>
+        <p className="font-mono text-xs text-slate-700 break-all bg-white border rounded px-2 py-1">{resolvedPath}</p>
+      </div>
+      <p className="text-xs text-amber-700">
+        Expires: {fmtDateTime(expiresAt)}. This token will not be shown again.
+      </p>
+    </div>
+  );
+}
+
+function IssuedTokensTab({ rules }: { rules: GcsGovernanceRule[] }) {
+  const [lastIssuedToken, setLastIssuedToken] = useState<{ rawToken: string; resolvedPath: string; expiresAt: string } | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const { data: stats, isLoading: statsLoading } = useQuery<TokenStats>({
+    queryKey: ['/api/gcs-governance/upload-tokens/stats'],
+    refetchInterval: 30000,
+  });
+
+  const { data: tokens = [], isLoading: tokensLoading, refetch } = useQuery<IssuedToken[]>({
+    queryKey: ['/api/gcs-governance/upload-tokens', statusFilter],
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/upload-tokens?status=${statusFilter}&limit=100`),
+    refetchInterval: 30000,
+  });
+
+  return (
+    <div className="space-y-5">
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Issued Upload Tokens</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Short-lived path-authorisation tokens. Each raw token is returned once. Tokens expire after 5 minutes by default.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+          <IssueTokenSheet
+            rules={rules}
+            onIssued={(raw, path, exp) => setLastIssuedToken({ rawToken: raw, resolvedPath: path, expiresAt: exp })}
+          />
+        </div>
+      </div>
+
+      {/* Raw token display (one-time) */}
+      {lastIssuedToken && (
+        <RawTokenDisplay
+          rawToken={lastIssuedToken.rawToken}
+          resolvedPath={lastIssuedToken.resolvedPath}
+          expiresAt={lastIssuedToken.expiresAt}
+          onDismiss={() => setLastIssuedToken(null)}
+        />
+      )}
+
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Issued', value: stats?.total ?? 0, cls: 'text-slate-700', bg: 'bg-slate-50 border-slate-200' },
+          { label: 'Live',         value: stats?.live    ?? 0, cls: 'text-green-700', bg: 'bg-green-50 border-green-200' },
+          { label: 'Used',         value: stats?.used    ?? 0, cls: 'text-blue-700',  bg: 'bg-blue-50 border-blue-200' },
+          { label: 'Expired',      value: stats?.expired ?? 0, cls: 'text-gray-500',  bg: 'bg-gray-50 border-gray-200' },
+        ].map(({ label, value, cls, bg }) => (
+          <Card key={label} className={`border ${bg}`}>
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className={`text-2xl font-bold mt-0.5 ${cls}`}>{statsLoading ? '…' : value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Filter row */}
+      <div className="flex items-center gap-2">
+        <p className="text-xs text-slate-500">Filter:</p>
+        {(['all', 'live', 'used', 'expired'] as const).map(s => (
+          <Button
+            key={s}
+            variant={statusFilter === s ? 'default' : 'outline'}
+            size="sm"
+            className="h-7 text-xs capitalize"
+            onClick={() => setStatusFilter(s)}
+          >
+            {s}
+          </Button>
+        ))}
+      </div>
+
+      {/* Tokens table */}
+      {tokensLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground py-6 justify-center">
+          <RefreshCw className="h-4 w-4 animate-spin" /> Loading tokens…
+        </div>
+      ) : tokens.length === 0 ? (
+        <div className="border rounded-lg py-12 flex flex-col items-center gap-3 text-muted-foreground">
+          <Ticket className="h-10 w-10 text-slate-300" />
+          <p className="text-sm">No tokens found. Use "Issue Test Token" to issue your first token.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 border-b">
+              <tr>
+                {['Issued At', 'Module', 'Document Type', 'Resolved Path', 'Status', 'Expires / Used At', 'Notes'].map(h => (
+                  <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {tokens.map(token => {
+                const status = computeTokenStatus(token);
+                return (
+                  <tr key={token.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-500 whitespace-nowrap text-xs">{fmtDateTime(token.issuedAt)}</td>
+                    <td className="px-3 py-2"><ModuleBadge module={token.moduleKey} /></td>
+                    <td className="px-3 py-2 text-slate-500 text-xs truncate max-w-[100px]" title={token.documentType}>{token.documentType}</td>
+                    <td className="px-3 py-2 font-mono text-slate-700 text-xs max-w-[280px] truncate" title={token.resolvedPath}>{token.resolvedPath}</td>
+                    <td className="px-3 py-2"><TokenStatusBadge token={token} /></td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">
+                      {status === 'live'
+                        ? <ExpiryCountdown expiresAt={token.expiresAt} />
+                        : status === 'used'
+                          ? <span className="text-blue-600">{fmtDateTime(token.usedAt!)}</span>
+                          : <span className="text-slate-400">{fmtDateTime(token.expiresAt)}</span>
+                      }
+                    </td>
+                    <td className="px-3 py-2 text-slate-400 text-xs truncate max-w-[120px]" title={token.notes ?? ''}>{token.notes ?? '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function GcsDocGovernancePage() {
   const { user } = useAuth();
   const isSuperuser = user?.role === "Superuser";
   const [tab, setTab] = useState("rules");
+
+  const { data: allRules = [] } = useQuery<GcsGovernanceRule[]>({
+    queryKey: ['/api/gcs-governance/rules'],
+  });
 
   return (
     <Layout>
@@ -732,11 +1104,11 @@ export default function GcsDocGovernancePage() {
           <div>
             <h1 className="text-2xl font-bold">GCS Doc Governance</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              GCS path governance rules, token definitions, and upload audit log — monitor mode only
+              GCS path governance rules, token definitions, upload audit log, and upload token authorisation
             </p>
           </div>
-          <Badge variant="outline" className="ml-auto text-[11px] bg-blue-50 text-blue-700 border-blue-200">
-            Phase 0 — Monitor Mode
+          <Badge variant="outline" className="ml-auto text-[11px] bg-indigo-50 text-indigo-700 border-indigo-200">
+            Phase 1 — Token Auth
           </Badge>
         </div>
 
@@ -748,8 +1120,8 @@ export default function GcsDocGovernancePage() {
               <div>
                 <p className="text-sm font-semibold text-blue-800">Monitor Mode Active — No uploads are blocked</p>
                 <p className="text-xs text-blue-700 mt-0.5">
-                  This registry documents the expected GCS path structure for every module. Enforcement is introduced in a later phase.
-                  Modules currently registered:&nbsp;
+                  This registry documents the expected GCS path structure for every module. Upload tokens can be issued and validated but enforcement is introduced in Phase 2.
+                  Modules registered:&nbsp;
                   {Object.entries(MODULE_LABELS).map(([k, v]) => (
                     <span key={k} className="inline-block mr-1"><ModuleBadge module={k} /></span>
                   ))}
@@ -773,6 +1145,11 @@ export default function GcsDocGovernancePage() {
                 <Activity className="h-4 w-4" /> Monitor Log
               </TabsTrigger>
             )}
+            {isSuperuser && (
+              <TabsTrigger value="issued-tokens" className="flex items-center gap-1.5">
+                <Ticket className="h-4 w-4" /> Issued Tokens
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="rules" className="mt-4">
@@ -786,6 +1163,12 @@ export default function GcsDocGovernancePage() {
           {isSuperuser && (
             <TabsContent value="monitor" className="mt-4">
               <MonitorLogTab />
+            </TabsContent>
+          )}
+
+          {isSuperuser && (
+            <TabsContent value="issued-tokens" className="mt-4">
+              <IssuedTokensTab rules={allRules} />
             </TabsContent>
           )}
         </Tabs>
