@@ -679,6 +679,8 @@ function GovernanceRulesTab() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const hasWarning = (r: GcsGovernanceRule) => r.notes?.startsWith("⚠") || r.notes?.startsWith("🚨");
+
   const filtered = rules.filter(r => {
     if (filterModule !== "all" && r.moduleKey !== filterModule) return false;
     if (filterActive === "active" && !r.active) return false;
@@ -686,8 +688,6 @@ function GovernanceRulesTab() {
     if (filterActive === "issues" && !hasWarning(r)) return false;
     return true;
   });
-
-  const hasWarning = (r: GcsGovernanceRule) => r.notes?.startsWith("⚠") || r.notes?.startsWith("🚨");
 
   return (
     <div className="space-y-4">
