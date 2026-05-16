@@ -396,3 +396,9 @@ id = "rgCX3UEIJ0jnlsxBMp0Cs"
 uri = "file://docs/sap-session-unification-migration-plan-v1.2.md"
 type = "text"
 title = "SAP Session Unification Migration Plan v1.2 (Baseline)"
+
+[[outputs]]
+id = "1x7Z-0M34GaMJMIblKiX1"
+uri = "file://docs/gcs-db-driven-routing-phase0-baseline.md"
+type = "text"
+title = "GCS DB-Driven Routing — Phase 0 Baseline v1.0"
