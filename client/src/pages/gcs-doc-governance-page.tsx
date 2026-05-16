@@ -809,16 +809,25 @@ function TokenRegistryTab() {
     return rules.filter(r => r.allowedTokens?.includes(tokenName)).length;
   };
 
+  const activeCount = tokens.filter(t => t.active).length;
+  const inactiveCount = tokens.length - activeCount;
   const displayed = showInactive ? tokens : tokens.filter(t => t.active);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400">{displayed.length} token{displayed.length !== 1 ? "s" : ""}</span>
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-            <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+          <span className="text-xs text-slate-400">
+            {activeCount} active
+            {inactiveCount > 0
+              ? <>, <span className="text-amber-600">{inactiveCount} inactive</span></>
+              : <span className="text-slate-300"> · 0 inactive</span>
+            }
+          </span>
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
+            <Switch checked={showInactive} onCheckedChange={setShowInactive} disabled={inactiveCount === 0} />
             Show inactive
+            {inactiveCount === 0 && <span className="text-slate-300">(none)</span>}
           </label>
         </div>
         <Button size="sm" className="h-8 text-xs" onClick={() => setTokenForm({ open: true, token: null })}>
