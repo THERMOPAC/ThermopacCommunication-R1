@@ -5,6 +5,7 @@ import {
   AlertTriangle, CheckCircle, HelpCircle, RefreshCw, Info,
   Edit2, X, ChevronDown, FileText, Settings, Key, Activity,
 } from "lucide-react";
+import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -723,60 +724,72 @@ export default function GcsDocGovernancePage() {
   const [tab, setTab] = useState("rules");
 
   return (
-    <div className="p-6 space-y-5 max-w-full">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Shield className="w-5 h-5 text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-800">GCS Document Governance</h1>
-            <Badge variant="outline" className="text-[11px] bg-blue-50 text-blue-700 border-blue-200">Phase 0 — Monitor Mode</Badge>
+    <Layout>
+      <div className="p-6 space-y-6">
+        {/* Page header */}
+        <div className="flex items-center gap-3">
+          <Shield className="h-6 w-6 text-blue-600" />
+          <div>
+            <h1 className="text-2xl font-bold">GCS Doc Governance</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              GCS path governance rules, token definitions, and upload audit log — monitor mode only
+            </p>
           </div>
-          <p className="text-sm text-slate-500">
-            Central registry of GCS path governance rules, token definitions, and upload audit log.
-            Monitor mode only — no uploads are blocked.
-          </p>
+          <Badge variant="outline" className="ml-auto text-[11px] bg-blue-50 text-blue-700 border-blue-200">
+            Phase 0 — Monitor Mode
+          </Badge>
         </div>
-      </div>
 
-      {/* Module coverage summary */}
-      <div className="flex flex-wrap gap-1.5">
-        {Object.entries(MODULE_LABELS).map(([k, v]) => (
-          <ModuleBadge key={k} module={k} />
-        ))}
-        <span className="text-[11px] text-slate-400 self-center ml-1">modules registered</span>
-      </div>
+        {/* Module coverage summary */}
+        <Card className="border-blue-200 bg-blue-50/40">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-start gap-3">
+              <Shield className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">Monitor Mode Active — No uploads are blocked</p>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  This registry documents the expected GCS path structure for every module. Enforcement is introduced in a later phase.
+                  Modules currently registered:&nbsp;
+                  {Object.entries(MODULE_LABELS).map(([k, v]) => (
+                    <span key={k} className="inline-block mr-1"><ModuleBadge module={k} /></span>
+                  ))}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Tabs */}
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="h-9">
-          <TabsTrigger value="rules" className="text-xs gap-1.5">
-            <List className="w-3.5 h-3.5" /> Governance Rules
-          </TabsTrigger>
-          <TabsTrigger value="tokens" className="text-xs gap-1.5">
-            <Key className="w-3.5 h-3.5" /> Token Registry
-          </TabsTrigger>
-          {isSuperuser && (
-            <TabsTrigger value="monitor" className="text-xs gap-1.5">
-              <Activity className="w-3.5 h-3.5" /> Monitor Log
+        {/* Tabs */}
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="flex items-center gap-1 h-9">
+            <TabsTrigger value="rules" className="flex items-center gap-1.5">
+              <List className="h-4 w-4" /> Governance Rules
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="tokens" className="flex items-center gap-1.5">
+              <Key className="h-4 w-4" /> Token Registry
+            </TabsTrigger>
+            {isSuperuser && (
+              <TabsTrigger value="monitor" className="flex items-center gap-1.5">
+                <Activity className="h-4 w-4" /> Monitor Log
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        <TabsContent value="rules" className="mt-4">
-          <GovernanceRulesTab />
-        </TabsContent>
-
-        <TabsContent value="tokens" className="mt-4">
-          <TokenRegistryTab />
-        </TabsContent>
-
-        {isSuperuser && (
-          <TabsContent value="monitor" className="mt-4">
-            <MonitorLogTab />
+          <TabsContent value="rules" className="mt-4">
+            <GovernanceRulesTab />
           </TabsContent>
-        )}
-      </Tabs>
-    </div>
+
+          <TabsContent value="tokens" className="mt-4">
+            <TokenRegistryTab />
+          </TabsContent>
+
+          {isSuperuser && (
+            <TabsContent value="monitor" className="mt-4">
+              <MonitorLogTab />
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
+    </Layout>
   );
 }
