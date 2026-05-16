@@ -1,10 +1,16 @@
 # GCS DB-Driven Routing — Phase 0 Baseline
 
-**Document status:** SUBMITTED FOR APPROVAL — no code changes  
-**Version:** 1.0  
+**Document status:** APPROVED — AMENDED  
+**Version:** 1.1  
 **Date:** 2026-05-16  
 **Scope:** Infrastructure only — zero routing behavior change  
 **Prerequisite for:** Phase 1 (QMS parity gate removal) through Phase 4 (unmanaged modules)
+
+**Amendments in v1.1 (approved additions, no implementation yet):**
+- §3.6 — Token-version immutability (explicit write-once contract)
+- §3.7 / §5.8 — Dry-run activation mode (simulation before commit)
+- §6.5 — Activation freeze protection (in-flight upload guard)
+- §8.2, §9.1 updated accordingly
 
 ---
 
@@ -111,7 +117,7 @@ gcs_governance_rule_versions                ← version layer (path configuratio
   activated_by         INT → users.id (nullable)
   activated_at         TIMESTAMP (nullable)
   superseded_at        TIMESTAMP (nullable)
-  validation_evidence  JSONB        ← Zero-Trust check results (see §5)
+  validation_evidence  JSONB        ← Zero-Trust check results + dry-run results (see §5, §5.8)
   diff_from_prev       JSONB        ← computed diff vs previous version
 ```
 
@@ -123,12 +129,21 @@ gcs_governance_rule_versions                ← version layer (path configuratio
               └────┬────┘
                    │ submit for approval
               ┌────▼─────────────┐
-              │ pending_approval │  ← Zero-Trust validation runs here (all 7 checks must pass)
+              │ pending_approval │  ← Zero-Trust validation runs here (all 8 checks must pass)
               └────┬─────────────┘
                    │ Superuser approves (MUST be a different user from the creator)
               ┌────▼────────┐
               │  approved   │  ← ready to activate; no routing change yet
               └────┬────────┘
+                   │ dry-run activation (§3.7, §5.8)
+                   │   → simulates paths against real token samples
+                   │   → stores dry-run evidence in validation_evidence
+                   │   → no routing change; must PASS before final activation
+                   │
+                   │ freeze check (§6.5)
+                   │   → blocked if any live pending tokens exist for rule
+                   │   → blocked if any in-progress uploads for rule
+                   │
                    │ Superuser activates (explicit action; requires typing "ACTIVATE")
               ┌────▼───────┐   atomically supersedes   ┌────────────┐
               │   active   │ ─────────────────────────▶ │ superseded │
@@ -139,7 +154,9 @@ gcs_governance_rule_versions                ← version layer (path configuratio
               └────────────┘
 ```
 
-### 3.3 Immutability rules
+**Dry-run and freeze checks are mandatory gates that run between `approved` and the final `activate` commit.** The activation API call accepts a `dryRun: true` parameter to run simulation and freeze check without committing the routing change. The final commit (routing change) is only permitted after a dry-run has been stored in `validation_evidence` and returned `overall_dry_run: "PASS"`.
+
+### 3.3 Immutability rules (version rows)
 
 | Field | Mutable after creation? | Enforcement |
 |---|---|---|
@@ -171,6 +188,37 @@ This means:
 - Any file can be traced back to the exact `path_template` used to generate its GCS path
 - Any future audit can reconstruct the path formula for any file from first principles
 - `path_schema_version` is surfaced in the governance UI on each token ledger entry
+
+### 3.6 Token-version immutability (write-once contract)
+
+Once `issueUploadToken()` inserts a row into `gcs_upload_tokens`, the following three fields on that row are **permanently immutable** — they may never be updated by any code path, migration, backfill, or admin operation:
+
+| Field | Written at | Why immutable |
+|---|---|---|
+| `version_id` | Token issuance | Identifies the exact `path_template` used to generate the path |
+| `resolved_path` | Token issuance | The GCS object path is already being written at this address |
+| (implicit) `path_schema_version` | Derived from `version_id → version_number` | Audit integrity — the schema used to produce the path must be traceable forever |
+
+**This immutability holds unconditionally, including after a version rollback.**
+
+If a version is rolled back (superseded version re-activated), tokens issued while that version was active continue to reference it. Only new tokens issued after the rollback use the restored active version. The token ledger is a permanent, append-only record of which path template generated which file.
+
+Enforcement:
+- No `UPDATE gcs_upload_tokens SET version_id = …` or `SET resolved_path = …` statement may exist anywhere in the codebase
+- No migration may bulk-update these fields
+- The governance audit log records a `WARN` event if any attempt is detected
+
+### 3.7 Dry-run activation mode
+
+Before any routing change takes effect, an activation dry-run must be performed and must pass. The dry-run:
+
+1. **Samples real token data** — queries the last 10 (or all, if fewer) `gcs_upload_tokens` rows for the rule, extracting the `tokenValues` that were used to generate their `resolved_path`
+2. **Simulates path generation** — runs those same `tokenValues` through the candidate version's `path_template` to produce simulated resolved paths
+3. **Compares simulated vs historical** — verifies the simulated paths are structurally valid (pass `assertGcsPath()`) and checks whether any simulated path would collide with an existing active token's `resolved_path`
+4. **Records evidence** — stores all results in `validation_evidence.dry_run` (see §5.8 for structure)
+5. **Makes no routing change** — the version status remains `approved`; nothing is written to `gcs_upload_tokens`
+
+The dry-run is exposed as `POST /activate` with `{ dryRun: true }`. The final commit is `POST /activate` with `{ dryRun: false, confirmation: "ACTIVATE" }`, which is only accepted if a dry-run with `overall_dry_run: "PASS"` is already stored in `validation_evidence` for this version.
 
 ---
 
@@ -269,6 +317,25 @@ Compute character-level diff between this version's `path_template` and the curr
 
 → flag as `HIGH_IMPACT: true` in `validation_evidence`. HIGH_IMPACT versions require a second independent Superuser approver before activation.
 
+### Check 8 — Dry-run simulation against real token samples
+
+This check runs at activation time, not at submit time. It is stored in `validation_evidence.dry_run` and is a prerequisite for final activation (see §3.7).
+
+Query the last 10 `gcs_upload_tokens` rows for this rule (ordered by `created_at DESC`, any status). For each sampled token:
+
+1. Extract the `tokenValues` that were originally substituted (reconstructed from `resolved_path` by reverse-parsing against the current active version's `path_template`)
+2. Substitute those same `tokenValues` into the candidate version's `path_template` → produces a simulated resolved path
+3. Run `assertGcsPath()` on the simulated path
+4. Record whether the simulated path collides with the original `resolved_path` (collision = routing change would affect an existing file's expected location)
+
+Result:
+- `overall_dry_run: "PASS"` — all sampled tokens produced structurally valid paths and no unexpected collisions detected
+- `overall_dry_run: "FAIL"` — any sampled token produced an invalid path, OR the reverse-parse of tokenValues was ambiguous
+
+If the rule has zero historical tokens (new rule), synthetic-only paths from Check 3 are used instead and `sample_source: "synthetic"` is recorded.
+
+Dry-run results are stored in `validation_evidence.dry_run` alongside the 7 static checks. The final activation API call is rejected with HTTP 409 if `overall_dry_run` is absent or not `"PASS"`.
+
 ### Validation evidence structure
 
 ```jsonc
@@ -284,11 +351,26 @@ Compute character-level diff between this version's `path_template` and the curr
     "revision_mode":         { "passed": true,  "rev_in_template": true, "revision_mode": "numeric" },
     "high_impact_diff":      { "passed": true,  "high_impact": false, "diff": "…" }
   },
-  "overall": "PASS"
+  "overall": "PASS",
+  "dry_run": {
+    "ran_at": "2026-05-16T11:00:00Z",
+    "ran_by": 42,
+    "sample_count": 8,
+    "sample_source": "real_tokens",
+    "results": [
+      {
+        "original_resolved_path": "TPEL/AS/IN/TPEL/FY25/042/EPC/…",
+        "simulated_resolved_path": "TPEL/AS/IN/TPEL/FY25/042/EPC/…",
+        "assert_passed": true,
+        "path_collision": false
+      }
+    ],
+    "overall_dry_run": "PASS"
+  }
 }
 ```
 
-A version cannot advance from `pending_approval` to `approved` unless `overall = "PASS"` or each failing check has an explicit Superuser override recorded.
+A version cannot advance from `pending_approval` to `approved` unless `overall = "PASS"` or each failing check has an explicit Superuser override recorded. Final activation is additionally blocked unless `dry_run.overall_dry_run = "PASS"`.
 
 ---
 
@@ -320,7 +402,7 @@ CREATE TABLE gcs_governance_rule_versions (
   activated_by         INTEGER REFERENCES users(id),
   activated_at         TIMESTAMP,
   superseded_at        TIMESTAMP,
-  validation_evidence  JSONB,
+  validation_evidence  JSONB,   -- contains both static checks and dry_run results (§5, §5.8)
   diff_from_prev       JSONB,
   UNIQUE (rule_id, version_number)
 );
@@ -339,6 +421,7 @@ CREATE TABLE gcs_governance_audit_log (
   -- values: version_created | version_submitted | version_approved | version_activated
   --         version_superseded | version_rolled_back | version_retired
   --         upload_token_issued | upload_token_consumed | validation_ran
+  --         dry_run_ran | activation_freeze_blocked | token_immutability_violation_attempt
   rule_id       INTEGER REFERENCES gcs_governance_rules(id),
   version_id    INTEGER REFERENCES gcs_governance_rule_versions(id),
   actor_id      INTEGER REFERENCES users(id),
@@ -377,6 +460,7 @@ ALTER TABLE gcs_governance_rules
   ADD COLUMN routing_deprecated_at TIMESTAMP;
 
 -- gcs_upload_tokens: add version traceability
+-- IMPORTANT: version_id and resolved_path are write-once after insert (§3.6)
 ALTER TABLE gcs_upload_tokens
   ADD COLUMN version_id INTEGER REFERENCES gcs_governance_rule_versions(id);
 ```
@@ -420,7 +504,7 @@ The `issueUploadToken()` return value gains `versionId` and `versionNumber` fiel
 
 #### New file: `server/services/gcs-governance-zero-trust.ts`
 
-Implements the 7-check Zero-Trust validation service (§5). Callable from the submit-for-approval API endpoint and independently from a manual admin trigger.
+Implements the 7-check Zero-Trust validation service (§5, Checks 1–7). Callable from the submit-for-approval API endpoint and independently from a manual admin trigger.
 
 #### New versioning API endpoints (`server/gcs-governance-routes.ts`)
 
@@ -437,11 +521,11 @@ GET    /api/gcs-governance/rules/:ruleId/versions
                 approvedByName, activatedAt, diffFromPrev (summary)
 
 GET    /api/gcs-governance/rules/:ruleId/versions/:versionId
-       Full version detail including validationEvidence.
+       Full version detail including validationEvidence (static checks + dry_run).
 
 POST   /api/gcs-governance/rules/:ruleId/versions/:versionId/submit
        Move draft → pending_approval.
-       Triggers Zero-Trust validation (runs synchronously; returns evidence).
+       Triggers Zero-Trust validation (Checks 1–7, runs synchronously; returns evidence).
        Access: Superuser only
 
 POST   /api/gcs-governance/rules/:ruleId/versions/:versionId/approve
@@ -451,13 +535,27 @@ POST   /api/gcs-governance/rules/:ruleId/versions/:versionId/approve
        Access: Superuser only
 
 POST   /api/gcs-governance/rules/:ruleId/versions/:versionId/activate
-       Move approved → active (atomically supersedes current active).
-       Body: { confirmation: "ACTIVATE" }
-       Access: Superuser only
+       Two modes controlled by request body:
+
+       DRY-RUN mode { dryRun: true }:
+         Runs Check 8 (§5.8) — samples real tokens, simulates paths, stores dry_run
+         evidence in validation_evidence. Returns dry-run results. No routing change.
+         HTTP 200 with { dryRun: true, overall_dry_run: "PASS"|"FAIL", results: […] }
+
+       COMMIT mode { dryRun: false, confirmation: "ACTIVATE" }:
+         Blocked if: dry_run result absent or not "PASS" in validation_evidence (→ 409)
+         Runs freeze check (§6.5) (→ 409 if blocked)
+         Atomically moves approved → active, supersedes current active.
+         Writes activation_freeze_checked_at to payload in audit_log.
+
+       Access: Superuser only for both modes.
 
 POST   /api/gcs-governance/rules/:ruleId/versions/:versionId/rollback
        Promote a superseded version back to active.
        Body: { reason: string, confirmation: "ROLLBACK" }
+       Runs freeze check (§6.5) before committing (same guard as activation).
+       Existing tokens issued under the previous active version retain their
+       original version_id and resolved_path unchanged (§3.6).
        Access: Superuser only
 
 POST   /api/gcs-governance/rules/:ruleId/versions/:versionId/retire
@@ -505,22 +603,63 @@ A form for creating a new draft version:
 #### Version lifecycle action buttons
 
 Available to Superuser only, contextual to version status:
-- **Draft**: "Submit for Approval" (runs Zero-Trust validation, shows all 7 check results inline)
+- **Draft**: "Submit for Approval" (runs Zero-Trust validation Checks 1–7, shows all check results inline)
 - **Pending Approval**: "Approve" (disabled if current user = creator; shows diff + HIGH_IMPACT warning if applicable)
-- **Approved**: "Activate" — opens confirmation modal displaying:
-  - Full diff from previous version
-  - Number of upload flows that will be affected
-  - Text field requiring the user to type `ACTIVATE`
-- **Superseded**: "Rollback to this version" — opens confirmation modal with:
-  - Upload count under current active version
-  - Upload count under rollback target
-  - Text field requiring the user to type `ROLLBACK`
+- **Approved**: Two-step activation:
+  1. "Run Dry-Run" — triggers Check 8 dry-run simulation; displays sampled token count, simulated paths, and PASS/FAIL result; stores evidence
+  2. "Activate" (enabled only after dry-run PASS) — opens confirmation modal displaying full diff, dry-run summary, freeze check result, and text field requiring `ACTIVATE`
+- **Superseded**: "Rollback to this version" — opens confirmation modal with upload count under current active version, upload count under rollback target, freeze check result, text field requiring `ROLLBACK`
 
-#### Builder migration tracker (new tab or section)
+#### Builder migration tracker (new tab)
 
 Reads from `gcs_path_migration_log`. Shows:
 - Total flows tracked, breakdown by status: pending / migrated / verified / exempt
 - Table: rule name | route file | old method | phase | status
+
+### 6.5 Activation freeze protection
+
+The freeze check runs immediately before the routing change is committed in both `/activate` (commit mode) and `/rollback`. It is **not** part of the dry-run.
+
+**Block condition A — Live pending tokens:**
+
+```sql
+SELECT COUNT(*)
+FROM gcs_upload_tokens
+WHERE rule_id = :ruleId
+  AND status = 'pending'
+  AND expires_at > NOW();
+```
+
+If count > 0 → reject with HTTP 409:
+```json
+{
+  "error": "ACTIVATION_FREEZE",
+  "reason": "live_pending_tokens",
+  "count": 3,
+  "token_ids": [1042, 1043, 1044],
+  "earliest_expiry": "2026-05-16T11:05:00Z",
+  "message": "3 upload token(s) are currently live for this rule. Wait for them to expire or be consumed before activating."
+}
+```
+
+**Block condition B — In-progress uploads:**
+
+A token is considered in-progress if `status = 'pending'` and `expires_at > NOW()`. This is identical to condition A. There is no separate "in-progress" status — a pending unexpired token is by definition in-progress or at least reserved.
+
+**Freeze check behavior:**
+
+- The check is atomic within the same DB transaction as the activation commit
+- The activation proceeds only if the count is zero at the moment of commit
+- A `gcs_governance_audit_log` row with `event_type = 'activation_freeze_blocked'` is written on every rejection, including the token IDs and expiry window
+- The UI surfaces the freeze result in the activation modal before the user types `ACTIVATE`, with a refresh button to re-check
+
+**Retry guidance:**
+
+The maximum token TTL is the longest `ttlSeconds` ever passed to `issueUploadToken()`. The UI calculates the wait time as `max(expires_at) - NOW()` across all blocking tokens and displays: *"Earliest retry: in N minutes (at HH:MM IST)"*.
+
+**Rollback freeze check:**
+
+The same freeze check applies to rollback. A rollback that would switch routing mid-upload is equally dangerous to a forward activation.
 
 ---
 
@@ -536,7 +675,7 @@ The zero-behavior-change guarantee is verified by the following evidence gate (r
 
 1. All rule v1 seed rows created and confirmed `status = 'active'`
 2. The Finance/BRC flow (the only flow currently using `issueUploadToken()` directly) performs a test upload in staging → GCS path must be identical to a path generated by the pre-Phase-0 code
-3. All 7 Zero-Trust checks pass for every seeded v1 version
+3. All 7 static Zero-Trust checks pass for every seeded v1 version
 4. `gcs_upload_tokens.version_id` is populated on all new tokens
 5. Version history UI displays correctly for all rules
 6. No errors in `gcs_governance_audit_log` for the seeding run
@@ -562,13 +701,13 @@ For any phase where a new rule version was activated and found problematic:
 
 1. Superuser navigates to the rule's version history in the governance UI
 2. Identifies the previous `superseded` version
-3. Clicks "Rollback to this version" → types `ROLLBACK` in confirmation modal
+3. Clicks "Rollback to this version" → freeze check runs first (§6.5) → types `ROLLBACK` in confirmation modal
 4. Server atomically:
    - Sets current `active` version → `superseded` (writes `superseded_at = NOW()`)
    - Sets rollback target version → `active` (writes new `activated_at`, `activated_by`)
    - Writes `gcs_governance_audit_log` row with `event_type = 'version_rolled_back'`
 5. All upload token requests from that moment forward resolve from the restored version's `path_template`
-6. Existing files uploaded under the rolled-back version remain at their GCS paths — they are not moved. They continue to be served via their stored `resolved_path` from `gcs_upload_tokens`
+6. **Token immutability during rollback:** All tokens issued while the now-superseded version was active retain their original `version_id` and `resolved_path` permanently. They are not updated. Files uploaded under those tokens remain at their GCS paths and continue to be served via the stored `resolved_path`. The rollback affects only future token issuance.
 
 **Rollback takes effect immediately on the next upload token request. No deployment required.**
 
@@ -588,17 +727,25 @@ A `governance_routing_enabled` feature flag (stored in a config table or environ
 | Unique index enforcement | Attempt to insert a second `status = 'active'` row for the same rule → unique constraint violation |
 | Finance/BRC staging upload (pre vs post Phase 0) | GCS object path is byte-for-byte identical before and after the `issueUploadToken()` change |
 | `gcs_upload_tokens.version_id` populated | All tokens issued after Phase 0 deployment have a non-null `version_id` |
-| Zero-Trust validation: all v1 rules | All 7 checks pass for every seeded v1 rule (evidence stored in `validation_evidence`) |
-| Version lifecycle state machine | UI and API correctly enforce: draft → pending_approval → approved → active; wrong-user approve blocked; activate requires "ACTIVATE" string |
-| Rollback (staging drill) | Activate a test v2, upload a file, rollback to v1, confirm next upload uses v1 path, confirm v2 file still downloadable via stored path |
+| Zero-Trust validation: all v1 rules | All 7 static checks pass for every seeded v1 rule (evidence stored in `validation_evidence`) |
+| Version lifecycle state machine | UI and API correctly enforce: draft → pending_approval → approved → active; wrong-user approve blocked; activate requires dry-run PASS + "ACTIVATE" string |
+| Dry-run mode | `POST /activate { dryRun: true }` returns results without changing routing; `validation_evidence.dry_run` populated; commit blocked if `overall_dry_run ≠ "PASS"` |
+| Dry-run on zero-history rule | Dry-run with no historical tokens falls back to synthetic samples; `sample_source: "synthetic"` recorded |
+| Activation freeze — live tokens | Issue a token (pending, not expired) for a rule; attempt activation → HTTP 409 with `reason: "live_pending_tokens"` and correct token_ids |
+| Activation freeze — rollback | Same as above but via rollback endpoint → same 409 behavior |
+| Activation freeze — cleared | Token expires or is consumed; retry activation → proceeds without block |
+| Token-version immutability | After activation of v2 and rollback to v1: tokens issued under v2 retain `version_id → v2` and original `resolved_path`; new tokens issued under restored v1 use `version_id → v1` |
+| No UPDATE on token fields | Grep codebase for `UPDATE gcs_upload_tokens SET version_id` or `SET resolved_path` → zero results |
+| Rollback (staging drill) | Activate a test v2, upload a file, rollback to v1; confirm next upload uses v1 path; confirm v2 file still downloadable via stored path |
 | Retirement block | Attempt to retire a version that has issued tokens → rejected with explicit error |
 | Creator-cannot-approve | Attempt to approve a version as the same user who created it → rejected with explicit error |
-| HIGH_IMPACT flag | Create a version that removes `{NNN}` from pathTemplate → validation_evidence.high_impact = true |
+| HIGH_IMPACT flag | Create a version that removes `{NNN}` from pathTemplate → `validation_evidence.high_impact = true` |
+| Audit log completeness | After full lifecycle (create → submit → approve → dry-run → activate): `gcs_governance_audit_log` contains one row per event type including `dry_run_ran` and activation freeze check result |
 
 ### 9.2 Monitoring during Phase 0
 
-- `gcs_governance_audit_log` — watch for any `event_type` values containing `failed` or `rejected`
-- `gcs_upload_tokens` — confirm `version_id` is non-null on all new rows
+- `gcs_governance_audit_log` — watch for any `event_type` values containing `failed` or `rejected` or `freeze_blocked`
+- `gcs_upload_tokens` — confirm `version_id` is non-null on all new rows; confirm no `UPDATE` statements alter `version_id` or `resolved_path`
 - No new GCS objects appearing at unexpected paths (bucket scan in staging)
 
 ### 9.3 Evidence gate for Phase 1 clearance
@@ -606,8 +753,9 @@ A `governance_routing_enabled` feature flag (stored in a config table or environ
 Phase 1 (QMS parity gate removal) may not begin until:
 1. All Phase 0 acceptance criteria above are met and documented
 2. Zero-Trust validation passes for all 5 QMS rule v1 versions (WPQR, PMA, TestProcedures, Calibration, WelderCerts)
-3. A staging rollback drill has been completed successfully
-4. A Superuser sign-off is recorded in `gcs_governance_audit_log` with `event_type = 'phase0_signed_off'`
+3. A staging rollback drill has been completed successfully (including token immutability verification)
+4. At least one dry-run cycle has been completed end-to-end in staging (dry-run → PASS → commit activation)
+5. A Superuser sign-off is recorded in `gcs_governance_audit_log` with `event_type = 'phase0_signed_off'`
 
 ---
 
@@ -630,7 +778,7 @@ The following are explicitly **not** part of Phase 0:
 
 | File | Purpose |
 |---|---|
-| `server/services/gcs-governance-zero-trust.ts` | Zero-Trust validation service (7 checks) |
+| `server/services/gcs-governance-zero-trust.ts` | Zero-Trust validation service (7 static checks) |
 | `docs/gcs-db-driven-routing-phase0-baseline.md` | This document |
 
 ### Modified files (Phase 0)
@@ -639,8 +787,8 @@ The following are explicitly **not** part of Phase 0:
 |---|---|
 | `shared/schema.ts` | Add `gcsGovernanceRuleVersions`, `gcsGovernanceAuditLog`, `gcsPathMigrationLog` table definitions; add columns to `gcsGovernanceRules` and `gcsUploadTokens` |
 | `server/services/gcs-governance-service.ts` | `issueUploadToken()` reads from version table; return type adds `versionId`, `versionNumber` |
-| `server/gcs-governance-routes.ts` | Add 8 new versioning endpoints + seed endpoint |
-| `client/src/pages/gcs-doc-governance-page.tsx` | Version history panel, `RuleVersionForm`, lifecycle action buttons, migration tracker |
+| `server/gcs-governance-routes.ts` | Add 8 new versioning endpoints including dry-run mode on activate, freeze check on activate + rollback, seed endpoint |
+| `client/src/pages/gcs-doc-governance-page.tsx` | Version history panel, `RuleVersionForm`, lifecycle action buttons (two-step activate with dry-run gate), migration tracker |
 
 ### Unchanged files (Phase 0 — modified in later phases)
 
@@ -648,4 +796,5 @@ The following are explicitly **not** part of Phase 0:
 
 ---
 
-*Submitted for Superuser approval before any Phase 0 implementation begins.*
+*v1.0 submitted for Superuser approval before Phase 0 implementation began.*  
+*v1.1 amendments (dry-run activation, freeze protection, token immutability) approved 2026-05-16. Implementation deferred to Phase 0 implementation sprint.*
