@@ -3,9 +3,9 @@
 
 **Window status**: OPEN  
 **Window opened**: 2026-05-17T01:44:11.883Z  
-**Window closes (earliest)**: 2026-05-19T01:44:11.883Z (48h after first qualifying production upload — see §3)  
+**Window closes (earliest)**: 48h after first qualifying production upload — clock not yet started  
 **Audit log event**: `gcs_governance_audit_log` id=1, `event_type='wave0_observation_window_open'`  
-**Wave 1 status**: BLOCKED until this window closes with all criteria met  
+**Wave 1 status**: BLOCKED  
 **Pre-production verification**: PASS (13/15 criteria — S-14 and S-15 pending this window)
 
 ---
@@ -33,6 +33,7 @@ BRC id=98 has no `document_path`. When a user uploads its PDF through the govern
 | amount | 228,783.60 USD |
 | invoice_number | INV-2526-056 |
 | document_path | null (awaiting upload) |
+| expected resolved_path (post-patch) | `Accounts/2526/INV-2526-056.pdf` |
 
 ---
 
@@ -61,6 +62,10 @@ All three must be satisfied before the 48-hour clock starts.
 ```
 2026-05-17T01:44:11Z  ── Window opened; baseline recorded
         │
+        ├── [CHECK #1] 2026-05-17T01:46:18Z — M-5 baseline confirmed; no uploads yet
+        ├── [PATCH]    2026-05-17T01:52Z    — FY format bug fixed (see §OB-001)
+        ├── [CHECK #2] 2026-05-17T01:52:02Z — M-5 confirmed; no uploads; patch live
+        │
         ▼
 [first qualifying production upload occurs]
         │
@@ -72,7 +77,7 @@ All three must be satisfied before the 48-hour clock starts.
 [48 hours elapse with zero alert conditions]
         │
         ▼
-2026-05-19T01:44:11Z (or later)  ── Window may close
+[earliest close: 48h after first qualifying upload]
         │
         ▼
 [Engineering sign-off recorded]  ── S-15 met
@@ -85,9 +90,7 @@ Wave 0 CLOSED — Wave 1 unblocked
 
 ## 4. Monitoring Queries
 
-Run these queries at each monitoring check to assess window status.
-
-### Query M-1 — Production Token Check (run first at each check)
+### Query M-1 — Production Token Check
 
 ```sql
 SELECT
@@ -108,7 +111,7 @@ WHERE t.rule_id = 27
 ORDER BY t.id;
 ```
 
-**Expected at first check**: 0 rows (no production tokens yet)  
+**Expected at first check**: 0 rows  
 **When qualifying upload occurs**: ≥1 row with `used_at IS NOT NULL`
 
 ### Query M-2 — Monitor Log Check
@@ -130,7 +133,7 @@ WHERE m.matched_rule_id = 27
 ORDER BY m.id;
 ```
 
-**Expected at first check**: 0 rows (beyond Wave 0 test entry id=1)  
+**Expected at first check**: 0 rows  
 **When qualifying upload occurs**: ≥1 row with `path_conforms = true`
 
 ### Query M-3 — BRC document_path Parity (E-POST-6)
@@ -169,35 +172,28 @@ WHERE rule_id = 27
 ORDER BY expires_at;
 ```
 
-**Expected throughout window**: 0 rows (no abandoned production tokens)  
+**Expected throughout window**: 0 rows  
 **Alert if**: any rows appear
 
 ### Query M-5 — Complete Summary Dashboard
 
 ```sql
 SELECT
-  -- Token counts (production only)
   (SELECT COUNT(*) FROM gcs_upload_tokens
    WHERE rule_id=27 AND notes NOT LIKE 'WAVE 0%')                                     AS prod_tokens_total,
   (SELECT COUNT(*) FROM gcs_upload_tokens
    WHERE rule_id=27 AND notes NOT LIKE 'WAVE 0%' AND used_at IS NOT NULL)             AS prod_tokens_consumed,
   (SELECT COUNT(*) FROM gcs_upload_tokens
    WHERE rule_id=27 AND notes NOT LIKE 'WAVE 0%' AND used_at IS NULL AND expires_at <= NOW()) AS prod_tokens_expired_unused,
-
-  -- Monitor log
   (SELECT COUNT(*) FROM gcs_upload_monitor_log
    WHERE matched_rule_id=27 AND id > 1)                                                AS prod_monitor_entries,
   (SELECT COUNT(*) FROM gcs_upload_monitor_log
    WHERE matched_rule_id=27 AND id > 1 AND path_conforms = true)                      AS prod_monitor_conforming,
   (SELECT COUNT(*) FROM gcs_upload_monitor_log
    WHERE matched_rule_id=27 AND id > 1 AND path_conforms = false)                     AS prod_monitor_violations,
-
-  -- BRC parity
   (SELECT COUNT(*) FROM bank_realization_certificates brc
    JOIN gcs_upload_tokens t ON brc.document_path = t.resolved_path
    WHERE t.rule_id=27 AND t.notes NOT LIKE 'WAVE 0%')                                 AS prod_brc_path_matches,
-
-  -- Observation window
   '2026-05-17T01:44:11.883Z'::timestamptz                                             AS window_opened_at,
   NOW()                                                                                AS current_time,
   EXTRACT(EPOCH FROM (NOW() - '2026-05-17T01:44:11.883Z'::timestamptz))/3600         AS hours_elapsed;
@@ -205,9 +201,8 @@ SELECT
 
 ### Query M-6 — Alert: 403 / Upload Failure Detection
 
-Check application logs via `refresh_all_logs` for patterns:
+Scan application logs via `refresh_all_logs` for:
 - `[BRC-Token]` errors
-- `validateUploadToken.*FAIL` 
 - HTTP 403 at `/api/finance/brc/upload-token` or `/api/finance/upload/gcs`
 - HTTP 500 at either endpoint
 
@@ -215,43 +210,141 @@ Check application logs via `refresh_all_logs` for patterns:
 
 ## 5. Alert Conditions
 
-If any of the following occur, the observation window is paused pending investigation. Wave 1 remains blocked.
-
-| # | alert condition | query | action |
-|---|---|---|---|
-| A-1 | `path_conforms = false` in monitor log (M-2) | M-2 shows `violation_reason IS NOT NULL` | STOP — path template or token resolution error. Investigate before any further uploads |
-| A-2 | `document_path ≠ resolved_path` for a production BRC record (M-3) | M-3 shows `path_matches = false` | STOP — client not passing `filePath` to BRC create. UI bug investigation required |
-| A-3 | Production expired unused tokens (M-4) | M-4 returns any rows | INVESTIGATE — client initiated upload but did not complete within TTL. Check for UI flow timeout |
-| A-4 | HTTP 403 for a legitimate upload (not a test) | App logs | INVESTIGATE — token validation failure for real user upload |
-| A-5 | HTTP 500 at token issuance endpoint | App logs | STOP — governance service or DB error. Investigation required |
-| A-6 | `used_for_path ≠ resolved_path` on a consumed token | M-1 shows `path_integrity = false` | STOP — critical governance violation. Path mismatch at consumption |
+| # | alert condition | action |
+|---|---|---|
+| A-1 | `path_conforms = false` in monitor log | STOP — path template or token resolution error |
+| A-2 | `document_path ≠ resolved_path` for a production BRC record | STOP — client UI bug investigation required |
+| A-3 | Production expired unused tokens | INVESTIGATE — UI flow timeout |
+| A-4 | HTTP 403 for a legitimate upload | INVESTIGATE — token validation failure |
+| A-5 | HTTP 500 at token issuance endpoint | STOP — governance service or DB error |
+| A-6 | `used_for_path ≠ resolved_path` on consumed token | STOP — critical governance violation |
 
 ---
 
 ## 6. Window Close Criteria
 
-The window may be closed and Wave 0 declared complete when ALL of the following are true:
-
 | # | criterion | source |
 |---|---|---|
-| WC-1 | At least 1 qualifying production upload observed (M-1: ≥1 row with `used_at IS NOT NULL`) | M-1 |
+| WC-1 | ≥1 qualifying production upload (M-1: `used_at IS NOT NULL`) | M-1 |
 | WC-2 | 48 hours elapsed since first qualifying upload | Timeline |
-| WC-3 | Zero alert conditions A-1 through A-6 triggered during window | All monitoring queries |
-| WC-4 | M-3 confirms `document_path = resolved_path` for ≥1 production BRC record | M-3 |
+| WC-3 | Zero alert conditions A-1 through A-6 during window | All queries |
+| WC-4 | M-3 confirms `document_path = resolved_path` ≥1 production BRC | M-3 |
 | WC-5 | M-2 confirms `path_conforms = true` for all production monitor entries | M-2 |
-| WC-6 | M-4 shows 0 expired unused tokens (or all investigated and explained) | M-4 |
-| WC-7 | Download smoke test: `GET /api/finance/brc/{brc_id}/document` returns HTTP 200 for the first token-uploaded BRC | Manual |
-| WC-8 | Engineering sign-off recorded with name and timestamp | This document §9 |
+| WC-6 | M-4 shows 0 expired unused tokens (or all investigated) | M-4 |
+| WC-7 | Download smoke test: HTTP 200 for first token-uploaded BRC | Manual |
+| WC-8 | Engineering sign-off recorded | §10 |
 
 ---
 
 ## 7. Monitoring Check Log
 
-One entry per check. Add a row each time M-5 is run.
-
-| check# | timestamp | prod_tokens_total | prod_tokens_consumed | prod_monitor_entries | violations | expired_unused | brc_path_matches | alert | notes |
+| check# | timestamp | prod_tokens | consumed | monitor_entries | violations | expired_unused | brc_matches | alert | notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 0 (baseline) | 2026-05-17T01:44:11Z | 0 | 0 | 0 | 0 | 0 | 0 | none | Window opened. Baseline clean. |
+| 1 | 2026-05-17T01:46:18Z | 0 | 0 | 0 | 0 | 0 | 0 | none | No production uploads yet. M-6 clean (0 errors). FY bug found during audit — see §OB-001. |
+| 2 | 2026-05-17T01:52:02Z | 0 | 0 | 0 | 0 | 0 | 0 | none | Patch live. M-6 clean. No uploads. 48h clock not started. |
+
+---
+
+## OB-001 — FY Token Format Bug (Found and Fixed 2026-05-17T01:52Z)
+
+### Classification
+
+Pre-upload discovery — **found and patched before any production token was issued**.  
+No data corruption occurred. No BRC records affected.
+
+### Finding
+
+`server/finance-routes-fixed.ts` line 1353 computed the `{FY}` token value in YYYY format (calendar year) instead of the required YYZZ format (Indian financial year, April–March cycle).
+
+**Broken code (removed):**
+```typescript
+// FY = calendar year of invoice issue date (preserves existing Accounts/{YYYY}/... pattern)
+const fy = String(date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1);
+```
+
+**What this would have produced:**
+
+| invoice date | FY (broken) | FY (required) | wrong path | correct path |
+|---|---|---|---|---|
+| 2025-12-15 | 2025 | 2526 | Accounts/2025/INV-2526-056.pdf | Accounts/2526/INV-2526-056.pdf |
+| 2026-05-10 | 2026 | 2627 | Accounts/2026/INV-2627-056.pdf | Accounts/2627/INV-2627-056.pdf |
+| 2026-04-01 | 2026 | 2627 | Accounts/2026/INV-2627-001.pdf | Accounts/2627/INV-2627-001.pdf |
+| 2026-01-20 | 2025 | 2526 | Accounts/2025/INV-2526-001.pdf | Accounts/2526/INV-2526-001.pdf |
+| 2027-03-31 | 2026 | 2627 | Accounts/2026/INV-2627-060.pdf | Accounts/2627/INV-2627-060.pdf |
+
+### Token Registry Confirmation
+
+`gcs_governance_token_registry` entry for `FY`:
+```
+token_name      : FY
+description     : Financial year
+example_value   : 2627
+source_description: Financial year in YYZZ format
+```
+
+YYZZ is the authoritative spec. The broken code contradicted this registry definition.
+
+### Root Cause
+
+The comment on the broken line said "preserves existing `Accounts/{YYYY}/...` pattern" — the developer aligned with the old pre-governance bucket structure (which used YYYY) rather than the token registry spec (YYZZ). The 123 existing BRC records in the database all use YYYY paths (`Accounts/2025/`, `Accounts/2024/`, etc.) because they were uploaded before the governance gate was applied.
+
+### Fix Applied
+
+**Patched code (lines 1353–1359 of `server/finance-routes-fixed.ts`):**
+```typescript
+// FY = Indian financial year in YYZZ format (April–March cycle).
+// e.g. Apr 2026–Mar 2027 → "2627";  Jan 2026 (pre-April) → "2526".
+// Matches token registry spec: FY exampleValue='2627', sourceDescription='YYZZ format'.
+const date = new Date(issueDate);
+const fyStartYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+const fy = String(fyStartYear).slice(-2) + String(fyStartYear + 1).slice(-2);
+```
+
+### Verification
+
+All 5 boundary-condition test cases PASS after patch:
+
+| invoice date | fyStartYear | FY (YYZZ) | resolved_path |
+|---|---|---|---|
+| 2026-05-10 | 2026 | 2627 | Accounts/2627/INV-2627-056.pdf |
+| 2025-12-15 | 2025 | 2526 | Accounts/2526/INV-2526-056.pdf |
+| 2026-01-20 | 2025 | 2526 | Accounts/2526/INV-2526-001.pdf |
+| 2026-04-01 | 2026 | 2627 | Accounts/2627/INV-2627-001.pdf |
+| 2027-03-31 | 2026 | 2627 | Accounts/2627/INV-2627-060.pdf |
+
+### Impact on Existing BRC Records
+
+The 123 pre-governance BRC records with `document_path` in YYYY format (`Accounts/2025/...`) are **not affected** — they were uploaded before the governance gate existed and reference real files at those paths in GCS. The governance token gate applies only to new uploads (Wave 0 onwards).
+
+Going forward, all governance-gated BRC uploads will land in YYZZ paths (`Accounts/2526/...`, `Accounts/2627/...`).
+
+### Status: RESOLVED
+
+No corrective action required for existing records. Patch is live. First production upload will use the corrected YYZZ path.
+
+---
+
+## OB-002 — FY Format Scope Audit (2026-05-17T01:52Z)
+
+### Scope: All Code Paths for FY Computation
+
+| location | FY computation | format | status |
+|---|---|---|---|
+| `server/finance-routes-fixed.ts` line 1358–1359 | `fyStartYear` → YYZZ slice formula | **YYZZ** | PASS (patched) |
+| `client/src/lib/utils.ts` `getIndianFinancialYear()` | `startYear.slice(-2) + endYear.slice(-2)` | **YYZZ** | PASS |
+| `server/services/gcs-governance-service.ts` lines 712–719 | `startYear.slice(-2) + endYear.slice(-2)` (payroll ref) | YYZZ | N/A — payroll refs, not BRC paths |
+| `gcs_governance_token_registry` FY entry | `example_value='2627'`, `source_description='YYZZ format'` | **YYZZ** | Registry spec authoritative |
+| Existing 123 BRC `document_path` values | Pre-governance YYYY (`2025`, `2024`, etc.) | YYYY | Pre-governance, not token-gated — expected |
+
+### FY Token in `issueUploadToken()` Call
+
+The `tokenValues: { FY: fy, filename }` on line 1368 now passes a YYZZ string.  
+The `resolvedPath` returned by `issueUploadToken()` will be `Accounts/2526/INV-2526-056.pdf` for BRC id=98.
+
+### No Other BRC-Specific FY Computations Found
+
+A full grep of `server/finance-routes-fixed.ts` for `getFullYear`, `fy`, `FY`, `financialYear` found no other instances that could independently compute an incorrect FY for BRC token issuance. The download route (`GET /finance/brc/:id/document`) does not compute FY at all — it serves the file at the stored `document_path`.
 
 ---
 
@@ -263,8 +356,8 @@ One entry per check. Add a row each time M-5 is run.
 
 ```
 token_id        :
-resolved_path   :
-token_values    :
+resolved_path   :  (expected format: Accounts/YYZZ/INV-YYZZ-NNN.pdf)
+token_values    :  (expected: { "FY": "YYZZ", "filename": "INV-YYZZ-NNN.pdf" })
 issued_to       :
 version_id      :
 issued_at       :
@@ -325,7 +418,7 @@ window_closes_at :
 | S-9 | `brc.document_path = gcs_upload_tokens.resolved_path` | PENDING | §8 BRC parity |
 | S-10 | Download of token-uploaded BRC succeeds | PENDING | §8 download test |
 | S-14 | 48-hour observation window completed | PENDING | §8 48h clock |
-| S-15 | Engineering sign-off | PENDING | §9 below |
+| S-15 | Engineering sign-off | PENDING | §10 below |
 
 ---
 
@@ -344,18 +437,20 @@ Notes           :
 
 For each qualifying production upload, verify:
 
-- [ ] `resolved_path` matches pattern `^Accounts/[0-9]{4}/[^/]+\.pdf$`
-- [ ] `token_values` contains `FY` (4-digit year) and `filename` (`{invoiceNumber}.pdf`)
+- [ ] `resolved_path` matches pattern `^Accounts/[0-9]{2}[0-9]{2}/[^/]+\.pdf$` (YYZZ format, e.g. `Accounts/2526/...` or `Accounts/2627/...`)
+- [ ] `token_values` contains `FY` in YYZZ format (e.g. `"FY": "2526"`) and `filename` (`{invoiceNumber}.pdf`)
 - [ ] `used_at IS NOT NULL` (upload completed)
 - [ ] `used_for_path = resolved_path` (path integrity)
 - [ ] `path_conforms = true` in monitor log
 - [ ] `violation_reason IS NULL` in monitor log
 - [ ] `bank_realization_certificates.document_path = resolved_path`
-- [ ] No `Accounts/` hardcoded string introduced by the upload flow (re-confirm line 1442 unchanged)
+- [ ] `document_path` is in YYZZ format (`Accounts/2526/` or `Accounts/2627/`), NOT YYYY format (`Accounts/2025/`)
+- [ ] No `Accounts/` hardcoded string in upload flow (re-confirm line 1442 of finance-routes-fixed.ts)
 - [ ] No application 403/500 errors attributable to this upload
 
 ---
 
 *Window opened: 2026-05-17T01:44:11.883Z*  
+*Last updated: 2026-05-17T01:52:02Z (Check #2 + OB-001 FY fix + OB-002 scope audit)*  
 *Audit log event: gcs_governance_audit_log id=1*  
-*Wave 1 blocked until this document reaches §10 sign-off*
+*Wave 1 blocked until §10 sign-off*

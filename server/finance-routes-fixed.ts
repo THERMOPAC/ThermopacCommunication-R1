@@ -1348,9 +1348,12 @@ router.post('/brc/upload-token', ensureAuthenticated, async (req: Request, res: 
     }
 
     // Server-side path construction (moved from frontend)
-    // FY = calendar year of invoice issue date (preserves existing Accounts/{YYYY}/... pattern)
+    // FY = Indian financial year in YYZZ format (April–March cycle).
+    // e.g. Apr 2026–Mar 2027 → "2627";  Jan 2026 (pre-April) → "2526".
+    // Matches token registry spec: FY exampleValue='2627', sourceDescription='YYZZ format'.
     const date = new Date(issueDate);
-    const fy = String(date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1);
+    const fyStartYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+    const fy = String(fyStartYear).slice(-2) + String(fyStartYear + 1).slice(-2);
     const filename = `${invoiceNumber}.pdf`;
 
     // Look up the active BRC governance rule
