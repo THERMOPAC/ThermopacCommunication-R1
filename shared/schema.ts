@@ -10178,6 +10178,8 @@ export const offerTemplates = pgTable('offer_templates', {
   gcsObjectPath: text('gcs_object_path'),
   gcsBucket: text('gcs_bucket'),
   checksumSha256: text('checksum_sha256'),
+  versionSeq: integer('version_seq').default(1).notNull(),
+  currentLabel: text('current_label'),
 });
 
 export const insertOfferTemplateSchema = createInsertSchema(offerTemplates).omit({
@@ -10188,6 +10190,40 @@ export const insertOfferTemplateSchema = createInsertSchema(offerTemplates).omit
 
 export type OfferTemplate = typeof offerTemplates.$inferSelect;
 export type InsertOfferTemplate = z.infer<typeof insertOfferTemplateSchema>;
+
+// ==================== OFFER TEMPLATE REVISIONS ====================
+
+export const offerTemplateRevisions = pgTable('offer_template_revisions', {
+  id: serial('id').primaryKey(),
+  templateId: integer('template_id').notNull().references(() => offerTemplates.id, { onDelete: 'cascade' }),
+  versionSeq: integer('version_seq').notNull(),
+  gcsObjectPath: text('gcs_object_path'),
+  gcsBucket: text('gcs_bucket'),
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size'),
+  checksumSha256: text('checksum_sha256'),
+  label: text('label'),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
+  uploadedAt: timestamp('uploaded_at').defaultNow(),
+  status: text('status').default('superseded').notNull(),
+  notes: text('notes'),
+});
+
+export type OfferTemplateRevision = typeof offerTemplateRevisions.$inferSelect;
+
+// ==================== OFFER TEMPLATE AUDIT LOG ====================
+
+export const offerTemplateAuditLog = pgTable('offer_template_audit_log', {
+  id: serial('id').primaryKey(),
+  templateId: integer('template_id').notNull().references(() => offerTemplates.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(),
+  performedBy: integer('performed_by').references(() => users.id),
+  performedAt: timestamp('performed_at').defaultNow(),
+  versionSeq: integer('version_seq'),
+  meta: text('meta'),
+});
+
+export type OfferTemplateAuditEntry = typeof offerTemplateAuditLog.$inferSelect;
 
 // ==================== OFFER SUBJECTS ====================
 

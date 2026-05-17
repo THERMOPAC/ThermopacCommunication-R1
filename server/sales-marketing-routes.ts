@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
-import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, productChildren as productChildrenTable, productAttributeOptions as productAttributeOptionsTable, attributeOptionAuditLog as attributeOptionAuditLogTable, products as productsTable, offerItems as offerItemsTable } from '@shared/schema';
+import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, offerTemplateRevisions, offerTemplateAuditLog, productChildren as productChildrenTable, productAttributeOptions as productAttributeOptionsTable, attributeOptionAuditLog as attributeOptionAuditLogTable, products as productsTable, offerItems as offerItemsTable } from '@shared/schema';
 import { db } from './db';
 import { eq, and, sql, or } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
@@ -1123,18 +1123,16 @@ export function setupSalesMarketingRoutes(app: Express) {
       const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
       let gcsObjectPath: string | undefined;
       let checksumSha256: string | undefined;
+      const versionSeq = 1; // New templates always start at v1
       try {
         const fileBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
-        // Derive version seq: count existing templates with same name to get next version
-        const { count: countResult } = await db.select({ count: sql<number>`COUNT(*)` }).from(offerTemplates)
-          .where(sql`LOWER(name) = LOWER(${name})`).then(r => r[0]);
-        const versionSeq = (Number(countResult) || 0) + 1;
         gcsObjectPath = await uploadTemplateToGcs(fileBuffer, name, ext, versionSeq, templateLabel);
         checksumSha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
       } catch (gcsErr) {
         console.warn('[offer-templates] GCS upload failed, using local FS fallback:', gcsErr);
       }
 
+      const userId = (req.user as any)?.id || null;
       const [template] = await db.insert(offerTemplates).values({
         name,
         subject,
@@ -1147,11 +1145,22 @@ export function setupSalesMarketingRoutes(app: Express) {
         startPage: startPage ? parseInt(startPage) : null,
         endPage: endPage ? parseInt(endPage) : null,
         isActive: true,
-        createdBy: (req.user as any)?.id || null,
+        createdBy: userId,
         gcsObjectPath: gcsObjectPath || null,
         gcsBucket: gcsObjectPath ? gcsBucketName : null,
         checksumSha256: checksumSha256 || null,
+        versionSeq,
+        currentLabel: templateLabel,
       }).returning();
+
+      // Audit: template created
+      await db.insert(offerTemplateAuditLog).values({
+        templateId: template.id,
+        action: 'template_created',
+        performedBy: userId,
+        versionSeq,
+        meta: JSON.stringify({ fileName: template.fileName, gcsObjectPath: template.gcsObjectPath, label: templateLabel }),
+      });
 
       res.json(template);
     } catch (error) {
@@ -1202,44 +1211,57 @@ export function setupSalesMarketingRoutes(app: Express) {
       const [existing] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
       if (!existing) return res.status(404).json({ error: 'Template not found' });
 
-      if (existing.filePath && fs.existsSync(existing.filePath)) {
-        fs.unlinkSync(existing.filePath);
-      }
-      if (existing.gcsObjectPath) {
-        try {
-          await gcsClient.bucket(gcsBucketName).file(existing.gcsObjectPath).delete();
-        } catch (gcsDelErr) {
-          console.warn('[offer-templates] GCS delete on replace failed:', gcsDelErr);
+      // Archive current version to revision history BEFORE replacing
+      // Do NOT delete the old GCS file — revision history must be preserved
+      const archiveLabel = existing.currentLabel || (() => {
+        if (existing.gcsObjectPath) {
+          const m = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
+          return m ? m[1] : null;
         }
+        return null;
+      })();
+
+      await db.insert(offerTemplateRevisions).values({
+        templateId: existing.id,
+        versionSeq: existing.versionSeq ?? 1,
+        gcsObjectPath: existing.gcsObjectPath || null,
+        gcsBucket: existing.gcsBucket || null,
+        fileName: existing.fileName,
+        fileSize: existing.fileSize ?? null,
+        checksumSha256: existing.checksumSha256 || null,
+        label: archiveLabel || null,
+        uploadedBy: existing.createdBy || null,
+        uploadedAt: existing.updatedAt || existing.createdAt || new Date(),
+        status: 'superseded',
+        notes: `Superseded by v${(existing.versionSeq ?? 1) + 1}`,
+      });
+
+      // Clean up old local disk file (local temp only; GCS file is preserved)
+      if (existing.filePath && fs.existsSync(existing.filePath)) {
+        try { fs.unlinkSync(existing.filePath); } catch {}
       }
 
+      const nextSeq = (existing.versionSeq ?? 1) + 1;
       const replaceExt = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
       let newGcsPath: string | undefined;
       let newChecksum: string | undefined;
+
+      // Derive label: explicit param > existing label from GCS path
+      let derivedLabel = replaceTemplateLabel;
+      if (!derivedLabel && existing.gcsObjectPath) {
+        const labelMatch = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
+        if (labelMatch) derivedLabel = labelMatch[1];
+      }
+
       try {
         const replaceBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
-        // Derive next version seq from current gcsObjectPath or count of templates with same name
-        let nextSeq = 2;
-        if (existing.gcsObjectPath) {
-          const seqMatch = existing.gcsObjectPath.match(/\/(\d{3})-[^/]+\.[^/]+$/);
-          if (seqMatch) nextSeq = parseInt(seqMatch[1]) + 1;
-        } else {
-          const { count: countResult } = await db.select({ count: sql<number>`COUNT(*)` }).from(offerTemplates)
-            .where(sql`LOWER(name) = LOWER(${existing.name})`).then(r => r[0]);
-          nextSeq = (Number(countResult) || 1) + 1;
-        }
-        // Derive existing label from GCS path if not provided
-        let derivedLabel = replaceTemplateLabel;
-        if (!derivedLabel && existing.gcsObjectPath) {
-          const labelMatch = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
-          if (labelMatch) derivedLabel = labelMatch[1];
-        }
         newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.name, replaceExt, nextSeq, derivedLabel || undefined);
         newChecksum = crypto.createHash('sha256').update(replaceBuffer).digest('hex');
       } catch (gcsErr) {
         console.warn('[offer-templates] GCS upload on replace failed:', gcsErr);
       }
 
+      const userId = (req.user as any)?.id || null;
       const [template] = await db.update(offerTemplates).set({
         filePath: req.file.path,
         fileName: req.file.originalname,
@@ -1247,13 +1269,134 @@ export function setupSalesMarketingRoutes(app: Express) {
         gcsObjectPath: newGcsPath || null,
         gcsBucket: newGcsPath ? gcsBucketName : null,
         checksumSha256: newChecksum || null,
+        versionSeq: nextSeq,
+        currentLabel: derivedLabel || existing.currentLabel || null,
         updatedAt: new Date(),
       }).where(eq(offerTemplates.id, id)).returning();
+
+      // Audit: new version uploaded
+      await db.insert(offerTemplateAuditLog).values({
+        templateId: id,
+        action: 'version_uploaded',
+        performedBy: userId,
+        versionSeq: nextSeq,
+        meta: JSON.stringify({ fileName: template.fileName, gcsObjectPath: newGcsPath, previousVersion: existing.versionSeq }),
+      });
 
       res.json(template);
     } catch (error) {
       console.error('Error replacing offer template file:', error);
       res.status(500).json({ error: 'Failed to replace template file' });
+    }
+  });
+
+  // GET revision history for a template
+  router.get('/offer-templates/:id/revisions', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const revisions = await db.select().from(offerTemplateRevisions)
+        .where(eq(offerTemplateRevisions.templateId, id))
+        .orderBy(sql`${offerTemplateRevisions.versionSeq} DESC`);
+      res.json(revisions);
+    } catch (error) {
+      console.error('Error fetching template revisions:', error);
+      res.status(500).json({ error: 'Failed to fetch revisions' });
+    }
+  });
+
+  // GET audit log for a template
+  router.get('/offer-templates/:id/audit', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const entries = await db.select().from(offerTemplateAuditLog)
+        .where(eq(offerTemplateAuditLog.templateId, id))
+        .orderBy(sql`${offerTemplateAuditLog.performedAt} DESC`);
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch audit log' });
+    }
+  });
+
+  // POST rollback to a specific revision
+  router.post('/offer-templates/:id/rollback/:revisionId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const revisionId = parseInt(req.params.revisionId);
+      if (isNaN(id) || isNaN(revisionId)) return res.status(400).json({ error: 'Invalid ID' });
+
+      const [existing] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
+      if (!existing) return res.status(404).json({ error: 'Template not found' });
+
+      const [revision] = await db.select().from(offerTemplateRevisions)
+        .where(and(eq(offerTemplateRevisions.id, revisionId), eq(offerTemplateRevisions.templateId, id)));
+      if (!revision) return res.status(404).json({ error: 'Revision not found' });
+
+      const userId = (req.user as any)?.id || null;
+
+      // Archive current live version to revisions (marked as rolled_back)
+      const archiveLabelCurrent = existing.currentLabel || (() => {
+        if (existing.gcsObjectPath) {
+          const m = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
+          return m ? m[1] : null;
+        }
+        return null;
+      })();
+      await db.insert(offerTemplateRevisions).values({
+        templateId: id,
+        versionSeq: existing.versionSeq ?? 1,
+        gcsObjectPath: existing.gcsObjectPath || null,
+        gcsBucket: existing.gcsBucket || null,
+        fileName: existing.fileName,
+        fileSize: existing.fileSize ?? null,
+        checksumSha256: existing.checksumSha256 || null,
+        label: archiveLabelCurrent || null,
+        uploadedBy: existing.createdBy || null,
+        uploadedAt: existing.updatedAt || existing.createdAt || new Date(),
+        status: 'rolled_back',
+        notes: `Rolled back to v${revision.versionSeq}`,
+      });
+
+      // Determine the new highest versionSeq after rollback (keep incrementing — never reuse old seq)
+      const allRevisions = await db.select({ v: offerTemplateRevisions.versionSeq })
+        .from(offerTemplateRevisions).where(eq(offerTemplateRevisions.templateId, id));
+      const maxSeen = Math.max(existing.versionSeq ?? 1, ...allRevisions.map(r => r.v));
+      const rollbackSeq = maxSeen + 1;
+
+      // Promote the target revision to live (new GCS path at rollbackSeq)
+      const [updated] = await db.update(offerTemplates).set({
+        gcsObjectPath: revision.gcsObjectPath || null,
+        gcsBucket: revision.gcsBucket || null,
+        fileName: revision.fileName,
+        fileSize: revision.fileSize ?? null,
+        checksumSha256: revision.checksumSha256 || null,
+        versionSeq: rollbackSeq,
+        currentLabel: revision.label || existing.currentLabel || null,
+        updatedAt: new Date(),
+      }).where(eq(offerTemplates.id, id)).returning();
+
+      // Mark the revision row as active
+      await db.update(offerTemplateRevisions).set({ status: 'active' })
+        .where(eq(offerTemplateRevisions.id, revisionId));
+
+      // Audit: rollback performed
+      await db.insert(offerTemplateAuditLog).values({
+        templateId: id,
+        action: 'rollback',
+        performedBy: userId,
+        versionSeq: rollbackSeq,
+        meta: JSON.stringify({
+          rolledBackToVersion: revision.versionSeq,
+          rolledBackToRevisionId: revisionId,
+          previousLiveVersion: existing.versionSeq,
+        }),
+      });
+
+      res.json({ template: updated, rollbackSeq, targetRevision: revision });
+    } catch (error) {
+      console.error('Error rolling back template:', error);
+      res.status(500).json({ error: 'Failed to rollback template' });
     }
   });
 
