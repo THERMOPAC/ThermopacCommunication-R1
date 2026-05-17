@@ -1,12 +1,12 @@
 {
-  "ranAt": "2026-05-17T00:48:46.818Z",
-  "finishedAt": "2026-05-17T00:48:47.006Z",
-  "force": false,
+  "ranAt": "2026-05-17T00:58:49.110Z",
+  "finishedAt": "2026-05-17T00:58:55.681Z",
+  "force": true,
   "totalVersions": 38,
-  "processed": 0,
-  "skipped": 38,
-  "passed": 0,
-  "failed": 0,
+  "processed": 38,
+  "skipped": 0,
+  "passed": 31,
+  "failed": 7,
   "errored": 0,
   "results": [
     {
@@ -16,7 +16,7 @@
       "documentType": "BASIC_DRAWING",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 23,
@@ -25,7 +25,7 @@
       "documentType": "DESIGN_BACKUP",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 20,
@@ -33,8 +33,10 @@
       "moduleKey": "design",
       "documentType": "DESIGN_DRAWING",
       "overall": "FAIL",
-      "failedChecks": [],
-      "skipped": true
+      "failedChecks": [
+        "path_uniqueness"
+      ],
+      "skipped": false
     },
     {
       "ruleId": 33,
@@ -43,7 +45,7 @@
       "documentType": "DESIGN_STANDARD",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 22,
@@ -52,7 +54,7 @@
       "documentType": "TRANSMITTAL",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 9,
@@ -61,7 +63,7 @@
       "documentType": "DVS_STAGING",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 4,
@@ -70,7 +72,7 @@
       "documentType": "CO_DOCUMENT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 7,
@@ -78,17 +80,19 @@
       "moduleKey": "epc",
       "documentType": "DATASHEET",
       "overall": "FAIL",
-      "failedChecks": [],
-      "skipped": true
+      "failedChecks": [
+        "path_uniqueness"
+      ],
+      "skipped": false
     },
     {
       "ruleId": 3,
       "versionId": 9,
       "moduleKey": "epc",
       "documentType": "DDS",
-      "overall": "FAIL",
+      "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 6,
@@ -97,7 +101,7 @@
       "documentType": "DISPATCH",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 2,
@@ -105,8 +109,10 @@
       "moduleKey": "epc",
       "documentType": "DRAWING",
       "overall": "FAIL",
-      "failedChecks": [],
-      "skipped": true
+      "failedChecks": [
+        "path_uniqueness"
+      ],
+      "skipped": false
     },
     {
       "ruleId": 35,
@@ -115,7 +121,7 @@
       "documentType": "ECN",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 5,
@@ -124,7 +130,7 @@
       "documentType": "ECR",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 1,
@@ -133,7 +139,7 @@
       "documentType": "EPC_DOCUMENT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 34,
@@ -141,8 +147,10 @@
       "moduleKey": "epc",
       "documentType": "EPC_DRAWING",
       "overall": "FAIL",
-      "failedChecks": [],
-      "skipped": true
+      "failedChecks": [
+        "path_uniqueness"
+      ],
+      "skipped": false
     },
     {
       "ruleId": 32,
@@ -151,7 +159,7 @@
       "documentType": "EPC_QUOTATION",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 8,
@@ -160,7 +168,7 @@
       "documentType": "QUOTATION",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 36,
@@ -168,8 +176,11 @@
       "moduleKey": "epc",
       "documentType": "RFQ_ATTACHMENT",
       "overall": "FAIL",
-      "failedChecks": [],
-      "skipped": true
+      "failedChecks": [
+        "path_uniqueness",
+        "revision_mode"
+      ],
+      "skipped": false
     },
     {
       "ruleId": 27,
@@ -178,7 +189,7 @@
       "documentType": "BRC_DOCUMENT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 24,
@@ -187,7 +198,7 @@
       "documentType": "TRIP_DOCUMENT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 25,
@@ -196,16 +207,16 @@
       "documentType": "VISA_DOCUMENT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 31,
       "versionId": 25,
       "moduleKey": "internal",
       "documentType": "SLDDRW_JOB_RESULT",
-      "overall": "FAIL",
+      "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 30,
@@ -214,7 +225,7 @@
       "documentType": "LEGACY_FILE",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 26,
@@ -223,7 +234,7 @@
       "documentType": "LEGAL_DOCUMENT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 12,
@@ -232,7 +243,7 @@
       "documentType": "CALIBRATION_CERT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 14,
@@ -241,7 +252,7 @@
       "documentType": "FINAL_DOSSIER",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 13,
@@ -250,7 +261,7 @@
       "documentType": "INSPECTION_DOC",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 17,
@@ -258,8 +269,10 @@
       "moduleKey": "qms",
       "documentType": "MATERIAL_CERT",
       "overall": "FAIL",
-      "failedChecks": [],
-      "skipped": true
+      "failedChecks": [
+        "path_uniqueness"
+      ],
+      "skipped": false
     },
     {
       "ruleId": 37,
@@ -267,8 +280,10 @@
       "moduleKey": "qms",
       "documentType": "MATERIAL_ID_DOC",
       "overall": "FAIL",
-      "failedChecks": [],
-      "skipped": true
+      "failedChecks": [
+        "path_uniqueness"
+      ],
+      "skipped": false
     },
     {
       "ruleId": 38,
@@ -277,7 +292,7 @@
       "documentType": "NCR",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 11,
@@ -286,7 +301,7 @@
       "documentType": "PMA",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 18,
@@ -295,7 +310,7 @@
       "documentType": "TEST_PROCEDURE",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 15,
@@ -304,7 +319,7 @@
       "documentType": "WELDER_CERT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 16,
@@ -313,7 +328,7 @@
       "documentType": "WELDER_PHOTO",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 10,
@@ -322,7 +337,7 @@
       "documentType": "WPQR",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 19,
@@ -331,7 +346,7 @@
       "documentType": "WPS_PQR",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 28,
@@ -340,7 +355,7 @@
       "documentType": "OFFER_TEMPLATE",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     },
     {
       "ruleId": 29,
@@ -349,7 +364,7 @@
       "documentType": "SAP_ATTACHMENT",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": true
+      "skipped": false
     }
   ]
 }
