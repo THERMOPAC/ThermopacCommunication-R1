@@ -28,8 +28,8 @@ All 34 rules carry `status='active'`, `version_number=1`, Zero-Trust `overall='P
 | 11 | 5 | epc | ECR | Engineering Change Request | TPEL | numeric | `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECR/{DocNumber}/rev-{rev}/{filename}` |
 | 12 | 1 | epc | EPC_DOCUMENT | EPC Project Document | TPEL | numeric | `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/{DocType}/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}` |
 | 13 | 34 | epc | EPC_DRAWING | EPC Engineering Drawing | TPEL | alphabetic | `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/{ItemCode}/DWG/{DrawingNo}_rev-{rev}.{ext}` |
-| 14 | 32 | epc | EPC_QUOTATION | Offer PDF (Project-Linked) | TPEL | numeric | `TPEL/{CC}/{CO}/{Cust}/{FY}/Open_Quotations/{OfferNo}/rev-{rev}/{Seq}-{Label}.pdf` |
-| 15 | 8 | epc | QUOTATION | Offer PDF (Standalone) | TPEL | numeric | `TPEL/{CC}/{CO}/{Cust}/{FY}/Open_Quotations/{OfferNo}/rev-{rev}/{Seq}-{Label}.pdf` |
+| 14 | 32 | epc | EPC_QUOTATION | Offer PDF (Project-Linked) | TPEL | numeric | `TPEL/{CC}/{CO}/{Cust}/{FY}/Open_Quotations/{OfferNo}/{Seq}-{Label}-rev-{rev}.pdf` e.g. `Open_Quotations/OFR-2627-0017/001-quotation-document-rev-00.pdf` |
+| 15 | 8 | epc | QUOTATION | Offer PDF (Standalone) | TPEL | numeric | `TPEL/{CC}/{CO}/{Cust}/{FY}/Open_Quotations/{OfferNo}/{Seq}-{Label}-rev-{rev}.pdf` e.g. `Open_Quotations/OFR-2627-0017/001-combined-quotation-rev-00.pdf` |
 | 16 | 27 | finance | BRC_DOCUMENT | Bank Realisation Certificate | Accounts | none | `Accounts/{FY}/{filename}` |
 | 17 | 24 | hr | TRIP_DOCUMENT | Business Trip Document | TPEL/ADMIN/HR | none | `TPEL/ADMIN/HR/{CompanyFY}/TRIPS/{EmployeeName}/{Destination}/{DocType}/{filename}` |
 | 18 | 25 | hr | VISA_DOCUMENT | Visa / Travel Document | TPEL/ADMIN/HR | none | `TPEL/ADMIN/HR/{CompanyFY}/VISA/{EmployeeName}/{Category}/{filename}` |

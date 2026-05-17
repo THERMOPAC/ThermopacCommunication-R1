@@ -245,7 +245,7 @@ export function buildQuotationGcsPath(
   attachmentSeq: number,
   priceMode: string,
 ): string {
-  const revSlot = `rev-${String(revision).padStart(2, '0')}`;
+  const rev = `rev-${String(revision).padStart(2, '0')}`;
   const seq = String(attachmentSeq).padStart(3, '0');
   const labelMap: Record<string, string> = {
     'combined': 'combined-quotation',
@@ -254,7 +254,7 @@ export function buildQuotationGcsPath(
   };
   const label = labelMap[priceMode] || priceMode.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const safeName = offerNumber.replace(/\//g, '-');
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${revSlot}/${seq}-${label}.pdf`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
 }
 
 export function buildDrawingGcsPath(
@@ -298,7 +298,7 @@ export function buildEpcQtnGcsPath(
   attachmentSeq: number,
   attachmentLabel: string,
 ): string {
-  const revSlot = `rev-${String(revision).padStart(2, '0')}`;
+  const rev = `rev-${String(revision).padStart(2, '0')}`;
   const seq = String(attachmentSeq).padStart(3, '0');
   const label = attachmentLabel
     .toLowerCase()
@@ -306,7 +306,7 @@ export function buildEpcQtnGcsPath(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'quotation-document';
   const safeName = offerNumber.replace(/\//g, '-');
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${revSlot}/${seq}-${label}.pdf`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
 }
 
 export async function resolveContextualRevision(
