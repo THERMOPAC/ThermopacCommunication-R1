@@ -443,7 +443,7 @@ export default function OfferTemplatesPage() {
 
         {/* ── Create / Edit Dialog ── */}
         <Dialog open={isFormOpen} onOpenChange={(open) => { if (!open) resetForm(); }}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-xl">
             <DialogHeader>
               <DialogTitle>
                 {editingTemplate
@@ -451,67 +451,69 @@ export default function OfferTemplatesPage() {
                   : "Add New Template"}
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Template Name <span className="text-destructive">*</span></Label>
-                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. UOR Standard Offer" />
+            <div className="space-y-3">
+              {/* Row 1: Name + Language */}
+              <div className="grid grid-cols-[1fr_160px] gap-3">
+                <div>
+                  <Label className="text-xs">Template Name <span className="text-destructive">*</span></Label>
+                  <Input className="mt-1" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. UOR Standard Offer" />
+                </div>
+                <div>
+                  <Label className="text-xs">Language <span className="text-destructive">*</span></Label>
+                  <Select value={formLanguage} onValueChange={setFormLanguage}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Language" /></SelectTrigger>
+                    <SelectContent>{languageOptions.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
               </div>
+              {/* Row 2: Subject */}
               <div>
-                <Label>Offer Subject <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Offer Subject <span className="text-destructive">*</span></Label>
                 <Select value={formSubject} onValueChange={setFormSubject}>
-                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select subject" /></SelectTrigger>
                   <SelectContent>{subjectOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              {/* Row 3: Description */}
               <div>
-                <Label>Language <span className="text-destructive">*</span></Label>
-                <Select value={formLanguage} onValueChange={setFormLanguage}>
-                  <SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger>
-                  <SelectContent>{languageOptions.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label className="text-xs">Description <span className="text-muted-foreground">(optional)</span></Label>
+                <Input className="mt-1" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Short description" />
               </div>
-              <div>
-                <Label>Description</Label>
-                <Textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Optional description" rows={2} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row 4: Start Page + End Page + PDF */}
+              <div className="grid grid-cols-[80px_80px_1fr] gap-3 items-end">
                 <div>
-                  <Label>Start Page</Label>
-                  <Input type="number" min="1" value={formStartPage} onChange={(e) => setFormStartPage(e.target.value)} placeholder="Default: 1" />
+                  <Label className="text-xs">Start Page</Label>
+                  <Input className="mt-1" type="number" min="1" value={formStartPage} onChange={(e) => setFormStartPage(e.target.value)} placeholder="1" />
                 </div>
                 <div>
-                  <Label>End Page</Label>
-                  <Input type="number" min="1" value={formEndPage} onChange={(e) => setFormEndPage(e.target.value)} placeholder="Default: last" />
+                  <Label className="text-xs">End Page</Label>
+                  <Input className="mt-1" type="number" min="1" value={formEndPage} onChange={(e) => setFormEndPage(e.target.value)} placeholder="last" />
                 </div>
-              </div>
-              <div>
-                <Label>PDF File {!editingTemplate && <span className="text-destructive">*</span>}</Label>
-                {editingTemplate && (
-                  <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <GitBranch className="h-3 w-3" />
-                    Current: <span className="font-medium">{editingTemplate.fileName}</span>
-                    {versionBadge(editingTemplate.versionSeq)}
-                    — uploading a new PDF creates {versionBadge((editingTemplate.versionSeq ?? 1) + 1)}
-                  </div>
-                )}
-                <div className="mt-1">
-                  <input ref={fileInputRef} type="file" accept=".pdf" className="hidden"
-                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
-                  <div className="flex items-center gap-3">
-                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                      <Upload className="h-3 w-3 mr-1" /> {editingTemplate ? "Upload Revised PDF" : "Choose PDF"}
+                <div>
+                  <Label className="text-xs">
+                    PDF File {!editingTemplate && <span className="text-destructive">*</span>}
+                  </Label>
+                  <div className="mt-1">
+                    <input ref={fileInputRef} type="file" accept=".pdf" className="hidden"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+                    <Button type="button" variant="outline" size="sm" className="w-full justify-start" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="h-3 w-3 mr-1.5 shrink-0" />
+                      <span className="truncate">{selectedFile ? selectedFile.name : editingTemplate ? "Upload Revised PDF" : "Choose PDF"}</span>
                     </Button>
-                    {selectedFile && (
-                      <span className="text-sm text-muted-foreground flex items-center gap-1">
-                        <FileText className="h-3 w-3 text-red-500" />
-                        {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
+              {/* Edit hint: version info */}
+              {editingTemplate && (
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5">
+                  <GitBranch className="h-3 w-3 shrink-0" />
+                  Current: <span className="font-medium truncate max-w-[200px]">{editingTemplate.fileName}</span>
+                  {versionBadge(editingTemplate.versionSeq)}
+                  {selectedFile && <span className="text-blue-600">→ will create {versionBadge((editingTemplate.versionSeq ?? 1) + 1)}</span>}
+                </div>
+              )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="mt-2">
               <Button variant="outline" onClick={resetForm}>Cancel</Button>
               <Button disabled={isUploading} onClick={editingTemplate ? handleUpdate : handleCreate}>
                 {isUploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
