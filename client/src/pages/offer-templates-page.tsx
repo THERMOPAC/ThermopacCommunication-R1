@@ -153,7 +153,21 @@ export default function OfferTemplatesPage() {
       return;
     }
 
+    setIsUploading(true);
     try {
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('template', selectedFile);
+        if (formLabel) formData.append('label', formLabel);
+        const res = await fetch(`/api/sales-marketing/offer-templates/${editingTemplate.id}/replace`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to replace PDF');
+        }
+      }
       await apiRequest('PATCH', `/api/sales-marketing/offer-templates/${editingTemplate.id}`, {
         name: formName,
         subject: formSubject,
@@ -163,11 +177,13 @@ export default function OfferTemplatesPage() {
         startPage: formStartPage ? parseInt(formStartPage) : null,
         endPage: formEndPage ? parseInt(formEndPage) : null,
       });
-      toast({ title: "Template updated" });
+      toast({ title: selectedFile ? "Template and PDF updated successfully" : "Template updated" });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offer-templates'] });
       resetForm();
-    } catch {
-      toast({ title: "Failed to update template", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: err?.message || "Failed to update template", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -459,45 +475,53 @@ export default function OfferTemplatesPage() {
                   <p className="text-xs text-muted-foreground mt-1">Last page to include from template</p>
                 </div>
               </div>
-              {!editingTemplate && (
-                <div>
-                  <Label>Document Label <span className="text-destructive">*</span></Label>
-                  <Select value={formLabel} onValueChange={setFormLabel}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select from controlled vocabulary..." /></SelectTrigger>
-                    <SelectContent>
-                      {TEMPLATE_LABEL_OPTIONS.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">Select the GCS label for this template file.</p>
-                </div>
-              )}
-              {!editingTemplate && (
-                <div>
-                  <Label>PDF File <span className="text-destructive">*</span></Label>
-                  <div className="mt-1">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf"
-                      className="hidden"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                    />
-                    <div className="flex items-center gap-3">
-                      <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                        <Upload className="h-3 w-3 mr-1" /> Choose PDF
-                      </Button>
-                      {selectedFile && (
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <FileText className="h-3 w-3 text-red-500" />
-                          {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                        </span>
-                      )}
-                    </div>
+              <div>
+                <Label>
+                  Document Label
+                  {!editingTemplate && <span className="text-destructive"> *</span>}
+                  {editingTemplate && selectedFile && <span className="text-destructive"> *</span>}
+                </Label>
+                <Select value={formLabel} onValueChange={setFormLabel}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select from controlled vocabulary..." /></SelectTrigger>
+                  <SelectContent>
+                    {TEMPLATE_LABEL_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Select the GCS label for this template file.</p>
+              </div>
+              <div>
+                <Label>
+                  PDF File
+                  {!editingTemplate && <span className="text-destructive"> *</span>}
+                </Label>
+                {editingTemplate && (
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Current: <span className="font-medium">{editingTemplate.fileName}</span> — upload a new PDF below to replace it with a new revision.
+                  </p>
+                )}
+                <div className="mt-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  />
+                  <div className="flex items-center gap-3">
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="h-3 w-3 mr-1" /> {editingTemplate ? "Upload Revised PDF" : "Choose PDF"}
+                    </Button>
+                    {selectedFile && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <FileText className="h-3 w-3 text-red-500" />
+                        {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                      </span>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={resetForm}>Cancel</Button>
@@ -506,7 +530,7 @@ export default function OfferTemplatesPage() {
                 onClick={editingTemplate ? handleUpdate : handleCreate}
               >
                 {isUploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Save Template
+                {editingTemplate ? "Update Template" : "Save Template"}
               </Button>
             </DialogFooter>
           </DialogContent>
