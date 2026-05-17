@@ -1,12 +1,12 @@
 {
-  "ranAt": "2026-05-17T00:58:49.110Z",
-  "finishedAt": "2026-05-17T00:58:55.681Z",
+  "ranAt": "2026-05-17T01:10:30.510Z",
+  "finishedAt": "2026-05-17T01:10:36.118Z",
   "force": true,
-  "totalVersions": 38,
-  "processed": 38,
+  "totalVersions": 34,
+  "processed": 34,
   "skipped": 0,
-  "passed": 31,
-  "failed": 7,
+  "passed": 34,
+  "failed": 0,
   "errored": 0,
   "results": [
     {
@@ -25,17 +25,6 @@
       "documentType": "DESIGN_BACKUP",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": false
-    },
-    {
-      "ruleId": 20,
-      "versionId": 33,
-      "moduleKey": "design",
-      "documentType": "DESIGN_DRAWING",
-      "overall": "FAIL",
-      "failedChecks": [
-        "path_uniqueness"
-      ],
       "skipped": false
     },
     {
@@ -79,10 +68,8 @@
       "versionId": 13,
       "moduleKey": "epc",
       "documentType": "DATASHEET",
-      "overall": "FAIL",
-      "failedChecks": [
-        "path_uniqueness"
-      ],
+      "overall": "PASS",
+      "failedChecks": [],
       "skipped": false
     },
     {
@@ -101,17 +88,6 @@
       "documentType": "DISPATCH",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": false
-    },
-    {
-      "ruleId": 2,
-      "versionId": 8,
-      "moduleKey": "epc",
-      "documentType": "DRAWING",
-      "overall": "FAIL",
-      "failedChecks": [
-        "path_uniqueness"
-      ],
       "skipped": false
     },
     {
@@ -146,10 +122,8 @@
       "versionId": 35,
       "moduleKey": "epc",
       "documentType": "EPC_DRAWING",
-      "overall": "FAIL",
-      "failedChecks": [
-        "path_uniqueness"
-      ],
+      "overall": "PASS",
+      "failedChecks": [],
       "skipped": false
     },
     {
@@ -168,18 +142,6 @@
       "documentType": "QUOTATION",
       "overall": "PASS",
       "failedChecks": [],
-      "skipped": false
-    },
-    {
-      "ruleId": 36,
-      "versionId": 31,
-      "moduleKey": "epc",
-      "documentType": "RFQ_ATTACHMENT",
-      "overall": "FAIL",
-      "failedChecks": [
-        "path_uniqueness",
-        "revision_mode"
-      ],
       "skipped": false
     },
     {
@@ -264,25 +226,12 @@
       "skipped": false
     },
     {
-      "ruleId": 17,
-      "versionId": 3,
-      "moduleKey": "qms",
-      "documentType": "MATERIAL_CERT",
-      "overall": "FAIL",
-      "failedChecks": [
-        "path_uniqueness"
-      ],
-      "skipped": false
-    },
-    {
       "ruleId": 37,
       "versionId": 37,
       "moduleKey": "qms",
       "documentType": "MATERIAL_ID_DOC",
-      "overall": "FAIL",
-      "failedChecks": [
-        "path_uniqueness"
-      ],
+      "overall": "PASS",
+      "failedChecks": [],
       "skipped": false
     },
     {
