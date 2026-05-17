@@ -23,7 +23,7 @@ import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
   Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw, FlaskConical, EyeOff,
-  FileSpreadsheet
+  FileSpreadsheet, UploadCloud, ShoppingCart, FileSignature
 } from "lucide-react";
 import { ExcelJS } from "@/lib/excel-client-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,6 +61,7 @@ const offerFormSchema = z.object({
   deliveryTerms: z.string().optional(),
   notes: z.string().optional(),
   termsAndConditions: z.string().optional(),
+  offerType: z.enum(["standalone", "project-linked"]).default("standalone"),
   items: z.array(offerItemSchema).min(1, "At least one item is required"),
 });
 
@@ -265,6 +266,9 @@ export function OffersContent() {
   const [pdfDownloadOfferId, setPdfDownloadOfferId] = useState<number | null>(null);
   const [confirmOrderOffer, setConfirmOrderOffer] = useState<any>(null);
   const [conversionResult, setConversionResult] = useState<any>(null);
+  const [confirmDocFile, setConfirmDocFile] = useState<File | null>(null);
+  const [confirmDocUploading, setConfirmDocUploading] = useState(false);
+  const [confirmDocUploaded, setConfirmDocUploaded] = useState(false);
   const [epcFormData, setEpcFormData] = useState({
     continentCode: '', countryCode: '', projectType: '', priority: 'Medium',
     startDate: '', targetEndDate: '', managerId: 0, automationMode: 'full_auto' as 'manual' | 'full_auto',
@@ -330,7 +334,7 @@ export function OffersContent() {
       customerId: null, customerName: "", customerEmail: "", customerAddress: "",
       contactPerson: "", subject: "", language: "English", currency: "USD", discountPercent: "0",
       taxPercent: "0", validUntil: "", paymentTerms: "", deliveryTerms: "",
-      notes: "", termsAndConditions: "", items: [],
+      notes: "", termsAndConditions: "", offerType: "standalone" as const, items: [],
     },
   });
 
@@ -454,7 +458,7 @@ export function OffersContent() {
       customerId: null, customerName: "", customerEmail: "", customerAddress: "",
       contactPerson: "", subject: "", language: "English", currency: "USD", discountPercent: "0",
       taxPercent: "0", validUntil: "", paymentTerms: "", deliveryTerms: "",
-      notes: "", termsAndConditions: "", items: [],
+      notes: "", termsAndConditions: "", offerType: "standalone" as const, items: [],
     });
   };
 
@@ -491,6 +495,7 @@ export function OffersContent() {
         deliveryTerms: data.deliveryTerms || "",
         notes: data.notes || "",
         termsAndConditions: data.termsAndConditions || "",
+        offerType: (data.offerType || "standalone") as "standalone" | "project-linked",
         items: (data.items || []).map((item: any) => ({
           tempKey: String(item.id),
           productId: item.productId,
@@ -1062,6 +1067,12 @@ export function OffersContent() {
                         {offer.revision > 0 && <Badge variant="outline" className="ml-1 text-xs">Rev.{offer.revision}</Badge>}
                         {offer.templatePdfName && <Paperclip className="inline h-3 w-3 ml-1 text-muted-foreground" title={`Template: ${offer.templatePdfName}`} />}
                         {offer.isTest && <Badge className="ml-1.5 text-[10px] px-1 py-0 bg-amber-100 text-amber-800 border border-amber-300"><FlaskConical className="inline h-2.5 w-2.5 mr-0.5" />Test</Badge>}
+                        {offer.offerType === 'project-linked' && <Badge className="ml-1.5 text-[10px] px-1 py-0 bg-purple-100 text-purple-700 border border-purple-300"><FileSignature className="inline h-2.5 w-2.5 mr-0.5" />Proj</Badge>}
+                        {offer.status === 'Approved' && !offer.confirmationDocGcsPath && (
+                          <Badge className="ml-1.5 text-[10px] px-1 py-0 bg-orange-100 text-orange-700 border border-orange-300" title="Confirmation document not yet uploaded">
+                            <UploadCloud className="inline h-2.5 w-2.5 mr-0.5" />Doc Pending
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>{offer.customerName}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{offer.subject}</TableCell>
@@ -1109,6 +1120,9 @@ export function OffersContent() {
                               setConfirmOrderOffer(offer);
                               setConversionResult(null);
                               setConversionErrors([]);
+                              setConfirmDocFile(null);
+                              setConfirmDocUploading(false);
+                              setConfirmDocUploaded(!!offer.confirmationDocGcsPath);
                               const today = new Date().toISOString().split('T')[0];
                               const sixMonths = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
                               const customer = customers.find((c: any) => c.id === offer.customerId);
@@ -1259,7 +1273,7 @@ export function OffersContent() {
         </Dialog>
 
         {/* CONFIRM ORDER DIALOG */}
-        <Dialog open={!!confirmOrderOffer} onOpenChange={(open) => { if (!open) { setConfirmOrderOffer(null); setConversionResult(null); setConversionErrors([]); } }}>
+        <Dialog open={!!confirmOrderOffer} onOpenChange={(open) => { if (!open) { setConfirmOrderOffer(null); setConversionResult(null); setConversionErrors([]); setConfirmDocFile(null); setConfirmDocUploaded(false); } }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -1318,6 +1332,79 @@ export function OffersContent() {
               </div>
             ) : (
               <div className="space-y-4">
+                {/* ── Step 1: Mandatory confirmation document ──────────────── */}
+                {(() => {
+                  const isProjectLinked = confirmOrderOffer?.offerType === 'project-linked';
+                  const docLabel = isProjectLinked ? 'Sales Contract (Customer-Signed)' : 'Customer Order / PO';
+                  const Icon = isProjectLinked ? FileSignature : ShoppingCart;
+                  const alreadyUploaded = confirmDocUploaded || !!confirmOrderOffer?.confirmationDocGcsPath;
+                  return (
+                    <div className={`rounded-lg border-2 p-3 ${alreadyUploaded ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Icon className={`h-4 w-4 ${alreadyUploaded ? 'text-green-600' : 'text-amber-600'}`} />
+                        <span className="text-sm font-semibold">
+                          {alreadyUploaded ? '✓ ' : 'Required: '}{docLabel}
+                        </span>
+                        <Badge variant="outline" className={`ml-auto text-[10px] ${alreadyUploaded ? 'border-green-400 text-green-700' : 'border-amber-400 text-amber-700'}`}>
+                          {alreadyUploaded ? 'Uploaded' : 'Mandatory'}
+                        </Badge>
+                      </div>
+                      {alreadyUploaded ? (
+                        <p className="text-xs text-green-700">
+                          {confirmOrderOffer?.confirmationDocFilename || confirmDocFile?.name || 'Document uploaded'} — ready for conversion.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-xs text-amber-800">
+                            Upload the signed {docLabel} from the customer before proceeding. This document is required and will be stored in GCS.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="application/pdf"
+                              className="hidden"
+                              id="confirm-doc-input"
+                              onChange={e => setConfirmDocFile(e.target.files?.[0] || null)}
+                            />
+                            <label htmlFor="confirm-doc-input" className="cursor-pointer inline-flex items-center gap-1.5 rounded-md border border-amber-400 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50">
+                              <UploadCloud className="h-3.5 w-3.5" />
+                              {confirmDocFile ? confirmDocFile.name.slice(0, 30) : 'Choose PDF…'}
+                            </label>
+                            {confirmDocFile && (
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs bg-amber-600 hover:bg-amber-700"
+                                disabled={confirmDocUploading}
+                                onClick={async () => {
+                                  if (!confirmOrderOffer || !confirmDocFile) return;
+                                  setConfirmDocUploading(true);
+                                  try {
+                                    const fd = new FormData();
+                                    fd.append('file', confirmDocFile);
+                                    const r = await fetch(`/api/sales-marketing/offers/${confirmOrderOffer.id}/confirmation-doc`, {
+                                      method: 'POST', body: fd, credentials: 'include',
+                                    });
+                                    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Upload failed'); }
+                                    setConfirmDocUploaded(true);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+                                    toast({ title: 'Document uploaded', description: `${docLabel} saved to GCS.` });
+                                  } catch (err: any) {
+                                    toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+                                  } finally {
+                                    setConfirmDocUploading(false);
+                                  }
+                                }}
+                              >
+                                {confirmDocUploading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Uploading…</> : 'Upload'}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div className="rounded-lg border p-3 bg-muted/30 text-sm">
                   <p className="font-medium mb-1">This action will:</p>
                   <ul className="list-disc list-inside text-muted-foreground space-y-0.5 text-xs">
@@ -1449,6 +1536,7 @@ export function OffersContent() {
                     className="bg-indigo-600 hover:bg-indigo-700"
                     disabled={
                       confirmOrderMutation.isPending ||
+                      !(confirmDocUploaded || !!confirmOrderOffer?.confirmationDocGcsPath) ||
                       !epcFormData.continentCode || !epcFormData.countryCode ||
                       !epcFormData.startDate || !epcFormData.targetEndDate || !epcFormData.managerId ||
                       !epcFormData.disciplineCode || !epcFormData.mdmt ||
@@ -1590,7 +1678,7 @@ export function OffersContent() {
                       <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Offer Details</h3>
                     </div>
                     <div className="p-4 space-y-3">
-                      <div className="grid grid-cols-[2fr_1fr] gap-3">
+                      <div className="grid grid-cols-[2fr_1fr_1fr] gap-3">
                         <FormField control={form.control} name="subject" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-slate-600">Subject *</FormLabel>
@@ -1619,6 +1707,19 @@ export function OffersContent() {
                                 <SelectItem value="Arabic">Arabic</SelectItem>
                                 <SelectItem value="Portuguese">Portuguese</SelectItem>
                                 <SelectItem value="Russian">Russian</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="offerType" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-slate-600">Offer Type *</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value="standalone">Standalone (Customer Order)</SelectItem>
+                                <SelectItem value="project-linked">Project-Linked (Sales Contract)</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />

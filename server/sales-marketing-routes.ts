@@ -63,6 +63,24 @@ const templateUpload = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
+const confirmDocUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Only PDF files are allowed'));
+  },
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
+
+function buildConfirmationDocGcsPath(offerNumber: string, customerName: string, offerType: string): string {
+  const fyMatch = /OFR-(\d{4})-/.exec(offerNumber);
+  const fy = fyMatch ? fyMatch[1] : 'XXXX';
+  const custSlug = customerName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20) || 'customer';
+  const safeOfferNo = offerNumber.replace(/\//g, '-');
+  const label = offerType === 'project-linked' ? 'SalesContract' : 'CustomerOrder';
+  return `TPEL/AS/IN/${custSlug}/${fy}/Open_Orders/${safeOfferNo}/001-${label}-rev-00.pdf`;
+}
+
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
@@ -1655,6 +1673,17 @@ export function setupSalesMarketingRoutes(app: Express) {
           return res.status(403).json({ error: 'Access denied — only Manager or above can confirm orders' });
         }
 
+        // Gate: confirmation document must be uploaded before conversion
+        const offerCheck = await db.select().from(offers).where(eq(offers.id, id)).limit(1);
+        if (!offerCheck[0]) return res.status(404).json({ error: 'Offer not found' });
+        if (!offerCheck[0].confirmationDocGcsPath) {
+          const docLabel = offerCheck[0].offerType === 'project-linked' ? 'Customer-signed Sales Contract' : 'Customer Order (PO)';
+          return res.status(422).json({
+            error: 'Pre-conversion validation failed',
+            failures: [{ field: 'confirmationDoc', reason: `${docLabel} must be uploaded before confirming the order` }],
+          });
+        }
+
         const { executeOfferConversion } = await import('./offer-conversion');
         if (!epcParams) {
           return res.status(422).json({
@@ -1961,6 +1990,57 @@ export function setupSalesMarketingRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching customers:', error);
       res.status(500).json({ error: 'Failed to fetch customers' });
+    }
+  });
+
+  // ── Confirmation Document Upload ─────────────────────────────────────────
+  router.post('/offers/:id/confirmation-doc', ensureAuthenticated, confirmDocUpload.single('file'), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
+
+      const offer = await db.select().from(offers).where(eq(offers.id, id)).limit(1);
+      if (!offer[0]) return res.status(404).json({ error: 'Offer not found' });
+      if (offer[0].status === 'Order Confirmed') {
+        return res.status(400).json({ error: 'Offer is locked — cannot replace confirmation document after Order Confirmed' });
+      }
+
+      const gcsPath = buildConfirmationDocGcsPath(offer[0].offerNumber, offer[0].customerName, offer[0].offerType);
+      const bucket = gcsClient.bucket(gcsBucketName);
+      const gcsFile = bucket.file(gcsPath);
+      await gcsFile.save(req.file.buffer, { contentType: 'application/pdf', resumable: false });
+
+      await db.update(offers)
+        .set({ confirmationDocGcsPath: gcsPath, confirmationDocFilename: req.file.originalname })
+        .where(eq(offers.id, id));
+
+      const docLabel = offer[0].offerType === 'project-linked' ? 'Sales Contract' : 'Customer Order';
+      console.log(`[confirmation-doc] Uploaded ${docLabel} for offer ${offer[0].offerNumber} → ${gcsPath}`);
+      res.json({ success: true, gcsPath, filename: req.file.originalname });
+    } catch (error: any) {
+      console.error('[confirmation-doc] Upload error:', error);
+      res.status(500).json({ error: 'Failed to upload confirmation document' });
+    }
+  });
+
+  // ── Confirmation Document Signed URL ─────────────────────────────────────
+  router.get('/offers/:id/confirmation-doc/url', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+      const offer = await db.select().from(offers).where(eq(offers.id, id)).limit(1);
+      if (!offer[0]) return res.status(404).json({ error: 'Offer not found' });
+      if (!offer[0].confirmationDocGcsPath) return res.status(404).json({ error: 'No confirmation document uploaded' });
+
+      const bucket = gcsClient.bucket(gcsBucketName);
+      const file = bucket.file(offer[0].confirmationDocGcsPath);
+      const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 });
+      res.json({ url, filename: offer[0].confirmationDocFilename });
+    } catch (error: any) {
+      console.error('[confirmation-doc] Signed URL error:', error);
+      res.status(500).json({ error: 'Failed to generate download URL' });
     }
   });
 

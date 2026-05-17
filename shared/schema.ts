@@ -10273,6 +10273,13 @@ export const offers = pgTable('offers', {
 
   // Test data flag — hides from normal views; only visible to Superuser with toggle
   isTest: boolean('is_test').default(false).notNull(),
+
+  // Offer type: 'standalone' (Customer Order required) | 'project-linked' (Sales Contract required)
+  offerType: text('offer_type').default('standalone').notNull(),
+
+  // Mandatory confirmation document — must be uploaded before Order Confirmed transition
+  confirmationDocGcsPath: text('confirmation_doc_gcs_path'),
+  confirmationDocFilename: text('confirmation_doc_filename'),
 });
 
 export const insertOfferSchema = createInsertSchema(offers).omit({
