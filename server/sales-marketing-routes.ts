@@ -25,14 +25,12 @@ async function uploadTemplateToGcs(
   name: string,
   ext: string,
   versionSeq: number = 1,
-  labelValue?: string,
+  _labelValue?: string,
 ): Promise<string> {
-  // Governed path: TPEL/SALES/TEMPLATES/{TemplateSlug}/{Seq}-{Label}.{ext}
-  // G8: label must come from TEMPLATE controlled vocabulary
+  // Governed path: TPEL/SALES/TEMPLATES/{TemplateSlug}/{TemplateSlug}_{Seq}.{ext}
   const templateSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const seq = String(versionSeq).padStart(3, '0');
-  const label = labelValue || templateSlug;
-  const gcsPath = `TPEL/SALES/TEMPLATES/${templateSlug}/${label}-${seq}.${ext}`;
+  const gcsPath = `TPEL/SALES/TEMPLATES/${templateSlug}/${templateSlug}_${seq}.${ext}`;
   // Zero-Trust: assert path is governed before any GCS write
   const { assertGcsPath } = await import('./epc-guardrails');
   assertGcsPath(gcsPath, 'uploadTemplateToGcs');
@@ -1144,7 +1142,6 @@ export function setupSalesMarketingRoutes(app: Express) {
         gcsBucket: gcsObjectPath ? gcsBucketName : null,
         checksumSha256: checksumSha256 || null,
         versionSeq,
-        currentLabel: templateLabel,
       }).returning();
 
       // Audit: template created
@@ -1153,7 +1150,7 @@ export function setupSalesMarketingRoutes(app: Express) {
         action: 'template_created',
         performedBy: userId,
         versionSeq,
-        meta: JSON.stringify({ fileName: template.fileName, gcsObjectPath: template.gcsObjectPath, label: templateLabel }),
+        meta: JSON.stringify({ fileName: template.fileName, gcsObjectPath: template.gcsObjectPath }),
       });
 
       res.json(template);
@@ -1198,14 +1195,6 @@ export function setupSalesMarketingRoutes(app: Express) {
 
       // Archive current version to revision history BEFORE replacing
       // Do NOT delete the old GCS file — revision history must be preserved
-      const archiveLabel = existing.currentLabel || (() => {
-        if (existing.gcsObjectPath) {
-          const m = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
-          return m ? m[1] : null;
-        }
-        return null;
-      })();
-
       await db.insert(offerTemplateRevisions).values({
         templateId: existing.id,
         versionSeq: existing.versionSeq ?? 1,
@@ -1214,7 +1203,6 @@ export function setupSalesMarketingRoutes(app: Express) {
         fileName: existing.fileName,
         fileSize: existing.fileSize ?? null,
         checksumSha256: existing.checksumSha256 || null,
-        label: archiveLabel || null,
         uploadedBy: existing.createdBy || null,
         uploadedAt: existing.updatedAt || existing.createdAt || new Date(),
         status: 'superseded',
@@ -1231,12 +1219,9 @@ export function setupSalesMarketingRoutes(app: Express) {
       let newGcsPath: string | undefined;
       let newChecksum: string | undefined;
 
-      // Always derive label from the template name slug (consistent with CREATE)
-      const derivedLabel = existing.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
-
       try {
         const replaceBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
-        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.name, replaceExt, nextSeq, derivedLabel || undefined);
+        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.name, replaceExt, nextSeq);
         newChecksum = crypto.createHash('sha256').update(replaceBuffer).digest('hex');
       } catch (gcsErr) {
         console.warn('[offer-templates] GCS upload on replace failed:', gcsErr);
@@ -1251,7 +1236,6 @@ export function setupSalesMarketingRoutes(app: Express) {
         gcsBucket: newGcsPath ? gcsBucketName : null,
         checksumSha256: newChecksum || null,
         versionSeq: nextSeq,
-        currentLabel: derivedLabel || existing.currentLabel || null,
         updatedAt: new Date(),
       }).where(eq(offerTemplates.id, id)).returning();
 
@@ -1317,13 +1301,6 @@ export function setupSalesMarketingRoutes(app: Express) {
       const userId = (req.user as any)?.id || null;
 
       // Archive current live version to revisions (marked as rolled_back)
-      const archiveLabelCurrent = existing.currentLabel || (() => {
-        if (existing.gcsObjectPath) {
-          const m = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
-          return m ? m[1] : null;
-        }
-        return null;
-      })();
       await db.insert(offerTemplateRevisions).values({
         templateId: id,
         versionSeq: existing.versionSeq ?? 1,
@@ -1332,7 +1309,6 @@ export function setupSalesMarketingRoutes(app: Express) {
         fileName: existing.fileName,
         fileSize: existing.fileSize ?? null,
         checksumSha256: existing.checksumSha256 || null,
-        label: archiveLabelCurrent || null,
         uploadedBy: existing.createdBy || null,
         uploadedAt: existing.updatedAt || existing.createdAt || new Date(),
         status: 'rolled_back',
@@ -1353,7 +1329,6 @@ export function setupSalesMarketingRoutes(app: Express) {
         fileSize: revision.fileSize ?? null,
         checksumSha256: revision.checksumSha256 || null,
         versionSeq: rollbackSeq,
-        currentLabel: revision.label || existing.currentLabel || null,
         updatedAt: new Date(),
       }).where(eq(offerTemplates.id, id)).returning();
 
