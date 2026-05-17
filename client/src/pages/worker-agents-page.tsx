@@ -40,6 +40,13 @@ import {
   Copy,
   Shield,
   GitBranch,
+  HardDrive,
+  FolderOpen,
+  FileCheck2,
+  ServerCrash,
+  Wifi,
+  WifiOff,
+  Hash,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -507,6 +514,11 @@ export default function WorkerAgentsPage() {
   const [workerFilter, setWorkerFilter] = useState("all");
   const [expandedEventId, setExpandedEventId] = useState<number | null>(null);
   const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
+  const [showRegisterAgent, setShowRegisterAgent] = useState(false);
+  const [regCode, setRegCode] = useState("");
+  const [regApiKey, setRegApiKey] = useState("");
+  const [regRootPath, setRegRootPath] = useState("\\\\\\\\Server\\\\d\\\\THERMOPAC");
+  const [regMachine, setRegMachine] = useState("");
 
   const isAdmin = user?.role === "Superuser";
 
@@ -534,6 +546,28 @@ export default function WorkerAgentsPage() {
   const { data: effectiveness } = useQuery<EffectivenessResponse>({
     queryKey: ["/api/l1-workers/effectiveness"],
     enabled: isAdmin,
+  });
+
+  const { data: docAgentStatus, refetch: refetchDocAgent } = useQuery<any>({
+    queryKey: ["/api/local-agent/status"],
+    refetchInterval: 20000,
+  });
+
+  const { data: docAgentJobs = [] } = useQuery<any[]>({
+    queryKey: ["/api/local-agent/jobs/recent"],
+    refetchInterval: 20000,
+  });
+
+  const registerAgentMutation = useMutation({
+    mutationFn: async (data: { agentCode: string; apiKey: string; allowedRootPath: string; machineName?: string }) =>
+      apiRequest("POST", "/api/local-agent/admin/register", data),
+    onSuccess: () => {
+      toast({ title: "Agent registered successfully" });
+      setShowRegisterAgent(false);
+      setRegCode(""); setRegApiKey(""); setRegMachine("");
+      refetchDocAgent();
+    },
+    onError: (e: any) => toast({ title: e?.message || "Registration failed", variant: "destructive" }),
   });
 
   const invalidateAll = () => {
@@ -741,7 +775,7 @@ export default function WorkerAgentsPage() {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="activity" className="flex items-center gap-1.5">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Live Activity</span>
@@ -766,6 +800,15 @@ export default function WorkerAgentsPage() {
             <TabsTrigger value="effectiveness" className="flex items-center gap-1.5">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Effectiveness</span>
+            </TabsTrigger>
+            <TabsTrigger value="doc-agent" className="flex items-center gap-1.5">
+              <HardDrive className="h-4 w-4" />
+              <span className="hidden sm:inline">Doc Agent</span>
+              {(docAgentStatus?.counts?.pending || 0) > 0 && (
+                <Badge variant="outline" className="ml-1 text-xs px-1.5 py-0 bg-blue-100 text-blue-700">
+                  {docAgentStatus.counts.pending}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -1309,7 +1352,299 @@ export default function WorkerAgentsPage() {
             </Card>
           </TabsContent>
 
+          {/* Tab 6: Local Windows Document Agent */}
+          <TabsContent value="doc-agent" className="mt-4 space-y-4">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <HardDrive className="h-5 w-5 text-primary" />
+                  Local Windows Document Agent
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Background service on the local office server — saves ERP files to <code className="text-xs bg-muted px-1 rounded">\\Server\d\THERMOPAC</code>
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => refetchDocAgent()}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+                </Button>
+                {isAdmin && (
+                  <Button size="sm" onClick={() => setShowRegisterAgent(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Register Agent
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Architecture note */}
+            <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                  <Info className="h-4 w-4 shrink-0" />
+                  <span>
+                    <strong>Architecture:</strong> Cloud ERP → <code className="text-xs bg-blue-100 dark:bg-blue-900 px-1 rounded">document_agent_jobs</code> table → Local Agent polls every 20s → <code className="text-xs bg-blue-100 dark:bg-blue-900 px-1 rounded">\\Server\d\THERMOPAC</code>
+                    &nbsp;— outbound HTTPS only, no inbound ports.
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Job Count Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: "Pending",    count: docAgentStatus?.counts?.pending    || 0, icon: Clock,        color: "text-amber-500" },
+                { label: "Processing", count: docAgentStatus?.counts?.processing || 0, icon: RefreshCw,    color: "text-blue-500" },
+                { label: "Completed",  count: docAgentStatus?.counts?.completed  || 0, icon: CheckCircle2, color: "text-green-500" },
+                { label: "Failed",     count: docAgentStatus?.counts?.failed     || 0, icon: AlertTriangle,color: "text-red-500" },
+              ].map(({ label, count, icon: Icon, color }) => (
+                <Card key={label}>
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-5 w-5 ${color}`} />
+                      <div>
+                        <p className="text-2xl font-bold">{count}</p>
+                        <p className="text-xs text-muted-foreground">{label}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Agent Node Cards */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-4 w-4" /> Registered Agents
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(!docAgentStatus?.nodes || docAgentStatus.nodes.length === 0) ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <HardDrive className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No agents registered yet.</p>
+                    {isAdmin && (
+                      <Button size="sm" variant="outline" className="mt-3" onClick={() => setShowRegisterAgent(true)}>
+                        <Plus className="h-3 w-3 mr-1" /> Register First Agent
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {docAgentStatus.nodes.map((node: any) => {
+                      const isOnline = node.agentState && node.agentState !== 'OFFLINE' && node.agentState !== 'ERROR';
+                      const heartbeatAge = node.lastHeartbeatAt
+                        ? Math.floor((Date.now() - new Date(node.lastHeartbeatAt).getTime()) / 1000)
+                        : null;
+                      const stale = heartbeatAge !== null && heartbeatAge > 60;
+                      return (
+                        <div key={node.id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              {isOnline && !stale
+                                ? <Wifi className="h-5 w-5 text-green-500" />
+                                : <WifiOff className="h-5 w-5 text-muted-foreground" />}
+                              <div>
+                                <p className="font-medium text-sm">{node.agentCode}</p>
+                                {node.machineName && <p className="text-xs text-muted-foreground">{node.machineName}</p>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {node.agentVersion && (
+                                <Badge variant="outline" className="text-xs">v{node.agentVersion}</Badge>
+                              )}
+                              <Badge className={`text-xs ${
+                                node.agentState === 'IDLE'       ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' :
+                                node.agentState === 'PROCESSING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' :
+                                node.agentState === 'CONNECTING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' :
+                                node.agentState === 'ERROR'      ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' :
+                                'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                              }`}>
+                                {node.agentState || 'OFFLINE'}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                              <span className="font-mono truncate">{node.allowedRootPath || '—'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5 shrink-0" />
+                              <span>
+                                {node.lastHeartbeatAt
+                                  ? `Last heartbeat: ${heartbeatAge}s ago${stale ? ' ⚠ stale' : ''}`
+                                  : 'No heartbeat yet'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {node.lastError && (
+                            <div className="flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded px-2 py-1.5">
+                              <ServerCrash className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                              <span className="break-all">{node.lastError}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity Log */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="h-4 w-4" /> Recent Job Activity
+                </CardTitle>
+                <CardDescription>Last 50 jobs processed by the agent</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {docAgentJobs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">No jobs yet</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left py-2.5 px-4 font-medium text-muted-foreground">ID</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Type</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Path</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Status</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {docAgentJobs.map((job: any) => (
+                          <tr key={job.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
+                            <td className="py-2.5 px-4 text-muted-foreground text-xs">#{job.id}</td>
+                            <td className="py-2.5 px-3">
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
+                                job.jobType === 'SAVE_PDF'    || job.jobType === 'SAVE_FILE'    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200' :
+                                job.jobType === 'CREATE_FOLDER'? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' :
+                                job.jobType.includes('VERIFY') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {job.jobType}
+                              </Badge>
+                            </td>
+                            <td className="py-2.5 px-3 max-w-[300px]">
+                              <span className="font-mono text-xs truncate block" title={job.relativePath}>{job.relativePath}</span>
+                              {job.fileName && <span className="text-xs text-muted-foreground">{job.fileName}</span>}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <Badge className={`text-[10px] px-1.5 py-0 ${
+                                job.status === 'completed'  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' :
+                                job.status === 'failed'     ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' :
+                                job.status === 'processing' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' :
+                                'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200'
+                              }`}>
+                                {job.status}
+                              </Badge>
+                              {job.failedReason && (
+                                <p className="text-xs text-red-500 mt-0.5 max-w-[200px] truncate" title={job.failedReason}>{job.failedReason}</p>
+                              )}
+                              {job.actualSha256 && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5 font-mono flex items-center gap-1">
+                                  <Hash className="h-2.5 w-2.5" />{job.actualSha256.substring(0, 12)}…
+                                </p>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-xs text-muted-foreground whitespace-nowrap">
+                              {job.updatedAt ? new Date(job.updatedAt).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Setup Instructions */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileCode2 className="h-4 w-4" /> Windows Service Setup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="space-y-2">
+                  {[
+                    { step: "1", text: "Copy the local-document-agent/ folder to C:\\ThermopacDocAgent\\ on the Windows server" },
+                    { step: "2", text: "Install Node.js 20 LTS (x64) from nodejs.org" },
+                    { step: "3", text: "Copy config.json.example → config.json and fill in erpBaseUrl, apiKey, allowedRootPath" },
+                    { step: "4", text: "Run: npm install && npm run build" },
+                    { step: "5", text: "Run: node dist/index.js --install-service to register as Windows Service (auto-start)" },
+                    { step: "6", text: "Service name: ThermopacLocalDocumentAgent — startup: Automatic" },
+                  ].map(({ step, text }) => (
+                    <div key={step} className="flex items-start gap-3">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{step}</span>
+                      <span className="text-muted-foreground">{text}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 p-3 bg-muted rounded text-xs font-mono space-y-1 text-muted-foreground">
+                  <p className="text-foreground font-semibold mb-1"># Allowed extensions (Phase 1)</p>
+                  <p>.pdf .docx .xlsx .csv .txt .png .jpg .jpeg .zip .dwg .dxf</p>
+                  <p className="text-foreground font-semibold mt-2 mb-1"># Rejected (dangerous)</p>
+                  <p>.exe .bat .cmd .ps1 .vbs .msi .dll</p>
+                </div>
+              </CardContent>
+            </Card>
+
+          </TabsContent>
+
         </Tabs>
+
+        {/* Register Agent Dialog */}
+        <Dialog open={showRegisterAgent} onOpenChange={setShowRegisterAgent}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5" /> Register Local Document Agent
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Agent Code <span className="text-destructive">*</span></Label>
+                <Input value={regCode} onChange={e => setRegCode(e.target.value)} placeholder="THERMOPAC-DOC-AGENT-01" className="mt-1" />
+                <p className="text-xs text-muted-foreground mt-1">Unique identifier — must match config.json on the Windows server</p>
+              </div>
+              <div>
+                <Label>API Key <span className="text-destructive">*</span></Label>
+                <Input value={regApiKey} onChange={e => setRegApiKey(e.target.value)} placeholder="min 16 characters" type="password" className="mt-1" />
+                <p className="text-xs text-muted-foreground mt-1">Secret key — copy this to config.json on the Windows server (min 16 chars)</p>
+              </div>
+              <div>
+                <Label>Allowed Root Path <span className="text-destructive">*</span></Label>
+                <Input value={regRootPath} onChange={e => setRegRootPath(e.target.value)} placeholder="\\Server\d\THERMOPAC" className="mt-1 font-mono text-sm" />
+                <p className="text-xs text-muted-foreground mt-1">UNC path on the Windows server where files will be saved</p>
+              </div>
+              <div>
+                <Label>Machine Name</Label>
+                <Input value={regMachine} onChange={e => setRegMachine(e.target.value)} placeholder="e.g. TPEL-SERVER-01" className="mt-1" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRegisterAgent(false)}>Cancel</Button>
+              <Button
+                disabled={registerAgentMutation.isPending || !regCode || !regApiKey || regApiKey.length < 16 || !regRootPath}
+                onClick={() => registerAgentMutation.mutate({ agentCode: regCode, apiKey: regApiKey, allowedRootPath: regRootPath, machineName: regMachine || undefined })}
+              >
+                {registerAgentMutation.isPending && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
+                Register Agent
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </Layout>
   );

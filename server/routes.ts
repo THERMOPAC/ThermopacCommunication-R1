@@ -3868,6 +3868,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('ℹ️ VPN disabled for SAP B1 integration - using direct connection mode');
   }
 
+  // ── Local Windows Document Agent API ─────────────────────────────────────────
+  const { default: localAgentRoutes } = await import('./local-agent-routes');
+  app.use('/api', localAgentRoutes);
+  console.log('Local Windows Document Agent routes registered');
+
   // ── EPC SolidWorks Extraction Agent API ─────────────────────────────────────
   const { default: epcSlddrwJobRoutes } = await import('./epc-slddrw-job-routes');
   app.use('/api', epcSlddrwJobRoutes);

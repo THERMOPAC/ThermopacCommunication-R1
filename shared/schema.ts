@@ -14279,3 +14279,53 @@ export const gcsPathMigrationLog = pgTable('gcs_path_migration_log', {
   notes:           text('notes'),
 });
 export type GcsPathMigrationLog = typeof gcsPathMigrationLog.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Local Windows Document Agent — node registry
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const documentAgentNodes = pgTable('document_agent_nodes', {
+  id:               serial('id').primaryKey(),
+  agentCode:        varchar('agent_code', { length: 100 }).notNull().unique(),
+  apiKeyHash:       varchar('api_key_hash', { length: 255 }).notNull(),
+  machineName:      varchar('machine_name', { length: 255 }),
+  agentVersion:     varchar('agent_version', { length: 50 }),
+  allowedRootPath:  varchar('allowed_root_path', { length: 500 }),
+  agentState:       varchar('agent_state', { length: 50 }).default('OFFLINE'),
+  lastHeartbeatAt:  timestamp('last_heartbeat_at'),
+  lastError:        text('last_error'),
+  active:           boolean('active').notNull().default(true),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+export type DocumentAgentNode = typeof documentAgentNodes.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Local Windows Document Agent — job queue
+// pending → processing → completed | failed
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const documentAgentJobs = pgTable('document_agent_jobs', {
+  id:               serial('id').primaryKey(),
+  jobType:          varchar('job_type', { length: 50 }).notNull(),
+  // CREATE_FOLDER | SAVE_FILE | SAVE_PDF | VERIFY_FILE_EXISTS | VERIFY_FOLDER_EXISTS | HASH_VALIDATE
+  status:           varchar('status', { length: 50 }).notNull().default('pending'),
+  // pending | processing | completed | failed
+  agentCode:        varchar('agent_code', { length: 100 }),
+  relativePath:     text('relative_path').notNull(),
+  fileUrl:          text('file_url'),
+  fileName:         varchar('file_name', { length: 255 }),
+  expectedSha256:   varchar('expected_sha256', { length: 64 }),
+  actualSha256:     varchar('actual_sha256', { length: 64 }),
+  resultLocalPath:  text('result_local_path'),
+  resultPayload:    jsonb('result_payload'),
+  failedReason:     text('failed_reason'),
+  retryCount:       integer('retry_count').notNull().default(0),
+  claimedAt:        timestamp('claimed_at'),
+  completedAt:      timestamp('completed_at'),
+  sourceRef:        varchar('source_ref', { length: 200 }),
+  createdBy:        integer('created_by'),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+export type DocumentAgentJob = typeof documentAgentJobs.$inferSelect;
