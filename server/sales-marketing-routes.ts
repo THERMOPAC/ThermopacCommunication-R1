@@ -27,12 +27,12 @@ async function uploadTemplateToGcs(
   versionSeq: number = 1,
   labelValue?: string,
 ): Promise<string> {
-  // Approved Rev 4 path: TPEL/Templates/Offers/{templateSlug}/{seq}-{label}.{ext}
+  // Governed path: TPEL/SALES/TEMPLATES/{TemplateSlug}/{Seq}-{Label}.{ext}
   // G8: label must come from TEMPLATE controlled vocabulary
   const templateSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const seq = String(versionSeq).padStart(3, '0');
   const label = labelValue || templateSlug;
-  const gcsPath = `TPEL/Templates/Offers/${templateSlug}/${seq}-${label}.${ext}`;
+  const gcsPath = `TPEL/SALES/TEMPLATES/${templateSlug}/${seq}-${label}.${ext}`;
   // Zero-Trust: assert path is governed before any GCS write
   const { assertGcsPath } = await import('./epc-guardrails');
   assertGcsPath(gcsPath, 'uploadTemplateToGcs');
