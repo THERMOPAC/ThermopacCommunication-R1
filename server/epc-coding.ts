@@ -243,17 +243,12 @@ export function buildQuotationGcsPath(
   offerNumber: string,
   revision: number,
   attachmentSeq: number,
-  priceMode: string,
+  subjectSlug: string,
 ): string {
   const rev = `rev-${String(revision).padStart(2, '0')}`;
   const seq = String(attachmentSeq).padStart(3, '0');
-  const labelMap: Record<string, string> = {
-    'combined': 'combined-quotation',
-    'with_tax': 'with-tax-quotation',
-    'without_tax': 'budgetary-quotation',
-  };
-  const label = labelMap[priceMode] || priceMode.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const safeName = offerNumber.replace(/\//g, '-');
+  const label = subjectSlug || 'offer';
   return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
 }
 
@@ -296,16 +291,16 @@ export function buildEpcQtnGcsPath(
   offerNumber: string,
   revision: number,
   attachmentSeq: number,
-  attachmentLabel: string,
+  subjectSlug: string,
 ): string {
   const rev = `rev-${String(revision).padStart(2, '0')}`;
   const seq = String(attachmentSeq).padStart(3, '0');
-  const label = attachmentLabel
+  const safeName = offerNumber.replace(/\//g, '-');
+  const label = subjectSlug
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'quotation-document';
-  const safeName = offerNumber.replace(/\//g, '-');
+    .replace(/^-|-$/g, '') || 'offer';
   return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
 }
 

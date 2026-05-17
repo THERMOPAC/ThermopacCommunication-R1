@@ -3,6 +3,15 @@ import storage, { bucketName } from './storage-config';
 import { pool } from '../db';
 import { buildQuotationGcsPath, buildEpcQtnGcsPath, CONTINENT_NAME_TO_CODE, COUNTRY_NAME_TO_CODE } from '../epc-coding';
 
+function slugifySubject(subject: string): string {
+  return subject
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 40)
+    .replace(/-+$/g, '') || 'offer';
+}
+
 function deriveFyCode(): string {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -52,13 +61,14 @@ export async function storeQuotationPdfArtifact(
   const fy = deriveFyCode();
 
   const offerResult = await pool.query(
-    `SELECT customer_id FROM offers WHERE id = $1`,
+    `SELECT customer_id, subject FROM offers WHERE id = $1`,
     [offerId]
   );
   if (offerResult.rows.length === 0) {
     throw new Error(`Offer not found: ${offerId}`);
   }
   const customerId = offerResult.rows[0].customer_id;
+  const subjectSlug = slugifySubject(offerResult.rows[0].subject || '');
   const geo = await resolveCustomerGeoCodes(customerId);
 
   const seqResult = await pool.query(
@@ -78,7 +88,7 @@ export async function storeQuotationPdfArtifact(
 
   const gcsObjectPath = buildQuotationGcsPath(
     geo.continentCode, geo.countryCode, geo.shortCode,
-    fy, offerNumber, revision, attachmentSeq, priceMode
+    fy, offerNumber, revision, attachmentSeq, subjectSlug
   );
 
   const insertResult = await pool.query(
@@ -226,12 +236,18 @@ export async function attachConfirmedArtifactToEpc(
     );
     const attachmentSeq = (seqResult.rows[0] as any).next_seq;
 
-    const epcLabel = attachmentLabel || 'quotation-document';
+    const offerSubjectResult = await pool.query(
+      `SELECT subject FROM offers WHERE id = $1`,
+      [offerId]
+    );
+    const offerSubject = offerSubjectResult.rows[0]?.subject || '';
+    const epcSubjectSlug = slugifySubject(offerSubject);
+
     const epcGcsPath = buildEpcQtnGcsPath(
       continentCode, countryCode, proj.short_code,
       proj.fy_code, offerNumber,
       artifact.revision,
-      attachmentSeq, epcLabel
+      attachmentSeq, epcSubjectSlug
     );
 
     const bucket = storage.bucket(bucketName);
