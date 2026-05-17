@@ -17,9 +17,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
+import * as path from 'path';
+import * as fs from 'fs';
+import archiver from 'archiver';
 import { db } from './db';
-import { eq, desc, sql, and, inArray } from 'drizzle-orm';
+import { eq, desc, sql, and } from 'drizzle-orm';
 import { documentAgentNodes, documentAgentJobs } from '@shared/schema';
+
+const AGENT_VERSION = '1.0.0';
+const AGENT_DIR = path.join(process.cwd(), 'local-document-agent');
 
 const router = Router();
 
@@ -251,6 +257,101 @@ router.post('/local-agent/admin/register', requireSession, requireSuperuser, asy
   } catch (err) {
     console.error('[local-agent] register error:', err);
     res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// ── GET /api/local-agent/package-info ── (session auth) ──────────────────────
+
+router.get('/local-agent/package-info', requireSession, (_req: Request, res: Response) => {
+  const distFile  = path.join(AGENT_DIR, 'dist', 'index.js');
+  const distSizeKb = fs.existsSync(distFile)
+    ? Math.round(fs.statSync(distFile).size / 1024)
+    : 0;
+
+  res.json({
+    version:      AGENT_VERSION,
+    packageName:  `thermopac-doc-agent-v${AGENT_VERSION}.zip`,
+    builtAt:      fs.existsSync(distFile) ? fs.statSync(distFile).mtime.toISOString() : null,
+    distSizeKb,
+    files: [
+      { name: 'dist/index.js',           desc: 'Compiled agent (Node.js bundle, no build step needed)', sizeKb: distSizeKb },
+      { name: 'package.json',            desc: 'For npm install (installs node-windows service wrapper)' },
+      { name: 'config.json.example',     desc: 'Configuration template — copy to config.json and fill in' },
+      { name: 'README.md',               desc: 'Quick reference' },
+      { name: 'SETUP.md',                desc: 'Full step-by-step setup guide' },
+      { name: 'install-service.bat',     desc: 'Installs as Windows auto-start service (run as Admin)' },
+      { name: 'uninstall-service.bat',   desc: 'Removes the Windows service' },
+      { name: 'start-service.bat',       desc: 'Starts the service' },
+      { name: 'stop-service.bat',        desc: 'Stops the service' },
+    ],
+    releaseNotes: [
+      'v1.0.0 — Initial release',
+      'Supports: CREATE_FOLDER, SAVE_FILE, SAVE_PDF, VERIFY_FILE_EXISTS, VERIFY_FOLDER_EXISTS, HASH_VALIDATE',
+      'SHA-256 verification on every file save (.tmp → rename after hash check)',
+      'Automatic Windows Service registration via node-windows',
+      'Allowed extensions: .pdf .docx .xlsx .csv .txt .png .jpg .jpeg .zip .dwg .dxf',
+      'Poll interval: configurable (default 20 s), outbound HTTPS only',
+    ],
+    heartbeatPath: '/api/local-agent/heartbeat',
+    claimPath:     '/api/local-agent/jobs/claim',
+    resultPath:    '/api/local-agent/jobs/result',
+  });
+});
+
+// ── GET /api/local-agent/download-package ── (Superuser) ─────────────────────
+
+router.get('/local-agent/download-package', requireSession, requireSuperuser, async (_req: Request, res: Response) => {
+  try {
+    const distFile = path.join(AGENT_DIR, 'dist', 'index.js');
+    if (!fs.existsSync(distFile)) {
+      return res.status(503).json({ error: 'Agent bundle not built yet. Contact system administrator.' });
+    }
+
+    const zipName = `thermopac-doc-agent-v${AGENT_VERSION}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      console.error('[local-agent] package zip error:', err);
+      if (!res.headersSent) res.status(500).json({ error: 'Package generation failed' });
+    });
+
+    archive.pipe(res);
+
+    const root = `thermopac-doc-agent-v${AGENT_VERSION}/`;
+
+    // Core compiled file
+    archive.file(distFile, { name: root + 'dist/index.js' });
+
+    // Config and docs
+    const staticFiles = [
+      'package.json',
+      'config.json.example',
+      'README.md',
+      'SETUP.md',
+    ];
+    for (const f of staticFiles) {
+      const fp = path.join(AGENT_DIR, f);
+      if (fs.existsSync(fp)) archive.file(fp, { name: root + f });
+    }
+
+    // Batch scripts
+    const batchFiles = [
+      'install-service.bat',
+      'uninstall-service.bat',
+      'start-service.bat',
+      'stop-service.bat',
+    ];
+    for (const f of batchFiles) {
+      const fp = path.join(AGENT_DIR, f);
+      if (fs.existsSync(fp)) archive.file(fp, { name: root + f });
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    console.error('[local-agent] download-package error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
   }
 });
 

@@ -558,6 +558,10 @@ export default function WorkerAgentsPage() {
     refetchInterval: 20000,
   });
 
+  const { data: pkgInfo } = useQuery<any>({
+    queryKey: ["/api/local-agent/package-info"],
+  });
+
   const registerAgentMutation = useMutation({
     mutationFn: async (data: { agentCode: string; apiKey: string; allowedRootPath: string; machineName?: string }) =>
       apiRequest("POST", "/api/local-agent/admin/register", data),
@@ -1353,78 +1357,152 @@ export default function WorkerAgentsPage() {
           </TabsContent>
 
           {/* Tab 6: Local Windows Document Agent */}
-          <TabsContent value="doc-agent" className="mt-4 space-y-4">
+          <TabsContent value="doc-agent" className="mt-4 space-y-5">
 
-            {/* Header */}
-            <div className="flex items-center justify-between">
+            {/* Page header */}
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <HardDrive className="h-5 w-5 text-primary" />
                   Local Windows Document Agent
                 </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Background service on the local office server — saves ERP files to <code className="text-xs bg-muted px-1 rounded">\\Server\d\THERMOPAC</code>
+                  Background service on the office server — saves ERP files to <code className="text-xs bg-muted px-1 rounded">\\Server\d\THERMOPAC</code> automatically.
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => refetchDocAgent()}>
-                  <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-                </Button>
-                {isAdmin && (
-                  <Button size="sm" onClick={() => setShowRegisterAgent(true)}>
-                    <Plus className="h-4 w-4 mr-2" /> Register Agent
-                  </Button>
-                )}
-              </div>
+              <Button variant="outline" size="sm" onClick={() => refetchDocAgent()}>
+                <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
+              </Button>
             </div>
 
-            {/* Architecture note */}
+            {/* Architecture banner */}
             <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
                   <Info className="h-4 w-4 shrink-0" />
                   <span>
-                    <strong>Architecture:</strong> Cloud ERP → <code className="text-xs bg-blue-100 dark:bg-blue-900 px-1 rounded">document_agent_jobs</code> table → Local Agent polls every 20s → <code className="text-xs bg-blue-100 dark:bg-blue-900 px-1 rounded">\\Server\d\THERMOPAC</code>
-                    &nbsp;— outbound HTTPS only, no inbound ports.
+                    <strong>Architecture:</strong> Cloud ERP → <code className="text-xs bg-blue-100 dark:bg-blue-900 px-1 rounded">document_agent_jobs</code> table → Local Agent polls every 20 s → <code className="text-xs bg-blue-100 dark:bg-blue-900 px-1 rounded">\\Server\d\THERMOPAC</code> — outbound HTTPS only, no inbound ports required.
                   </span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Job Count Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: "Pending",    count: docAgentStatus?.counts?.pending    || 0, icon: Clock,        color: "text-amber-500" },
-                { label: "Processing", count: docAgentStatus?.counts?.processing || 0, icon: RefreshCw,    color: "text-blue-500" },
-                { label: "Completed",  count: docAgentStatus?.counts?.completed  || 0, icon: CheckCircle2, color: "text-green-500" },
-                { label: "Failed",     count: docAgentStatus?.counts?.failed     || 0, icon: AlertTriangle,color: "text-red-500" },
-              ].map(({ label, count, icon: Icon, color }) => (
-                <Card key={label}>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Icon className={`h-5 w-5 ${color}`} />
-                      <div>
-                        <p className="text-2xl font-bold">{count}</p>
-                        <p className="text-xs text-muted-foreground">{label}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {/* ── SECTION 1: Download Agent Package ─────────────────────── */}
+            <Card className="border-primary/30">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Download className="h-4 w-4 text-primary" /> Download Agent Package
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      Pre-compiled Windows package — no build step needed on your server.
+                    </CardDescription>
+                  </div>
+                  {pkgInfo && (
+                    <Badge variant="outline" className="text-sm px-3 py-1 bg-primary/5 text-primary border-primary/30 font-mono shrink-0">
+                      v{pkgInfo.version}
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
 
-            {/* Agent Node Cards */}
+                {/* Download button */}
+                {isAdmin ? (
+                  <a href="/api/local-agent/download-package" download>
+                    <Button className="w-full sm:w-auto gap-2" size="lg">
+                      <Download className="h-5 w-5" />
+                      Download Local Document Agent Package
+                      {pkgInfo?.distSizeKb ? (
+                        <span className="ml-1 text-xs opacity-70">~{Math.round((pkgInfo.distSizeKb + 50) / 1024 * 10) / 10} MB zip</span>
+                      ) : null}
+                    </Button>
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                    <Shield className="h-4 w-4 shrink-0" />
+                    <span>Only Superusers can download the agent package.</span>
+                  </div>
+                )}
+
+                {/* Package file list */}
+                {pkgInfo?.files && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Package Contents</p>
+                    <div className="border rounded-lg overflow-hidden">
+                      {pkgInfo.files.map((f: any, i: number) => (
+                        <div key={f.name} className={`flex items-start gap-3 px-4 py-2.5 text-sm ${i > 0 ? 'border-t' : ''} ${i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
+                          <FileCode2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <span className="font-mono text-xs text-foreground">{f.name}</span>
+                            {f.sizeKb ? <span className="text-muted-foreground ml-2 text-xs">({f.sizeKb} KB)</span> : null}
+                            <p className="text-xs text-muted-foreground">{f.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Release notes */}
+                {pkgInfo?.releaseNotes && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Release Notes</p>
+                    <ul className="space-y-1">
+                      {pkgInfo.releaseNotes.map((note: string) => (
+                        <li key={note} className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
+                          <span>{note}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+              </CardContent>
+            </Card>
+
+            {/* ── SECTION 2: Registered Agents ──────────────────────────── */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Shield className="h-4 w-4" /> Registered Agents
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4" /> Registered Agents
+                  </CardTitle>
+                  {isAdmin && (
+                    <Button size="sm" onClick={() => setShowRegisterAgent(true)}>
+                      <Plus className="h-4 w-4 mr-1.5" /> Register Agent
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
+
+                {/* Job stats row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  {[
+                    { label: "Pending",    count: docAgentStatus?.counts?.pending    || 0, icon: Clock,        color: "text-amber-500"  },
+                    { label: "Processing", count: docAgentStatus?.counts?.processing || 0, icon: RefreshCw,    color: "text-blue-500"   },
+                    { label: "Completed",  count: docAgentStatus?.counts?.completed  || 0, icon: CheckCircle2, color: "text-green-500"  },
+                    { label: "Failed",     count: docAgentStatus?.counts?.failed     || 0, icon: AlertTriangle,color: "text-red-500"    },
+                  ].map(({ label, count, icon: Icon, color }) => (
+                    <div key={label} className="flex items-center gap-2 border rounded-lg p-3">
+                      <Icon className={`h-4 w-4 ${color}`} />
+                      <div>
+                        <p className="text-xl font-bold leading-none">{count}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Agent node cards */}
                 {(!docAgentStatus?.nodes || docAgentStatus.nodes.length === 0) ? (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div className="text-center py-10 text-muted-foreground border rounded-lg bg-muted/20">
                     <HardDrive className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No agents registered yet.</p>
+                    <p className="text-sm font-medium">No agents registered yet</p>
+                    <p className="text-xs mt-1">Download the package, set it up on your Windows server, then register it here.</p>
                     {isAdmin && (
                       <Button size="sm" variant="outline" className="mt-3" onClick={() => setShowRegisterAgent(true)}>
                         <Plus className="h-3 w-3 mr-1" /> Register First Agent
@@ -1466,7 +1544,6 @@ export default function WorkerAgentsPage() {
                               </Badge>
                             </div>
                           </div>
-
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                             <div className="flex items-center gap-1.5 text-muted-foreground">
                               <FolderOpen className="h-3.5 w-3.5 shrink-0" />
@@ -1481,7 +1558,6 @@ export default function WorkerAgentsPage() {
                               </span>
                             </div>
                           </div>
-
                           {node.lastError && (
                             <div className="flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded px-2 py-1.5">
                               <ServerCrash className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -1496,7 +1572,7 @@ export default function WorkerAgentsPage() {
               </CardContent>
             </Card>
 
-            {/* Recent Activity Log */}
+            {/* ── SECTION 3: Recent Job Activity ────────────────────────── */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -1506,7 +1582,7 @@ export default function WorkerAgentsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 {docAgentJobs.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm">No jobs yet</div>
+                  <div className="text-center py-8 text-muted-foreground text-sm">No jobs yet — jobs appear here once the agent is online and processing</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -1525,15 +1601,13 @@ export default function WorkerAgentsPage() {
                             <td className="py-2.5 px-4 text-muted-foreground text-xs">#{job.id}</td>
                             <td className="py-2.5 px-3">
                               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
-                                job.jobType === 'SAVE_PDF'    || job.jobType === 'SAVE_FILE'    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200' :
-                                job.jobType === 'CREATE_FOLDER'? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' :
+                                job.jobType === 'SAVE_PDF' || job.jobType === 'SAVE_FILE' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200' :
+                                job.jobType === 'CREATE_FOLDER' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200' :
                                 job.jobType.includes('VERIFY') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' :
                                 'bg-gray-100 text-gray-700'
-                              }`}>
-                                {job.jobType}
-                              </Badge>
+                              }`}>{job.jobType}</Badge>
                             </td>
-                            <td className="py-2.5 px-3 max-w-[300px]">
+                            <td className="py-2.5 px-3 max-w-[280px]">
                               <span className="font-mono text-xs truncate block" title={job.relativePath}>{job.relativePath}</span>
                               {job.fileName && <span className="text-xs text-muted-foreground">{job.fileName}</span>}
                             </td>
@@ -1543,9 +1617,7 @@ export default function WorkerAgentsPage() {
                                 job.status === 'failed'     ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' :
                                 job.status === 'processing' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' :
                                 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200'
-                              }`}>
-                                {job.status}
-                              </Badge>
+                              }`}>{job.status}</Badge>
                               {job.failedReason && (
                                 <p className="text-xs text-red-500 mt-0.5 max-w-[200px] truncate" title={job.failedReason}>{job.failedReason}</p>
                               )}
@@ -1556,7 +1628,7 @@ export default function WorkerAgentsPage() {
                               )}
                             </td>
                             <td className="py-2.5 px-3 text-xs text-muted-foreground whitespace-nowrap">
-                              {job.updatedAt ? new Date(job.updatedAt).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—'}
+                              {job.updatedAt ? new Date(job.updatedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                             </td>
                           </tr>
                         ))}
@@ -1567,35 +1639,87 @@ export default function WorkerAgentsPage() {
               </CardContent>
             </Card>
 
-            {/* Setup Instructions */}
+            {/* ── SECTION 4: Setup Instructions ─────────────────────────── */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <FileCode2 className="h-4 w-4" /> Windows Service Setup
+                  <FileCode2 className="h-4 w-4" /> Setup Instructions
                 </CardTitle>
+                <CardDescription>How to deploy the agent on the Windows server</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="space-y-2">
+              <CardContent className="space-y-5">
+
+                {/* Flow diagram */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                   {[
-                    { step: "1", text: "Copy the local-document-agent/ folder to C:\\ThermopacDocAgent\\ on the Windows server" },
-                    { step: "2", text: "Install Node.js 20 LTS (x64) from nodejs.org" },
-                    { step: "3", text: "Copy config.json.example → config.json and fill in erpBaseUrl, apiKey, allowedRootPath" },
-                    { step: "4", text: "Run: npm install && npm run build" },
-                    { step: "5", text: "Run: node dist/index.js --install-service to register as Windows Service (auto-start)" },
-                    { step: "6", text: "Service name: ThermopacLocalDocumentAgent — startup: Automatic" },
-                  ].map(({ step, text }) => (
+                    "1. Register in ERP",
+                    "→",
+                    "2. Download Package",
+                    "→",
+                    "3. Edit config.json",
+                    "→",
+                    "4. install-service.bat",
+                    "→",
+                    "5. Agent Online",
+                  ].map((step, i) => (
+                    <span key={i} className={step === "→" ? "text-muted-foreground/40 font-bold" : "bg-muted rounded px-2 py-1 font-medium text-foreground"}>
+                      {step}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Step-by-step */}
+                <div className="space-y-3">
+                  {[
+                    { step: "1", title: "Register the agent in ERP", text: "Click Register Agent (above), enter an Agent Code and API Key. Keep the API Key — you'll need it in config.json." },
+                    { step: "2", title: "Download the package", text: "Click the Download button above. You'll get thermopac-doc-agent-v1.0.0.zip — a ready-to-run package, no build step needed." },
+                    { step: "3", title: "Install Node.js on the Windows server", text: "Install Node.js 18 LTS (x64) from nodejs.org. This is the only prerequisite." },
+                    { step: "4", title: "Copy and configure", text: "Unzip to C:\\ThermopacDocAgent\\. Copy config.json.example → config.json. Fill in agentCode, erpBaseUrl, apiKey, allowedRootPath." },
+                    { step: "5", title: "Install as Windows Service", text: "Right-click install-service.bat → Run as Administrator. It will install node-windows, register the service, and set startup to Automatic." },
+                    { step: "6", title: "Start and verify", text: "Run start-service.bat. Within 20 seconds the agent appears Online in this dashboard. Heartbeat test: node dist\\index.js (Ctrl+C to stop)." },
+                  ].map(({ step, title, text }) => (
                     <div key={step} className="flex items-start gap-3">
-                      <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{step}</span>
-                      <span className="text-muted-foreground">{text}</span>
+                      <span className="shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">{step}</span>
+                      <div>
+                        <p className="text-sm font-medium">{title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{text}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 p-3 bg-muted rounded text-xs font-mono space-y-1 text-muted-foreground">
-                  <p className="text-foreground font-semibold mb-1"># Allowed extensions (Phase 1)</p>
-                  <p>.pdf .docx .xlsx .csv .txt .png .jpg .jpeg .zip .dwg .dxf</p>
-                  <p className="text-foreground font-semibold mt-2 mb-1"># Rejected (dangerous)</p>
-                  <p>.exe .bat .cmd .ps1 .vbs .msi .dll</p>
+
+                <Separator />
+
+                {/* API endpoints for tech reference */}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Agent API Paths (for reference / firewall rules)</p>
+                  <div className="bg-muted rounded-lg p-3 space-y-1.5 font-mono text-xs">
+                    {[
+                      { method: "POST", path: "/api/local-agent/heartbeat",  desc: "Agent sends state every poll cycle" },
+                      { method: "POST", path: "/api/local-agent/jobs/claim", desc: "Agent claims next pending job" },
+                      { method: "POST", path: "/api/local-agent/jobs/result",desc: "Agent submits job result + SHA-256" },
+                    ].map(({ method, path: p, desc }) => (
+                      <div key={p} className="flex items-center gap-2">
+                        <Badge className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 shrink-0">{method}</Badge>
+                        <span className="text-foreground">{p}</span>
+                        <span className="text-muted-foreground hidden md:inline">— {desc}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Allowed extensions */}
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg text-xs border border-green-200 dark:border-green-800">
+                    <p className="font-semibold text-green-700 dark:text-green-300 mb-1">Allowed extensions</p>
+                    <p className="font-mono text-green-600 dark:text-green-400">.pdf .docx .xlsx .csv .txt .png .jpg .jpeg .zip .dwg .dxf</p>
+                  </div>
+                  <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg text-xs border border-red-200 dark:border-red-800">
+                    <p className="font-semibold text-red-700 dark:text-red-300 mb-1">Blocked (security)</p>
+                    <p className="font-mono text-red-600 dark:text-red-400">.exe .bat .cmd .ps1 .vbs .msi .dll</p>
+                  </div>
+                </div>
+
               </CardContent>
             </Card>
 
