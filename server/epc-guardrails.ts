@@ -48,7 +48,7 @@ export function validateGcsPath(path: string): { valid: boolean; error?: string 
   if (
     path.startsWith('TPEL/Templates/') ||
     path.startsWith('TPEL/SALES/TEMPLATES/') ||
-    path.includes('/Quotations/')
+    path.includes('/Open_Quotations/')
   ) {
     return { valid: true };
   }

@@ -229,7 +229,8 @@ export async function attachConfirmedArtifactToEpc(
     const epcLabel = attachmentLabel || 'quotation-document';
     const epcGcsPath = buildEpcQtnGcsPath(
       continentCode, countryCode, proj.short_code,
-      proj.fy_code, projectSeq, offerNumber,
+      proj.fy_code, offerNumber,
+      artifact.revision,
       attachmentSeq, epcLabel
     );
 
