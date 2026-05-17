@@ -248,10 +248,13 @@ export default function DocGovernancePage() {
     Accounts: "bg-red-50 text-red-700 border-red-200",
   };
 
-  const uniqueCategories = [...new Set(pathTemplates.map(pt => pt.documentCategory).filter(Boolean) as string[])].sort();
+  const MODULE_LABELS: Record<string, string> = {
+    epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design", hr: "HR / Admin",
+    legal: "Legal", finance: "Finance", sales: "Sales", sap: "SAP", legacy: "Legacy",
+  };
 
   const filteredPathTemplates = pathTemplates.filter(pt => {
-    if (filterCategory !== "all" && pt.documentCategory !== filterCategory) return false;
+    if (filterCategory !== "all" && pt.documentCategory?.toLowerCase() !== filterCategory.toLowerCase()) return false;
     if (filterStatus === "active" && !pt.active) return false;
     if (filterStatus === "inactive" && pt.active) return false;
     return true;
@@ -314,8 +317,8 @@ export default function DocGovernancePage() {
                   <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All modules" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all" className="text-xs">All modules</SelectItem>
-                    {uniqueCategories.map(cat => (
-                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                    {Object.entries(MODULE_LABELS).map(([k, v]) => (
+                      <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
