@@ -20,10 +20,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Download, Upload,
   Search, RefreshCw, History, RotateCcw, GitBranch, Shield,
-  CheckCircle2, AlertTriangle, Clock, ChevronRight
+  CheckCircle2, Clock, ChevronRight
 } from "lucide-react";
 import type { OfferTemplate, OfferTemplateRevision, OfferTemplateAuditEntry } from "@shared/schema";
-import { getLabelOptions } from "@shared/gcs-label-vocabulary";
 
 const defaultSubjectOptions = [
   "Used Engine Oil Refinery Fully Automated PLC SCADA Control",
@@ -79,14 +78,13 @@ export default function OfferTemplatesPage() {
   const [formLanguage, setFormLanguage] = useState("English");
   const [formStartPage, setFormStartPage] = useState("");
   const [formEndPage, setFormEndPage] = useState("");
-  const [formLabel, setFormLabel] = useState("");
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // History panel
   const [historyTemplate, setHistoryTemplate] = useState<OfferTemplate | null>(null);
   const [rollbackConfirm, setRollbackConfirm] = useState<OfferTemplateRevision | null>(null);
 
-  const TEMPLATE_LABEL_OPTIONS = getLabelOptions('TEMPLATE');
 
   const { data: templates = [], isLoading } = useQuery<OfferTemplate[]>({
     queryKey: ['/api/sales-marketing/offer-templates'],
@@ -149,14 +147,13 @@ export default function OfferTemplatesPage() {
 
   const resetForm = () => {
     setFormName(""); setFormSubject(""); setFormDescription(""); setFormLanguage("English");
-    setFormStartPage(""); setFormEndPage(""); setFormLabel(""); setSelectedFile(null);
+    setFormStartPage(""); setFormEndPage(""); setSelectedFile(null);
     setEditingTemplate(null); setIsFormOpen(false); setShowAddSubject(false); setNewSubjectInput("");
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleCreate = async () => {
     if (!formName || !formSubject) { toast({ title: "Name and Subject are required", variant: "destructive" }); return; }
-    if (!formLabel) { toast({ title: "Document Label is required", description: "Select a label from the controlled vocabulary.", variant: "destructive" }); return; }
     if (!selectedFile) { toast({ title: "Please select a PDF file", variant: "destructive" }); return; }
     setIsUploading(true);
     try {
@@ -167,7 +164,6 @@ export default function OfferTemplatesPage() {
       formData.append('description', formDescription);
       formData.append('position', 'middle');
       formData.append('language', formLanguage);
-      formData.append('label', formLabel);
       if (formStartPage) formData.append('startPage', formStartPage);
       if (formEndPage) formData.append('endPage', formEndPage);
       const res = await fetch('/api/sales-marketing/offer-templates', { method: 'POST', body: formData });
@@ -187,7 +183,6 @@ export default function OfferTemplatesPage() {
       if (selectedFile) {
         const formData = new FormData();
         formData.append('template', selectedFile);
-        if (formLabel) formData.append('label', formLabel);
         const res = await fetch(`/api/sales-marketing/offer-templates/${editingTemplate.id}/replace`, { method: 'POST', body: formData });
         if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed to replace PDF'); }
       }
@@ -488,19 +483,6 @@ export default function OfferTemplatesPage() {
                   <Label>End Page</Label>
                   <Input type="number" min="1" value={formEndPage} onChange={(e) => setFormEndPage(e.target.value)} placeholder="Default: last" />
                 </div>
-              </div>
-              <div>
-                <Label>
-                  Document Label
-                  {(!editingTemplate || selectedFile) && <span className="text-destructive"> *</span>}
-                </Label>
-                <Select value={formLabel} onValueChange={setFormLabel}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select from controlled vocabulary..." /></SelectTrigger>
-                  <SelectContent>
-                    {TEMPLATE_LABEL_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">GCS label for this template file (controlled vocabulary G8).</p>
               </div>
               <div>
                 <Label>PDF File {!editingTemplate && <span className="text-destructive">*</span>}</Label>

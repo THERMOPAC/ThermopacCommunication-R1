@@ -1108,17 +1108,11 @@ export function setupSalesMarketingRoutes(app: Express) {
   router.post('/offer-templates', ensureAuthenticated, templateUpload.single('template'), async (req: Request, res: Response) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
-      const { name, subject, description, position, language, startPage, endPage, label } = req.body;
+      const { name, subject, description, position, language, startPage, endPage } = req.body;
       if (!name || !subject) return res.status(400).json({ error: 'Name and subject are required' });
 
-      // G8: Validate template label from controlled vocabulary
-      const templateLabel = (label || '').trim().toLowerCase();
-      if (!templateLabel || !validateLabel('TEMPLATE', templateLabel)) {
-        return res.status(422).json({
-          error: 'G8 violation: label must be selected from the Template controlled vocabulary. Free-text labels are not permitted.',
-          allowedValues: ['quotation-template','technical-submittal','cover-letter','bill-of-quantities','transmittal-template'],
-        });
-      }
+      // Auto-derive label from template name slug (no user input required)
+      const templateLabel = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
 
       const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
       let gcsObjectPath: string | undefined;
@@ -1199,15 +1193,6 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
       if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
 
-      // G8: Validate label if provided; otherwise derive from existing GCS path
-      const replaceTemplateLabel = (req.body.label || '').trim().toLowerCase();
-      if (replaceTemplateLabel && !validateLabel('TEMPLATE', replaceTemplateLabel)) {
-        return res.status(422).json({
-          error: 'G8 violation: label must be selected from the Template controlled vocabulary.',
-          allowedValues: ['quotation-template','technical-submittal','cover-letter','bill-of-quantities','transmittal-template'],
-        });
-      }
-
       const [existing] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
       if (!existing) return res.status(404).json({ error: 'Template not found' });
 
@@ -1246,12 +1231,8 @@ export function setupSalesMarketingRoutes(app: Express) {
       let newGcsPath: string | undefined;
       let newChecksum: string | undefined;
 
-      // Derive label: explicit param > existing label from GCS path
-      let derivedLabel = replaceTemplateLabel;
-      if (!derivedLabel && existing.gcsObjectPath) {
-        const labelMatch = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
-        if (labelMatch) derivedLabel = labelMatch[1];
-      }
+      // Always derive label from the template name slug (consistent with CREATE)
+      const derivedLabel = existing.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
 
       try {
         const replaceBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
