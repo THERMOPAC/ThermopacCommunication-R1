@@ -32,7 +32,7 @@ async function uploadTemplateToGcs(
   const templateSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const seq = String(versionSeq).padStart(3, '0');
   const label = labelValue || templateSlug;
-  const gcsPath = `TPEL/SALES/TEMPLATES/${templateSlug}/${seq}-${label}.${ext}`;
+  const gcsPath = `TPEL/SALES/TEMPLATES/${templateSlug}/${label}-${seq}.${ext}`;
   // Zero-Trust: assert path is governed before any GCS write
   const { assertGcsPath } = await import('./epc-guardrails');
   assertGcsPath(gcsPath, 'uploadTemplateToGcs');
