@@ -45,7 +45,11 @@ export function validateGcsPath(path: string): { valid: boolean; error?: string 
     return { valid: false, error: `Legacy GCS path prefix detected: "${path}". Must use TPEL/ prefix.` };
   }
   // Governed non-project TPEL roots — explicitly allowed
-  if (path.startsWith('TPEL/Templates/') || path.includes('/Quotations/')) {
+  if (
+    path.startsWith('TPEL/Templates/') ||
+    path.startsWith('TPEL/SALES/TEMPLATES/') ||
+    path.includes('/Quotations/')
+  ) {
     return { valid: true };
   }
   if (path.startsWith('TPEL/') && !GCS_PATH_RE.test(path)) {
