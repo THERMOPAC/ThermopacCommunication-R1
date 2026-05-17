@@ -280,6 +280,88 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
+  // ── Governance Mode — enable/disable DB-driven routing per rule ──────────
+  app.patch('/api/gcs-governance/rules/:id/governance-mode', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const id = parseInt(req.params.id);
+      const { mode } = req.body;
+      if (!mode || !['hardcoded', 'db_driven'].includes(mode)) {
+        return res.status(400).json({ error: 'mode must be "hardcoded" or "db_driven"' });
+      }
+      const [updated] = await db.execute(sql`
+        UPDATE gcs_governance_rules
+        SET governance_mode = ${mode}, updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `).then((r: any) => r.rows);
+      if (!updated) return res.status(404).json({ error: 'Rule not found' });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Per-rule: issued tokens (last 20) with stats ───────────────────────
+  app.get('/api/gcs-governance/rules/:id/tokens', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.id);
+      const tokens = await db.select().from(gcsUploadTokens)
+        .where(eq(gcsUploadTokens.ruleId, ruleId))
+        .orderBy(desc(gcsUploadTokens.issuedAt))
+        .limit(20);
+      const statsRow = await db.execute(sql`
+        SELECT
+          COUNT(*)::int                                                             AS total,
+          COUNT(*) FILTER (WHERE used_at IS NULL AND expires_at > NOW())::int      AS live,
+          COUNT(*) FILTER (WHERE used_at IS NOT NULL)::int                         AS used,
+          COUNT(*) FILTER (WHERE used_at IS NULL AND expires_at <= NOW())::int     AS expired
+        FROM gcs_upload_tokens WHERE rule_id = ${ruleId}
+      `).then((r: any) => r.rows[0]);
+      res.json({
+        tokens,
+        stats: {
+          total:   Number(statsRow?.total   ?? 0),
+          live:    Number(statsRow?.live    ?? 0),
+          used:    Number(statsRow?.used    ?? 0),
+          expired: Number(statsRow?.expired ?? 0),
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Per-rule: monitor log (last 20) with stats ────────────────────────
+  app.get('/api/gcs-governance/rules/:id/monitor-log', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.id);
+      const logs = await db.select().from(gcsUploadMonitorLog)
+        .where(eq(gcsUploadMonitorLog.matchedRuleId, ruleId))
+        .orderBy(desc(gcsUploadMonitorLog.detectedAt))
+        .limit(20);
+      const statsRow = await db.execute(sql`
+        SELECT
+          COUNT(*)::int                                                      AS total,
+          COUNT(*) FILTER (WHERE path_conforms = true)::int                 AS conforming,
+          COUNT(*) FILTER (WHERE path_conforms = false)::int                AS violations
+        FROM gcs_upload_monitor_log WHERE matched_rule_id = ${ruleId}
+      `).then((r: any) => r.rows[0]);
+      res.json({
+        logs,
+        stats: {
+          total:      Number(statsRow?.total      ?? 0),
+          conforming: Number(statsRow?.conforming ?? 0),
+          violations: Number(statsRow?.violations ?? 0),
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Path preview — resolve a template with sample token values
   app.post('/api/gcs-governance/rules/preview', ensureAuthenticated, async (req, res) => {
     try {

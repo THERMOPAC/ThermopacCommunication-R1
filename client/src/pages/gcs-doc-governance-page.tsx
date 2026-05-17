@@ -40,10 +40,21 @@ interface GcsGovernanceRule {
   allowedMimeTypes: string[] | null;
   active: boolean;
   notes: string | null;
+  governanceMode: string;
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
   routingDeprecatedAt: string | null;
+}
+
+interface PerRuleTokenData {
+  tokens: IssuedToken[];
+  stats: { total: number; live: number; used: number; expired: number };
+}
+
+interface PerRuleMonitorData {
+  logs: MonitorLogEntry[];
+  stats: { total: number; conforming: number; violations: number };
 }
 
 interface GcsRuleVersion {
@@ -891,10 +902,10 @@ function RuleVersionForm({ open, onClose, rule }: {
 
 // ─── Rule Version Panel (expandable per-rule card section) ─────────────────
 
-function RuleVersionPanel({ rule }: { rule: GcsGovernanceRule }) {
+function RuleVersionPanel({ rule, forceExpanded = false }: { rule: GcsGovernanceRule; forceExpanded?: boolean }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(forceExpanded);
   const [showNewVersionForm, setShowNewVersionForm] = useState(false);
   const [confirmState, setConfirmState] = useState<{ action: string; versionId: number; input: string } | null>(null);
   const [showEvidence, setShowEvidence] = useState<number | null>(null);
@@ -1184,6 +1195,234 @@ function RuleVersionPanel({ rule }: { rule: GcsGovernanceRule }) {
   );
 }
 
+// ─── Governance State Badge ─────────────────────────────────────────────────
+
+function GovernanceStateBadge({ mode }: { mode: string }) {
+  if (mode === 'db_driven') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800 border border-green-300">
+        <Database className="w-3 h-3" /> DB-Driven
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+      <Settings className="w-3 h-3" /> Hardcoded
+    </span>
+  );
+}
+
+// ─── Enable Governance Button (inline confirm) ──────────────────────────────
+
+function EnableGovernanceButton({ rule }: { rule: GcsGovernanceRule }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [confirming, setConfirming] = useState(false);
+  const [input, setInput] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => apiRequest('PATCH', `/api/gcs-governance/rules/${rule.id}/governance-mode`, { mode: 'db_driven' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['/api/gcs-governance/rules'] });
+      setConfirming(false);
+      setInput('');
+      toast({ title: `DB-Driven governance enabled for "${rule.displayName}"` });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  if (rule.governanceMode === 'db_driven') return null;
+
+  if (!confirming) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-6 text-[11px] gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50 px-2"
+        onClick={() => setConfirming(true)}
+      >
+        <Database className="w-3 h-3" /> Enable DB-Driven Governance
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap mt-1">
+      <span className="text-[11px] text-slate-600">Type <span className="font-mono font-bold">ENABLE</span> to confirm:</span>
+      <Input
+        className="h-6 text-xs font-mono w-24 px-2"
+        placeholder="ENABLE"
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        autoFocus
+      />
+      <Button
+        size="sm"
+        className="h-6 text-[11px] px-3 bg-blue-700 hover:bg-blue-800"
+        disabled={input !== 'ENABLE' || mutation.isPending}
+        onClick={() => mutation.mutate()}
+      >
+        {mutation.isPending ? 'Enabling…' : 'Confirm'}
+      </Button>
+      <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2" onClick={() => { setConfirming(false); setInput(''); }}>
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
+// ─── Governance Details Panel ───────────────────────────────────────────────
+
+function GovernanceDetailsPanel({ rule }: { rule: GcsGovernanceRule }) {
+  const [expanded, setExpanded] = useState(false);
+  const [section, setSection] = useState<'evidence' | 'tokens' | 'monitor' | 'versions'>('evidence');
+
+  const { data: versions = [] } = useQuery<GcsRuleVersion[]>({
+    queryKey: ['/api/gcs-governance/rules', rule.id, 'versions'],
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/rules/${rule.id}/versions`),
+    enabled: expanded && section === 'evidence',
+  });
+
+  const { data: tokenData, isLoading: tokensLoading } = useQuery<PerRuleTokenData>({
+    queryKey: ['/api/gcs-governance/rules', rule.id, 'tokens'],
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/rules/${rule.id}/tokens`),
+    enabled: expanded && section === 'tokens',
+  });
+
+  const { data: monitorData, isLoading: monitorLoading } = useQuery<PerRuleMonitorData>({
+    queryKey: ['/api/gcs-governance/rules', rule.id, 'monitor-log'],
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/rules/${rule.id}/monitor-log`),
+    enabled: expanded && section === 'monitor',
+  });
+
+  const activeVersion = versions.find(v => v.status === 'active');
+
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2">
+      <button
+        className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-slate-700 select-none w-full"
+        onClick={() => setExpanded(v => !v)}
+      >
+        {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        <Activity className="w-3 h-3" />
+        <span>Governance Details</span>
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          <div className="flex gap-1 border-b border-slate-100 pb-1">
+            {(['evidence', 'tokens', 'monitor', 'versions'] as const).map(s => (
+              <button
+                key={s}
+                className={`text-[10px] px-2 py-0.5 rounded font-medium transition-colors ${section === s ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+                onClick={() => setSection(s)}
+              >
+                {s === 'evidence' ? 'Validation Evidence' : s === 'tokens' ? 'Issued Tokens' : s === 'monitor' ? 'Monitor Log' : 'Rollback History'}
+              </button>
+            ))}
+          </div>
+
+          {section === 'evidence' && (
+            activeVersion?.validationEvidence
+              ? <ValidationEvidencePanel evidence={activeVersion.validationEvidence} />
+              : <p className="text-[11px] text-slate-400 py-1">No validation evidence recorded. Run a dry-run on the active version first (Rollback History tab).</p>
+          )}
+
+          {section === 'tokens' && (
+            tokensLoading ? <p className="text-[11px] text-slate-400">Loading…</p>
+            : tokenData ? (
+              <div className="space-y-2">
+                <div className="flex gap-4 text-[10px]">
+                  <span className="text-slate-600 font-medium">{tokenData.stats.total} Total</span>
+                  <span className="text-green-700 font-medium">{tokenData.stats.live} Live</span>
+                  <span className="text-blue-700 font-medium">{tokenData.stats.used} Used</span>
+                  <span className="text-gray-500 font-medium">{tokenData.stats.expired} Expired</span>
+                </div>
+                {tokenData.tokens.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">No tokens issued for this rule yet.</p>
+                ) : (
+                  <div className="rounded border overflow-auto max-h-52">
+                    <table className="w-full text-[10px]">
+                      <thead className="bg-slate-50 border-b sticky top-0">
+                        <tr>
+                          {['Issued At', 'Resolved Path', 'Status', 'Expires / Used', 'Notes'].map(h => (
+                            <th key={h} className="px-2 py-1.5 text-left font-semibold text-slate-600 whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {tokenData.tokens.map(token => {
+                          const status = computeTokenStatus(token);
+                          return (
+                            <tr key={token.id} className="hover:bg-slate-50">
+                              <td className="px-2 py-1.5 whitespace-nowrap text-slate-500">{fmtDateTime(token.issuedAt)}</td>
+                              <td className="px-2 py-1.5 font-mono text-slate-700 max-w-[180px] truncate" title={token.resolvedPath}>{token.resolvedPath}</td>
+                              <td className="px-2 py-1.5"><TokenStatusBadge token={token} /></td>
+                              <td className="px-2 py-1.5 whitespace-nowrap">
+                                {status === 'used'
+                                  ? <span className="text-blue-600">{fmtDateTime(token.usedAt!)}</span>
+                                  : <span className="text-slate-400">{fmtDateTime(token.expiresAt)}</span>
+                                }
+                              </td>
+                              <td className="px-2 py-1.5 text-slate-400 max-w-[100px] truncate" title={token.notes ?? ''}>{token.notes ?? '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : <p className="text-[11px] text-slate-400">No data.</p>
+          )}
+
+          {section === 'monitor' && (
+            monitorLoading ? <p className="text-[11px] text-slate-400">Loading…</p>
+            : monitorData ? (
+              <div className="space-y-2">
+                <div className="flex gap-4 text-[10px]">
+                  <span className="text-slate-600 font-medium">{monitorData.stats.total} Total</span>
+                  <span className="text-green-700 font-medium">{monitorData.stats.conforming} Conforming</span>
+                  <span className="text-amber-700 font-medium">{monitorData.stats.violations} Violations</span>
+                </div>
+                {monitorData.logs.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">No monitor entries for this rule yet.</p>
+                ) : (
+                  <div className="rounded border overflow-auto max-h-52">
+                    <table className="w-full text-[10px]">
+                      <thead className="bg-slate-50 border-b sticky top-0">
+                        <tr>
+                          {['Detected At', 'GCS Path', 'Conforms', 'Violation Reason'].map(h => (
+                            <th key={h} className="px-2 py-1.5 text-left font-semibold text-slate-600 whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {monitorData.logs.map(log => (
+                          <tr key={log.id} className="hover:bg-slate-50">
+                            <td className="px-2 py-1.5 whitespace-nowrap text-slate-500">{fmtDateTime(log.detectedAt)}</td>
+                            <td className="px-2 py-1.5 font-mono text-slate-700 max-w-[220px] truncate" title={log.detectedGcsPath}>{log.detectedGcsPath}</td>
+                            <td className="px-2 py-1.5"><ConformsBadge conforms={log.pathConforms} ruleMatched={log.matchedRuleId !== null} /></td>
+                            <td className="px-2 py-1.5 text-amber-700 max-w-[160px] truncate" title={log.violationReason ?? ''}>{log.violationReason ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : <p className="text-[11px] text-slate-400">No data.</p>
+          )}
+
+          {section === 'versions' && (
+            <RuleVersionPanel rule={rule} forceExpanded />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Tab: Governance Rules ─────────────────────────────────────────────────
 
 function GovernanceRulesTab() {
@@ -1195,18 +1434,6 @@ function GovernanceRulesTab() {
 
   const { data: rules = [], isLoading } = useQuery<GcsGovernanceRule[]>({
     queryKey: ["/api/gcs-governance/rules"],
-  });
-
-  const deactivateMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("POST", `/api/gcs-governance/rules/${id}/deactivate`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/gcs-governance/rules"] }); toast({ title: "Rule deactivated" }); },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
-  const activateMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("POST", `/api/gcs-governance/rules/${id}/activate`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/gcs-governance/rules"] }); toast({ title: "Rule activated" }); },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const hasWarning = (r: GcsGovernanceRule) => r.notes?.startsWith("⚠") || r.notes?.startsWith("🚨");
@@ -1267,6 +1494,7 @@ function GovernanceRulesTab() {
                       <span className="text-xs font-semibold text-slate-700">{rule.displayName}</span>
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1 rounded">{rule.documentType}</span>
                       {!rule.active && <Badge variant="outline" className="text-[10px] h-4">Inactive</Badge>}
+                      <GovernanceStateBadge mode={rule.governanceMode ?? 'hardcoded'} />
                     </div>
                     <p className="text-[11px] font-mono text-slate-500 break-all mb-1">{rule.pathTemplate}</p>
                     <div className="flex items-center gap-3 text-[11px] text-slate-400">
@@ -1281,21 +1509,15 @@ function GovernanceRulesTab() {
                         {rule.notes}
                       </p>
                     )}
-                    <RuleVersionPanel rule={rule} />
+                    <div className="mt-1.5">
+                      <EnableGovernanceButton rule={rule} />
+                    </div>
+                    <GovernanceDetailsPanel rule={rule} />
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setRuleForm({ open: true, rule })}>
                       <Edit2 className="w-3.5 h-3.5" />
                     </Button>
-                    {rule.active ? (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:text-amber-700" onClick={() => deactivateMutation.mutate(rule.id)} title="Deactivate">
-                        <EyeOff className="w-3.5 h-3.5" />
-                      </Button>
-                    ) : (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:text-green-700" onClick={() => activateMutation.mutate(rule.id)} title="Activate">
-                        <Eye className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
                   </div>
                 </div>
               </CardContent>

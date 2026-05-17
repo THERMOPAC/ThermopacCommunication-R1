@@ -14170,6 +14170,7 @@ export const gcsGovernanceRules = pgTable('gcs_governance_rules', {
   allowedMimeTypes: text('allowed_mime_types').array(),
   active:           boolean('active').notNull().default(true),
   notes:            text('notes'),
+  governanceMode:   varchar('governance_mode', { length: 20 }).notNull().default('hardcoded'),
   createdBy:        integer('created_by'),
   createdAt:        timestamp('created_at').notNull().defaultNow(),
   updatedAt:           timestamp('updated_at').notNull().defaultNow(),
