@@ -11,6 +11,8 @@ export const ALLOWED_TOKENS = new Set([
   'COMPANY', 'CC', 'CO', 'Cust', 'FY', 'NNN',
   'PROJECT_CODE', 'DocNum', 'rev', 'ItemCode',
   'CodeBars', 'Assembly', 'DocumentType', 'YYMMDD', 'ext',
+  // Sales — Offer Template tokens
+  'TemplateSlug', 'Seq',
 ]);
 
 // ─── Security: patterns that must never appear in a resolved path ──────────
@@ -40,6 +42,8 @@ export interface TokenContext {
   DocumentType?: string;
   YYMMDD?: string;
   ext?: string;
+  TemplateSlug?: string;
+  Seq?: string;
   [key: string]: string | undefined;
 }
 
@@ -201,6 +205,8 @@ export function previewResolvedPath(template: string, partialCtx: Partial<TokenC
     DocumentType: 'OFFER',
     YYMMDD: '260515',
     ext: 'pdf',
+    TemplateSlug: 'uor-standard-offer',
+    Seq: '001',
     ...partialCtx,
   };
   const result = resolveRelativePath(template, defaults);
