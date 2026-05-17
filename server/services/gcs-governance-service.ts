@@ -252,7 +252,7 @@ const SEED_RULES = [
   // Sales — offer templates are company-wide evergreen library (confirmed 2026-05).
   // No FY segment (approved Decision 1). Route already uses TPEL/Templates/Offers/... —
   // governance rule corrected to match actual route and canonical TPEL/SALES/TEMPLATES/ target.
-  { moduleKey: 'sales', submoduleKey: 'offer_template',documentType: 'OFFER_TEMPLATE', displayName: 'Offer / Quotation Template',  rootPrefix: 'TPEL/SALES/TEMPLATES', pathTemplate: 'TPEL/SALES/TEMPLATES/{TemplateSlug}/{Seq}-{Label}.{ext}',           revisionMode: 'none',       notes: 'Family B — company-wide evergreen library. No FY segment (approved 2026-05 Decision 1). sales-marketing-routes.ts. Actual route currently uses TPEL/Templates/Offers/{templateSlug}/... — minor path adjustment needed to align with canonical TPEL/SALES/TEMPLATES/ root. Migration pending.' },
+  { moduleKey: 'sales', submoduleKey: 'offer_template',documentType: 'OFFER_TEMPLATE', displayName: 'Offer / Quotation Template',  rootPrefix: 'TPEL/SALES/TEMPLATES', pathTemplate: 'TPEL/SALES/TEMPLATES/{TemplateSlug}/{TemplateSlug}_{Seq}.{ext}',  revisionMode: 'none',       notes: 'Family B — company-wide evergreen library. No FY segment (approved 2026-05 Decision 1). No label segment (approved 2026-05). Example: TPEL/SALES/TEMPLATES/uor-standard-offer/uor-standard-offer_001.pdf. sales-marketing-routes.ts.' },
   // SAP — {DocType} discriminator added per Decision 2 (2026-05).
   // {DocType} controlled vocabulary: QUOTE, GRPO, PO, GENERAL.
   // Existing files: Vendor_Quotes/{VendorCode}/{Seq}/{filename} — migration pending.

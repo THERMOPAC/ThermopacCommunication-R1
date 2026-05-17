@@ -47,7 +47,7 @@ All 34 rules carry `status='active'`, `version_number=1`, Zero-Trust `overall='P
 | 30 | 16 | qms | WELDER_PHOTO | Welder ID Photo | QMS | none | `QMS/WELDERS/{WelderCode}/{filename}` |
 | 31 | 10 | qms | WPQR | Welder Performance Qualification Record | QMS | numeric | `QMS/WPQR/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}` |
 | 32 | 19 | qms | WPS_PQR | Welding Procedure Spec / PQR | QMS | numeric | `QMS/WPS/{DocNumber}/rev-{rev}/{Seq}-{Label}.{ext}` |
-| 33 | 28 | sales | OFFER_TEMPLATE | Offer / Quotation Template | TPEL/SALES/TEMPLATES | none | `TPEL/SALES/TEMPLATES/{TemplateSlug}/{Seq}-{Label}.{ext}` |
+| 33 | 28 | sales | OFFER_TEMPLATE | Offer / Quotation Template | TPEL/SALES/TEMPLATES | none | `TPEL/SALES/TEMPLATES/{TemplateSlug}/{TemplateSlug}_{Seq}.{ext}` e.g. `TPEL/SALES/TEMPLATES/uor-standard-offer/uor-standard-offer_001.pdf` |
 | 34 | 29 | sap | SAP_ATTACHMENT | SAP Purchase Attachment | TPEL/SAP | none | `TPEL/SAP/{CompanyFY}/VENDOR-DOCS/{VendorCode}/{DocType}/{Seq}/{filename}` |
 
 **Version state**: all v1, all `activated_at = 2026-05-16`. No v2 versions exist.

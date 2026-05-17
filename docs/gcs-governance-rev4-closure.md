@@ -271,14 +271,14 @@ Notes: `{NN}` is a 2-digit numeric revision (e.g. `01`, `02`) supplied by the up
 Builder: `uploadTemplateToGcs()` — `server/sales-marketing-routes.ts` L30–45  
 Pattern:
 ```
-TPEL/Templates/Offers/{templateSlug}/{seq}-{label}.{ext}
+TPEL/SALES/TEMPLATES/{TemplateSlug}/{TemplateSlug}_{Seq}.{ext}
 ```
 Example:
 ```
-TPEL/Templates/Offers/standard-quotation-2025/001-quotation-template.pdf
-TPEL/Templates/Offers/technical-cover-letter/001-cover-letter.pdf
+TPEL/SALES/TEMPLATES/uor-standard-offer/uor-standard-offer_001.pdf
+TPEL/SALES/TEMPLATES/technical-cover-letter/technical-cover-letter_001.pdf
 ```
-Notes: `{templateSlug}` is derived from the template name (lowercased, non-alphanumeric → `-`). `{seq}` is a zero-padded 3-digit version counter. `assertGcsPath()` is called before every write. Label is from TEMPLATE vocabulary.
+Notes: `{TemplateSlug}` is derived from the template name (lowercased, non-alphanumeric → `-`). `{Seq}` is a zero-padded 3-digit version counter (monotonically increasing — never reused on rollback). No label segment. `assertGcsPath()` is called before every write. Updated 2026-05: root corrected from `TPEL/Templates/Offers/` → `TPEL/SALES/TEMPLATES/`; label segment removed.
 
 ---
 
