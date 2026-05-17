@@ -343,7 +343,7 @@ export default function DocGovernancePage() {
               <CardContent className="py-2.5 px-3">
                 <p className="text-[10px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Available Tokens</p>
                 <div className="flex flex-wrap gap-1">
-                  {['{COMPANY}','{CC}','{CO}','{Cust}','{FY}','{NNN}','{PROJECT_CODE}','{DocNum}','{rev}','{ItemCode}','{CodeBars}','{Assembly}','{DocumentType}','{YYMMDD}','{ext}','{TemplateSlug}','{Seq}'].map(tok => (
+                  {['{COMPANY}','{CC}','{CO}','{Cust}','{FY}','{NNN}','{PROJECT_CODE}','{DocNum}','{rev}','{ItemCode}','{CodeBars}','{Assembly}','{DocumentType}','{YYMMDD}','{ext}','{TemplateSlug}','{Seq}','{OfferNo}','{Subject}'].map(tok => (
                     <code key={tok} className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 font-mono">{tok}</code>
                   ))}
                 </div>
