@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle, HelpCircle, RefreshCw, Info,
   Edit2, X, ChevronDown, ChevronUp, FileText, Settings, Key, Activity,
   Ticket, Copy, Clock, Check, Zap, Lock, GitBranch, History,
-  ShieldCheck, AlertCircle, ArrowUpDown,
+  ShieldCheck, AlertCircle, ArrowUpDown, Search,
 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -1430,6 +1430,7 @@ function GovernanceRulesTab() {
   const { toast } = useToast();
   const [filterModule, setFilterModule] = useState("all");
   const [filterActive, setFilterActive] = useState("all");
+  const [searchName, setSearchName] = useState("");
   const [ruleForm, setRuleForm] = useState<{ open: boolean; rule: GcsGovernanceRule | null }>({ open: false, rule: null });
 
   const { data: rules = [], isLoading } = useQuery<GcsGovernanceRule[]>({
@@ -1444,6 +1445,7 @@ function GovernanceRulesTab() {
     if (filterActive === "inactive" && r.active) return false;
     if (filterActive === "issues" && !hasWarning(r)) return false;
     if (filterActive === "db-driven" && r.governanceMode !== "db_driven") return false;
+    if (searchName.trim() && !r.displayName.toLowerCase().includes(searchName.trim().toLowerCase())) return false;
     return true;
   });
 
@@ -1470,6 +1472,15 @@ function GovernanceRulesTab() {
               <SelectItem value="db-driven" className="text-xs text-blue-700">DB-Driven</SelectItem>
             </SelectContent>
           </Select>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <Input
+              value={searchName}
+              onChange={e => setSearchName(e.target.value)}
+              placeholder="Search display name…"
+              className="h-8 text-xs pl-7 w-48"
+            />
+          </div>
           <span className="text-xs text-slate-400 self-center">{filtered.length} rule{filtered.length !== 1 ? "s" : ""}</span>
         </div>
         <Button size="sm" className="h-8 text-xs" onClick={() => setRuleForm({ open: true, rule: null })}>
