@@ -37,7 +37,7 @@ export function generateQmsPath(
 ): string {
   const ext = fileExtension.startsWith('.') ? fileExtension.slice(1) : fileExtension;
   const safeLabel = label.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
-  return `QMS/${module}/${documentNumber}/rev-${revisionNumber}/${sequence}-${safeLabel}.${ext}`;
+  return `QMS/${module}/${documentNumber}/${sequence}-${safeLabel}-rev-${revisionNumber}.${ext}`;
 }
 
 export function computeChecksum(buffer: Buffer): string {

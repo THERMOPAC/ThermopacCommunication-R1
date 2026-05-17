@@ -174,7 +174,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       }
       const revision = (req.body?.revision || 'na');
       const seq = String(recordId).padStart(3, '0');
-      filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${safeDrawingNumber}-${insLabel}.${fileExtension}`;
+      filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/${seq}-${safeDrawingNumber}-${insLabel}-rev-${revision}.${fileExtension}`;
       const { assertGcsPath } = await import('../epc-guardrails');
       assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
       console.log(`uploadInspectionDocument: Governed TPEL path: ${filePath}`);

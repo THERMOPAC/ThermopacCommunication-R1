@@ -167,7 +167,7 @@ export function buildEpcGcsPath(
   originalFileName: string,
   drawingNumber?: string
 ): string {
-  const revSlot = revisionCode ? `rev-${revisionCode}` : 'rev-na';
+  const revSuffix = `rev-${revisionCode ?? '00'}`;
   const seq = String(attachmentSeq).padStart(3, '0');
   const label = attachmentLabel
     .toLowerCase()
@@ -176,17 +176,17 @@ export function buildEpcGcsPath(
     .replace(/^-|-$/g, '') || 'file';
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
 
-  // INS (Inspection) filename rule: {seq}-{drawingNumber}-{label}.{ext}  (G7 / Rev-3 R10)
-  // All other Family A families: {seq}-{label}.{ext}
+  // INS (Inspection) filename rule: {seq}-{drawingNumber}-{label}-rev-{rev}.{ext}  (G7 / Rev-3 R10)
+  // All other Family A families: {seq}-{label}-rev-{rev}.{ext}
   let filename: string;
   if (docType === 'INS' && drawingNumber) {
     const safeDrawingNum = drawingNumber.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
-    filename = `${seq}-${safeDrawingNum}-${label}.${ext}`;
+    filename = `${seq}-${safeDrawingNum}-${label}-${revSuffix}.${ext}`;
   } else {
-    filename = `${seq}-${label}.${ext}`;
+    filename = `${seq}-${label}-${revSuffix}.${ext}`;
   }
 
-  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${revSlot}/${filename}`;
+  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${filename}`;
   assertGcsPath(path, 'epc-coding.buildEpcGcsPath');
   return path;
 }
