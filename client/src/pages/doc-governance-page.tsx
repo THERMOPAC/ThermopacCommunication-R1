@@ -96,6 +96,8 @@ export default function DocGovernancePage() {
   const [showAddPath, setShowAddPath] = useState(false);
   const [previewResult, setPreviewResult] = useState<{ fullPath: string; tokenErrors: string[]; valid: boolean } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [newPath, setNewPath] = useState({
     templateCode: '', documentType: '', documentCategory: '',
     relativePathTemplate: '', fileNameTemplate: '', revisionMode: 'folder', fileExtension: 'pdf',
@@ -246,6 +248,15 @@ export default function DocGovernancePage() {
     Accounts: "bg-red-50 text-red-700 border-red-200",
   };
 
+  const uniqueCategories = [...new Set(pathTemplates.map(pt => pt.documentCategory).filter(Boolean) as string[])].sort();
+
+  const filteredPathTemplates = pathTemplates.filter(pt => {
+    if (filterCategory !== "all" && pt.documentCategory !== filterCategory) return false;
+    if (filterStatus === "active" && !pt.active) return false;
+    if (filterStatus === "inactive" && pt.active) return false;
+    return true;
+  });
+
   return (
     <Layout>
       <div className="p-6 space-y-6">
@@ -291,17 +302,37 @@ export default function DocGovernancePage() {
 
           {/* ── Path Templates ── */}
           <TabsContent value="path-templates" className="mt-4 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h3 className="font-semibold">Document Path Templates</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Define relative path and filename patterns for each document type. Tokens like &#123;COMPANY&#125;, &#123;FY&#125;, &#123;NNN&#125; are resolved at runtime.
                 </p>
               </div>
-              <Button size="sm" onClick={() => setShowAddPath(true)} className="flex items-center gap-1.5">
-                <Plus className="h-4 w-4" />
-                Add Template
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                  <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All modules" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">All modules</SelectItem>
+                    {uniqueCategories.map(cat => (
+                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="h-8 text-xs w-32"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">All status</SelectItem>
+                    <SelectItem value="active" className="text-xs">Active only</SelectItem>
+                    <SelectItem value="inactive" className="text-xs">Inactive only</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-slate-400">{filteredPathTemplates.length} template{filteredPathTemplates.length !== 1 ? "s" : ""}</span>
+                <Button size="sm" onClick={() => setShowAddPath(true)} className="flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  Add Template
+                </Button>
+              </div>
             </div>
 
             {/* Token legend */}
@@ -318,9 +349,11 @@ export default function DocGovernancePage() {
 
             {ptLoading ? (
               <div className="text-center py-8 text-muted-foreground text-sm">Loading templates…</div>
+            ) : filteredPathTemplates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No templates match the current filters.</div>
             ) : (
               <div className="space-y-2">
-                {pathTemplates.map((pt) => (
+                {filteredPathTemplates.map((pt) => (
                   <Card key={pt.id} className={`transition-opacity ${pt.active ? '' : 'opacity-50'}`}>
                     <CardContent className="py-3 px-4">
                       <div className="flex items-start gap-3">
