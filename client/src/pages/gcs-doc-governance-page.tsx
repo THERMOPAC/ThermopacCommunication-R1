@@ -1443,6 +1443,7 @@ function GovernanceRulesTab() {
     if (filterActive === "active" && !r.active) return false;
     if (filterActive === "inactive" && r.active) return false;
     if (filterActive === "issues" && !hasWarning(r)) return false;
+    if (filterActive === "db-driven" && r.governanceMode !== "db_driven") return false;
     return true;
   });
 
@@ -1466,6 +1467,7 @@ function GovernanceRulesTab() {
               <SelectItem value="active" className="text-xs">Active only</SelectItem>
               <SelectItem value="inactive" className="text-xs">Inactive only</SelectItem>
               <SelectItem value="issues" className="text-xs text-amber-700">⚠ Issues only</SelectItem>
+              <SelectItem value="db-driven" className="text-xs text-blue-700">DB-Driven</SelectItem>
             </SelectContent>
           </Select>
           <span className="text-xs text-slate-400 self-center">{filtered.length} rule{filtered.length !== 1 ? "s" : ""}</span>
