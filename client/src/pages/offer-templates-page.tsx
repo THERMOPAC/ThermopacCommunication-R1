@@ -506,7 +506,7 @@ export default function OfferTemplatesPage() {
                 onClick={editingTemplate ? handleUpdate : handleCreate}
               >
                 {isUploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {editingTemplate ? "Save Changes" : "Upload Template"}
+                Save Template
               </Button>
             </DialogFooter>
           </DialogContent>
