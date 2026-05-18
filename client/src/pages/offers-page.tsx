@@ -283,8 +283,7 @@ export function OffersContent() {
 
   const testFlagMutation = useMutation({
     mutationFn: async ({ id, isTest }: { id: number; isTest: boolean }) => {
-      const res = await apiRequest('PATCH', `/api/sales-marketing/offers/${id}/test-flag`, { isTest });
-      return res.json();
+      return apiRequest('PATCH', `/api/sales-marketing/offers/${id}/test-flag`, { isTest });
     },
     onSuccess: (_data, { isTest }) => {
       toast({ title: isTest ? 'Marked as test data' : 'Unmarked from test data' });
