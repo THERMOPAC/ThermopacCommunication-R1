@@ -2334,6 +2334,34 @@ export function OffersContent() {
                   </Alert>
                 )}
 
+                {/* Quotation governance rule — DB-driven */}
+                {gcsPathTestData.qtnPathTemplate && (
+                  <div className="rounded border border-violet-300 bg-violet-50 px-3 py-2.5 space-y-2">
+                    <p className="text-[10px] font-semibold text-violet-700 uppercase tracking-wide">
+                      Governance Rule — {gcsPathTestData.qtnDocType} (DB-Driven)
+                    </p>
+                    <div>
+                      <p className="text-[9px] text-violet-500 uppercase font-semibold mb-0.5">Template (from DB)</p>
+                      <p className="text-[11px] font-mono break-all text-violet-900 bg-white border border-violet-200 rounded px-2 py-1">
+                        {gcsPathTestData.qtnPathTemplate}
+                      </p>
+                    </div>
+                    {gcsPathTestData.qtnGeoResolvedTemplate && (
+                      <div>
+                        <p className="text-[9px] text-violet-500 uppercase font-semibold mb-0.5">Geo-Resolved (offer tokens filled in)</p>
+                        <p className="text-[11px] font-mono break-all text-violet-900 bg-white border border-violet-200 rounded px-2 py-1">
+                          {gcsPathTestData.qtnGeoResolvedTemplate}
+                        </p>
+                      </div>
+                    )}
+                    {gcsPathTestData.qtnFolderPrefix && (
+                      <p className="text-[10px] text-violet-600">
+                        Folder: <span className="font-mono bg-violet-100 px-1 rounded">{gcsPathTestData.qtnFolderPrefix}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Already uploaded files */}
                 <div>
                   <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
@@ -2344,12 +2372,20 @@ export function OffersContent() {
                   ) : (
                     <div className="space-y-1.5">
                       {gcsPathTestData.existingFiles.map((f: any) => (
-                        <div key={f.id} className={`rounded border px-2 py-1.5 flex items-start gap-2 ${f.status === 'active' ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
-                          <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${f.status === 'active' ? 'text-green-600' : 'text-slate-400'}`} />
+                        <div key={f.id} className={`rounded border px-2 py-1.5 flex items-start gap-2 ${
+                          f.pathMismatch ? 'bg-amber-50 border-amber-300' :
+                          f.status === 'active' ? 'bg-green-50 border-green-200' :
+                          'bg-slate-50 border-slate-200 opacity-60'
+                        }`}>
+                          {f.pathMismatch
+                            ? <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
+                            : <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${f.status === 'active' ? 'text-green-600' : 'text-slate-400'}`} />
+                          }
                           <div className="min-w-0">
                             <p className="text-[11px] font-mono break-all text-slate-800">{f.gcsObjectPath}</p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
                               Rev-{String(f.revision).padStart(2,'0')} · {f.priceMode} · {f.status}
+                              {f.pathMismatch && <span className="ml-1 text-amber-600 font-semibold">· path differs from current rule</span>}
                             </p>
                           </div>
                         </div>

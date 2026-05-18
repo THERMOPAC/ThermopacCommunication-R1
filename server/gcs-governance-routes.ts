@@ -1010,9 +1010,33 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         .substring(0, 40)
         .replace(/-+$/g, '') || 'offer';
 
+      // Fetch QUOTATION governance rule from DB — source of truth for quotation path structure
+      const qtnDocType = offer.offer_type === 'project-linked' ? 'EPC_QUOTATION' : 'QUOTATION';
+      const qtnRuleRow = await pool.query(
+        `SELECT path_template FROM gcs_governance_rules
+         WHERE document_type = $1 AND (active IS NULL OR active = true)
+         ORDER BY id ASC LIMIT 1`,
+        [qtnDocType]
+      );
+      const qtnPathTemplate: string | null = qtnRuleRow.rows[0]?.path_template ?? null;
+
+      // Resolve geo + offer tokens to get the expected folder prefix for this offer
+      let qtnGeoResolvedTemplate: string | null = null;
+      let qtnFolderPrefix: string | null = null;
+      if (qtnPathTemplate && !missingGeo) {
+        qtnGeoResolvedTemplate = qtnPathTemplate
+          .replace('{CC}',      cc!)
+          .replace('{CO}',      co!)
+          .replace('{Cust}',    sc!)
+          .replace('{FY}',      fy)
+          .replace('{OfferNo}', offer.offer_number);
+        const lastSlash = qtnGeoResolvedTemplate.lastIndexOf('/');
+        qtnFolderPrefix = lastSlash >= 0 ? qtnGeoResolvedTemplate.substring(0, lastSlash + 1) : null;
+      }
+
       // Fetch all existing PDF artifacts for this offer
       const artifacts = await pool.query(
-        `SELECT id, revision, price_mode, gcs_object_path, artifact_status, generated_at
+        `SELECT id, revision, price_mode, gcs_object_path, artifact_status, attachment_seq, generated_at
          FROM quotation_pdf_artifacts
          WHERE offer_id = $1
          ORDER BY generated_at ASC`,
@@ -1039,6 +1063,10 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           subjectSlug,
           missingGeo,
         },
+        qtnDocType,
+        qtnPathTemplate,
+        qtnGeoResolvedTemplate,
+        qtnFolderPrefix,
         existingFiles: artifacts.rows.map((a: any) => ({
           id:            a.id,
           revision:      a.revision,
@@ -1047,6 +1075,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           attachmentSeq: a.attachment_seq,
           status:        a.artifact_status,
           generatedAt:   a.generated_at,
+          pathMismatch:  qtnFolderPrefix ? !String(a.gcs_object_path ?? '').startsWith(qtnFolderPrefix) : false,
         })),
         nextSeq,
       });
