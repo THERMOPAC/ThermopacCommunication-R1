@@ -462,9 +462,9 @@ export default function ProjectsPage() {
                                   </Badge>
                                 )}
                               </TableCell>
-                              <TableCell>
-                                <div className="flex items-start gap-1 group">
-                                  <div className="text-[11px] font-medium truncate max-w-[260px]" title={getProjectDisplayName(project)}>{getProjectDisplayName(project)}</div>
+                              <TableCell className="max-w-0">
+                                <div className="flex items-center gap-1 group min-w-0">
+                                  <div className="text-[11px] font-medium truncate whitespace-nowrap" title={getProjectDisplayName(project)}>{getProjectDisplayName(project)}</div>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
