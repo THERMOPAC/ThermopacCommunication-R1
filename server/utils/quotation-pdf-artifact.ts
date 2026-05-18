@@ -626,6 +626,121 @@ export async function storeFinalOfferPdfToGcs(
   }
 }
 
+/**
+ * After offer conversion, copies the pre-uploaded Customer Order / PO staging file
+ * to the governed CO_DOCUMENT GCS path and inserts a customer_order_documents record.
+ *
+ * Token mapping (CO_DOCUMENT rule):
+ *   {CC}      → continentCode
+ *   {CO}      → countryCode
+ *   {Cust}    → customerShortCode
+ *   {FY}      → fyCode
+ *   {Code}    → projectCode (now known after project creation)
+ *   {Seq}     → '001'
+ *   {Label}   → 'purchase-order'
+ *   {rev}     → '00'
+ *
+ * Called at the very end of the conversion flow — project code is confirmed.
+ * Non-blocking at the call-site — errors are logged but do not fail conversion.
+ */
+export async function storeConfirmationDocToGcs(
+  offerId: number,
+  projectId: number,
+  projectCode: string,
+  orderNumber: string,
+  userId: number,
+): Promise<{ success: boolean; gcsPath?: string; error?: string }> {
+  try {
+    // Get staged file info from the offer record
+    const offerRow = await pool.query(
+      `SELECT confirmation_doc_gcs_path, confirmation_doc_filename FROM offers WHERE id = $1`,
+      [offerId]
+    );
+    const offerData = offerRow.rows[0];
+    if (!offerData?.confirmation_doc_gcs_path) {
+      return { success: false, error: 'No confirmation doc staged on offer — skipping CO_DOCUMENT upload' };
+    }
+    const stagedPath: string = offerData.confirmation_doc_gcs_path;
+    const originalFilename: string = offerData.confirmation_doc_filename ?? 'customer-order.pdf';
+
+    // Download staged buffer from GCS
+    const bucket = storage.bucket(bucketName);
+    const [stagedBuffer] = await bucket.file(stagedPath).download();
+
+    // Resolve project geo codes
+    const projResult = await pool.query(
+      `SELECT p.fy_code, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+       FROM projects p JOIN customers c ON c.id = p.customer_id WHERE p.id = $1`,
+      [projectId]
+    );
+    if (projResult.rows.length === 0) return { success: false, error: `Project ${projectId} not found` };
+    const proj = projResult.rows[0];
+
+    let continentCode = proj.continent_code;
+    let countryCode   = proj.country_code;
+    if (!continentCode && proj.continent)    continentCode = CONTINENT_NAME_TO_CODE[proj.continent];
+    if (!countryCode   && proj.country_name) countryCode   = COUNTRY_NAME_TO_CODE[proj.country_name];
+    if (!continentCode || !countryCode || !proj.short_code) {
+      return { success: false, error: 'Customer geography codes missing for CO_DOCUMENT path resolution' };
+    }
+
+    // Read CO_DOCUMENT rule from DB
+    const ruleRow = await pool.query(
+      `SELECT path_template FROM gcs_governance_rules
+       WHERE document_type = 'CO_DOCUMENT' AND (active IS NULL OR active = true)
+       ORDER BY id ASC LIMIT 1`
+    );
+    const template: string | null = ruleRow.rows[0]?.path_template ?? null;
+    if (!template) return { success: false, error: 'No active CO_DOCUMENT governance rule found in DB' };
+
+    const gcsPath = template
+      .replace('{CC}',    continentCode)
+      .replace('{CO}',    countryCode)
+      .replace('{Cust}',  proj.short_code)
+      .replace('{FY}',    proj.fy_code)
+      .replace('{Code}',  projectCode)
+      .replace('{Seq}',   '001')
+      .replace('{Label}', 'purchase-order')
+      .replace('{rev}',   '00');
+
+    // Upload to governed path
+    await bucket.file(gcsPath).save(stagedBuffer, {
+      contentType: 'application/pdf',
+      metadata: {
+        contentType: 'application/pdf',
+        metadata: {
+          offerId:      String(offerId),
+          orderNumber,
+          projectId:    String(projectId),
+          projectCode,
+          governanceType: 'CO_DOCUMENT',
+          copiedFrom:   stagedPath,
+          generatedBy:  String(userId),
+        },
+      },
+    });
+
+    // Insert customer_order_documents record
+    const { createHash } = await import('crypto');
+    const checksum = createHash('sha256').update(stagedBuffer).digest('hex');
+    await pool.query(
+      `INSERT INTO customer_order_documents
+         (project_id, customer_order_number, document_label, revision_code,
+          attachment_seq, gcs_bucket, gcs_object_path, original_file_name,
+          mime_type, file_size_bytes, checksum_sha256, status, is_current, uploaded_by)
+       VALUES ($1, $2, 'purchase-order', '00', 1, $3, $4, $5, 'application/pdf', $6, $7, 'active', true, $8)
+       ON CONFLICT DO NOTHING`,
+      [projectId, orderNumber, bucketName, gcsPath, originalFilename, stagedBuffer.length, checksum, userId]
+    );
+
+    console.log(`[co-doc] Customer Order snapshot saved → ${gcsPath}`);
+    return { success: true, gcsPath };
+  } catch (err: any) {
+    console.error('[co-doc] Failed to save Customer Order snapshot:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function listArtifactsForOffer(offerId: number) {
   const result = await pool.query(
     `SELECT id, revision, price_mode, gcs_object_path, checksum_sha256, file_size_bytes,

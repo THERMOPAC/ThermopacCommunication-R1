@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
 import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
-import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, storeFinalOfferPdfToGcs } from './utils/quotation-pdf-artifact';
+import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, storeFinalOfferPdfToGcs, storeConfirmationDocToGcs } from './utils/quotation-pdf-artifact';
 import { generateExecutionDrafts } from './pipeline/generate-execution-drafts';
 import { executeFullAutoPipeline } from './pipeline/full-auto-orchestrator';
 
@@ -957,8 +957,11 @@ export async function executeOfferConversion(
       }
     }
 
-    // Save immutable Final Offer snapshot to GCS — fires after project code is confirmed,
-    // execution drafts generated, and full-auto pipeline triggered. Non-blocking.
+    // ── End-of-flow GCS snapshots ────────────────────────────────────────────
+    // Both fire after project code is confirmed, execution drafts generated,
+    // and full-auto pipeline triggered. Both are non-blocking fire-and-forget.
+
+    // 1. Final Offer PDF → FINAL_OFFER governed path
     if (confirmedArtifactId) {
       storeFinalOfferPdfToGcs(
         confirmedArtifactId, project.id, projectCode,
@@ -973,6 +976,19 @@ export async function executeOfferConversion(
         console.error('[offer-conversion] Final Offer snapshot unexpected error:', err);
       });
     }
+
+    // 2. Customer Order / PO staging file → CO_DOCUMENT governed path
+    storeConfirmationDocToGcs(
+      offerId, project.id, projectCode, orderNumber, userId
+    ).then(result => {
+      if (result.success) {
+        console.log(`[offer-conversion] CO/PO snapshot saved → ${result.gcsPath}`);
+      } else {
+        console.warn(`[offer-conversion] CO/PO snapshot failed (non-blocking): ${result.error}`);
+      }
+    }).catch(err => {
+      console.error('[offer-conversion] CO/PO snapshot unexpected error:', err);
+    });
 
     return {
       offer: updatedOffer.rows[0],

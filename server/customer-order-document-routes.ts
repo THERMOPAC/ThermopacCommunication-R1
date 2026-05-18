@@ -59,13 +59,30 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
     );
     const attachmentSeq = (seqResult.rows[0] as any).next_seq;
 
-    // Build GCS path per CO_DOCUMENT governance rule:
-    // TPEL/{CC}/{CO}/{Cust}/{FY}/SOR_{Code}/Sales/Order_Contract/{Seq}-{Label}-rev-{rev}.pdf
+    // Build GCS path from CO_DOCUMENT governance rule (DB-driven — never hardcoded)
     const seq = String(attachmentSeq).padStart(3, '0');
     const labelSlug = documentLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'file';
     const revSuffix = `rev-${revisionCode?.trim() || '00'}`;
     const filename = `${seq}-${labelSlug}-${revSuffix}.pdf`;
-    const gcsObjectPath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/SOR_${geo.projectCode}/Sales/Order_Contract/${filename}`;
+
+    const coRuleRow = await pool.query(
+      `SELECT path_template FROM gcs_governance_rules
+       WHERE document_type = 'CO_DOCUMENT' AND (active IS NULL OR active = true)
+       ORDER BY id ASC LIMIT 1`
+    );
+    const coTemplate: string | null = coRuleRow.rows[0]?.path_template ?? null;
+    const gcsObjectPath = coTemplate
+      ? coTemplate
+          .replace('{CC}',    geo.continentCode)
+          .replace('{CO}',    geo.countryCode)
+          .replace('{Cust}',  geo.customerShortCode)
+          .replace('{FY}',    geo.fyCode)
+          .replace('{Code}',  geo.projectCode)
+          .replace('{Seq}',   seq)
+          .replace('{Label}', labelSlug)
+          .replace('{rev}',   revisionCode?.trim() || '00')
+      // fallback if DB rule missing (should never happen in production)
+      : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/SOR_${geo.projectCode}/1_Sales/3_Order_Contract/${filename}`;
 
     const bucket = gcsClient.bucket(bucketName);
     const gcsFile = bucket.file(gcsObjectPath);

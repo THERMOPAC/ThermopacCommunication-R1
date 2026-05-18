@@ -1228,7 +1228,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
 
       // Build the "geo-resolved template": fill in all static project-level tokens,
       // leave per-document tokens ({Seq},{Label},{rev}) as-is.
-      // Template: TPEL/{CC}/{CO}/{Cust}/{FY}/SOR_{Code}/Sales/Order_Contract/{Seq}-{Label}-rev-{rev}.pdf
+      // Template driven from DB: CO_DOCUMENT governance rule (e.g. 1_Sales/3_Order_Contract)
       // {CC}=continent, {CO}=country, {Cust}=short code, {FY}=financial year,
       // {Code}=EPC project code (e.g. 2627-018) — folder becomes SOR_2627-018
       let geoResolvedTemplate: string | null = null;
@@ -1276,11 +1276,14 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         const docs = allCoDocs.rows.filter((r: any) => r.customer_order_number === orderNumber);
         const maxSeq = docs.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
 
-        // Compute folder prefix matching the CO_DOCUMENT governance path
-        // TPEL/{CC}/{CO}/{Cust}/{FY}/SOR_{Code}/Sales/Order_Contract/
-        const folderPrefix = missingGeo || !geo
-          ? null
-          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/SOR_${geo.projectCode}/Sales/Order_Contract/`;
+        // Derive folder prefix from the DB-driven geoResolvedTemplate
+        // (everything up to and including the last '/' before per-document tokens)
+        const folderPrefix = geoResolvedTemplate
+          ? (() => {
+              const lastSlash = geoResolvedTemplate.lastIndexOf('/');
+              return lastSlash >= 0 ? geoResolvedTemplate.substring(0, lastSlash + 1) : null;
+            })()
+          : null;
 
         // geoResolvedTemplate already has all project-level tokens filled in;
         // no per-order substitution needed in the new template (order number is not in path)
