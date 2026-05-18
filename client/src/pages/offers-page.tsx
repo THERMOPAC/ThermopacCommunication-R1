@@ -28,6 +28,24 @@ import {
 import { ExcelJS } from "@/lib/excel-client-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Product } from "@shared/schema";
+
+const CONTINENT_NAME_TO_CODE: Record<string, string> = {
+  'Africa': 'AF', 'Asia': 'AS', 'Europe': 'EU',
+  'North America': 'NA', 'South America': 'SA', 'Oceania': 'OC',
+};
+const COUNTRY_TO_CONTINENT: Record<string, string> = {
+  'AE':'AS','BH':'AS','IN':'AS','IQ':'AS','IR':'AS','JO':'AS','KW':'AS','LB':'AS',
+  'OM':'AS','PK':'AS','QA':'AS','SA':'AS','SY':'AS','TR':'AS','YE':'AS','AZ':'AS',
+  'GE':'AS','AM':'AS','KZ':'AS','UZ':'AS','CN':'AS','JP':'AS','KR':'AS','SG':'AS',
+  'MY':'AS','TH':'AS','ID':'AS','PH':'AS','VN':'AS','BD':'AS','LK':'AS','NP':'AS','MM':'AS',
+  'AU':'OC','NZ':'OC',
+  'BR':'SA','AR':'SA','CL':'SA','CO':'SA','EC':'SA','PE':'SA','VE':'SA','UY':'SA','PY':'SA','BO':'SA',
+  'US':'NA','CA':'NA','MX':'NA','PA':'NA','TT':'NA',
+  'DE':'EU','FR':'EU','IT':'EU','ES':'EU','GB':'EU','PL':'EU','RO':'EU','HU':'EU',
+  'CZ':'EU','SK':'EU','HR':'EU','RS':'EU','UA':'EU','BY':'EU','BG':'EU',
+  'ZA':'AF','NG':'AF','KE':'AF','GH':'AF','TZ':'AF','EG':'AF','MA':'AF',
+  'TN':'AF','LY':'AF','DZ':'AF','ET':'AF','GN':'AF','SD':'AF',
+};
 import { useAuth } from "@/hooks/use-auth";
 import { useTestDataToggle } from "@/hooks/use-test-data-toggle";
 
@@ -1166,9 +1184,16 @@ export function OffersContent() {
                                 ([key]) => offer.subject?.toLowerCase().includes(key.toLowerCase().replace('...', ''))
                               );
                               const managerId = offer.approvedBy || offer.createdBy || 0;
+                              const rawCC = customer?.continentCode || '';
+                              const rawCO = customer?.countryCode || '';
+                              const derivedCC = rawCC
+                                || (customer?.continent ? CONTINENT_NAME_TO_CODE[customer.continent] : '')
+                                || (rawCO ? COUNTRY_TO_CONTINENT[rawCO] : '')
+                                || '';
+                              const derivedCO = rawCO || '';
                               setEpcFormData({
-                                continentCode: customer?.continentCode || '',
-                                countryCode: customer?.countryCode || '',
+                                continentCode: derivedCC,
+                                countryCode: derivedCO,
                                 projectType: inferredType?.[1] || '',
                                 priority: 'Medium',
                                 startDate: today,
@@ -1464,12 +1489,36 @@ export function OffersContent() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs">Continent Code *</Label>
-                    <Input value={epcFormData.continentCode} readOnly className="bg-muted cursor-not-allowed" />
+                    <Label className="text-xs">
+                      Continent Code *
+                      {!epcFormData.continentCode && (
+                        <span className="ml-1 text-orange-600">(enter manually — not set on customer)</span>
+                      )}
+                    </Label>
+                    <Input
+                      value={epcFormData.continentCode}
+                      maxLength={2}
+                      readOnly={!!epcFormData.continentCode}
+                      placeholder="e.g. AS"
+                      onChange={(e) => setEpcFormData(p => ({ ...p, continentCode: e.target.value.toUpperCase().slice(0, 2) }))}
+                      className={epcFormData.continentCode ? "bg-muted cursor-not-allowed" : "border-orange-400 placeholder:text-orange-300"}
+                    />
                   </div>
                   <div>
-                    <Label className="text-xs">Country Code *</Label>
-                    <Input value={epcFormData.countryCode} readOnly className="bg-muted cursor-not-allowed" />
+                    <Label className="text-xs">
+                      Country Code *
+                      {!epcFormData.countryCode && (
+                        <span className="ml-1 text-orange-600">(enter manually — not set on customer)</span>
+                      )}
+                    </Label>
+                    <Input
+                      value={epcFormData.countryCode}
+                      maxLength={2}
+                      readOnly={!!epcFormData.countryCode}
+                      placeholder="e.g. SA"
+                      onChange={(e) => setEpcFormData(p => ({ ...p, countryCode: e.target.value.toUpperCase().slice(0, 2) }))}
+                      className={epcFormData.countryCode ? "bg-muted cursor-not-allowed" : "border-orange-400 placeholder:text-orange-300"}
+                    />
                   </div>
                   <div>
                     <Label className="text-xs">Project Type</Label>
