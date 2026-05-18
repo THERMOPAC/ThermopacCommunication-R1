@@ -84,12 +84,12 @@ Custom items maintain two distinct identities that must never be conflated:
 The following values are fixed for all custom project items and must be defined as constants in the codebase. They must never be derived, computed, or overridden at runtime.
 
 ```typescript
-SAP_CUSTOM_ITEM_CODE  = 'CUSTOMx-SPA-PAR-0000'
-SAP_CUSTOM_ITEM_NAME  = 'CUSTOM ITEM SPARES PARTS 000 AS PER PO'
+SAP_CUSTOM_ITEM_CODE    = 'CUSTOMx-SPA-PAR-0000'
+SAP_CUSTOM_ITEM_NAME    = 'CUSTOM ITEM SPARES PARTS 000 AS PER PO'
 SAP_CUSTOM_ITEM_BARCODE = '1920001001001000'  // exactly 16 characters
 ```
 
-These constants must be declared at the top of `server/project-item-detail-routes.ts` and referenced by name — no inline string literals.
+**Correction (governance):** These constants are enterprise business constants, not route-level logic. They are defined in `shared/constants/sap-custom-item.ts` and imported wherever needed. Inline string literals are prohibited. `server/project-item-detail-routes.ts` imports from this shared location.
 
 ### C6. EPC custom items remain fully independent
 Each custom project item has its own:

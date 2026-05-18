@@ -965,6 +965,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     onError: (e: any) => toast({ title: 'Apply failed', description: e.message, variant: 'destructive' }),
   });
 
+  const retryAllFailedSapSyncMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/projects/${projectId}/sap-sync/retry-failed`, {});
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error((e as any).error || 'Retry failed'); }
+      return res.json();
+    },
+    onSuccess: (d: any) => {
+      toast({
+        title: 'SAP sync retry complete',
+        description: `Retried ${d.retried} item(s): ${d.synced} synced, ${d.failed} still failed.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'items'] });
+    },
+    onError: (e: any) => toast({ title: 'SAP retry failed', description: e.message, variant: 'destructive' }),
+  });
+
   const createSnapshotMutation = useMutation({
     mutationFn: async (notes: string) => {
       const res = await apiRequest('POST', `/api/projects/${projectId}/pricing/snapshots`, { notes });
@@ -2791,15 +2807,30 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           </Badge>
                         )}
                       </div>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setIsItemsImportOpen(true)}
-                      >
-                        <FileUp className="h-4 w-4 mr-2" />
-                        Import Project Items
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {projectItems?.some((i: any) => !i.sapSynced) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => retryAllFailedSapSyncMutation.mutate()}
+                            disabled={retryAllFailedSapSyncMutation.isPending}
+                          >
+                            {retryAllFailedSapSyncMutation.isPending
+                              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Retrying...</>
+                              : <><RefreshCw className="h-4 w-4 mr-2" />Retry All Failed SAP Sync</>}
+                          </Button>
+                        )}
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setIsItemsImportOpen(true)}
+                        >
+                          <FileUp className="h-4 w-4 mr-2" />
+                          Import Project Items
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="overflow-x-auto">
@@ -2814,6 +2845,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             <TableHead>UOM</TableHead>
                             <TableHead>Make/Buy</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>SAP</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -2908,6 +2940,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                           <SelectItem value="Cancelled">Cancelled</SelectItem>
                                         </SelectContent>
                                       </Select>
+                                    </TableCell>
+                                    <TableCell>
+                                      {(item as any).sapSynced ? (
+                                        <Badge variant="default" className="bg-green-600 text-xs whitespace-nowrap">Synced</Badge>
+                                      ) : (item as any).sapSyncError ? (
+                                        <Badge variant="destructive" className="text-xs whitespace-nowrap">Failed</Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="text-muted-foreground text-xs whitespace-nowrap">Not Synced</Badge>
+                                      )}
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <DropdownMenu>

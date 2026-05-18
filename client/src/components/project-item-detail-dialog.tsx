@@ -14,6 +14,7 @@ import {
 import {
   Boxes,
   CheckCircle,
+  XCircle,
   Loader2,
   Upload,
 } from "lucide-react";
@@ -147,6 +148,10 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 <Badge variant="default" className="bg-green-600">
                   <CheckCircle className="h-3 w-3 mr-1" /> Synced
                 </Badge>
+              ) : item.sapSyncError ? (
+                <Badge variant="destructive">
+                  <XCircle className="h-3 w-3 mr-1" /> Failed
+                </Badge>
               ) : (
                 <Badge variant="outline" className="text-muted-foreground">Not Synced</Badge>
               )}
@@ -175,7 +180,9 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
               </div>
             )}
             <div className="mt-2 text-xs text-muted-foreground">
-              SAP payload: ItemCode={item.itemCode}, BarCode={item.codeBars}, ItemsGroupCode=104, UOM={item.uom || 'Nos'}
+              {item.source === 'sales_offer_custom'
+                ? 'SAP identity (custom item): ItemCode=CUSTOMx-SPA-PAR-0000, BarCode=1920001001001000, ItemsGroupCode=104'
+                : `SAP payload: ItemCode=${item.itemCode}, BarCode=${item.codeBars}, ItemsGroupCode=104, UOM=${item.uom || 'Nos'}`}
             </div>
           </div>
         </div>

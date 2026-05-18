@@ -3,7 +3,7 @@ import { pool } from './db';
 import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
-import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
+import { VALID_PROJECT_ITEM_SOURCES, PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
 import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, storeFinalOfferPdfToGcs, storeConfirmationDocToGcs } from './utils/quotation-pdf-artifact';
 import { generateExecutionDrafts } from './pipeline/generate-execution-drafts';
 import { executeFullAutoPipeline } from './pipeline/full-auto-orchestrator';
@@ -637,20 +637,35 @@ export async function executeOfferConversion(
     }
 
     // Single pass in topological order — handles Parent → Child → Child-to-Child (unlimited depth)
+    let customItemSeq = 0; // increments only for custom (non-catalogue) lines
     for (const offerItem of topoOrdered) {
       const parentProjectItemId = offerItem.parent_item_id
         ? offerItemIdToProjectItemId[offerItem.parent_item_id] || null
         : null;
 
-      const baseItemCode = customerBpCode ? `${customerBpCode}-${offerItem.product_code || ''}` : (offerItem.product_code || '');
+      const isCustomItem = !offerItem.product_code;
+      let baseItemCode: string;
+      if (isCustomItem) {
+        customItemSeq++;
+        const seq = String(customItemSeq).padStart(3, '0');
+        baseItemCode = customerBpCode ? `${customerBpCode}-CUSTOM-${seq}` : `CUSTOM-${seq}`;
+      } else {
+        baseItemCode = customerBpCode
+          ? `${customerBpCode}-${offerItem.product_code}`
+          : offerItem.product_code;
+      }
+      const itemSource = isCustomItem
+        ? PROJECT_ITEM_SOURCES.SALES_OFFER_CUSTOM
+        : PROJECT_ITEM_SOURCES.SALES_OFFER;
+
       const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
       const codeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
-      const masterItemId = offerItem.product_code
-        ? await findOrCreateMasterItem(
+      const masterItemId = isCustomItem
+        ? null
+        : await findOrCreateMasterItem(
             client, offerItem.product_code, offerItem.description,
             offerItem.unit, offerItem.total_price, offerItem.hsn_sac_code, customerBpCode
-          )
-        : null;
+          );
 
       let itemMakeOrBuy = 'Make';
       if (masterItemId) {
@@ -667,7 +682,7 @@ export async function executeOfferConversion(
           product_code,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-          $9, $10, $11, 'Not Started', 'sales_offer',
+          $9, $10, $11, 'Not Started', $18,
           $12, $13, $14,
           $15, $16, $17, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
@@ -682,7 +697,8 @@ export async function executeOfferConversion(
           parentProjectItemId,
           customerBpCode || null,
           offerItem.product_code || null,
-          offerId, offerItem.id, orderNumber
+          offerId, offerItem.id, orderNumber,
+          itemSource,
         ]
       );
       if (piResult.rows.length > 0) {

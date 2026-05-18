@@ -1349,7 +1349,9 @@ export function OffersContent() {
                 <Alert className="border-green-300 bg-green-50">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <AlertDescription>
-                    {conversionResult.alreadyConverted ? 'This offer was already converted.' : 'EPC Project created successfully!'}
+                    {conversionResult.alreadyConverted
+                      ? 'This offer was already converted.'
+                      : 'Project created successfully. SAP item sync has been initiated. Check Project Items for SAP sync status. Failed items can be retried manually.'}
                   </AlertDescription>
                 </Alert>
                 <div className="grid grid-cols-2 gap-3 text-sm">

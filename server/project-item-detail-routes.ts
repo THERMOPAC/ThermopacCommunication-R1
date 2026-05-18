@@ -8,7 +8,8 @@ import {
   changeDocuments,
   users,
   projectItems,
-  projects
+  projects,
+  PROJECT_ITEM_SOURCES,
 } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { resolveProjectGeoCodes, buildDrawingGcsPath } from './epc-coding';
@@ -17,19 +18,32 @@ import crypto from 'crypto';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { gcsStorage } from './utils/gcs-storage';
 import { sapSession } from './sap-b1-integration/sap-central-session';
+import {
+  SAP_CUSTOM_ITEM_CODE,
+  SAP_CUSTOM_ITEM_NAME,
+  SAP_CUSTOM_ITEM_BARCODE,
+} from '@shared/constants/sap-custom-item';
 
 // Phase 2 additional finding — SAP Session Unification Migration Plan v1.2
 // Replaced independent SapHttpsClient login with sapSession.request().
 // Removed raw credential reads, own login/logout, and manual cookie construction.
 export async function syncProjectItemToSap(pi: any): Promise<{ sapResult?: any; error?: string }> {
-  if (!pi.codeBars || pi.codeBars.length !== 16) return { error: 'Project item must have a valid 16-character CodeBars' };
-  if (!pi.itemCode) return { error: 'Project item must have an item code' };
+  const isCustomItem = pi.source === PROJECT_ITEM_SOURCES.SALES_OFFER_CUSTOM;
+
+  if (!isCustomItem) {
+    if (!pi.codeBars || pi.codeBars.length !== 16) return { error: 'Project item must have a valid 16-character CodeBars' };
+    if (!pi.itemCode) return { error: 'Project item must have an item code' };
+  }
 
   const uom = pi.uom || 'Nos';
+  const sapItemCode = isCustomItem ? SAP_CUSTOM_ITEM_CODE : pi.itemCode;
+  const sapItemName = isCustomItem ? SAP_CUSTOM_ITEM_NAME : (pi.description || pi.itemCode);
+  const sapBarCode  = isCustomItem ? SAP_CUSTOM_ITEM_BARCODE : pi.codeBars;
+
   const sapItemPayload: Record<string, any> = {
-    ItemCode: pi.itemCode,
-    ItemName: pi.description || pi.itemCode,
-    BarCode: pi.codeBars,
+    ItemCode: sapItemCode,
+    ItemName: sapItemName,
+    BarCode: sapBarCode,
     ItemsGroupCode: 104,
     SalesUnit: uom,
     PurchaseUnit: uom,
@@ -428,13 +442,6 @@ export function setupProjectItemDetailRoutes(app: Router) {
       if (piResult.length === 0) return res.status(404).json({ message: 'Project item not found' });
       const pi = piResult[0];
 
-      if (!pi.codeBars || pi.codeBars.length !== 16) {
-        return res.status(400).json({ message: 'Project item must have a valid 16-character CodeBars before SAP sync' });
-      }
-      if (!pi.itemCode) {
-        return res.status(400).json({ message: 'Project item must have an item code before SAP sync' });
-      }
-
       const result = await syncProjectItemToSap(pi);
 
       if (result.error) {
@@ -450,6 +457,38 @@ export function setupProjectItemDetailRoutes(app: Router) {
       });
     } catch (error: any) {
       console.error('SAP sync error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post('/api/projects/:projectId/sap-sync/retry-failed', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const failedItems = await db.select().from(projectItems).where(
+        and(
+          eq(projectItems.projectId, projectId),
+          eq(projectItems.sapSynced, false),
+          sql`item_code IS NOT NULL`
+        )
+      );
+
+      let synced = 0;
+      let failed = 0;
+      const errors: { itemCode: string; error: string }[] = [];
+
+      for (const pi of failedItems) {
+        const result = await syncProjectItemToSap(pi);
+        if (result.error) {
+          failed++;
+          errors.push({ itemCode: pi.itemCode || 'unknown', error: result.error });
+        } else {
+          synced++;
+        }
+      }
+
+      res.json({ retried: failedItems.length, synced, failed, errors });
+    } catch (error: any) {
+      console.error('SAP retry-all error:', error);
       res.status(500).json({ message: error.message });
     }
   });

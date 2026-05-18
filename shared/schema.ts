@@ -12451,8 +12451,17 @@ export const bomGatingBypassLog = pgTable('bom_gating_bypass_log', {
 
 export type BomGatingBypassLog = typeof bomGatingBypassLog.$inferSelect;
 
-export const VALID_PROJECT_ITEM_SOURCES = ['sales_offer', 'manual', 'bom_explosion', 'buy_list'] as const;
+export const VALID_PROJECT_ITEM_SOURCES = ['sales_offer', 'sales_offer_custom', 'manual', 'bom_explosion', 'buy_list'] as const;
 export type ProjectItemSource = typeof VALID_PROJECT_ITEM_SOURCES[number];
+
+/** Named constants for project item source — use these instead of inline string literals. */
+export const PROJECT_ITEM_SOURCES = {
+  SALES_OFFER:        'sales_offer',        // Catalogue line from Products picker
+  SALES_OFFER_CUSTOM: 'sales_offer_custom', // Custom line — no product_code
+  MANUAL:             'manual',
+  BOM_EXPLOSION:      'bom_explosion',
+  BUY_LIST:           'buy_list',
+} as const satisfies Record<string, ProjectItemSource>;
 
 export const offerConversionSnapshots = pgTable('offer_conversion_snapshots', {
   id: serial('id').primaryKey(),
