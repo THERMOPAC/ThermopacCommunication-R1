@@ -1,5 +1,6 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import express, { Request, Response } from 'express';
+import OpenAI from 'openai';
 import { sapSession } from './sap-b1-integration/sap-central-session';
 import { storage } from './storage';
 import { 
@@ -80,6 +81,42 @@ function computeProjectDisplayName(code: string, customerName: string, shortDesc
   const d = (shortDescription || '').trim();
   const parts = [c, n, d].filter(Boolean);
   return parts.join(' \u2014 ');
+}
+
+const _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+/**
+ * Auto-generate a concise 3–5 word short description from a project name.
+ * Used on project create/update so users never need to craft this manually.
+ */
+async function generateShortDescription(projectName: string, customerName?: string): Promise<string> {
+  try {
+    const resp = await _openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a project naming assistant for an industrial engineering EPC company. ' +
+            'Given a project name, output ONLY a concise 3–5 word technical description ' +
+            'that captures the core process or equipment type. ' +
+            'Do NOT include the customer name. Do NOT include punctuation or quotes. ' +
+            'Examples: "Used Engine Oil Refinery", "Continuous Polishing System", "Blending Plant Upgrade", "Vacuum Distillation Unit".',
+        },
+        {
+          role: 'user',
+          content: `Project name: "${projectName}"${customerName ? `\nCustomer: "${customerName}"` : ''}`,
+        },
+      ],
+      max_tokens: 20,
+      temperature: 0.3,
+    });
+    const text = (resp.choices[0]?.message?.content || '').trim().replace(/[".]/g, '');
+    return text || projectName;
+  } catch (err) {
+    console.error('[generateShortDescription] OpenAI error:', err);
+    return projectName;
+  }
 }
 
 // Helper function to validate a user is authenticated
@@ -292,6 +329,13 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(400).json({ error: 'customerId is required for project creation.' });
       }
 
+      // Resolve customer name before transaction so we can call OpenAI outside it
+      const preCustRows = await db.select({ bpName: customers.bpName }).from(customers).where(eq(customers.id, req.body.customerId)).limit(1);
+      const preCustName = (preCustRows[0]?.bpName || req.body.clientName || '').trim();
+      const rawName = (req.body.name || '').trim();
+      // Auto-generate short description via AI — user never needs to enter this manually
+      const aiShortDesc = await generateShortDescription(rawName, preCustName);
+
       const project = await db.transaction(async (tx) => {
         const { projectCode, projectSeq } = await epcCoding.generateOperationalCode(
           continentCode, countryCode, req.body.customerId, fyCode, tx
@@ -300,7 +344,7 @@ export function setupProjectRoutes(app: express.Express) {
         // Governance: resolve customerName from customers table (SSOT)
         const custRows = await tx.select({ bpName: customers.bpName }).from(customers).where(eq(customers.id, req.body.customerId)).limit(1);
         const resolvedCustomerName = (custRows[0]?.bpName || req.body.clientName || '').trim();
-        const resolvedShortDesc = (req.body.shortDescription || req.body.name || '').trim();
+        const resolvedShortDesc = aiShortDesc || (req.body.shortDescription || req.body.name || '').trim();
         const resolvedDisplayName = computeProjectDisplayName(projectCode, resolvedCustomerName, resolvedShortDesc);
 
         const projectData = insertProjectSchema.parse({
@@ -495,8 +539,16 @@ export function setupProjectRoutes(app: express.Express) {
 
       // Governance: recompute project_display_name whenever source fields change
       if (updateData.shortDescription !== undefined || updateData.customerName !== undefined || updateData.name !== undefined) {
-        const newShortDesc = (updateData.shortDescription ?? project.shortDescription ?? project.name ?? '').trim();
+        const rawNameForAI = (updateData.name ?? project.name ?? '').trim();
         const newCustName = (updateData.customerName ?? project.customerName ?? project.clientName ?? '').trim();
+        // Auto-generate short description via AI whenever name changes
+        let newShortDesc: string;
+        if (updateData.name !== undefined && updateData.name !== project.name) {
+          // Name changed — regenerate short description
+          newShortDesc = await generateShortDescription(rawNameForAI, newCustName);
+        } else {
+          newShortDesc = (updateData.shortDescription ?? project.shortDescription ?? project.name ?? '').trim();
+        }
         const newCode = project.code;
         if (newCode && (newCustName || newShortDesc)) {
           updateData.projectDisplayName = computeProjectDisplayName(newCode, newCustName, newShortDesc);

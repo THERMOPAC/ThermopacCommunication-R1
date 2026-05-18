@@ -428,7 +428,6 @@ export default function ProjectsPage() {
                         <TableHead className="w-6 px-1"></TableHead>
                         <TableHead className="text-[10px] font-semibold w-[90px]">Code</TableHead>
                         <TableHead className="text-[10px] font-semibold min-w-[280px]">Project Name</TableHead>
-                        <TableHead className="text-[10px] font-semibold min-w-[180px]">Customer</TableHead>
                         <TableHead className="text-[10px] font-semibold text-center w-[80px]">Status</TableHead>
                         <TableHead className="text-[10px] font-semibold text-center w-[80px]">Priority</TableHead>
                         <TableHead className="text-[10px] font-semibold text-center min-w-[80px]">Start</TableHead>
@@ -478,12 +477,6 @@ export default function ProjectsPage() {
                                   </Tooltip>
                                 </div>
                                 {project.projectType && <div className="text-[9px] text-muted-foreground">{project.projectType}</div>}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                  <span className="text-[10px] truncate max-w-[120px]">{project.customerName}</span>
-                                </div>
                               </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant="outline" className={`text-[9px] px-1.5 py-0 gap-0.5 ${statusCfg.bg}`}>
