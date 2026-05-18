@@ -274,15 +274,19 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
     builtAt:      fs.existsSync(distFile) ? fs.statSync(distFile).mtime.toISOString() : null,
     distSizeKb,
     files: [
-      { name: 'dist/index.js',           desc: 'Compiled agent (Node.js bundle, no build step needed)', sizeKb: distSizeKb },
-      { name: 'package.json',            desc: 'For npm install (installs node-windows service wrapper)' },
-      { name: 'config.json.example',     desc: 'Configuration template — copy to config.json and fill in' },
-      { name: 'README.md',               desc: 'Quick reference' },
-      { name: 'SETUP.md',                desc: 'Full step-by-step setup guide' },
-      { name: 'install-service.bat',     desc: 'Installs as Windows auto-start service (run as Admin)' },
-      { name: 'uninstall-service.bat',   desc: 'Removes the Windows service' },
-      { name: 'start-service.bat',       desc: 'Starts the service' },
-      { name: 'stop-service.bat',        desc: 'Stops the service' },
+      { name: 'dist/index.js',                         desc: 'Compiled agent (Node.js bundle, no build step needed)', sizeKb: distSizeKb },
+      { name: 'package.json',                          desc: 'For npm install (installs node-windows service wrapper)' },
+      { name: 'config.json.example',                   desc: 'Configuration template — copy to config.json and fill in' },
+      { name: 'README.md',                             desc: 'Quick reference' },
+      { name: 'SETUP.md',                              desc: 'Full step-by-step setup guide' },
+      { name: 'install-service.bat',                   desc: 'Installs as Windows auto-start service (run as Admin)' },
+      { name: 'uninstall-service.bat',                 desc: 'Removes the Windows service' },
+      { name: 'start-service.bat',                     desc: 'Starts the service' },
+      { name: 'stop-service.bat',                      desc: 'Stops the service' },
+      { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions — combined CI (build + type-check)' },
+      { name: '.github/workflows/build.yml',           desc: 'GitHub Actions — build & Windows package validation' },
+      { name: '.github/workflows/lint.yml',            desc: 'GitHub Actions — TypeScript strict type-check' },
+      { name: '.github/workflows/release.yml',         desc: 'GitHub Actions — release ZIP builder & asset upload' },
     ],
     releaseNotes: [
       'v1.0.0 — Initial release',
@@ -346,6 +350,14 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
     for (const f of batchFiles) {
       const fp = path.join(AGENT_DIR, f);
       if (fs.existsSync(fp)) archive.file(fp, { name: root + f });
+    }
+
+    // GitHub Actions CI workflow files
+    const workflowDir = path.join(process.cwd(), '.github', 'workflows');
+    const workflowFiles = ['ci.yml', 'build.yml', 'lint.yml', 'release.yml'];
+    for (const f of workflowFiles) {
+      const fp = path.join(workflowDir, f);
+      if (fs.existsSync(fp)) archive.file(fp, { name: root + '.github/workflows/' + f });
     }
 
     await archive.finalize();
