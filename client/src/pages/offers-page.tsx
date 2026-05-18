@@ -1090,13 +1090,15 @@ export function OffersContent() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewOffer(offer)} title="View">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditOffer(offer)} title="Edit">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {offer.status !== "Order Confirmed" && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditOffer(offer)} title="Edit">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => setPdfDownloadOfferId(offer.id)} title="Download PDF">
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(offer)} title="Duplicate">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleDuplicate(offer)} title={offer.status === "Order Confirmed" ? "Duplicate to create a revision" : "Duplicate"}>
                             <Copy className="h-4 w-4" />
                           </Button>
                           {offer.status === "Draft" && (
