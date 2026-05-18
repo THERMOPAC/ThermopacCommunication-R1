@@ -250,7 +250,7 @@ export default function DocGovernancePage() {
 
   const MODULE_LABELS: Record<string, string> = {
     epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design", hr: "HR / Admin",
-    legal: "Legal", finance: "Finance", sales: "Sales", sap: "SAP", legacy: "Legacy",
+    legal: "Legal", finance: "Finance", sap: "SAP", legacy: "Legacy",
   };
 
   const filteredPathTemplates = pathTemplates.filter(pt => {
