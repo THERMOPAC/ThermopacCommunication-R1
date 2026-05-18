@@ -932,21 +932,6 @@ export async function executeOfferConversion(
       } catch (attachErr: any) {
         console.error(`[offer-conversion] EPC attachment error for artifact ${primaryArtifactId}:`, attachErr);
       }
-
-      // Save immutable Final Offer snapshot to the FINAL_OFFER governed GCS path.
-      // Non-blocking — failure logs a warning but does NOT roll back the conversion.
-      storeFinalOfferPdfToGcs(
-        primaryArtifactId, project.id, projectCode,
-        offerId, offer.offer_number, offer.revision || 0, userId
-      ).then(result => {
-        if (result.success) {
-          console.log(`[offer-conversion] Final Offer snapshot saved → ${result.gcsPath}`);
-        } else {
-          console.warn(`[offer-conversion] Final Offer snapshot failed (non-blocking): ${result.error}`);
-        }
-      }).catch(err => {
-        console.error('[offer-conversion] Final Offer snapshot unexpected error:', err);
-      });
     }
 
     const updatedOffer = await pool.query(`SELECT * FROM offers WHERE id = $1`, [offerId]);
@@ -970,6 +955,23 @@ export async function executeOfferConversion(
         console.error(`[offer-conversion] Full-auto pipeline error (non-blocking):`, autoErr);
         automationResult = { success: false, error: autoErr.message };
       }
+    }
+
+    // Save immutable Final Offer snapshot to GCS — fires after project code is confirmed,
+    // execution drafts generated, and full-auto pipeline triggered. Non-blocking.
+    if (confirmedArtifactId) {
+      storeFinalOfferPdfToGcs(
+        confirmedArtifactId, project.id, projectCode,
+        offerId, offer.offer_number, offer.revision || 0, userId
+      ).then(result => {
+        if (result.success) {
+          console.log(`[offer-conversion] Final Offer snapshot saved → ${result.gcsPath}`);
+        } else {
+          console.warn(`[offer-conversion] Final Offer snapshot failed (non-blocking): ${result.error}`);
+        }
+      }).catch(err => {
+        console.error('[offer-conversion] Final Offer snapshot unexpected error:', err);
+      });
     }
 
     return {

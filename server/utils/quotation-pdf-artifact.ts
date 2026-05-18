@@ -540,8 +540,12 @@ export async function attachConfirmedArtifactToEpc(
  *   {FY}      → fyCode (from the project record)
  *   {Code}    → projectCode (e.g. 2627-019)
  *   {OfferNo} → offerNumber with slashes replaced by dashes
+ *   {Seq}     → '001' (single file per conversion)
+ *   {Label}   → 'final-offer'
  *   {rev}     → revision zero-padded to 2 digits
  *
+ * Called at the very end of the conversion flow — after project code is confirmed,
+ * execution drafts generated, and full-auto pipeline triggered.
  * Non-blocking at the call-site — errors are logged but do not fail conversion.
  */
 export async function storeFinalOfferPdfToGcs(
@@ -593,6 +597,8 @@ export async function storeFinalOfferPdfToGcs(
       .replace('{FY}',      proj.fy_code)
       .replace('{Code}',    projectCode)
       .replace('{OfferNo}', safeOfferNo)
+      .replace('{Seq}',     '001')
+      .replace('{Label}',   'final-offer')
       .replace('{rev}',     rev);
 
     const bucket = storage.bucket(bucketName);
