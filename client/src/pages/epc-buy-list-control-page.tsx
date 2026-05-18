@@ -1324,7 +1324,7 @@ export default function EpcBuyListControlPage() {
                 >
                   <SelectTrigger><SelectValue placeholder="Select a project…" /></SelectTrigger>
                   <SelectContent>
-                    {(projects as any[]).map((p: any) => (
+                    {(projects as any[]).filter((p: any) => p.status === 'active').map((p: any) => (
                       <SelectItem key={p.id} value={String(p.id)}>{getProjectDisplayName(p)}</SelectItem>
                     ))}
                   </SelectContent>
