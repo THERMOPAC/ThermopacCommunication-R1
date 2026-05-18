@@ -61,9 +61,11 @@ interface ChartData {
 }
 
 export default function ProjectDashboardPage() {
-  const { data: projects = [], isLoading: projectsLoading } = useQuery<ProjectData[]>({
+  const { data: rawProjects = [], isLoading: projectsLoading } = useQuery<ProjectData[]>({
     queryKey: ["/api/projects"],
   });
+  // Never show test-flagged projects on the dashboard
+  const projects = rawProjects.filter((p: ProjectData) => !p.isTest);
 
   const { isLoading: workOrdersLoading } = useQuery({
     queryKey: ["/api/production/work-orders"],
