@@ -28,6 +28,7 @@ import {
   validateUploadToken,
   getIssuedTokenStats,
   getIssuedTokens,
+  extractTemplateTokens,
 } from './services/gcs-governance-service';
 import { buildQuotationGcsPath, buildEpcQtnGcsPath, resolveProjectGeoCodes } from './epc-coding';
 import { pool } from './db';
@@ -223,7 +224,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       }
       if (updates.displayName) updates.displayName = updates.displayName.trim();
       if (updates.rootPrefix)  updates.rootPrefix  = updates.rootPrefix.trim();
-      if (updates.pathTemplate) updates.pathTemplate = updates.pathTemplate.trim();
+      if (updates.pathTemplate) {
+        updates.pathTemplate  = updates.pathTemplate.trim();
+        // Recompute allowedTokens from the new template so path-test endpoints stay accurate
+        updates.allowedTokens = extractTemplateTokens(updates.pathTemplate);
+      }
 
       // Duplicate check if document_type is changing
       if (updates.documentType && updates.documentType !== current.documentType) {

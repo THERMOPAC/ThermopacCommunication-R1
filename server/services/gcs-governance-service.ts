@@ -299,16 +299,17 @@ export async function seedGovernanceData(): Promise<void> {
           requiredTokens: [],
         });
       } else {
-        // Always refresh these fields so seed corrections propagate to existing rows
+        // Refresh metadata only — pathTemplate is NOT overwritten here so that
+        // admin edits made via the GCS Governance UI are preserved across restarts.
+        // allowedTokens is also left untouched (it is recomputed by the PATCH endpoint
+        // whenever the admin saves a new pathTemplate through the UI).
         await db.update(gcsGovernanceRules)
           .set({
-            submoduleKey:  rule.submoduleKey,
-            displayName:   rule.displayName,
-            rootPrefix:    rule.rootPrefix,
-            pathTemplate:  rule.pathTemplate,
-            revisionMode:  rule.revisionMode as any,
-            allowedTokens: derivedTokens,
-            notes:         rule.notes ?? null,
+            submoduleKey: rule.submoduleKey,
+            displayName:  rule.displayName,
+            rootPrefix:   rule.rootPrefix,
+            revisionMode: rule.revisionMode as any,
+            notes:        rule.notes ?? null,
             ...(rule.active === false ? { active: false } : {}),
           })
           .where(
