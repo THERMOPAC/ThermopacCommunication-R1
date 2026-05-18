@@ -82,7 +82,6 @@ async function resolveQuotationGcsPathFromDb(
     [documentType]
   );
   const template: string | null = ruleRow.rows[0]?.path_template ?? null;
-  console.log(`[quotation-pdf] resolveGcsPath: docType=${documentType} template=${template ?? 'NULL (fallback)'}`);
 
   if (!template) {
     // Safety fallback — should never happen after seed runs
