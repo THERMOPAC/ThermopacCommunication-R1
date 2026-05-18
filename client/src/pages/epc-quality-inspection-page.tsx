@@ -24,8 +24,11 @@ import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project
 import {
   Loader2, Search, Filter, ClipboardCheck, ShieldCheck, CheckCircle2,
   XCircle, ChevronDown, ChevronRight, RefreshCw, AlertTriangle,
-  Play, CircleCheck, Undo2, Calendar, Eye, Wrench, Lock,
+  Play, CircleCheck, Undo2, Calendar, Eye, Wrench, Lock, MoreVertical,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const roleHierarchy: Record<string, number> = {
   Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, "Senior Executive": 4, Employee: 5,
@@ -66,13 +69,15 @@ type ActionDef = {
   minRoleLevel: number; statusRequired: string[];
   needsNote?: boolean; noteLabel?: string; noteKey?: string; noteRequired?: boolean;
   needsResult?: boolean; needsDate?: boolean;
+  /** If true, hidden from visible row buttons — only shown in kebab (⋯) menu */
+  kebabOnly?: boolean;
 };
 
 const QP_ACTIONS: ActionDef[] = [
   { key: "start-preparation", label: "Start Preparation", icon: Play, variant: "default", minRoleLevel: 3, statusRequired: ["draft"] },
   { key: "mark-ready", label: "Mark Ready for Inspection", icon: CircleCheck, variant: "default", minRoleLevel: 3, statusRequired: ["under_preparation"], needsNote: true, noteLabel: "Preparation Note", noteKey: "preparationNote" },
   { key: "revert-to-preparation", label: "Revert to Preparation", icon: Undo2, variant: "outline", minRoleLevel: 3, statusRequired: ["ready_for_inspection_setup"] },
-  { key: "cancel", label: "Cancel", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "under_preparation", "ready_for_inspection_setup"], needsNote: true, noteLabel: "Cancel Reason", noteKey: "cancelReason", noteRequired: true },
+  { key: "cancel", label: "Cancel Quality Plan", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "under_preparation", "ready_for_inspection_setup"], needsNote: true, noteLabel: "Cancellation Reason", noteKey: "cancelReason", noteRequired: true, kebabOnly: true },
 ];
 
 const IE_ACTIONS: ActionDef[] = [
@@ -82,7 +87,7 @@ const IE_ACTIONS: ActionDef[] = [
   { key: "fail", label: "Mark Failed", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["in_progress"], needsNote: true, noteLabel: "Failure Reason", noteKey: "failureReason", noteRequired: true },
   { key: "mark-rework-required", label: "Require Rework", icon: Wrench, variant: "outline", minRoleLevel: 3, statusRequired: ["failed"], needsNote: true, noteLabel: "Rework Notes", noteKey: "reworkNotes" },
   { key: "close", label: "Close", icon: Lock, variant: "secondary", minRoleLevel: 2, statusRequired: ["completed", "rework_required"], needsNote: true, noteLabel: "Closing Notes", noteKey: "closingNotes" },
-  { key: "cancel", label: "Cancel", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "scheduled", "in_progress"], needsNote: true, noteLabel: "Cancel Reason", noteKey: "cancelReason", noteRequired: true },
+  { key: "cancel", label: "Cancel Inspection", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "scheduled", "in_progress"], needsNote: true, noteLabel: "Cancellation Reason", noteKey: "cancelReason", noteRequired: true, kebabOnly: true },
 ];
 
 function DetailRow({ label, value, mono }: { label: string; value: any; mono?: boolean }) {
@@ -515,11 +520,31 @@ export default function EpcQualityInspectionPage() {
                     <TableCell className="py-1.5 text-[10px]">{rec.assigned_to_name || "—"}</TableCell>
                     <TableCell className="py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        {rowActions.slice(0, 2).map((a) => (
+                        {rowActions.filter(a => !a.kebabOnly).map((a) => (
                           <Button key={a.key} size="sm" variant={a.variant} className="h-6 px-1.5 text-[9px]" onClick={() => openAction(rec, a)}>
                             <a.icon className="h-3 w-3 mr-0.5" /> {a.label}
                           </Button>
                         ))}
+                        {rowActions.some(a => a.kebabOnly) && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="text-xs">
+                              {rowActions.filter(a => a.kebabOnly).map((a) => (
+                                <DropdownMenuItem
+                                  key={a.key}
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-50 text-xs gap-1.5 cursor-pointer"
+                                  onClick={() => openAction(rec, a)}
+                                >
+                                  <a.icon className="h-3.5 w-3.5" /> {a.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
