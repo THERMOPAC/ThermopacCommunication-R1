@@ -18,7 +18,7 @@ import {
   ArrowRight, Plus, ChevronDown, ChevronRight, Briefcase,
   Clock, CheckCircle2, PauseCircle, XCircle, AlertTriangle,
   FolderKanban, Hash, Wrench, ShoppingCart, BarChart3, ExternalLink,
-  FlaskConical, EyeOff,
+  FlaskConical, EyeOff, Pencil,
 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
@@ -102,6 +102,7 @@ export default function ProjectsPage() {
   const [editProjectId, setEditProjectId] = useState<number | null>(null);
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ quantity: "", estimatedCost: "", actualCost: "", notes: "", status: "" });
+  const [editShortDesc, setEditShortDesc] = useState<{ open: boolean; projectId: number | null; projectCode: string; value: string }>({ open: false, projectId: null, projectCode: "", value: "" });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -210,6 +211,22 @@ export default function ProjectsPage() {
     },
     onError: () => {
       toast({ title: "Failed to update project item", variant: "destructive" });
+    },
+  });
+
+  const updateShortDescMutation = useMutation({
+    mutationFn: async ({ id, shortDescription }: { id: number; shortDescription: string }) => {
+      const res = await apiRequest("PUT", `/api/projects/${id}`, { shortDescription });
+      if (!res.ok) throw new Error("Failed to update");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
+      toast({ title: "Short description updated" });
+      setEditShortDesc({ open: false, projectId: null, projectCode: "", value: "" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update short description", variant: "destructive" });
     },
   });
 
@@ -447,7 +464,20 @@ export default function ProjectsPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="text-[11px] font-medium truncate max-w-[280px]" title={getProjectDisplayName(project)}>{getProjectDisplayName(project)}</div>
+                                <div className="flex items-start gap-1 group">
+                                  <div className="text-[11px] font-medium truncate max-w-[260px]" title={getProjectDisplayName(project)}>{getProjectDisplayName(project)}</div>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
+                                        onClick={(e) => { e.stopPropagation(); setEditShortDesc({ open: true, projectId: project.id, projectCode: project.projectCode, value: project.shortDescription || "" }); }}
+                                      >
+                                        <Pencil className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[10px]">Edit short description</TooltipContent>
+                                  </Tooltip>
+                                </div>
                                 {project.projectType && <div className="text-[9px] text-muted-foreground">{project.projectType}</div>}
                               </TableCell>
                               <TableCell>
@@ -716,6 +746,49 @@ export default function ProjectsPage() {
               >
                 {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Project
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Short Description Edit Dialog */}
+        <Dialog open={editShortDesc.open} onOpenChange={(o) => !o && setEditShortDesc(s => ({ ...s, open: false }))}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Edit Short Description</DialogTitle>
+              <DialogDescription>
+                <span className="font-mono text-xs">{editShortDesc.projectCode}</span> — this is the third segment of the canonical project name.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Short Description *</Label>
+                <Input
+                  value={editShortDesc.value}
+                  onChange={(e) => setEditShortDesc(s => ({ ...s, value: e.target.value }))}
+                  placeholder="e.g. Used Engine Oil Refinery"
+                  className="text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editShortDesc.value.trim() && editShortDesc.projectId) {
+                      updateShortDescMutation.mutate({ id: editShortDesc.projectId, shortDescription: editShortDesc.value.trim() });
+                    }
+                  }}
+                />
+              </div>
+              <div className="rounded-md border bg-muted/50 px-3 py-2 text-[11px] font-mono text-slate-600 break-all">
+                {editShortDesc.projectCode || '…'} — <span className="text-muted-foreground">Customer</span> — {editShortDesc.value || '…'}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setEditShortDesc(s => ({ ...s, open: false }))}>Cancel</Button>
+              <Button
+                size="sm"
+                onClick={() => editShortDesc.projectId && updateShortDescMutation.mutate({ id: editShortDesc.projectId, shortDescription: editShortDesc.value.trim() })}
+                disabled={updateShortDescMutation.isPending || !editShortDesc.value.trim()}
+              >
+                {updateShortDescMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                Save
               </Button>
             </DialogFooter>
           </DialogContent>
