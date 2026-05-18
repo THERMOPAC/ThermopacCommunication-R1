@@ -69,8 +69,8 @@ export default function ProjectDashboardPage() {
       const res = await fetch("/api/projects?showTest=false", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch projects");
       const data: (ProjectData & { isTest?: boolean })[] = await res.json();
-      // Belt-and-suspenders: strip any test project that slips through
-      return data.filter(p => !p.isTest);
+      // Exclude test projects and cancelled projects from the dashboard
+      return data.filter(p => !p.isTest && p.status !== 'canceled');
     },
   });
 
