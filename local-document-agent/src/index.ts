@@ -67,7 +67,7 @@ async function main() {
         if (job) {
           info(`Claimed job #${job.id} (${job.jobType})`);
           await runJob(config, job, health);
-          if (health.state === 'PROCESSING') health.transition('IDLE');
+          health.transition('IDLE');
         } else {
           health.transition('IDLE');
         }
