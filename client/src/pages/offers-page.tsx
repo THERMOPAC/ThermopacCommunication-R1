@@ -2295,60 +2295,73 @@ export function OffersContent() {
             )}
 
             {!gcsPathTestLoading && gcsPathTestData && (
-              <div className="space-y-4">
-                {/* Token summary */}
-                <div className="rounded-md bg-violet-50 border border-violet-200 p-3">
-                  <p className="text-xs font-semibold text-violet-700 mb-2 uppercase tracking-wide">Tokens Used</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(gcsPathTestData.tokens as Record<string, string>).map(([k, v]) => (
-                      <span key={k} className="inline-flex items-center gap-1 text-xs bg-white border border-violet-200 text-violet-800 rounded px-2 py-0.5 font-mono">
-                        <span className="text-violet-400">{`{${k}}`}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span>{v}</span>
-                      </span>
-                    ))}
-                  </div>
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                {/* Offer identity row */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {[
+                    ['Type', gcsPathTestData.offer.offerType === 'project-linked' ? 'Project-Linked' : 'Standalone'],
+                    ['Rev', `Rev-${String(gcsPathTestData.offer.revision).padStart(2, '0')}`],
+                    ['CC', gcsPathTestData.offer.continentCode ?? '—'],
+                    ['CO', gcsPathTestData.offer.countryCode ?? '—'],
+                    ['ShortCode', gcsPathTestData.offer.shortCode ?? '—'],
+                    ['FY', gcsPathTestData.offer.fyCode],
+                    ['Slug', gcsPathTestData.offer.subjectSlug],
+                  ].map(([label, val]) => (
+                    <span key={label} className="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 rounded px-2 py-0.5 font-mono">
+                      <span className="text-slate-500">{label}:</span>
+                      <span className="font-semibold text-slate-800">{val}</span>
+                    </span>
+                  ))}
                 </div>
 
-                {/* Rule results */}
-                {gcsPathTestData.results.length === 0 ? (
+                {gcsPathTestData.offer.missingGeo && (
                   <Alert>
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>No active GCS quotation rules found.</AlertDescription>
+                    <AlertDescription>Customer is missing continent/country/short-code — cannot compute next path. Update the customer record first.</AlertDescription>
                   </Alert>
-                ) : (
-                  <div className="space-y-3">
-                    {gcsPathTestData.results.map((r: any) => (
-                      <div key={r.ruleId} className={`rounded-md border p-3 space-y-2 ${r.conforms ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            {r.conforms
-                              ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                              : <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />}
-                            <span className="font-semibold text-sm">{r.displayName}</span>
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 font-mono">{r.documentType}</Badge>
+                )}
+
+                {/* Already uploaded files */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                    Files Already on GCS ({gcsPathTestData.existingFiles.length})
+                  </p>
+                  {gcsPathTestData.existingFiles.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No PDFs generated for this offer yet.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {gcsPathTestData.existingFiles.map((f: any) => (
+                        <div key={f.id} className={`rounded border px-2 py-1.5 flex items-start gap-2 ${f.status === 'active' ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                          <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${f.status === 'active' ? 'text-green-600' : 'text-slate-400'}`} />
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-mono break-all text-slate-800">{f.gcsObjectPath}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Rev-{String(f.revision).padStart(2,'0')} · {f.priceMode} · {f.status}
+                            </p>
                           </div>
-                          <Badge className={`text-[10px] px-1.5 py-0 ${r.governanceMode === 'enforced' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
-                            {r.governanceMode ?? 'monitor'}
-                          </Badge>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                        <div className="space-y-1">
-                          <p className="text-[11px] text-muted-foreground font-mono truncate" title={r.pathTemplate}>
-                            <span className="text-muted-foreground/60">Template: </span>{r.pathTemplate}
-                          </p>
-                          <p className="text-xs font-mono break-all text-violet-800 bg-white rounded border border-violet-100 px-2 py-1">
-                            {r.resolvedPath}
-                          </p>
+                {/* Next upload paths */}
+                {!gcsPathTestData.offer.missingGeo && gcsPathTestData.nextPaths.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide mb-2">
+                      Next Upload Will Be Stored At (seq {String(gcsPathTestData.existingFiles.filter((f: any) => f.status === 'active').length + 1).padStart(3,'0')})
+                    </p>
+                    <div className="space-y-1.5">
+                      {gcsPathTestData.nextPaths.map((p: any) => (
+                        <div key={p.priceMode} className="rounded border border-violet-200 bg-violet-50 px-2 py-1.5 flex items-start gap-2">
+                          <CloudLightning className="h-3.5 w-3.5 mt-0.5 shrink-0 text-violet-500" />
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-mono break-all text-violet-900">{p.path}</p>
+                            <p className="text-[10px] text-violet-500 mt-0.5 capitalize">{p.priceMode} PDF</p>
+                          </div>
                         </div>
-
-                        {!r.conforms && (
-                          <p className="text-xs text-amber-700">
-                            Unresolved tokens: {r.unresolvedTokens.map((t: string) => `{${t}}`).join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

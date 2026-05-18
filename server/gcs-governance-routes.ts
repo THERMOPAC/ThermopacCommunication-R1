@@ -29,6 +29,8 @@ import {
   getIssuedTokenStats,
   getIssuedTokens,
 } from './services/gcs-governance-service';
+import { buildQuotationGcsPath, buildEpcQtnGcsPath } from './epc-coding';
+import { pool } from './db';
 import {
   runZeroTrustValidation,
   runDryRunSimulation,
@@ -974,84 +976,87 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const offerId = parseInt(req.params.id);
       if (isNaN(offerId)) return res.status(400).json({ error: 'Invalid offer ID' });
 
-      // Fetch offer + customer CC/CO codes
-      const rows = await db
-        .select({
-          id:           offers.id,
-          offerNumber:  offers.offerNumber,
-          customerName: offers.customerName,
-          customerId:   offers.customerId,
-          continentCode: customers.continentCode,
-          countryCode:  customers.countryCode,
-        })
-        .from(offers)
-        .leftJoin(customers, eq(customers.id, offers.customerId))
-        .where(eq(offers.id, offerId))
-        .limit(1);
+      // Fetch offer + customer geo codes and short_code
+      const result = await pool.query<{
+        id: number; offer_number: string; customer_name: string; revision: number;
+        subject: string; offer_type: string; customer_id: number;
+        continent_code: string; country_code: string; short_code: string;
+      }>(
+        `SELECT o.id, o.offer_number, o.customer_name, o.revision, o.subject, o.offer_type,
+                o.customer_id, c.continent_code, c.country_code, c.short_code
+         FROM offers o
+         LEFT JOIN customers c ON c.id = o.customer_id
+         WHERE o.id = $1`,
+        [offerId]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Offer not found' });
+      const offer = result.rows[0];
 
-      if (rows.length === 0) return res.status(404).json({ error: 'Offer not found' });
-      const offer = rows[0];
-
-      // Extract FY from offer number — e.g. OFR-2627-0018 → "2627"
-      const fyMatch = offer.offerNumber?.match(/OFR-(\d{4})-/);
+      // Extract FY from offer number — OFR-2627-0018 → "2627"
+      const fyMatch = offer.offer_number?.match(/OFR-(\d{4})-/);
       const fy = fyMatch ? fyMatch[1] : 'YYYY';
 
-      const tokenMap: Record<string, string> = {
-        CC:      offer.continentCode ?? 'CC',
-        CO:      offer.countryCode   ?? 'CO',
-        Cust:    offer.customerId    ? String(offer.customerId) : 'Cust',
-        FY:      fy,
-        OfferNo: offer.offerNumber ?? 'OfferNo',
-        Seq:     '001',
-        Label:   'quotation-document',
-        rev:     '00',
-        COMPANY: 'TPEL',
-      };
+      // Customer geo codes (required for path builder)
+      const cc  = offer.continent_code ?? null;
+      const co  = offer.country_code   ?? null;
+      const sc  = offer.short_code     ?? null;
+      const missingGeo = !cc || !co || !sc;
 
-      // Get all active EPC quotation rules
-      const rules = await db
-        .select({
-          id:           gcsGovernanceRules.id,
-          documentType: gcsGovernanceRules.documentType,
-          displayName:  gcsGovernanceRules.displayName,
-          pathTemplate: gcsGovernanceRules.pathTemplate,
-          governanceMode: gcsGovernanceRules.governanceMode,
-        })
-        .from(gcsGovernanceRules)
-        .where(
-          and(
-            eq(gcsGovernanceRules.moduleKey, 'epc'),
-            eq(gcsGovernanceRules.active, true),
-            or(
-              eq(gcsGovernanceRules.documentType, 'QUOTATION'),
-              eq(gcsGovernanceRules.documentType, 'EPC_QUOTATION'),
-            )
-          )
-        );
+      // Real subject slug (mirrors slugifySubject in quotation-pdf-artifact.ts)
+      const subjectSlug = (offer.subject || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .substring(0, 40)
+        .replace(/-+$/g, '') || 'offer';
 
-      const results = rules.map(rule => {
-        const { resolved, unresolvedTokens } = previewPath(rule.pathTemplate, tokenMap);
-        return {
-          ruleId:          rule.id,
-          documentType:    rule.documentType,
-          displayName:     rule.displayName,
-          pathTemplate:    rule.pathTemplate,
-          resolvedPath:    resolved,
-          unresolvedTokens,
-          conforms:        unresolvedTokens.length === 0,
-          governanceMode:  rule.governanceMode,
-        };
-      });
+      // Fetch all existing PDF artifacts for this offer
+      const artifacts = await pool.query(
+        `SELECT id, revision, price_mode, gcs_object_path, artifact_status, generated_at
+         FROM quotation_pdf_artifacts
+         WHERE offer_id = $1
+         ORDER BY generated_at ASC`,
+        [offerId]
+      );
+
+      // Count active artifacts to compute next seq
+      const activeCount = artifacts.rows.filter((a: any) => a.artifact_status === 'active').length;
+      const nextSeq = activeCount + 1;
+
+      // Compute next paths using the real builder (both combined and breakup)
+      let nextPaths: { priceMode: string; path: string }[] = [];
+      if (!missingGeo) {
+        const builder = offer.offer_type === 'project-linked' ? buildEpcQtnGcsPath : buildQuotationGcsPath;
+        nextPaths = ['combined', 'breakup', 'technical'].map(mode => ({
+          priceMode: mode,
+          path: builder(cc!, co!, sc!, fy, offer.offer_number, offer.revision, nextSeq, subjectSlug),
+        }));
+      }
 
       res.json({
         offer: {
           id:           offer.id,
-          offerNumber:  offer.offerNumber,
-          customerName: offer.customerName,
-          customerId:   offer.customerId,
+          offerNumber:  offer.offer_number,
+          customerName: offer.customer_name,
+          offerType:    offer.offer_type,
+          revision:     offer.revision,
+          subject:      offer.subject,
+          continentCode: cc,
+          countryCode:   co,
+          shortCode:     sc,
+          fyCode:        fy,
+          subjectSlug,
+          missingGeo,
         },
-        tokens: tokenMap,
-        results,
+        existingFiles: artifacts.rows.map((a: any) => ({
+          id:            a.id,
+          revision:      a.revision,
+          priceMode:     a.price_mode,
+          gcsObjectPath: a.gcs_object_path,
+          status:        a.artifact_status,
+          generatedAt:   a.generated_at,
+        })),
+        nextPaths,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
