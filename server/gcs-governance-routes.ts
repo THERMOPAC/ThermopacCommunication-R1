@@ -1167,9 +1167,9 @@ export function setupGcsGovernanceRoutes(app: Express): void {
 
       // Build the "geo-resolved template": fill in all static project-level tokens,
       // leave per-document tokens ({Seq},{Label},{rev}) as-is.
-      // New template: TPEL/{CC}/{CO}/{Cust}/{FY}/{Code}/Order_Contract/{Seq}-{Label}-rev-{rev}.pdf
-      // {CC}=continent, {CO}=country (appears only once), {Cust}=short code,
-      // {FY}=financial year, {Code}=EPC project code (e.g. 2627-018)
+      // Template: TPEL/{CC}/{CO}/{Cust}/{FY}/SOR_{Code}/Sales/Order_Contract/{Seq}-{Label}-rev-{rev}.pdf
+      // {CC}=continent, {CO}=country, {Cust}=short code, {FY}=financial year,
+      // {Code}=EPC project code (e.g. 2627-018) — folder becomes SOR_2627-018
       let geoResolvedTemplate: string | null = null;
       if (!missingGeo && geo) {
         geoResolvedTemplate = pathTemplate
@@ -1177,8 +1177,8 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           .replace('{CO}',   geo.countryCode)
           .replace('{Cust}', geo.customerShortCode)
           .replace('{FY}',   geo.fyCode)
-          .replace('{NNN}',  geo.projectSeq)
-          .replace('{Code}', geo.projectCode); // legacy fallback
+          .replace('{Code}', geo.projectCode)
+          .replace('{NNN}',  geo.projectSeq); // legacy fallback
       }
 
       // Get project code from DB for display when geo resolution fails
@@ -1216,10 +1216,10 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         const maxSeq = docs.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
 
         // Compute folder prefix matching the CO_DOCUMENT governance path
-        // TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/Sales/Order_Contract/
+        // TPEL/{CC}/{CO}/{Cust}/{FY}/SOR_{Code}/Sales/Order_Contract/
         const folderPrefix = missingGeo || !geo
           ? null
-          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/Sales/Order_Contract/`;
+          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/SOR_${geo.projectCode}/Sales/Order_Contract/`;
 
         // geoResolvedTemplate already has all project-level tokens filled in;
         // no per-order substitution needed in the new template (order number is not in path)
