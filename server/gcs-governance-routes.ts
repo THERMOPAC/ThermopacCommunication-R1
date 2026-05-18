@@ -16,6 +16,8 @@ import {
   gcsPathMigrationLog,
   insertGcsGovernanceRuleSchema,
   insertGcsGovernanceTokenSchema,
+  offers,
+  customers,
 } from '@shared/schema';
 import { eq, desc, and, or, ilike, isNull, isNotNull, count, sql, ne } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
@@ -961,6 +963,96 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         ? await db.select().from(gcsGovernanceAuditLog).where(and(...conditions)).orderBy(desc(gcsGovernanceAuditLog.eventAt)).limit(parseInt(limit as string))
         : await db.select().from(gcsGovernanceAuditLog).orderBy(desc(gcsGovernanceAuditLog.eventAt)).limit(parseInt(limit as string));
       res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GCS Path Test for a specific Offer ───────────────────────────────────
+  app.get('/api/offers/:id/gcs-path-test', ensureAuthenticated, async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+      if (isNaN(offerId)) return res.status(400).json({ error: 'Invalid offer ID' });
+
+      // Fetch offer + customer CC/CO codes
+      const rows = await db
+        .select({
+          id:           offers.id,
+          offerNumber:  offers.offerNumber,
+          customerName: offers.customerName,
+          customerId:   offers.customerId,
+          continentCode: customers.continentCode,
+          countryCode:  customers.countryCode,
+        })
+        .from(offers)
+        .leftJoin(customers, eq(customers.id, offers.customerId))
+        .where(eq(offers.id, offerId))
+        .limit(1);
+
+      if (rows.length === 0) return res.status(404).json({ error: 'Offer not found' });
+      const offer = rows[0];
+
+      // Extract FY from offer number — e.g. OFR-2627-0018 → "2627"
+      const fyMatch = offer.offerNumber?.match(/OFR-(\d{4})-/);
+      const fy = fyMatch ? fyMatch[1] : 'YYYY';
+
+      const tokenMap: Record<string, string> = {
+        CC:      offer.continentCode ?? 'CC',
+        CO:      offer.countryCode   ?? 'CO',
+        Cust:    offer.customerId    ? String(offer.customerId) : 'Cust',
+        FY:      fy,
+        OfferNo: offer.offerNumber ?? 'OfferNo',
+        Seq:     '001',
+        Label:   'quotation-document',
+        rev:     '00',
+        COMPANY: 'TPEL',
+      };
+
+      // Get all active EPC quotation rules
+      const rules = await db
+        .select({
+          id:           gcsGovernanceRules.id,
+          documentType: gcsGovernanceRules.documentType,
+          displayName:  gcsGovernanceRules.displayName,
+          pathTemplate: gcsGovernanceRules.pathTemplate,
+          governanceMode: gcsGovernanceRules.governanceMode,
+        })
+        .from(gcsGovernanceRules)
+        .where(
+          and(
+            eq(gcsGovernanceRules.moduleKey, 'epc'),
+            eq(gcsGovernanceRules.active, true),
+            or(
+              eq(gcsGovernanceRules.documentType, 'QUOTATION'),
+              eq(gcsGovernanceRules.documentType, 'EPC_QUOTATION'),
+            )
+          )
+        );
+
+      const results = rules.map(rule => {
+        const { resolved, unresolvedTokens } = previewPath(rule.pathTemplate, tokenMap);
+        return {
+          ruleId:          rule.id,
+          documentType:    rule.documentType,
+          displayName:     rule.displayName,
+          pathTemplate:    rule.pathTemplate,
+          resolvedPath:    resolved,
+          unresolvedTokens,
+          conforms:        unresolvedTokens.length === 0,
+          governanceMode:  rule.governanceMode,
+        };
+      });
+
+      res.json({
+        offer: {
+          id:           offer.id,
+          offerNumber:  offer.offerNumber,
+          customerName: offer.customerName,
+          customerId:   offer.customerId,
+        },
+        tokens: tokenMap,
+        results,
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

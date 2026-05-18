@@ -23,7 +23,7 @@ import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
   Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw, FlaskConical, EyeOff,
-  FileSpreadsheet, UploadCloud, ShoppingCart, FileSignature
+  FileSpreadsheet, UploadCloud, ShoppingCart, FileSignature, FolderSearch, CloudLightning
 } from "lucide-react";
 import { ExcelJS } from "@/lib/excel-client-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -264,6 +264,7 @@ export function OffersContent() {
   const [filterProp2, setFilterProp2] = useState("__all__");
   const [filterProp3, setFilterProp3] = useState("__all__");
   const [pdfDownloadOfferId, setPdfDownloadOfferId] = useState<number | null>(null);
+  const [gcsPathTestOffer, setGcsPathTestOffer] = useState<any>(null);
   const [confirmOrderOffer, setConfirmOrderOffer] = useState<any>(null);
   const [conversionResult, setConversionResult] = useState<any>(null);
   const [confirmDocFile, setConfirmDocFile] = useState<File | null>(null);
@@ -322,6 +323,17 @@ export function OffersContent() {
     }
     return map;
   }, [products, productChildLinks]);
+
+  const { data: gcsPathTestData, isLoading: gcsPathTestLoading } = useQuery<any>({
+    queryKey: ['/api/offers', gcsPathTestOffer?.id, 'gcs-path-test'],
+    queryFn: async () => {
+      if (!gcsPathTestOffer?.id) return null;
+      const r = await fetch(`/api/offers/${gcsPathTestOffer.id}/gcs-path-test`);
+      if (!r.ok) throw new Error((await r.json()).error || 'Failed');
+      return r.json();
+    },
+    enabled: !!gcsPathTestOffer?.id,
+  });
 
   const { data: customers = [] } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/customers'],
@@ -1172,6 +1184,14 @@ export function OffersContent() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-8 w-8 text-violet-600 opacity-60 hover:opacity-100"
+                            onClick={() => setGcsPathTestOffer(offer)}
+                            title="Test GCS Path"
+                          >
+                            <FolderSearch className="h-4 w-4" />
+                          </Button>
                           {isSuperuser && (
                             <Button
                               variant="ghost" size="icon"
@@ -2254,6 +2274,92 @@ export function OffersContent() {
             })()}
           </DialogContent>
         </Dialog>
+        {/* ── GCS Path Test Dialog ─────────────────────────────────────────── */}
+        <Dialog open={!!gcsPathTestOffer} onOpenChange={(open) => { if (!open) setGcsPathTestOffer(null); }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderSearch className="h-5 w-5 text-violet-600" />
+                GCS Governance Path Test
+              </DialogTitle>
+              <DialogDescription>
+                Resolved GCS storage paths for <span className="font-semibold">{gcsPathTestOffer?.offerNumber}</span> — {gcsPathTestOffer?.customerName}
+              </DialogDescription>
+            </DialogHeader>
+
+            {gcsPathTestLoading && (
+              <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Resolving paths…</span>
+              </div>
+            )}
+
+            {!gcsPathTestLoading && gcsPathTestData && (
+              <div className="space-y-4">
+                {/* Token summary */}
+                <div className="rounded-md bg-violet-50 border border-violet-200 p-3">
+                  <p className="text-xs font-semibold text-violet-700 mb-2 uppercase tracking-wide">Tokens Used</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(gcsPathTestData.tokens as Record<string, string>).map(([k, v]) => (
+                      <span key={k} className="inline-flex items-center gap-1 text-xs bg-white border border-violet-200 text-violet-800 rounded px-2 py-0.5 font-mono">
+                        <span className="text-violet-400">{`{${k}}`}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span>{v}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rule results */}
+                {gcsPathTestData.results.length === 0 ? (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>No active GCS quotation rules found.</AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-3">
+                    {gcsPathTestData.results.map((r: any) => (
+                      <div key={r.ruleId} className={`rounded-md border p-3 space-y-2 ${r.conforms ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            {r.conforms
+                              ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                              : <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />}
+                            <span className="font-semibold text-sm">{r.displayName}</span>
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 font-mono">{r.documentType}</Badge>
+                          </div>
+                          <Badge className={`text-[10px] px-1.5 py-0 ${r.governanceMode === 'enforced' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+                            {r.governanceMode ?? 'monitor'}
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-[11px] text-muted-foreground font-mono truncate" title={r.pathTemplate}>
+                            <span className="text-muted-foreground/60">Template: </span>{r.pathTemplate}
+                          </p>
+                          <p className="text-xs font-mono break-all text-violet-800 bg-white rounded border border-violet-100 px-2 py-1">
+                            {r.resolvedPath}
+                          </p>
+                        </div>
+
+                        {!r.conforms && (
+                          <p className="text-xs text-amber-700">
+                            Unresolved tokens: {r.unresolvedTokens.map((t: string) => `{${t}}`).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGcsPathTestOffer(null)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <PdfDownloadDialog
           offerId={pdfDownloadOfferId}
           onClose={() => setPdfDownloadOfferId(null)}
