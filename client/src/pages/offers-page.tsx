@@ -337,6 +337,17 @@ export function OffersContent() {
     enabled: !!gcsPathTestOffer?.id,
   });
 
+  const { data: gcsCoPathData, isLoading: gcsCoPathLoading } = useQuery<any>({
+    queryKey: ['/api/offers', gcsPathTestOffer?.id, 'gcs-co-path-test'],
+    queryFn: async () => {
+      if (!gcsPathTestOffer?.id) return null;
+      const r = await fetch(`/api/offers/${gcsPathTestOffer.id}/gcs-co-path-test`);
+      if (!r.ok) throw new Error((await r.json()).error || 'Failed');
+      return r.json();
+    },
+    enabled: !!gcsPathTestOffer?.id,
+  });
+
   const { data: customers = [] } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/customers'],
   });
@@ -2415,6 +2426,98 @@ export function OffersContent() {
                 </div>
               </div>
             )}
+
+            {/* ── Customer Order Path section ────────────────────── */}
+            <div className="border-t pt-3 mt-1">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <FolderSearch className="h-3.5 w-3.5" />
+                Customer Order (CO) Path
+              </p>
+
+              {gcsCoPathLoading && (
+                <div className="flex items-center gap-2 py-2 text-muted-foreground text-xs">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Resolving CO path…
+                </div>
+              )}
+
+              {!gcsCoPathLoading && gcsCoPathData && !gcsCoPathData.converted && (
+                <p className="text-xs text-muted-foreground italic">
+                  This offer has not been converted to an order yet — no CO path exists.
+                </p>
+              )}
+
+              {!gcsCoPathLoading && gcsCoPathData?.converted && gcsCoPathData.missingProject && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>Order number <span className="font-mono">{gcsCoPathData.orderNumber}</span> found but no project is linked to this conversion.</AlertDescription>
+                </Alert>
+              )}
+
+              {!gcsCoPathLoading && gcsCoPathData?.converted && !gcsCoPathData.missingProject && (
+                <div className="space-y-3">
+                  {/* Project identity badges */}
+                  <div className="flex flex-wrap gap-1.5 text-xs">
+                    {[
+                      ['Project', gcsCoPathData.projectCode ?? '—'],
+                      ['Order', gcsCoPathData.orderNumber ?? '—'],
+                      ['Seq', gcsCoPathData.projectSeq ?? '—'],
+                      ['CC', gcsCoPathData.continentCode ?? '—'],
+                      ['CO', gcsCoPathData.countryCode ?? '—'],
+                      ['SC', gcsCoPathData.shortCode ?? '—'],
+                      ['FY', gcsCoPathData.fyCode ?? '—'],
+                    ].map(([label, val]) => (
+                      <span key={label} className="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 font-mono">
+                        <span className="text-blue-500">{label}:</span>
+                        <span className="font-semibold text-blue-900">{val}</span>
+                      </span>
+                    ))}
+                  </div>
+
+                  {gcsCoPathData.missingGeo && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>Project is missing geo codes — update the customer record on the project first.</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* CO folder prefix */}
+                  {gcsCoPathData.folderPrefix && (
+                    <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2">
+                      <p className="text-[10px] text-blue-600 font-semibold uppercase mb-1">CO Folder Prefix</p>
+                      <p className="text-[11px] font-mono break-all text-blue-900">{gcsCoPathData.folderPrefix}</p>
+                      <p className="text-[10px] text-blue-500 mt-1 flex items-center gap-1">
+                        <span className="font-mono bg-blue-100 px-1 rounded">Next seq: {String(gcsCoPathData.nextCoSeq).padStart(3,'0')}</span>
+                        · Filename = <span className="font-mono">{'{seq}-{label}-rev-{rev}.{ext}'}</span> (set at upload)
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Existing CO documents */}
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+                      CO Docs Already on GCS ({gcsCoPathData.existingCoDocs?.length ?? 0})
+                    </p>
+                    {!gcsCoPathData.existingCoDocs?.length ? (
+                      <p className="text-xs text-muted-foreground italic">No CO documents uploaded for this order yet.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {gcsCoPathData.existingCoDocs.map((d: any) => (
+                          <div key={d.id} className={`rounded border px-2 py-1.5 flex items-start gap-2 ${d.status === 'active' ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                            <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${d.status === 'active' ? 'text-green-600' : 'text-slate-400'}`} />
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-mono break-all text-slate-800">{d.gcsObjectPath}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                seq {String(d.attachmentSeq).padStart(3,'0')} · {d.documentLabel} · {d.originalFileName}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setGcsPathTestOffer(null)}>Close</Button>

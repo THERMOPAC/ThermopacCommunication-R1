@@ -29,7 +29,7 @@ import {
   getIssuedTokenStats,
   getIssuedTokens,
 } from './services/gcs-governance-service';
-import { buildQuotationGcsPath, buildEpcQtnGcsPath } from './epc-coding';
+import { buildQuotationGcsPath, buildEpcQtnGcsPath, resolveProjectGeoCodes } from './epc-coding';
 import { pool } from './db';
 import {
   runZeroTrustValidation,
@@ -1049,6 +1049,85 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           generatedAt:   a.generated_at,
         })),
         nextSeq,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Customer Order Path sub-endpoint ─────────────────────────────────────
+  // GET /api/offers/:id/gcs-co-path-test
+  // Returns existing CO documents + resolved CO folder prefix for an offer that
+  // has been converted to an order. Scoped to the linked project.
+  app.get('/api/offers/:id/gcs-co-path-test', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const offerId = parseInt(req.params.id);
+      if (isNaN(offerId)) return res.status(400).json({ error: 'Invalid offer ID' });
+
+      // Find conversion snapshot → project_id + order_number
+      const convResult = await pool.query(
+        `SELECT project_id, order_number FROM offer_conversion_snapshots
+         WHERE offer_id = $1 LIMIT 1`,
+        [offerId]
+      );
+      if (convResult.rows.length === 0) {
+        return res.json({ converted: false });
+      }
+      const { project_id: projectId, order_number: orderNumber } = convResult.rows[0];
+      if (!projectId) {
+        return res.json({ converted: true, projectId: null, orderNumber, missingProject: true });
+      }
+
+      // Resolve project geo codes (throws if project has missing geo)
+      let geo: any;
+      let missingGeo = false;
+      try {
+        geo = await resolveProjectGeoCodes(projectId);
+      } catch {
+        missingGeo = true;
+      }
+
+      // Existing CO documents for this project + order
+      const coDocs = await pool.query(
+        `SELECT id, customer_order_number, document_label, revision_code,
+                attachment_seq, gcs_object_path, original_file_name, status, created_at
+         FROM customer_order_documents
+         WHERE project_id = $1 AND customer_order_number = $2
+         ORDER BY attachment_seq ASC`,
+        [projectId, orderNumber]
+      );
+
+      // Next CO seq
+      const maxCoSeq = coDocs.rows.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
+      const nextCoSeq = maxCoSeq + 1;
+
+      // Folder prefix (the part we know before label+filename are chosen)
+      const folderPrefix = missingGeo ? null
+        : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/CO/${orderNumber}/`;
+
+      res.json({
+        converted: true,
+        projectId,
+        projectCode:  geo?.projectCode  ?? null,
+        projectSeq:   geo?.projectSeq   ?? null,
+        orderNumber,
+        continentCode: geo?.continentCode ?? null,
+        countryCode:   geo?.countryCode   ?? null,
+        shortCode:     geo?.customerShortCode ?? null,
+        fyCode:        geo?.fyCode        ?? null,
+        missingGeo,
+        folderPrefix,
+        nextCoSeq,
+        existingCoDocs: coDocs.rows.map((r: any) => ({
+          id:                  r.id,
+          documentLabel:       r.document_label,
+          revisionCode:        r.revision_code,
+          attachmentSeq:       r.attachment_seq,
+          gcsObjectPath:       r.gcs_object_path,
+          originalFileName:    r.original_file_name,
+          status:              r.status,
+          createdAt:           r.created_at,
+        })),
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
