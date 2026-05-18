@@ -132,7 +132,7 @@ interface MonitorStats {
 
 const MODULE_LABELS: Record<string, string> = {
   epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design", hr: "HR / Admin",
-  legal: "Legal", finance: "Finance", sales: "Sales", sap: "SAP", legacy: "Legacy",
+  legal: "Legal", finance: "Finance", sap: "SAP", legacy: "Legacy",
 };
 
 const MODULE_COLORS: Record<string, string> = {
@@ -143,7 +143,6 @@ const MODULE_COLORS: Record<string, string> = {
   hr: "bg-pink-100 text-pink-800",
   legal: "bg-indigo-100 text-indigo-800",
   finance: "bg-red-100 text-red-800",
-  sales: "bg-yellow-100 text-yellow-800",
   sap: "bg-teal-100 text-teal-800",
   legacy: "bg-gray-100 text-gray-700",
 };

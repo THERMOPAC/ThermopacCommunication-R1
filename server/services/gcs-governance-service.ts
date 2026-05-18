@@ -215,9 +215,6 @@ const SEED_RULES = [
   { moduleKey: 'epc', submoduleKey: 'procurement',  documentType: 'DATASHEET',       displayName: 'PPPC Procurement Datasheet',  rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/{ListNo}/{Tag}/{Seq}_ds-rev-{rev}.{ext}', revisionMode: 'numeric', notes: 'pppc-routes.ts — hardcoded, correct root' },
   { moduleKey: 'epc', submoduleKey: 'quotation',     documentType: 'QUOTATION',     displayName: 'Offer PDF (Standalone)',              rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/Open_Quotations/{OfferNo}/{Seq}-{Label}-rev-{rev}.pdf', revisionMode: 'numeric',   notes: 'buildQuotationGcsPath() in epc-coding.ts. Unified Open_Quotations root (2026-05). Revision is filename suffix, not folder prefix. Example: TPEL/SA/BR/10357/2627/Open_Quotations/OFR-2627-0017/001-combined-quotation-rev-00.pdf' },
   { moduleKey: 'epc', submoduleKey: 'epc_quotation', documentType: 'EPC_QUOTATION', displayName: 'Offer PDF (Project-Linked)',           rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/Open_Quotations/{OfferNo}/{Seq}-{Label}-rev-{rev}.pdf', revisionMode: 'numeric',   notes: 'buildEpcQtnGcsPath() in epc-coding.ts. Unified Open_Quotations root (2026-05). Revision is filename suffix, not folder prefix. Example: TPEL/SA/BR/10357/2627/Open_Quotations/OFR-2627-0017/001-quotation-document-rev-00.pdf' },
-  // Sales — Order & Contract confirmation documents
-  { moduleKey: 'sales', submoduleKey: 'customer_order', documentType: 'CUSTOMER_ORDER', displayName: 'Customer Order (Standalone)',     rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/Open_Orders/{OfferNo}/{Seq}-{Subject}-rev-{rev}.pdf',            revisionMode: 'numeric',   governanceMode: 'db-driven', notes: 'Standalone Offer → Order confirmation document. No project NNN. Mirrors Open_Quotations structure. 2026-05.' },
-  { moduleKey: 'sales', submoduleKey: 'sales_contract', documentType: 'SALES_CONTRACT', displayName: 'Sales Contract (Project-Linked)', rootPrefix: 'TPEL', pathTemplate: 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/Contracts/{OfferNo}/{Seq}-{Subject}-rev-{rev}.pdf',       revisionMode: 'numeric',   governanceMode: 'db-driven', notes: 'Project-Linked Quotation → Sales Contract. Scoped under project NNN/Contracts. 2026-05.' },
   // DVS
   { moduleKey: 'dvs', submoduleKey: 'staging',      documentType: 'DVS_STAGING',     displayName: 'DVS Drawing Staging',         rootPrefix: 'TPEL/STAGING', pathTemplate: 'TPEL/STAGING/DRAWINGS/{ProjectCode}/{DrawingNo}/rev-{rev}/original/{filename}',        revisionMode: 'numeric',   notes: 'drawing-verification-routes.ts' },
   // QMS — TRANSITIONAL ROOT: QMS/ is approved for existing files only.
@@ -252,10 +249,6 @@ const SEED_RULES = [
   { moduleKey: 'legal', submoduleKey: 'contracts',    documentType: 'LEGAL_DOCUMENT',  displayName: 'Legal Document / Contract',    rootPrefix: 'TPEL/LEGAL',    pathTemplate: 'TPEL/LEGAL/{CompanyFY}/{ContractType}/{EntityName}/{filename}',                  revisionMode: 'none',       notes: 'Family B — company legal. legal-management-routes.ts. Target path set 2026-05 (Option C). {ContractType}: NDA, Service, Purchase, Employment, Civil, Criminal, IP. Existing files: Legal_Documents/{Category}/{EntityName}/... — migration pending.' },
   // Finance — critical violations flagged; Phase 3 migration approved, not yet executed
   { moduleKey: 'finance', submoduleKey: 'brc',        documentType: 'BRC_DOCUMENT',    displayName: 'Bank Realisation Certificate', rootPrefix: 'Accounts',      pathTemplate: 'Accounts/{FY}/{filename}',                                                      revisionMode: 'none',       notes: '🚨 WRONG ROOT — Phase 3 migration approved but not yet executed. Target: TPEL/FINANCE/BRC/{CompanyFY}/{filename}. Route: server/finance-routes-fixed.ts (Phase 2A lock-down in place).' },
-  // Sales — offer templates are company-wide evergreen library (confirmed 2026-05).
-  // No FY segment (approved Decision 1). Route already uses TPEL/Templates/Offers/... —
-  // governance rule corrected to match actual route and canonical TPEL/SALES/TEMPLATES/ target.
-  { moduleKey: 'sales', submoduleKey: 'offer_template',documentType: 'OFFER_TEMPLATE', displayName: 'Offer / Quotation Template',  rootPrefix: 'TPEL/SALES/TEMPLATES', pathTemplate: 'TPEL/SALES/TEMPLATES/{TemplateSlug}/{TemplateSlug}_{Seq}.{ext}',  revisionMode: 'none',       notes: 'Family B — company-wide evergreen library. No FY segment (approved 2026-05 Decision 1). No label segment (approved 2026-05). Example: TPEL/SALES/TEMPLATES/uor-standard-offer/uor-standard-offer_001.pdf. sales-marketing-routes.ts.' },
   // SAP — {DocType} discriminator added per Decision 2 (2026-05).
   // {DocType} controlled vocabulary: QUOTE, GRPO, PO, GENERAL.
   // Existing files: Vendor_Quotes/{VendorCode}/{Seq}/{filename} — migration pending.
@@ -268,6 +261,11 @@ const SEED_RULES = [
 
 export async function seedGovernanceData(): Promise<void> {
   try {
+    // Remove retired Sales module rules from DB (CUSTOMER_ORDER, SALES_CONTRACT, OFFER_TEMPLATE
+    // were removed 2026-05 — these paths are governed by the EPC module or have no governance rule).
+    await db.delete(gcsGovernanceRules)
+      .where(eq(gcsGovernanceRules.moduleKey, 'sales'));
+
     // Seed tokens (upsert by tokenName)
     for (const token of SEED_TOKENS) {
       await db.insert(gcsGovernanceTokenRegistry)
