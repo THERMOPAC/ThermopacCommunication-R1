@@ -447,11 +447,8 @@ export default function ProjectsPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="text-[11px] font-medium truncate max-w-[250px]">{project.shortDescription || project.projectName}</div>
+                                <div className="text-[11px] font-medium truncate max-w-[280px]" title={getProjectDisplayName(project)}>{getProjectDisplayName(project)}</div>
                                 {project.projectType && <div className="text-[9px] text-muted-foreground">{project.projectType}</div>}
-                                {project.projectDisplayName && (
-                                  <div className="text-[9px] text-muted-foreground/70 font-mono truncate max-w-[250px]" title={project.projectDisplayName}>{project.projectDisplayName}</div>
-                                )}
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
