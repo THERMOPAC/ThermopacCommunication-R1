@@ -2377,10 +2377,8 @@ export function OffersContent() {
                               setGcsGenerating(prev => ({ ...prev, [mode]: true }));
                               setGcsLastResult(null);
                               try {
-                                const res = await apiRequest('POST', `/api/sales-marketing/offers/${gcsPathTestData.offer.id}/generate-and-store`, { priceMode: mode });
-                                const data = await res.json();
-                                if (!res.ok) throw new Error(data.error || 'Upload failed');
-                                setGcsLastResult({ mode, gcsObjectPath: data.gcsObjectPath, attachmentSeq: data.attachmentSeq });
+                                const data = await apiRequest<{ artifactId: number; gcsObjectPath: string; attachmentSeq: number }>('POST', `/api/sales-marketing/offers/${gcsPathTestData.offer.id}/generate-and-store`, { priceMode: mode });
+                                setGcsLastResult({ mode, gcsObjectPath: (data as any).gcsObjectPath, attachmentSeq: (data as any).attachmentSeq });
                                 queryClient.invalidateQueries({ queryKey: ['/api/offers', gcsPathTestData.offer.id, 'gcs-path-test'] });
                               } catch (err: any) {
                                 toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
