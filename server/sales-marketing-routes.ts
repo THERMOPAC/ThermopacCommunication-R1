@@ -1098,6 +1098,23 @@ export function setupSalesMarketingRoutes(app: Express) {
     }
   });
 
+  router.delete('/offer-subjects', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { subject } = req.body;
+      if (!subject || !subject.trim()) return res.status(400).json({ error: 'Subject is required' });
+      // Prevent deleting a subject that is still in use by an offer
+      const inUse = await db.execute(sql`SELECT 1 FROM offers WHERE subject = ${subject.trim()} LIMIT 1`);
+      if (inUse.rows.length > 0) {
+        return res.status(409).json({ error: 'Subject is still in use by one or more offers and cannot be removed.' });
+      }
+      await db.execute(sql`DELETE FROM offer_subjects WHERE subject = ${subject.trim()}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting offer subject:', error);
+      res.status(500).json({ error: 'Failed to delete offer subject' });
+    }
+  });
+
   router.get('/offer-templates', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const templates = await db.select().from(offerTemplates).orderBy(offerTemplates.subject, offerTemplates.name);

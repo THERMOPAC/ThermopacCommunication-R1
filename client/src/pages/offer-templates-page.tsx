@@ -24,11 +24,6 @@ import {
 } from "lucide-react";
 import type { OfferTemplate, OfferTemplateRevision, OfferTemplateAuditEntry } from "@shared/schema";
 
-const defaultSubjectOptions = [
-  "Used Engine Oil Refinery Fully Automated PLC SCADA Control",
-  "Continuous Polishing System By Regenerative Adsorption",
-  "Spares for Refinery Equipment",
-];
 
 const languageOptions = ["English", "Spanish", "French", "Arabic", "Portuguese", "Russian"];
 
@@ -107,8 +102,7 @@ export default function OfferTemplatesPage() {
   });
 
   const subjectOptions = useMemo(() => {
-    const merged = new Set([...defaultSubjectOptions, ...offerSubjects]);
-    return Array.from(merged).sort();
+    return [...offerSubjects].sort();
   }, [offerSubjects]);
 
   const deleteMutation = useMutation({

@@ -1686,11 +1686,7 @@ export function OffersContent() {
                             <Select value={field.value} onValueChange={field.onChange}>
                               <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select subject" /></SelectTrigger></FormControl>
                               <SelectContent>
-                                {(offerSubjects.length > 0 ? offerSubjects : [
-                                  "Used Engine Oil Refinery Fully Automated PLC SCADA Control",
-                                  "Continuous Polishing System By Regenerative Adsorption",
-                                  "Spares for Refinery Equipment",
-                                ]).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                {offerSubjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                               </SelectContent>
                             </Select>
                             <FormMessage />
