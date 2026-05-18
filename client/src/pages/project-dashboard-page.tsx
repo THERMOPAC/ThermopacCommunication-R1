@@ -61,11 +61,18 @@ interface ChartData {
 }
 
 export default function ProjectDashboardPage() {
-  const { data: rawProjects = [], isLoading: projectsLoading } = useQuery<ProjectData[]>({
-    queryKey: ["/api/projects"],
+  // Use an explicit showTest=false URL so this query is never polluted
+  // by other components sharing the ["/api/projects"] cache key.
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<ProjectData[]>({
+    queryKey: ["/api/projects", { showTest: false }],
+    queryFn: async () => {
+      const res = await fetch("/api/projects?showTest=false", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch projects");
+      const data: (ProjectData & { isTest?: boolean })[] = await res.json();
+      // Belt-and-suspenders: strip any test project that slips through
+      return data.filter(p => !p.isTest);
+    },
   });
-  // Never show test-flagged projects on the dashboard
-  const projects = rawProjects.filter((p: ProjectData) => !p.isTest);
 
   const { isLoading: workOrdersLoading } = useQuery({
     queryKey: ["/api/production/work-orders"],
