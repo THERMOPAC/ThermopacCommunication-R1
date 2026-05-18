@@ -56,7 +56,7 @@ router.get("/projects", async (req, res) => {
         p.financial_year as "financialYear",
         p.is_test as "isTest",
         COALESCE(NULLIF(p.customer_name, ''), c.bp_name, '') as "customerName",
-        p.short_description as "shortDescription",
+        p.offer_subject as "offerSubject",
         p.project_display_name as "projectDisplayName"
       FROM projects p
       LEFT JOIN customers c ON p.customer_id = c.id

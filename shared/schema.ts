@@ -1950,10 +1950,10 @@ export const projects = pgTable('projects', {
   // Test data flag — hides from normal views; only visible to Superuser with toggle
   isTest: boolean('is_test').default(false).notNull(),
 
-  // EPC Project Naming Governance v1 — canonical display name
-  // Format: {project_code} — {customer_name} — {short_description}
+  // EPC Project Naming Governance v2 — canonical display name
+  // Format: {project_code} — {customer_name} — {offer_subject}
   // e.g.  : 2627-018 — Industria Petroquimica Apollo — Used Engine Oil Refinery
-  shortDescription: text('short_description').notNull().default(''),
+  offerSubject: text('offer_subject').notNull().default(''),
   customerName: text('customer_name').notNull().default(''),
   projectDisplayName: text('project_display_name').notNull().default(''),
 });

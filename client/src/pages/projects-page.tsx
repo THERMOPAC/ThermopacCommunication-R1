@@ -39,8 +39,8 @@ interface Project {
   description: string;
   projectType?: string;
   priority?: string;
-  // Governance v1 fields
-  shortDescription?: string;
+  // Governance v2 fields
+  offerSubject?: string;
   projectDisplayName?: string;
 }
 
@@ -102,7 +102,7 @@ export default function ProjectsPage() {
   const [editProjectId, setEditProjectId] = useState<number | null>(null);
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ quantity: "", estimatedCost: "", actualCost: "", notes: "", status: "" });
-  const [editShortDesc, setEditShortDesc] = useState<{ open: boolean; projectId: number | null; projectCode: string; value: string }>({ open: false, projectId: null, projectCode: "", value: "" });
+  const [editOfferSubject, setEditOfferSubject] = useState<{ open: boolean; projectId: number | null; projectCode: string; value: string }>({ open: false, projectId: null, projectCode: "", value: "" });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -126,7 +126,7 @@ export default function ProjectsPage() {
     targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
     mdmt: "",
     electricalVoltage: "", electricalFrequency: "", electricalPhase: "",
-    shortDescription: "",
+    offerSubject: "",
   });
 
   const { data: customers } = useQuery<{ id: number; bpName: string; bpCode: string }[]>({
@@ -183,7 +183,7 @@ export default function ProjectsPage() {
         targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
         mdmt: "",
         electricalVoltage: "", electricalFrequency: "", electricalPhase: "",
-        shortDescription: "",
+        offerSubject: "",
       });
     },
     onError: (error: any) => {
@@ -213,19 +213,19 @@ export default function ProjectsPage() {
     },
   });
 
-  const updateShortDescMutation = useMutation({
-    mutationFn: async ({ id, shortDescription }: { id: number; shortDescription: string }) => {
-      const res = await apiRequest("PUT", `/api/projects/${id}`, { shortDescription });
+  const updateOfferSubjectMutation = useMutation({
+    mutationFn: async ({ id, offerSubject }: { id: number; offerSubject: string }) => {
+      const res = await apiRequest("PUT", `/api/projects/${id}`, { offerSubject });
       if (!res.ok) throw new Error("Failed to update");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
-      toast({ title: "Short description updated" });
-      setEditShortDesc({ open: false, projectId: null, projectCode: "", value: "" });
+      toast({ title: "Offer subject updated — display name recomputed" });
+      setEditOfferSubject({ open: false, projectId: null, projectCode: "", value: "" });
     },
     onError: () => {
-      toast({ title: "Failed to update short description", variant: "destructive" });
+      toast({ title: "Failed to update offer subject", variant: "destructive" });
     },
   });
 
@@ -468,12 +468,12 @@ export default function ProjectsPage() {
                                     <TooltipTrigger asChild>
                                       <button
                                         className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-                                        onClick={(e) => { e.stopPropagation(); setEditShortDesc({ open: true, projectId: project.id, projectCode: project.projectCode, value: project.shortDescription || "" }); }}
+                                        onClick={(e) => { e.stopPropagation(); setEditOfferSubject({ open: true, projectId: project.id, projectCode: project.projectCode, value: project.offerSubject || "" }); }}
                                       >
                                         <Pencil className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />
                                       </button>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-[10px]">Edit short description</TooltipContent>
+                                    <TooltipContent side="top" className="text-[10px]">Edit offer subject</TooltipContent>
                                   </Tooltip>
                                 </div>
                                 {project.projectType && <div className="text-[9px] text-muted-foreground">{project.projectType}</div>}
@@ -578,23 +578,23 @@ export default function ProjectsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Short Description * <span className="text-xs text-muted-foreground font-normal">(e.g. "Used Engine Oil Refinery")</span></Label>
+                <Label>Offer Subject * <span className="text-xs text-muted-foreground font-normal">(e.g. "Used Engine Oil Refinery")</span></Label>
                 <Input
-                  value={newProjectData.shortDescription}
-                  onChange={(e) => setNewProjectData(d => ({ ...d, shortDescription: e.target.value, name: e.target.value }))}
-                  placeholder="Concise project title — becomes part of the canonical name"
+                  value={newProjectData.offerSubject}
+                  onChange={(e) => setNewProjectData(d => ({ ...d, offerSubject: e.target.value, name: e.target.value }))}
+                  placeholder="Concise offer subject — becomes the third segment of the canonical name"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Project Display Name (auto-computed)</Label>
+                <Label className="text-xs text-muted-foreground">Project Display Name (auto-computed, read-only)</Label>
                 <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs font-mono text-slate-700">
                   {[
                     newProjectData.code || '…',
                     customers?.find(c => c.id.toString() === newProjectData.customerId)?.bpName || '…',
-                    newProjectData.shortDescription || '…',
+                    newProjectData.offerSubject || '…',
                   ].join(' \u2014 ')}
                 </div>
-                <p className="text-[10px] text-muted-foreground">Format: Code — Customer — Short Description</p>
+                <p className="text-[10px] text-muted-foreground">Format: Code — Customer — Offer Subject</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -734,7 +734,7 @@ export default function ProjectsPage() {
               <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
               <Button
                 onClick={() => createProjectMutation.mutate(newProjectData)}
-                disabled={createProjectMutation.isPending || !newProjectData.customerId || !newProjectData.shortDescription || !newProjectData.code || !newProjectData.projectType || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
+                disabled={createProjectMutation.isPending || !newProjectData.customerId || !newProjectData.offerSubject || !newProjectData.code || !newProjectData.projectType || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
               >
                 {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Project
@@ -744,42 +744,42 @@ export default function ProjectsPage() {
         </Dialog>
 
         {/* Short Description Edit Dialog */}
-        <Dialog open={editShortDesc.open} onOpenChange={(o) => !o && setEditShortDesc(s => ({ ...s, open: false }))}>
+        <Dialog open={editOfferSubject.open} onOpenChange={(o) => !o && setEditOfferSubject(s => ({ ...s, open: false }))}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
-              <DialogTitle>Edit Short Description</DialogTitle>
+              <DialogTitle>Edit Offer Subject</DialogTitle>
               <DialogDescription>
-                <span className="font-mono text-xs">{editShortDesc.projectCode}</span> — this is the third segment of the canonical project name.
+                <span className="font-mono text-xs">{editOfferSubject.projectCode}</span> — this is the third segment of the canonical project name. The display name will recompute automatically.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-1">
               <div className="space-y-1.5">
-                <Label className="text-xs">Short Description *</Label>
+                <Label className="text-xs">Offer Subject *</Label>
                 <Input
-                  value={editShortDesc.value}
-                  onChange={(e) => setEditShortDesc(s => ({ ...s, value: e.target.value }))}
+                  value={editOfferSubject.value}
+                  onChange={(e) => setEditOfferSubject(s => ({ ...s, value: e.target.value }))}
                   placeholder="e.g. Used Engine Oil Refinery"
                   className="text-sm"
                   autoFocus
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && editShortDesc.value.trim() && editShortDesc.projectId) {
-                      updateShortDescMutation.mutate({ id: editShortDesc.projectId, shortDescription: editShortDesc.value.trim() });
+                    if (e.key === 'Enter' && editOfferSubject.value.trim() && editOfferSubject.projectId) {
+                      updateOfferSubjectMutation.mutate({ id: editOfferSubject.projectId, offerSubject: editOfferSubject.value.trim() });
                     }
                   }}
                 />
               </div>
               <div className="rounded-md border bg-muted/50 px-3 py-2 text-[11px] font-mono text-slate-600 break-all">
-                {editShortDesc.projectCode || '…'} — <span className="text-muted-foreground">Customer</span> — {editShortDesc.value || '…'}
+                {editOfferSubject.projectCode || '…'} — <span className="text-muted-foreground">Customer</span> — {editOfferSubject.value || '…'}
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" size="sm" onClick={() => setEditShortDesc(s => ({ ...s, open: false }))}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => setEditOfferSubject(s => ({ ...s, open: false }))}>Cancel</Button>
               <Button
                 size="sm"
-                onClick={() => editShortDesc.projectId && updateShortDescMutation.mutate({ id: editShortDesc.projectId, shortDescription: editShortDesc.value.trim() })}
-                disabled={updateShortDescMutation.isPending || !editShortDesc.value.trim()}
+                onClick={() => editOfferSubject.projectId && updateOfferSubjectMutation.mutate({ id: editOfferSubject.projectId, offerSubject: editOfferSubject.value.trim() })}
+                disabled={updateOfferSubjectMutation.isPending || !editOfferSubject.value.trim()}
               >
-                {updateShortDescMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                {updateOfferSubjectMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Save
               </Button>
             </DialogFooter>

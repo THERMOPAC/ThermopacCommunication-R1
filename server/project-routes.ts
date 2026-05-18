@@ -70,14 +70,15 @@ function requireMinRole(req: Request, res: Response, minRole: string): boolean {
 }
 
 /**
- * EPC Project Naming Governance v1 — canonical display name assembly.
- * Format: {project_code} — {customer_name} — {short_description}
+ * EPC Project Naming Governance v2 — canonical display name assembly.
+ * Format: {project_code} — {customer_name} — {offer_subject}
  * The em dash (—) is the ONLY permitted separator. No hyphens.
+ * project_display_name is READ-ONLY outside Project Master.
  */
-function computeProjectDisplayName(code: string, customerName: string, shortDescription: string): string {
+function computeProjectDisplayName(code: string, customerName: string, offerSubject: string): string {
   const c = (code || '').trim();
   const n = (customerName || '').trim();
-  const d = (shortDescription || '').trim();
+  const d = (offerSubject || '').trim();
   const parts = [c, n, d].filter(Boolean);
   return parts.join(' \u2014 ');
 }
@@ -300,9 +301,9 @@ export function setupProjectRoutes(app: express.Express) {
         // Governance: resolve customerName from customers table (SSOT)
         const custRows = await tx.select({ bpName: customers.bpName }).from(customers).where(eq(customers.id, req.body.customerId)).limit(1);
         const resolvedCustomerName = (custRows[0]?.bpName || req.body.clientName || '').trim();
-        // short_description comes from offer subject (passed as shortDescription or name)
-        const resolvedShortDesc = (req.body.shortDescription || req.body.name || '').trim();
-        const resolvedDisplayName = computeProjectDisplayName(projectCode, resolvedCustomerName, resolvedShortDesc);
+        // offer_subject comes from the offer subject field (passed as offerSubject or name)
+        const resolvedOfferSubject = (req.body.offerSubject || req.body.shortDescription || req.body.name || '').trim();
+        const resolvedDisplayName = computeProjectDisplayName(projectCode, resolvedCustomerName, resolvedOfferSubject);
 
         const projectData = insertProjectSchema.parse({
           ...req.body,
@@ -316,11 +317,11 @@ export function setupProjectRoutes(app: express.Express) {
           managerId: userId,
           createdAt: new Date(),
           updatedAt: new Date(),
-          // Governance fields
-          shortDescription: resolvedShortDesc,
+          // Governance v2 fields
+          offerSubject: resolvedOfferSubject,
           customerName: resolvedCustomerName,
           projectDisplayName: resolvedDisplayName,
-          name: resolvedShortDesc || req.body.name,
+          name: resolvedOfferSubject || req.body.name,
         });
 
         const [created] = await tx.insert(projects).values(projectData).returning();
@@ -462,8 +463,8 @@ export function setupProjectRoutes(app: express.Express) {
         'manager_id', 'created_by', 'notes', 'tags', 'financial_year',
         'customer_id', 'discipline_code', 'mdmt',
         'inspection_by', 'voltage_frequency',
-        // Governance fields
-        'short_description', 'customer_name', 'project_display_name',
+        // Governance v2 fields (project_display_name is read-only — never accepted raw from client)
+        'offer_subject', 'customer_name', 'project_display_name',
       ];
       
       // Create a clean update object containing only valid fields
@@ -494,16 +495,17 @@ export function setupProjectRoutes(app: express.Express) {
       
       console.log("Final clean update data:", updateData);
 
-      // Governance: recompute project_display_name whenever source fields change
-      if (updateData.shortDescription !== undefined || updateData.customerName !== undefined || updateData.name !== undefined) {
-        const newShortDesc = (updateData.shortDescription ?? project.shortDescription ?? project.name ?? '').trim();
+      // Governance v2: recompute project_display_name whenever source fields change
+      if (updateData.offerSubject !== undefined || updateData.shortDescription !== undefined || updateData.customerName !== undefined || updateData.name !== undefined) {
+        const newOfferSubject = (updateData.offerSubject ?? updateData.shortDescription ?? project.offerSubject ?? project.name ?? '').trim();
         const newCustName = (updateData.customerName ?? project.customerName ?? project.clientName ?? '').trim();
         const newCode = project.code;
-        if (newCode && (newCustName || newShortDesc)) {
-          updateData.projectDisplayName = computeProjectDisplayName(newCode, newCustName, newShortDesc);
-          updateData.shortDescription = newShortDesc;
+        if (newCode && (newCustName || newOfferSubject)) {
+          updateData.projectDisplayName = computeProjectDisplayName(newCode, newCustName, newOfferSubject);
+          updateData.offerSubject = newOfferSubject;
+          delete updateData.shortDescription; // remove legacy alias to avoid confusing Drizzle
           updateData.customerName = newCustName;
-          if (updateData.shortDescription) updateData.name = updateData.shortDescription;
+          if (newOfferSubject) updateData.name = newOfferSubject;
         }
       }
 
@@ -636,17 +638,17 @@ export function setupProjectRoutes(app: express.Express) {
           SELECT
             p.id,
             COALESCE(NULLIF(p.customer_name, ''), c.bp_name, p.client_name, '') AS cname,
-            COALESCE(NULLIF(p.short_description, ''), p.name, '')              AS sdesc
+            COALESCE(NULLIF(p.offer_subject, ''), p.name, '')                   AS osubj
           FROM projects p
           LEFT JOIN customers c ON p.customer_id = c.id
         )
         UPDATE projects p
         SET
           customer_name        = cust.cname,
-          short_description    = cust.sdesc,
+          offer_subject        = cust.osubj,
           project_display_name = p.code
             || ' \u2014 ' || cust.cname
-            || ' \u2014 ' || cust.sdesc
+            || ' \u2014 ' || cust.osubj
         FROM cust
         WHERE p.id = cust.id
       `);
