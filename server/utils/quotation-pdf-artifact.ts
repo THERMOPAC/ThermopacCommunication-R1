@@ -3,6 +3,7 @@ import storage, { bucketName } from './storage-config';
 import { pool } from '../db';
 import { buildQuotationGcsPath, buildEpcQtnGcsPath, CONTINENT_NAME_TO_CODE, COUNTRY_NAME_TO_CODE } from '../epc-coding';
 
+
 function slugifySubject(subject: string): string {
   return subject
     .toLowerCase()
@@ -46,6 +47,64 @@ async function resolveCustomerGeoCodes(customerId: number): Promise<{
     throw new Error(`Customer ${customerId} missing geography codes (continent_code=${continentCode}, country_code=${countryCode})`);
   }
   return { continentCode, countryCode, shortCode: row.short_code };
+}
+
+/**
+ * Resolves the GCS object path for a quotation PDF by reading the path template
+ * from the gcs_governance_rules table. Falls back to the hardcoded builder if no
+ * active rule is found (safety net for fresh installs before seed runs).
+ *
+ * Token mapping (template → runtime value):
+ *   {CC}      → continentCode
+ *   {CO}      → countryCode
+ *   {Cust}    → customerShortCode
+ *   {FY}      → fyCode
+ *   {OfferNo} → offerNumber (slashes replaced with dashes)
+ *   {Seq}     → attachmentSeq zero-padded to 3 digits
+ *   {Label}   → subjectSlug
+ *   {rev}     → revision zero-padded to 2 digits (template already contains literal "-rev-")
+ */
+async function resolveQuotationGcsPathFromDb(
+  documentType: 'QUOTATION' | 'EPC_QUOTATION',
+  continentCode: string,
+  countryCode: string,
+  customerShortCode: string,
+  fyCode: string,
+  offerNumber: string,
+  revision: number,
+  attachmentSeq: number,
+  subjectSlug: string,
+): Promise<string> {
+  const ruleRow = await pool.query(
+    `SELECT path_template FROM gcs_governance_rules
+     WHERE document_type = $1 AND (active IS NULL OR active = true)
+     ORDER BY id ASC LIMIT 1`,
+    [documentType]
+  );
+  const template: string | null = ruleRow.rows[0]?.path_template ?? null;
+
+  if (!template) {
+    // Safety fallback — should never happen after seed runs
+    console.warn(`[quotation-pdf] No active DB rule for ${documentType} — falling back to hardcoded builder`);
+    return documentType === 'EPC_QUOTATION'
+      ? buildEpcQtnGcsPath(continentCode, countryCode, customerShortCode, fyCode, offerNumber, revision, attachmentSeq, subjectSlug)
+      : buildQuotationGcsPath(continentCode, countryCode, customerShortCode, fyCode, offerNumber, revision, attachmentSeq, subjectSlug);
+  }
+
+  const seq = String(attachmentSeq).padStart(3, '0');
+  const rev = String(revision).padStart(2, '0');
+  const safeOfferNo = offerNumber.replace(/\//g, '-');
+  const label = subjectSlug || 'offer';
+
+  return template
+    .replace('{CC}',      continentCode)
+    .replace('{CO}',      countryCode)
+    .replace('{Cust}',    customerShortCode)
+    .replace('{FY}',      fyCode)
+    .replace('{OfferNo}', safeOfferNo)
+    .replace('{Seq}',     seq)
+    .replace('{Label}',   label)
+    .replace('{rev}',     rev);
 }
 
 export async function storeQuotationPdfArtifact(
@@ -97,7 +156,8 @@ export async function storeQuotationPdfArtifact(
       [offerId, revision, priceMode]
     );
 
-    gcsObjectPath = buildQuotationGcsPath(
+    gcsObjectPath = await resolveQuotationGcsPathFromDb(
+      'QUOTATION',
       geo.continentCode, geo.countryCode, geo.shortCode,
       fy, offerNumber, revision, attachmentSeq, subjectSlug
     );
@@ -206,7 +266,8 @@ export async function storeQuotationPdfArtifactTwoPhase(
       [offerId, revision, priceMode]
     );
 
-    gcsObjectPath = buildQuotationGcsPath(
+    gcsObjectPath = await resolveQuotationGcsPathFromDb(
+      'QUOTATION',
       geo.continentCode, geo.countryCode, geo.shortCode,
       fy, offerNumber, revision, attachmentSeq, subjectSlug
     );
@@ -395,7 +456,8 @@ export async function attachConfirmedArtifactToEpc(
     const offerSubject = offerSubjectResult.rows[0]?.subject || '';
     const epcSubjectSlug = slugifySubject(offerSubject);
 
-    const epcGcsPath = buildEpcQtnGcsPath(
+    const epcGcsPath = await resolveQuotationGcsPathFromDb(
+      'EPC_QUOTATION',
       continentCode, countryCode, proj.short_code,
       proj.fy_code, offerNumber,
       artifact.revision,
