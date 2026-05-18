@@ -1177,8 +1177,8 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           .replace('{CO}',   geo.countryCode)
           .replace('{Cust}', geo.customerShortCode)
           .replace('{FY}',   geo.fyCode)
-          .replace('{Code}', geo.projectCode)
-          .replace('{NNN}',  geo.projectSeq); // legacy fallback
+          .replace('{NNN}',  geo.projectSeq)
+          .replace('{Code}', geo.projectCode); // legacy fallback
       }
 
       // Get project code from DB for display when geo resolution fails
@@ -1215,11 +1215,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         const docs = allCoDocs.rows.filter((r: any) => r.customer_order_number === orderNumber);
         const maxSeq = docs.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
 
-        // Compute folder prefix matching the new CO_DOCUMENT governance path
-        // TPEL/{CC}/{CO}/{Cust}/{FY}/{Code}/Order_Contract/
+        // Compute folder prefix matching the CO_DOCUMENT governance path
+        // TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/Sales/Order_Contract/
         const folderPrefix = missingGeo || !geo
           ? null
-          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectCode}/Order_Contract/`;
+          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/Sales/Order_Contract/`;
 
         // geoResolvedTemplate already has all project-level tokens filled in;
         // no per-order substitution needed in the new template (order number is not in path)
