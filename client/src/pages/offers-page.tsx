@@ -2480,14 +2480,37 @@ export function OffersContent() {
                     </Alert>
                   )}
 
+                  {/* DB-driven governance rule */}
+                  {gcsCoPathData.pathTemplate && (
+                    <div className="rounded border border-violet-300 bg-violet-50 px-3 py-2.5 space-y-2">
+                      <p className="text-[10px] font-semibold text-violet-700 uppercase tracking-wide">
+                        Governance Rule — CO_DOCUMENT (DB-Driven)
+                      </p>
+                      <div>
+                        <p className="text-[9px] text-violet-500 uppercase font-semibold mb-0.5">Template (from DB)</p>
+                        <p className="text-[11px] font-mono break-all text-violet-900 bg-white border border-violet-200 rounded px-2 py-1">
+                          {gcsCoPathData.pathTemplate}
+                        </p>
+                      </div>
+                      {gcsCoPathData.geoResolvedTemplate && (
+                        <div>
+                          <p className="text-[9px] text-violet-500 uppercase font-semibold mb-0.5">Geo-Resolved (project tokens filled in)</p>
+                          <p className="text-[11px] font-mono break-all text-violet-900 bg-white border border-violet-200 rounded px-2 py-1">
+                            {gcsCoPathData.geoResolvedTemplate}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* CO folder prefix */}
                   {gcsCoPathData.folderPrefix && (
-                    <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2">
-                      <p className="text-[10px] text-blue-600 font-semibold uppercase mb-1">CO Folder Prefix</p>
-                      <p className="text-[11px] font-mono break-all text-blue-900">{gcsCoPathData.folderPrefix}</p>
-                      <p className="text-[10px] text-blue-500 mt-1 flex items-center gap-1">
-                        <span className="font-mono bg-blue-100 px-1 rounded">Next seq: {String(gcsCoPathData.nextCoSeq).padStart(3,'0')}</span>
-                        · Filename = <span className="font-mono">{'{seq}-{label}-rev-{rev}.{ext}'}</span> (set at upload)
+                    <div className="rounded border border-green-200 bg-green-50 px-3 py-2">
+                      <p className="text-[10px] text-green-600 font-semibold uppercase mb-1">Folder Prefix (computed)</p>
+                      <p className="text-[11px] font-mono break-all text-green-900">{gcsCoPathData.folderPrefix}</p>
+                      <p className="text-[10px] text-green-600 mt-1">
+                        <span className="font-mono bg-green-100 px-1 rounded">Next seq: {String(gcsCoPathData.nextCoSeq).padStart(3,'0')}</span>
+                        {' '}· Filename = <span className="font-mono">{'{seq}-{label}-rev-{rev}.pdf'}</span>
                       </p>
                     </div>
                   )}

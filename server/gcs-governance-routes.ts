@@ -1101,9 +1101,34 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const maxCoSeq = coDocs.rows.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
       const nextCoSeq = maxCoSeq + 1;
 
-      // Folder prefix (the part we know before label+filename are chosen)
-      const folderPrefix = missingGeo ? null
-        : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/CO/${orderNumber}/`;
+      // Fetch CO_DOCUMENT governance rule from DB — single source of truth for path structure
+      const ruleRow = await pool.query(
+        `SELECT path_template, display_name, revision_mode
+         FROM gcs_governance_rules
+         WHERE document_type = 'CO_DOCUMENT' AND (active IS NULL OR active = true)
+         ORDER BY id ASC LIMIT 1`
+      );
+      const dbRule = ruleRow.rows[0] ?? null;
+      if (!dbRule) {
+        return res.status(500).json({ error: 'CO_DOCUMENT governance rule not found in DB — re-run the seed.' });
+      }
+      const pathTemplate: string = dbRule.path_template;
+
+      // Resolve geo tokens — leave per-document tokens ({Seq},{Label},{rev}) as-is
+      let geoResolvedTemplate: string | null = null;
+      let folderPrefix: string | null = null;
+      if (!missingGeo && geo) {
+        geoResolvedTemplate = pathTemplate
+          .replace('{CC}',   geo.continentCode)
+          .replace('{CO}',   geo.countryCode)
+          .replace('{Cust}', geo.customerShortCode)
+          .replace('{FY}',   geo.fyCode)
+          .replace('{Code}', geo.projectCode)
+          .replace('{NNN}',  geo.projectSeq); // legacy fallback
+        // Folder prefix = everything up to (and including) the last '/' before filename tokens
+        const lastSlash = geoResolvedTemplate.lastIndexOf('/');
+        folderPrefix = lastSlash >= 0 ? geoResolvedTemplate.substring(0, lastSlash + 1) : null;
+      }
 
       res.json({
         converted: true,
@@ -1116,6 +1141,8 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         shortCode:     geo?.customerShortCode ?? null,
         fyCode:        geo?.fyCode        ?? null,
         missingGeo,
+        pathTemplate,
+        geoResolvedTemplate,
         folderPrefix,
         nextCoSeq,
         existingCoDocs: coDocs.rows.map((r: any) => ({
