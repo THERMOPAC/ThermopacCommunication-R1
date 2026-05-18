@@ -142,6 +142,140 @@ export async function storeQuotationPdfArtifact(
   return { artifactId, gcsObjectPath, checksum };
 }
 
+/**
+ * Two-phase atomic store:
+ *   Phase 1 (inside transaction + advisory lock): allocate seq, supersede old, INSERT status='uploading'
+ *   Phase 2 (outside transaction): upload to GCS
+ *   On GCS success: UPDATE status='active'
+ *   On GCS failure: compensating rollback — DELETE new record + reactivate old superseded
+ * This guarantees: failed GCS upload never leaves a permanent DB artifact record.
+ */
+export async function storeQuotationPdfArtifactTwoPhase(
+  pdfBuffer: Buffer,
+  offerId: number,
+  offerNumber: string,
+  revision: number,
+  priceMode: string,
+  userId: number,
+): Promise<{ artifactId: number; gcsObjectPath: string; attachmentSeq: number; checksum: string }> {
+  const checksum = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+  const fileSize = pdfBuffer.length;
+  const fy = deriveFyCode();
+
+  const offerResult = await pool.query(
+    `SELECT customer_id, subject FROM offers WHERE id = $1`,
+    [offerId]
+  );
+  if (offerResult.rows.length === 0) throw new Error(`Offer not found: ${offerId}`);
+  const customerId = offerResult.rows[0].customer_id;
+  const subjectSlug = slugifySubject(offerResult.rows[0].subject || '');
+  const geo = await resolveCustomerGeoCodes(customerId);
+
+  // ── Phase 1: Atomic DB reservation ──────────────────────────────────────
+  const client = await pool.connect();
+  let artifactId: number;
+  let gcsObjectPath: string;
+  let attachmentSeq: number;
+  let supersededId: number | null = null;
+
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock($1)`, [offerId]);
+
+    const seqResult = await client.query(
+      `SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+       FROM quotation_pdf_artifacts
+       WHERE offer_id = $1 AND artifact_status != 'superseded'`,
+      [offerId]
+    );
+    attachmentSeq = (seqResult.rows[0] as any).next_seq;
+
+    const existingResult = await client.query(
+      `SELECT id FROM quotation_pdf_artifacts
+       WHERE offer_id = $1 AND revision = $2 AND price_mode = $3 AND artifact_status = 'active'
+       LIMIT 1`,
+      [offerId, revision, priceMode]
+    );
+    if (existingResult.rows.length > 0) {
+      supersededId = existingResult.rows[0].id;
+    }
+
+    await client.query(
+      `UPDATE quotation_pdf_artifacts SET artifact_status = 'superseded'
+       WHERE offer_id = $1 AND revision = $2 AND price_mode = $3 AND artifact_status = 'active'`,
+      [offerId, revision, priceMode]
+    );
+
+    gcsObjectPath = buildQuotationGcsPath(
+      geo.continentCode, geo.countryCode, geo.shortCode,
+      fy, offerNumber, revision, attachmentSeq, subjectSlug
+    );
+
+    const insertResult = await client.query(
+      `INSERT INTO quotation_pdf_artifacts
+       (offer_id, revision, price_mode, gcs_bucket, gcs_object_path, checksum_sha256, file_size_bytes,
+        artifact_status, generated_by, attachment_seq)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'uploading', $8, $9)
+       RETURNING id`,
+      [offerId, revision, priceMode, bucketName, gcsObjectPath, checksum, fileSize, userId, attachmentSeq]
+    );
+    artifactId = insertResult.rows[0].id;
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    client.release();
+    throw err;
+  }
+  client.release();
+
+  // ── Phase 2: GCS upload (outside transaction) ───────────────────────────
+  try {
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(gcsObjectPath);
+    await file.save(pdfBuffer, {
+      contentType: 'application/pdf',
+      metadata: {
+        contentType: 'application/pdf',
+        cacheControl: 'public, max-age=31536000',
+        metadata: {
+          offerId: String(offerId),
+          offerNumber,
+          revision: String(revision),
+          priceMode,
+          artifactId: String(artifactId),
+          checksumSha256: checksum,
+        },
+      },
+    });
+  } catch (gcsErr) {
+    // ── Compensating rollback — delete reservation + restore superseded ──
+    const comp = await pool.connect();
+    try {
+      await comp.query('BEGIN');
+      await comp.query(`DELETE FROM quotation_pdf_artifacts WHERE id = $1 AND artifact_status = 'uploading'`, [artifactId]);
+      if (supersededId !== null) {
+        await comp.query(`UPDATE quotation_pdf_artifacts SET artifact_status = 'active' WHERE id = $1`, [supersededId]);
+      }
+      await comp.query('COMMIT');
+    } catch (compErr) {
+      await comp.query('ROLLBACK');
+      console.error('[quotation-pdf] Compensating rollback failed after GCS error:', compErr);
+    } finally {
+      comp.release();
+    }
+    throw gcsErr;
+  }
+
+  // ── Phase 3: Activate record ────────────────────────────────────────────
+  await pool.query(
+    `UPDATE quotation_pdf_artifacts SET artifact_status = 'active' WHERE id = $1`,
+    [artifactId]
+  );
+
+  console.log(`[quotation-pdf] [2-phase] Artifact ${artifactId} active at ${gcsObjectPath} (seq=${attachmentSeq})`);
+  return { artifactId, gcsObjectPath, attachmentSeq, checksum };
+}
+
 export async function getActiveArtifact(offerId: number, revision: number, priceMode: string) {
   const result = await pool.query(
     `SELECT * FROM quotation_pdf_artifacts

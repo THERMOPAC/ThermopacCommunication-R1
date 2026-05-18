@@ -265,6 +265,8 @@ export function OffersContent() {
   const [filterProp3, setFilterProp3] = useState("__all__");
   const [pdfDownloadOfferId, setPdfDownloadOfferId] = useState<number | null>(null);
   const [gcsPathTestOffer, setGcsPathTestOffer] = useState<any>(null);
+  const [gcsGenerating, setGcsGenerating] = useState<Record<string, boolean>>({});
+  const [gcsLastResult, setGcsLastResult] = useState<{ mode: string; gcsObjectPath: string; attachmentSeq: number } | null>(null);
   const [confirmOrderOffer, setConfirmOrderOffer] = useState<any>(null);
   const [conversionResult, setConversionResult] = useState<any>(null);
   const [confirmDocFile, setConfirmDocFile] = useState<File | null>(null);
@@ -2345,38 +2347,71 @@ export function OffersContent() {
                   )}
                 </div>
 
-                {/* Generate section */}
-                <div className="border-t pt-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Generate PDF</p>
+                {/* Save to GCS section */}
+                <div className="border-t pt-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Save to GCS</p>
                     <span className="text-xs font-mono bg-violet-100 text-violet-800 border border-violet-200 rounded px-2 py-0.5">
                       Next seq: <span className="font-bold">{String(gcsPathTestData.nextSeq).padStart(3,'0')}</span>
                     </span>
                   </div>
+
                   {gcsPathTestData.offer.missingGeo ? (
-                    <p className="text-xs text-amber-700 italic">Fix customer geography to enable generation.</p>
+                    <p className="text-xs text-amber-700 italic">Fix customer geography codes first.</p>
                   ) : (
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { mode: 'combined',  label: 'Combined',  desc: 'Lump-sum total' },
                         { mode: 'breakup',   label: 'Breakup',   desc: 'Per-item prices' },
                         { mode: 'technical', label: 'Technical', desc: 'No pricing' },
-                      ].map(({ mode, label, desc }) => (
-                        <Button
-                          key={mode}
-                          variant="outline"
-                          className="flex flex-col h-auto py-2.5 px-3 gap-0.5 text-left items-start hover:border-violet-400 hover:bg-violet-50"
-                          onClick={() => {
-                            handleDownloadPdf(gcsPathTestData.offer.id, mode as any);
-                            setTimeout(() => queryClient.invalidateQueries({ queryKey: ['/api/offers', gcsPathTestData.offer.id, 'gcs-path-test'] }), 3000);
-                          }}
-                        >
-                          <span className="text-xs font-semibold text-slate-800 flex items-center gap-1">
-                            <CloudLightning className="h-3 w-3 text-violet-500" />{label}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">{desc}</span>
-                        </Button>
-                      ))}
+                      ].map(({ mode, label, desc }) => {
+                        const isGenerating = !!gcsGenerating[mode];
+                        const anyGenerating = Object.values(gcsGenerating).some(Boolean);
+                        return (
+                          <Button
+                            key={mode}
+                            variant="outline"
+                            disabled={isGenerating || anyGenerating}
+                            className="flex flex-col h-auto py-2.5 px-3 gap-0.5 text-left items-start hover:border-violet-400 hover:bg-violet-50 disabled:opacity-60"
+                            onClick={async () => {
+                              setGcsGenerating(prev => ({ ...prev, [mode]: true }));
+                              setGcsLastResult(null);
+                              try {
+                                const res = await apiRequest('POST', `/api/sales-marketing/offers/${gcsPathTestData.offer.id}/generate-and-store`, { priceMode: mode });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || 'Upload failed');
+                                setGcsLastResult({ mode, gcsObjectPath: data.gcsObjectPath, attachmentSeq: data.attachmentSeq });
+                                queryClient.invalidateQueries({ queryKey: ['/api/offers', gcsPathTestData.offer.id, 'gcs-path-test'] });
+                              } catch (err: any) {
+                                toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+                              } finally {
+                                setGcsGenerating(prev => ({ ...prev, [mode]: false }));
+                              }
+                            }}
+                          >
+                            <span className="text-xs font-semibold text-slate-800 flex items-center gap-1">
+                              {isGenerating
+                                ? <Loader2 className="h-3 w-3 animate-spin text-violet-500" />
+                                : <CloudLightning className="h-3 w-3 text-violet-500" />}
+                              {label}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">{desc}</span>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Final resolved GCS path after upload */}
+                  {gcsLastResult && (
+                    <div className="rounded border border-green-300 bg-green-50 px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                        <span className="text-xs font-semibold text-green-800 capitalize">
+                          {gcsLastResult.mode} PDF — Saved as seq {String(gcsLastResult.attachmentSeq).padStart(3,'0')}
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-mono break-all text-green-900 pl-5">{gcsLastResult.gcsObjectPath}</p>
                     </div>
                   )}
                 </div>

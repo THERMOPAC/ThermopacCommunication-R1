@@ -8,7 +8,7 @@ import { OfferPdfGenerator } from './offer-pdf-generator';
 import multer from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
-import { storeQuotationPdfArtifact, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifact, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
+import { storeQuotationPdfArtifact, storeQuotationPdfArtifactTwoPhase, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifact, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
 import crypto from 'crypto';
 import gcsClient, { bucketName as gcsBucketName } from './utils/storage-config';
 import { validateLabel } from '../shared/gcs-label-vocabulary';
@@ -1878,6 +1878,99 @@ export function setupSalesMarketingRoutes(app: Express) {
     } catch (error) {
       console.error('Error generating offer PDF:', error);
       res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+  });
+
+  /**
+   * POST /offers/:id/generate-and-store
+   * Generates the quotation PDF and uploads it to GCS using a two-phase atomic commit.
+   * Returns JSON { artifactId, gcsObjectPath, attachmentSeq } — path is final only after upload.
+   * Failed GCS upload rolls back the DB record (no dangling artifact).
+   */
+  router.post('/offers/:id/generate-and-store', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const offer = await storage.getOfferById(id);
+      if (!offer) return res.status(404).json({ error: 'Offer not found' });
+      const priceMode = (req.body.priceMode as string) || 'combined';
+      if (!['combined', 'breakup', 'technical'].includes(priceMode)) {
+        return res.status(400).json({ error: 'Invalid priceMode' });
+      }
+      const userId = (req.user as any)?.id || 0;
+      const allItems = await storage.getOfferItems(id);
+
+      const generator = new OfferPdfGenerator({
+        offerNumber: offer.offerNumber,
+        revision: offer.revision || 0,
+        createdAt: offer.createdAt?.toISOString() || new Date().toISOString(),
+        customerName: offer.customerName,
+        customerEmail: offer.customerEmail || '',
+        customerAddress: offer.customerAddress || '',
+        contactPerson: offer.contactPerson || '',
+        subject: offer.subject,
+        currency: offer.currency,
+        subtotal: offer.subtotal,
+        discountPercent: offer.discountPercent || '0',
+        discountAmount: offer.discountAmount || '0',
+        taxPercent: offer.taxPercent || '0',
+        taxAmount: offer.taxAmount || '0',
+        totalAmount: offer.totalAmount,
+        validUntil: offer.validUntil?.toISOString() || '',
+        paymentTerms: offer.paymentTerms || '',
+        deliveryTerms: offer.deliveryTerms || '',
+        notes: offer.notes || '',
+        termsAndConditions: offer.termsAndConditions || '',
+        items: allItems.map(item => ({
+          description: item.description,
+          productCode: item.productCode || '',
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent || '0',
+          totalPrice: item.totalPrice,
+          hsnSacCode: item.hsnSacCode || '',
+          isSubItem: item.isSubItem || false,
+        })),
+      }, { priceMode: priceMode as 'combined' | 'breakup' | 'technical' });
+
+      let templatePath = offer.templatePdfPath;
+      let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
+      if (!templatePath || !fs.existsSync(templatePath)) {
+        const offerLang = (offer as any).language || 'English';
+        const [autoTemplate] = await db.select().from(offerTemplates).where(
+          and(
+            eq(offerTemplates.subject, offer.subject),
+            eq(offerTemplates.language, offerLang),
+            eq(offerTemplates.isActive, true)
+          )
+        ).limit(1);
+        if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
+          templatePath = autoTemplate.filePath;
+          templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+        }
+      }
+
+      let pdfBuffer: Buffer;
+      if (templatePath && fs.existsSync(templatePath)) {
+        pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templatePageRange);
+      } else {
+        pdfBuffer = await generator.generateToBuffer();
+      }
+
+      const result = await storeQuotationPdfArtifactTwoPhase(
+        pdfBuffer, id, offer.offerNumber, offer.revision || 0, priceMode, userId
+      );
+
+      res.json({
+        artifactId:    result.artifactId,
+        gcsObjectPath: result.gcsObjectPath,
+        attachmentSeq: result.attachmentSeq,
+        checksum:      result.checksum,
+      });
+    } catch (error: any) {
+      console.error('[generate-and-store] Error:', error);
+      res.status(500).json({ error: error.message || 'Failed to generate and store PDF' });
     }
   });
 
