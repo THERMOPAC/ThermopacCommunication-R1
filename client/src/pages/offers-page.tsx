@@ -2345,25 +2345,41 @@ export function OffersContent() {
                   )}
                 </div>
 
-                {/* Next upload paths */}
-                {!gcsPathTestData.offer.missingGeo && gcsPathTestData.nextPaths.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide mb-2">
-                      Next Upload Will Be Stored At (seq {String(gcsPathTestData.existingFiles.filter((f: any) => f.status === 'active').length + 1).padStart(3,'0')})
-                    </p>
-                    <div className="space-y-1.5">
-                      {gcsPathTestData.nextPaths.map((p: any) => (
-                        <div key={p.priceMode} className="rounded border border-violet-200 bg-violet-50 px-2 py-1.5 flex items-start gap-2">
-                          <CloudLightning className="h-3.5 w-3.5 mt-0.5 shrink-0 text-violet-500" />
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-mono break-all text-violet-900">{p.path}</p>
-                            <p className="text-[10px] text-violet-500 mt-0.5 capitalize">{p.priceMode} PDF</p>
-                          </div>
-                        </div>
+                {/* Generate section */}
+                <div className="border-t pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Generate PDF</p>
+                    <span className="text-xs font-mono bg-violet-100 text-violet-800 border border-violet-200 rounded px-2 py-0.5">
+                      Next seq: <span className="font-bold">{String(gcsPathTestData.nextSeq).padStart(3,'0')}</span>
+                    </span>
+                  </div>
+                  {gcsPathTestData.offer.missingGeo ? (
+                    <p className="text-xs text-amber-700 italic">Fix customer geography to enable generation.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { mode: 'combined',  label: 'Combined',  desc: 'Lump-sum total' },
+                        { mode: 'breakup',   label: 'Breakup',   desc: 'Per-item prices' },
+                        { mode: 'technical', label: 'Technical', desc: 'No pricing' },
+                      ].map(({ mode, label, desc }) => (
+                        <Button
+                          key={mode}
+                          variant="outline"
+                          className="flex flex-col h-auto py-2.5 px-3 gap-0.5 text-left items-start hover:border-violet-400 hover:bg-violet-50"
+                          onClick={() => {
+                            handleDownloadPdf(gcsPathTestData.offer.id, mode as any);
+                            setTimeout(() => queryClient.invalidateQueries({ queryKey: ['/api/offers', gcsPathTestData.offer.id, 'gcs-path-test'] }), 3000);
+                          }}
+                        >
+                          <span className="text-xs font-semibold text-slate-800 flex items-center gap-1">
+                            <CloudLightning className="h-3 w-3 text-violet-500" />{label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{desc}</span>
+                        </Button>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 

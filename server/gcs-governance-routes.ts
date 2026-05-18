@@ -1019,19 +1019,10 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         [offerId]
       );
 
-      // Count active artifacts to compute next seq
-      const activeCount = artifacts.rows.filter((a: any) => a.artifact_status === 'active').length;
-      const nextSeq = activeCount + 1;
-
-      // Compute next paths using the real builder (both combined and breakup)
-      let nextPaths: { priceMode: string; path: string }[] = [];
-      if (!missingGeo) {
-        const builder = offer.offer_type === 'project-linked' ? buildEpcQtnGcsPath : buildQuotationGcsPath;
-        nextPaths = ['combined', 'breakup', 'technical'].map(mode => ({
-          priceMode: mode,
-          path: builder(cc!, co!, sc!, fy, offer.offer_number, offer.revision, nextSeq, subjectSlug),
-        }));
-      }
+      // Next seq = max across ALL non-superseded artifacts for this offer (mirrors atomic lock logic)
+      const nonSuperseded = artifacts.rows.filter((a: any) => a.artifact_status !== 'superseded');
+      const maxSeq = nonSuperseded.reduce((m: number, a: any) => Math.max(m, a.attachment_seq ?? 0), 0);
+      const nextSeq = maxSeq + 1;
 
       res.json({
         offer: {
@@ -1053,10 +1044,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           revision:      a.revision,
           priceMode:     a.price_mode,
           gcsObjectPath: a.gcs_object_path,
+          attachmentSeq: a.attachment_seq,
           status:        a.artifact_status,
           generatedAt:   a.generated_at,
         })),
-        nextPaths,
+        nextSeq,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

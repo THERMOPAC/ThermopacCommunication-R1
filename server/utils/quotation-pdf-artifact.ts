@@ -71,35 +71,53 @@ export async function storeQuotationPdfArtifact(
   const subjectSlug = slugifySubject(offerResult.rows[0].subject || '');
   const geo = await resolveCustomerGeoCodes(customerId);
 
-  const seqResult = await pool.query(
-    `SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
-     FROM quotation_pdf_artifacts
-     WHERE offer_id = $1 AND revision = $2 AND artifact_status != 'superseded'`,
-    [offerId, revision]
-  );
-  const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+  // ── Atomic seq allocation ──────────────────────────────────────────────
+  // Acquire per-offer advisory lock inside a transaction so that concurrent
+  // PDF generations for the same offer never race on the seq counter.
+  const client = await pool.connect();
+  let artifactId: number;
+  let gcsObjectPath: string;
+  let attachmentSeq: number;
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock($1)`, [offerId]);
 
-  await pool.query(
-    `UPDATE quotation_pdf_artifacts
-     SET artifact_status = 'superseded'
-     WHERE offer_id = $1 AND revision = $2 AND price_mode = $3 AND artifact_status = 'active'`,
-    [offerId, revision, priceMode]
-  );
+    const seqResult = await client.query(
+      `SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+       FROM quotation_pdf_artifacts
+       WHERE offer_id = $1 AND artifact_status != 'superseded'`,
+      [offerId]
+    );
+    attachmentSeq = (seqResult.rows[0] as any).next_seq;
 
-  const gcsObjectPath = buildQuotationGcsPath(
-    geo.continentCode, geo.countryCode, geo.shortCode,
-    fy, offerNumber, revision, attachmentSeq, subjectSlug
-  );
+    await client.query(
+      `UPDATE quotation_pdf_artifacts
+       SET artifact_status = 'superseded'
+       WHERE offer_id = $1 AND revision = $2 AND price_mode = $3 AND artifact_status = 'active'`,
+      [offerId, revision, priceMode]
+    );
 
-  const insertResult = await pool.query(
-    `INSERT INTO quotation_pdf_artifacts
-     (offer_id, revision, price_mode, gcs_bucket, gcs_object_path, checksum_sha256, file_size_bytes,
-      artifact_status, generated_by, attachment_seq)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9)
-     RETURNING id`,
-    [offerId, revision, priceMode, bucketName, gcsObjectPath, checksum, fileSize, userId, attachmentSeq]
-  );
-  const artifactId = insertResult.rows[0].id;
+    gcsObjectPath = buildQuotationGcsPath(
+      geo.continentCode, geo.countryCode, geo.shortCode,
+      fy, offerNumber, revision, attachmentSeq, subjectSlug
+    );
+
+    const insertResult = await client.query(
+      `INSERT INTO quotation_pdf_artifacts
+       (offer_id, revision, price_mode, gcs_bucket, gcs_object_path, checksum_sha256, file_size_bytes,
+        artifact_status, generated_by, attachment_seq)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9)
+       RETURNING id`,
+      [offerId, revision, priceMode, bucketName, gcsObjectPath, checksum, fileSize, userId, attachmentSeq]
+    );
+    artifactId = insertResult.rows[0].id;
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 
   const bucket = storage.bucket(bucketName);
   const file = bucket.file(gcsObjectPath);
