@@ -1,0 +1,126 @@
+name: Agent — CI (Build + Type Check)
+
+on:
+  push:
+    paths:
+      - 'local-document-agent/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'local-document-agent/**'
+      - '.github/workflows/ci.yml'
+  release:
+    types: [published]
+
+defaults:
+  run:
+    working-directory: local-document-agent
+
+jobs:
+  # ── Job 1: TypeScript type-check (fast, ubuntu) ──────────────────────────────
+  typecheck:
+    name: TypeScript strict check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type-check (noEmit — fail on any TS error)
+        run: npx tsc --noEmit --strict
+
+      - name: Confirm strict flags in tsconfig.json
+        run: |
+          node -e "
+          const ts = JSON.parse(require('fs').readFileSync('tsconfig.json','utf8'));
+          const opts = ts.compilerOptions || {};
+          const required = ['strict','esModuleInterop','forceConsistentCasingInFileNames'];
+          const missing = required.filter(f => !opts[f]);
+          if (missing.length) { console.error('Missing strict flags:', missing.join(', ')); process.exit(1); }
+          console.log('tsconfig.json strict flags OK.');
+          "
+
+      - name: No .js source files in src/
+        run: |
+          COUNT=$(find src -name '*.js' 2>/dev/null | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "ERROR: .js files found in src/ — TypeScript-only source required:"
+            find src -name '*.js'
+            exit 1
+          fi
+          echo "Source is TypeScript-only. OK."
+
+  # ── Job 2: Full build + Windows artefact validation ──────────────────────────
+  build:
+    name: Build & validate (Windows)
+    runs-on: windows-latest
+    needs: typecheck
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile TypeScript
+        run: npm run build
+
+      - name: Verify compiled output files
+        shell: pwsh
+        run: |
+          $required = @(
+            'dist/index.js', 'dist/config.js', 'dist/api-client.js',
+            'dist/job-runner.js', 'dist/file-service.js', 'dist/logger.js',
+            'dist/path-guard.js', 'dist/hash-service.js', 'dist/service-health.js'
+          )
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) { Write-Error "Missing dist files: $($missing -join ', ')"; exit 1 }
+          Write-Output "All $($required.Count) dist files present. Build OK."
+
+      - name: Validate Windows service scripts
+        shell: pwsh
+        run: |
+          $scripts = @('install-service.bat','uninstall-service.bat','start-service.bat','stop-service.bat')
+          $missing = $scripts | Where-Object { -not (Test-Path $_) }
+          if ($missing) { Write-Error "Missing scripts: $($missing -join ', ')"; exit 1 }
+          Write-Output "All Windows .bat service scripts present."
+
+      - name: Validate package.json metadata
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          if (-not $pkg.version) { Write-Error "package.json missing version field"; exit 1 }
+          if (-not $pkg.main)    { Write-Error "package.json missing main field";    exit 1 }
+          if ($pkg.main -ne 'dist/index.js') {
+            Write-Error "package.json main must be 'dist/index.js', got: $($pkg.main)"; exit 1
+          }
+          Write-Output "Package: $($pkg.name) v$($pkg.version) — main: $($pkg.main)"
+
+      - name: Upload dist/ as CI artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-dist-${{ github.sha }}
+          path: local-document-agent/dist/
+          retention-days: 14
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-logs-${{ github.sha }}
+          path: local-document-agent/
+          retention-days: 5

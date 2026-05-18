@@ -352,8 +352,8 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
       if (fs.existsSync(fp)) archive.file(fp, { name: root + f });
     }
 
-    // GitHub Actions CI workflow files
-    const workflowDir = path.join(process.cwd(), '.github', 'workflows');
+    // GitHub Actions CI workflow files (bundled inside local-document-agent/.github/workflows/)
+    const workflowDir = path.join(AGENT_DIR, '.github', 'workflows');
     const workflowFiles = ['ci.yml', 'build.yml', 'lint.yml', 'release.yml'];
     for (const f of workflowFiles) {
       const fp = path.join(workflowDir, f);

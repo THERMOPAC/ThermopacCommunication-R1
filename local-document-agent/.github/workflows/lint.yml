@@ -1,0 +1,74 @@
+name: Agent — TypeScript Lint & Type Check
+
+on:
+  push:
+    paths:
+      - 'local-document-agent/**'
+      - '.github/workflows/lint.yml'
+  pull_request:
+    paths:
+      - 'local-document-agent/**'
+      - '.github/workflows/lint.yml'
+
+defaults:
+  run:
+    working-directory: local-document-agent
+
+jobs:
+  typecheck:
+    name: TypeScript strict check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run TypeScript type-check (noEmit)
+        run: npx tsc --noEmit --strict
+
+      - name: Check tsconfig strict flags
+        run: |
+          node -e "
+          const fs = require('fs');
+          const ts = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
+          const opts = ts.compilerOptions || {};
+          const required = ['strict', 'esModuleInterop', 'forceConsistentCasingInFileNames'];
+          const missing = required.filter(f => !opts[f]);
+          if (missing.length > 0) {
+            console.error('tsconfig.json is missing required strict flags:', missing.join(', '));
+            process.exit(1);
+          }
+          console.log('tsconfig.json strict flags OK:', required.join(', '));
+          "
+
+      - name: Detect any .js source files (should be .ts only)
+        run: |
+          JS_FILES=$(find src -name '*.js' 2>/dev/null | wc -l)
+          if [ "$JS_FILES" -gt 0 ]; then
+            echo "ERROR: Plain .js files found in src/ — all source must be TypeScript:"
+            find src -name '*.js'
+            exit 1
+          fi
+          echo "Source directory is TypeScript-only."
+
+      - name: Check for TODO/FIXME security markers
+        run: |
+          COUNT=$(grep -rn "TODO\|FIXME\|HACK\|XXX" src/ 2>/dev/null | grep -iv "test\|example" | wc -l)
+          echo "Found $COUNT TODO/FIXME markers (informational — not blocking)"
+          grep -rn "TODO\|FIXME\|HACK\|XXX" src/ 2>/dev/null || true
+
+      - name: Upload type-check logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-logs-${{ github.sha }}
+          path: local-document-agent/
+          retention-days: 5
