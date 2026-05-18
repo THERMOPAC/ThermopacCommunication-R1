@@ -274,7 +274,7 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
     builtAt:      fs.existsSync(distFile) ? fs.statSync(distFile).mtime.toISOString() : null,
     distSizeKb,
     files: [
-      { name: 'dist/index.js',                         desc: 'Compiled agent (Node.js bundle, no build step needed)', sizeKb: distSizeKb },
+      { name: 'dist/*.js',                              desc: 'Compiled agent modules (9 files, no build step needed)', sizeKb: distSizeKb },
       { name: 'package.json',                          desc: 'For npm install (installs node-windows service wrapper)' },
       { name: 'config.json.example',                   desc: 'Configuration template — copy to config.json and fill in' },
       { name: 'README.md',                             desc: 'Quick reference' },
@@ -322,8 +322,12 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
 
     const root = `thermopac-doc-agent-v${AGENT_VERSION}/`;
 
-    // Core compiled file
-    archive.file(distFile, { name: root + 'dist/index.js' });
+    // All compiled dist files
+    const distDir = path.join(AGENT_DIR, 'dist');
+    const distFiles = fs.readdirSync(distDir).filter(f => f.endsWith('.js'));
+    for (const f of distFiles) {
+      archive.file(path.join(distDir, f), { name: root + 'dist/' + f });
+    }
 
     // Config and docs
     const staticFiles = [
