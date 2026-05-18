@@ -1151,8 +1151,10 @@ export function setupGcsGovernanceRoutes(app: Express): void {
          ORDER BY id ASC LIMIT 1`
       );
       const dbRule = ruleRow.rows[0] ?? null;
-      const pathTemplate: string = dbRule?.path_template
-        ?? 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/CO/{CO}/{Seq}-{Label}-rev-{rev}.{ext}';
+      if (!dbRule) {
+        return res.status(500).json({ error: 'CO_DOCUMENT governance rule not found in DB — re-run the seed.' });
+      }
+      const pathTemplate: string = dbRule.path_template;
 
       // Resolve geo codes
       let geo: any;
@@ -1163,33 +1165,20 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         missingGeo = true;
       }
 
-      // Build the "geo-resolved template": fill in all static geo tokens,
-      // leave per-document tokens ({Seq},{Label},{rev},{ext}) as-is.
-      // NOTE: {CO} appears twice in the template — position 2 = country code,
-      // position after literal CO/ = customer order number.
-      // We resolve left-to-right: first {CO} → countryCode, second → kept as {OrderNo}.
+      // Build the "geo-resolved template": fill in all static project-level tokens,
+      // leave per-document tokens ({Seq},{Label},{rev}) as-is.
+      // New template: TPEL/{CC}/{CO}/{Cust}/{FY}/{Code}/Order_Contract/{Seq}-{Label}-rev-{rev}.pdf
+      // {CC}=continent, {CO}=country (appears only once), {Cust}=short code,
+      // {FY}=financial year, {Code}=EPC project code (e.g. 2627-018)
       let geoResolvedTemplate: string | null = null;
       if (!missingGeo && geo) {
-        // Replace tokens we know statically, handling the {CO} overload explicitly
-        // by splitting on the literal "CO/" folder boundary.
-        const parts = pathTemplate.split('/CO/');
-        if (parts.length === 2) {
-          const prefix = parts[0]
-            .replace('{CC}',   geo.continentCode)
-            .replace('{CO}',   geo.countryCode)
-            .replace('{Cust}', geo.customerShortCode)
-            .replace('{FY}',   geo.fyCode)
-            .replace('{NNN}',  geo.projectSeq);
-          const suffix = parts[1]; // keeps {CO}/{Seq}-{Label}-rev-{rev}.{ext}
-          geoResolvedTemplate = `${prefix}/CO/${suffix}`;
-        } else {
-          // Fallback: simple replace (leaves second {CO} for order number)
-          geoResolvedTemplate = pathTemplate
-            .replace('{CC}',   geo.continentCode)
-            .replace('{Cust}', geo.customerShortCode)
-            .replace('{FY}',   geo.fyCode)
-            .replace('{NNN}',  geo.projectSeq);
-        }
+        geoResolvedTemplate = pathTemplate
+          .replace('{CC}',   geo.continentCode)
+          .replace('{CO}',   geo.countryCode)
+          .replace('{Cust}', geo.customerShortCode)
+          .replace('{FY}',   geo.fyCode)
+          .replace('{Code}', geo.projectCode)
+          .replace('{NNN}',  geo.projectSeq); // legacy fallback
       }
 
       // Get project code from DB for display when geo resolution fails
@@ -1226,15 +1215,15 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         const docs = allCoDocs.rows.filter((r: any) => r.customer_order_number === orderNumber);
         const maxSeq = docs.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
 
-        // Compute folder prefix using actual code logic (matches customer-order-document-routes.ts)
+        // Compute folder prefix matching the new CO_DOCUMENT governance path
+        // TPEL/{CC}/{CO}/{Cust}/{FY}/{Code}/Order_Contract/
         const folderPrefix = missingGeo || !geo
           ? null
-          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/CO/${orderNumber}/`;
+          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectCode}/Order_Contract/`;
 
-        // Resolve geoResolvedTemplate for this specific order number
-        const resolvedForOrder = geoResolvedTemplate
-          ? geoResolvedTemplate.replace('{CO}', orderNumber)
-          : null;
+        // geoResolvedTemplate already has all project-level tokens filled in;
+        // no per-order substitution needed in the new template (order number is not in path)
+        const resolvedForOrder = geoResolvedTemplate ?? null;
 
         return {
           orderNumber,
