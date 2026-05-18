@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -204,7 +205,7 @@ export default function DrawingVerificationPage() {
 
   function getProjectName(projectId: number): string {
     const p = (projects as any[]).find((x: any) => x.id === projectId);
-    return p ? `${p.code} — ${p.name}` : String(projectId);
+    return p ? getProjectDisplayName(p) : String(projectId);
   }
 
   return (
@@ -240,7 +241,7 @@ export default function DrawingVerificationPage() {
                 <SelectContent>
                   <SelectItem value="all">All projects</SelectItem>
                   {(projects as any[]).map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}</SelectItem>
+                    <SelectItem key={p.id} value={String(p.id)}>{getProjectDisplayName(p)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -366,7 +367,7 @@ export default function DrawingVerificationPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {(projects as any[]).map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}</SelectItem>
+                    <SelectItem key={p.id} value={String(p.id)}>{getProjectDisplayName(p)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

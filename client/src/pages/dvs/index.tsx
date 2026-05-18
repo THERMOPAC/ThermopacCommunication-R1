@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -494,7 +495,7 @@ function UploadDialog({
                 <SelectContent>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
-                      {p.code}{p.name ? ` — ${p.name}` : ""}
+                      {getProjectDisplayName(p as any)}
                     </SelectItem>
                   ))}
                 </SelectContent>

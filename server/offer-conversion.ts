@@ -442,6 +442,9 @@ export async function executeOfferConversion(
     const currencyMap: Record<string, string> = { 'USD': 'USD', 'EUR': 'EUR', 'INR': 'INR' };
     const projectCurrency = currencyMap[offer.currency] || 'INR';
 
+    const shortDescription = (offer.subject || '').trim();
+    const displayName = [projectCode, customerName, shortDescription].filter(Boolean).join(' \u2014 ');
+
     const projectInsert = await client.query(
       `INSERT INTO projects
        (name, description, code, project_type, status, priority, financial_year,
@@ -451,6 +454,7 @@ export async function executeOfferConversion(
         source_offer_id, source_offer_revision, source_order_number, source_conversion_id, project_origin,
         automation_mode,
         discipline_code, mdmt, inspection_by, voltage_frequency,
+        short_description, customer_name, project_display_name,
         created_at, updated_at)
        VALUES ($1, $2, $3, $4, 'active', $5, $6,
                $7, $8, $9, $10,
@@ -459,6 +463,7 @@ export async function executeOfferConversion(
                $19, $20, $21, $22, 'sales_offer',
                $23,
                $24, $25, $26, $27,
+               $28, $29, $30,
                NOW(), NOW())
        RETURNING *`,
       [
@@ -469,7 +474,8 @@ export async function executeOfferConversion(
         offerId, offer.revision || 0, orderNumber, conversionId,
         epcParams.automationMode || 'full_auto',
         epcParams.disciplineCode || null, epcParams.mdmt || null,
-        epcParams.inspectionBy || null, epcParams.voltageFrequency || null
+        epcParams.inspectionBy || null, epcParams.voltageFrequency || null,
+        shortDescription, customerName, displayName,
       ]
     );
     const project = projectInsert.rows[0];

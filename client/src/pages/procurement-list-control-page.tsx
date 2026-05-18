@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
 import { apiRequest } from "@/lib/queryClient";
 import { fmtDate } from "@/lib/date-format";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -457,7 +458,7 @@ export default function ProcurementListControlPage() {
               <SelectContent>
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={String(p.id)}>
-                    {p.code} — {(p as any).clientName || (p as any).client_name || p.name}{((p as any).clientName || (p as any).client_name) && ((p as any).clientName || (p as any).client_name) !== p.name ? ` — ${p.name}` : ""}
+                    {getProjectDisplayName(p as any)}
                   </SelectItem>
                 ))}
               </SelectContent>

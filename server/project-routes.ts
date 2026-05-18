@@ -69,6 +69,19 @@ function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   return true;
 }
 
+/**
+ * EPC Project Naming Governance v1 — canonical display name assembly.
+ * Format: {project_code} — {customer_name} — {short_description}
+ * The em dash (—) is the ONLY permitted separator. No hyphens.
+ */
+function computeProjectDisplayName(code: string, customerName: string, shortDescription: string): string {
+  const c = (code || '').trim();
+  const n = (customerName || '').trim();
+  const d = (shortDescription || '').trim();
+  const parts = [c, n, d].filter(Boolean);
+  return parts.join(' \u2014 ');
+}
+
 // Helper function to validate a user is authenticated
 function ensureAuthenticated(req: Request, res: Response, next: express.NextFunction) {
   if (req.isAuthenticated()) {
@@ -284,6 +297,12 @@ export function setupProjectRoutes(app: express.Express) {
           continentCode, countryCode, req.body.customerId, fyCode, tx
         );
 
+        // Governance: resolve customerName from customers table (SSOT)
+        const custRows = await tx.select({ bpName: customers.bpName }).from(customers).where(eq(customers.id, req.body.customerId)).limit(1);
+        const resolvedCustomerName = (custRows[0]?.bpName || req.body.clientName || '').trim();
+        const resolvedShortDesc = (req.body.shortDescription || req.body.name || '').trim();
+        const resolvedDisplayName = computeProjectDisplayName(projectCode, resolvedCustomerName, resolvedShortDesc);
+
         const projectData = insertProjectSchema.parse({
           ...req.body,
           code: projectCode,
@@ -295,7 +314,12 @@ export function setupProjectRoutes(app: express.Express) {
           createdBy: userId,
           managerId: userId,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          // Governance fields
+          shortDescription: resolvedShortDesc,
+          customerName: resolvedCustomerName,
+          projectDisplayName: resolvedDisplayName,
+          name: resolvedShortDesc || req.body.name,
         });
 
         const [created] = await tx.insert(projects).values(projectData).returning();
@@ -436,7 +460,9 @@ export function setupProjectRoutes(app: express.Express) {
         'estimated_budget', 'actual_cost', 'currency', 'progress',
         'manager_id', 'created_by', 'notes', 'tags', 'financial_year',
         'customer_id', 'discipline_code', 'mdmt',
-        'inspection_by', 'voltage_frequency'
+        'inspection_by', 'voltage_frequency',
+        // Governance fields
+        'short_description', 'customer_name', 'project_display_name',
       ];
       
       // Create a clean update object containing only valid fields
@@ -466,7 +492,20 @@ export function setupProjectRoutes(app: express.Express) {
       updateData.updatedAt = new Date();
       
       console.log("Final clean update data:", updateData);
-      
+
+      // Governance: recompute project_display_name whenever source fields change
+      if (updateData.shortDescription !== undefined || updateData.customerName !== undefined || updateData.name !== undefined) {
+        const newShortDesc = (updateData.shortDescription ?? project.shortDescription ?? project.name ?? '').trim();
+        const newCustName = (updateData.customerName ?? project.customerName ?? project.clientName ?? '').trim();
+        const newCode = project.code;
+        if (newCode && (newCustName || newShortDesc)) {
+          updateData.projectDisplayName = computeProjectDisplayName(newCode, newCustName, newShortDesc);
+          updateData.shortDescription = newShortDesc;
+          updateData.customerName = newCustName;
+          if (updateData.shortDescription) updateData.name = updateData.shortDescription;
+        }
+      }
+
       const oldStatus = project.status;
       const newStatus = updateData.status;
 
@@ -582,6 +621,38 @@ export function setupProjectRoutes(app: express.Express) {
     } catch (error) {
       console.error(`Error updating project ${req.params.id}:`, error);
       res.status(400).json({ error: 'Failed to update project', details: error.message });
+    }
+  });
+
+  // ── Admin: backfill display names for all projects ────────────────────────
+  app.post('/api/admin/projects/backfill-display-names', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if ((req.user as any)?.role !== 'Superuser') {
+        return res.status(403).json({ error: 'Only Superuser can run the backfill.' });
+      }
+      const result = await pool.query(`
+        WITH cust AS (
+          SELECT
+            p.id,
+            COALESCE(NULLIF(p.customer_name, ''), c.bp_name, p.client_name, '') AS cname,
+            COALESCE(NULLIF(p.short_description, ''), p.name, '')              AS sdesc
+          FROM projects p
+          LEFT JOIN customers c ON p.customer_id = c.id
+        )
+        UPDATE projects p
+        SET
+          customer_name        = cust.cname,
+          short_description    = cust.sdesc,
+          project_display_name = p.code
+            || ' \u2014 ' || cust.cname
+            || ' \u2014 ' || cust.sdesc
+        FROM cust
+        WHERE p.id = cust.id
+      `);
+      return res.json({ success: true, rowsUpdated: result.rowCount });
+    } catch (err) {
+      console.error('[Backfill] project display names failed:', err);
+      return res.status(500).json({ error: 'Backfill failed', details: (err as Error).message });
     }
   });
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -168,7 +169,7 @@ export default function EpcControlTower() {
             <Radar className="h-6 w-6" /> EPC Control Tower
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {projectId ? (() => { const fp = (projects as any[]).find((p: any) => p.id === projectId); if (!fp) return 'Program-level EPC monitoring — all projects'; const cn = fp.clientName || fp.client_name || ''; return `Filtered: ${fp.code} — ${cn || fp.name}${cn && cn !== fp.name ? ` — ${fp.name}` : ''}`; })() : 'Program-level EPC monitoring — all projects'}
+            {projectId ? (() => { const fp = (projects as any[]).find((p: any) => p.id === projectId); if (!fp) return 'Program-level EPC monitoring — all projects'; return `Filtered: ${getProjectDisplayName(fp)}`; })() : 'Program-level EPC monitoring — all projects'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -183,7 +184,7 @@ export default function EpcControlTower() {
               <SelectItem value="all" className="text-xs">All Projects</SelectItem>
               {filteredProjects.map((p: any) => (
                 <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
-                  {p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}
+                  {getProjectDisplayName(p)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -258,7 +259,7 @@ export default function EpcControlTower() {
                     {(summary?.projects || []).map((p: any) => (
                       <tr key={p.id} className="border-b hover:bg-muted/50">
                         <td className="py-2 font-medium">
-                          {p.code} — {p.customer_name || p.name}
+                          {getProjectDisplayName(p)}
                           {p.project_origin === 'sales_offer' && (
                             <Badge variant="outline" className="ml-2 bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">
                               Order {p.source_order_number}
@@ -851,7 +852,7 @@ export default function EpcControlTower() {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground mb-1.5">Projects Without Manager ({ownership.projectsNoManager.length})</p>
                       {ownership.projectsNoManager.map((p: any) => (
-                        <div key={p.id} className="text-xs py-1 border-b last:border-0 font-medium">{p.code} — {p.clientName || p.name}{p.clientName && p.clientName !== p.name ? ` — ${p.name}` : ""}</div>
+                        <div key={p.id} className="text-xs py-1 border-b last:border-0 font-medium">{getProjectDisplayName(p)}</div>
                       ))}
                     </div>
                   )}

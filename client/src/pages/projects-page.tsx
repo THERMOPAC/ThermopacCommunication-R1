@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { fmtDate } from "@/lib/date-format";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +39,9 @@ interface Project {
   description: string;
   projectType?: string;
   priority?: string;
+  // Governance v1 fields
+  shortDescription?: string;
+  projectDisplayName?: string;
 }
 
 interface ProjectItem {
@@ -121,6 +125,7 @@ export default function ProjectsPage() {
     targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
     mdmt: "",
     electricalVoltage: "", electricalFrequency: "", electricalPhase: "",
+    shortDescription: "",
   });
 
   const { data: customers } = useQuery<{ id: number; bpName: string; bpCode: string }[]>({
@@ -139,13 +144,9 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (nextCodeData?.nextCode && newProjectDialogOpen) {
-      setNewProjectData(d => {
-        const selected = customers?.find(c => c.id.toString() === d.customerId);
-        const autoName = selected ? `${selected.bpName} - ${selected.bpCode} - ${nextCodeData.nextCode}` : d.name;
-        return { ...d, code: nextCodeData.nextCode, name: autoName };
-      });
+      setNewProjectData(d => ({ ...d, code: nextCodeData.nextCode }));
     }
-  }, [nextCodeData, newProjectDialogOpen, customers]);
+  }, [nextCodeData, newProjectDialogOpen]);
 
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/design/projects", { showTest: showTestData }],
@@ -182,6 +183,7 @@ export default function ProjectsPage() {
         targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
         mdmt: "",
         electricalVoltage: "", electricalFrequency: "", electricalPhase: "",
+        shortDescription: "",
       });
     },
     onError: (error: any) => {
@@ -445,8 +447,11 @@ export default function ProjectsPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="text-[11px] font-medium truncate max-w-[250px]">{project.projectName}</div>
+                                <div className="text-[11px] font-medium truncate max-w-[250px]">{project.shortDescription || project.projectName}</div>
                                 {project.projectType && <div className="text-[9px] text-muted-foreground">{project.projectType}</div>}
+                                {project.projectDisplayName && (
+                                  <div className="text-[9px] text-muted-foreground/70 font-mono truncate max-w-[250px]" title={project.projectDisplayName}>{project.projectDisplayName}</div>
+                                )}
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
@@ -539,9 +544,7 @@ export default function ProjectsPage() {
               <div className="space-y-2">
                 <Label>Select Customer *</Label>
                 <Select value={newProjectData.customerId} onValueChange={(v) => {
-                  const selected = customers?.find(c => c.id.toString() === v);
-                  const autoName = selected ? `${selected.bpName} - ${selected.bpCode} - ${newProjectData.code}` : "";
-                  setNewProjectData(d => ({ ...d, customerId: v, name: autoName }));
+                  setNewProjectData(d => ({ ...d, customerId: v }));
                 }}>
                   <SelectTrigger><SelectValue placeholder="Choose a customer..." /></SelectTrigger>
                   <SelectContent>
@@ -556,8 +559,23 @@ export default function ProjectsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Project Name *</Label>
-                <Input value={newProjectData.name} readOnly className="bg-muted" placeholder="Auto-populated from Customer + Project Code" />
+                <Label>Short Description * <span className="text-xs text-muted-foreground font-normal">(e.g. "Used Engine Oil Refinery")</span></Label>
+                <Input
+                  value={newProjectData.shortDescription}
+                  onChange={(e) => setNewProjectData(d => ({ ...d, shortDescription: e.target.value, name: e.target.value }))}
+                  placeholder="Concise project title — becomes part of the canonical name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Project Display Name (auto-computed)</Label>
+                <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs font-mono text-slate-700">
+                  {[
+                    newProjectData.code || '…',
+                    customers?.find(c => c.id.toString() === newProjectData.customerId)?.bpName || '…',
+                    newProjectData.shortDescription || '…',
+                  ].join(' \u2014 ')}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Format: Code — Customer — Short Description</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -697,7 +715,7 @@ export default function ProjectsPage() {
               <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
               <Button
                 onClick={() => createProjectMutation.mutate(newProjectData)}
-                disabled={createProjectMutation.isPending || !newProjectData.customerId || !newProjectData.name || !newProjectData.code || !newProjectData.projectType || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
+                disabled={createProjectMutation.isPending || !newProjectData.customerId || !newProjectData.shortDescription || !newProjectData.code || !newProjectData.projectType || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
               >
                 {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Project
