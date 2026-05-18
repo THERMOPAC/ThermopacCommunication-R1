@@ -18,7 +18,7 @@ import {
   ArrowRight, Plus, ChevronDown, ChevronRight, Briefcase,
   Clock, CheckCircle2, CheckCircle, PauseCircle, XCircle, AlertTriangle,
   FolderKanban, Hash, Wrench, ShoppingCart, BarChart3, ExternalLink,
-  FlaskConical, EyeOff, Pencil, FolderSearch,
+  FlaskConical, EyeOff, Pencil, FolderSearch, Upload,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Layout from "@/components/layout";
@@ -105,6 +105,43 @@ export default function ProjectsPage() {
   const [formData, setFormData] = useState({ quantity: "", estimatedCost: "", actualCost: "", notes: "", status: "" });
   const [editOfferSubject, setEditOfferSubject] = useState<{ open: boolean; projectId: number | null; projectCode: string; value: string }>({ open: false, projectId: null, projectCode: "", value: "" });
   const [gcsPathTestProject, setGcsPathTestProject] = useState<any>(null);
+  const [coUpload, setCoUpload] = useState<{
+    orderNumber: string; label: string; revisionCode: string;
+    file: File | null; isUploading: boolean; error: string | null;
+  } | null>(null);
+
+  const CO_LABELS = [
+    { value: 'letter-of-intent',       label: 'Letter of Intent' },
+    { value: 'purchase-order',          label: 'Purchase Order' },
+    { value: 'advance-payment-proof',   label: 'Advance Payment Proof' },
+    { value: 'scope-of-supply',         label: 'Scope of Supply' },
+    { value: 'technical-specification', label: 'Technical Specification' },
+    { value: 'payment-terms',           label: 'Payment Terms' },
+    { value: 'amendment',               label: 'Amendment' },
+  ];
+
+  async function handleCoDocUpload(projectId: number, orderNumber: string) {
+    if (!coUpload?.file || !coUpload.label) return;
+    setCoUpload(p => p ? { ...p, isUploading: true, error: null } : p);
+    try {
+      const fd = new FormData();
+      fd.append('projectId', String(projectId));
+      fd.append('customerOrderNumber', orderNumber);
+      fd.append('documentLabel', coUpload.label);
+      if (coUpload.revisionCode) fd.append('revisionCode', coUpload.revisionCode);
+      fd.append('file', coUpload.file);
+      const r = await fetch('/api/customer-order-documents', {
+        method: 'POST', body: fd, credentials: 'include',
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error ?? 'Upload failed');
+      setCoUpload(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'gcs-path-test'] });
+      toast({ title: 'Document uploaded', description: `${coUpload.label} saved to GCS.` });
+    } catch (e: any) {
+      setCoUpload(p => p ? { ...p, isUploading: false, error: e.message } : p);
+    }
+  }
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -940,7 +977,83 @@ export default function ProjectsPage() {
                             CO Docs on GCS ({order.docs.length})
                           </p>
                           {order.docs.length === 0 ? (
-                            <p className="text-[11px] text-muted-foreground italic">No documents uploaded yet.</p>
+                            <div className="space-y-2">
+                              <p className="text-[11px] text-muted-foreground italic">No documents uploaded yet.</p>
+                              {coUpload?.orderNumber === order.orderNumber ? (
+                                <div className="rounded border border-violet-200 bg-violet-50 px-3 py-2.5 space-y-2">
+                                  <p className="text-[10px] font-semibold text-violet-700 uppercase tracking-wide">Upload First Document</p>
+
+                                  {/* Document Label */}
+                                  <div>
+                                    <Label className="text-[10px] text-slate-600 mb-0.5 block">Document Type *</Label>
+                                    <Select
+                                      value={coUpload.label}
+                                      onValueChange={v => setCoUpload(p => p ? { ...p, label: v } : p)}
+                                    >
+                                      <SelectTrigger className="h-7 text-xs">
+                                        <SelectValue placeholder="Select document type…" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {CO_LABELS.map(opt => (
+                                          <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  {/* Revision Code */}
+                                  <div>
+                                    <Label className="text-[10px] text-slate-600 mb-0.5 block">Revision Code (optional)</Label>
+                                    <Input
+                                      className="h-7 text-xs"
+                                      placeholder="e.g. A, 01"
+                                      value={coUpload.revisionCode}
+                                      onChange={e => setCoUpload(p => p ? { ...p, revisionCode: e.target.value } : p)}
+                                    />
+                                  </div>
+
+                                  {/* File picker */}
+                                  <div>
+                                    <Label className="text-[10px] text-slate-600 mb-0.5 block">File (PDF) *</Label>
+                                    <input
+                                      type="file"
+                                      accept=".pdf,application/pdf"
+                                      className="text-xs w-full"
+                                      onChange={e => setCoUpload(p => p ? { ...p, file: e.target.files?.[0] ?? null } : p)}
+                                    />
+                                  </div>
+
+                                  {coUpload.error && (
+                                    <p className="text-[11px] text-red-600">{coUpload.error}</p>
+                                  )}
+
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      disabled={!coUpload.label || !coUpload.file || coUpload.isUploading}
+                                      onClick={() => handleCoDocUpload(gcsPathTestProject.id, order.orderNumber)}
+                                    >
+                                      {coUpload.isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+                                      {coUpload.isUploading ? 'Uploading…' : 'Upload'}
+                                    </Button>
+                                    <Button
+                                      size="sm" variant="ghost" className="h-7 text-xs"
+                                      onClick={() => setCoUpload(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                                  onClick={() => setCoUpload({ orderNumber: order.orderNumber, label: '', revisionCode: '', file: null, isUploading: false, error: null })}
+                                >
+                                  <Upload className="h-3 w-3" /> Upload Document
+                                </Button>
+                              )}
+                            </div>
                           ) : (
                             <div className="space-y-1">
                               {order.docs.map((d: any) => (
