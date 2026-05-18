@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
 import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
-import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact } from './utils/quotation-pdf-artifact';
+import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, storeFinalOfferPdfToGcs } from './utils/quotation-pdf-artifact';
 import { generateExecutionDrafts } from './pipeline/generate-execution-drafts';
 import { executeFullAutoPipeline } from './pipeline/full-auto-orchestrator';
 
@@ -932,6 +932,21 @@ export async function executeOfferConversion(
       } catch (attachErr: any) {
         console.error(`[offer-conversion] EPC attachment error for artifact ${primaryArtifactId}:`, attachErr);
       }
+
+      // Save immutable Final Offer snapshot to the FINAL_OFFER governed GCS path.
+      // Non-blocking — failure logs a warning but does NOT roll back the conversion.
+      storeFinalOfferPdfToGcs(
+        primaryArtifactId, project.id, projectCode,
+        offerId, offer.offer_number, offer.revision || 0, userId
+      ).then(result => {
+        if (result.success) {
+          console.log(`[offer-conversion] Final Offer snapshot saved → ${result.gcsPath}`);
+        } else {
+          console.warn(`[offer-conversion] Final Offer snapshot failed (non-blocking): ${result.error}`);
+        }
+      }).catch(err => {
+        console.error('[offer-conversion] Final Offer snapshot unexpected error:', err);
+      });
     }
 
     const updatedOffer = await pool.query(`SELECT * FROM offers WHERE id = $1`, [offerId]);

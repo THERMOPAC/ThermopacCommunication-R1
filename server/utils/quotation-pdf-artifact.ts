@@ -529,6 +529,97 @@ export async function attachConfirmedArtifactToEpc(
   }
 }
 
+/**
+ * Saves an immutable "Final Offer" snapshot to GCS when an offer is converted
+ * to an order. Reads the path template from the FINAL_OFFER governance rule in DB.
+ *
+ * Token mapping:
+ *   {CC}      → continentCode
+ *   {CO}      → countryCode
+ *   {Cust}    → customerShortCode
+ *   {FY}      → fyCode (from the project record)
+ *   {Code}    → projectCode (e.g. 2627-019)
+ *   {OfferNo} → offerNumber with slashes replaced by dashes
+ *   {rev}     → revision zero-padded to 2 digits
+ *
+ * Non-blocking at the call-site — errors are logged but do not fail conversion.
+ */
+export async function storeFinalOfferPdfToGcs(
+  artifactId: number,
+  projectId: number,
+  projectCode: string,
+  offerId: number,
+  offerNumber: string,
+  revision: number,
+  userId: number,
+): Promise<{ success: boolean; gcsPath?: string; error?: string }> {
+  try {
+    const artifact = await getArtifactById(artifactId);
+    if (!artifact) return { success: false, error: `Artifact ${artifactId} not found` };
+
+    const sourceBuffer = await downloadArtifactBuffer(artifact.gcs_object_path);
+
+    const projResult = await pool.query(
+      `SELECT p.fy_code, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+       FROM projects p JOIN customers c ON c.id = p.customer_id WHERE p.id = $1`,
+      [projectId]
+    );
+    if (projResult.rows.length === 0) return { success: false, error: `Project ${projectId} not found` };
+    const proj = projResult.rows[0];
+
+    let continentCode = proj.continent_code;
+    let countryCode   = proj.country_code;
+    if (!continentCode && proj.continent)    continentCode = CONTINENT_NAME_TO_CODE[proj.continent];
+    if (!countryCode   && proj.country_name) countryCode   = COUNTRY_NAME_TO_CODE[proj.country_name];
+    if (!continentCode || !countryCode || !proj.short_code) {
+      return { success: false, error: 'Customer geography codes missing for FINAL_OFFER path resolution' };
+    }
+
+    const ruleRow = await pool.query(
+      `SELECT path_template FROM gcs_governance_rules
+       WHERE document_type = 'FINAL_OFFER' AND (active IS NULL OR active = true)
+       ORDER BY id ASC LIMIT 1`
+    );
+    const template: string | null = ruleRow.rows[0]?.path_template ?? null;
+    if (!template) return { success: false, error: 'No active FINAL_OFFER governance rule found in DB' };
+
+    const rev         = String(revision).padStart(2, '0');
+    const safeOfferNo = offerNumber.replace(/\//g, '-');
+
+    const gcsPath = template
+      .replace('{CC}',      continentCode)
+      .replace('{CO}',      countryCode)
+      .replace('{Cust}',    proj.short_code)
+      .replace('{FY}',      proj.fy_code)
+      .replace('{Code}',    projectCode)
+      .replace('{OfferNo}', safeOfferNo)
+      .replace('{rev}',     rev);
+
+    const bucket = storage.bucket(bucketName);
+    await bucket.file(gcsPath).save(sourceBuffer, {
+      contentType: 'application/pdf',
+      metadata: {
+        contentType: 'application/pdf',
+        metadata: {
+          sourceArtifactId: String(artifactId),
+          offerId:          String(offerId),
+          offerNumber,
+          projectId:        String(projectId),
+          projectCode,
+          governanceType:   'FINAL_OFFER',
+          generatedBy:      String(userId),
+        },
+      },
+    });
+
+    console.log(`[final-offer-pdf] Snapshot saved → ${gcsPath}`);
+    return { success: true, gcsPath };
+  } catch (err: any) {
+    console.error('[final-offer-pdf] Failed to save Final Offer snapshot:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function listArtifactsForOffer(offerId: number) {
   const result = await pool.query(
     `SELECT id, revision, price_mode, gcs_object_path, checksum_sha256, file_size_bytes,
