@@ -1134,5 +1134,92 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
+  // ── Project GCS Path Test ────────────────────────────────────────────────
+  // GET /api/projects/:id/gcs-path-test
+  // Returns resolved GCS path info for a project: geo codes + all CO orders
+  // (conversion snapshots + existing CO documents).
+  app.get('/api/projects/:id/gcs-path-test', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+      // Resolve geo codes
+      let geo: any;
+      let missingGeo = false;
+      try {
+        geo = await resolveProjectGeoCodes(projectId);
+      } catch {
+        missingGeo = true;
+      }
+
+      // Get project code from DB for display when geo resolution fails
+      const projRow = await pool.query(
+        `SELECT project_code FROM projects WHERE id = $1`,
+        [projectId]
+      );
+      const projectCode = geo?.projectCode ?? projRow.rows[0]?.project_code ?? null;
+
+      // All order numbers linked to this project via conversion snapshots
+      const snapshotOrders = await pool.query(
+        `SELECT DISTINCT order_number FROM offer_conversion_snapshots
+         WHERE project_id = $1 AND order_number IS NOT NULL
+         ORDER BY order_number`,
+        [projectId]
+      );
+
+      // All CO documents for this project, grouped by order number
+      const allCoDocs = await pool.query(
+        `SELECT id, customer_order_number, document_label, revision_code,
+                attachment_seq, gcs_object_path, original_file_name, status, created_at
+         FROM customer_order_documents
+         WHERE project_id = $1
+         ORDER BY customer_order_number, attachment_seq ASC`,
+        [projectId]
+      );
+
+      // Also collect order numbers that only appear in CO documents (not in snapshots)
+      const docOrderNumbers = new Set<string>(allCoDocs.rows.map((r: any) => r.customer_order_number));
+      const snapshotOrderNumbers = new Set<string>(snapshotOrders.rows.map((r: any) => r.order_number));
+      const allOrderNumbers = Array.from(new Set([...snapshotOrderNumbers, ...docOrderNumbers])).sort();
+
+      const coOrders = allOrderNumbers.map((orderNumber: string) => {
+        const docs = allCoDocs.rows.filter((r: any) => r.customer_order_number === orderNumber);
+        const maxSeq = docs.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
+        const folderPrefix = missingGeo || !geo
+          ? null
+          : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/CO/${orderNumber}/`;
+        return {
+          orderNumber,
+          folderPrefix,
+          nextCoSeq: maxSeq + 1,
+          docs: docs.map((r: any) => ({
+            id:               r.id,
+            documentLabel:    r.document_label,
+            revisionCode:     r.revision_code,
+            attachmentSeq:    r.attachment_seq,
+            gcsObjectPath:    r.gcs_object_path,
+            originalFileName: r.original_file_name,
+            status:           r.status,
+            createdAt:        r.created_at,
+          })),
+        };
+      });
+
+      res.json({
+        projectId,
+        projectCode,
+        projectSeq:    geo?.projectSeq        ?? null,
+        continentCode: geo?.continentCode      ?? null,
+        countryCode:   geo?.countryCode        ?? null,
+        shortCode:     geo?.customerShortCode  ?? null,
+        fyCode:        geo?.fyCode             ?? null,
+        missingGeo,
+        coOrders,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   console.log('[GCS-Governance] Routes registered at /api/gcs-governance/* (Phase 0 + Phase 1)');
 }

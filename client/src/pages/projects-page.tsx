@@ -16,10 +16,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Loader2, Package, Building2, Calendar, User, Edit, Save, Search,
   ArrowRight, Plus, ChevronDown, ChevronRight, Briefcase,
-  Clock, CheckCircle2, PauseCircle, XCircle, AlertTriangle,
+  Clock, CheckCircle2, CheckCircle, PauseCircle, XCircle, AlertTriangle,
   FolderKanban, Hash, Wrench, ShoppingCart, BarChart3, ExternalLink,
-  FlaskConical, EyeOff, Pencil,
+  FlaskConical, EyeOff, Pencil, FolderSearch,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
@@ -103,6 +104,7 @@ export default function ProjectsPage() {
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ quantity: "", estimatedCost: "", actualCost: "", notes: "", status: "" });
   const [editOfferSubject, setEditOfferSubject] = useState<{ open: boolean; projectId: number | null; projectCode: string; value: string }>({ open: false, projectId: null, projectCode: "", value: "" });
+  const [gcsPathTestProject, setGcsPathTestProject] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -152,6 +154,17 @@ export default function ProjectsPage() {
   const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/design/projects", { showTest: showTestData }],
     queryFn: () => fetch(`/api/design/projects?showTest=${showTestData}`, { credentials: 'include' }).then(r => r.json()),
+  });
+
+  const { data: gcsPathTestData, isLoading: gcsPathTestLoading } = useQuery<any>({
+    queryKey: ['/api/projects', gcsPathTestProject?.id, 'gcs-path-test'],
+    queryFn: async () => {
+      if (!gcsPathTestProject?.id) return null;
+      const r = await fetch(`/api/projects/${gcsPathTestProject.id}/gcs-path-test`, { credentials: 'include' });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    enabled: !!gcsPathTestProject?.id,
   });
 
   const testFlagMutation = useMutation({
@@ -521,6 +534,19 @@ export default function ProjectsPage() {
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-[10px]">View Details</TooltipContent>
                                   </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost" size="icon"
+                                        className="h-6 w-6 text-violet-500 hover:text-violet-700 hover:bg-violet-50"
+                                        onClick={() => setGcsPathTestProject(project)}
+                                        title="Test GCS Path"
+                                      >
+                                        <FolderSearch className="h-3 w-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[10px]">Test GCS Path</TooltipContent>
+                                  </Tooltip>
                                   {isSuperuser && (
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -782,6 +808,135 @@ export default function ProjectsPage() {
                 {updateOfferSubjectMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Save
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── GCS Path Test Dialog ──────────────────────────────────────────── */}
+        <Dialog open={!!gcsPathTestProject} onOpenChange={(open) => { if (!open) setGcsPathTestProject(null); }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderSearch className="h-5 w-5 text-violet-600" />
+                GCS Governance Path Test
+              </DialogTitle>
+              <DialogDescription>
+                Resolved GCS storage paths for project <span className="font-semibold font-mono">{gcsPathTestProject?.projectCode}</span>
+                {gcsPathTestProject?.customerName ? ` — ${gcsPathTestProject.customerName}` : ''}
+              </DialogDescription>
+            </DialogHeader>
+
+            {gcsPathTestLoading && (
+              <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Resolving paths…</span>
+              </div>
+            )}
+
+            {!gcsPathTestLoading && gcsPathTestData && (
+              <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+
+                {/* Project geo identity badges */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {[
+                    ['Code',  gcsPathTestData.projectCode  ?? '—'],
+                    ['Seq',   gcsPathTestData.projectSeq   ?? '—'],
+                    ['CC',    gcsPathTestData.continentCode ?? '—'],
+                    ['CO',    gcsPathTestData.countryCode   ?? '—'],
+                    ['SC',    gcsPathTestData.shortCode     ?? '—'],
+                    ['FY',    gcsPathTestData.fyCode        ?? '—'],
+                  ].map(([label, val]) => (
+                    <span key={label} className="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 rounded px-2 py-0.5 font-mono">
+                      <span className="text-slate-500">{label}:</span>
+                      <span className="font-semibold text-slate-800">{val}</span>
+                    </span>
+                  ))}
+                </div>
+
+                {gcsPathTestData.missingGeo && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      This project's customer is missing continent / country / short-code — geo path cannot be resolved. Update the customer record first.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* CO folder template (static) */}
+                <div className="rounded border border-violet-200 bg-violet-50 px-3 py-2">
+                  <p className="text-[10px] text-violet-600 font-semibold uppercase mb-1">CO Folder Template</p>
+                  {gcsPathTestData.missingGeo ? (
+                    <p className="text-[11px] text-amber-700 italic">Cannot compute — fix geo codes first.</p>
+                  ) : (
+                    <p className="text-[11px] font-mono break-all text-violet-900">
+                      {`TPEL/${gcsPathTestData.continentCode}/${gcsPathTestData.countryCode}/${gcsPathTestData.shortCode}/${gcsPathTestData.fyCode}/${gcsPathTestData.projectSeq}/CO/{orderNumber}/`}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-violet-500 mt-1">
+                    Filename = <span className="font-mono">{'{seq}-{label}-rev-{rev}.{ext}'}</span> (set at upload)
+                  </p>
+                </div>
+
+                {/* Customer Order sections */}
+                <div className="border-t pt-3 space-y-4">
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-1.5">
+                    <FolderSearch className="h-3.5 w-3.5" />
+                    Customer Orders ({gcsPathTestData.coOrders.length})
+                  </p>
+
+                  {gcsPathTestData.coOrders.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No customer orders linked to this project yet.</p>
+                  ) : (
+                    gcsPathTestData.coOrders.map((order: any) => (
+                      <div key={order.orderNumber} className="rounded border border-blue-200 bg-blue-50/50 px-3 py-2.5 space-y-2">
+                        {/* Order header */}
+                        <div className="flex items-center justify-between flex-wrap gap-1">
+                          <span className="text-xs font-semibold text-blue-900 font-mono">{order.orderNumber}</span>
+                          <span className="text-[10px] font-mono bg-blue-100 text-blue-700 border border-blue-200 rounded px-2 py-0.5">
+                            Next seq: {String(order.nextCoSeq).padStart(3, '0')}
+                          </span>
+                        </div>
+
+                        {/* Folder prefix */}
+                        {order.folderPrefix && (
+                          <div className="rounded border border-blue-200 bg-blue-50 px-2 py-1.5">
+                            <p className="text-[10px] text-blue-500 font-semibold uppercase mb-0.5">CO Folder Prefix</p>
+                            <p className="text-[11px] font-mono break-all text-blue-900">{order.folderPrefix}</p>
+                          </div>
+                        )}
+
+                        {/* Docs already on GCS */}
+                        <div>
+                          <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                            CO Docs on GCS ({order.docs.length})
+                          </p>
+                          {order.docs.length === 0 ? (
+                            <p className="text-[11px] text-muted-foreground italic">No CO documents uploaded for this order yet.</p>
+                          ) : (
+                            <div className="space-y-1">
+                              {order.docs.map((d: any) => (
+                                <div key={d.id} className={`rounded border px-2 py-1.5 flex items-start gap-2 ${d.status === 'active' ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}>
+                                  <CheckCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${d.status === 'active' ? 'text-green-600' : 'text-slate-400'}`} />
+                                  <div className="min-w-0">
+                                    <p className="text-[11px] font-mono break-all text-slate-800">{d.gcsObjectPath}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                      seq {String(d.attachmentSeq).padStart(3,'0')} · {d.documentLabel} · {d.originalFileName}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGcsPathTestProject(null)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
