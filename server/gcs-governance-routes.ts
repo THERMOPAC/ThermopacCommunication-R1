@@ -1136,12 +1136,23 @@ export function setupGcsGovernanceRoutes(app: Express): void {
 
   // ── Project GCS Path Test ────────────────────────────────────────────────
   // GET /api/projects/:id/gcs-path-test
-  // Returns resolved GCS path info for a project: geo codes + all CO orders
-  // (conversion snapshots + existing CO documents).
+  // Returns resolved GCS path info for a project: geo codes + CO_DOCUMENT
+  // governance rule (DB-driven template) + all CO orders.
   app.get('/api/projects/:id/gcs-path-test', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.id);
       if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+      // Fetch CO_DOCUMENT governance rule from DB (DB-driven path template)
+      const ruleRow = await pool.query(
+        `SELECT path_template, display_name, revision_mode, notes
+         FROM gcs_governance_rules
+         WHERE document_type = 'CO_DOCUMENT' AND (active IS NULL OR active = true)
+         ORDER BY id ASC LIMIT 1`
+      );
+      const dbRule = ruleRow.rows[0] ?? null;
+      const pathTemplate: string = dbRule?.path_template
+        ?? 'TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/CO/{CO}/{Seq}-{Label}-rev-{rev}.{ext}';
 
       // Resolve geo codes
       let geo: any;
@@ -1150,6 +1161,35 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         geo = await resolveProjectGeoCodes(projectId);
       } catch {
         missingGeo = true;
+      }
+
+      // Build the "geo-resolved template": fill in all static geo tokens,
+      // leave per-document tokens ({Seq},{Label},{rev},{ext}) as-is.
+      // NOTE: {CO} appears twice in the template — position 2 = country code,
+      // position after literal CO/ = customer order number.
+      // We resolve left-to-right: first {CO} → countryCode, second → kept as {OrderNo}.
+      let geoResolvedTemplate: string | null = null;
+      if (!missingGeo && geo) {
+        // Replace tokens we know statically, handling the {CO} overload explicitly
+        // by splitting on the literal "CO/" folder boundary.
+        const parts = pathTemplate.split('/CO/');
+        if (parts.length === 2) {
+          const prefix = parts[0]
+            .replace('{CC}',   geo.continentCode)
+            .replace('{CO}',   geo.countryCode)
+            .replace('{Cust}', geo.customerShortCode)
+            .replace('{FY}',   geo.fyCode)
+            .replace('{NNN}',  geo.projectSeq);
+          const suffix = parts[1]; // keeps {CO}/{Seq}-{Label}-rev-{rev}.{ext}
+          geoResolvedTemplate = `${prefix}/CO/${suffix}`;
+        } else {
+          // Fallback: simple replace (leaves second {CO} for order number)
+          geoResolvedTemplate = pathTemplate
+            .replace('{CC}',   geo.continentCode)
+            .replace('{Cust}', geo.customerShortCode)
+            .replace('{FY}',   geo.fyCode)
+            .replace('{NNN}',  geo.projectSeq);
+        }
       }
 
       // Get project code from DB for display when geo resolution fails
@@ -1177,7 +1217,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         [projectId]
       );
 
-      // Also collect order numbers that only appear in CO documents (not in snapshots)
+      // Merge order numbers from both snapshots and existing docs
       const docOrderNumbers = new Set<string>(allCoDocs.rows.map((r: any) => r.customer_order_number));
       const snapshotOrderNumbers = new Set<string>(snapshotOrders.rows.map((r: any) => r.order_number));
       const allOrderNumbers = Array.from(new Set([...snapshotOrderNumbers, ...docOrderNumbers])).sort();
@@ -1185,12 +1225,21 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const coOrders = allOrderNumbers.map((orderNumber: string) => {
         const docs = allCoDocs.rows.filter((r: any) => r.customer_order_number === orderNumber);
         const maxSeq = docs.reduce((m: number, r: any) => Math.max(m, r.attachment_seq ?? 0), 0);
+
+        // Compute folder prefix using actual code logic (matches customer-order-document-routes.ts)
         const folderPrefix = missingGeo || !geo
           ? null
           : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/CO/${orderNumber}/`;
+
+        // Resolve geoResolvedTemplate for this specific order number
+        const resolvedForOrder = geoResolvedTemplate
+          ? geoResolvedTemplate.replace('{CO}', orderNumber)
+          : null;
+
         return {
           orderNumber,
           folderPrefix,
+          resolvedForOrder,
           nextCoSeq: maxSeq + 1,
           docs: docs.map((r: any) => ({
             id:               r.id,
@@ -1214,6 +1263,12 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         shortCode:     geo?.customerShortCode  ?? null,
         fyCode:        geo?.fyCode             ?? null,
         missingGeo,
+        // DB-driven governance rule
+        pathTemplate,
+        geoResolvedTemplate,
+        ruleDisplayName:  dbRule?.display_name  ?? 'Customer Order Document',
+        ruleRevisionMode: dbRule?.revision_mode ?? 'numeric',
+        ruleNotes:        dbRule?.notes         ?? null,
         coOrders,
       });
     } catch (err: any) {
