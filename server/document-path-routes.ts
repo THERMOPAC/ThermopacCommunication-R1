@@ -259,3 +259,84 @@ export function setupDocumentPathRoutes(app: any) {
   app.use('/api', router);
   console.log('Document Path & Folder Template routes registered at /api');
 }
+
+// ─── Seed: mirror every GCS governance rule as a local path template ──────────
+// Each entry maps 1-to-1 with a GCS governance rule. On conflict (templateCode)
+// the existing row is left untouched — admins may customise paths via the UI.
+const GCS_MIRROR_SEEDS: Array<{
+  templateCode: string;
+  documentType: string;
+  documentCategory: string;
+  relativePathTemplate: string;
+  revisionMode: string;
+  active: boolean;
+}> = [
+  // ── EPC ──────────────────────────────────────────────────────────────────
+  { templateCode: 'EPC_DOCUMENT',    documentType: 'EPC_DOCUMENT',    documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/{DocumentType}/{DocNum}',                           revisionMode: 'suffix',   active: true  },
+  { templateCode: 'EPC_DRAWING',     documentType: 'EPC_DRAWING',     documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/{ItemCode}/DWG',                                    revisionMode: 'suffix',   active: true  },
+  { templateCode: 'ECN',             documentType: 'ECN',             documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECN/{DocNum}',                                      revisionMode: 'suffix',   active: true  },
+  { templateCode: 'ECR',             documentType: 'ECR',             documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECR/{DocNum}',                                      revisionMode: 'suffix',   active: true  },
+  { templateCode: 'CO_DOCUMENT',     documentType: 'CO_DOCUMENT',     documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/CO/{DocNum}',                                      revisionMode: 'suffix',   active: true  },
+  { templateCode: 'DISPATCH',        documentType: 'DISPATCH',        documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/DISPATCH/{DocNum}',                                 revisionMode: 'suffix',   active: true  },
+  { templateCode: 'DATASHEET',       documentType: 'DATASHEET',       documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/{DocNum}',                  revisionMode: 'suffix',   active: true  },
+  { templateCode: 'QUOTATION',       documentType: 'QUOTATION',       documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/Open_Quotations/{OfferNo}',                                                    revisionMode: 'suffix',   active: true  },
+  { templateCode: 'EPC_QUOTATION',   documentType: 'EPC_QUOTATION',   documentCategory: 'EPC',     relativePathTemplate: '{COMPANY}/Open_Quotations/{OfferNo}',                                                    revisionMode: 'suffix',   active: true  },
+  // ── DVS ──────────────────────────────────────────────────────────────────
+  { templateCode: 'DVS_STAGING',     documentType: 'DVS_STAGING',     documentCategory: 'DVS',     relativePathTemplate: '{COMPANY}/STAGING/DRAWINGS/{PROJECT_CODE}/{CodeBars}',                                   revisionMode: 'none',     active: false },
+  // ── QMS ──────────────────────────────────────────────────────────────────
+  { templateCode: 'WPQR',            documentType: 'WPQR',            documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/QMS/WPQR/{DocNum}',                                                            revisionMode: 'suffix',   active: true  },
+  { templateCode: 'PMA',             documentType: 'PMA',             documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/QMS/PMA/{DocNum}',                                                             revisionMode: 'suffix',   active: true  },
+  { templateCode: 'CALIBRATION_CERT',documentType: 'CALIBRATION_CERT',documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/QMS/Calibration/{DocNum}',                                                     revisionMode: 'suffix',   active: true  },
+  { templateCode: 'INSPECTION_DOC',  documentType: 'INSPECTION_DOC',  documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/Inspections/{DocNum}',                         revisionMode: 'none',     active: true  },
+  { templateCode: 'FINAL_DOSSIER',   documentType: 'FINAL_DOSSIER',   documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/Final_Dossier/{DocNum}',                       revisionMode: 'none',     active: true  },
+  { templateCode: 'WELDER_CERT',     documentType: 'WELDER_CERT',     documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/QMS/WelderManagement/{DocNum}',                                                revisionMode: 'suffix',   active: true  },
+  { templateCode: 'WELDER_PHOTO',    documentType: 'WELDER_PHOTO',    documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/QMS/WELDERS/{DocNum}',                                                         revisionMode: 'none',     active: true  },
+  { templateCode: 'MATERIAL_ID_DOC', documentType: 'MATERIAL_ID_DOC', documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/Material_ID/{Seq}',                           revisionMode: 'none',     active: true  },
+  { templateCode: 'NCR',             documentType: 'NCR',             documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/QMS/NCR/{DocNum}',                                 revisionMode: 'suffix',   active: true  },
+  { templateCode: 'TEST_PROCEDURE',  documentType: 'TEST_PROCEDURE',  documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/QMS/TestProcedures/{DocNum}',                                                  revisionMode: 'suffix',   active: true  },
+  { templateCode: 'WPS_PQR',         documentType: 'WPS_PQR',         documentCategory: 'QMS',     relativePathTemplate: '{COMPANY}/QMS/WPS/{DocNum}',                                                             revisionMode: 'suffix',   active: true  },
+  // ── Design ───────────────────────────────────────────────────────────────
+  { templateCode: 'BASIC_DRAWING',   documentType: 'BASIC_DRAWING',   documentCategory: 'Design',  relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/BASIC/{DocumentType}',                    revisionMode: 'suffix',   active: true  },
+  { templateCode: 'TRANSMITTAL',     documentType: 'TRANSMITTAL',     documentCategory: 'Design',  relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/TRANSMITTAL/{DocNum}',                    revisionMode: 'none',     active: true  },
+  { templateCode: 'DESIGN_BACKUP',   documentType: 'DESIGN_BACKUP',   documentCategory: 'Design',  relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/BACKUP/{DocumentType}',                  revisionMode: 'none',     active: true  },
+  { templateCode: 'DESIGN_STANDARD', documentType: 'DESIGN_STANDARD', documentCategory: 'Design',  relativePathTemplate: '{COMPANY}/DESIGN/STANDARDS/{DocumentType}',                                             revisionMode: 'none',     active: true  },
+  // ── HR ───────────────────────────────────────────────────────────────────
+  { templateCode: 'TRIP_DOCUMENT',   documentType: 'TRIP_DOCUMENT',   documentCategory: 'HR',      relativePathTemplate: '{COMPANY}/ADMIN/HR/{FY}/TRIPS/{DocNum}',                                                 revisionMode: 'none',     active: true  },
+  { templateCode: 'VISA_DOCUMENT',   documentType: 'VISA_DOCUMENT',   documentCategory: 'HR',      relativePathTemplate: '{COMPANY}/ADMIN/HR/{FY}/VISA/{DocNum}',                                                  revisionMode: 'none',     active: true  },
+  // ── Legal ─────────────────────────────────────────────────────────────────
+  { templateCode: 'LEGAL_DOCUMENT',  documentType: 'LEGAL_DOCUMENT',  documentCategory: 'Legal',   relativePathTemplate: '{COMPANY}/LEGAL/{FY}/{DocumentType}/{DocNum}',                                           revisionMode: 'none',     active: true  },
+  // ── Finance ───────────────────────────────────────────────────────────────
+  { templateCode: 'BRC_DOCUMENT',    documentType: 'BRC_DOCUMENT',    documentCategory: 'Finance',  relativePathTemplate: '{COMPANY}/ACCOUNTS/BRC/{FY}/{DocNum}',                                                  revisionMode: 'none',     active: true  },
+  // ── SAP ───────────────────────────────────────────────────────────────────
+  { templateCode: 'SAP_ATTACHMENT',  documentType: 'SAP_ATTACHMENT',  documentCategory: 'SAP',     relativePathTemplate: '{COMPANY}/SAP/{FY}/VENDOR-DOCS/{DocNum}',                                                revisionMode: 'none',     active: true  },
+  // ── Legacy ────────────────────────────────────────────────────────────────
+  { templateCode: 'LEGACY_FILE',     documentType: 'LEGACY_FILE',     documentCategory: 'Legacy',  relativePathTemplate: '{COMPANY}/LEGACY/{FY}/{PROJECT_CODE}/{DocumentType}',                                    revisionMode: 'none',     active: false },
+];
+
+export async function seedDocPathTemplates(): Promise<void> {
+  try {
+    let inserted = 0;
+    for (const seed of GCS_MIRROR_SEEDS) {
+      const existing = await db.select({ id: documentPathTemplates.id })
+        .from(documentPathTemplates)
+        .where(eq(documentPathTemplates.templateCode, seed.templateCode))
+        .limit(1);
+      if (existing.length === 0) {
+        await db.insert(documentPathTemplates).values({
+          templateCode:         seed.templateCode,
+          documentType:         seed.documentType,
+          documentCategory:     seed.documentCategory,
+          relativePathTemplate: seed.relativePathTemplate,
+          fileNameTemplate:     null,
+          revisionMode:         seed.revisionMode,
+          fileExtension:        null,
+          active:               seed.active,
+        });
+        inserted++;
+      }
+    }
+    console.log(`[DocPathSeed] ✅ ${inserted} new GCS-mirror path template(s) seeded (${GCS_MIRROR_SEEDS.length - inserted} already existed).`);
+  } catch (e: any) {
+    console.error('[DocPathSeed] Seed error:', e.message);
+  }
+}

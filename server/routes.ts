@@ -3918,8 +3918,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupPlcSapRoutes(app);
 
   // ── Document Path & Folder Template Governance ───────────────────────────
-  const { setupDocumentPathRoutes } = await import('./document-path-routes');
+  const { setupDocumentPathRoutes, seedDocPathTemplates } = await import('./document-path-routes');
   setupDocumentPathRoutes(app);
+  seedDocPathTemplates();
 
   // ── GCS Document Governance (Phase 0 — Monitor Mode) ─────────────────────
   const { setupGcsGovernanceRoutes } = await import('./gcs-governance-routes');
