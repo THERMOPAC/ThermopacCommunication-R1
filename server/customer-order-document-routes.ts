@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { db } from './db';
 import { customerOrderDocuments, commercialChangeOrders, projects } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { resolveProjectGeoCodes, buildEpcGcsPath } from './epc-coding';
+import { resolveProjectGeoCodes } from './epc-coding';
 import { pool } from './db';
 import { validateLabel } from '../shared/gcs-label-vocabulary';
 import gcsClient, { bucketName } from './utils/storage-config';
@@ -59,11 +59,13 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
     );
     const attachmentSeq = (seqResult.rows[0] as any).next_seq;
 
-    const gcsObjectPath = buildEpcGcsPath(
-      geo.continentCode, geo.countryCode, geo.customerShortCode,
-      geo.fyCode, geo.projectSeq, 'CO', customerOrderNumber,
-      revisionCode || null, attachmentSeq, documentLabel, req.file.originalname
-    );
+    // Build GCS path per CO_DOCUMENT governance rule:
+    // TPEL/{CC}/{CO}/{Cust}/{FY}/SOR_{Code}/Sales/Order_Contract/{Seq}-{Label}-rev-{rev}.pdf
+    const seq = String(attachmentSeq).padStart(3, '0');
+    const labelSlug = documentLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'file';
+    const revSuffix = `rev-${revisionCode?.trim() || '00'}`;
+    const filename = `${seq}-${labelSlug}-${revSuffix}.pdf`;
+    const gcsObjectPath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/SOR_${geo.projectCode}/Sales/Order_Contract/${filename}`;
 
     const bucket = gcsClient.bucket(bucketName);
     const gcsFile = bucket.file(gcsObjectPath);
