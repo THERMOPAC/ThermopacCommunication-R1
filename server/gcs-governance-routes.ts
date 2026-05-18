@@ -1194,10 +1194,10 @@ export function setupGcsGovernanceRoutes(app: Express): void {
 
       // Get project code from DB for display when geo resolution fails
       const projRow = await pool.query(
-        `SELECT project_code FROM projects WHERE id = $1`,
+        `SELECT code FROM projects WHERE id = $1`,
         [projectId]
       );
-      const projectCode = geo?.projectCode ?? projRow.rows[0]?.project_code ?? null;
+      const projectCode = geo?.projectCode ?? projRow.rows[0]?.code ?? null;
 
       // All order numbers linked to this project via conversion snapshots
       const snapshotOrders = await pool.query(
