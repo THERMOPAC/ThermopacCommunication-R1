@@ -34,8 +34,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Type-check (noEmit — fail on any TS error)
-        run: npx tsc --noEmit --strict
+      - name: Type-check (no emit)
+        run: npx tsc --project tsconfig.json --noEmit
 
       - name: Confirm strict flags in tsconfig.json
         run: |

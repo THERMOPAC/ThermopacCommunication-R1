@@ -26,8 +26,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Type-check (strict, no emit)
-        run: npx tsc --noEmit --strict
+      - name: Type-check (no emit)
+        run: npx tsc --project tsconfig.json --noEmit
 
       - name: Build
         run: npm run build
