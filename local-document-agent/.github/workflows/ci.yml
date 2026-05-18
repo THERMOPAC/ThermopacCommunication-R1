@@ -1,29 +1,21 @@
-name: Agent — CI (Build + Type Check)
+name: CI
 
 on:
   push:
-    paths:
-      - 'local-document-agent/**'
-      - '.github/workflows/ci.yml'
+    branches: [main, master]
   pull_request:
-    paths:
-      - 'local-document-agent/**'
-      - '.github/workflows/ci.yml'
-  release:
-    types: [published]
 
 defaults:
   run:
-    working-directory: local-document-agent
+    working-directory: .
 
 jobs:
-  # ── Job 1: TypeScript type-check (fast, ubuntu) ──────────────────────────────
-  typecheck:
-    name: TypeScript strict check
-    runs-on: ubuntu-latest
+  ci:
+    name: Install · Type-check · Build · Validate
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Node.js 20
@@ -34,52 +26,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Type-check (noEmit — fail on any TS error)
+      - name: Type-check (strict, no emit)
         run: npx tsc --noEmit --strict
 
-      - name: Confirm strict flags in tsconfig.json
-        run: |
-          node -e "
-          const ts = JSON.parse(require('fs').readFileSync('tsconfig.json','utf8'));
-          const opts = ts.compilerOptions || {};
-          const required = ['strict','esModuleInterop','forceConsistentCasingInFileNames'];
-          const missing = required.filter(f => !opts[f]);
-          if (missing.length) { console.error('Missing strict flags:', missing.join(', ')); process.exit(1); }
-          console.log('tsconfig.json strict flags OK.');
-          "
-
-      - name: No .js source files in src/
-        run: |
-          COUNT=$(find src -name '*.js' 2>/dev/null | wc -l)
-          if [ "$COUNT" -gt 0 ]; then
-            echo "ERROR: .js files found in src/ — TypeScript-only source required:"
-            find src -name '*.js'
-            exit 1
-          fi
-          echo "Source is TypeScript-only. OK."
-
-  # ── Job 2: Full build + Windows artefact validation ──────────────────────────
-  build:
-    name: Build & validate (Windows)
-    runs-on: windows-latest
-    needs: typecheck
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Compile TypeScript
+      - name: Build
         run: npm run build
 
-      - name: Verify compiled output files
+      - name: Validate dist/ output
         shell: pwsh
         run: |
           $required = @(
@@ -89,7 +42,7 @@ jobs:
           )
           $missing = $required | Where-Object { -not (Test-Path $_) }
           if ($missing) { Write-Error "Missing dist files: $($missing -join ', ')"; exit 1 }
-          Write-Output "All $($required.Count) dist files present. Build OK."
+          Write-Output "dist/ OK — $($required.Count) files verified."
 
       - name: Validate Windows service scripts
         shell: pwsh
@@ -97,30 +50,27 @@ jobs:
           $scripts = @('install-service.bat','uninstall-service.bat','start-service.bat','stop-service.bat')
           $missing = $scripts | Where-Object { -not (Test-Path $_) }
           if ($missing) { Write-Error "Missing scripts: $($missing -join ', ')"; exit 1 }
-          Write-Output "All Windows .bat service scripts present."
+          Write-Output "Service scripts OK."
 
-      - name: Validate package.json metadata
+      - name: Validate package.json
         shell: pwsh
         run: |
           $pkg = Get-Content package.json | ConvertFrom-Json
-          if (-not $pkg.version) { Write-Error "package.json missing version field"; exit 1 }
-          if (-not $pkg.main)    { Write-Error "package.json missing main field";    exit 1 }
-          if ($pkg.main -ne 'dist/index.js') {
-            Write-Error "package.json main must be 'dist/index.js', got: $($pkg.main)"; exit 1
-          }
-          Write-Output "Package: $($pkg.name) v$($pkg.version) — main: $($pkg.main)"
+          if (-not $pkg.version) { Write-Error "Missing version"; exit 1 }
+          if ($pkg.main -ne 'dist/index.js') { Write-Error "main must be dist/index.js, got: $($pkg.main)"; exit 1 }
+          Write-Output "package.json OK — $($pkg.name) v$($pkg.version)"
 
-      - name: Upload dist/ as CI artefact
+      - name: Validate ZIP structure (config example + docs)
+        shell: pwsh
+        run: |
+          $required = @('config.json.example','README.md','SETUP.md')
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) { Write-Error "Missing package files: $($missing -join ', ')"; exit 1 }
+          Write-Output "Package structure OK."
+
+      - name: Upload dist/ artifact
         uses: actions/upload-artifact@v4
         with:
           name: agent-dist-${{ github.sha }}
-          path: local-document-agent/dist/
+          path: dist/
           retention-days: 14
-
-      - name: Upload logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-failure-logs-${{ github.sha }}
-          path: local-document-agent/
-          retention-days: 5

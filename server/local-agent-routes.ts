@@ -283,10 +283,7 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
       { name: 'uninstall-service.bat',                 desc: 'Removes the Windows service' },
       { name: 'start-service.bat',                     desc: 'Starts the service' },
       { name: 'stop-service.bat',                      desc: 'Stops the service' },
-      { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions — combined CI (build + type-check)' },
-      { name: '.github/workflows/build.yml',           desc: 'GitHub Actions — build & Windows package validation' },
-      { name: '.github/workflows/lint.yml',            desc: 'GitHub Actions — TypeScript strict type-check' },
-      { name: '.github/workflows/release.yml',         desc: 'GitHub Actions — release ZIP builder & asset upload' },
+      { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions CI — install, type-check, build, validate' },
     ],
     releaseNotes: [
       'v1.0.0 — Initial release',
@@ -352,13 +349,9 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
       if (fs.existsSync(fp)) archive.file(fp, { name: root + f });
     }
 
-    // GitHub Actions CI workflow files (bundled inside local-document-agent/.github/workflows/)
-    const workflowDir = path.join(AGENT_DIR, '.github', 'workflows');
-    const workflowFiles = ['ci.yml', 'build.yml', 'lint.yml', 'release.yml'];
-    for (const f of workflowFiles) {
-      const fp = path.join(workflowDir, f);
-      if (fs.existsSync(fp)) archive.file(fp, { name: root + '.github/workflows/' + f });
-    }
+    // GitHub Actions CI workflow (single file, bundled inside local-document-agent/.github/workflows/)
+    const ciYml = path.join(AGENT_DIR, '.github', 'workflows', 'ci.yml');
+    if (fs.existsSync(ciYml)) archive.file(ciYml, { name: root + '.github/workflows/ci.yml' });
 
     await archive.finalize();
   } catch (err) {
