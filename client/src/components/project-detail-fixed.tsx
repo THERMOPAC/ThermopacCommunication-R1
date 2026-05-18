@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
@@ -2026,7 +2027,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.clientName || project?.name}</span></div>
+            <div className="text-sm font-medium">Project: <span className="font-bold">{getProjectDisplayName(project)}</span></div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Cancellation Type <span className="text-destructive">*</span></label>
               <select
@@ -2097,7 +2098,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.clientName || project?.name}</span></div>
+            <div className="text-sm font-medium">Project: <span className="font-bold">{getProjectDisplayName(project)}</span></div>
             <div className="text-sm">Current Status: <span className="font-bold text-red-600">Canceled</span> → <span className="font-bold text-blue-600">{pendingReopenData?.status === 'on_hold' ? 'On Hold' : 'Planning'}</span></div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Reopen Reason <span className="text-destructive">*</span></label>
@@ -3244,7 +3245,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <h1 className="text-3xl font-bold">{project.code} — {project.clientName || project.name}</h1>
+              <h1 className="text-3xl font-bold">{getProjectDisplayName(project)}</h1>
               <Badge 
                 variant="outline" 
                 className={`ml-2 ${getStatusBadgeColor(project.status)}`}

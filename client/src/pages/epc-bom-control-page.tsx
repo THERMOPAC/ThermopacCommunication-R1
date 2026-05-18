@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
@@ -514,7 +515,7 @@ export default function EpcBomControlPage() {
             <SelectTrigger className="w-52 h-8 text-xs"><SelectValue placeholder="Select Project" /></SelectTrigger>
             <SelectContent>
               {filteredProjects.map((p: any) => (
-                <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}{p.clientName && p.clientName !== p.name ? ` — ${p.name}` : ""}</SelectItem>
+                <SelectItem key={p.id} value={String(p.id)} className="text-xs">{getProjectDisplayName(p)}</SelectItem>
               ))}
             </SelectContent>
           </Select>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
@@ -559,7 +560,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <h1 className="text-3xl font-bold">{project.code} — {project.clientName || project.name}</h1>
+              <h1 className="text-3xl font-bold">{getProjectDisplayName(project)}</h1>
               <Badge 
                 variant="outline" 
                 className={`ml-2 ${getStatusBadgeColor(project.status)}`}

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -296,7 +297,7 @@ export default function EpcCutoverDashboard() {
                   <TableBody>
                     {dspUsage.byProject.map((p: any) => (
                       <TableRow key={p.project_code}>
-                        <TableCell><span className="font-mono text-sm">{p.project_code}</span> — {p.project_name}</TableCell>
+                        <TableCell>{getProjectDisplayName(p)}</TableCell>
                         <TableCell className="font-bold">{p.dispatch_count}</TableCell>
                         <TableCell className="text-sm">{fmtDate(p.first_dispatch)}</TableCell>
                         <TableCell className="text-sm">{fmtDate(p.last_dispatch)}</TableCell>

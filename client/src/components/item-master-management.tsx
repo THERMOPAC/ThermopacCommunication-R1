@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getProjectDisplayName } from '@/lib/project-utils';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -851,7 +852,7 @@ const ItemMasterManagement: React.FC = () => {
               <SelectItem value="all">All Projects</SelectItem>
               {projects?.map((project: any) => (
                 <SelectItem key={project.id} value={project.id.toString()}>
-                  {project.code} — {project.clientName || project.name}
+                  {getProjectDisplayName(project)}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment, useRef, useEffect } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1324,7 +1325,7 @@ export default function EpcBuyListControlPage() {
                   <SelectTrigger><SelectValue placeholder="Select a project…" /></SelectTrigger>
                   <SelectContent>
                     {(projects as any[]).map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}</SelectItem>
+                      <SelectItem key={p.id} value={String(p.id)}>{getProjectDisplayName(p)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
@@ -432,7 +433,7 @@ export default function MaterialIdentificationListNewPage() {
                       <option value="">-- Select a project --</option>
                       {activeProjects.map(project => (
                         <option key={project.id} value={project.id}>
-                          {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
+                          {getProjectDisplayName(project)}
                         </option>
                       ))}
                     </select>

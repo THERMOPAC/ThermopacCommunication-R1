@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Helmet } from "react-helmet";
@@ -769,7 +770,7 @@ export default function CreateQAPPage() {
           </div>
           
           <div class="qap-details">
-            <p><strong>Project:</strong> ${selectedProject.code} — ${selectedProject.clientName || selectedProject.name}</p>
+            <p><strong>Project:</strong> ${getProjectDisplayName(selectedProject)}</p>
             <p><strong>Customer:</strong> ${selectedCustomer?.bpName || "N/A"}</p>
             <p><strong>Equipment Type:</strong> ${values.category}</p>
             <p><strong>PO Number:</strong> ${values.poNumber || "N/A"}</p>
@@ -1027,7 +1028,7 @@ export default function CreateQAPPage() {
                           <SelectContent>
                             {(showAllQapProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
+                                {getProjectDisplayName(project)}
                               </SelectItem>
                             ))}
                           </SelectContent>

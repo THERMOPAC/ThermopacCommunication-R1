@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
@@ -367,7 +368,7 @@ export default function EpcDrawingControlPage() {
                 <SelectContent>
                   {filteredProjects.map((p: any) => (
                     <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
-                      {p.code} — {p.clientName || p.client_name || p.name}{(p.clientName || p.client_name) && (p.clientName || p.client_name) !== p.name ? ` — ${p.name}` : ""}
+                      {getProjectDisplayName(p)}
                     </SelectItem>
                   ))}
                 </SelectContent>

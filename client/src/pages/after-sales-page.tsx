@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -477,7 +478,7 @@ export default function AfterSalesPage() {
                             <SelectItem value="none">No Project</SelectItem>
                             {Array.isArray(projects) && (showAllAsProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
+                                {getProjectDisplayName(project)}
                               </SelectItem>
                             ))}
                           </SelectContent>

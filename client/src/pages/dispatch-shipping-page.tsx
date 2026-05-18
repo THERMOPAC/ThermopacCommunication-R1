@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -468,7 +469,7 @@ export default function DispatchShippingPage() {
             <TableRow key={dispatch.id}>
               <TableCell>{dispatch.id}</TableCell>
               <TableCell>
-                {dispatch.project?.code} — {dispatch.project?.clientName || dispatch.project?.name}
+                {getProjectDisplayName(dispatch.project)}
               </TableCell>
               <TableCell>{format(new Date(dispatch.dispatch_date), 'dd/MM/yyyy')}</TableCell>
               <TableCell>{dispatch.gate_pass_number}</TableCell>
@@ -938,7 +939,7 @@ export default function DispatchShippingPage() {
                       <SelectContent>
                         {projects && (showAllDspProjects ? projects : projects.filter((p: Project) => p.status === 'active')).map((project: Project) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
-                            {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
+                            {getProjectDisplayName(project)}
                           </SelectItem>
                         ))}
                       </SelectContent>

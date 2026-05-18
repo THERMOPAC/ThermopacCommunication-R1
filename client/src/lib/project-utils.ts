@@ -12,13 +12,16 @@ type ProjectLike = {
   project_display_name?: string | null;
   code?: string | null;
   projectCode?: string | null;
+  project_code?: string | null;
   customerName?: string | null;
+  customer_name?: string | null;
   client_name?: string | null;
   clientName?: string | null;
   shortDescription?: string | null;
   short_description?: string | null;
   name?: string | null;
   projectName?: string | null;
+  project_name?: string | null;
 };
 
 const EM = ' \u2014 ';
@@ -34,9 +37,9 @@ export function getProjectDisplayName(p: ProjectLike | null | undefined): string
   const stored = p.projectDisplayName || p.project_display_name;
   if (stored && stored.trim()) return stored.trim();
 
-  const code = (p.code || p.projectCode || '').trim();
-  const cust = (p.customerName || p.client_name || p.clientName || '').trim();
-  const desc = (p.shortDescription || p.short_description || p.name || p.projectName || '').trim();
+  const code = (p.code || p.projectCode || p.project_code || '').trim();
+  const cust = (p.customerName || p.customer_name || p.client_name || p.clientName || '').trim();
+  const desc = (p.shortDescription || p.short_description || p.name || p.projectName || p.project_name || '').trim();
 
   const parts = [code, cust, desc].filter(Boolean);
   return parts.length ? parts.join(EM) : 'Unknown Project';

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { Helmet } from "react-helmet";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -294,7 +295,7 @@ export default function QualityAssurancePlanPage() {
                     <TableRow key={qap.id}>
                       <TableCell className="font-medium">QAP-{qap.project.code}-{qap.id.toString().padStart(3, '0')}</TableCell>
                       <TableCell>{qap.title}</TableCell>
-                      <TableCell>{qap.project.code} — {qap.project.clientName || qap.project.name}{qap.project.clientName && qap.project.clientName !== qap.project.name ? ` — ${qap.project.name}` : ""}</TableCell>
+                      <TableCell>{getProjectDisplayName(qap.project)}</TableCell>
                       <TableCell>{qap.equipmentType}</TableCell>
                       <TableCell>Rev. {qap.revision}</TableCell>
                       <TableCell><StatusBadge status={qap.status} /></TableCell>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Helmet } from "react-helmet";
 import { Loader2 } from "lucide-react";
@@ -373,7 +374,7 @@ export default function ProcurementPlanningPage() {
                         <SelectContent>
                           {(showAllProcProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                             <SelectItem key={project.id} value={project.code}>
-                              {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
+                              {getProjectDisplayName(project)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -492,7 +493,7 @@ export default function ProcurementPlanningPage() {
                           <SelectContent>
                             {(showAllProcProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
+                                {getProjectDisplayName(project)}
                               </SelectItem>
                             ))}
                           </SelectContent>

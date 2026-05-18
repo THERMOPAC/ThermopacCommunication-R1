@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/layout";
@@ -379,7 +380,7 @@ export default function EpcRisksDashboard() {
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
             {(data?.projects || []).map((p: any) => (
-              <SelectItem key={p.project_id} value={String(p.project_id)}>{p.project_code || ''} — {p.client_name || p.project_name}</SelectItem>
+              <SelectItem key={p.project_id} value={String(p.project_id)}>{getProjectDisplayName(p)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -458,7 +459,7 @@ export default function EpcRisksDashboard() {
                   <TableBody>
                     {projectSummary.map(p => (
                       <TableRow key={p.projectId}>
-                        <TableCell className="text-sm font-medium">{p.code} — {p.clientName || p.name}{p.clientName && p.clientName !== p.name ? ` — ${p.name}` : ""}</TableCell>
+                        <TableCell className="text-sm font-medium">{getProjectDisplayName(p)}</TableCell>
                         <TableCell className="text-center">
                           {p.critical > 0 ? <Badge variant="destructive" className="text-xs">{p.critical}</Badge> : <span className="text-muted-foreground text-xs">0</span>}
                         </TableCell>
@@ -560,7 +561,7 @@ export default function EpcRisksDashboard() {
                             <TableCell className="text-xs max-w-[200px] truncate" title={FINDING_TITLES[f.finding_code]}>
                               {FINDING_TITLES[f.finding_code] || f.finding_code}
                             </TableCell>
-                            <TableCell className="text-xs">{f.project_code ? `${f.project_code} — ${f.client_name || f.project_name}` : '—'}</TableCell>
+                            <TableCell className="text-xs">{f.project_code ? getProjectDisplayName(f) : '—'}</TableCell>
                             <TableCell className="text-xs max-w-[120px] truncate" title={f.project_item_description || ''}>
                               {f.project_item_code || '—'}
                             </TableCell>

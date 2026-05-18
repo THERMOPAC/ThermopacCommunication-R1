@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getProjectDisplayName } from '@/lib/project-utils';
 import { fmtDate } from '@/lib/date-format';
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -1227,7 +1228,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           <SelectItem value="none">No Project</SelectItem>
                           {(showAllInvProjects ? projects : projects?.filter((p: any) => p.status === 'active'))?.map((project: any) => (
                             <SelectItem key={project.id} value={project.id.toString()}>
-                              {project.code} — {project.clientName || project.name}{project.clientName && project.clientName !== project.name ? ` — ${project.name}` : ""}
+                              {getProjectDisplayName(project)}
                             </SelectItem>
                           ))}
                         </SelectContent>

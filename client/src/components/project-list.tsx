@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -1226,7 +1227,7 @@ export default function ProjectList() {
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${project.status === 'active' ? 'bg-green-500' : project.status === 'completed' ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                    <span className="font-medium">{project.code} — {project.clientName || project.name}</span>
+                    <span className="font-medium">{getProjectDisplayName(project)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs rounded-full px-2 py-0.5 ${getPriorityColor(project.priority)}`}>

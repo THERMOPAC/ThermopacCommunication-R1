@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -183,7 +184,7 @@ export default function ViewEditQAPPage() {
           projectId: safeQap.projectId,
           title: safeQap.title,
           status: safeQap.status,
-          project: `${safeQap.project.code} — ${safeQap.project.clientName || safeQap.project.name}${safeQap.project.clientName && safeQap.project.clientName !== safeQap.project.name ? ` — ${safeQap.project.name}` : ''}`
+          project: getProjectDisplayName(safeQap.project)
         });
         
         return safeQap;
@@ -881,7 +882,7 @@ export default function ViewEditQAPPage() {
                               <FormControl>
                                 <Input 
                                   {...field}
-                                  value={qap?.projectInfo || (qap?.project ? `${qap.project.code} — ${qap.project.clientName || qap.project.name}${qap.project.clientName && qap.project.clientName !== qap.project.name ? ` — ${qap.project.name}` : ''}` : "")}
+                                  value={qap?.projectInfo || getProjectDisplayName(qap?.project)}
                                   disabled={true}
                                   className="bg-muted/30"
                                   readOnly
@@ -1328,7 +1329,7 @@ export default function ViewEditQAPPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground">Project</h3>
-                    <p className="text-sm">{qap?.projectInfo || (qap?.project ? `${qap.project.code} — ${qap.project.clientName || qap.project.name}${qap.project.clientName && qap.project.clientName !== qap.project.name ? ` — ${qap.project.name}` : ''}` : "Not specified")}</p>
+                    <p className="text-sm">{qap?.projectInfo || getProjectDisplayName(qap?.project) || "Not specified"}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground">Customer</h3>
