@@ -3047,7 +3047,7 @@ export function setupProjectRoutes(app: express.Express) {
       }
     } catch (error) {
       console.error('Error creating customer:', error);
-      res.status(400).json({ error: 'Failed to create customer', details: error.message });
+      res.status(400).json({ error: 'Failed to create business partner', details: error.message });
     }
   });
 
@@ -3136,7 +3136,7 @@ export function setupProjectRoutes(app: express.Express) {
       }
     } catch (error) {
       console.error(`Error updating customer ${req.params.id}:`, error);
-      res.status(400).json({ error: 'Failed to update customer', details: error.message });
+      res.status(400).json({ error: 'Failed to update business partner', details: error.message });
     }
   });
 
