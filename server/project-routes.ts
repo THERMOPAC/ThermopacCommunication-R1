@@ -3714,13 +3714,20 @@ export function setupProjectRoutes(app: express.Express) {
           `SELECT sap_card_code FROM customers WHERE card_type = 'C' AND sap_card_code IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA')`,
         );
         let gstinUpdated = 0;
+        let gstinDumpDone = false;
         for (const nr of naRows.rows) {
           try {
             const gr = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${nr.sap_card_code}')` });
             if (!gr.ok) continue;
             const gbp = JSON.parse(gr.body);
-            const gstin = String(gbp.GlblLocNum ?? gbp.FederalTaxID ?? '').trim();
-            console.log(`[customer-sap-sync] GSTIN enrich ${nr.sap_card_code}: raw="${gstin}"`);
+            // One-time raw field dump to find correct GSTIN field name
+            if (!gstinDumpDone) {
+              gstinDumpDone = true;
+              const topKeys = Object.keys(gbp).filter(k => !Array.isArray(gbp[k]));
+              console.log(`[customer-sap-sync] GSTIN RAW FIELDS for ${nr.sap_card_code}:`, JSON.stringify(topKeys.reduce((acc: any, k) => { acc[k] = gbp[k]; return acc; }, {})).substring(0, 2000));
+            }
+            const gstin = String(gbp.GlblLocNum ?? gbp.FederalTaxID ?? gbp.VatIdUnCmp ?? gbp.LicTradNum ?? gbp.TaxOffice ?? '').trim();
+            console.log(`[customer-sap-sync] GSTIN enrich ${nr.sap_card_code}: GlblLocNum="${gbp.GlblLocNum}" FedTax="${gbp.FederalTaxID}" Lic="${gbp.LicTradNum}" resolved="${gstin}"`);
             if (gstin && gstin.length >= 5) {
               await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
               gstinUpdated++;
@@ -4009,13 +4016,20 @@ export function setupProjectRoutes(app: express.Express) {
           `SELECT sap_card_code FROM customers WHERE card_type = 'V' AND sap_card_code IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA')`,
         );
         let gstinUpdated = 0;
+        let gstinDumpDone = false;
         for (const nr of naRows.rows) {
           try {
             const gr = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${nr.sap_card_code}')` });
             if (!gr.ok) continue;
             const gbp = JSON.parse(gr.body);
-            const gstin = String(gbp.GlblLocNum ?? gbp.FederalTaxID ?? '').trim();
-            console.log(`[vendor-sap-sync] GSTIN enrich ${nr.sap_card_code}: raw="${gstin}"`);
+            // One-time raw field dump to find correct GSTIN field name
+            if (!gstinDumpDone) {
+              gstinDumpDone = true;
+              const topKeys = Object.keys(gbp).filter(k => !Array.isArray(gbp[k]));
+              console.log(`[vendor-sap-sync] GSTIN RAW FIELDS for ${nr.sap_card_code}:`, JSON.stringify(topKeys.reduce((acc: any, k) => { acc[k] = gbp[k]; return acc; }, {})).substring(0, 2000));
+            }
+            const gstin = String(gbp.GlblLocNum ?? gbp.FederalTaxID ?? gbp.VatIdUnCmp ?? gbp.LicTradNum ?? gbp.TaxOffice ?? '').trim();
+            console.log(`[vendor-sap-sync] GSTIN enrich ${nr.sap_card_code}: GlblLocNum="${gbp.GlblLocNum}" FedTax="${gbp.FederalTaxID}" Lic="${gbp.LicTradNum}" resolved="${gstin}"`);
             if (gstin && gstin.length >= 5) {
               await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
               gstinUpdated++;
