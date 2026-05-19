@@ -3,11 +3,15 @@ import { sapSession } from './sap-central-session';
 interface SapBPAddress {
   AddressName: string;
   AddressType: string;
-  Street?: string;
+  Address2?: string;   // Address Line 1 (confirmed SAP field name)
+  Address3?: string;   // Address Line 2 (confirmed SAP field name)
   Block?: string;
+  Building?: string;
   City?: string;
   State?: string;
   Country?: string;
+  // Legacy Street field kept for the CREATE path (parseAddress)
+  Street?: string;
 }
 
 interface SapBPData {
@@ -67,6 +71,7 @@ class SapBPSyncService {
     return map[countryName] || undefined;
   }
 
+  // Used by CREATE path — parses a legacy freeform address string.
   private parseAddress(name: string, type: string, fullAddress: string, countryCode?: string, stateCode?: string): SapBPAddress {
     const lines = fullAddress.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const addr: SapBPAddress = {
@@ -91,6 +96,39 @@ class SapBPSyncService {
       addr.City = lines[lines.length - 1].substring(0, 100);
     }
 
+    return addr;
+  }
+
+  // Used by UPDATE path — builds address from granular fields using confirmed SAP field names.
+  // SAP BPAddresses field mapping (confirmed):
+  //   Address Line 1 → Address2
+  //   Address Line 2 → Address3
+  //   Block          → Block
+  //   Building       → Building
+  //   City           → City
+  private buildGranularAddress(
+    name: string,
+    type: string,
+    line1: string | null | undefined,
+    line2: string | null | undefined,
+    block: string | null | undefined,
+    building: string | null | undefined,
+    city: string | null | undefined,
+    countryCode?: string,
+    stateCode?: string,
+  ): SapBPAddress {
+    const addr: SapBPAddress = {
+      AddressName: name,
+      AddressType: type,
+      Country: countryCode,
+      State: stateCode || undefined,
+    };
+    const s = (v: string | null | undefined) => (v && v.trim()) ? v.trim().substring(0, 100) : undefined;
+    if (s(line1))     addr.Address2  = s(line1);
+    if (s(line2))     addr.Address3  = s(line2);
+    if (s(block))     addr.Block     = s(block);
+    if (s(building))  addr.Building  = s(building);
+    if (s(city))      addr.City      = s(city);
     return addr;
   }
 
@@ -243,30 +281,99 @@ class SapBPSyncService {
         return { success: false, error: msg };
       }
 
-      // Build update payload from scratch with ONLY safe scalar fields.
-      // Navigation properties (ContactEmployees, BPAddresses) cause ODBC -2035 on PATCH.
-      // UDFs (U_StateSupply, U_BP_GstType, U_PAN_Number) and tax fields (GlobalLocationNumber)
-      // flow FROM SAP into QMS — never the reverse. SAP rejects them with Error -1 / "invalid".
-      // CardName is intentionally excluded: SAP rejects PATCH on BPs with linked journal entries
-      // if CardName is present (error "Journal entries linked to card"). Name is read-only from SAP.
       const cardCode = customer.bpCode;
+      const countryCode = this.countryNameToCode(customer.countryName);
+      const stateCode = (countryCode === 'IN' && customer.uStateSupply) ? customer.uStateSupply : undefined;
+
+      // Guard dummy phone values that SAP rejects
       const rawPhone = (customer.phone1 || '').trim();
-      const validPhone = rawPhone && rawPhone !== '-' && rawPhone !== 'NA' && !/^-+\d*$/.test(rawPhone)
+      const validPhone = rawPhone && rawPhone !== '-' && rawPhone !== '-111' && rawPhone !== 'NA' && !/^-+\d*$/.test(rawPhone)
         ? rawPhone : undefined;
 
-      const bpData: Record<string, unknown> = {};
-      if (validPhone)          bpData.Cellular      = validPhone;
-      if (customer.email)      bpData.EmailAddress  = customer.email;
-      if (customer.currency)   bpData.Currency      = customer.currency;
+      // Full PATCH payload — all editable fields.
+      // Immutable fields excluded: CardCode (URL parameter), CardType (SAP-managed).
+      // If SAP rejects any field, its exact error message is logged and sap_sync_status='failed'.
+      const bpData: Record<string, unknown> = {
+        CardName: customer.bpName,
+      };
+
+      if (validPhone)         bpData.Cellular      = validPhone;
+      if (customer.email)     bpData.EmailAddress  = customer.email;
+      if (countryCode)        bpData.Country       = countryCode;
+      if (customer.currency)  bpData.Currency      = customer.currency;
+
+      // ContactEmployees (up to 3 contacts)
+      if (customer.contactPerson) {
+        const contacts: Array<{ Name: string; Position?: string; E_Mail?: string; Phone1?: string }> = [];
+        contacts.push({
+          Name: customer.contactPerson,
+          Position: customer.contactPosition || undefined,
+          E_Mail: customer.email || undefined,
+          Phone1: customer.phone1 || undefined,
+        });
+        if (customer.contact2Name) {
+          contacts.push({
+            Name: customer.contact2Name,
+            Position: customer.contact2Position || undefined,
+            E_Mail: customer.contact2Email || undefined,
+            Phone1: customer.contact2Phone || undefined,
+          });
+        }
+        if (customer.contact3Name) {
+          contacts.push({
+            Name: customer.contact3Name,
+            Position: customer.contact3Position || undefined,
+            E_Mail: customer.contact3Email || undefined,
+            Phone1: customer.contact3Phone || undefined,
+          });
+        }
+        bpData.ContactEmployees = contacts;
+        bpData.ContactPerson = customer.contactPerson;
+      }
+
+      // BPAddresses — built from granular fields using confirmed SAP field names:
+      //   Address2 = line1, Address3 = line2, Block, Building, City
+      const bpAddresses: SapBPAddress[] = [];
+      if (customer.billAddrLine1 || customer.billAddrCity) {
+        bpAddresses.push(this.buildGranularAddress(
+          'Bill To', 'bo_BillTo',
+          customer.billAddrLine1, customer.billAddrLine2,
+          customer.billAddrBlock, customer.billAddrBuilding, customer.billAddrCity,
+          countryCode, stateCode,
+        ));
+      }
+      if (customer.shipAddrLine1 || customer.shipAddrCity) {
+        bpAddresses.push(this.buildGranularAddress(
+          'Ship To', 'bo_ShipTo',
+          customer.shipAddrLine1, customer.shipAddrLine2,
+          customer.shipAddrBlock, customer.shipAddrBuilding, customer.shipAddrCity,
+          countryCode, stateCode,
+        ));
+      }
+      if (bpAddresses.length > 0) bpData.BPAddresses = bpAddresses;
+
+      // GSTIN (GlobalLocationNumber)
+      const gln = customer.glblLocNum;
+      if (gln && gln !== 'NA' && gln.trim()) bpData.GlobalLocationNumber = gln.trim();
+
+      // India-specific UDFs and GST fields
+      if (countryCode === 'IN') {
+        if (customer.uStateSupply?.trim())  bpData.U_StateSupply  = customer.uStateSupply.trim();
+        if (customer.uBpGstType?.trim())    bpData.U_BP_GstType   = customer.uBpGstType.trim();
+        if (customer.panNumber?.trim())     bpData.U_PAN_Number   = customer.panNumber.trim();
+      }
 
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
       console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));
 
-      let response = await sapSession.request({ method: 'PATCH', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, body: bpData });
+      let response = await sapSession.request({
+        method: 'PATCH',
+        path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
+        body: bpData,
+      });
 
-      // "Error -1 detected during transaction" means the shared session has accumulated
-      // dirty state from prior bulk-sync requests. Invalidate and retry ONCE with a
-      // fresh login — this clears SAP's transaction context.
+      // Auto-retry on "Error -1 / commit transaction" — stale session from bulk sync.
+      // Invalidate and do ONE fresh-login retry.
       if (!response.ok && response.statusCode !== 204 && _retryDepth === 0) {
         let firstErrorMsg = `Status ${response.statusCode}`;
         try {
@@ -276,7 +383,11 @@ class SapBPSyncService {
         if (firstErrorMsg.toLowerCase().includes('error -1') || firstErrorMsg.toLowerCase().includes('commit transaction')) {
           console.warn(`⚠️ SAP BP Sync: Error -1 for ${cardCode} — invalidating session and retrying with fresh login`);
           await sapSession.invalidate();
-          response = await sapSession.request({ method: 'PATCH', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, body: bpData });
+          response = await sapSession.request({
+            method: 'PATCH',
+            path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
+            body: bpData,
+          });
           console.log(`[SAP BP Sync] Retry response for ${cardCode}: ${response.statusCode}`);
         }
       }
@@ -291,14 +402,14 @@ class SapBPSyncService {
           errorMsg = errorBody?.error?.message?.value || errorMsg;
         } catch {}
 
-        console.log(`⚠️ SAP BP Sync: Update failed for ${cardCode}: ${errorMsg}`);
+        console.error(`❌ SAP BP Sync: PATCH failed for ${cardCode} — SAP error: ${errorMsg}`);
+        console.error(`❌ SAP BP Sync: Payload that was rejected:`, JSON.stringify(bpData, null, 2));
 
         if (errorMsg.includes('does not exist') && !errorMsg.includes('Linked value') && !errorMsg.includes('BPAddresses')) {
           console.log(`⚠️ SAP BP Sync: BP ${cardCode} not found in SAP, creating instead`);
           return await this.createBusinessPartner(customer, _retryDepth + 1);
         }
 
-        console.error(`❌ SAP BP Sync: Failed to update BP ${cardCode}: ${errorMsg}`);
         return { success: false, error: errorMsg };
       }
     } catch (error: any) {
