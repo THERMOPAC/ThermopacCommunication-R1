@@ -3474,6 +3474,11 @@ export function setupProjectRoutes(app: express.Express) {
         const fmtAddr = (a: any) => a ? [a.Street, a.City, a.State, a.ZipCode].filter(Boolean).join(', ') || null : null;
         const billEntry = bpAddresses.find((a) => a?.AddressType === 'bo_BillTo');
         const shipEntry = bpAddresses.find((a) => a?.AddressType === 'bo_ShipTo');
+        // SAP sometimes returns literal field names (e.g. "Position") as placeholder values — reject them.
+        const sapStr = (v: any, ...placeholders: string[]): string => {
+          const s = String(v ?? '').trim();
+          return placeholders.some((p) => p.toLowerCase() === s.toLowerCase()) ? '' : s;
+        };
         return {
           CardCode:      code,
           CardType:      String(bp.CardType      ?? '').trim(),
@@ -3489,10 +3494,10 @@ export function setupProjectRoutes(app: express.Express) {
           UStateSupply:  String(bp.U_StateSupply ?? '').trim(),
           UBpGstType:    String(bp.U_BP_GstType  ?? '').trim(),
           Contacts: bpContacts.slice(0, 3).map((c) => ({
-            Name:     String(c.Name     ?? '').trim(),
-            Position: String(c.Position ?? '').trim(),
-            Email:    String(c.E_Mail   ?? '').trim(),
-            Phone:    String(c.Phone1   ?? '').trim(),
+            Name:     sapStr(c.Name,     'Name'),
+            Position: sapStr(c.Position, 'Position'),
+            Email:    sapStr(c.E_Mail,   'E_Mail', 'Email'),
+            Phone:    sapStr(c.Phone1,   'Phone1', 'Phone'),
           })),
           BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
           ShipToAddress: fmtAddr(shipEntry),
@@ -3598,7 +3603,7 @@ export function setupProjectRoutes(app: express.Express) {
                country_name       = COALESCE(NULLIF(country_name,''),       $16),
                country_code       = COALESCE(NULLIF(country_code,''),       $17),
                continent          = COALESCE(NULLIF(continent,''),          $18),
-               glbl_loc_num       = CASE WHEN $19 IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') THEN $19 ELSE COALESCE(NULLIF(glbl_loc_num,''), 'NA') END,
+               glbl_loc_num       = CASE WHEN $19::text IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') THEN $19::text ELSE COALESCE(NULLIF(glbl_loc_num,''), 'NA') END,
                u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $20),
                u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $21),
                sap_currency       = COALESCE(NULLIF(sap_currency,''),       $22),
@@ -3769,6 +3774,11 @@ export function setupProjectRoutes(app: express.Express) {
         const fmtAddr = (a: any) => a ? [a.Street, a.City, a.State, a.ZipCode].filter(Boolean).join(', ') || null : null;
         const billEntry = bpAddresses.find((a) => a?.AddressType === 'bo_BillTo');
         const shipEntry = bpAddresses.find((a) => a?.AddressType === 'bo_ShipTo');
+        // SAP sometimes returns literal field names (e.g. "Position") as placeholder values — reject them.
+        const sapStr = (v: any, ...placeholders: string[]): string => {
+          const s = String(v ?? '').trim();
+          return placeholders.some((p) => p.toLowerCase() === s.toLowerCase()) ? '' : s;
+        };
         return {
           CardCode:      code,
           CardType:      String(bp.CardType      ?? '').trim(),
@@ -3784,10 +3794,10 @@ export function setupProjectRoutes(app: express.Express) {
           UStateSupply:  String(bp.U_StateSupply ?? '').trim(),
           UBpGstType:    String(bp.U_BP_GstType  ?? '').trim(),
           Contacts: bpContacts.slice(0, 3).map((c) => ({
-            Name:     String(c.Name     ?? '').trim(),
-            Position: String(c.Position ?? '').trim(),
-            Email:    String(c.E_Mail   ?? '').trim(),
-            Phone:    String(c.Phone1   ?? '').trim(),
+            Name:     sapStr(c.Name,     'Name'),
+            Position: sapStr(c.Position, 'Position'),
+            Email:    sapStr(c.E_Mail,   'E_Mail', 'Email'),
+            Phone:    sapStr(c.Phone1,   'Phone1', 'Phone'),
           })),
           BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
           ShipToAddress: fmtAddr(shipEntry),
@@ -3866,7 +3876,7 @@ export function setupProjectRoutes(app: express.Express) {
                country_name       = COALESCE(NULLIF(country_name,''),       $16),
                country_code       = COALESCE(NULLIF(country_code,''),       $17),
                continent          = COALESCE(NULLIF(continent,''),          $18),
-               glbl_loc_num       = CASE WHEN $19 IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') THEN $19 ELSE COALESCE(NULLIF(glbl_loc_num,''), 'NA') END,
+               glbl_loc_num       = CASE WHEN $19::text IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') THEN $19::text ELSE COALESCE(NULLIF(glbl_loc_num,''), 'NA') END,
                u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $20),
                u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $21),
                sap_currency       = COALESCE(NULLIF(sap_currency,''),       $22),
