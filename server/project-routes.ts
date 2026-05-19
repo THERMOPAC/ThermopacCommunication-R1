@@ -3845,46 +3845,68 @@ export function setupProjectRoutes(app: express.Express) {
           ShipToAddress: fmtAddr(shipEntry),
         };
       };
+      const testCardCode: string = (req.body?.cardCode ?? '').toString().trim().toUpperCase();
       const allRows: VBPRow[] = [];
-      const PAGE_SIZE = 20;
-      let sapSkip = 0;
+      let filteredRows: VBPRow[] = [];
 
-      while (true) {
-        // No $select — SAP strips UDF columns (U_StateSupply, U_BP_GstType) when $select is present.
-        const qs = new URLSearchParams({
-          '$filter': "CardType eq 'cSupplier'",
-          '$top':    String(PAGE_SIZE),
-          '$skip':   String(sapSkip),
-        }).toString();
-
-        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}` });
+      if (testCardCode) {
+        // ── Single-card test mode ──────────────────────────────────────────────
+        console.log(`[vendor-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
+        const resp = await sapSession.request({
+          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
+        });
         if (!resp.ok) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
         }
+        const bp = JSON.parse(resp.body);
+        // Dump ALL non-array top-level fields so we can identify correct field names
+        const testRaw = Object.keys(bp).filter(k => !Array.isArray(bp[k])).reduce((acc: Record<string,any>, k) => { acc[k] = bp[k]; return acc; }, {});
+        console.log(`[vendor-sap-sync] TEST RAW ALL FIELDS for ${bp.CardCode}:`, JSON.stringify(testRaw).substring(0, 5000));
+        if (bp.CardCode) filteredRows = [parseVendorBpRow(bp)];
+        totalFetched = filteredRows.length;
+        console.log(`[vendor-sap-sync] TEST fetched ${totalFetched} record(s)`);
+      } else {
+        // ── Bulk sync mode ─────────────────────────────────────────────────────
+        const PAGE_SIZE = 20;
+        let sapSkip = 0;
 
-        const page = JSON.parse(resp.body).value ?? [];
-        for (const bp of page) {
-          const code = String(bp.CardCode ?? '').trim();
-          if (!code) continue;
-          // Diagnostic: log raw SAP fields for first 3 vendor records per page
-          if (allRows.length < 3) {
-            console.log(`[vendor-sap-sync] RAW bp CardCode=${bp.CardCode} | GlblLocNum=${JSON.stringify(bp.GlblLocNum)} | FederalTaxID=${JSON.stringify(bp.FederalTaxID)} | Cellular=${JSON.stringify(bp.Cellular)} | Phone1=${JSON.stringify(bp.Phone1)} | U_StateSupply=${JSON.stringify(bp.U_StateSupply)} | U_BP_GstType=${JSON.stringify(bp.U_BP_GstType)} | ContactEmployees_count=${Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees.length : 'MISSING'} | BPAddresses_count=${Array.isArray(bp.BPAddresses) ? bp.BPAddresses.length : 'MISSING'}`);
+        while (true) {
+          // No $select — SAP strips UDF columns (U_StateSupply, U_BP_GstType) when $select is present.
+          const qs = new URLSearchParams({
+            '$filter': "CardType eq 'cSupplier'",
+            '$top':    String(PAGE_SIZE),
+            '$skip':   String(sapSkip),
+          }).toString();
+
+          const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}` });
+          if (!resp.ok) {
+            throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
           }
-          allRows.push(parseVendorBpRow(bp));
+
+          const page = JSON.parse(resp.body).value ?? [];
+          for (const bp of page) {
+            const code = String(bp.CardCode ?? '').trim();
+            if (!code) continue;
+            // Diagnostic: log raw SAP fields for first 3 vendor records per page
+            if (allRows.length < 3) {
+              console.log(`[vendor-sap-sync] RAW bp CardCode=${bp.CardCode} | GlblLocNum=${JSON.stringify(bp.GlblLocNum)} | FederalTaxID=${JSON.stringify(bp.FederalTaxID)} | Cellular=${JSON.stringify(bp.Cellular)} | Phone1=${JSON.stringify(bp.Phone1)} | U_StateSupply=${JSON.stringify(bp.U_StateSupply)} | U_BP_GstType=${JSON.stringify(bp.U_BP_GstType)} | ContactEmployees_count=${Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees.length : 'MISSING'} | BPAddresses_count=${Array.isArray(bp.BPAddresses) ? bp.BPAddresses.length : 'MISSING'}`);
+            }
+            allRows.push(parseVendorBpRow(bp));
+          }
+
+          if (page.length < PAGE_SIZE) break;
+          sapSkip += PAGE_SIZE;
+          if (allRows.length >= 10000) {
+            console.warn('[vendor-sap-sync] capped at 10 000 records');
+            break;
+          }
         }
 
-        if (page.length < PAGE_SIZE) break;
-        sapSkip += PAGE_SIZE;
-        if (allRows.length >= 10000) {
-          console.warn('[vendor-sap-sync] capped at 10 000 records');
-          break;
-        }
+        // Client-side filter: V-prefixed CardCodes only (excludes legacy S-prefix SAP suppliers)
+        filteredRows = allRows.filter((r) => /^V\d+$/i.test(r.CardCode));
+        totalFetched = filteredRows.length;
+        console.log(`[vendor-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass V-prefix filter`);
       }
-
-      // Client-side filter: V-prefixed CardCodes only (excludes legacy S-prefix SAP suppliers)
-      const filteredRows = allRows.filter((r) => /^V\d+$/i.test(r.CardCode));
-      totalFetched = filteredRows.length;
-      console.log(`[vendor-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass V-prefix filter`);
 
       const existingRes = await pool.query<{ sap_card_code: string }>(
         `SELECT sap_card_code FROM customers WHERE sap_card_code IS NOT NULL`,
