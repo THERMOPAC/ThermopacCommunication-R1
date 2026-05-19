@@ -187,7 +187,7 @@ const customerSchema = z.object({
   shipToAddress: z.string().min(1, "Shipping Address is required"),
   cardType: z.string().default("C"),
   glblLocNum: z.string().optional().default(""),
-  uStateSupply: z.string().default(""),
+  uStateSupply: z.string().default("--"),
   uBpGstType: z.string().default("G"),
   currency: z.string().default("USD"),
   continent: z.string().min(1, "Continent is required"),
@@ -305,10 +305,10 @@ function CustomerFormBody({
   const updateStateSupply = (cardType: string, gstType: string) => {
     const isExport = cardType === "C" && gstType === "E";
     if (isExport) {
-      form.setValue("uStateSupply", "");
+      form.setValue("uStateSupply", "--");
     } else {
       const current = form.getValues("uStateSupply");
-      if (!current || current === "") {
+      if (!current || current === "" || current === "--") {
         form.setValue("uStateSupply", "MH");
       }
     }
@@ -825,7 +825,7 @@ function CustomerFormBody({
                     <FormLabel>State of Supply</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      value={field.value || ""}
+                      value={field.value || "--"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -833,7 +833,7 @@ function CustomerFormBody({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">-- Not Applicable --</SelectItem>
+                        <SelectItem value="--">-- Not Applicable --</SelectItem>
                         {INDIAN_GST_STATES.map((s) => (
                           <SelectItem key={s.code} value={s.code}>
                             {s.code} – {s.name}
@@ -973,7 +973,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     shipToAddress: "",
     cardType: "C",
     glblLocNum: "",
-    uStateSupply: "",
+    uStateSupply: "--",
     uBpGstType: "G",
     currency: "USD",
     continent: "",
@@ -1200,7 +1200,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               // Apply Customer defaults on fresh open
               form.setValue("currency", "USD");
               form.setValue("uBpGstType", "E");
-              form.setValue("uStateSupply", ""); // Export → no state
+              form.setValue("uStateSupply", "--"); // Export → no state
               form.setValue("glblLocNum", "");   // Export → no GSTIN
               try {
                 const res = await apiRequest("GET", "/api/customers/next-bp-code");
