@@ -354,16 +354,13 @@ class SapBPSyncService {
       }
       if (bpAddresses.length > 0) bpData.BPAddresses = bpAddresses;
 
-      // GSTIN (GlobalLocationNumber)
+      // GSTIN (GlobalLocationNumber — standard SAP field, writable)
       const gln = customer.glblLocNum;
       if (gln && gln !== 'NA' && gln.trim()) bpData.GlobalLocationNumber = gln.trim();
 
-      // India-specific UDFs and GST fields
-      if (countryCode === 'IN') {
-        if (customer.uStateSupply?.trim())  bpData.U_StateSupply  = customer.uStateSupply.trim();
-        if (customer.uBpGstType?.trim())    bpData.U_BP_GstType   = customer.uBpGstType.trim();
-        if (customer.panNumber?.trim())     bpData.U_PAN_Number   = customer.panNumber.trim();
-      }
+      // NOTE: U_StateSupply, U_BP_GstType, U_PAN_Number are SAP-owned UDFs that flow
+      // FROM SAP into QMS during sync. SAP Service Layer rejects writing them back via PATCH
+      // ("Property '...' of 'BusinessPartner' is invalid"). These are deliberately excluded.
 
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
       console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));
