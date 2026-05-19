@@ -851,7 +851,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
       setSapSyncResult(data);
       setShowSapSyncResult(true);
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-      toast({ title: 'SAP Sync complete', description: `Imported ${data.imported}, skipped ${data.skipped}` });
+      toast({ title: 'SAP Sync complete', description: `Imported ${data.imported}, updated ${data.skipped}` });
     },
     onError: (err: any) => {
       toast({ title: 'SAP Sync failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
@@ -864,7 +864,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
       setSapSyncResult(data);
       setShowSapSyncResult(true);
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-      toast({ title: 'Vendor SAP Sync complete', description: `Imported ${data.imported}, skipped ${data.skipped}` });
+      toast({ title: 'Vendor SAP Sync complete', description: `Imported ${data.imported}, updated ${data.skipped}` });
     },
     onError: (err: any) => {
       toast({ title: 'Vendor SAP Sync failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
@@ -1327,7 +1327,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
                 </div>
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center">
                   <p className="text-2xl font-bold text-amber-700">{sapSyncResult.skipped}</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Skipped (already exist)</p>
+                  <p className="text-xs text-amber-600 mt-0.5">Updated (synced fields)</p>
                 </div>
                 <div className="rounded-md border border-red-200 bg-red-50 p-3 text-center">
                   <p className="text-2xl font-bold text-red-700">{sapSyncResult.failed}</p>
