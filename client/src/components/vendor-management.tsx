@@ -184,13 +184,13 @@ const vendorSchema = z.object({
   contact3Phone: z.string().optional(),
   billAddrLine1: z.string().min(1, "Address Line 1 is required"),
   billAddrLine2: z.string().min(1, "Address Line 2 is required"),
-  billAddrBlock: z.string().min(1, "Block is required"),
-  billAddrBuilding: z.string().min(1, "Building is required"),
+  billAddrBlock: z.string().optional().default(""),
+  billAddrBuilding: z.string().optional().default(""),
   billAddrCity: z.string().min(1, "City is required"),
   shipAddrLine1: z.string().min(1, "Address Line 1 is required"),
   shipAddrLine2: z.string().min(1, "Address Line 2 is required"),
-  shipAddrBlock: z.string().min(1, "Block is required"),
-  shipAddrBuilding: z.string().min(1, "Building is required"),
+  shipAddrBlock: z.string().optional().default(""),
+  shipAddrBuilding: z.string().optional().default(""),
   shipAddrCity: z.string().min(1, "City is required"),
   cardType: z.string().default("V"),
   glblLocNum: z.string().optional().default(""),
@@ -541,35 +541,35 @@ function VendorFormBody({
               <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide border-b border-amber-200 pb-1">Billing Address</p>
               <FormField control={form.control} name="billAddrLine1" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
+                  <FormLabel>Address Line 1 *</FormLabel>
                   <FormControl><Input placeholder="Street / Road" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrLine2" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 2 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address3)</span></FormLabel>
+                  <FormLabel>Address Line 2 *</FormLabel>
                   <FormControl><Input placeholder="Area / Locality" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrBlock" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Block * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Block)</span></FormLabel>
-                  <FormControl><Input placeholder="Block / Sector" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Block</FormLabel>
+                  <FormControl><Input placeholder="Block / Sector (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrBuilding" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Building * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Building)</span></FormLabel>
-                  <FormControl><Input placeholder="Building / Complex name" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Building</FormLabel>
+                  <FormControl><Input placeholder="Building / Complex name (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrCity" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City * <span className="text-muted-foreground font-normal text-[10px]">(SAP: City)</span></FormLabel>
+                  <FormLabel>City *</FormLabel>
                   <FormControl><Input placeholder="City" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -598,35 +598,35 @@ function VendorFormBody({
               </div>
               <FormField control={form.control} name="shipAddrLine1" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
+                  <FormLabel>Address Line 1 *</FormLabel>
                   <FormControl><Input placeholder="Street / Road" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrLine2" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 2 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address3)</span></FormLabel>
+                  <FormLabel>Address Line 2 *</FormLabel>
                   <FormControl><Input placeholder="Area / Locality" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrBlock" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Block * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Block)</span></FormLabel>
-                  <FormControl><Input placeholder="Block / Sector" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Block</FormLabel>
+                  <FormControl><Input placeholder="Block / Sector (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrBuilding" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Building * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Building)</span></FormLabel>
-                  <FormControl><Input placeholder="Building / Complex name" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Building</FormLabel>
+                  <FormControl><Input placeholder="Building / Complex name (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrCity" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City * <span className="text-muted-foreground font-normal text-[10px]">(SAP: City)</span></FormLabel>
+                  <FormLabel>City *</FormLabel>
                   <FormControl><Input placeholder="City" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -792,55 +792,57 @@ function VendorFormBody({
             />
           </div>
 
-          {/* GSTIN — hidden for Export (E) */}
-          {form.watch("uBpGstType") !== "E" && (
+          {/* GSTIN + PAN — single row */}
+          <div className="grid grid-cols-2 gap-4">
+            {form.watch("uBpGstType") !== "E" ? (
+              <FormField
+                control={form.control}
+                name="glblLocNum"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>GSTIN</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., 27AAPFU0939F1ZV"
+                        maxLength={15}
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                      />
+                    </FormControl>
+                    <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+                      15-character GST Identification Number
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <div />
+            )}
             <FormField
               control={form.control}
-              name="glblLocNum"
+              name="panNumber"
               render={({ field }) => (
-                <FormItem className="max-w-xs">
-                  <FormLabel>GSTIN</FormLabel>
+                <FormItem>
+                  <FormLabel>Permanent Account Number</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., 27AAPFU0939F1ZV"
-                      maxLength={15}
+                      placeholder="e.g., ABCDE1234F"
+                      maxLength={10}
                       {...field}
                       value={field.value || ""}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                     />
                   </FormControl>
                   <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
-                    15-character GST Identification Number
+                    10-character PAN (e.g., ABCDE1234F)
                   </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          )}
-
-          {/* PAN */}
-          <FormField
-            control={form.control}
-            name="panNumber"
-            render={({ field }) => (
-              <FormItem className="max-w-xs">
-                <FormLabel>Permanent Account Number</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="e.g., ABCDE1234F"
-                    maxLength={10}
-                    {...field}
-                    value={field.value || ""}
-                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                  />
-                </FormControl>
-                <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
-                  10-character PAN (e.g., ABCDE1234F)
-                </p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          </div>
         </div>
 
         {sapSyncFailureAlert && (

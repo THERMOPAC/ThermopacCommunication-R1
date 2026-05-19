@@ -186,13 +186,13 @@ const customerSchema = z.object({
   contact3Phone: z.string().optional(),
   billAddrLine1: z.string().min(1, "Address Line 1 is required"),
   billAddrLine2: z.string().min(1, "Address Line 2 is required"),
-  billAddrBlock: z.string().min(1, "Block is required"),
-  billAddrBuilding: z.string().min(1, "Building is required"),
+  billAddrBlock: z.string().optional().default(""),
+  billAddrBuilding: z.string().optional().default(""),
   billAddrCity: z.string().min(1, "City is required"),
   shipAddrLine1: z.string().min(1, "Address Line 1 is required"),
   shipAddrLine2: z.string().min(1, "Address Line 2 is required"),
-  shipAddrBlock: z.string().min(1, "Block is required"),
-  shipAddrBuilding: z.string().min(1, "Building is required"),
+  shipAddrBlock: z.string().optional().default(""),
+  shipAddrBuilding: z.string().optional().default(""),
   shipAddrCity: z.string().min(1, "City is required"),
   cardType: z.string().default("C"),
   glblLocNum: z.string().optional().default(""),
@@ -661,35 +661,35 @@ function CustomerFormBody({
               <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide border-b border-amber-200 pb-1">Billing Address</p>
               <FormField control={form.control} name="billAddrLine1" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
+                  <FormLabel>Address Line 1 *</FormLabel>
                   <FormControl><Input placeholder="Street / Road" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrLine2" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 2 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address3)</span></FormLabel>
+                  <FormLabel>Address Line 2 *</FormLabel>
                   <FormControl><Input placeholder="Area / Locality" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrBlock" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Block * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Block)</span></FormLabel>
-                  <FormControl><Input placeholder="Block / Sector" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Block</FormLabel>
+                  <FormControl><Input placeholder="Block / Sector (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrBuilding" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Building * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Building)</span></FormLabel>
-                  <FormControl><Input placeholder="Building / Complex name" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Building</FormLabel>
+                  <FormControl><Input placeholder="Building / Complex name (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="billAddrCity" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City * <span className="text-muted-foreground font-normal text-[10px]">(SAP: City)</span></FormLabel>
+                  <FormLabel>City *</FormLabel>
                   <FormControl><Input placeholder="City" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -718,35 +718,35 @@ function CustomerFormBody({
               </div>
               <FormField control={form.control} name="shipAddrLine1" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
+                  <FormLabel>Address Line 1 *</FormLabel>
                   <FormControl><Input placeholder="Street / Road" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrLine2" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address Line 2 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address3)</span></FormLabel>
+                  <FormLabel>Address Line 2 *</FormLabel>
                   <FormControl><Input placeholder="Area / Locality" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrBlock" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Block * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Block)</span></FormLabel>
-                  <FormControl><Input placeholder="Block / Sector" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Block</FormLabel>
+                  <FormControl><Input placeholder="Block / Sector (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrBuilding" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Building * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Building)</span></FormLabel>
-                  <FormControl><Input placeholder="Building / Complex name" {...field} value={field.value || ""} /></FormControl>
+                  <FormLabel>Building</FormLabel>
+                  <FormControl><Input placeholder="Building / Complex name (optional)" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="shipAddrCity" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City * <span className="text-muted-foreground font-normal text-[10px]">(SAP: City)</span></FormLabel>
+                  <FormLabel>City *</FormLabel>
                   <FormControl><Input placeholder="City" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
