@@ -62,8 +62,8 @@ async function main() {
 
   // ─── 1. Known GST/PAN standard fields ───────────────────────────────────
   console.log('\n--- Standard GST/PAN fields ---');
-  console.log('GlblLocNum              :', bp.GlblLocNum               ?? '(null)');
-  console.log('GlobalLocationNumber    :', bp.GlobalLocationNumber     ?? '(null)');
+  console.log('GlobalLocationNumber    :', bp.GlobalLocationNumber     ?? '(null)');  // ← correct GSTIN field
+  console.log('GlblLocNum (legacy)     :', bp.GlblLocNum               ?? '(null)'); // ← always null
   console.log('VATRegistrationNumber   :', bp.VATRegistrationNumber    ?? '(null)');
   console.log('VatIDNum                :', bp.VatIDNum                  ?? '(null)');
   console.log('FederalTaxID            :', bp.FederalTaxID              ?? '(null)');

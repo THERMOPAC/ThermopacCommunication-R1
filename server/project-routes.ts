@@ -3493,7 +3493,7 @@ export function setupProjectRoutes(app: express.Express) {
           CardType:      String(bp.CardType      ?? '').trim(),
           CardName:      String(bp.CardName      ?? '').trim(),
           Currency:      String(bp.Currency      ?? '').trim(),
-          FederalTaxID:  String(bp.GlblLocNum    ?? bp.FederalTaxID ?? '').trim(),
+          FederalTaxID:  String(bp.GlobalLocationNumber ?? bp.FederalTaxID ?? '').trim(),
           ContactPerson: String(bp.ContactPerson ?? '').trim(),
           Phone1:        String(bp.Cellular       ?? bp.Phone1       ?? '').trim(),
           Address:       String(bp.Address       ?? '').trim(),
@@ -3732,9 +3732,9 @@ export function setupProjectRoutes(app: express.Express) {
               continue;
             }
             const gbp = JSON.parse(gr.body);
-            const gstin = String(gbp.GlblLocNum ?? '').trim();
+            const gstin = String(gbp.GlobalLocationNumber ?? '').trim();
             const pan   = String(gbp.U_PAN_Number ?? '').trim();
-            console.log(`[customer-sap-sync] tax-enrich ${nr.sap_card_code}: GlblLocNum="${gstin}" U_PAN_Number="${pan}"`);
+            console.log(`[customer-sap-sync] tax-enrich ${nr.sap_card_code}: GlobalLocationNumber="${gstin}" U_PAN_Number="${pan}"`);
             const sets: string[] = [];
             const vals: (string | null)[] = [nr.sap_card_code];
             if (gstin && gstin.length >= 5) { vals.push(gstin); sets.push(`glbl_loc_num = $${vals.length}`); }
@@ -3834,7 +3834,7 @@ export function setupProjectRoutes(app: express.Express) {
           CardType:      String(bp.CardType      ?? '').trim(),
           CardName:      String(bp.CardName      ?? '').trim(),
           Currency:      String(bp.Currency      ?? '').trim(),
-          GlblLocNum:    String(bp.GlblLocNum    ?? '').trim(),
+          GlblLocNum:    String(bp.GlobalLocationNumber ?? '').trim(),
           ContactPerson: String(bp.ContactPerson ?? '').trim(),
           Phone1:        String(bp.Cellular       ?? bp.Phone1       ?? '').trim(),
           Address:       String(bp.Address       ?? '').trim(),
@@ -3898,7 +3898,7 @@ export function setupProjectRoutes(app: express.Express) {
             if (!code) continue;
             // Diagnostic: log raw SAP fields for first 3 vendor records per page
             if (allRows.length < 3) {
-              console.log(`[vendor-sap-sync] RAW bp CardCode=${bp.CardCode} | GlblLocNum=${JSON.stringify(bp.GlblLocNum)} | FederalTaxID=${JSON.stringify(bp.FederalTaxID)} | U_PAN_Number=${JSON.stringify(bp.U_PAN_Number)} | Cellular=${JSON.stringify(bp.Cellular)} | Phone1=${JSON.stringify(bp.Phone1)} | U_StateSupply=${JSON.stringify(bp.U_StateSupply)} | U_BP_GstType=${JSON.stringify(bp.U_BP_GstType)} | ContactEmployees_count=${Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees.length : 'MISSING'} | BPAddresses_count=${Array.isArray(bp.BPAddresses) ? bp.BPAddresses.length : 'MISSING'}`);
+              console.log(`[vendor-sap-sync] RAW bp CardCode=${bp.CardCode} | GlobalLocationNumber=${JSON.stringify(bp.GlobalLocationNumber)} | FederalTaxID=${JSON.stringify(bp.FederalTaxID)} | U_PAN_Number=${JSON.stringify(bp.U_PAN_Number)} | Cellular=${JSON.stringify(bp.Cellular)} | Phone1=${JSON.stringify(bp.Phone1)} | U_StateSupply=${JSON.stringify(bp.U_StateSupply)} | U_BP_GstType=${JSON.stringify(bp.U_BP_GstType)} | ContactEmployees_count=${Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees.length : 'MISSING'} | BPAddresses_count=${Array.isArray(bp.BPAddresses) ? bp.BPAddresses.length : 'MISSING'}`);
             }
             allRows.push(parseVendorBpRow(bp));
           }
@@ -4081,9 +4081,9 @@ export function setupProjectRoutes(app: express.Express) {
                 continue;
               }
               const gbp = JSON.parse(gr.body);
-              const gstin = String(gbp.GlblLocNum ?? '').trim();
+              const gstin = String(gbp.GlobalLocationNumber ?? '').trim();
               const pan   = String(gbp.U_PAN_Number ?? '').trim();
-              console.log(`[vendor-sap-sync] tax-enrich ${nr.sap_card_code}: GlblLocNum="${gstin}" U_PAN_Number="${pan}"`);
+              console.log(`[vendor-sap-sync] tax-enrich ${nr.sap_card_code}: GlobalLocationNumber="${gstin}" U_PAN_Number="${pan}"`);
               const sets: string[] = [];
               const vals: (string | null)[] = [nr.sap_card_code];
               if (gstin && gstin.length >= 5) { vals.push(gstin); sets.push(`glbl_loc_num = $${vals.length}`); }
