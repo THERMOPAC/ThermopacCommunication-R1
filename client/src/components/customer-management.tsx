@@ -654,10 +654,11 @@ function CustomerFormBody({
             <h4 className="text-sm font-semibold text-amber-700">Address / Location</h4>
           </div>
 
-          {/* Billing Address */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Billing Address</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Billing | Shipping side-by-side */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* LEFT: Billing Address */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide border-b border-amber-200 pb-1">Billing Address</p>
               <FormField control={form.control} name="billAddrLine1" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
@@ -694,29 +695,27 @@ function CustomerFormBody({
                 </FormItem>
               )} />
             </div>
-          </div>
 
-          {/* Shipping Address */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Shipping Address</p>
-              <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="h-auto p-0 text-xs text-amber-600 hover:text-amber-800"
-                onClick={() => {
-                  form.setValue("shipAddrLine1", form.getValues("billAddrLine1") || "");
-                  form.setValue("shipAddrLine2", form.getValues("billAddrLine2") || "");
-                  form.setValue("shipAddrBlock", form.getValues("billAddrBlock") || "");
-                  form.setValue("shipAddrBuilding", form.getValues("billAddrBuilding") || "");
-                  form.setValue("shipAddrCity", form.getValues("billAddrCity") || "");
-                }}
-              >
-                Copy from Billing
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* RIGHT: Shipping Address */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between border-b border-amber-200 pb-1">
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Shipping Address</p>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs text-amber-600 hover:text-amber-800"
+                  onClick={() => {
+                    form.setValue("shipAddrLine1", form.getValues("billAddrLine1") || "");
+                    form.setValue("shipAddrLine2", form.getValues("billAddrLine2") || "");
+                    form.setValue("shipAddrBlock", form.getValues("billAddrBlock") || "");
+                    form.setValue("shipAddrBuilding", form.getValues("billAddrBuilding") || "");
+                    form.setValue("shipAddrCity", form.getValues("billAddrCity") || "");
+                  }}
+                >
+                  Copy from Billing
+                </Button>
+              </div>
               <FormField control={form.control} name="shipAddrLine1" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
@@ -755,7 +754,7 @@ function CustomerFormBody({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <FormField
               control={form.control}
               name="countryName"
@@ -1455,7 +1454,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* ── Create Customer Dialog ── */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
             <DialogDescription>
@@ -1486,7 +1485,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
       {/* ── Edit Customer Dialog ── */}
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) { setEditingCustomer(null); setEditSapSyncError(null); } }}>
-        <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[1100px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
             <DialogDescription>
