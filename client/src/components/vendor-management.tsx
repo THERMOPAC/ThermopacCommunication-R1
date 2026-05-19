@@ -268,6 +268,8 @@ function VendorFormBody({
   setGstTypeManuallySet,
   bpCodeFetchError,
   sapSyncFailureAlert,
+  onRetryBpCode,
+  isRetryingBpCode,
 }: {
   form: UseFormReturn<VendorFormValues>;
   onSubmit: (data: VendorFormValues) => void;
@@ -285,6 +287,8 @@ function VendorFormBody({
   setGstTypeManuallySet: (v: boolean) => void;
   bpCodeFetchError?: string | null;
   sapSyncFailureAlert?: string | null;
+  onRetryBpCode?: () => void;
+  isRetryingBpCode?: boolean;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -337,7 +341,23 @@ function VendorFormBody({
             <Alert variant="destructive" className="mb-1 py-2">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle className="text-xs font-semibold">SAP B1 Unavailable — BP Code cannot be generated</AlertTitle>
-              <AlertDescription className="text-xs">{bpCodeFetchError}</AlertDescription>
+              <AlertDescription className="text-xs flex items-center justify-between gap-2">
+                <span>{bpCodeFetchError}</span>
+                {onRetryBpCode && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 h-6 text-xs border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={onRetryBpCode}
+                    disabled={isRetryingBpCode}
+                  >
+                    {isRetryingBpCode
+                      ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />Retrying…</>
+                      : <><RefreshCw className="h-3 w-3 mr-1" />Retry</>}
+                  </Button>
+                )}
+              </AlertDescription>
             </Alert>
           )}
           <div className="grid grid-cols-[1fr_3fr] gap-3">
@@ -767,6 +787,26 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
   const [currencyManuallySet, setCurrencyManuallySet] = useState(false);
   const [gstTypeManuallySet, setGstTypeManuallySet] = useState(false);
   const [bpCodeFetchError, setBpCodeFetchError] = useState<string | null>(null);
+  const [isRetryingBpCode, setIsRetryingBpCode] = useState(false);
+
+  const fetchNextBpCode = async () => {
+    setIsRetryingBpCode(true);
+    setBpCodeFetchError(null);
+    form.setValue('bpCode', '');
+    try {
+      const res = await apiRequest("GET", "/api/customers/next-vendor-bp-code");
+      if (res?.nextBpCode) {
+        form.setValue('bpCode', res.nextBpCode);
+        setBpCodeFetchError(null);
+      } else if (res?.error) {
+        setBpCodeFetchError(res.error);
+      }
+    } catch (e: any) {
+      setBpCodeFetchError(e?.message ?? 'SAP B1 is unavailable. Cannot generate BP Code. Retry after SAP is restored.');
+    } finally {
+      setIsRetryingBpCode(false);
+    }
+  };
 
   const SAP_SYNC_ROLES = ['Superuser', 'General Manager', 'Senior Manager'];
   const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
@@ -1045,20 +1085,8 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
               setContact3Open(false);
               setCurrencyManuallySet(false);
               setGstTypeManuallySet(false);
-              setBpCodeFetchError(null);
-              form.setValue('bpCode', '');
-              try {
-                const res = await apiRequest("GET", "/api/customers/next-vendor-bp-code");
-                if (res?.nextBpCode) {
-                  form.setValue('bpCode', res.nextBpCode);
-                  setBpCodeFetchError(null);
-                } else if (res?.error) {
-                  setBpCodeFetchError(res.error);
-                }
-              } catch (e: any) {
-                setBpCodeFetchError(e?.message ?? 'SAP B1 is unavailable. Cannot generate BP Code. Retry after SAP is restored.');
-              }
               setIsCreateDialogOpen(true);
+              await fetchNextBpCode();
             }}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -1178,6 +1206,8 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
             gstTypeManuallySet={gstTypeManuallySet}
             setGstTypeManuallySet={setGstTypeManuallySet}
             bpCodeFetchError={bpCodeFetchError}
+            onRetryBpCode={fetchNextBpCode}
+            isRetryingBpCode={isRetryingBpCode}
           />
         </DialogContent>
       </Dialog>
