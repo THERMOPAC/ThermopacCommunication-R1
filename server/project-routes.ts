@@ -3710,17 +3710,20 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       // ── GSTIN enrichment pass ───────────────────────────────────────────────────
-      // SAP's bulk list endpoint does NOT return GlblLocNum.
-      // Fetch each record individually for any customer whose GSTIN is still 'NA'.
+      // SAP bulk list does not reliably return GlblLocNum — fetch individually.
+      // Capped at 30 per sync run to prevent SAP rate-limiting / HTTP timeout.
       try {
         const naRows = await pool.query<{ sap_card_code: string }>(
-          `SELECT sap_card_code FROM customers WHERE card_type = 'C' AND sap_card_code IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA')`,
+          `SELECT sap_card_code FROM customers WHERE card_type = 'C' AND sap_card_code IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') LIMIT 30`,
         );
         let gstinUpdated = 0;
         for (const nr of naRows.rows) {
           try {
             const gr = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${nr.sap_card_code}')` });
-            if (!gr.ok) continue;
+            if (!gr.ok) {
+              console.warn(`[customer-sap-sync] GSTIN enrich ${nr.sap_card_code}: SAP returned ${gr.statusCode}`);
+              continue;
+            }
             const gbp = JSON.parse(gr.body);
             const gstin = String(gbp.GlblLocNum ?? '').trim();
             console.log(`[customer-sap-sync] GSTIN enrich ${nr.sap_card_code}: GlblLocNum="${gstin}"`);
@@ -3730,7 +3733,7 @@ export function setupProjectRoutes(app: express.Express) {
             }
           } catch (e2: any) { console.warn(`[customer-sap-sync] GSTIN enrich error ${nr.sap_card_code}:`, e2.message); }
         }
-        console.log(`[customer-sap-sync] GSTIN enrichment: ${gstinUpdated}/${naRows.rows.length} records updated`);
+        console.log(`[customer-sap-sync] GSTIN enrichment: ${gstinUpdated}/${naRows.rows.length} records updated (capped at 30)`);
       } catch (e: any) {
         console.warn('[customer-sap-sync] GSTIN enrichment skipped:', e.message);
       }
@@ -4027,29 +4030,35 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       // ── GSTIN enrichment pass ───────────────────────────────────────────────────
-      // SAP's bulk list endpoint does NOT return GlblLocNum.
-      // Fetch each vendor individually for any record whose GSTIN is still 'NA'.
-      try {
-        const naRows = await pool.query<{ sap_card_code: string }>(
-          `SELECT sap_card_code FROM customers WHERE card_type = 'V' AND sap_card_code IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA')`,
-        );
-        let gstinUpdated = 0;
-        for (const nr of naRows.rows) {
-          try {
-            const gr = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${nr.sap_card_code}')` });
-            if (!gr.ok) continue;
-            const gbp = JSON.parse(gr.body);
-            const gstin = String(gbp.GlblLocNum ?? '').trim();
-            console.log(`[vendor-sap-sync] GSTIN enrich ${nr.sap_card_code}: GlblLocNum="${gstin}"`);
-            if (gstin && gstin.length >= 5) {
-              await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
-              gstinUpdated++;
-            }
-          } catch (e2: any) { console.warn(`[vendor-sap-sync] GSTIN enrich error ${nr.sap_card_code}:`, e2.message); }
+      // Test mode: the single vendor was already fetched individually above, so GlblLocNum
+      // is already captured via FederalTaxID in the main loop — skip bulk enrichment.
+      // Bulk mode: cap at 30 vendors per run to avoid SAP rate-limiting / HTTP timeout.
+      if (!testCardCode) {
+        try {
+          const naRows = await pool.query<{ sap_card_code: string }>(
+            `SELECT sap_card_code FROM customers WHERE card_type = 'V' AND sap_card_code IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') LIMIT 30`,
+          );
+          let gstinUpdated = 0;
+          for (const nr of naRows.rows) {
+            try {
+              const gr = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${nr.sap_card_code}')` });
+              if (!gr.ok) {
+                console.warn(`[vendor-sap-sync] GSTIN enrich ${nr.sap_card_code}: SAP returned ${gr.statusCode}`);
+                continue;
+              }
+              const gbp = JSON.parse(gr.body);
+              const gstin = String(gbp.GlblLocNum ?? '').trim();
+              console.log(`[vendor-sap-sync] GSTIN enrich ${nr.sap_card_code}: GlblLocNum="${gstin}"`);
+              if (gstin && gstin.length >= 5) {
+                await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
+                gstinUpdated++;
+              }
+            } catch (e2: any) { console.warn(`[vendor-sap-sync] GSTIN enrich error ${nr.sap_card_code}:`, e2.message); }
+          }
+          console.log(`[vendor-sap-sync] GSTIN enrichment: ${gstinUpdated}/${naRows.rows.length} records updated (capped at 30)`);
+        } catch (e: any) {
+          console.warn('[vendor-sap-sync] GSTIN enrichment skipped:', e.message);
         }
-        console.log(`[vendor-sap-sync] GSTIN enrichment: ${gstinUpdated}/${naRows.rows.length} records updated`);
-      } catch (e: any) {
-        console.warn('[vendor-sap-sync] GSTIN enrichment skipped:', e.message);
       }
 
       console.log(`[vendor-sap-sync] done — fetched=${totalFetched} imported=${imported} skipped=${skipped} failed=${failed}`);
