@@ -57,6 +57,7 @@ import {
   ChevronDown,
   ChevronUp,
   Truck,
+  RefreshCw,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -281,6 +282,7 @@ function VendorFormBody({
   gstTypeManuallySet: boolean;
   setGstTypeManuallySet: (v: boolean) => void;
   bpCodeFetchError?: string | null;
+  sapSyncFailureAlert?: string | null;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -707,10 +709,22 @@ function VendorFormBody({
             <AlertDescription>{bpCodeFetchError}</AlertDescription>
           </Alert>
         )}
+        {sapSyncFailureAlert && (
+          <Alert variant="destructive" className="mb-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>SAP B1 Sync Failed — Record Saved Locally</AlertTitle>
+            <AlertDescription>
+              {sapSyncFailureAlert}
+              <br />
+              <span className="text-xs opacity-90">This record is marked "SAP Sync Failed" until corrected. Close this dialog and use the Retry SAP Sync action on the record.</span>
+            </AlertDescription>
+          </Alert>
+        )}
         <DialogFooter className="pt-2">
           <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
+            {sapSyncFailureAlert ? "Close" : "Cancel"}
           </Button>
+          {!sapSyncFailureAlert && (
           <Button type="submit" disabled={isPending || !!bpCodeFetchError}>
             {isPending ? (
               <>
@@ -835,6 +849,8 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
     },
   });
 
+  const [editSapSyncError, setEditSapSyncError] = useState<string | null>(null);
+
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: VendorFormValues }) => {
       return await apiRequest("PUT", `/api/customers/${id}`, { ...data, cardType: "V" });
@@ -842,20 +858,39 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       const sapStatus = response?.sapSyncStatus;
-      toast({
-        title: "Vendor updated",
-        description: sapStatus === 'synced'
-          ? "Vendor updated and synced to SAP B1 successfully."
-          : sapStatus === 'failed'
-          ? `Vendor updated locally. SAP sync failed: ${response?.sapSyncError || 'Unknown error'}`
-          : "Vendor updated locally. SAP sync was skipped.",
-        variant: sapStatus === 'failed' ? "destructive" : "default",
-      });
-      setIsEditDialogOpen(false);
-      setEditingVendor(null);
+      if (sapStatus === 'failed') {
+        setEditSapSyncError(response?.sapSyncError || 'SAP B1 rejected the update. Check SAP connectivity.');
+      } else {
+        setEditSapSyncError(null);
+        toast({
+          title: "Vendor updated",
+          description: sapStatus === 'synced'
+            ? "Vendor updated and synced to SAP B1 successfully."
+            : "Vendor updated locally. SAP sync was skipped.",
+        });
+        setIsEditDialogOpen(false);
+        setEditingVendor(null);
+      }
     },
     onError: (error) => {
       toast({ title: "Failed to update vendor", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const retrySapSyncMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("POST", `/api/customers/${id}/retry-sap-sync`);
+    },
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      if (response?.success) {
+        toast({ title: "SAP sync successful", description: "Record is now synced to SAP B1." });
+      } else {
+        toast({ title: "SAP retry failed", description: response?.error || "Unknown error", variant: "destructive" });
+      }
+    },
+    onError: (error) => {
+      toast({ title: "SAP retry failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1066,19 +1101,35 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
                       <TableCell className="text-xs">{(vendor as any).phone1 || "-"}</TableCell>
                       <TableCell>{vendor.countryName || "-"}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          {(vendor as any).uBpGstType === "G" ? "Regular"
-                            : (vendor as any).uBpGstType === "E" ? "Export"
-                            : (vendor as any).uBpGstType === "C" ? "Composition"
-                            : (vendor as any).uBpGstType === "U" ? "Unregistered"
-                            : (vendor as any).uBpGstType || "-"}
-                        </Badge>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Badge variant="secondary" className="text-xs">
+                            {(vendor as any).uBpGstType === "G" ? "Regular"
+                              : (vendor as any).uBpGstType === "E" ? "Export"
+                              : (vendor as any).uBpGstType === "C" ? "Composition"
+                              : (vendor as any).uBpGstType === "U" ? "Unregistered"
+                              : (vendor as any).uBpGstType || "-"}
+                          </Badge>
+                          {(vendor as any).sapSyncStatus === 'failed' && (
+                            <Badge variant="destructive" className="text-xs">SAP Sync Failed</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           <Button variant="ghost" size="sm" onClick={() => openEditDialog(vendor)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          {(vendor as any).sapSyncStatus === 'failed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => retrySapSyncMutation.mutate(vendor.id)}
+                              disabled={retrySapSyncMutation.isPending}
+                              title="Retry SAP Sync"
+                            >
+                              <RefreshCw className="h-4 w-4 text-amber-600" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(vendor)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -1123,7 +1174,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
       </Dialog>
 
       {/* ── Edit Vendor Dialog ── */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) { setEditingVendor(null); setEditSapSyncError(null); } }}>
         <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Vendor / Supplier</DialogTitle>
@@ -1132,7 +1183,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
           <VendorFormBody
             form={form}
             onSubmit={onSubmitEdit}
-            onCancel={() => { setIsEditDialogOpen(false); setEditingVendor(null); }}
+            onCancel={() => { setIsEditDialogOpen(false); setEditingVendor(null); setEditSapSyncError(null); }}
             isPending={updateMutation.isPending}
             submitLabel="Update Vendor"
             bpCodeReadOnly={true}
@@ -1144,6 +1195,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
             setCurrencyManuallySet={setCurrencyManuallySet}
             gstTypeManuallySet={gstTypeManuallySet}
             setGstTypeManuallySet={setGstTypeManuallySet}
+            sapSyncFailureAlert={editSapSyncError}
           />
         </DialogContent>
       </Dialog>

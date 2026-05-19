@@ -58,6 +58,7 @@ import {
   ChevronDown,
   ChevronUp,
   Star,
+  RefreshCw,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -285,6 +286,7 @@ function CustomerFormBody({
   gstTypeManuallySet: boolean;
   setGstTypeManuallySet: (v: boolean) => void;
   bpCodeFetchError?: string | null;
+  sapSyncFailureAlert?: string | null;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -854,10 +856,22 @@ function CustomerFormBody({
             <AlertDescription>{bpCodeFetchError}</AlertDescription>
           </Alert>
         )}
+        {sapSyncFailureAlert && (
+          <Alert variant="destructive" className="mb-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>SAP B1 Sync Failed — Record Saved Locally</AlertTitle>
+            <AlertDescription>
+              {sapSyncFailureAlert}
+              <br />
+              <span className="text-xs opacity-90">This record is marked "SAP Sync Failed" until corrected. Close this dialog and use the Retry SAP Sync action on the record.</span>
+            </AlertDescription>
+          </Alert>
+        )}
         <DialogFooter className="pt-2">
           <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
+            {sapSyncFailureAlert ? "Close" : "Cancel"}
           </Button>
+          {!sapSyncFailureAlert && (
           <Button type="submit" disabled={isPending || !!bpCodeFetchError}>
             {isPending ? (
               <>
@@ -868,6 +882,7 @@ function CustomerFormBody({
               submitLabel
             )}
           </Button>
+          )}
         </DialogFooter>
       </form>
     </Form>
@@ -990,6 +1005,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     },
   });
 
+  const [editSapSyncError, setEditSapSyncError] = useState<string | null>(null);
+
   // Update customer mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CustomerFormValues }) => {
@@ -998,17 +1015,19 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       const sapStatus = response?.sapSyncStatus;
-      toast({
-        title: "Customer updated",
-        description: sapStatus === 'synced'
-          ? "Customer updated and synced to SAP B1 successfully."
-          : sapStatus === 'failed'
-          ? `Customer updated locally. SAP sync failed: ${response?.sapSyncError || 'Unknown error'}`
-          : "Customer updated locally. SAP sync was skipped.",
-        variant: sapStatus === 'failed' ? "destructive" : "default",
-      });
-      setIsEditDialogOpen(false);
-      setEditingCustomer(null);
+      if (sapStatus === 'failed') {
+        setEditSapSyncError(response?.sapSyncError || 'SAP B1 rejected the update. Check SAP connectivity.');
+      } else {
+        setEditSapSyncError(null);
+        toast({
+          title: "Customer updated",
+          description: sapStatus === 'synced'
+            ? "Customer updated and synced to SAP B1 successfully."
+            : "Customer updated locally. SAP sync was skipped.",
+        });
+        setIsEditDialogOpen(false);
+        setEditingCustomer(null);
+      }
     },
     onError: (error) => {
       toast({
@@ -1016,6 +1035,23 @@ export default function CustomerManagement({ customers }: { customers: Customer[
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const retrySapSyncMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("POST", `/api/customers/${id}/retry-sap-sync`);
+    },
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      if (response?.success) {
+        toast({ title: "SAP sync successful", description: "Record is now synced to SAP B1." });
+      } else {
+        toast({ title: "SAP retry failed", description: response?.error || "Unknown error", variant: "destructive" });
+      }
+    },
+    onError: (error) => {
+      toast({ title: "SAP retry failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1239,12 +1275,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <TableCell className="font-medium font-mono text-xs">{customer.bpCode}</TableCell>
                       <TableCell className="font-medium">{customer.bpName}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={(customer as any).cardType === "S" ? "secondary" : (customer as any).cardType === "L" ? "outline" : "default"}
-                          className="text-xs"
-                        >
-                          {(customer as any).cardType === "S" ? "Supplier" : (customer as any).cardType === "L" ? "Lead" : "Customer"}
-                        </Badge>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Badge
+                            variant={(customer as any).cardType === "S" ? "secondary" : (customer as any).cardType === "L" ? "outline" : "default"}
+                            className="text-xs"
+                          >
+                            {(customer as any).cardType === "S" ? "Supplier" : (customer as any).cardType === "L" ? "Lead" : "Customer"}
+                          </Badge>
+                          {(customer as any).sapSyncStatus === 'failed' && (
+                            <Badge variant="destructive" className="text-xs">SAP Sync Failed</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{customer.contactPerson || "-"}</TableCell>
                       <TableCell className="text-xs">{customer.email || "-"}</TableCell>
@@ -1260,6 +1301,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          {(customer as any).sapSyncStatus === 'failed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => retrySapSyncMutation.mutate(customer.id)}
+                              disabled={retrySapSyncMutation.isPending}
+                              title="Retry SAP Sync"
+                            >
+                              <RefreshCw className="h-4 w-4 text-amber-600" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1308,7 +1360,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       </Dialog>
 
       {/* ── Edit Customer Dialog ── */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) { setEditingCustomer(null); setEditSapSyncError(null); } }}>
         <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
@@ -1319,7 +1371,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           <CustomerFormBody
             form={form}
             onSubmit={onSubmitEdit}
-            onCancel={() => { setIsEditDialogOpen(false); setEditingCustomer(null); }}
+            onCancel={() => { setIsEditDialogOpen(false); setEditingCustomer(null); setEditSapSyncError(null); }}
             isPending={updateMutation.isPending}
             submitLabel="Update Customer"
             bpCodeReadOnly={true}
@@ -1331,6 +1383,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             setCurrencyManuallySet={setCurrencyManuallySet}
             gstTypeManuallySet={gstTypeManuallySet}
             setGstTypeManuallySet={setGstTypeManuallySet}
+            sapSyncFailureAlert={editSapSyncError}
           />
         </DialogContent>
       </Dialog>

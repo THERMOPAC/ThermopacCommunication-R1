@@ -236,8 +236,6 @@ class SapBPSyncService {
       const cardCode = bpData.CardCode;
       delete (bpData as any).CardCode;
       delete (bpData as any).CardType;
-      delete (bpData as any).ContactEmployees;
-      delete (bpData as any).BPAddresses;
 
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
       console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));

@@ -1847,7 +1847,8 @@ export const customers = pgTable('customers', {
   sapVatRegNumber: text('sap_vat_reg_number'),
   sapSyncedAt: timestamp('sap_synced_at'),
   sapLastModified: timestamp('sap_last_modified'),
-  sapSyncStatus: text('sap_sync_status').default('pending'), // pending, synced, error
+  sapSyncStatus: text('sap_sync_status').default('pending'), // pending, synced, failed
+  sapSyncError: text('sap_sync_error'),
   shortCode: varchar('short_code', { length: 5 }).notNull().unique(),
   continentCode: varchar('continent_code', { length: 2 }),
   countryCode: varchar('country_code', { length: 2 }),
