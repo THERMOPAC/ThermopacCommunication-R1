@@ -1852,6 +1852,7 @@ export const customers = pgTable('customers', {
   shortCode: varchar('short_code', { length: 5 }).notNull().unique(),
   continentCode: varchar('continent_code', { length: 2 }),
   countryCode: varchar('country_code', { length: 2 }),
+  panNumber: text('pan_number'),
 });
 
 // Projects table
