@@ -3533,7 +3533,7 @@ export function setupProjectRoutes(app: express.Express) {
         // Fetch one BP by primary key — no $select so all fields (including UDFs) are returned.
         console.log(`[customer-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
         const resp = await sapSession.request({
-          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
+          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')?$expand=BPAddresses,ContactEmployees`,
         });
         if (!resp.ok) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
@@ -3542,8 +3542,14 @@ export function setupProjectRoutes(app: express.Express) {
         // Dump ALL non-array top-level fields so we can identify GSTIN field name
         const testRaw = Object.keys(bp).filter(k => !Array.isArray(bp[k])).reduce((acc: any, k) => { acc[k] = bp[k]; return acc; }, {});
         console.log(`[customer-sap-sync] TEST RAW ALL FIELDS for ${bp.CardCode}:`, JSON.stringify(testRaw).substring(0, 4000));
+        console.log(`[customer-sap-sync] TEST BPAddresses for ${bp.CardCode}:`, JSON.stringify(Array.isArray(bp.BPAddresses) ? bp.BPAddresses : 'NOT_ARRAY'));
         if (bp.CardCode) filteredRows = [parseSapBpRow(bp)];
         totalFetched = filteredRows.length;
+        const parsedCustRow = filteredRows[0];
+        if (parsedCustRow) {
+          console.log(`[customer-sap-sync] TEST PARSED addr — BillLine1="${parsedCustRow.BillAddrLine1}" BillLine2="${parsedCustRow.BillAddrLine2}" BillBlock="${parsedCustRow.BillAddrBlock}" BillBuilding="${parsedCustRow.BillAddrBuilding}" BillCity="${parsedCustRow.BillAddrCity}"`);
+          console.log(`[customer-sap-sync] TEST PARSED addr — ShipLine1="${parsedCustRow.ShipAddrLine1}" ShipLine2="${parsedCustRow.ShipAddrLine2}" ShipBlock="${parsedCustRow.ShipAddrBlock}" ShipBuilding="${parsedCustRow.ShipAddrBuilding}" ShipCity="${parsedCustRow.ShipAddrCity}"`);
+        }
         console.log(`[customer-sap-sync] TEST fetched ${totalFetched} record(s)`);
       } else {
         // ── Bulk sync mode ─────────────────────────────────────────────────────
@@ -3908,7 +3914,7 @@ export function setupProjectRoutes(app: express.Express) {
         // ── Single-card test mode ──────────────────────────────────────────────
         console.log(`[vendor-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
         const resp = await sapSession.request({
-          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
+          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')?$expand=BPAddresses,ContactEmployees`,
         });
         if (!resp.ok) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
@@ -3917,8 +3923,14 @@ export function setupProjectRoutes(app: express.Express) {
         // Dump ALL non-array top-level fields so we can identify correct field names
         const testRaw = Object.keys(bp).filter(k => !Array.isArray(bp[k])).reduce((acc: Record<string,any>, k) => { acc[k] = bp[k]; return acc; }, {});
         console.log(`[vendor-sap-sync] TEST RAW ALL FIELDS for ${bp.CardCode}:`, JSON.stringify(testRaw).substring(0, 5000));
+        console.log(`[vendor-sap-sync] TEST BPAddresses for ${bp.CardCode}:`, JSON.stringify(Array.isArray(bp.BPAddresses) ? bp.BPAddresses : 'NOT_ARRAY'));
         if (bp.CardCode) filteredRows = [parseVendorBpRow(bp)];
         totalFetched = filteredRows.length;
+        const parsedRow = filteredRows[0];
+        if (parsedRow) {
+          console.log(`[vendor-sap-sync] TEST PARSED addr fields — BillLine1="${parsedRow.BillAddrLine1}" BillLine2="${parsedRow.BillAddrLine2}" BillBlock="${parsedRow.BillAddrBlock}" BillBuilding="${parsedRow.BillAddrBuilding}" BillCity="${parsedRow.BillAddrCity}"`);
+          console.log(`[vendor-sap-sync] TEST PARSED addr fields — ShipLine1="${parsedRow.ShipAddrLine1}" ShipLine2="${parsedRow.ShipAddrLine2}" ShipBlock="${parsedRow.ShipAddrBlock}" ShipBuilding="${parsedRow.ShipAddrBuilding}" ShipCity="${parsedRow.ShipAddrCity}"`);
+        }
         console.log(`[vendor-sap-sync] TEST fetched ${totalFetched} record(s)`);
       } else {
         // ── Bulk sync mode ─────────────────────────────────────────────────────
