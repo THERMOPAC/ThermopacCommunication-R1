@@ -3,15 +3,16 @@ import { sapSession } from './sap-central-session';
 interface SapBPAddress {
   AddressName: string;
   AddressType: string;
-  Address2?: string;   // Address Line 1 (confirmed SAP field name)
-  Address3?: string;   // Address Line 2 (confirmed SAP field name)
-  Block?: string;
-  Building?: string;
+  // SAP Service Layer WRITE field names (schema-defined, accepted in POST/PATCH):
+  Street?: string;           // Address Line 1
+  StreetNo?: string;         // Address Line 2
+  Block?: string;            // Block / Sector
+  BuildingFloorRoom?: string; // Building / Complex name
   City?: string;
   State?: string;
   Country?: string;
-  // Legacy Street field kept for the CREATE path (parseAddress)
-  Street?: string;
+  // NOTE: Address2 / Address3 / Building are READ-only field aliases returned by SAP on GET
+  // but are NOT valid WRITE fields — SAP rejects them with "Property 'Address2' is invalid"
 }
 
 interface SapBPData {
@@ -99,13 +100,14 @@ class SapBPSyncService {
     return addr;
   }
 
-  // Used by UPDATE path — builds address from granular fields using confirmed SAP field names.
-  // SAP BPAddresses field mapping (confirmed):
-  //   Address Line 1 → Address2
-  //   Address Line 2 → Address3
+  // Used by UPDATE path — builds address from granular fields.
+  // SAP Service Layer WRITE field names (POST/PATCH accepted):
+  //   Address Line 1 → Street
+  //   Address Line 2 → StreetNo
   //   Block          → Block
-  //   Building       → Building
+  //   Building       → BuildingFloorRoom
   //   City           → City
+  // (Address2 / Address3 / Building are GET-only aliases SAP rejects on write)
   private buildGranularAddress(
     name: string,
     type: string,
@@ -124,11 +126,11 @@ class SapBPSyncService {
       State: stateCode || undefined,
     };
     const s = (v: string | null | undefined) => (v && v.trim()) ? v.trim().substring(0, 100) : undefined;
-    if (s(line1))     addr.Address2  = s(line1);
-    if (s(line2))     addr.Address3  = s(line2);
-    if (s(block))     addr.Block     = s(block);
-    if (s(building))  addr.Building  = s(building);
-    if (s(city))      addr.City      = s(city);
+    if (s(line1))     addr.Street            = s(line1);
+    if (s(line2))     addr.StreetNo          = s(line2);
+    if (s(block))     addr.Block             = s(block);
+    if (s(building))  addr.BuildingFloorRoom = s(building);
+    if (s(city))      addr.City              = s(city);
     return addr;
   }
 
