@@ -388,8 +388,9 @@ class SapBPSyncService {
         body: bpData,
       });
 
-      // Auto-retry on "Error -1 / commit transaction" — stale session from bulk sync.
-      // Invalidate and do ONE fresh-login retry.
+      // Auto-retry on "Error -1 / commit transaction" — stale session from bulk sync or
+      // from the GET pre-fetch above contaminating the session.
+      // Invalidate and retry the FULL flow (GET InternalCode + PATCH) with a fresh login.
       if (!response.ok && response.statusCode !== 204 && _retryDepth === 0) {
         let firstErrorMsg = `Status ${response.statusCode}`;
         try {
@@ -397,14 +398,9 @@ class SapBPSyncService {
           firstErrorMsg = eb?.error?.message?.value || firstErrorMsg;
         } catch {}
         if (firstErrorMsg.toLowerCase().includes('error -1') || firstErrorMsg.toLowerCase().includes('commit transaction')) {
-          console.warn(`⚠️ SAP BP Sync: Error -1 for ${cardCode} — invalidating session and retrying with fresh login`);
+          console.warn(`⚠️ SAP BP Sync: Error -1 for ${cardCode} — invalidating session and retrying full flow with fresh login`);
           await sapSession.invalidate();
-          response = await sapSession.request({
-            method: 'PATCH',
-            path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
-            body: bpData,
-          });
-          console.log(`[SAP BP Sync] Retry response for ${cardCode}: ${response.statusCode}`);
+          return await this.updateBusinessPartner(customer, 1);
         }
       }
 
