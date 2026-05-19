@@ -3577,12 +3577,17 @@ export function setupProjectRoutes(app: express.Express) {
           if (!s || s === '-' || s.toLowerCase() === 'na' || s.toLowerCase() === 'n/a') return null;
           return s;
         };
+        // GSTIN: prefer address-level GSTRegnNo (consistent with POST/PATCH write target),
+        // fall back to top-level GlobalLocationNumber / FederalTaxID for legacy BPs.
+        const gstin = String(billEntry?.GSTRegnNo ?? bp.GlobalLocationNumber ?? bp.FederalTaxID ?? '').trim();
+        // GstType: prefer address-level GstType, fall back to top-level UDF.
+        const gstType = String(billEntry?.GstType ?? bp.U_BP_GST_Type ?? '').trim();
         return {
           CardCode:      code,
           CardType:      String(bp.CardType      ?? '').trim(),
           CardName:      String(bp.CardName      ?? '').trim(),
           Currency:      String(bp.Currency      ?? '').trim(),
-          FederalTaxID:  String(bp.GlobalLocationNumber ?? bp.FederalTaxID ?? '').trim(),
+          FederalTaxID:  gstin,
           ContactPerson: String(bp.ContactPerson ?? '').trim(),
           Phone1:        String(bp.Cellular       ?? bp.Phone1       ?? '').trim(),
           Address:       String(bp.Address       ?? '').trim(),
@@ -3590,7 +3595,7 @@ export function setupProjectRoutes(app: express.Express) {
           Country:       String(bp.Country       ?? '').trim(),
           EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
           UStateSupply:  String(bp.U_StateSupply  ?? '').trim(),
-          UBpGstType:    String(bp.U_BP_GST_Type  ?? '').trim(),
+          UBpGstType:    gstType,
           Contacts: bpContacts.slice(0, 3).map((c) => ({
             Name:     sapStr(c.Name,     'Name'),
             Position: sapStr(c.Position, 'Position'),
@@ -3962,12 +3967,17 @@ export function setupProjectRoutes(app: express.Express) {
           if (!s || s === '-' || s.toLowerCase() === 'na' || s.toLowerCase() === 'n/a') return null;
           return s;
         };
+        // GSTIN: prefer address-level GSTRegnNo (consistent with POST/PATCH write target),
+        // fall back to top-level GlobalLocationNumber for legacy BPs.
+        const vGstin = String(billEntry?.GSTRegnNo ?? bp.GlobalLocationNumber ?? '').trim();
+        // GstType: prefer address-level GstType, fall back to top-level UDF.
+        const vGstType = String(billEntry?.GstType ?? bp.U_BP_GST_Type ?? '').trim();
         return {
           CardCode:      code,
           CardType:      String(bp.CardType      ?? '').trim(),
           CardName:      String(bp.CardName      ?? '').trim(),
           Currency:      String(bp.Currency      ?? '').trim(),
-          GlblLocNum:    String(bp.GlobalLocationNumber ?? '').trim(),
+          GlblLocNum:    vGstin,
           ContactPerson: String(bp.ContactPerson ?? '').trim(),
           Phone1:        String(bp.Cellular       ?? bp.Phone1       ?? '').trim(),
           Address:       String(bp.Address       ?? '').trim(),
@@ -3975,7 +3985,7 @@ export function setupProjectRoutes(app: express.Express) {
           Country:       String(bp.Country       ?? '').trim(),
           EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
           UStateSupply:  String(bp.U_StateSupply  ?? '').trim(),
-          UBpGstType:    String(bp.U_BP_GST_Type  ?? '').trim(),
+          UBpGstType:    vGstType,
           Contacts: bpContacts.slice(0, 3).map((c) => ({
             Name:     sapStr(c.Name,     'Name'),
             Position: sapStr(c.Position, 'Position'),

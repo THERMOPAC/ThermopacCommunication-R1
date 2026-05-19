@@ -12,6 +12,8 @@ interface SapBPAddress {
   ZipCode?: string;
   State?: string;
   Country?: string;
+  GSTRegnNo?: string;         // GSTIN per address (India only)
+  GstType?: string;           // GST registration type per address (India only)
   // Legacy Street field kept for the CREATE path (parseAddress) only
   Street?: string;
 }
@@ -101,13 +103,16 @@ class SapBPSyncService {
     return addr;
   }
 
-  // Used by UPDATE path — builds address from granular DB fields.
-  // Official SAP Service Layer field names (POST/PATCH) per SAP documentation:
-  //   Address Line 1 → AddressName2     (SAP doc label: "Address2")
-  //   Address Line 2 → AddressName3     (SAP doc label: "Address3")
-  //   Block          → Block
-  //   Building       → BuildingFloorRoom (SAP doc label: "Building")
-  //   City           → City
+  // Canonical address builder used by both POST (CREATE) and PATCH (UPDATE).
+  // Consistent SAP Service Layer field mapping:
+  //   AddressName  → unique label: "Billing Address" or "Shipping Address"
+  //   AddressName2 → Address Line 1  (SAP doc: "Address2")
+  //   AddressName3 → Address Line 2  (SAP doc: "Address3")
+  //   Block        → Block / Sector
+  //   BuildingFloorRoom → Building / Floor / Room (SAP doc: "Building")
+  //   City         → City
+  //   GSTRegnNo    → GSTIN (India only)
+  //   GstType      → GST registration type (India only)
   private buildGranularAddress(
     name: string,
     type: string,
@@ -118,6 +123,8 @@ class SapBPSyncService {
     city: string | null | undefined,
     countryCode?: string,
     stateCode?: string,
+    gstin?: string,
+    gstType?: string,
   ): SapBPAddress {
     const addr: SapBPAddress = {
       AddressName: name,
@@ -131,6 +138,13 @@ class SapBPSyncService {
     if (s(block))     addr.Block             = s(block);
     if (s(building))  addr.BuildingFloorRoom = s(building);
     if (s(city))      addr.City              = s(city);
+    // India-only: GSTIN and GST type at address level (Rule 3)
+    if (countryCode === 'IN') {
+      const g = gstin ? gstin.trim().toUpperCase() : '';
+      if (g && g !== 'NA') addr.GSTRegnNo = g;
+      const t = gstType ? gstType.trim() : '';
+      if (t) addr.GstType = t;
+    }
     return addr;
   }
 
@@ -192,28 +206,34 @@ class SapBPSyncService {
     }
 
     const stateCode = (countryCode === 'IN' && customer.uStateSupply) ? customer.uStateSupply : undefined;
+    // India-only: resolve GSTIN and GstType once — applied to both bill and ship address rows.
+    const addrGstin  = countryCode === 'IN' ? (customer.glblLocNum  || undefined) : undefined;
+    const addrGstType = countryCode === 'IN' ? (customer.uBpGstType || undefined) : undefined;
     const bpAddresses: SapBPAddress[] = [];
 
+    // AddressName values are canonical and unique per AddressType for all ERP-created BPs:
+    //   "Billing Address" → bo_BillTo
+    //   "Shipping Address" → bo_ShipTo
     // Prefer granular address fields (sent by the vendor/customer form).
     // Fall back to legacy combined billToAddress string only if granular fields absent.
     const hasBillGranular = customer.billAddrLine1 || customer.billAddrLine2 || customer.billAddrCity;
     if (hasBillGranular) {
-      bpAddresses.push(this.buildGranularAddress('Bill To', 'bo_BillTo',
+      bpAddresses.push(this.buildGranularAddress('Billing Address', 'bo_BillTo',
         customer.billAddrLine1, customer.billAddrLine2,
         customer.billAddrBlock, customer.billAddrBuilding,
-        customer.billAddrCity, countryCode, stateCode));
+        customer.billAddrCity, countryCode, stateCode, addrGstin, addrGstType));
     } else if (customer.billToAddress) {
-      bpAddresses.push(this.parseAddress('Bill To', 'bo_BillTo', customer.billToAddress, countryCode, stateCode));
+      bpAddresses.push(this.parseAddress('Billing Address', 'bo_BillTo', customer.billToAddress, countryCode, stateCode));
     }
 
     const hasShipGranular = customer.shipAddrLine1 || customer.shipAddrLine2 || customer.shipAddrCity;
     if (hasShipGranular) {
-      bpAddresses.push(this.buildGranularAddress('Ship To', 'bo_ShipTo',
+      bpAddresses.push(this.buildGranularAddress('Shipping Address', 'bo_ShipTo',
         customer.shipAddrLine1, customer.shipAddrLine2,
         customer.shipAddrBlock, customer.shipAddrBuilding,
-        customer.shipAddrCity, countryCode, stateCode));
+        customer.shipAddrCity, countryCode, stateCode, addrGstin, addrGstType));
     } else if (customer.shipToAddress) {
-      bpAddresses.push(this.parseAddress('Ship To', 'bo_ShipTo', customer.shipToAddress, countryCode, stateCode));
+      bpAddresses.push(this.parseAddress('Shipping Address', 'bo_ShipTo', customer.shipToAddress, countryCode, stateCode));
     }
 
     if (bpAddresses.length > 0) {
@@ -414,6 +434,9 @@ class SapBPSyncService {
           console.warn(`⚠️  [SAP BP Sync] ${addressPatchWarning}`);
         } else {
           // Rules 1 & 2: only patch types that already exist in SAP, using SAP's own AddressName
+          // GSTIN and GstType are written at address level (India only) — same as POST.
+          const patchGstin   = countryCode === 'IN' ? (customer.glblLocNum  || undefined) : undefined;
+          const patchGstType = countryCode === 'IN' ? (customer.uBpGstType || undefined) : undefined;
           const patchAddresses: SapBPAddress[] = [];
 
           if (hasBillGranular) {
@@ -424,6 +447,7 @@ class SapBPSyncService {
                 customer.billAddrLine1, customer.billAddrLine2,
                 customer.billAddrBlock, customer.billAddrBuilding,
                 customer.billAddrCity, countryCode, stateCode,
+                patchGstin, patchGstType,
               ));
             } else {
               console.log(`[SAP BP Sync] ${cardCode}: no existing bo_BillTo in SAP — bill address skipped`);
@@ -438,6 +462,7 @@ class SapBPSyncService {
                 customer.shipAddrLine1, customer.shipAddrLine2,
                 customer.shipAddrBlock, customer.shipAddrBuilding,
                 customer.shipAddrCity, countryCode, stateCode,
+                patchGstin, patchGstType,
               ));
             } else {
               console.log(`[SAP BP Sync] ${cardCode}: no existing bo_ShipTo in SAP — ship address skipped`);
