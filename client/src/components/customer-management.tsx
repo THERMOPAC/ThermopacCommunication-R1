@@ -270,6 +270,10 @@ function CustomerFormBody({
   setCurrencyManuallySet,
   gstTypeManuallySet,
   setGstTypeManuallySet,
+  bpCodeFetchError,
+  sapSyncFailureAlert,
+  onRetryBpCode,
+  isRetryingBpCode,
 }: {
   form: UseFormReturn<CustomerFormValues>;
   onSubmit: (data: CustomerFormValues) => void;
@@ -287,6 +291,8 @@ function CustomerFormBody({
   setGstTypeManuallySet: (v: boolean) => void;
   bpCodeFetchError?: string | null;
   sapSyncFailureAlert?: string | null;
+  onRetryBpCode?: () => void;
+  isRetryingBpCode?: boolean;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -359,6 +365,29 @@ function CustomerFormBody({
             <Building2 className="h-4 w-4 text-slate-500" />
             <h4 className="text-sm font-semibold text-slate-700">Business Partner Info</h4>
           </div>
+          {bpCodeFetchError && (
+            <Alert variant="destructive" className="mb-1 py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle className="text-xs font-semibold">SAP B1 Unavailable — BP Code cannot be generated</AlertTitle>
+              <AlertDescription className="text-xs flex items-center justify-between gap-2">
+                <span>{bpCodeFetchError}</span>
+                {onRetryBpCode && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 h-6 text-xs border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={onRetryBpCode}
+                    disabled={isRetryingBpCode}
+                  >
+                    {isRetryingBpCode
+                      ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />Retrying…</>
+                      : <><RefreshCw className="h-3 w-3 mr-1" />Retry</>}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="grid grid-cols-[1fr_3fr] gap-3">
             <FormField
               control={form.control}
@@ -368,7 +397,7 @@ function CustomerFormBody({
                   <FormLabel>BP Code *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="C00001"
+                      placeholder={bpCodeFetchError ? "SAP unavailable — close and retry" : "Fetching from SAP…"}
                       {...field}
                       readOnly={bpCodeReadOnly}
                       disabled={bpCodeReadOnly}
@@ -849,13 +878,6 @@ function CustomerFormBody({
           )}
         </div>
 
-        {bpCodeFetchError && (
-          <Alert variant="destructive" className="mb-2">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>SAP B1 Unavailable</AlertTitle>
-            <AlertDescription>{bpCodeFetchError}</AlertDescription>
-          </Alert>
-        )}
         {sapSyncFailureAlert && (
           <Alert variant="destructive" className="mb-2">
             <AlertCircle className="h-4 w-4" />
@@ -903,6 +925,26 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     totalFetched: number; imported: number; skipped: number; failed: number; errors: string[];
   } | null>(null);
   const [bpCodeFetchError, setBpCodeFetchError] = useState<string | null>(null);
+  const [isRetryingBpCode, setIsRetryingBpCode] = useState(false);
+
+  const fetchNextBpCode = async () => {
+    setIsRetryingBpCode(true);
+    setBpCodeFetchError(null);
+    form.setValue('bpCode', '');
+    try {
+      const res = await apiRequest("GET", "/api/customers/next-bp-code");
+      if (res?.nextBpCode) {
+        form.setValue('bpCode', res.nextBpCode);
+        setBpCodeFetchError(null);
+      } else if (res?.error) {
+        setBpCodeFetchError(res.error);
+      }
+    } catch (e: any) {
+      setBpCodeFetchError(e?.message ?? 'SAP B1 is unavailable. Cannot generate BP Code. Retry after SAP is restored.');
+    } finally {
+      setIsRetryingBpCode(false);
+    }
+  };
 
   // Collapsible contact sections (shared state — reset on dialog open)
   const [contact2Open, setContact2Open] = useState(false);
@@ -1213,20 +1255,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               form.setValue("uBpGstType", "E");
               form.setValue("uStateSupply", "--"); // Export → no state
               form.setValue("glblLocNum", "");   // Export → no GSTIN
-              setBpCodeFetchError(null);
-              form.setValue('bpCode', '');
-              try {
-                const res = await apiRequest("GET", "/api/customers/next-bp-code");
-                if (res?.nextBpCode) {
-                  form.setValue('bpCode', res.nextBpCode);
-                  setBpCodeFetchError(null);
-                } else if (res?.error) {
-                  setBpCodeFetchError(res.error);
-                }
-              } catch (e: any) {
-                setBpCodeFetchError(e?.message ?? 'SAP B1 is unavailable. Cannot generate BP Code. Retry after SAP is restored.');
-              }
               setIsCreateDialogOpen(true);
+              await fetchNextBpCode();
             }}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -1355,6 +1385,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             gstTypeManuallySet={gstTypeManuallySet}
             setGstTypeManuallySet={setGstTypeManuallySet}
             bpCodeFetchError={bpCodeFetchError}
+            onRetryBpCode={fetchNextBpCode}
+            isRetryingBpCode={isRetryingBpCode}
           />
         </DialogContent>
       </Dialog>
