@@ -262,7 +262,24 @@ class SapBPSyncService {
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
       console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));
 
-      const response = await sapSession.request({ method: 'PATCH', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, body: bpData });
+      let response = await sapSession.request({ method: 'PATCH', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, body: bpData });
+
+      // "Error -1 detected during transaction" means the shared session has accumulated
+      // dirty state from prior bulk-sync requests. Invalidate and retry ONCE with a
+      // fresh login — this clears SAP's transaction context.
+      if (!response.ok && response.statusCode !== 204 && _retryDepth === 0) {
+        let firstErrorMsg = `Status ${response.statusCode}`;
+        try {
+          const eb = JSON.parse(response.body);
+          firstErrorMsg = eb?.error?.message?.value || firstErrorMsg;
+        } catch {}
+        if (firstErrorMsg.toLowerCase().includes('error -1') || firstErrorMsg.toLowerCase().includes('commit transaction')) {
+          console.warn(`⚠️ SAP BP Sync: Error -1 for ${cardCode} — invalidating session and retrying with fresh login`);
+          await sapSession.invalidate();
+          response = await sapSession.request({ method: 'PATCH', path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`, body: bpData });
+          console.log(`[SAP BP Sync] Retry response for ${cardCode}: ${response.statusCode}`);
+        }
+      }
 
       if (response.ok || response.statusCode === 204) {
         console.log(`✅ SAP BP Sync: BP ${cardCode} updated successfully`);
