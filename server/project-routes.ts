@@ -1,6 +1,5 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import express, { Request, Response } from 'express';
-import mssql from 'mssql';
 import { sapSession } from './sap-b1-integration/sap-central-session';
 import { storage } from './storage';
 import { 
@@ -149,32 +148,6 @@ async function guardRecordProjectNotFrozen(table: string, recordId: number, res:
   const projectId = await resolveProjectIdFromRecord(table, 'id', recordId);
   if (!projectId) return true;
   return guardProjectNotFrozen(projectId, res);
-}
-
-/** Fetch GlblLocNum directly from SAP SQL Server — reliable, bypasses Service Layer OData limits. */
-async function querySapGstin(cardCode: string): Promise<string | null> {
-  const cfg: mssql.config = {
-    server:   process.env.SAP_SERVER || '192.168.1.100',
-    database: process.env.SAP_COMPANY_DB || 'TPEL_LIVE',
-    user:     process.env.SAP_B1_USERNAME || 'Manager',
-    password: process.env.SAP_B1_PASSWORD || '',
-    options:  { trustServerCertificate: true, enableArithAbort: true },
-    connectionTimeout: 8000,
-    requestTimeout:    8000,
-  };
-  const pool = new mssql.ConnectionPool(cfg);
-  try {
-    await pool.connect();
-    const req = pool.request();
-    req.input('CardCode', mssql.VarChar(20), cardCode);
-    const res = await req.query<{ GlblLocNum: string | null }>(
-      'SELECT GlblLocNum FROM OCRD WHERE CardCode = @CardCode',
-    );
-    const val = res.recordset[0]?.GlblLocNum;
-    return (val && val.trim()) ? val.trim() : null;
-  } finally {
-    pool.close().catch(() => {});
-  }
 }
 
 export function setupProjectRoutes(app: express.Express) {
@@ -3746,8 +3719,11 @@ export function setupProjectRoutes(app: express.Express) {
         let gstinUpdated = 0;
         for (const nr of naRows.rows) {
           try {
-            const gstin = await querySapGstin(nr.sap_card_code);
-            console.log(`[customer-sap-sync] GSTIN SQL enrich ${nr.sap_card_code}: raw="${gstin}"`);
+            const gr = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${nr.sap_card_code}')` });
+            if (!gr.ok) continue;
+            const gbp = JSON.parse(gr.body);
+            const gstin = String(gbp.GlblLocNum ?? '').trim();
+            console.log(`[customer-sap-sync] GSTIN enrich ${nr.sap_card_code}: GlblLocNum="${gstin}"`);
             if (gstin && gstin.length >= 5) {
               await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
               gstinUpdated++;
@@ -4060,8 +4036,11 @@ export function setupProjectRoutes(app: express.Express) {
         let gstinUpdated = 0;
         for (const nr of naRows.rows) {
           try {
-            const gstin = await querySapGstin(nr.sap_card_code);
-            console.log(`[vendor-sap-sync] GSTIN SQL enrich ${nr.sap_card_code}: raw="${gstin}"`);
+            const gr = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners('${nr.sap_card_code}')` });
+            if (!gr.ok) continue;
+            const gbp = JSON.parse(gr.body);
+            const gstin = String(gbp.GlblLocNum ?? '').trim();
+            console.log(`[vendor-sap-sync] GSTIN enrich ${nr.sap_card_code}: GlblLocNum="${gstin}"`);
             if (gstin && gstin.length >= 5) {
               await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
               gstinUpdated++;
