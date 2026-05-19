@@ -249,10 +249,14 @@ class SapBPSyncService {
       delete (bpData as any).CardType;
       // SAP Service Layer: navigation properties (ContactEmployees, BPAddresses) in a PATCH
       // attempt to INSERT new child rows — causing ODBC -2035 duplicate errors.
-      // Strip them from updates; they are managed separately.
       delete (bpData as any).ContactEmployees;
       delete (bpData as any).BPAddresses;
       delete (bpData as any).ContactPerson;
+      // GlobalLocationNumber (GSTIN) and U_PAN_Number are SAP-owned tax fields — they flow
+      // FROM SAP into QMS during sync, never the reverse. Pushing them back causes Error -1
+      // because SAP India localisation locks these fields after they are set.
+      delete (bpData as any).GlobalLocationNumber;
+      delete (bpData as any).U_PAN_Number;
 
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
       console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));
