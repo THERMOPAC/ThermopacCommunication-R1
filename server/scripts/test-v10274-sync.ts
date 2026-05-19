@@ -1,18 +1,9 @@
 /**
- * Controlled sync test for V10274 — run with:
+ * Deep field inspection for V10274
  *   npx tsx server/scripts/test-v10274-sync.ts
- *
- * Steps:
- *  1. Login to SAP B1
- *  2. GET BusinessPartners('V10274')
- *  3. Print raw GlblLocNum + U_PAN_Number
- *  4. Query local DB (pre + post sync)
- *
- * Does NOT run the sync itself (trigger via UI "Sync Specific Vendor").
  */
 
 import https from 'https';
-import { Pool } from 'pg';
 
 const SAP_HOST = '59.152.52.58';
 const SAP_PORT = 50000;
@@ -22,16 +13,12 @@ const SAP_DB   = process.env.SAP_COMPANY_DB  || '';
 
 const agent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
 
-function sapRequest(opts: { method: string; path: string; body?: any; cookie?: string }): Promise<{ status: number; body: any; headers: Record<string, string> }> {
+function sapRequest(opts: { method: string; path: string; body?: any; cookie?: string }): Promise<{ status: number; body: any; rawBody: string; headers: Record<string, string> }> {
   return new Promise((resolve, reject) => {
     const bodyStr = opts.body ? JSON.stringify(opts.body) : '';
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'B1S-WCFCompatible': 'true',
-    };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'B1S-WCFCompatible': 'true' };
     if (bodyStr) headers['Content-Length'] = Buffer.byteLength(bodyStr).toString();
     if (opts.cookie) headers['Cookie'] = opts.cookie;
-
     const req = https.request(
       { hostname: SAP_HOST, port: SAP_PORT, path: opts.path, method: opts.method, agent, headers },
       (res) => {
@@ -40,7 +27,7 @@ function sapRequest(opts: { method: string; path: string; body?: any; cookie?: s
         res.on('end', () => {
           let parsed: any;
           try { parsed = JSON.parse(raw); } catch { parsed = raw; }
-          resolve({ status: res.statusCode ?? 0, body: parsed, headers: res.headers as Record<string, string> });
+          resolve({ status: res.statusCode ?? 0, body: parsed, rawBody: raw, headers: res.headers as Record<string, string> });
         });
       }
     );
@@ -50,76 +37,80 @@ function sapRequest(opts: { method: string; path: string; body?: any; cookie?: s
   });
 }
 
+async function login(): Promise<string> {
+  const r = await sapRequest({ method: 'POST', path: '/b1s/v1/Login', body: { CompanyDB: SAP_DB, UserName: SAP_USER, Password: SAP_PASS } });
+  if (r.status !== 200) throw new Error(`Login failed: ${r.status} ${JSON.stringify(r.body)}`);
+  const sc = r.headers['set-cookie'];
+  return Array.isArray(sc) ? sc.join('; ') : (sc ?? '');
+}
+
 async function main() {
-  if (!SAP_USER || !SAP_PASS || !SAP_DB) {
-    console.error('ERROR: SAP_B1_USERNAME / SAP_B1_PASSWORD / SAP_COMPANY_DB env vars not set');
-    process.exit(1);
-  }
+  if (!SAP_USER || !SAP_PASS || !SAP_DB) { console.error('SAP env vars missing'); process.exit(1); }
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  console.log('\n=== LOGIN ===');
+  const cookie = await login();
+  console.log('OK');
 
-  // ─── Step 1: Login ──────────────────────────────────────────────────────────
-  console.log('\n=== STEP 1: SAP Login ===');
-  const loginResp = await sapRequest({
-    method: 'POST',
-    path: '/b1s/v1/Login',
-    body: { CompanyDB: SAP_DB, UserName: SAP_USER, Password: SAP_PASS },
-  });
-  if (loginResp.status !== 200) {
-    console.error('Login failed:', loginResp.status, loginResp.body);
-    await pool.end();
-    process.exit(1);
-  }
-  const setCookie = loginResp.headers['set-cookie'];
-  const cookie = Array.isArray(setCookie) ? setCookie.join('; ') : (setCookie ?? '');
-  console.log('Login OK — session cookie obtained');
+  // ─── Plain BP fetch — V10274 ─────────────────────────────────────────────
+  console.log("\n=== GET BusinessPartners('V10274') [no $expand] ===");
+  const r = await sapRequest({ method: 'GET', path: "/b1s/v1/BusinessPartners('V10274')", cookie });
+  console.log('HTTP status:', r.status);
 
-  // ─── Step 2: Fetch V10274 ───────────────────────────────────────────────────
-  console.log('\n=== STEP 2: GET BusinessPartners(\'V10274\') ===');
-  const bpResp = await sapRequest({
-    method: 'GET',
-    path: "/b1s/v1/BusinessPartners('V10274')",
-    cookie,
-  });
-  if (bpResp.status !== 200) {
-    console.error('Fetch failed:', bpResp.status, bpResp.body);
-    await pool.end();
-    process.exit(1);
-  }
-  const bp = bpResp.body;
+  if (r.status !== 200) { console.log('Error:', r.rawBody.slice(0, 400)); process.exit(1); }
 
-  // ─── Step 3: Print raw SAP values ───────────────────────────────────────────
-  console.log('\n=== STEP 3: Raw SAP field values ===');
-  console.log('CardCode     :', bp.CardCode);
-  console.log('CardName     :', bp.CardName);
-  console.log('GlblLocNum   :', bp.GlblLocNum  ?? '(null)');
-  console.log('U_PAN_Number :', bp.U_PAN_Number ?? '(null/field missing)');
-  console.log('FederalTaxID :', bp.FederalTaxID ?? '(null)');
+  const bp = r.body;
 
-  // ─── Step 4: Query local DB (pre-sync) ─────────────────────────────────────
-  console.log('\n=== STEP 4: Local DB (current state) ===');
-  const dbRes = await pool.query(
-    `SELECT sap_card_code, bp_name, glbl_loc_num, pan_number, sap_synced_at
-     FROM customers WHERE sap_card_code = $1`,
-    ['V10274']
-  );
-  if (dbRes.rows.length === 0) {
-    console.log('V10274 NOT FOUND in local DB');
+  // ─── 1. Known GST/PAN standard fields ───────────────────────────────────
+  console.log('\n--- Standard GST/PAN fields ---');
+  console.log('GlblLocNum              :', bp.GlblLocNum               ?? '(null)');
+  console.log('GlobalLocationNumber    :', bp.GlobalLocationNumber     ?? '(null)');
+  console.log('VATRegistrationNumber   :', bp.VATRegistrationNumber    ?? '(null)');
+  console.log('VatIDNum                :', bp.VatIDNum                  ?? '(null)');
+  console.log('FederalTaxID            :', bp.FederalTaxID              ?? '(null)');
+  console.log('UnifiedFederalTaxID     :', bp.UnifiedFederalTaxID       ?? '(null)');
+  console.log('AdditionalID            :', bp.AdditionalID              ?? '(null)');
+  console.log('CompanyRegistrationNumber:', bp.CompanyRegistrationNumber ?? '(null)');
+  console.log('VerificationNumber      :', bp.VerificationNumber        ?? '(null)');
+
+  // ─── 2. All U_* UDFs ────────────────────────────────────────────────────
+  console.log('\n--- All U_* UDF fields ---');
+  const udfs = Object.entries(bp).filter(([k]) => k.startsWith('U_'));
+  for (const [k, v] of udfs) console.log(`  ${k.padEnd(30)} = ${JSON.stringify(v)}`);
+
+  // ─── 3. BPFiscalTaxIDCollection (inline in response) ───────────────────
+  console.log('\n--- BPFiscalTaxIDCollection (inline) ---');
+  const ftColl = bp.BPFiscalTaxIDCollection;
+  if (ftColl === undefined) {
+    console.log('Key not present in response');
+  } else if (ftColl === null || (Array.isArray(ftColl) && ftColl.length === 0)) {
+    console.log('Present but empty:', JSON.stringify(ftColl));
   } else {
-    const r = dbRes.rows[0];
-    console.log('sap_card_code :', r.sap_card_code);
-    console.log('bp_name       :', r.bp_name);
-    console.log('glbl_loc_num  :', r.glbl_loc_num ?? '(null)');
-    console.log('pan_number    :', r.pan_number   ?? '(empty)');
-    console.log('sap_synced_at :', r.sap_synced_at);
+    console.log(JSON.stringify(ftColl, null, 2));
   }
 
-  console.log('\n─────────────────────────────────────────────────────────');
-  console.log('Now trigger "Sync Specific Vendor" for V10274 in the UI.');
-  console.log('Then run this script again to see post-sync DB state.');
-  console.log('─────────────────────────────────────────────────────────\n');
+  // ─── 4. Any other collection keys that might hold GST/PAN ───────────────
+  console.log('\n--- All collection/array fields (non-Properties*, non-U_) ---');
+  const collKeys = Object.keys(bp).filter(k =>
+    !k.startsWith('U_') && !k.startsWith('Properties') && !k.startsWith('odata') &&
+    Array.isArray(bp[k])
+  );
+  for (const k of collKeys) {
+    const val = bp[k];
+    console.log(`  ${k.padEnd(35)}: ${Array.isArray(val) ? `[${val.length} items] ${JSON.stringify(val).slice(0, 150)}` : JSON.stringify(val).slice(0, 150)}`);
+  }
 
-  await pool.end();
+  // ─── 5. Also try V10382 (which had PAN synced successfully) ─────────────
+  console.log("\n=== COMPARISON: BusinessPartners('V10382') U_PAN_Number + BPFiscalTaxIDCollection ===");
+  const r2 = await sapRequest({ method: 'GET', path: "/b1s/v1/BusinessPartners('V10382')", cookie });
+  console.log('HTTP status:', r2.status);
+  if (r2.status === 200) {
+    const bp2 = r2.body;
+    console.log('V10382 U_PAN_Number         :', bp2.U_PAN_Number ?? '(null)');
+    console.log('V10382 GlblLocNum           :', bp2.GlblLocNum   ?? '(null)');
+    console.log('V10382 BPFiscalTaxIDCollection:', JSON.stringify(bp2.BPFiscalTaxIDCollection)?.slice(0, 300));
+  }
+
+  console.log('\n=== DONE ===\n');
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
