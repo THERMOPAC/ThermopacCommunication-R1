@@ -1,0 +1,254 @@
+# BP Sync Governance Baseline v1.0
+
+**Document ID:** BP-SYNC-GOV-v1.0
+**Status:** BASELINE — FROZEN
+**Date:** 2026-05-19
+**Scope:** SAP B1 Business Partner Code generation and inbound/outbound sync rules for Customers and Vendor/Suppliers in THERMOPAC QMS
+
+---
+
+## 1. Governing Principle
+
+**SAP B1 is the single and exclusive source of truth for Business Partner (BP) Code sequences.**
+
+No local database record, hardcoded value, or application-level fallback may determine or override a BP Code. Every new BP Code must originate from a live SAP B1 query at the time of record creation.
+
+---
+
+## 2. BP Code Prefix Rules
+
+### 2.1 Customer
+
+| Rule | Value |
+|---|---|
+| Prefix | `C` |
+| Format | `C` followed by digits only (`C\d+`) |
+| Example | `C10412`, `C10413` |
+| SAP CardType | `cCustomer` |
+| Local `card_type` | `C` |
+
+### 2.2 Vendor / Supplier
+
+| Rule | Value |
+|---|---|
+| Prefix | `V` |
+| Format | `V` followed by digits only (`V\d+`) |
+| Example | `V10051`, `V10052` |
+| SAP CardType | `cSupplier` |
+| Local `card_type` | `V` |
+
+### 2.3 Prefix Enforcement
+
+- Prefixes are **case-sensitive** — `c10412` is rejected; `C10412` is accepted.
+- No other prefix is valid for new record creation.
+- Mixed or non-digit suffixes are rejected (e.g. `C10412x` → invalid).
+
+---
+
+## 3. BP Code Generation — SAP Only
+
+### 3.1 Customer Next Code (`GET /api/customers/next-bp-code`)
+
+1. Check SAP session health. If session is not alive → **reject immediately with HTTP 503**.
+2. Paginate all SAP BusinessPartners with `$filter=CardType eq 'cCustomer'` and `$select=CardCode`.
+3. Extract all CardCodes matching `/^C(\d+)$/i`, find the maximum integer value.
+4. Return `C{max+1}`.
+5. If SAP returns an error response at any pagination step → **reject with HTTP 503**.
+6. No local DB scan. No hardcoded floor. No fallback of any kind.
+
+### 3.2 Vendor Next Code (`GET /api/customers/next-vendor-bp-code`)
+
+1. Check SAP session health. If session is not alive → **reject immediately with HTTP 503**.
+2. Paginate all SAP BusinessPartners with `$filter=CardType eq 'cSupplier'` and `$select=CardCode`.
+3. Extract all CardCodes matching `/^V(\d+)$/i`, find the maximum integer value.
+4. Return `V{max+1}`.
+5. If SAP returns an error response at any pagination step → **reject with HTTP 503**.
+6. No local DB scan. No hardcoded floor. No fallback of any kind.
+
+---
+
+## 4. No Fallback Policy
+
+The following patterns are **permanently prohibited**:
+
+| Prohibited Pattern | Reason |
+|---|---|
+| Scanning local DB for max code as fallback | Allows stale or missing records to generate incorrect codes |
+| Hardcoded floor values (e.g. `10363`, `10000`) | Can produce duplicate codes if SAP has higher codes |
+| Returning a guessed code when SAP is down | Creates orphaned local records with invalid BP Codes |
+| Silent fallback on SAP timeout | Hides SAP connectivity problems from the operator |
+
+---
+
+## 5. SAP Outage Behavior
+
+### 5.1 During BP Code Fetch (Create form open)
+
+| Layer | Behavior |
+|---|---|
+| Server | Returns `HTTP 503` with error message describing the SAP failure |
+| Client — BP Code field | Displayed as empty (`""`) — never shows a guessed value |
+| Client — Alert | Red "SAP B1 Unavailable" alert shown at top of form footer |
+| Client — Save button | Disabled (`disabled={isPending \|\| !!bpCodeFetchError}`) |
+| User action required | Close form, resolve SAP connectivity, retry |
+
+### 5.2 During Record Submission (POST /api/customers)
+
+Even if the client is bypassed, the server independently enforces all prefix rules (see Section 6). A record with a blank or invalid BP Code is rejected at the server level.
+
+### 5.3 Resolution
+
+Once SAP connectivity is restored, the user re-opens the Add Customer / Add Vendor form. The form automatically re-fetches the next BP Code from SAP. No manual intervention in the code sequence is needed.
+
+---
+
+## 6. Server-Side Enforcement Rules
+
+All rules are enforced in `POST /api/customers` **before** any database write, SAP sync attempt, or email verification. This is a mandatory server-side guard that cannot be bypassed by client-side manipulation.
+
+| Condition | HTTP Response | Error Message |
+|---|---|---|
+| `bpCode` is empty or missing | `400` | `BP Code is required. It must be fetched from SAP B1 before creating a record.` |
+| `cardType = 'S'` (any bpCode) | `400` | `Legacy S-prefix supplier creation is not allowed. Use card type V (Vendor) with a Vxxxxx BP Code.` |
+| `cardType = 'C'` and bpCode does not match `/^C\d+$/` | `400` | `Customer BP Code must start with C followed by digits only (e.g. C10412).` |
+| `cardType = 'V'` and bpCode does not match `/^V\d+$/` | `400` | `Vendor BP Code must start with V followed by digits only (e.g. V10051).` |
+| All rules pass | Proceeds to email verification, schema parse, and DB write | — |
+
+---
+
+## 7. Inbound SAP Sync Behavior
+
+### 7.1 Customer Inbound Sync (`POST /api/customers/sap-sync`)
+
+| SAP Field | Local DB Column | Notes |
+|---|---|---|
+| `CardCode` | `bp_code`, `sap_card_code`, `short_code` | `short_code` = strip `C` prefix, take 5 digits |
+| `CardName` | `bp_name` | |
+| `ContactPerson` | `contact_person` | |
+| `Phone1` | `phone1` | |
+| `Address` | `bill_to_address` | |
+| `City` | `sap_mail_city` | |
+| `Country` | `sap_mail_country` | |
+| `EmailAddress` | `email` **and** `sap_email` | Written to both columns |
+| (hardcoded) | `card_type = 'C'` | **Explicit — never relies on DB default** |
+| (hardcoded) | `sap_sync_status = 'synced'` | |
+
+**Policy:** INSERT-only. Existing `sap_card_code` rows are skipped (no overwrite).
+**Filter:** SAP-side `CardType eq 'C'`, then client-side `CardCode > 'C10300'`.
+
+**Single-card test-mode UPDATE:** If a record already exists and SAP has an `EmailAddress`, both `email` and `sap_email` are patched using `CASE WHEN ... IS NULL OR = ''` — non-destructive, existing values are preserved.
+
+### 7.2 Vendor Inbound Sync (`POST /api/customers/vendor-sap-sync`)
+
+| SAP Field | Local DB Column | Notes |
+|---|---|---|
+| `CardCode` | `bp_code`, `sap_card_code`, `short_code` | `short_code` = strip `V` prefix, take 5 digits |
+| `CardName` | `bp_name` | |
+| `ContactPerson` | `contact_person` | |
+| `Phone1` | `phone1` | |
+| `Address` | `bill_to_address` | |
+| `City` | `sap_mail_city` | |
+| `Country` | `sap_mail_country` | |
+| `EmailAddress` | `email` **and** `sap_email` | Written to both columns |
+| (hardcoded) | `card_type = 'V'` | **Explicit — never relies on DB default** |
+| (hardcoded) | `sap_sync_status = 'synced'` | |
+
+**Policy:** INSERT-only. Existing `sap_card_code` rows are skipped.
+**Filter:** SAP-side `CardType eq 'cSupplier'`, then client-side `/^V\d+$/i` — excludes any legacy S-prefix SAP suppliers.
+**Allowed roles:** Superuser, General Manager, Senior Manager.
+
+### 7.3 Outbound Sync (Local → SAP)
+
+On every `POST /api/customers` (create) and `PUT /api/customers/:id` (update), the `sapBPSyncService` pushes the record to SAP B1.
+
+**CardType mapping (outbound):**
+
+| Local `card_type` | SAP `CardType` |
+|---|---|
+| `C` | `cCustomer` |
+| `V` | `cSupplier` |
+| `S` | `cSupplier` (legacy read-only records only) |
+| `L` | `cLid` |
+
+**On UPDATE (PATCH):** `CardCode`, `CardType`, `ContactEmployees`, and `BPAddresses` are currently stripped from the PATCH payload. See Phase 2 scope below.
+
+---
+
+## 8. Legacy S-Prefix Handling
+
+| Scenario | Behavior |
+|---|---|
+| Existing DB records with `card_type = 'S'` | Remain in DB as read-only imports. Not deleted. |
+| Existing SAP BPs with S-prefix CardCodes | Not imported by vendor sync (V-prefix filter excludes them) |
+| New record creation with `cardType = 'S'` | **Rejected at server** with `HTTP 400` |
+| Vendor form UI | Card Type field locked to `V` — no S option available |
+| SAP outbound sync for legacy S records | Maps to `cSupplier` if ever pushed |
+
+**Decision date:** 2026-05-19. New S-prefix suppliers are permanently prohibited. All future Vendor/Supplier creation uses `V`-prefix codes exclusively.
+
+---
+
+## 9. Validation Evidence Summary (Phase 1 — 2026-05-19)
+
+### Server Guard — 12/12 test cases passed
+
+| Input | cardType | Result |
+|---|---|---|
+| (empty) | C | ✅ Rejected — BP Code required |
+| (empty) | V | ✅ Rejected — BP Code required |
+| `V10001` | C | ✅ Rejected — must start with C |
+| `C10412` | V | ✅ Rejected — must start with V |
+| `S10001` | S | ✅ Rejected — legacy S creation blocked |
+| `ABC123` | C | ✅ Rejected — must start with C |
+| `C10412` | C | ✅ Accepted |
+| `V10051` | V | ✅ Accepted |
+| `C10412x` | C | ✅ Rejected — non-digit suffix |
+| `V10051x` | V | ✅ Rejected — non-digit suffix |
+| `c10412` | C | ✅ Rejected — lowercase prefix |
+| `v10051` | V | ✅ Rejected — lowercase prefix |
+
+### Inbound Sync SQL — Confirmed
+
+- Customer INSERT: `card_type = 'C'`, `email = $10`, `sap_email = $10` ✅
+- Vendor INSERT: `card_type = 'V'`, `email = $10`, `sap_email = $10` ✅
+- Customer test-mode UPDATE: `CASE WHEN email IS NULL OR email = '' THEN $1` ✅
+
+### BP Code Endpoints — Confirmed
+
+- Both endpoints: local DB scan removed, no hardcoded floor ✅
+- Both endpoints: SAP session checked first, 503 on unavailable ✅
+- Customer: queries `cCustomer` filter, extracts `C\d+` max ✅
+- Vendor: queries `cSupplier` filter, extracts `V\d+` max ✅
+
+---
+
+## 10. Phase 2 Scope (Deferred)
+
+The following items were reviewed but deferred from Phase 1. They are logged here for traceability.
+
+| Item | Description |
+|---|---|
+| **ContactEmployees PATCH** | On `PUT /api/customers/:id`, `ContactEmployees` is currently stripped from the SAP PATCH payload. Phase 2 will send the full array, allowing contact changes to propagate to SAP on edit. |
+| **BPAddresses PATCH** | On `PUT /api/customers/:id`, `BPAddresses` is currently stripped. Phase 2 will include Ship To and Bill To address updates in the SAP PATCH payload. |
+| **Currency / GlblLocNum / UDF inbound** | `Currency`, `GlblLocNum`, `U_StateSupply`, `U_BP_GST_Type` are sent outbound to SAP but not read back on inbound sync. Phase 2 will add these to the `$select` and INSERT. |
+| **Vendor inbound — single-card test UPDATE** | Vendor inbound sync currently has no single-card test mode with email patching. Phase 2 will add parity with the customer sync test-mode path. |
+| **S-prefix SAP supplier import review** | Existing SAP BPs with S-prefix CardCodes (legacy) are currently excluded from vendor inbound sync by the V-prefix client filter. Phase 2 will decide whether to import, skip, or migrate these. |
+
+---
+
+## 11. File and Code References
+
+| Component | File | Notes |
+|---|---|---|
+| Customer next BP Code endpoint | `server/project-routes.ts` ~L2851 | SAP-only, no fallback |
+| Vendor next BP Code endpoint | `server/project-routes.ts` ~L2897 | SAP-only, no fallback |
+| Server-side BP Code guard | `server/project-routes.ts` ~L2988 | In `POST /api/customers`, before DB write |
+| Customer inbound sync | `server/project-routes.ts` ~L3182 | `POST /api/customers/sap-sync` |
+| Vendor inbound sync | `server/project-routes.ts` ~L3387 | `POST /api/customers/vendor-sap-sync` |
+| SAP outbound mapper | `server/sap-b1-integration/sap-bp-sync.ts` | `mapCustomerToSapBP()` |
+| Customer form — client guard | `client/src/components/customer-management.tsx` | `bpCodeFetchError` state, disabled submit |
+| Vendor form — client guard | `client/src/components/vendor-management.tsx` | `bpCodeFetchError` state, disabled submit, bulk sync button |
+
+---
+
+*Document authored by THERMOPAC QMS engineering. Baseline frozen 2026-05-19. Changes require a new versioned document.*

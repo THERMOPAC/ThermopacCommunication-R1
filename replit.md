@@ -76,6 +76,7 @@ Preferred communication style: Simple, everyday language.
 - **RFQ Email Dispatch Baseline v1.0**: `docs/rfq-email-dispatch-baseline-v1.0.md`
 - **QMS Upload Hardening Phase 2B Baseline v1.0**: `docs/qms-upload-hardening-phase2b-baseline-v1.0.md`
 - **EPC Project Naming Governance v1.0**: `docs/epc-project-naming-governance-v1.0.md`
+- **BP Sync Governance Baseline v1.0**: `docs/bp-sync-governance-baseline-v1.md`
 - **Drizzle ORM Docs**: `https://orm.drizzle.team/`
 - **Radix UI Docs**: `https://www.radix-ui.com/`
 - **TanStack Query Docs**: `https://tanstack.com/query/latest`
