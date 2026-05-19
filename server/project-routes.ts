@@ -2854,14 +2854,10 @@ export function setupProjectRoutes(app: express.Express) {
     prefix: 'C' | 'V',
     res: Response
   ): Promise<string | null> {
-    const health = sapSession.getHealth();
-    if (!health.alive) {
-      res.status(503).json({
-        error: `SAP B1 is unavailable. ${prefix === 'C' ? 'Customer' : 'Vendor'} BP Code cannot be generated. Please retry after SAP connection is restored.`,
-      });
-      return null;
-    }
-
+    // No upfront health check — sapSession.request() handles auto-login.
+    // The health check was blocking valid requests when the session had expired
+    // or not yet been established at startup. Only return 503 if the actual
+    // SAP HTTP call fails.
     const qs = new URLSearchParams({
       '$filter':   `startswith(CardCode,'${prefix}')`,
       '$select':   'CardCode',
