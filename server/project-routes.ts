@@ -2868,8 +2868,10 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.get('/api/customers/next-vendor-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      let maxNum = 0;
+
+      // ── 1. Scan local DB for highest V-prefixed code ──────────────────────
       const customers = await storage.getAllCustomers();
-      let maxNum = 10000;
       for (const c of customers) {
         if (c.bpCode) {
           const match = c.bpCode.match(/^V(\d+)$/i);
@@ -2879,6 +2881,46 @@ export function setupProjectRoutes(app: express.Express) {
           }
         }
       }
+
+      // ── 2. Query SAP B1 for highest V-prefixed supplier CardCode ──────────
+      try {
+        const health = sapSession.getHealth();
+        if (health.alive) {
+          const PAGE_SIZE = 100;
+          let skip = 0;
+          while (true) {
+            const qs = new URLSearchParams({
+              '$filter': "CardType eq 'cSupplier'",
+              '$select': 'CardCode',
+              '$top': String(PAGE_SIZE),
+              '$skip': String(skip),
+            }).toString();
+            const resp = await sapSession.request({
+              method: 'GET',
+              path: `/b1s/v1/BusinessPartners?${qs}`,
+              timeout: 15000,
+            });
+            if (!resp.ok) break;
+            const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
+            const rows = body?.value ?? [];
+            for (const row of rows) {
+              const m = row.CardCode?.match(/^V(\d+)$/i);
+              if (m) {
+                const n = parseInt(m[1], 10);
+                if (n > maxNum) maxNum = n;
+              }
+            }
+            if (rows.length < PAGE_SIZE) break;
+            skip += PAGE_SIZE;
+          }
+        }
+      } catch (sapErr) {
+        console.warn('[next-vendor-bp-code] SAP query skipped or failed — using local DB max only:', (sapErr as Error).message);
+      }
+
+      // ── 3. If nothing found anywhere, start at a safe floor ───────────────
+      if (maxNum === 0) maxNum = 10000;
+
       const nextCode = 'V' + String(maxNum + 1);
       res.json({ nextBpCode: nextCode });
     } catch (error) {
