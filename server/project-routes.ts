@@ -2845,6 +2845,63 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Customer Management Routes
+  // ── TEMPORARY SAP AUDIT ENDPOINT ─────────────────────────────────────────
+  app.get('/api/sap-audit/customers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const health = sapSession.getHealth();
+      if (!health.alive) return res.status(503).json({ error: 'SAP B1 session not alive' });
+
+      // Collect ALL C-prefix customers from SAP (paginated)
+      const PAGE_SIZE = 100;
+      let skip = 0;
+      const allCodes: string[] = [];
+      while (true) {
+        const qs = new URLSearchParams({
+          '$filter': "CardType eq 'cCustomer'",
+          '$select': 'CardCode',
+          '$top': String(PAGE_SIZE),
+          '$skip': String(skip),
+        }).toString();
+        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`, timeout: 20000 });
+        if (!resp.ok) return res.status(502).json({ error: `SAP error ${resp.statusCode}`, body: resp.body?.substring(0, 300) });
+        const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
+        const rows = body?.value ?? [];
+        for (const r of rows) {
+          if (/^C\d+$/i.test(r.CardCode)) allCodes.push(r.CardCode);
+        }
+        if (rows.length < PAGE_SIZE) break;
+        skip += PAGE_SIZE;
+      }
+
+      // Sort numerically descending
+      allCodes.sort((a, b) => {
+        const na = parseInt(a.slice(1), 10);
+        const nb = parseInt(b.slice(1), 10);
+        return nb - na;
+      });
+
+      const top10 = allCodes.slice(0, 10);
+      const highest = allCodes[0] ?? null;
+      const highestNum = highest ? parseInt(highest.slice(1), 10) : 0;
+
+      console.log(`[SAP-AUDIT] Total C-prefix customers: ${allCodes.length}, Highest: ${highest}`);
+      console.log(`[SAP-AUDIT] Top 10: ${top10.join(', ')}`);
+
+      res.json({
+        source: 'SAP B1 Service Layer — live query',
+        filter: "CardType eq 'cCustomer', CardCode matching /^C\\d+$/",
+        totalCPrefixCustomers: allCodes.length,
+        highestCode: highest,
+        highestNumber: highestNum,
+        currentMaxPlusOne: highest ? `C${highestNum + 1}` : 'C1',
+        top10Highest: top10,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  // ── END TEMPORARY AUDIT ───────────────────────────────────────────────────
+
   app.get('/api/customers/next-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
     // SAP B1 is the single source of truth for Customer BP Code sequence.
     // No local DB fallback. If SAP is unavailable, reject with 503.
