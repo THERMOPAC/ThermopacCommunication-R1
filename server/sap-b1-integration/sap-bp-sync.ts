@@ -325,7 +325,10 @@ class SapBPSyncService {
       // can cause session contamination). We need:
       //   1. ContactEmployees.InternalCode — SAP treats entries WITHOUT InternalCode as INSERTs,
       //      causing ODBC -2035 "already exists". Including InternalCode tells SAP to UPDATE.
+      //   2. BPAddresses.AddressName — SAP uses AddressName as the unique key per CardCode per
+      //      AddressType. We reuse the existing AddressName so SAP does an UPDATE, not an INSERT.
       const existingContactCode: Record<string, number> = {};
+      const existingAddressName: Record<string, string> = {}; // AddressType → AddressName
       try {
         const getResp = await sapSession.request({
           method: 'GET',
@@ -340,6 +343,16 @@ class SapBPSyncService {
             }
           }
           console.log(`[SAP BP Sync] Fetched ${existingContacts.length} existing contact(s) for ${cardCode}:`, Object.keys(existingContactCode));
+          const existingAddresses: any[] = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
+          for (const a of existingAddresses) {
+            if (a.AddressType && a.AddressName) {
+              // Keep first entry per type (SAP may have multiple; we match primary)
+              if (!existingAddressName[String(a.AddressType)]) {
+                existingAddressName[String(a.AddressType)] = String(a.AddressName);
+              }
+            }
+          }
+          console.log(`[SAP BP Sync] Fetched ${existingAddresses.length} existing address(es) for ${cardCode}:`, existingAddressName);
         }
       } catch (e: any) {
         console.warn(`[SAP BP Sync] Could not pre-fetch BP data for ${cardCode}: ${e.message}`);
@@ -364,13 +377,36 @@ class SapBPSyncService {
         bpData.ContactPerson = customer.contactPerson;
       }
 
-      // BPAddresses — intentionally excluded from PATCH updates.
-      // SAP uses AddressName as the unique key per CardCode. Many BPs store the same
-      // AddressName for both bo_BillTo and bo_ShipTo (e.g. company name as key).
-      // Sending two BPAddress entries with the same AddressName in one PATCH causes
-      // SAP to treat the second as a duplicate INSERT → ODBC -2035.
-      // Address data flows FROM SAP into our DB during Full Sync (read direction).
-      // We do not push address changes back to SAP to avoid this class of errors.
+      // BPAddresses — push granular address fields back to SAP using SAP's own
+      // AddressName as the unique key (fetched above). This tells SAP to UPDATE
+      // the existing address row rather than INSERT a new one, preventing ODBC -2035.
+      // If SAP has no existing address for a type, fall back to "Bill To"/"Ship To".
+      const hasBillGranular = customer.billAddrLine1 || customer.billAddrLine2 || customer.billAddrCity;
+      const hasShipGranular = customer.shipAddrLine1 || customer.shipAddrLine2 || customer.shipAddrCity;
+      if (hasBillGranular || hasShipGranular) {
+        const patchAddresses: SapBPAddress[] = [];
+        if (hasBillGranular) {
+          const billName = existingAddressName['bo_BillTo'] || 'Bill To';
+          patchAddresses.push(this.buildGranularAddress(
+            billName, 'bo_BillTo',
+            customer.billAddrLine1, customer.billAddrLine2,
+            customer.billAddrBlock, customer.billAddrBuilding,
+            customer.billAddrCity, countryCode, stateCode,
+          ));
+        }
+        if (hasShipGranular) {
+          const shipName = existingAddressName['bo_ShipTo'] || 'Ship To';
+          patchAddresses.push(this.buildGranularAddress(
+            shipName, 'bo_ShipTo',
+            customer.shipAddrLine1, customer.shipAddrLine2,
+            customer.shipAddrBlock, customer.shipAddrBuilding,
+            customer.shipAddrCity, countryCode, stateCode,
+          ));
+        }
+        if (patchAddresses.length > 0) {
+          bpData.BPAddresses = patchAddresses;
+        }
+      }
 
       // GSTIN (GlobalLocationNumber)
       const gln = customer.glblLocNum;
