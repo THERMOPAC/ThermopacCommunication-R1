@@ -821,7 +821,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
   const [testCardCode, setTestCardCode] = useState('');
 
   const sapSyncMutation = useMutation({
-    mutationFn: (cardCode?: string) => apiRequest('POST', '/api/customers/sap-sync', cardCode ? { cardCode } : {}),
+    mutationFn: (cardCode?: string) => apiRequest('POST', '/api/customers/vendor-sap-sync', cardCode ? { cardCode } : {}),
     onSuccess: (data: any) => {
       setSapSyncResult(data);
       setShowSapSyncResult(true);
