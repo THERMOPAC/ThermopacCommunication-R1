@@ -3237,8 +3237,183 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  // ─── SAP country code (ISO 3166-1 alpha-2) → { name, continent } ──────────
+  // Used by both customer-sap-sync and vendor-sap-sync to populate country_name,
+  // country_code, and continent from the SAP `Country` field.
+  const SAP_COUNTRY: Record<string, { name: string; continent: string }> = {
+    AF: { name: 'Afghanistan',            continent: 'Asia'          },
+    AL: { name: 'Albania',                continent: 'Europe'        },
+    DZ: { name: 'Algeria',                continent: 'Africa'        },
+    AO: { name: 'Angola',                 continent: 'Africa'        },
+    AR: { name: 'Argentina',              continent: 'South America' },
+    AM: { name: 'Armenia',                continent: 'Asia'          },
+    AU: { name: 'Australia',              continent: 'Oceania'       },
+    AT: { name: 'Austria',                continent: 'Europe'        },
+    AZ: { name: 'Azerbaijan',             continent: 'Asia'          },
+    BH: { name: 'Bahrain',                continent: 'Asia'          },
+    BD: { name: 'Bangladesh',             continent: 'Asia'          },
+    BY: { name: 'Belarus',                continent: 'Europe'        },
+    BE: { name: 'Belgium',                continent: 'Europe'        },
+    BJ: { name: 'Benin',                  continent: 'Africa'        },
+    BT: { name: 'Bhutan',                 continent: 'Asia'          },
+    BO: { name: 'Bolivia',                continent: 'South America' },
+    BA: { name: 'Bosnia and Herzegovina', continent: 'Europe'        },
+    BW: { name: 'Botswana',               continent: 'Africa'        },
+    BR: { name: 'Brazil',                 continent: 'South America' },
+    BN: { name: 'Brunei',                 continent: 'Asia'          },
+    BG: { name: 'Bulgaria',               continent: 'Europe'        },
+    BF: { name: 'Burkina Faso',           continent: 'Africa'        },
+    BI: { name: 'Burundi',                continent: 'Africa'        },
+    KH: { name: 'Cambodia',               continent: 'Asia'          },
+    CM: { name: 'Cameroon',               continent: 'Africa'        },
+    CA: { name: 'Canada',                 continent: 'North America' },
+    CF: { name: 'Central African Republic', continent: 'Africa'      },
+    TD: { name: 'Chad',                   continent: 'Africa'        },
+    CL: { name: 'Chile',                  continent: 'South America' },
+    CN: { name: 'China',                  continent: 'Asia'          },
+    CO: { name: 'Colombia',               continent: 'South America' },
+    KM: { name: 'Comoros',                continent: 'Africa'        },
+    CG: { name: 'Congo',                  continent: 'Africa'        },
+    CR: { name: 'Costa Rica',             continent: 'North America' },
+    HR: { name: 'Croatia',                continent: 'Europe'        },
+    CU: { name: 'Cuba',                   continent: 'North America' },
+    CY: { name: 'Cyprus',                 continent: 'Europe'        },
+    CZ: { name: 'Czech Republic',         continent: 'Europe'        },
+    DK: { name: 'Denmark',                continent: 'Europe'        },
+    DJ: { name: 'Djibouti',               continent: 'Africa'        },
+    DO: { name: 'Dominican Republic',     continent: 'North America' },
+    EC: { name: 'Ecuador',                continent: 'South America' },
+    EG: { name: 'Egypt',                  continent: 'Africa'        },
+    SV: { name: 'El Salvador',            continent: 'North America' },
+    GQ: { name: 'Equatorial Guinea',      continent: 'Africa'        },
+    ER: { name: 'Eritrea',                continent: 'Africa'        },
+    EE: { name: 'Estonia',                continent: 'Europe'        },
+    SZ: { name: 'Eswatini',               continent: 'Africa'        },
+    ET: { name: 'Ethiopia',               continent: 'Africa'        },
+    FJ: { name: 'Fiji',                   continent: 'Oceania'       },
+    FI: { name: 'Finland',                continent: 'Europe'        },
+    FR: { name: 'France',                 continent: 'Europe'        },
+    GA: { name: 'Gabon',                  continent: 'Africa'        },
+    GM: { name: 'Gambia',                 continent: 'Africa'        },
+    GE: { name: 'Georgia',                continent: 'Asia'          },
+    DE: { name: 'Germany',                continent: 'Europe'        },
+    GH: { name: 'Ghana',                  continent: 'Africa'        },
+    GR: { name: 'Greece',                 continent: 'Europe'        },
+    GT: { name: 'Guatemala',              continent: 'North America' },
+    GN: { name: 'Guinea',                 continent: 'Africa'        },
+    GW: { name: 'Guinea-Bissau',          continent: 'Africa'        },
+    GY: { name: 'Guyana',                 continent: 'South America' },
+    HT: { name: 'Haiti',                  continent: 'North America' },
+    HN: { name: 'Honduras',               continent: 'North America' },
+    HU: { name: 'Hungary',                continent: 'Europe'        },
+    IS: { name: 'Iceland',                continent: 'Europe'        },
+    IN: { name: 'India',                  continent: 'Asia'          },
+    ID: { name: 'Indonesia',              continent: 'Asia'          },
+    IR: { name: 'Iran',                   continent: 'Asia'          },
+    IQ: { name: 'Iraq',                   continent: 'Asia'          },
+    IE: { name: 'Ireland',                continent: 'Europe'        },
+    IL: { name: 'Israel',                 continent: 'Asia'          },
+    IT: { name: 'Italy',                  continent: 'Europe'        },
+    CI: { name: 'Ivory Coast',            continent: 'Africa'        },
+    JM: { name: 'Jamaica',                continent: 'North America' },
+    JP: { name: 'Japan',                  continent: 'Asia'          },
+    JO: { name: 'Jordan',                 continent: 'Asia'          },
+    KZ: { name: 'Kazakhstan',             continent: 'Asia'          },
+    KE: { name: 'Kenya',                  continent: 'Africa'        },
+    KW: { name: 'Kuwait',                 continent: 'Asia'          },
+    KG: { name: 'Kyrgyzstan',             continent: 'Asia'          },
+    LA: { name: 'Laos',                   continent: 'Asia'          },
+    LV: { name: 'Latvia',                 continent: 'Europe'        },
+    LB: { name: 'Lebanon',                continent: 'Asia'          },
+    LS: { name: 'Lesotho',                continent: 'Africa'        },
+    LR: { name: 'Liberia',                continent: 'Africa'        },
+    LY: { name: 'Libya',                  continent: 'Africa'        },
+    LI: { name: 'Liechtenstein',          continent: 'Europe'        },
+    LT: { name: 'Lithuania',              continent: 'Europe'        },
+    LU: { name: 'Luxembourg',             continent: 'Europe'        },
+    MG: { name: 'Madagascar',             continent: 'Africa'        },
+    MW: { name: 'Malawi',                 continent: 'Africa'        },
+    MY: { name: 'Malaysia',               continent: 'Asia'          },
+    MV: { name: 'Maldives',               continent: 'Asia'          },
+    ML: { name: 'Mali',                   continent: 'Africa'        },
+    MT: { name: 'Malta',                  continent: 'Europe'        },
+    MR: { name: 'Mauritania',             continent: 'Africa'        },
+    MU: { name: 'Mauritius',              continent: 'Africa'        },
+    MX: { name: 'Mexico',                 continent: 'North America' },
+    MD: { name: 'Moldova',                continent: 'Europe'        },
+    MC: { name: 'Monaco',                 continent: 'Europe'        },
+    MN: { name: 'Mongolia',               continent: 'Asia'          },
+    ME: { name: 'Montenegro',             continent: 'Europe'        },
+    MA: { name: 'Morocco',                continent: 'Africa'        },
+    MZ: { name: 'Mozambique',             continent: 'Africa'        },
+    MM: { name: 'Myanmar',                continent: 'Asia'          },
+    NA: { name: 'Namibia',                continent: 'Africa'        },
+    NP: { name: 'Nepal',                  continent: 'Asia'          },
+    NL: { name: 'Netherlands',            continent: 'Europe'        },
+    NZ: { name: 'New Zealand',            continent: 'Oceania'       },
+    NI: { name: 'Nicaragua',              continent: 'North America' },
+    NE: { name: 'Niger',                  continent: 'Africa'        },
+    NG: { name: 'Nigeria',                continent: 'Africa'        },
+    KP: { name: 'North Korea',            continent: 'Asia'          },
+    MK: { name: 'North Macedonia',        continent: 'Europe'        },
+    NO: { name: 'Norway',                 continent: 'Europe'        },
+    OM: { name: 'Oman',                   continent: 'Asia'          },
+    PK: { name: 'Pakistan',               continent: 'Asia'          },
+    PS: { name: 'Palestine',              continent: 'Asia'          },
+    PA: { name: 'Panama',                 continent: 'North America' },
+    PG: { name: 'Papua New Guinea',       continent: 'Oceania'       },
+    PY: { name: 'Paraguay',               continent: 'South America' },
+    PE: { name: 'Peru',                   continent: 'South America' },
+    PH: { name: 'Philippines',            continent: 'Asia'          },
+    PL: { name: 'Poland',                 continent: 'Europe'        },
+    PT: { name: 'Portugal',               continent: 'Europe'        },
+    QA: { name: 'Qatar',                  continent: 'Asia'          },
+    RO: { name: 'Romania',                continent: 'Europe'        },
+    RU: { name: 'Russia',                 continent: 'Europe'        },
+    RW: { name: 'Rwanda',                 continent: 'Africa'        },
+    SA: { name: 'Saudi Arabia',           continent: 'Asia'          },
+    SN: { name: 'Senegal',                continent: 'Africa'        },
+    RS: { name: 'Serbia',                 continent: 'Europe'        },
+    SL: { name: 'Sierra Leone',           continent: 'Africa'        },
+    SG: { name: 'Singapore',              continent: 'Asia'          },
+    SK: { name: 'Slovakia',               continent: 'Europe'        },
+    SI: { name: 'Slovenia',               continent: 'Europe'        },
+    SO: { name: 'Somalia',                continent: 'Africa'        },
+    ZA: { name: 'South Africa',           continent: 'Africa'        },
+    KR: { name: 'South Korea',            continent: 'Asia'          },
+    SS: { name: 'South Sudan',            continent: 'Africa'        },
+    ES: { name: 'Spain',                  continent: 'Europe'        },
+    LK: { name: 'Sri Lanka',              continent: 'Asia'          },
+    SD: { name: 'Sudan',                  continent: 'Africa'        },
+    SR: { name: 'Suriname',               continent: 'South America' },
+    SE: { name: 'Sweden',                 continent: 'Europe'        },
+    CH: { name: 'Switzerland',            continent: 'Europe'        },
+    SY: { name: 'Syria',                  continent: 'Asia'          },
+    TW: { name: 'Taiwan',                 continent: 'Asia'          },
+    TJ: { name: 'Tajikistan',             continent: 'Asia'          },
+    TZ: { name: 'Tanzania',               continent: 'Africa'        },
+    TH: { name: 'Thailand',               continent: 'Asia'          },
+    TG: { name: 'Togo',                   continent: 'Africa'        },
+    TT: { name: 'Trinidad and Tobago',    continent: 'North America' },
+    TN: { name: 'Tunisia',                continent: 'Africa'        },
+    TR: { name: 'Turkey',                 continent: 'Europe'        },
+    TM: { name: 'Turkmenistan',           continent: 'Asia'          },
+    UG: { name: 'Uganda',                 continent: 'Africa'        },
+    UA: { name: 'Ukraine',                continent: 'Europe'        },
+    AE: { name: 'United Arab Emirates',   continent: 'Asia'          },
+    GB: { name: 'United Kingdom',         continent: 'Europe'        },
+    US: { name: 'United States',          continent: 'North America' },
+    UY: { name: 'Uruguay',                continent: 'South America' },
+    UZ: { name: 'Uzbekistan',             continent: 'Asia'          },
+    VE: { name: 'Venezuela',              continent: 'South America' },
+    VN: { name: 'Vietnam',                continent: 'Asia'          },
+    YE: { name: 'Yemen',                  continent: 'Asia'          },
+    ZM: { name: 'Zambia',                 continent: 'Africa'        },
+    ZW: { name: 'Zimbabwe',               continent: 'Africa'        },
+  };
+
   // ─── POST /api/customers/sap-sync ────────────────────────────────────────
-  // Syncs customers from SAP BusinessPartners (CardType=C, CardCode > C10300)
+  // Syncs customers from SAP BusinessPartners (CardType=cCustomer, CardCode > C10300)
   // Only inserts NEW records — existing sap_card_code rows are skipped.
   // Allowed roles: Superuser, General Manager, Senior Manager
   app.post('/api/customers/sap-sync', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -3282,12 +3457,52 @@ export function setupProjectRoutes(app: express.Express) {
         cLead:     'L',
       };
 
-      type BPRow = { CardCode: string; CardType: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
+      type ContactEntry = { Name: string; Position: string; Email: string; Phone: string; };
+      type BPRow = {
+        CardCode: string; CardType: string; CardName: string;
+        Currency: string; FederalTaxID: string;
+        ContactPerson: string; Phone1: string;
+        Address: string; City: string; Country: string; EmailAddress: string;
+        UStateSupply: string; UBpGstType: string;
+        Contacts: ContactEntry[];
+        BillToAddress: string | null; ShipToAddress: string | null;
+      };
+      const parseSapBpRow = (bp: any): BPRow => {
+        const code = String(bp.CardCode ?? '').trim();
+        const bpContacts: any[] = Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees : [];
+        const bpAddresses: any[] = Array.isArray(bp.BPAddresses) ? bp.BPAddresses : [];
+        const fmtAddr = (a: any) => a ? [a.Street, a.City, a.State, a.ZipCode].filter(Boolean).join(', ') || null : null;
+        const billEntry = bpAddresses.find((a) => a?.AddressType === 'bo_BillTo');
+        const shipEntry = bpAddresses.find((a) => a?.AddressType === 'bo_ShipTo');
+        return {
+          CardCode:      code,
+          CardType:      String(bp.CardType      ?? '').trim(),
+          CardName:      String(bp.CardName      ?? '').trim(),
+          Currency:      String(bp.Currency      ?? '').trim(),
+          FederalTaxID:  String(bp.FederalTaxID  ?? '').trim(),
+          ContactPerson: String(bp.ContactPerson ?? '').trim(),
+          Phone1:        String(bp.Phone1        ?? '').trim(),
+          Address:       String(bp.Address       ?? '').trim(),
+          City:          String(bp.City          ?? '').trim(),
+          Country:       String(bp.Country       ?? '').trim(),
+          EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
+          UStateSupply:  String(bp.U_StateSupply ?? '').trim(),
+          UBpGstType:    String(bp.U_BP_GstType  ?? '').trim(),
+          Contacts: bpContacts.slice(0, 3).map((c) => ({
+            Name:     String(c.Name     ?? '').trim(),
+            Position: String(c.Position ?? '').trim(),
+            Email:    String(c.E_Mail   ?? '').trim(),
+            Phone:    String(c.Phone1   ?? '').trim(),
+          })),
+          BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
+          ShipToAddress: fmtAddr(shipEntry),
+        };
+      };
       let filteredRows: BPRow[] = [];
 
       if (testCardCode) {
         // ── Single-card test mode ──────────────────────────────────────────────
-        // Fetch one BP by primary key — no $select so all fields (including CardType) are returned.
+        // Fetch one BP by primary key — no $select so all fields (including UDFs) are returned.
         console.log(`[customer-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
         const resp = await sapSession.request({
           method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
@@ -3296,33 +3511,19 @@ export function setupProjectRoutes(app: express.Express) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
         }
         const bp = JSON.parse(resp.body);
-        const code = String(bp.CardCode ?? '').trim();
-        if (code) {
-          filteredRows = [{
-            CardCode:      code,
-            CardType:      String(bp.CardType ?? '').trim(),
-            CardName:      String(bp.CardName      ?? '').trim(),
-            ContactPerson: String(bp.ContactPerson ?? '').trim(),
-            Phone1:        String(bp.Phone1        ?? '').trim(),
-            Address:       String(bp.Address       ?? '').trim(),
-            City:          String(bp.City          ?? '').trim(),
-            Country:       String(bp.Country       ?? '').trim(),
-            EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
-          }];
-        }
+        if (bp.CardCode) filteredRows = [parseSapBpRow(bp)];
         totalFetched = filteredRows.length;
         console.log(`[customer-sap-sync] TEST fetched ${totalFetched} record(s)`);
       } else {
         // ── Bulk sync mode ─────────────────────────────────────────────────────
-        // CardType is included in $select so card_type is sourced from SAP, not hardcoded.
-        // Client-side filter keeps only cCustomer records with C-prefix CardCode > 'C10300'.
+        // No $select — SAP strips UDF columns when $select is present.
+        // $filter on standard field (CardType) still works without $select.
         const PAGE_SIZE = 20;
         let sapSkip = 0;
         const allRows: BPRow[] = [];
 
         while (true) {
           const qs = new URLSearchParams({
-            '$select': 'CardCode,CardType,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
             '$filter': "CardType eq 'cCustomer'",
             '$top':    String(PAGE_SIZE),
             '$skip':   String(sapSkip),
@@ -3340,17 +3541,7 @@ export function setupProjectRoutes(app: express.Express) {
           for (const bp of page) {
             const code = String(bp.CardCode ?? '').trim();
             if (!code) continue;
-            allRows.push({
-              CardCode:      code,
-              CardType:      String(bp.CardType      ?? '').trim(),
-              CardName:      String(bp.CardName      ?? '').trim(),
-              ContactPerson: String(bp.ContactPerson ?? '').trim(),
-              Phone1:        String(bp.Phone1        ?? '').trim(),
-              Address:       String(bp.Address       ?? '').trim(),
-              City:          String(bp.City          ?? '').trim(),
-              Country:       String(bp.Country       ?? '').trim(),
-              EmailAddress:  String(bp.EmailAddress  ?? '').trim(),
-            });
+            allRows.push(parseSapBpRow(bp));
           }
 
           if (page.length < PAGE_SIZE) break;
@@ -3379,17 +3570,50 @@ export function setupProjectRoutes(app: express.Express) {
 
       for (const row of filteredRows) {
         if (existingCodes.has(row.CardCode)) {
-          // In single-card test mode, patch both email and sap_email on the existing record if SAP has one.
-          if (testCardCode && row.EmailAddress) {
-            await pool.query(
-              `UPDATE customers SET
-                 email     = CASE WHEN (email IS NULL OR email = '')         THEN $1 ELSE email     END,
-                 sap_email = CASE WHEN (sap_email IS NULL OR sap_email = '') THEN $1 ELSE sap_email END,
-                 sap_synced_at = NOW(), updated_at = NOW()
-               WHERE sap_card_code = $2`,
-              [row.EmailAddress, row.CardCode],
-            );
-          }
+          // Patch missing fields on existing records (test mode or bulk re-sync).
+          const primaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
+          const countryInfo2 = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
+          await pool.query(
+            `UPDATE customers SET
+               contact_position   = COALESCE(NULLIF(contact_position,''),  $2),
+               email              = COALESCE(NULLIF(email,''),              $3),
+               sap_email          = COALESCE(NULLIF(sap_email,''),          $3),
+               contact2_name      = COALESCE(NULLIF(contact2_name,''),      $4),
+               contact2_position  = COALESCE(NULLIF(contact2_position,''),  $5),
+               contact2_email     = COALESCE(NULLIF(contact2_email,''),     $6),
+               contact2_phone     = COALESCE(NULLIF(contact2_phone,''),     $7),
+               contact3_name      = COALESCE(NULLIF(contact3_name,''),      $8),
+               contact3_position  = COALESCE(NULLIF(contact3_position,''),  $9),
+               contact3_email     = COALESCE(NULLIF(contact3_email,''),     $10),
+               contact3_phone     = COALESCE(NULLIF(contact3_phone,''),     $11),
+               ship_to_address    = COALESCE(NULLIF(ship_to_address,''),    $12),
+               currency           = COALESCE(NULLIF(currency,''),           $13),
+               country_name       = COALESCE(NULLIF(country_name,''),       $14),
+               country_code       = COALESCE(NULLIF(country_code,''),       $15),
+               continent          = COALESCE(NULLIF(continent,''),          $16),
+               glbl_loc_num       = CASE WHEN (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') THEN $17 ELSE glbl_loc_num END,
+               u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $18),
+               u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $19),
+               sap_currency       = COALESCE(NULLIF(sap_currency,''),       $20),
+               sap_synced_at = NOW(), updated_at = NOW()
+             WHERE sap_card_code = $1`,
+            [
+              row.CardCode,
+              row.Contacts[0]?.Position || null,
+              primaryEmail,
+              row.Contacts[1]?.Name || null, row.Contacts[1]?.Position || null,
+              row.Contacts[1]?.Email || null, row.Contacts[1]?.Phone || null,
+              row.Contacts[2]?.Name || null, row.Contacts[2]?.Position || null,
+              row.Contacts[2]?.Email || null, row.Contacts[2]?.Phone || null,
+              row.ShipToAddress,
+              row.Currency || null,
+              countryInfo2?.name || null, row.Country || null, countryInfo2?.continent || null,
+              (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : null,
+              row.UStateSupply || null,
+              row.UBpGstType || null,
+              row.Currency || null,
+            ],
+          );
           skipped++;
           continue;
         }
@@ -3399,18 +3623,40 @@ export function setupProjectRoutes(app: express.Express) {
           const shortCode = row.CardCode.replace(/^[Cc]/, '').slice(0, 5);
           // card_type sourced from SAP CardType field, not hardcoded.
           const localCardType = sapCardTypeMap[row.CardType] ?? 'C';
+          const primaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
+          const countryInfo = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
+          const gstin = (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : 'NA';
           await pool.query(
             `INSERT INTO customers
-               (bp_code, bp_name, short_code, sap_card_code, card_type, contact_person, phone1,
-                bill_to_address, sap_mail_city, sap_mail_country, email, sap_email,
+               (bp_code, bp_name, short_code, sap_card_code, card_type,
+                contact_person, contact_position, phone1, email,
+                contact2_name, contact2_position, contact2_email, contact2_phone,
+                contact3_name, contact3_position, contact3_email, contact3_phone,
+                bill_to_address, ship_to_address,
+                sap_mail_city, sap_mail_country, sap_email, sap_currency,
+                currency, country_name, country_code, continent,
+                glbl_loc_num, u_state_supply, u_bp_gst_type,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11,'synced',NOW(),NOW(),NOW())
+             VALUES
+               ($1,$2,$3,$4,$5,
+                $6,$7,$8,$9,
+                $10,$11,$12,$13,
+                $14,$15,$16,$17,
+                $18,$19,
+                $20,$21,$22,$23,
+                $24,$25,$26,$27,
+                $28,$29,$30,
+                'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
               row.CardCode, row.CardName, shortCode, row.CardCode, localCardType,
-              row.ContactPerson || null, row.Phone1 || null,
-              row.Address || null, row.City || null, row.Country || null,
-              row.EmailAddress || null,
+              row.ContactPerson || null, row.Contacts[0]?.Position || null, row.Phone1 || null, primaryEmail,
+              row.Contacts[1]?.Name || null, row.Contacts[1]?.Position || null, row.Contacts[1]?.Email || null, row.Contacts[1]?.Phone || null,
+              row.Contacts[2]?.Name || null, row.Contacts[2]?.Position || null, row.Contacts[2]?.Email || null, row.Contacts[2]?.Phone || null,
+              row.BillToAddress, row.ShipToAddress,
+              row.City || null, row.Country || null, primaryEmail, row.Currency || null,
+              row.Currency || 'USD', countryInfo?.name || null, row.Country || null, countryInfo?.continent || null,
+              gstin, row.UStateSupply || 'MH', row.UBpGstType || 'G',
             ],
           );
           existingCodes.add(row.CardCode);
@@ -3497,14 +3743,54 @@ export function setupProjectRoutes(app: express.Express) {
         cLead:     'L',
       };
 
-      type BPRow = { CardCode: string; CardType: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
-      const allRows: BPRow[] = [];
+      type VContactEntry = { Name: string; Position: string; Email: string; Phone: string; };
+      type VBPRow = {
+        CardCode: string; CardType: string; CardName: string;
+        Currency: string; FederalTaxID: string;
+        ContactPerson: string; Phone1: string;
+        Address: string; City: string; Country: string; EmailAddress: string;
+        UStateSupply: string; UBpGstType: string;
+        Contacts: VContactEntry[];
+        BillToAddress: string | null; ShipToAddress: string | null;
+      };
+      const parseVendorBpRow = (bp: any): VBPRow => {
+        const code = String(bp.CardCode ?? '').trim();
+        const bpContacts: any[] = Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees : [];
+        const bpAddresses: any[] = Array.isArray(bp.BPAddresses) ? bp.BPAddresses : [];
+        const fmtAddr = (a: any) => a ? [a.Street, a.City, a.State, a.ZipCode].filter(Boolean).join(', ') || null : null;
+        const billEntry = bpAddresses.find((a) => a?.AddressType === 'bo_BillTo');
+        const shipEntry = bpAddresses.find((a) => a?.AddressType === 'bo_ShipTo');
+        return {
+          CardCode:      code,
+          CardType:      String(bp.CardType      ?? '').trim(),
+          CardName:      String(bp.CardName      ?? '').trim(),
+          Currency:      String(bp.Currency      ?? '').trim(),
+          FederalTaxID:  String(bp.FederalTaxID  ?? '').trim(),
+          ContactPerson: String(bp.ContactPerson ?? '').trim(),
+          Phone1:        String(bp.Phone1        ?? '').trim(),
+          Address:       String(bp.Address       ?? '').trim(),
+          City:          String(bp.City          ?? '').trim(),
+          Country:       String(bp.Country       ?? '').trim(),
+          EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
+          UStateSupply:  String(bp.U_StateSupply ?? '').trim(),
+          UBpGstType:    String(bp.U_BP_GstType  ?? '').trim(),
+          Contacts: bpContacts.slice(0, 3).map((c) => ({
+            Name:     String(c.Name     ?? '').trim(),
+            Position: String(c.Position ?? '').trim(),
+            Email:    String(c.E_Mail   ?? '').trim(),
+            Phone:    String(c.Phone1   ?? '').trim(),
+          })),
+          BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
+          ShipToAddress: fmtAddr(shipEntry),
+        };
+      };
+      const allRows: VBPRow[] = [];
       const PAGE_SIZE = 20;
       let sapSkip = 0;
 
       while (true) {
+        // No $select — SAP strips UDF columns (U_StateSupply, U_BP_GstType) when $select is present.
         const qs = new URLSearchParams({
-          '$select': 'CardCode,CardType,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
           '$filter': "CardType eq 'cSupplier'",
           '$top':    String(PAGE_SIZE),
           '$skip':   String(sapSkip),
@@ -3519,17 +3805,7 @@ export function setupProjectRoutes(app: express.Express) {
         for (const bp of page) {
           const code = String(bp.CardCode ?? '').trim();
           if (!code) continue;
-          allRows.push({
-            CardCode:      code,
-            CardType:      String(bp.CardType      ?? '').trim(),
-            CardName:      String(bp.CardName      ?? '').trim(),
-            ContactPerson: String(bp.ContactPerson ?? '').trim(),
-            Phone1:        String(bp.Phone1        ?? '').trim(),
-            Address:       String(bp.Address       ?? '').trim(),
-            City:          String(bp.City          ?? '').trim(),
-            Country:       String(bp.Country       ?? '').trim(),
-            EmailAddress:  String(bp.EmailAddress  ?? '').trim(),
-          });
+          allRows.push(parseVendorBpRow(bp));
         }
 
         if (page.length < PAGE_SIZE) break;
@@ -3552,13 +3828,50 @@ export function setupProjectRoutes(app: express.Express) {
 
       for (const row of filteredRows) {
         if (existingCodes.has(row.CardCode)) {
-          // Correct card_type if it was wrongly written as 'C' by the customer sync.
-          // This fixes the class of bug where 'CardType eq C' (invalid SAP filter value)
-          // caused SAP to return all BPs, and V-prefix vendors were inserted with card_type='C'.
+          // Correct card_type if wrong, AND backfill any previously-empty enrichment fields.
+          const vPrimaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
+          const vCountryInfo = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
           await pool.query(
-            `UPDATE customers SET card_type = 'V', updated_at = NOW()
-             WHERE sap_card_code = $1 AND card_type <> 'V'`,
-            [row.CardCode],
+            `UPDATE customers SET
+               card_type          = 'V',
+               contact_position   = COALESCE(NULLIF(contact_position,''),  $2),
+               email              = COALESCE(NULLIF(email,''),              $3),
+               sap_email          = COALESCE(NULLIF(sap_email,''),          $3),
+               contact2_name      = COALESCE(NULLIF(contact2_name,''),      $4),
+               contact2_position  = COALESCE(NULLIF(contact2_position,''),  $5),
+               contact2_email     = COALESCE(NULLIF(contact2_email,''),     $6),
+               contact2_phone     = COALESCE(NULLIF(contact2_phone,''),     $7),
+               contact3_name      = COALESCE(NULLIF(contact3_name,''),      $8),
+               contact3_position  = COALESCE(NULLIF(contact3_position,''),  $9),
+               contact3_email     = COALESCE(NULLIF(contact3_email,''),     $10),
+               contact3_phone     = COALESCE(NULLIF(contact3_phone,''),     $11),
+               ship_to_address    = COALESCE(NULLIF(ship_to_address,''),    $12),
+               currency           = COALESCE(NULLIF(currency,''),           $13),
+               country_name       = COALESCE(NULLIF(country_name,''),       $14),
+               country_code       = COALESCE(NULLIF(country_code,''),       $15),
+               continent          = COALESCE(NULLIF(continent,''),          $16),
+               glbl_loc_num       = CASE WHEN (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') THEN $17 ELSE glbl_loc_num END,
+               u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $18),
+               u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $19),
+               sap_currency       = COALESCE(NULLIF(sap_currency,''),       $20),
+               sap_synced_at = NOW(), updated_at = NOW()
+             WHERE sap_card_code = $1`,
+            [
+              row.CardCode,
+              row.Contacts[0]?.Position || null,
+              vPrimaryEmail,
+              row.Contacts[1]?.Name || null, row.Contacts[1]?.Position || null,
+              row.Contacts[1]?.Email || null, row.Contacts[1]?.Phone || null,
+              row.Contacts[2]?.Name || null, row.Contacts[2]?.Position || null,
+              row.Contacts[2]?.Email || null, row.Contacts[2]?.Phone || null,
+              row.ShipToAddress,
+              row.Currency || null,
+              vCountryInfo?.name || null, row.Country || null, vCountryInfo?.continent || null,
+              (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : null,
+              row.UStateSupply || null,
+              row.UBpGstType || null,
+              row.Currency || null,
+            ],
           );
           skipped++;
           continue;
@@ -3568,18 +3881,40 @@ export function setupProjectRoutes(app: express.Express) {
           const shortCode = row.CardCode.replace(/^[Vv]/, '').slice(0, 5);
           // card_type sourced from SAP CardType field, not hardcoded.
           const localCardType = sapCardTypeMap[row.CardType] ?? 'V';
+          const vPrimaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
+          const vCountryInfo = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
+          const vGstin = (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : 'NA';
           await pool.query(
             `INSERT INTO customers
-               (bp_code, bp_name, short_code, sap_card_code, card_type, contact_person, phone1,
-                bill_to_address, sap_mail_city, sap_mail_country, email, sap_email,
+               (bp_code, bp_name, short_code, sap_card_code, card_type,
+                contact_person, contact_position, phone1, email,
+                contact2_name, contact2_position, contact2_email, contact2_phone,
+                contact3_name, contact3_position, contact3_email, contact3_phone,
+                bill_to_address, ship_to_address,
+                sap_mail_city, sap_mail_country, sap_email, sap_currency,
+                currency, country_name, country_code, continent,
+                glbl_loc_num, u_state_supply, u_bp_gst_type,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11,'synced',NOW(),NOW(),NOW())
+             VALUES
+               ($1,$2,$3,$4,$5,
+                $6,$7,$8,$9,
+                $10,$11,$12,$13,
+                $14,$15,$16,$17,
+                $18,$19,
+                $20,$21,$22,$23,
+                $24,$25,$26,$27,
+                $28,$29,$30,
+                'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
               row.CardCode, row.CardName, shortCode, row.CardCode, localCardType,
-              row.ContactPerson || null, row.Phone1 || null,
-              row.Address || null, row.City || null, row.Country || null,
-              row.EmailAddress || null,
+              row.ContactPerson || null, row.Contacts[0]?.Position || null, row.Phone1 || null, vPrimaryEmail,
+              row.Contacts[1]?.Name || null, row.Contacts[1]?.Position || null, row.Contacts[1]?.Email || null, row.Contacts[1]?.Phone || null,
+              row.Contacts[2]?.Name || null, row.Contacts[2]?.Position || null, row.Contacts[2]?.Email || null, row.Contacts[2]?.Phone || null,
+              row.BillToAddress, row.ShipToAddress,
+              row.City || null, row.Country || null, vPrimaryEmail, row.Currency || null,
+              row.Currency || 'USD', vCountryInfo?.name || null, row.Country || null, vCountryInfo?.continent || null,
+              vGstin, row.UStateSupply || 'MH', row.UBpGstType || 'G',
             ],
           );
           existingCodes.add(row.CardCode);
