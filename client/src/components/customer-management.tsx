@@ -186,15 +186,72 @@ const customerSchema = z.object({
   billToAddress: z.string().min(1, "Billing Address is required"),
   shipToAddress: z.string().min(1, "Shipping Address is required"),
   cardType: z.string().default("C"),
-  glblLocNum: z.string().default("NA"),
-  uStateSupply: z.string().default("MH"),
+  glblLocNum: z.string().optional().default(""),
+  uStateSupply: z.string().default(""),
   uBpGstType: z.string().default("G"),
   currency: z.string().default("USD"),
   continent: z.string().min(1, "Continent is required"),
   countryName: z.string().min(1, "Country is required"),
+}).superRefine((data, ctx) => {
+  const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  if (
+    data.uBpGstType !== "E" &&
+    data.glblLocNum &&
+    data.glblLocNum.trim() !== "" &&
+    data.glblLocNum.trim() !== "NA"
+  ) {
+    if (!GSTIN_REGEX.test(data.glblLocNum.trim().toUpperCase())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invalid GSTIN format (e.g., 27AAPFU0939F1ZV)",
+        path: ["glblLocNum"],
+      });
+    }
+  }
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
+
+// ── Indian GST State codes ──────────────────────────────────────────────────
+const INDIAN_GST_STATES = [
+  { code: "AN", name: "Andaman & Nicobar Islands" },
+  { code: "AP", name: "Andhra Pradesh" },
+  { code: "AR", name: "Arunachal Pradesh" },
+  { code: "AS", name: "Assam" },
+  { code: "BR", name: "Bihar" },
+  { code: "CG", name: "Chhattisgarh" },
+  { code: "CH", name: "Chandigarh" },
+  { code: "DD", name: "Daman, Diu & Dadra" },
+  { code: "DL", name: "Delhi" },
+  { code: "DN", name: "Dadra & Nagar Haveli" },
+  { code: "GA", name: "Goa" },
+  { code: "GJ", name: "Gujarat" },
+  { code: "HP", name: "Himachal Pradesh" },
+  { code: "HR", name: "Haryana" },
+  { code: "JH", name: "Jharkhand" },
+  { code: "JK", name: "Jammu & Kashmir" },
+  { code: "KA", name: "Karnataka" },
+  { code: "KL", name: "Kerala" },
+  { code: "LA", name: "Ladakh" },
+  { code: "LD", name: "Lakshadweep" },
+  { code: "MH", name: "Maharashtra" },
+  { code: "ML", name: "Meghalaya" },
+  { code: "MN", name: "Manipur" },
+  { code: "MP", name: "Madhya Pradesh" },
+  { code: "MZ", name: "Mizoram" },
+  { code: "NL", name: "Nagaland" },
+  { code: "OD", name: "Odisha" },
+  { code: "PB", name: "Punjab" },
+  { code: "PY", name: "Puducherry" },
+  { code: "RJ", name: "Rajasthan" },
+  { code: "SK", name: "Sikkim" },
+  { code: "TG", name: "Telangana" },
+  { code: "TN", name: "Tamil Nadu" },
+  { code: "TR", name: "Tripura" },
+  { code: "UK", name: "Uttarakhand" },
+  { code: "UP", name: "Uttar Pradesh" },
+  { code: "WB", name: "West Bengal" },
+];
 
 // ── Shared form body (used in both Add and Edit dialogs) ──────────────────────
 function CustomerFormBody({
@@ -244,16 +301,48 @@ function CustomerFormBody({
     }
   };
 
+  // Update State of Supply based on Card Type + GST Type combination
+  const updateStateSupply = (cardType: string, gstType: string) => {
+    const isExport = cardType === "C" && gstType === "E";
+    if (isExport) {
+      form.setValue("uStateSupply", "");
+    } else {
+      const current = form.getValues("uStateSupply");
+      if (!current || current === "") {
+        form.setValue("uStateSupply", "MH");
+      }
+    }
+  };
+
   const handleCardTypeChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
+    let newGstType = form.getValues("uBpGstType") || "G";
     if (val === "C") {
       // Customer → Export defaults
       if (!currencyManuallySet) form.setValue("currency", "USD");
-      if (!gstTypeManuallySet) form.setValue("uBpGstType", "E");
+      if (!gstTypeManuallySet) {
+        form.setValue("uBpGstType", "E");
+        newGstType = "E";
+      }
     } else if (val === "S") {
       // Supplier → Domestic defaults
       if (!currencyManuallySet) form.setValue("currency", "INR");
-      if (!gstTypeManuallySet) form.setValue("uBpGstType", "G");
+      if (!gstTypeManuallySet) {
+        form.setValue("uBpGstType", "G");
+        newGstType = "G";
+      }
+    }
+    updateStateSupply(val, newGstType);
+  };
+
+  const handleGstTypeChange = (val: string, fieldOnChange: (v: string) => void) => {
+    fieldOnChange(val);
+    setGstTypeManuallySet(true);
+    const cardType = form.getValues("cardType") || "C";
+    updateStateSupply(cardType, val);
+    // Clear GSTIN when switching to Export
+    if (val === "E") {
+      form.setValue("glblLocNum", "");
     }
   };
 
@@ -700,10 +789,7 @@ function CustomerFormBody({
                 <FormItem>
                   <FormLabel>GST Type</FormLabel>
                   <Select
-                    onValueChange={(val) => {
-                      field.onChange(val);
-                      setGstTypeManuallySet(true);
-                    }}
+                    onValueChange={(val) => handleGstTypeChange(val, field.onChange)}
                     value={field.value || "G"}
                   >
                     <FormControl>
@@ -730,17 +816,68 @@ function CustomerFormBody({
             <FormField
               control={form.control}
               name="uStateSupply"
+              render={({ field }) => {
+                const gstType = form.watch("uBpGstType") || "G";
+                const cardType = form.watch("cardType") || "C";
+                const isExport = cardType === "C" && gstType === "E";
+                return (
+                  <FormItem>
+                    <FormLabel>State of Supply</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={isExport ? "-- N/A --" : "Select state"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">-- Not Applicable --</SelectItem>
+                        {INDIAN_GST_STATES.map((s) => (
+                          <SelectItem key={s.code} value={s.code}>
+                            {s.code} – {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isExport && (
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+                        Not applicable for Export
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+          </div>
+
+          {/* GSTIN — hidden for Export (E) */}
+          {form.watch("uBpGstType") !== "E" && (
+            <FormField
+              control={form.control}
+              name="glblLocNum"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>State of Supply</FormLabel>
+                <FormItem className="max-w-xs">
+                  <FormLabel>GSTIN</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., MH" maxLength={3} {...field} className="uppercase" />
+                    <Input
+                      placeholder="e.g., 27AAPFU0939F1ZV"
+                      maxLength={15}
+                      {...field}
+                      value={field.value || ""}
+                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                    />
                   </FormControl>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+                    15-character GST Identification Number
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
+          )}
         </div>
 
         <DialogFooter className="pt-2">
@@ -835,8 +972,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     billToAddress: "",
     shipToAddress: "",
     cardType: "C",
-    glblLocNum: "NA",
-    uStateSupply: "MH",
+    glblLocNum: "",
+    uStateSupply: "",
     uBpGstType: "G",
     currency: "USD",
     continent: "",
@@ -1063,6 +1200,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               // Apply Customer defaults on fresh open
               form.setValue("currency", "USD");
               form.setValue("uBpGstType", "E");
+              form.setValue("uStateSupply", ""); // Export → no state
+              form.setValue("glblLocNum", "");   // Export → no GSTIN
               try {
                 const res = await apiRequest("GET", "/api/customers/next-bp-code");
                 if (res?.nextBpCode) {
