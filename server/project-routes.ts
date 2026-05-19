@@ -3834,7 +3834,7 @@ export function setupProjectRoutes(app: express.Express) {
           CardType:      String(bp.CardType      ?? '').trim(),
           CardName:      String(bp.CardName      ?? '').trim(),
           Currency:      String(bp.Currency      ?? '').trim(),
-          FederalTaxID:  String(bp.GlblLocNum    ?? bp.FederalTaxID ?? '').trim(),
+          FederalTaxID:  String(bp.GlblLocNum    ?? '').trim(),   // GSTIN from GlblLocNum only — never fall back to SAP FederalTaxID
           ContactPerson: String(bp.ContactPerson ?? '').trim(),
           Phone1:        String(bp.Cellular       ?? bp.Phone1       ?? '').trim(),
           Address:       String(bp.Address       ?? '').trim(),
@@ -3927,7 +3927,9 @@ export function setupProjectRoutes(app: express.Express) {
           // Correct card_type if wrong, AND backfill any previously-empty enrichment fields.
           const vPrimaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
           const vCountryInfo = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
+          // GSTIN: only from GlblLocNum (FederalTaxID field now maps exclusively to GlblLocNum)
           const vGstin2 = (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : null;
+          console.log(`[vendor-sap-sync] SAVING ${row.CardCode} → glbl_loc_num="${vGstin2 ?? 'null'}" pan_number="${row.UPanNumber || 'null'}"`);
           await pool.query(
             `UPDATE customers SET
                card_type          = 'V',
@@ -3949,11 +3951,11 @@ export function setupProjectRoutes(app: express.Express) {
                country_name       = COALESCE(NULLIF(country_name,''),       $16),
                country_code       = COALESCE(NULLIF(country_code,''),       $17),
                continent          = COALESCE(NULLIF(continent,''),          $18),
-               glbl_loc_num       = CASE WHEN $19::text IS NOT NULL AND (glbl_loc_num IS NULL OR glbl_loc_num = 'NA') THEN $19::text ELSE COALESCE(NULLIF(glbl_loc_num,''), 'NA') END,
+               glbl_loc_num       = CASE WHEN $19::text IS NOT NULL AND $19::text != '' THEN $19::text ELSE COALESCE(NULLIF(glbl_loc_num,''), 'NA') END,
                u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $20),
                u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $21),
                sap_currency       = COALESCE(NULLIF(sap_currency,''),       $22),
-               pan_number         = COALESCE(NULLIF(pan_number,''),         $23),
+               pan_number         = CASE WHEN $23::text IS NOT NULL AND $23::text != '' THEN $23::text ELSE pan_number END,
                sap_synced_at = NOW(), updated_at = NOW()
              WHERE sap_card_code = $1`,
             [
@@ -3987,6 +3989,7 @@ export function setupProjectRoutes(app: express.Express) {
           const vPrimaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
           const vCountryInfo = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
           const vGstin = (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : 'NA';
+          console.log(`[vendor-sap-sync] INSERTING ${row.CardCode} → glbl_loc_num="${vGstin}" pan_number="${row.UPanNumber || 'null'}"`);
           await pool.query(
             `INSERT INTO customers
                (bp_code, bp_name, short_code, sap_card_code, card_type,
@@ -4026,6 +4029,20 @@ export function setupProjectRoutes(app: express.Express) {
           failed++;
           errors.push(`${row.CardCode}: ${err.message}`);
           console.error(`[vendor-sap-sync] insert failed for ${row.CardCode}:`, err.message);
+        }
+      }
+
+      // ── Test-mode: verify DB values after save ───────────────────────────────
+      if (testCardCode) {
+        const verRow = await pool.query<{ sap_card_code: string; glbl_loc_num: string; pan_number: string }>(
+          `SELECT sap_card_code, glbl_loc_num, pan_number FROM customers WHERE sap_card_code = $1`,
+          [testCardCode],
+        );
+        if (verRow.rows.length > 0) {
+          const r = verRow.rows[0];
+          console.log(`[vendor-sap-sync] DB VERIFY ${r.sap_card_code} → glbl_loc_num="${r.glbl_loc_num}" pan_number="${r.pan_number}"`);
+        } else {
+          console.warn(`[vendor-sap-sync] DB VERIFY: no row found for ${testCardCode}`);
         }
       }
 
