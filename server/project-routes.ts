@@ -3492,6 +3492,12 @@ export function setupProjectRoutes(app: express.Express) {
           const s = String(v ?? '').trim();
           return placeholders.some((p) => p.toLowerCase() === s.toLowerCase()) ? '' : s;
         };
+        // Strip SAP placeholder values ("-", "NA", "N/A") and return null for empty/missing.
+        const sapAddr = (v: any): string | null => {
+          const s = String(v ?? '').trim();
+          if (!s || s === '-' || s.toLowerCase() === 'na' || s.toLowerCase() === 'n/a') return null;
+          return s;
+        };
         return {
           CardCode:      code,
           CardType:      String(bp.CardType      ?? '').trim(),
@@ -3514,16 +3520,16 @@ export function setupProjectRoutes(app: express.Express) {
           })),
           BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
           ShipToAddress: fmtAddr(shipEntry),
-          BillAddrLine1:    billEntry?.Address2  ? String(billEntry.Address2).trim()  || null : null,
-          BillAddrLine2:    billEntry?.Address3  ? String(billEntry.Address3).trim()  || null : null,
-          BillAddrBlock:    billEntry?.Block     ? String(billEntry.Block).trim()     || null : null,
-          BillAddrBuilding: billEntry?.Building  ? String(billEntry.Building).trim()  || null : null,
-          BillAddrCity:     billEntry?.City      ? String(billEntry.City).trim()      || null : null,
-          ShipAddrLine1:    shipEntry?.Address2  ? String(shipEntry.Address2).trim()  || null : null,
-          ShipAddrLine2:    shipEntry?.Address3  ? String(shipEntry.Address3).trim()  || null : null,
-          ShipAddrBlock:    shipEntry?.Block     ? String(shipEntry.Block).trim()     || null : null,
-          ShipAddrBuilding: shipEntry?.Building  ? String(shipEntry.Building).trim()  || null : null,
-          ShipAddrCity:     shipEntry?.City      ? String(shipEntry.City).trim()      || null : null,
+          BillAddrLine1:    sapAddr(billEntry?.AddressName2),
+          BillAddrLine2:    sapAddr(billEntry?.AddressName3),
+          BillAddrBlock:    sapAddr(billEntry?.Block),
+          BillAddrBuilding: sapAddr(billEntry?.BuildingFloorRoom),
+          BillAddrCity:     sapAddr(billEntry?.City),
+          ShipAddrLine1:    sapAddr(shipEntry?.AddressName2),
+          ShipAddrLine2:    sapAddr(shipEntry?.AddressName3),
+          ShipAddrBlock:    sapAddr(shipEntry?.Block),
+          ShipAddrBuilding: sapAddr(shipEntry?.BuildingFloorRoom),
+          ShipAddrCity:     sapAddr(shipEntry?.City),
         };
       };
       let filteredRows: BPRow[] = [];
@@ -3871,6 +3877,12 @@ export function setupProjectRoutes(app: express.Express) {
           const s = String(v ?? '').trim();
           return placeholders.some((p) => p.toLowerCase() === s.toLowerCase()) ? '' : s;
         };
+        // Strip SAP placeholder values ("-", "NA", "N/A") and return null for empty/missing.
+        const sapAddr = (v: any): string | null => {
+          const s = String(v ?? '').trim();
+          if (!s || s === '-' || s.toLowerCase() === 'na' || s.toLowerCase() === 'n/a') return null;
+          return s;
+        };
         return {
           CardCode:      code,
           CardType:      String(bp.CardType      ?? '').trim(),
@@ -3894,16 +3906,16 @@ export function setupProjectRoutes(app: express.Express) {
           UPanNumber:    String(bp.U_PAN_Number   ?? '').trim(),
           BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
           ShipToAddress: fmtAddr(shipEntry),
-          BillAddrLine1:    billEntry?.Address2  ? String(billEntry.Address2).trim()  || null : null,
-          BillAddrLine2:    billEntry?.Address3  ? String(billEntry.Address3).trim()  || null : null,
-          BillAddrBlock:    billEntry?.Block     ? String(billEntry.Block).trim()     || null : null,
-          BillAddrBuilding: billEntry?.Building  ? String(billEntry.Building).trim()  || null : null,
-          BillAddrCity:     billEntry?.City      ? String(billEntry.City).trim()      || null : null,
-          ShipAddrLine1:    shipEntry?.Address2  ? String(shipEntry.Address2).trim()  || null : null,
-          ShipAddrLine2:    shipEntry?.Address3  ? String(shipEntry.Address3).trim()  || null : null,
-          ShipAddrBlock:    shipEntry?.Block     ? String(shipEntry.Block).trim()     || null : null,
-          ShipAddrBuilding: shipEntry?.Building  ? String(shipEntry.Building).trim()  || null : null,
-          ShipAddrCity:     shipEntry?.City      ? String(shipEntry.City).trim()      || null : null,
+          BillAddrLine1:    sapAddr(billEntry?.AddressName2),
+          BillAddrLine2:    sapAddr(billEntry?.AddressName3),
+          BillAddrBlock:    sapAddr(billEntry?.Block),
+          BillAddrBuilding: sapAddr(billEntry?.BuildingFloorRoom),
+          BillAddrCity:     sapAddr(billEntry?.City),
+          ShipAddrLine1:    sapAddr(shipEntry?.AddressName2),
+          ShipAddrLine2:    sapAddr(shipEntry?.AddressName3),
+          ShipAddrBlock:    sapAddr(shipEntry?.Block),
+          ShipAddrBuilding: sapAddr(shipEntry?.BuildingFloorRoom),
+          ShipAddrCity:     sapAddr(shipEntry?.City),
         };
       };
       const testCardCode: string = (req.body?.cardCode ?? '').toString().trim().toUpperCase();
