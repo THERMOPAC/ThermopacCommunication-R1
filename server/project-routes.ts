@@ -3089,9 +3089,12 @@ export function setupProjectRoutes(app: express.Express) {
       };
 
       // Guard: never let the UI form overwrite a real GSTIN with 'NA' or empty.
-      // The GSTIN is populated by SAP sync only; the edit form should not clear it.
       if (!updateData.glblLocNum || updateData.glblLocNum === 'NA') {
         delete updateData.glblLocNum;
+      }
+      // Strip empty PAN so it doesn't overwrite an existing value with blank.
+      if (!updateData.panNumber) {
+        delete updateData.panNumber;
       }
       
       const updatedCustomer = await storage.updateCustomer(customerId, updateData);
@@ -3801,7 +3804,7 @@ export function setupProjectRoutes(app: express.Express) {
         Currency: string; FederalTaxID: string;
         ContactPerson: string; Phone1: string;
         Address: string; City: string; Country: string; EmailAddress: string;
-        UStateSupply: string; UBpGstType: string;
+        UStateSupply: string; UBpGstType: string; UPanNumber: string;
         Contacts: VContactEntry[];
         BillToAddress: string | null; ShipToAddress: string | null;
       };
@@ -3837,6 +3840,7 @@ export function setupProjectRoutes(app: express.Express) {
             Email:    sapStr(c.E_Mail,   'E_Mail', 'Email'),
             Phone:    sapStr(c.Phone1,   'Phone1', 'Phone'),
           })),
+          UPanNumber:    String(bp.U_PAN_Number   ?? '').trim(),
           BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
           ShipToAddress: fmtAddr(shipEntry),
         };
@@ -3940,6 +3944,7 @@ export function setupProjectRoutes(app: express.Express) {
                u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $20),
                u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $21),
                sap_currency       = COALESCE(NULLIF(sap_currency,''),       $22),
+               pan_number         = COALESCE(NULLIF(pan_number,''),         $23),
                sap_synced_at = NOW(), updated_at = NOW()
              WHERE sap_card_code = $1`,
             [
@@ -3959,6 +3964,7 @@ export function setupProjectRoutes(app: express.Express) {
               row.UStateSupply || null,
               row.UBpGstType || null,
               row.Currency || null,
+              row.UPanNumber || null,
             ],
           );
           skipped++;
@@ -3981,7 +3987,7 @@ export function setupProjectRoutes(app: express.Express) {
                 bill_to_address, ship_to_address,
                 sap_mail_city, sap_mail_country, sap_email, sap_currency,
                 currency, country_name, country_code, continent,
-                glbl_loc_num, u_state_supply, u_bp_gst_type,
+                glbl_loc_num, u_state_supply, u_bp_gst_type, pan_number,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
              VALUES
                ($1,$2,$3,$4,$5,
@@ -3991,7 +3997,7 @@ export function setupProjectRoutes(app: express.Express) {
                 $18,$19,
                 $20,$21,$22,$23,
                 $24,$25,$26,$27,
-                $28,$29,$30,
+                $28,$29,$30,$31,
                 'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
@@ -4002,7 +4008,7 @@ export function setupProjectRoutes(app: express.Express) {
               row.BillToAddress, row.ShipToAddress,
               row.City || null, row.Country || null, vPrimaryEmail, row.Currency || null,
               row.Currency || 'USD', vCountryInfo?.name || null, row.Country || null, vCountryInfo?.continent || null,
-              vGstin, row.UStateSupply || 'MH', row.UBpGstType || 'G',
+              vGstin, row.UStateSupply || 'MH', row.UBpGstType || 'G', row.UPanNumber || null,
             ],
           );
           existingCodes.add(row.CardCode);

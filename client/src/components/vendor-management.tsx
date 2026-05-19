@@ -186,6 +186,7 @@ const vendorSchema = z.object({
   shipToAddress: z.string().min(1, "Shipping Address is required"),
   cardType: z.string().default("V"),
   glblLocNum: z.string().optional().default(""),
+  panNumber: z.string().optional().default(""),
   uStateSupply: z.string().min(1, "State of Supply is required"),
   uBpGstType: z.string().min(1, "GST Type is required"),
   currency: z.string().min(1, "Currency is required"),
@@ -735,6 +736,30 @@ function VendorFormBody({
               )}
             />
           )}
+
+          {/* PAN */}
+          <FormField
+            control={form.control}
+            name="panNumber"
+            render={({ field }) => (
+              <FormItem className="max-w-xs">
+                <FormLabel>Permanent Account Number</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g., ABCDE1234F"
+                    maxLength={10}
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                  />
+                </FormControl>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+                  10-character PAN (e.g., ABCDE1234F)
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         {sapSyncFailureAlert && (
@@ -869,6 +894,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
     shipToAddress: "",
     cardType: "V",
     glblLocNum: "",
+    panNumber: "",
     uStateSupply: "MH",
     uBpGstType: "G",
     currency: "INR",
@@ -1010,6 +1036,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
       shipToAddress: vendor.shipToAddress || "",
       cardType: "V",
       glblLocNum: ((vendor as any).glblLocNum && (vendor as any).glblLocNum !== 'NA') ? (vendor as any).glblLocNum : "",
+      panNumber: (vendor as any).panNumber || "",
       uStateSupply: (vendor as any).uStateSupply || "MH",
       uBpGstType: (vendor as any).uBpGstType || "G",
       currency: (vendor as any).currency || "INR",
