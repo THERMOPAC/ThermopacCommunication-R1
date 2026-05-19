@@ -64,6 +64,10 @@ Preferred communication style: Simple, everyday language.
 - **Test Data Visibility**: Test records (`is_test = true`) are hidden by default from UI and API responses unless the "Show/Hide Test Data" toggle is active (Superuser only).
 - **Tag No Control (PPPC)**: Tags auto-generated using `server/tag-generation-service.ts`; prefix map: PT/TT/FT/LT/XV/CV/PSV/P/CT/JB/M. Raw Materials group → no tag. Qty>1 on taggable subgroups → N separate lines each qty=1 with sequential tags. All tag generation uses `pg_advisory_xact_lock(projectId)`. Manual changes audited in `tag_no_audit_log`. Project-wide uniqueness enforced by partial unique index + 409 responses. Taggable subgroup codes defined in both `tag-generation-service.ts` and `TAGGABLE_SUBGROUP_CODES` constant in buy-list-control-page.
 
+## Operating Protocol
+All discussion and implementation work follows **`docs/operating-protocol-v1.0.md`**.  
+Read it before starting any discussion or implementation.
+
 ## Pointers
 - **Document Path & Folder Template Baseline v1.0**: `docs/document-path-folder-template-baseline-v1.md`
 - **GCS Governance Rev 5**: `docs/gcs-governance-rev5-option-c-baseline.md`
