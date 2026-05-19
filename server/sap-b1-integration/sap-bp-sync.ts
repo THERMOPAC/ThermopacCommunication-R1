@@ -193,12 +193,29 @@ class SapBPSyncService {
 
     const stateCode = (countryCode === 'IN' && customer.uStateSupply) ? customer.uStateSupply : undefined;
     const bpAddresses: SapBPAddress[] = [];
-    if (customer.billToAddress) {
+
+    // Prefer granular address fields (sent by the vendor/customer form).
+    // Fall back to legacy combined billToAddress string only if granular fields absent.
+    const hasBillGranular = customer.billAddrLine1 || customer.billAddrLine2 || customer.billAddrCity;
+    if (hasBillGranular) {
+      bpAddresses.push(this.buildGranularAddress('Bill To', 'bo_BillTo',
+        customer.billAddrLine1, customer.billAddrLine2,
+        customer.billAddrBlock, customer.billAddrBuilding,
+        customer.billAddrCity, countryCode, stateCode));
+    } else if (customer.billToAddress) {
       bpAddresses.push(this.parseAddress('Bill To', 'bo_BillTo', customer.billToAddress, countryCode, stateCode));
     }
-    if (customer.shipToAddress) {
+
+    const hasShipGranular = customer.shipAddrLine1 || customer.shipAddrLine2 || customer.shipAddrCity;
+    if (hasShipGranular) {
+      bpAddresses.push(this.buildGranularAddress('Ship To', 'bo_ShipTo',
+        customer.shipAddrLine1, customer.shipAddrLine2,
+        customer.shipAddrBlock, customer.shipAddrBuilding,
+        customer.shipAddrCity, countryCode, stateCode));
+    } else if (customer.shipToAddress) {
       bpAddresses.push(this.parseAddress('Ship To', 'bo_ShipTo', customer.shipToAddress, countryCode, stateCode));
     }
+
     if (bpAddresses.length > 0) {
       result.BPAddresses = bpAddresses;
     }
