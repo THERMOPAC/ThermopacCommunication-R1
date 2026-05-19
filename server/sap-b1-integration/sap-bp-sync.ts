@@ -304,28 +304,46 @@ class SapBPSyncService {
       if (countryCode)        bpData.Country       = countryCode;
       if (customer.currency)  bpData.Currency      = customer.currency;
 
-      // Fetch existing contacts from SAP to retrieve their InternalCode.
-      // SAP Service Layer PATCH treats ContactEmployees entries WITHOUT InternalCode
-      // as INSERT operations — causing ODBC -2035 "already exists" if the contact
-      // already exists on the BP. Including InternalCode tells SAP to UPDATE instead.
+      // Pre-fetch the full BP record from SAP (no $select — adding $select strips UDFs and
+      // can cause session contamination). We need:
+      //   1. ContactEmployees.InternalCode — SAP treats entries WITHOUT InternalCode as INSERTs,
+      //      causing ODBC -2035 "already exists". Including InternalCode tells SAP to UPDATE.
+      //   2. BPAddresses.AddressName by AddressType — SAP identifies address rows by AddressName
+      //      as the key. Using a different name than what's already stored causes SAP to INSERT
+      //      a new row while the old one still exists, triggering Error -1 on commit.
       const existingContactCode: Record<string, number> = {};
+      const existingAddrName: Record<string, string> = {}; // key = AddressType (e.g. 'bo_BillTo'), value = AddressName
       try {
         const getResp = await sapSession.request({
           method: 'GET',
-          path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')?$select=ContactEmployees`,
+          path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
         });
         if (getResp.ok) {
           const bpBody = JSON.parse(getResp.body);
-          const existing: any[] = Array.isArray(bpBody.ContactEmployees) ? bpBody.ContactEmployees : [];
-          for (const c of existing) {
+
+          // Map contact name → InternalCode
+          const existingContacts: any[] = Array.isArray(bpBody.ContactEmployees) ? bpBody.ContactEmployees : [];
+          for (const c of existingContacts) {
             if (c.Name && c.InternalCode != null) {
               existingContactCode[String(c.Name)] = Number(c.InternalCode);
             }
           }
-          console.log(`[SAP BP Sync] Fetched ${existing.length} existing contact(s) for ${cardCode}:`, Object.keys(existingContactCode));
+          console.log(`[SAP BP Sync] Fetched ${existingContacts.length} existing contact(s) for ${cardCode}:`, Object.keys(existingContactCode));
+
+          // Map AddressType → existing AddressName (the actual key SAP uses for the row)
+          const existingAddresses: any[] = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
+          for (const a of existingAddresses) {
+            if (a.AddressType && a.AddressName) {
+              // Keep only the FIRST address of each type (primary billing / primary shipping)
+              if (!existingAddrName[String(a.AddressType)]) {
+                existingAddrName[String(a.AddressType)] = String(a.AddressName);
+              }
+            }
+          }
+          console.log(`[SAP BP Sync] Fetched ${existingAddresses.length} existing address(es) for ${cardCode}:`, existingAddrName);
         }
       } catch (e: any) {
-        console.warn(`[SAP BP Sync] Could not pre-fetch contacts for ${cardCode}: ${e.message}`);
+        console.warn(`[SAP BP Sync] Could not pre-fetch BP data for ${cardCode}: ${e.message}`);
       }
 
       // ContactEmployees (up to 3 contacts) — InternalCode included for existing contacts
@@ -347,20 +365,25 @@ class SapBPSyncService {
         bpData.ContactPerson = customer.contactPerson;
       }
 
-      // BPAddresses — built from granular fields using confirmed SAP field names:
-      //   Address2 = line1, Address3 = line2, Block, Building, City
+      // BPAddresses — use the EXISTING AddressName from SAP as the row key.
+      // SAP identifies address rows by (CardCode, AddressName, AddressType). If we send
+      // a different AddressName than what's stored, SAP tries to INSERT a new row while
+      // the old one still exists → Error -1 on commit. Fall back to "Bill To"/"Ship To"
+      // only for new BPs that have no existing addresses in SAP.
       const bpAddresses: SapBPAddress[] = [];
       if (customer.billAddrLine1 || customer.billAddrCity) {
+        const billName = existingAddrName['bo_BillTo'] || 'Bill To';
         bpAddresses.push(this.buildGranularAddress(
-          'Bill To', 'bo_BillTo',
+          billName, 'bo_BillTo',
           customer.billAddrLine1, customer.billAddrLine2,
           customer.billAddrBlock, customer.billAddrBuilding, customer.billAddrCity,
           countryCode, stateCode,
         ));
       }
       if (customer.shipAddrLine1 || customer.shipAddrCity) {
+        const shipName = existingAddrName['bo_ShipTo'] || 'Ship To';
         bpAddresses.push(this.buildGranularAddress(
-          'Ship To', 'bo_ShipTo',
+          shipName, 'bo_ShipTo',
           customer.shipAddrLine1, customer.shipAddrLine2,
           customer.shipAddrBlock, customer.shipAddrBuilding, customer.shipAddrCity,
           countryCode, stateCode,
