@@ -345,7 +345,7 @@ function VendorFormBody({
                       {...field}
                       readOnly={bpCodeReadOnly}
                       className={bpCodeReadOnly ? "bg-muted/60 cursor-not-allowed font-mono text-xs" : "font-mono text-xs"}
-                      placeholder="V10001"
+                      placeholder="Fetching from SAP…"
                     />
                   </FormControl>
                   <FormMessage />
