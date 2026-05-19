@@ -1102,8 +1102,8 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
                 size="sm"
                 className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-1 text-xs"
                 onClick={() => vendorBulkSyncMutation.mutate()}
-                disabled={vendorBulkSyncMutation.isPending || sapSyncMutation.isPending}
-                title="Bulk import all V-prefix Vendors from SAP B1"
+                disabled={true}
+                title="Bulk sync temporarily disabled — use Sync Specific Vendor instead"
               >
                 {vendorBulkSyncMutation.isPending
                   ? <Loader2 className="h-3 w-3 animate-spin" />
