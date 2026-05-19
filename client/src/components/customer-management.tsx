@@ -1184,7 +1184,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       billToAddress: customer.billToAddress || "",
       shipToAddress: customer.shipToAddress || "",
       cardType: (customer as any).cardType || "C",
-      glblLocNum: (customer as any).glblLocNum || "NA",
+      glblLocNum: ((customer as any).glblLocNum && (customer as any).glblLocNum !== 'NA') ? (customer as any).glblLocNum : "",
       uStateSupply: (customer as any).uStateSupply || "MH",
       uBpGstType: (customer as any).uBpGstType || "G",
       currency: (customer as any).currency || (customer.countryName === 'India' ? 'INR' : 'USD'),

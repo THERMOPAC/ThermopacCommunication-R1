@@ -1009,7 +1009,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
       billToAddress: vendor.billToAddress || "",
       shipToAddress: vendor.shipToAddress || "",
       cardType: "V",
-      glblLocNum: (vendor as any).glblLocNum || "",
+      glblLocNum: ((vendor as any).glblLocNum && (vendor as any).glblLocNum !== 'NA') ? (vendor as any).glblLocNum : "",
       uStateSupply: (vendor as any).uStateSupply || "MH",
       uBpGstType: (vendor as any).uBpGstType || "G",
       currency: (vendor as any).currency || "INR",

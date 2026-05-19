@@ -3087,6 +3087,12 @@ export function setupProjectRoutes(app: express.Express) {
         ...req.body,
         updatedAt: new Date()
       };
+
+      // Guard: never let the UI form overwrite a real GSTIN with 'NA' or empty.
+      // The GSTIN is populated by SAP sync only; the edit form should not clear it.
+      if (!updateData.glblLocNum || updateData.glblLocNum === 'NA') {
+        delete updateData.glblLocNum;
+      }
       
       const updatedCustomer = await storage.updateCustomer(customerId, updateData);
       
