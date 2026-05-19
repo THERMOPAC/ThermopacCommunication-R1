@@ -284,6 +284,7 @@ function CustomerFormBody({
   setCurrencyManuallySet: (v: boolean) => void;
   gstTypeManuallySet: boolean;
   setGstTypeManuallySet: (v: boolean) => void;
+  bpCodeFetchError?: string | null;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -846,11 +847,18 @@ function CustomerFormBody({
           )}
         </div>
 
+        {bpCodeFetchError && (
+          <Alert variant="destructive" className="mb-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>SAP B1 Unavailable</AlertTitle>
+            <AlertDescription>{bpCodeFetchError}</AlertDescription>
+          </Alert>
+        )}
         <DialogFooter className="pt-2">
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending || !!bpCodeFetchError}>
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -879,6 +887,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   const [sapSyncResult, setSapSyncResult] = useState<{
     totalFetched: number; imported: number; skipped: number; failed: number; errors: string[];
   } | null>(null);
+  const [bpCodeFetchError, setBpCodeFetchError] = useState<string | null>(null);
 
   // Collapsible contact sections (shared state — reset on dialog open)
   const [contact2Open, setContact2Open] = useState(false);
@@ -1168,13 +1177,18 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               form.setValue("uBpGstType", "E");
               form.setValue("uStateSupply", "--"); // Export → no state
               form.setValue("glblLocNum", "");   // Export → no GSTIN
+              setBpCodeFetchError(null);
+              form.setValue('bpCode', '');
               try {
                 const res = await apiRequest("GET", "/api/customers/next-bp-code");
                 if (res?.nextBpCode) {
                   form.setValue('bpCode', res.nextBpCode);
+                  setBpCodeFetchError(null);
+                } else if (res?.error) {
+                  setBpCodeFetchError(res.error);
                 }
-              } catch (e) {
-                console.error('Failed to fetch next BP code:', e);
+              } catch (e: any) {
+                setBpCodeFetchError(e?.message ?? 'SAP B1 is unavailable. Cannot generate BP Code. Retry after SAP is restored.');
               }
               setIsCreateDialogOpen(true);
             }}
@@ -1276,7 +1290,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           <CustomerFormBody
             form={form}
             onSubmit={onSubmitCreate}
-            onCancel={() => setIsCreateDialogOpen(false)}
+            onCancel={() => { setIsCreateDialogOpen(false); setBpCodeFetchError(null); }}
             isPending={createMutation.isPending}
             submitLabel="Create Customer"
             bpCodeReadOnly={true}
@@ -1288,6 +1302,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             setCurrencyManuallySet={setCurrencyManuallySet}
             gstTypeManuallySet={gstTypeManuallySet}
             setGstTypeManuallySet={setGstTypeManuallySet}
+            bpCodeFetchError={bpCodeFetchError}
           />
         </DialogContent>
       </Dialog>

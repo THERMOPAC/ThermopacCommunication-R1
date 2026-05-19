@@ -2846,86 +2846,94 @@ export function setupProjectRoutes(app: express.Express) {
 
   // Customer Management Routes
   app.get('/api/customers/next-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
+    // SAP B1 is the single source of truth for Customer BP Code sequence.
+    // No local DB fallback. If SAP is unavailable, reject with 503.
     try {
-      const customers = await storage.getAllCustomers();
-      let maxNum = 10363;
-      for (const c of customers) {
-        if (c.bpCode) {
-          const match = c.bpCode.match(/^C(\d+)$/);
-          if (match) {
-            const num = parseInt(match[1], 10);
-            if (num > maxNum) maxNum = num;
+      const health = sapSession.getHealth();
+      if (!health.alive) {
+        return res.status(503).json({ error: 'SAP B1 is unavailable. BP Code cannot be generated. Please retry after SAP connection is restored.' });
+      }
+
+      let maxNum = 0;
+      const PAGE_SIZE = 100;
+      let skip = 0;
+      while (true) {
+        const qs = new URLSearchParams({
+          '$filter': "CardType eq 'cCustomer'",
+          '$select': 'CardCode',
+          '$top': String(PAGE_SIZE),
+          '$skip': String(skip),
+        }).toString();
+        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`, timeout: 15000 });
+        if (!resp.ok) {
+          const errDetail = resp.body?.substring(0, 200) ?? `HTTP ${resp.statusCode}`;
+          return res.status(503).json({ error: `SAP B1 returned an error fetching Customer codes: ${errDetail}` });
+        }
+        const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
+        const rows = body?.value ?? [];
+        for (const row of rows) {
+          const m = row.CardCode?.match(/^C(\d+)$/i);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > maxNum) maxNum = n;
           }
         }
+        if (rows.length < PAGE_SIZE) break;
+        skip += PAGE_SIZE;
       }
+
       const nextCode = 'C' + String(maxNum + 1);
+      console.log(`[next-bp-code] SAP max Customer code = C${maxNum} → next = ${nextCode}`);
       res.json({ nextBpCode: nextCode });
-    } catch (error) {
-      console.error('Error generating next BP code:', error);
-      sendError(res, error);
+    } catch (error: any) {
+      console.error('[next-bp-code] SAP query failed:', error.message);
+      return res.status(503).json({ error: `SAP B1 is unavailable: ${error.message}` });
     }
   });
 
   app.get('/api/customers/next-vendor-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
+    // SAP B1 is the single source of truth for Vendor BP Code sequence.
+    // No local DB fallback. If SAP is unavailable, reject with 503.
     try {
+      const health = sapSession.getHealth();
+      if (!health.alive) {
+        return res.status(503).json({ error: 'SAP B1 is unavailable. BP Code cannot be generated. Please retry after SAP connection is restored.' });
+      }
+
       let maxNum = 0;
-
-      // ── 1. Scan local DB for highest V-prefixed code ──────────────────────
-      const customers = await storage.getAllCustomers();
-      for (const c of customers) {
-        if (c.bpCode) {
-          const match = c.bpCode.match(/^V(\d+)$/i);
-          if (match) {
-            const num = parseInt(match[1], 10);
-            if (num > maxNum) maxNum = num;
+      const PAGE_SIZE = 100;
+      let skip = 0;
+      while (true) {
+        const qs = new URLSearchParams({
+          '$filter': "CardType eq 'cSupplier'",
+          '$select': 'CardCode',
+          '$top': String(PAGE_SIZE),
+          '$skip': String(skip),
+        }).toString();
+        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`, timeout: 15000 });
+        if (!resp.ok) {
+          const errDetail = resp.body?.substring(0, 200) ?? `HTTP ${resp.statusCode}`;
+          return res.status(503).json({ error: `SAP B1 returned an error fetching Vendor codes: ${errDetail}` });
+        }
+        const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
+        const rows = body?.value ?? [];
+        for (const row of rows) {
+          const m = row.CardCode?.match(/^V(\d+)$/i);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > maxNum) maxNum = n;
           }
         }
+        if (rows.length < PAGE_SIZE) break;
+        skip += PAGE_SIZE;
       }
-
-      // ── 2. Query SAP B1 for highest V-prefixed supplier CardCode ──────────
-      try {
-        const health = sapSession.getHealth();
-        if (health.alive) {
-          const PAGE_SIZE = 100;
-          let skip = 0;
-          while (true) {
-            const qs = new URLSearchParams({
-              '$filter': "CardType eq 'cSupplier'",
-              '$select': 'CardCode',
-              '$top': String(PAGE_SIZE),
-              '$skip': String(skip),
-            }).toString();
-            const resp = await sapSession.request({
-              method: 'GET',
-              path: `/b1s/v1/BusinessPartners?${qs}`,
-              timeout: 15000,
-            });
-            if (!resp.ok) break;
-            const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
-            const rows = body?.value ?? [];
-            for (const row of rows) {
-              const m = row.CardCode?.match(/^V(\d+)$/i);
-              if (m) {
-                const n = parseInt(m[1], 10);
-                if (n > maxNum) maxNum = n;
-              }
-            }
-            if (rows.length < PAGE_SIZE) break;
-            skip += PAGE_SIZE;
-          }
-        }
-      } catch (sapErr) {
-        console.warn('[next-vendor-bp-code] SAP query skipped or failed — using local DB max only:', (sapErr as Error).message);
-      }
-
-      // ── 3. If nothing found anywhere, start at a safe floor ───────────────
-      if (maxNum === 0) maxNum = 10000;
 
       const nextCode = 'V' + String(maxNum + 1);
+      console.log(`[next-vendor-bp-code] SAP max Vendor code = V${maxNum} → next = ${nextCode}`);
       res.json({ nextBpCode: nextCode });
-    } catch (error) {
-      console.error('Error generating next vendor BP code:', error);
-      sendError(res, error);
+    } catch (error: any) {
+      console.error('[next-vendor-bp-code] SAP query failed:', error.message);
+      return res.status(503).json({ error: `SAP B1 is unavailable: ${error.message}` });
     }
   });
 
@@ -2976,6 +2984,23 @@ export function setupProjectRoutes(app: express.Express) {
       if (!managementRoles.includes(req.user!.role)) {
         return res.status(403).json({ error: 'Not authorized to create customers' });
       }
+
+      // ── BP Code prefix enforcement (server-side mandatory guard) ──────────
+      const incomingBpCode: string = (req.body.bpCode ?? '').toString().trim();
+      const incomingCardType: string = (req.body.cardType ?? '').toString().trim();
+      if (!incomingBpCode) {
+        return res.status(400).json({ error: 'BP Code is required. It must be fetched from SAP B1 before creating a record.' });
+      }
+      if (incomingCardType === 'S') {
+        return res.status(400).json({ error: 'Legacy S-prefix supplier creation is not allowed. Use card type V (Vendor) with a Vxxxxx BP Code.' });
+      }
+      if (incomingCardType === 'C' && !/^C\d+$/.test(incomingBpCode)) {
+        return res.status(400).json({ error: 'Customer BP Code must start with C followed by digits only (e.g. C10412).' });
+      }
+      if (incomingCardType === 'V' && !/^V\d+$/.test(incomingBpCode)) {
+        return res.status(400).json({ error: 'Vendor BP Code must start with V followed by digits only (e.g. V10051).' });
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       if (req.body.email) {
         const { verifyEmailDomain } = await import('./email-verify');
@@ -3276,11 +3301,14 @@ export function setupProjectRoutes(app: express.Express) {
 
       for (const row of filteredRows) {
         if (existingCodes.has(row.CardCode)) {
-          // In single-card test mode, patch email on the existing record if SAP has one.
+          // In single-card test mode, patch both email and sap_email on the existing record if SAP has one.
           if (testCardCode && row.EmailAddress) {
             await pool.query(
-              `UPDATE customers SET sap_email = $1, sap_synced_at = NOW(), updated_at = NOW()
-               WHERE sap_card_code = $2 AND (sap_email IS NULL OR sap_email = '')`,
+              `UPDATE customers SET
+                 email     = CASE WHEN (email IS NULL OR email = '')         THEN $1 ELSE email     END,
+                 sap_email = CASE WHEN (sap_email IS NULL OR sap_email = '') THEN $1 ELSE sap_email END,
+                 sap_synced_at = NOW(), updated_at = NOW()
+               WHERE sap_card_code = $2`,
               [row.EmailAddress, row.CardCode],
             );
           }
@@ -3293,10 +3321,10 @@ export function setupProjectRoutes(app: express.Express) {
           const shortCode = row.CardCode.replace(/^[Cc]/, '').slice(0, 5);
           await pool.query(
             `INSERT INTO customers
-               (bp_code, bp_name, short_code, sap_card_code, contact_person, phone1,
-                bill_to_address, sap_mail_city, sap_mail_country, sap_email,
+               (bp_code, bp_name, short_code, sap_card_code, card_type, contact_person, phone1,
+                bill_to_address, sap_mail_city, sap_mail_country, email, sap_email,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'synced',NOW(),NOW(),NOW())
+             VALUES ($1,$2,$3,$4,'C',$5,$6,$7,$8,$9,$10,$10,'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
               row.CardCode, row.CardName, shortCode, row.CardCode,
@@ -3338,6 +3366,153 @@ export function setupProjectRoutes(app: express.Express) {
     } catch (err: any) {
       console.error('[customer-sap-sync] fatal error:', err.message);
       // Do NOT logout — shared session must stay alive for vendor sync
+      if (logId) {
+        await pool.query(
+          `UPDATE sap_customer_sync_logs SET
+             completed_at = NOW(), status = 'failed',
+             total_fetched = $1, imported = $2, skipped = $3, failed = $4, error_summary = $5
+           WHERE id = $6`,
+          [totalFetched, imported, skipped, failed, err.message, logId],
+        ).catch(() => {});
+      }
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ─── POST /api/customers/vendor-sap-sync ────────────────────────────────────
+  // Bulk-syncs Vendor/Supplier BPs from SAP (CardType=cSupplier, CardCode starts with V).
+  // INSERT-only policy — existing sap_card_code rows are skipped.
+  // Sets card_type='V' and maps EmailAddress to both email and sap_email.
+  // Allowed roles: Superuser, General Manager, Senior Manager
+  app.post('/api/customers/vendor-sap-sync', ensureAuthenticated, async (req: Request, res: Response) => {
+    const user = req.user!;
+    const role: string = (user as any).role ?? '';
+    const ALLOWED = ['Superuser', 'General Manager', 'Senior Manager'];
+    if (!ALLOWED.includes(role)) {
+      return res.status(403).json({ message: 'Forbidden: insufficient role' });
+    }
+
+    const sapUser = process.env.SAP_B1_USERNAME || '';
+    const sapPass = process.env.SAP_B1_PASSWORD || '';
+    const sapDb   = process.env.SAP_COMPANY_DB || '';
+    if (!sapUser || !sapPass || !sapDb) {
+      return res.status(500).json({ message: 'SAP credentials not configured' });
+    }
+
+    let logId: number | null = null;
+    const errors: string[] = [];
+    let totalFetched = 0, imported = 0, skipped = 0, failed = 0;
+
+    try {
+      const logRes = await pool.query(
+        `INSERT INTO sap_customer_sync_logs (triggered_by, started_at, status) VALUES ($1, NOW(), 'running') RETURNING id`,
+        [(user as any).id],
+      );
+      logId = logRes.rows[0].id;
+
+      type BPRow = { CardCode: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
+      const allRows: BPRow[] = [];
+      const PAGE_SIZE = 20;
+      let sapSkip = 0;
+
+      while (true) {
+        const qs = new URLSearchParams({
+          '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
+          '$filter': "CardType eq 'cSupplier'",
+          '$top':    String(PAGE_SIZE),
+          '$skip':   String(sapSkip),
+        }).toString();
+
+        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}` });
+        if (!resp.ok) {
+          throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
+        }
+
+        const page = JSON.parse(resp.body).value ?? [];
+        for (const bp of page) {
+          const code = String(bp.CardCode ?? '').trim();
+          if (!code) continue;
+          allRows.push({
+            CardCode:      code,
+            CardName:      String(bp.CardName      ?? '').trim(),
+            ContactPerson: String(bp.ContactPerson ?? '').trim(),
+            Phone1:        String(bp.Phone1        ?? '').trim(),
+            Address:       String(bp.Address       ?? '').trim(),
+            City:          String(bp.City          ?? '').trim(),
+            Country:       String(bp.Country       ?? '').trim(),
+            EmailAddress:  String(bp.EmailAddress  ?? '').trim(),
+          });
+        }
+
+        if (page.length < PAGE_SIZE) break;
+        sapSkip += PAGE_SIZE;
+        if (allRows.length >= 10000) {
+          console.warn('[vendor-sap-sync] capped at 10 000 records');
+          break;
+        }
+      }
+
+      // Client-side filter: V-prefixed CardCodes only (excludes legacy S-prefix SAP suppliers)
+      const filteredRows = allRows.filter((r) => /^V\d+$/i.test(r.CardCode));
+      totalFetched = filteredRows.length;
+      console.log(`[vendor-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass V-prefix filter`);
+
+      const existingRes = await pool.query<{ sap_card_code: string }>(
+        `SELECT sap_card_code FROM customers WHERE sap_card_code IS NOT NULL`,
+      );
+      const existingCodes = new Set(existingRes.rows.map((r) => r.sap_card_code));
+
+      for (const row of filteredRows) {
+        if (existingCodes.has(row.CardCode)) {
+          skipped++;
+          continue;
+        }
+        try {
+          // short_code: strip leading 'V' and take up to 5 digits — e.g. V10001 → '10001'.
+          const shortCode = row.CardCode.replace(/^[Vv]/, '').slice(0, 5);
+          await pool.query(
+            `INSERT INTO customers
+               (bp_code, bp_name, short_code, sap_card_code, card_type, contact_person, phone1,
+                bill_to_address, sap_mail_city, sap_mail_country, email, sap_email,
+                sap_sync_status, sap_synced_at, created_at, updated_at)
+             VALUES ($1,$2,$3,$4,'V',$5,$6,$7,$8,$9,$10,$10,'synced',NOW(),NOW(),NOW())
+             ON CONFLICT DO NOTHING`,
+            [
+              row.CardCode, row.CardName, shortCode, row.CardCode,
+              row.ContactPerson || null, row.Phone1 || null,
+              row.Address || null, row.City || null, row.Country || null,
+              row.EmailAddress || null,
+            ],
+          );
+          existingCodes.add(row.CardCode);
+          imported++;
+        } catch (err: any) {
+          failed++;
+          errors.push(`${row.CardCode}: ${err.message}`);
+          console.error(`[vendor-sap-sync] insert failed for ${row.CardCode}:`, err.message);
+        }
+      }
+
+      if (logId) {
+        await pool.query(
+          `UPDATE sap_customer_sync_logs SET
+             completed_at = NOW(), status = $1,
+             total_fetched = $2, imported = $3, skipped = $4, failed = $5, error_summary = $6
+           WHERE id = $7`,
+          [
+            failed > 0 ? 'partial' : 'success',
+            totalFetched, imported, skipped, failed,
+            errors.length > 0 ? errors.slice(0, 20).join('\n') : null,
+            logId,
+          ],
+        );
+      }
+
+      console.log(`[vendor-sap-sync] done — fetched=${totalFetched} imported=${imported} skipped=${skipped} failed=${failed}`);
+      return res.json({ totalFetched, imported, skipped, failed, errors: errors.slice(0, 20) });
+
+    } catch (err: any) {
+      console.error('[vendor-sap-sync] fatal error:', err.message);
       if (logId) {
         await pool.query(
           `UPDATE sap_customer_sync_logs SET

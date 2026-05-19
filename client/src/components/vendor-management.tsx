@@ -280,6 +280,7 @@ function VendorFormBody({
   setCurrencyManuallySet: (v: boolean) => void;
   gstTypeManuallySet: boolean;
   setGstTypeManuallySet: (v: boolean) => void;
+  bpCodeFetchError?: string | null;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -699,11 +700,18 @@ function VendorFormBody({
           )}
         </div>
 
+        {bpCodeFetchError && (
+          <Alert variant="destructive" className="mb-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>SAP B1 Unavailable</AlertTitle>
+            <AlertDescription>{bpCodeFetchError}</AlertDescription>
+          </Alert>
+        )}
         <DialogFooter className="pt-2">
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending || !!bpCodeFetchError}>
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -735,6 +743,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
   const [contact3Open, setContact3Open] = useState(false);
   const [currencyManuallySet, setCurrencyManuallySet] = useState(false);
   const [gstTypeManuallySet, setGstTypeManuallySet] = useState(false);
+  const [bpCodeFetchError, setBpCodeFetchError] = useState<string | null>(null);
 
   const SAP_SYNC_ROLES = ['Superuser', 'General Manager', 'Senior Manager'];
   const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
@@ -751,6 +760,19 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
     },
     onError: (err: any) => {
       toast({ title: 'SAP Sync failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
+    },
+  });
+
+  const vendorBulkSyncMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/customers/vendor-sap-sync', {}),
+    onSuccess: (data: any) => {
+      setSapSyncResult(data);
+      setShowSapSyncResult(true);
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      toast({ title: 'Vendor SAP Sync complete', description: `Imported ${data.imported}, skipped ${data.skipped}` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Vendor SAP Sync failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 
@@ -949,13 +971,26 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
                 size="sm"
                 className="border-amber-300 text-amber-700 hover:bg-amber-50 gap-1 text-xs"
                 onClick={() => testCardCode && sapSyncMutation.mutate(testCardCode)}
-                disabled={sapSyncMutation.isPending || !testCardCode}
+                disabled={sapSyncMutation.isPending || vendorBulkSyncMutation.isPending || !testCardCode}
                 title="Test sync a single CardCode"
               >
                 {sapSyncMutation.isPending
                   ? <Loader2 className="h-3 w-3 animate-spin" />
                   : <Search className="h-3 w-3" />}
                 Sync Specific Vendor
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-300 text-blue-700 hover:bg-blue-50 gap-1 text-xs"
+                onClick={() => vendorBulkSyncMutation.mutate()}
+                disabled={vendorBulkSyncMutation.isPending || sapSyncMutation.isPending}
+                title="Bulk import all V-prefix Vendors from SAP B1"
+              >
+                {vendorBulkSyncMutation.isPending
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <Truck className="h-3 w-3" />}
+                Sync Vendors from SAP
               </Button>
             </div>
           )}
@@ -966,13 +1001,18 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
               setContact3Open(false);
               setCurrencyManuallySet(false);
               setGstTypeManuallySet(false);
+              setBpCodeFetchError(null);
+              form.setValue('bpCode', '');
               try {
                 const res = await apiRequest("GET", "/api/customers/next-vendor-bp-code");
                 if (res?.nextBpCode) {
                   form.setValue('bpCode', res.nextBpCode);
+                  setBpCodeFetchError(null);
+                } else if (res?.error) {
+                  setBpCodeFetchError(res.error);
                 }
-              } catch (e) {
-                console.error('Failed to fetch next vendor BP code:', e);
+              } catch (e: any) {
+                setBpCodeFetchError(e?.message ?? 'SAP B1 is unavailable. Cannot generate BP Code. Retry after SAP is restored.');
               }
               setIsCreateDialogOpen(true);
             }}
@@ -1065,7 +1105,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
           <VendorFormBody
             form={form}
             onSubmit={onSubmitCreate}
-            onCancel={() => setIsCreateDialogOpen(false)}
+            onCancel={() => { setIsCreateDialogOpen(false); setBpCodeFetchError(null); }}
             isPending={createMutation.isPending}
             submitLabel="Create Vendor"
             bpCodeReadOnly={true}
@@ -1077,6 +1117,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
             setCurrencyManuallySet={setCurrencyManuallySet}
             gstTypeManuallySet={gstTypeManuallySet}
             setGstTypeManuallySet={setGstTypeManuallySet}
+            bpCodeFetchError={bpCodeFetchError}
           />
         </DialogContent>
       </Dialog>
