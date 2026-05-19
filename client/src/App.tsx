@@ -195,6 +195,7 @@ function Router() {
       <ProtectedRoute path="/projects" component={() => <ProjectsProduction.ProjectsPage />} />
       <ProtectedRoute path="/projects/:id" component={(props: any) => <ProjectsProduction.ProjectDetailPage {...props} />} />
       <ProtectedRoute path="/customers" component={() => <ProjectsProduction.CustomersPage />} />
+      <ProtectedRoute path="/vendors" component={() => <ProjectsProduction.VendorsPage />} />
       <ProtectedRoute path="/item-master" component={() => <ProjectsProduction.ItemMasterPage />} />
       <ProtectedRoute path="/design-tools" component={() => <Design.DesignToolsPage />} />
       

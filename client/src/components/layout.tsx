@@ -171,6 +171,7 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any procurement-related page
   const isOnProcurementPage = location === '/procurement-planning' ||
                             location === '/procurement-tracking' ||
+                            location === '/vendors' ||
                             location.startsWith('/epc/procurement-list-control');
   
   // Check if we're on any production-related page
@@ -509,6 +510,7 @@ function Layout({ children }: LayoutProps) {
       isOpen: isProcurementMenuOpen,
       toggle: () => setIsProcurementMenuOpen(!isProcurementMenuOpen),
       children: [
+        { icon: Truck, label: "Vendors / Suppliers", href: "/vendors" },
         { icon: Briefcase, label: "Procurement Planning", href: "/procurement-planning" },
         { icon: TrendingUp, label: "Procurement Tracking", href: "/procurement-tracking" },
         ...(hasPageAccess("procurement-list-control") ? [{ icon: ClipboardList, label: "Procurement List Control", href: "/epc/procurement-list-control" }] : []),

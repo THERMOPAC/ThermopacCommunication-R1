@@ -97,9 +97,11 @@ class SapBPSyncService {
     const cardTypeMap: Record<string, string> = {
       'C': 'cCustomer',
       'S': 'cSupplier',
+      'V': 'cSupplier',
       'L': 'cLid',
       'Customer': 'cCustomer',
       'Supplier': 'cSupplier',
+      'Vendor': 'cSupplier',
       'Lead': 'cLid',
     };
 

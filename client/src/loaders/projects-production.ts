@@ -4,6 +4,7 @@ export const ProjectsPage = lazyWithRetry(() => import("@/pages/projects-page"))
 export const ProjectDetailPage = lazyWithRetry(() => import("@/pages/project-detail-page"));
 export const ProjectDashboardPage = lazyWithRetry(() => import("@/pages/project-dashboard-page"));
 export const CustomersPage = lazyWithRetry(() => import("@/pages/customers-page"));
+export const VendorsPage = lazyWithRetry(() => import("@/pages/vendors-page"));
 export const ItemMasterPage = lazyWithRetry(() => import("@/pages/item-master-page"));
 export const ProductionPlanningPage = lazyWithRetry(() => import("@/pages/production-planning-page"));
 export const WorkOrderDetailPage = lazyWithRetry(() => import("@/pages/work-order-detail-page"));
