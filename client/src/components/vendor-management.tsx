@@ -182,8 +182,16 @@ const vendorSchema = z.object({
   contact3Position: z.string().optional(),
   contact3Email: z.string().email("Invalid email").optional().or(z.literal("")),
   contact3Phone: z.string().optional(),
-  billToAddress: z.string().min(1, "Billing Address is required"),
-  shipToAddress: z.string().min(1, "Shipping Address is required"),
+  billAddrLine1: z.string().min(1, "Address Line 1 is required"),
+  billAddrLine2: z.string().min(1, "Address Line 2 is required"),
+  billAddrBlock: z.string().min(1, "Block is required"),
+  billAddrBuilding: z.string().min(1, "Building is required"),
+  billAddrCity: z.string().min(1, "City is required"),
+  shipAddrLine1: z.string().min(1, "Address Line 1 is required"),
+  shipAddrLine2: z.string().min(1, "Address Line 2 is required"),
+  shipAddrBlock: z.string().min(1, "Block is required"),
+  shipAddrBuilding: z.string().min(1, "Building is required"),
+  shipAddrCity: z.string().min(1, "City is required"),
   cardType: z.string().default("V"),
   glblLocNum: z.string().optional().default(""),
   panNumber: z.string().optional().default(""),
@@ -520,39 +528,113 @@ function VendorFormBody({
         </div>
 
         {/* ── Section 4: Address ── */}
-        <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-4">
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-amber-500" />
             <h4 className="text-sm font-semibold text-amber-700">Address</h4>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="billToAddress"
-              render={({ field }) => (
+
+          {/* Billing Address */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Billing Address</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField control={form.control} name="billAddrLine1" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Billing Address *</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Street, City, State, PIN" rows={3} {...field} value={field.value || ""} />
-                  </FormControl>
+                  <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
+                  <FormControl><Input placeholder="Street / Road" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="shipToAddress"
-              render={({ field }) => (
+              )} />
+              <FormField control={form.control} name="billAddrLine2" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Shipping Address *</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Street, City, State, PIN" rows={3} {...field} value={field.value || ""} />
-                  </FormControl>
+                  <FormLabel>Address Line 2 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address3)</span></FormLabel>
+                  <FormControl><Input placeholder="Area / Locality" {...field} value={field.value || ""} /></FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
+              )} />
+              <FormField control={form.control} name="billAddrBlock" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Block * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Block)</span></FormLabel>
+                  <FormControl><Input placeholder="Block / Sector" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="billAddrBuilding" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Building * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Building)</span></FormLabel>
+                  <FormControl><Input placeholder="Building / Complex name" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="billAddrCity" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City * <span className="text-muted-foreground font-normal text-[10px]">(SAP: City)</span></FormLabel>
+                  <FormControl><Input placeholder="City" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
           </div>
+
+          {/* Shipping Address */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Shipping Address</p>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs text-amber-600 hover:text-amber-800"
+                onClick={() => {
+                  form.setValue("shipAddrLine1", form.getValues("billAddrLine1") || "");
+                  form.setValue("shipAddrLine2", form.getValues("billAddrLine2") || "");
+                  form.setValue("shipAddrBlock", form.getValues("billAddrBlock") || "");
+                  form.setValue("shipAddrBuilding", form.getValues("billAddrBuilding") || "");
+                  form.setValue("shipAddrCity", form.getValues("billAddrCity") || "");
+                }}
+              >
+                Copy from Billing
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField control={form.control} name="shipAddrLine1" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address Line 1 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address2)</span></FormLabel>
+                  <FormControl><Input placeholder="Street / Road" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="shipAddrLine2" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address Line 2 * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Address3)</span></FormLabel>
+                  <FormControl><Input placeholder="Area / Locality" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="shipAddrBlock" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Block * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Block)</span></FormLabel>
+                  <FormControl><Input placeholder="Block / Sector" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="shipAddrBuilding" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Building * <span className="text-muted-foreground font-normal text-[10px]">(SAP: Building)</span></FormLabel>
+                  <FormControl><Input placeholder="Building / Complex name" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="shipAddrCity" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City * <span className="text-muted-foreground font-normal text-[10px]">(SAP: City)</span></FormLabel>
+                  <FormControl><Input placeholder="City" {...field} value={field.value || ""} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+          </div>
+        </div>
           <div className="grid grid-cols-2 gap-3">
             <FormField
               control={form.control}
@@ -890,8 +972,16 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
     contact3Position: "",
     contact3Email: "",
     contact3Phone: "",
-    billToAddress: "",
-    shipToAddress: "",
+    billAddrLine1: "",
+    billAddrLine2: "",
+    billAddrBlock: "",
+    billAddrBuilding: "",
+    billAddrCity: "",
+    shipAddrLine1: "",
+    shipAddrLine2: "",
+    shipAddrBlock: "",
+    shipAddrBuilding: "",
+    shipAddrCity: "",
     cardType: "V",
     glblLocNum: "",
     panNumber: "",
@@ -1032,8 +1122,16 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
       contact3Position: (vendor as any).contact3Position || "",
       contact3Email: (vendor as any).contact3Email || "",
       contact3Phone: (vendor as any).contact3Phone || "",
-      billToAddress: vendor.billToAddress || "",
-      shipToAddress: vendor.shipToAddress || "",
+      billAddrLine1: (vendor as any).billAddrLine1 || "",
+      billAddrLine2: (vendor as any).billAddrLine2 || "",
+      billAddrBlock: (vendor as any).billAddrBlock || "",
+      billAddrBuilding: (vendor as any).billAddrBuilding || "",
+      billAddrCity: (vendor as any).billAddrCity || "",
+      shipAddrLine1: (vendor as any).shipAddrLine1 || "",
+      shipAddrLine2: (vendor as any).shipAddrLine2 || "",
+      shipAddrBlock: (vendor as any).shipAddrBlock || "",
+      shipAddrBuilding: (vendor as any).shipAddrBuilding || "",
+      shipAddrCity: (vendor as any).shipAddrCity || "",
       cardType: "V",
       glblLocNum: ((vendor as any).glblLocNum && (vendor as any).glblLocNum !== 'NA') ? (vendor as any).glblLocNum : "",
       panNumber: (vendor as any).panNumber || "",
