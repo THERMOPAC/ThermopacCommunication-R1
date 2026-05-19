@@ -50,21 +50,59 @@ No local database record, hardcoded value, or application-level fallback may det
 
 ### 3.1 Customer Next Code (`GET /api/customers/next-bp-code`)
 
-1. Check SAP session health. If session is not alive → **reject immediately with HTTP 503**.
-2. Paginate all SAP BusinessPartners with `$filter=CardType eq 'cCustomer'` and `$select=CardCode`.
-3. Extract all CardCodes matching `/^C(\d+)$/i`, find the maximum integer value.
-4. Return `C{max+1}`.
-5. If SAP returns an error response at any pagination step → **reject with HTTP 503**.
-6. No local DB scan. No hardcoded floor. No fallback of any kind.
+**Method: Single OData call — `$orderby desc $top 1`**
+
+SAP Service Layer query:
+```
+GET /b1s/v1/BusinessPartners
+    ?$filter=startswith(CardCode,'C')
+    &$select=CardCode
+    &$orderby=CardCode desc
+    &$top=1
+```
+
+Derivation rules:
+1. Check SAP session health. If not alive → **HTTP 503, stop**.
+2. Issue the query above. On non-200 response → **HTTP 503, stop**.
+3. If `value[]` is empty (no C-prefix codes exist) → **HTTP 503, stop**.
+4. If returned code does not match `/^C\d+$/` → **HTTP 503, stop**.
+5. Extract numeric part from returned code. Preserve its digit width.
+6. Return `C` + `(numericValue + 1)` zero-padded to the same width.
+
+Example: SAP returns `C10365` → numeric part `10365`, width `5` → next = `C10366`.
+
+**No full pagination. No local DB scan. No hardcoded floor. No fallback of any kind.**
 
 ### 3.2 Vendor Next Code (`GET /api/customers/next-vendor-bp-code`)
 
-1. Check SAP session health. If session is not alive → **reject immediately with HTTP 503**.
-2. Paginate all SAP BusinessPartners with `$filter=CardType eq 'cSupplier'` and `$select=CardCode`.
-3. Extract all CardCodes matching `/^V(\d+)$/i`, find the maximum integer value.
-4. Return `V{max+1}`.
-5. If SAP returns an error response at any pagination step → **reject with HTTP 503**.
-6. No local DB scan. No hardcoded floor. No fallback of any kind.
+**Method: Single OData call — `$orderby desc $top 1`**
+
+SAP Service Layer query:
+```
+GET /b1s/v1/BusinessPartners
+    ?$filter=startswith(CardCode,'V')
+    &$select=CardCode
+    &$orderby=CardCode desc
+    &$top=1
+```
+
+Derivation rules:
+1. Check SAP session health. If not alive → **HTTP 503, stop**.
+2. Issue the query above. On non-200 response → **HTTP 503, stop**.
+3. If `value[]` is empty (no V-prefix codes exist) → **HTTP 503, stop**.
+4. If returned code does not match `/^V\d+$/` → **HTTP 503, stop**.
+5. Extract numeric part from returned code. Preserve its digit width.
+6. Return `V` + `(numericValue + 1)` zero-padded to the same width.
+
+Example: SAP returns `V11073` → numeric part `11073`, width `5` → next = `V11074`.
+
+**No full pagination. No local DB scan. No hardcoded floor. No fallback of any kind.**
+
+### 3.3 Known SAP Behaviour — `$orderby` on MS SQL Server
+
+SAP B1 on MS SQL Server silently strips UDF columns when `$orderby` is present on bulk list queries. This query uses `$select=CardCode` only (no UDF fields) and `$top=1` (not a bulk scan), so UDF stripping does not affect correctness. The returned code is logged on every call (`[next-cbp-code] SAP highest = … → next = …`) for regression visibility.
+
+`$orderby` sort is lexicographic (alphabetical) on `CardCode`. For the confirmed SAP code ranges (C10000–C10365, V10001–V11073), alphabetical descending equals numeric descending — all codes in the active range share the same digit width (5 digits after prefix). The 6-digit anomaly codes (`C000002`, `C000009`) sort below `C10365` lexicographically and cannot interfere with the result.
 
 ---
 

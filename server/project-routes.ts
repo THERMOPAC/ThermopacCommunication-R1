@@ -2845,153 +2845,84 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Customer Management Routes
-  // ── TEMPORARY SAP AUDIT ENDPOINT ─────────────────────────────────────────
-  app.get('/api/sap-audit/customers', ensureAuthenticated, async (req: Request, res: Response) => {
+  // ── Helper: derive next BP Code from SAP highest-code OData query ─────────
+  // Strategy: single SAP call — $filter=startswith(CardCode,'<prefix>'),
+  //           $orderby=CardCode desc, $top=1.
+  // No full pagination. No local DB. No hardcoded floor.
+  // Returns 503 on any failure — caller must not fall back to any other method.
+  async function sapNextBpCode(
+    prefix: 'C' | 'V',
+    res: Response
+  ): Promise<string | null> {
+    const health = sapSession.getHealth();
+    if (!health.alive) {
+      res.status(503).json({
+        error: `SAP B1 is unavailable. ${prefix === 'C' ? 'Customer' : 'Vendor'} BP Code cannot be generated. Please retry after SAP connection is restored.`,
+      });
+      return null;
+    }
+
+    const qs = new URLSearchParams({
+      '$filter':   `startswith(CardCode,'${prefix}')`,
+      '$select':   'CardCode',
+      '$orderby':  'CardCode desc',
+      '$top':      '1',
+    }).toString();
+    const path = `/b1s/v1/BusinessPartners?${qs}`;
+
+    let resp: Awaited<ReturnType<typeof sapSession.request>>;
     try {
-      const health = sapSession.getHealth();
-      if (!health.alive) return res.status(503).json({ error: 'SAP B1 session not alive' });
-
-      // Collect ALL C-prefix customers from SAP (paginated)
-      const PAGE_SIZE = 100;
-      let skip = 0;
-      const allCodes: string[] = [];
-      while (true) {
-        const qs = new URLSearchParams({
-          '$filter': "CardType eq 'cCustomer'",
-          '$select': 'CardCode',
-          '$top': String(PAGE_SIZE),
-          '$skip': String(skip),
-        }).toString();
-        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`, timeout: 20000 });
-        if (!resp.ok) return res.status(502).json({ error: `SAP error ${resp.statusCode}`, body: resp.body?.substring(0, 300) });
-        const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
-        const rows = body?.value ?? [];
-        for (const r of rows) {
-          if (/^C\d+$/i.test(r.CardCode)) allCodes.push(r.CardCode);
-        }
-        if (rows.length < PAGE_SIZE) break;
-        skip += PAGE_SIZE;
-      }
-
-      // Sort numerically descending
-      allCodes.sort((a, b) => {
-        const na = parseInt(a.slice(1), 10);
-        const nb = parseInt(b.slice(1), 10);
-        return nb - na;
-      });
-
-      const top10 = allCodes.slice(0, 10);
-      const highest = allCodes[0] ?? null;
-      const highestNum = highest ? parseInt(highest.slice(1), 10) : 0;
-
-      console.log(`[SAP-AUDIT] Total C-prefix customers: ${allCodes.length}, Highest: ${highest}`);
-      console.log(`[SAP-AUDIT] Top 10: ${top10.join(', ')}`);
-
-      res.json({
-        source: 'SAP B1 Service Layer — live query',
-        filter: "CardType eq 'cCustomer', CardCode matching /^C\\d+$/",
-        totalCPrefixCustomers: allCodes.length,
-        highestCode: highest,
-        highestNumber: highestNum,
-        currentMaxPlusOne: highest ? `C${highestNum + 1}` : 'C1',
-        top10Highest: top10,
-      });
+      resp = await sapSession.request({ method: 'GET', path, timeout: 15000 });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      console.error(`[next-${prefix.toLowerCase()}bp-code] SAP request threw:`, e.message);
+      res.status(503).json({ error: `SAP B1 request failed: ${e.message}` });
+      return null;
     }
-  });
-  // ── END TEMPORARY AUDIT ───────────────────────────────────────────────────
 
+    if (!resp.ok) {
+      const detail = resp.body?.substring(0, 300) ?? `HTTP ${resp.statusCode}`;
+      console.error(`[next-${prefix.toLowerCase()}bp-code] SAP returned ${resp.statusCode}:`, detail);
+      res.status(503).json({ error: `SAP B1 returned an error (HTTP ${resp.statusCode}): ${detail}` });
+      return null;
+    }
+
+    const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
+    const row  = body?.value?.[0];
+
+    if (!row?.CardCode) {
+      console.error(`[next-${prefix.toLowerCase()}bp-code] SAP returned empty value array — no ${prefix}-prefix codes exist`);
+      res.status(503).json({ error: `SAP B1 returned no ${prefix}-prefix BP Codes. Cannot derive next code.` });
+      return null;
+    }
+
+    const code = row.CardCode;
+    const m    = code.match(/^([CV])(\d+)$/);
+    if (!m || m[1] !== prefix) {
+      console.error(`[next-${prefix.toLowerCase()}bp-code] SAP returned unrecognised code: "${code}"`);
+      res.status(503).json({ error: `SAP B1 returned an unrecognisable BP Code format: "${code}". Expected ${prefix} followed by digits only.` });
+      return null;
+    }
+
+    // Preserve original digit width from SAP result
+    const numericPart = m[2];                              // e.g. "10365"
+    const width       = numericPart.length;                // e.g. 5
+    const nextNum     = parseInt(numericPart, 10) + 1;    // e.g. 10366
+    const nextCode    = prefix + String(nextNum).padStart(width, '0');  // e.g. "C10366"
+
+    console.log(`[next-${prefix.toLowerCase()}bp-code] SAP highest = ${code} → next = ${nextCode} (width=${width})`);
+    return nextCode;
+  }
+
+  // GET /api/customers/next-bp-code — Customer BP Code (C-prefix)
   app.get('/api/customers/next-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
-    // SAP B1 is the single source of truth for Customer BP Code sequence.
-    // No local DB fallback. If SAP is unavailable, reject with 503.
-    try {
-      const health = sapSession.getHealth();
-      if (!health.alive) {
-        return res.status(503).json({ error: 'SAP B1 is unavailable. BP Code cannot be generated. Please retry after SAP connection is restored.' });
-      }
-
-      let maxNum = 0;
-      const PAGE_SIZE = 100;
-      let skip = 0;
-      while (true) {
-        const qs = new URLSearchParams({
-          '$filter': "CardType eq 'cCustomer'",
-          '$select': 'CardCode',
-          '$top': String(PAGE_SIZE),
-          '$skip': String(skip),
-        }).toString();
-        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`, timeout: 15000 });
-        if (!resp.ok) {
-          const errDetail = resp.body?.substring(0, 200) ?? `HTTP ${resp.statusCode}`;
-          return res.status(503).json({ error: `SAP B1 returned an error fetching Customer codes: ${errDetail}` });
-        }
-        const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
-        const rows = body?.value ?? [];
-        for (const row of rows) {
-          const m = row.CardCode?.match(/^C(\d+)$/i);
-          if (m) {
-            const n = parseInt(m[1], 10);
-            if (n > maxNum) maxNum = n;
-          }
-        }
-        if (rows.length < PAGE_SIZE) break;
-        skip += PAGE_SIZE;
-      }
-
-      const nextCode = 'C' + String(maxNum + 1);
-      console.log(`[next-bp-code] SAP max Customer code = C${maxNum} → next = ${nextCode}`);
-      res.json({ nextBpCode: nextCode });
-    } catch (error: any) {
-      console.error('[next-bp-code] SAP query failed:', error.message);
-      return res.status(503).json({ error: `SAP B1 is unavailable: ${error.message}` });
-    }
+    const nextCode = await sapNextBpCode('C', res);
+    if (nextCode !== null) res.json({ nextBpCode: nextCode });
   });
 
+  // GET /api/customers/next-vendor-bp-code — Vendor BP Code (V-prefix)
   app.get('/api/customers/next-vendor-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
-    // SAP B1 is the single source of truth for Vendor BP Code sequence.
-    // No local DB fallback. If SAP is unavailable, reject with 503.
-    try {
-      const health = sapSession.getHealth();
-      if (!health.alive) {
-        return res.status(503).json({ error: 'SAP B1 is unavailable. BP Code cannot be generated. Please retry after SAP connection is restored.' });
-      }
-
-      let maxNum = 0;
-      const PAGE_SIZE = 100;
-      let skip = 0;
-      while (true) {
-        const qs = new URLSearchParams({
-          '$filter': "CardType eq 'cSupplier'",
-          '$select': 'CardCode',
-          '$top': String(PAGE_SIZE),
-          '$skip': String(skip),
-        }).toString();
-        const resp = await sapSession.request({ method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`, timeout: 15000 });
-        if (!resp.ok) {
-          const errDetail = resp.body?.substring(0, 200) ?? `HTTP ${resp.statusCode}`;
-          return res.status(503).json({ error: `SAP B1 returned an error fetching Vendor codes: ${errDetail}` });
-        }
-        const body = JSON.parse(resp.body) as { value?: Array<{ CardCode: string }> };
-        const rows = body?.value ?? [];
-        for (const row of rows) {
-          const m = row.CardCode?.match(/^V(\d+)$/i);
-          if (m) {
-            const n = parseInt(m[1], 10);
-            if (n > maxNum) maxNum = n;
-          }
-        }
-        if (rows.length < PAGE_SIZE) break;
-        skip += PAGE_SIZE;
-      }
-
-      const nextCode = 'V' + String(maxNum + 1);
-      console.log(`[next-vendor-bp-code] SAP max Vendor code = V${maxNum} → next = ${nextCode}`);
-      res.json({ nextBpCode: nextCode });
-    } catch (error: any) {
-      console.error('[next-vendor-bp-code] SAP query failed:', error.message);
-      return res.status(503).json({ error: `SAP B1 is unavailable: ${error.message}` });
-    }
+    const nextCode = await sapNextBpCode('V', res);
+    if (nextCode !== null) res.json({ nextBpCode: nextCode });
   });
 
   app.get('/api/customers', ensureAuthenticated, async (req: Request, res: Response) => {
