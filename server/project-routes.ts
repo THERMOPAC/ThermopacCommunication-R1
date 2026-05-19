@@ -3541,6 +3541,10 @@ export function setupProjectRoutes(app: express.Express) {
           for (const bp of page) {
             const code = String(bp.CardCode ?? '').trim();
             if (!code) continue;
+            // Diagnostic: log raw SAP fields for first 3 customer records per sync
+            if (allRows.length < 3) {
+              console.log(`[customer-sap-sync] RAW bp CardCode=${bp.CardCode} | GlblLocNum=${JSON.stringify(bp.GlblLocNum)} | FederalTaxID=${JSON.stringify(bp.FederalTaxID)} | Cellular=${JSON.stringify(bp.Cellular)} | Phone1=${JSON.stringify(bp.Phone1)} | U_StateSupply=${JSON.stringify(bp.U_StateSupply)} | U_BP_GstType=${JSON.stringify(bp.U_BP_GstType)} | ContactEmployees_count=${Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees.length : 'MISSING'} | BPAddresses_count=${Array.isArray(bp.BPAddresses) ? bp.BPAddresses.length : 'MISSING'}`);
+            }
             allRows.push(parseSapBpRow(bp));
           }
 
@@ -3810,6 +3814,10 @@ export function setupProjectRoutes(app: express.Express) {
         for (const bp of page) {
           const code = String(bp.CardCode ?? '').trim();
           if (!code) continue;
+          // Diagnostic: log raw SAP fields for first 3 vendor records per page
+          if (allRows.length < 3) {
+            console.log(`[vendor-sap-sync] RAW bp CardCode=${bp.CardCode} | GlblLocNum=${JSON.stringify(bp.GlblLocNum)} | FederalTaxID=${JSON.stringify(bp.FederalTaxID)} | Cellular=${JSON.stringify(bp.Cellular)} | Phone1=${JSON.stringify(bp.Phone1)} | U_StateSupply=${JSON.stringify(bp.U_StateSupply)} | U_BP_GstType=${JSON.stringify(bp.U_BP_GstType)} | ContactEmployees_count=${Array.isArray(bp.ContactEmployees) ? bp.ContactEmployees.length : 'MISSING'} | BPAddresses_count=${Array.isArray(bp.BPAddresses) ? bp.BPAddresses.length : 'MISSING'}`);
+          }
           allRows.push(parseVendorBpRow(bp));
         }
 
