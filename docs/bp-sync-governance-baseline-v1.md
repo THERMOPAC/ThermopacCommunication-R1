@@ -1,8 +1,9 @@
 # BP Sync Governance Baseline v1.0
 
 **Document ID:** BP-SYNC-GOV-v1.0
-**Status:** BASELINE — FROZEN
-**Date:** 2026-05-19
+**Status:** ACTIVE — UPDATED (Phase 2A)
+**Baseline Date:** 2026-05-19 (Phase 1)
+**Last Updated:** 2026-05-19 (Phase 2A)
 **Scope:** SAP B1 Business Partner Code generation and inbound/outbound sync rules for Customers and Vendor/Suppliers in THERMOPAC QMS
 
 ---
@@ -222,33 +223,95 @@ On every `POST /api/customers` (create) and `PUT /api/customers/:id` (update), t
 
 ---
 
-## 10. Phase 2 Scope (Deferred)
+## 10. Phase 2A Completion Summary (2026-05-19)
 
-The following items were reviewed but deferred from Phase 1. They are logged here for traceability.
+Phase 2A was implemented and validated on 2026-05-19. The following items were completed.
+
+### 10.1 ContactEmployees PATCH — COMPLETED ✅
+
+The `delete (bpData as any).ContactEmployees` line in `updateBusinessPartner()` (`sap-bp-sync.ts`) has been removed. `ContactEmployees` (up to 3 contacts: name, position, email, phone) now propagates to SAP on every `PUT /api/customers/:id`. The array is absent from the payload only when no contact person exists locally — SAP contacts are never accidentally cleared.
+
+### 10.2 BPAddresses PATCH — COMPLETED ✅
+
+The `delete (bpData as any).BPAddresses` line in `updateBusinessPartner()` has been removed. Bill To (`bo_BillTo`) and Ship To (`bo_ShipTo`) addresses now propagate to SAP on every edit. Absent when both local address fields are empty.
+
+### 10.3 SAP Sync Failure — Persistent DB State ✅
+
+`sap_sync_error text` column added to `customers` table. On every SAP PATCH failure (create or update):
+
+- `sap_sync_status` → `'failed'` (persisted to DB, not just response body)
+- `sap_sync_error` → SAP error text (persisted to DB)
+- `sap_synced_at` → unchanged (not updated on failure)
+- Server logs upgraded from `console.warn` to `console.error`
+
+On success: `sap_sync_status='synced'`, `sap_sync_error=NULL`, `sap_synced_at=NOW()` written back.
+
+### 10.4 SAP Sync Failed Badge ✅
+
+Customer and Vendor list views show a destructive red **"SAP Sync Failed"** badge on any record where `sap_sync_status = 'failed'`. Badge clears automatically when a successful retry or edit invalidates the query cache.
+
+### 10.5 Edit Dialog Behaviour on SAP Failure ✅
+
+When an edit save succeeds locally but SAP PATCH fails:
+
+- Dialog remains open (not closed).
+- A destructive Alert renders in the dialog footer: `"SAP B1 Sync Failed — Record Saved Locally"` with the SAP error message and guidance to use Retry SAP Sync.
+- Submit button is hidden; only "Close" is shown.
+- Normal dialog close (Cancel / X) clears the alert state.
+
+### 10.6 Retry SAP Sync — Failed Records Only ✅
+
+New endpoint `POST /api/customers/:id/retry-sap-sync` (Superuser / GM / SM only):
+
+- Guard: `sap_sync_status !== 'failed'` → `HTTP 400` — cannot retry a synced or pending record.
+- On success: `sap_sync_status='synced'`, `sap_sync_error=NULL`, `sap_synced_at=NOW()` written to DB.
+- On failure: `sap_sync_error` updated with new SAP error text; status remains `'failed'`.
+- Amber `RefreshCw` retry button visible in list row **only** when `sap_sync_status = 'failed'`. Absent for all other records.
+
+### 10.7 Audit Log — All Outcomes ✅
+
+All create, update, and retry outcomes (success and failure) are written to `sap_customer_sync_logs`:
+
+| Event | `status` | `imported` | `failed` | `error_summary` |
+|---|---|---|---|---|
+| Create/Update SAP failure | `failed` | `0` | `1` | SAP error text |
+| Retry success | `synced` | `1` | `0` | `NULL` |
+| Retry failure | `failed` | `0` | `1` | SAP error text |
+
+---
+
+## 11. Remaining Deferred Items (Post Phase 2A)
 
 | Item | Description |
 |---|---|
-| **ContactEmployees PATCH** | On `PUT /api/customers/:id`, `ContactEmployees` is currently stripped from the SAP PATCH payload. Phase 2 will send the full array, allowing contact changes to propagate to SAP on edit. |
-| **BPAddresses PATCH** | On `PUT /api/customers/:id`, `BPAddresses` is currently stripped. Phase 2 will include Ship To and Bill To address updates in the SAP PATCH payload. |
-| **Currency / GlblLocNum / UDF inbound** | `Currency`, `GlblLocNum`, `U_StateSupply`, `U_BP_GST_Type` are sent outbound to SAP but not read back on inbound sync. Phase 2 will add these to the `$select` and INSERT. |
-| **Vendor inbound — single-card test UPDATE** | Vendor inbound sync currently has no single-card test mode with email patching. Phase 2 will add parity with the customer sync test-mode path. |
-| **S-prefix SAP supplier import review** | Existing SAP BPs with S-prefix CardCodes (legacy) are currently excluded from vendor inbound sync by the V-prefix client filter. Phase 2 will decide whether to import, skip, or migrate these. |
+| **UDF inbound fields** | `Currency`, `GlblLocNum`, `U_StateSupply`, `U_BP_GST_Type` are sent outbound to SAP but not read back on inbound sync. Future phase will add these to the `$select` and INSERT. |
+| **Vendor inbound — single-card test UPDATE** | Vendor inbound sync has no single-card test mode with email patching. Future phase will add parity with the customer sync test-mode path. |
+| **S-prefix SAP supplier import review** | Existing SAP BPs with S-prefix CardCodes (legacy) are excluded from vendor inbound sync by the V-prefix client filter. Future phase will decide whether to import, skip, or migrate these. |
 
 ---
 
-## 11. File and Code References
+## 12. File and Code References
 
-| Component | File | Notes |
-|---|---|---|
-| Customer next BP Code endpoint | `server/project-routes.ts` ~L2851 | SAP-only, no fallback |
-| Vendor next BP Code endpoint | `server/project-routes.ts` ~L2897 | SAP-only, no fallback |
-| Server-side BP Code guard | `server/project-routes.ts` ~L2988 | In `POST /api/customers`, before DB write |
-| Customer inbound sync | `server/project-routes.ts` ~L3182 | `POST /api/customers/sap-sync` |
-| Vendor inbound sync | `server/project-routes.ts` ~L3387 | `POST /api/customers/vendor-sap-sync` |
-| SAP outbound mapper | `server/sap-b1-integration/sap-bp-sync.ts` | `mapCustomerToSapBP()` |
-| Customer form — client guard | `client/src/components/customer-management.tsx` | `bpCodeFetchError` state, disabled submit |
-| Vendor form — client guard | `client/src/components/vendor-management.tsx` | `bpCodeFetchError` state, disabled submit, bulk sync button |
+| Component | File | Notes | Phase |
+|---|---|---|---|
+| Customer next BP Code endpoint | `server/project-routes.ts` ~L2851 | SAP-only, no fallback | 1 |
+| Vendor next BP Code endpoint | `server/project-routes.ts` ~L2897 | SAP-only, no fallback | 1 |
+| Server-side BP Code guard | `server/project-routes.ts` ~L2988 | In `POST /api/customers`, before DB write | 1 |
+| Customer inbound sync | `server/project-routes.ts` ~L3182 | `POST /api/customers/sap-sync` | 1 |
+| Vendor inbound sync | `server/project-routes.ts` ~L3387 | `POST /api/customers/vendor-sap-sync` | 1 |
+| SAP outbound mapper | `server/sap-b1-integration/sap-bp-sync.ts` | `mapCustomerToSapBP()`, `updateBusinessPartner()` | 1 + 2A |
+| Customer form — client guard | `client/src/components/customer-management.tsx` | `bpCodeFetchError` state, disabled submit | 1 |
+| Vendor form — client guard | `client/src/components/vendor-management.tsx` | `bpCodeFetchError` state, disabled submit, bulk sync button | 1 |
+| SAP sync failure persistence | `server/project-routes.ts` ~L3032, L3112 | `sap_sync_status`, `sap_sync_error` written to DB on failure | 2A |
+| Retry SAP Sync endpoint | `server/project-routes.ts` ~L3148 | `POST /api/customers/:id/retry-sap-sync` | 2A |
+| SAP Sync Failed badge | `client/src/components/customer-management.tsx` ~L1285 | Destructive badge, conditional on `sapSyncStatus === 'failed'` | 2A |
+| SAP Sync Failed badge | `client/src/components/vendor-management.tsx` ~L1112 | Same | 2A |
+| Retry button + mutation | `client/src/components/customer-management.tsx` ~L1044, L1304 | `retrySapSyncMutation`, amber `RefreshCw`, failed-only | 2A |
+| Retry button + mutation | `client/src/components/vendor-management.tsx` ~L883, L1122 | Same | 2A |
+| Edit dialog failure alert | `client/src/components/customer-management.tsx` ~L859 | `sapSyncFailureAlert` prop, dialog stays open, Save hidden | 2A |
+| Edit dialog failure alert | `client/src/components/vendor-management.tsx` ~L712 | Same | 2A |
+| `sap_sync_error` column | `shared/schema.ts` ~L1854 | `text('sap_sync_error')` in `customers` table | 2A |
 
 ---
 
-*Document authored by THERMOPAC QMS engineering. Baseline frozen 2026-05-19. Changes require a new versioned document.*
+*Document authored by THERMOPAC QMS engineering. Phase 1 baseline: 2026-05-19. Phase 2A update: 2026-05-19.*
