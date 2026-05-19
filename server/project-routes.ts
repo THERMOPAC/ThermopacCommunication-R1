@@ -3273,12 +3273,21 @@ export function setupProjectRoutes(app: express.Express) {
       );
       logId = logRes.rows[0].id;
 
-      type BPRow = { CardCode: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
+      // SAP CardType → local card_type mapping.
+      // SAP Service Layer uses full strings ('cCustomer', 'cSupplier', 'cLead').
+      // card_type is read from the SAP response, never hardcoded.
+      const sapCardTypeMap: Record<string, string> = {
+        cCustomer: 'C',
+        cSupplier: 'V',
+        cLead:     'L',
+      };
+
+      type BPRow = { CardCode: string; CardType: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
       let filteredRows: BPRow[] = [];
 
       if (testCardCode) {
         // ── Single-card test mode ──────────────────────────────────────────────
-        // Fetch one BP by primary key — no $select/$filter so no SAP-filter issues.
+        // Fetch one BP by primary key — no $select so all fields (including CardType) are returned.
         console.log(`[customer-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
         const resp = await sapSession.request({
           method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
@@ -3291,6 +3300,7 @@ export function setupProjectRoutes(app: express.Express) {
         if (code) {
           filteredRows = [{
             CardCode:      code,
+            CardType:      String(bp.CardType ?? '').trim(),
             CardName:      String(bp.CardName      ?? '').trim(),
             ContactPerson: String(bp.ContactPerson ?? '').trim(),
             Phone1:        String(bp.Phone1        ?? '').trim(),
@@ -3304,20 +3314,15 @@ export function setupProjectRoutes(app: express.Express) {
         console.log(`[customer-sap-sync] TEST fetched ${totalFetched} record(s)`);
       } else {
         // ── Bulk sync mode ─────────────────────────────────────────────────────
-        // Paginate SAP with $select — standard fields only, no UDF, so $select is safe.
-        // EmailAddress is a standard BP field (not a UDF) — included in $select.
-        // NOTE: SAP silently ignores $filter when combined with $select (documented).
-        // We fetch Customers (CardType=cCustomer) and filter client-side to C-prefix CardCode > 'C10300'.
-        // NOTE: SAP Service Layer uses 'cCustomer'/'cSupplier'/'cLead' — NOT single-letter codes.
-        // Using 'C' was a bug: SAP silently ignored the invalid filter and returned all BP types,
-        // allowing V-prefix vendor records to slip through with card_type='C'.
+        // CardType is included in $select so card_type is sourced from SAP, not hardcoded.
+        // Client-side filter keeps only cCustomer records with C-prefix CardCode > 'C10300'.
         const PAGE_SIZE = 20;
         let sapSkip = 0;
         const allRows: BPRow[] = [];
 
         while (true) {
           const qs = new URLSearchParams({
-            '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
+            '$select': 'CardCode,CardType,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
             '$filter': "CardType eq 'cCustomer'",
             '$top':    String(PAGE_SIZE),
             '$skip':   String(sapSkip),
@@ -3337,6 +3342,7 @@ export function setupProjectRoutes(app: express.Express) {
             if (!code) continue;
             allRows.push({
               CardCode:      code,
+              CardType:      String(bp.CardType      ?? '').trim(),
               CardName:      String(bp.CardName      ?? '').trim(),
               ContactPerson: String(bp.ContactPerson ?? '').trim(),
               Phone1:        String(bp.Phone1        ?? '').trim(),
@@ -3355,12 +3361,14 @@ export function setupProjectRoutes(app: express.Express) {
           }
         }
 
-        // Client-side filter: C-prefix only AND CardCode > 'C10300'.
-        // The old filter (r.CardCode > 'C10300') was lexicographic — 'V11006' > 'C10300' is true
-        // because 'V' > 'C' alphabetically, allowing vendor codes to slip through with card_type='C'.
-        filteredRows = allRows.filter((r) => /^C\d+$/i.test(r.CardCode) && r.CardCode > 'C10300');
+        // Client-side filter: cCustomer CardType + C-prefix CardCode + CardCode > 'C10300'.
+        // Belt-and-suspenders: CardType from SAP is the authoritative guard; C-prefix + numeric
+        // range are secondary safety checks against data anomalies.
+        filteredRows = allRows.filter(
+          (r) => r.CardType === 'cCustomer' && /^C\d+$/i.test(r.CardCode) && r.CardCode > 'C10300',
+        );
         totalFetched = filteredRows.length;
-        console.log(`[customer-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass C-prefix + CardCode > 'C10300' filter`);
+        console.log(`[customer-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass cCustomer + C-prefix + CardCode > 'C10300' filter`);
       }
 
       // Load existing sap_card_codes in one query to avoid per-row round-trips
@@ -3389,15 +3397,17 @@ export function setupProjectRoutes(app: express.Express) {
           // short_code is varchar(5) NOT NULL UNIQUE.
           // Strip the leading 'C' and take up to 5 digits — e.g. C10301 → '10301'.
           const shortCode = row.CardCode.replace(/^[Cc]/, '').slice(0, 5);
+          // card_type sourced from SAP CardType field, not hardcoded.
+          const localCardType = sapCardTypeMap[row.CardType] ?? 'C';
           await pool.query(
             `INSERT INTO customers
                (bp_code, bp_name, short_code, sap_card_code, card_type, contact_person, phone1,
                 bill_to_address, sap_mail_city, sap_mail_country, email, sap_email,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,'C',$5,$6,$7,$8,$9,$10,$10,'synced',NOW(),NOW(),NOW())
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11,'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
-              row.CardCode, row.CardName, shortCode, row.CardCode,
+              row.CardCode, row.CardName, shortCode, row.CardCode, localCardType,
               row.ContactPerson || null, row.Phone1 || null,
               row.Address || null, row.City || null, row.Country || null,
               row.EmailAddress || null,
@@ -3480,14 +3490,21 @@ export function setupProjectRoutes(app: express.Express) {
       );
       logId = logRes.rows[0].id;
 
-      type BPRow = { CardCode: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
+      // SAP CardType → local card_type mapping (same as customer sync).
+      const sapCardTypeMap: Record<string, string> = {
+        cCustomer: 'C',
+        cSupplier: 'V',
+        cLead:     'L',
+      };
+
+      type BPRow = { CardCode: string; CardType: string; CardName: string; ContactPerson: string; Phone1: string; Address: string; City: string; Country: string; EmailAddress: string; };
       const allRows: BPRow[] = [];
       const PAGE_SIZE = 20;
       let sapSkip = 0;
 
       while (true) {
         const qs = new URLSearchParams({
-          '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
+          '$select': 'CardCode,CardType,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
           '$filter': "CardType eq 'cSupplier'",
           '$top':    String(PAGE_SIZE),
           '$skip':   String(sapSkip),
@@ -3504,6 +3521,7 @@ export function setupProjectRoutes(app: express.Express) {
           if (!code) continue;
           allRows.push({
             CardCode:      code,
+            CardType:      String(bp.CardType      ?? '').trim(),
             CardName:      String(bp.CardName      ?? '').trim(),
             ContactPerson: String(bp.ContactPerson ?? '').trim(),
             Phone1:        String(bp.Phone1        ?? '').trim(),
@@ -3548,15 +3566,17 @@ export function setupProjectRoutes(app: express.Express) {
         try {
           // short_code: strip leading 'V' and take up to 5 digits — e.g. V10001 → '10001'.
           const shortCode = row.CardCode.replace(/^[Vv]/, '').slice(0, 5);
+          // card_type sourced from SAP CardType field, not hardcoded.
+          const localCardType = sapCardTypeMap[row.CardType] ?? 'V';
           await pool.query(
             `INSERT INTO customers
                (bp_code, bp_name, short_code, sap_card_code, card_type, contact_person, phone1,
                 bill_to_address, sap_mail_city, sap_mail_country, email, sap_email,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
-             VALUES ($1,$2,$3,$4,'V',$5,$6,$7,$8,$9,$10,$10,'synced',NOW(),NOW(),NOW())
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11,'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
-              row.CardCode, row.CardName, shortCode, row.CardCode,
+              row.CardCode, row.CardName, shortCode, row.CardCode, localCardType,
               row.ContactPerson || null, row.Phone1 || null,
               row.Address || null, row.City || null, row.Country || null,
               row.EmailAddress || null,
