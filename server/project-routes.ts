@@ -3475,6 +3475,10 @@ export function setupProjectRoutes(app: express.Express) {
         UStateSupply: string; UBpGstType: string;
         Contacts: ContactEntry[];
         BillToAddress: string | null; ShipToAddress: string | null;
+        BillAddrLine1: string | null; BillAddrLine2: string | null;
+        BillAddrBlock: string | null; BillAddrBuilding: string | null; BillAddrCity: string | null;
+        ShipAddrLine1: string | null; ShipAddrLine2: string | null;
+        ShipAddrBlock: string | null; ShipAddrBuilding: string | null; ShipAddrCity: string | null;
       };
       const parseSapBpRow = (bp: any): BPRow => {
         const code = String(bp.CardCode ?? '').trim();
@@ -3510,6 +3514,16 @@ export function setupProjectRoutes(app: express.Express) {
           })),
           BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
           ShipToAddress: fmtAddr(shipEntry),
+          BillAddrLine1:    billEntry?.Address2  ? String(billEntry.Address2).trim()  || null : null,
+          BillAddrLine2:    billEntry?.Address3  ? String(billEntry.Address3).trim()  || null : null,
+          BillAddrBlock:    billEntry?.Block     ? String(billEntry.Block).trim()     || null : null,
+          BillAddrBuilding: billEntry?.Building  ? String(billEntry.Building).trim()  || null : null,
+          BillAddrCity:     billEntry?.City      ? String(billEntry.City).trim()      || null : null,
+          ShipAddrLine1:    shipEntry?.Address2  ? String(shipEntry.Address2).trim()  || null : null,
+          ShipAddrLine2:    shipEntry?.Address3  ? String(shipEntry.Address3).trim()  || null : null,
+          ShipAddrBlock:    shipEntry?.Block     ? String(shipEntry.Block).trim()     || null : null,
+          ShipAddrBuilding: shipEntry?.Building  ? String(shipEntry.Building).trim()  || null : null,
+          ShipAddrCity:     shipEntry?.City      ? String(shipEntry.City).trim()      || null : null,
         };
       };
       let filteredRows: BPRow[] = [];
@@ -3619,6 +3633,16 @@ export function setupProjectRoutes(app: express.Express) {
                u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $20),
                u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $21),
                sap_currency       = COALESCE(NULLIF(sap_currency,''),       $22),
+               bill_addr_line1    = $23,
+               bill_addr_line2    = $24,
+               bill_addr_block    = $25,
+               bill_addr_building = $26,
+               bill_addr_city     = $27,
+               ship_addr_line1    = $28,
+               ship_addr_line2    = $29,
+               ship_addr_block    = $30,
+               ship_addr_building = $31,
+               ship_addr_city     = $32,
                sap_synced_at = NOW(), updated_at = NOW()
              WHERE sap_card_code = $1`,
             [
@@ -3638,6 +3662,8 @@ export function setupProjectRoutes(app: express.Express) {
               row.UStateSupply || null,
               row.UBpGstType || null,
               row.Currency || null,
+              row.BillAddrLine1, row.BillAddrLine2, row.BillAddrBlock, row.BillAddrBuilding, row.BillAddrCity,
+              row.ShipAddrLine1, row.ShipAddrLine2, row.ShipAddrBlock, row.ShipAddrBuilding, row.ShipAddrCity,
             ],
           );
           skipped++;
@@ -3662,6 +3688,8 @@ export function setupProjectRoutes(app: express.Express) {
                 sap_mail_city, sap_mail_country, sap_email, sap_currency,
                 currency, country_name, country_code, continent,
                 glbl_loc_num, u_state_supply, u_bp_gst_type,
+                bill_addr_line1, bill_addr_line2, bill_addr_block, bill_addr_building, bill_addr_city,
+                ship_addr_line1, ship_addr_line2, ship_addr_block, ship_addr_building, ship_addr_city,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
              VALUES
                ($1,$2,$3,$4,$5,
@@ -3672,6 +3700,8 @@ export function setupProjectRoutes(app: express.Express) {
                 $20,$21,$22,$23,
                 $24,$25,$26,$27,
                 $28,$29,$30,
+                $31,$32,$33,$34,$35,
+                $36,$37,$38,$39,$40,
                 'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
@@ -3683,6 +3713,8 @@ export function setupProjectRoutes(app: express.Express) {
               row.City || null, row.Country || null, primaryEmail, row.Currency || null,
               row.Currency || 'USD', countryInfo?.name || null, row.Country || null, countryInfo?.continent || null,
               gstin, row.UStateSupply || 'MH', row.UBpGstType || 'G',
+              row.BillAddrLine1, row.BillAddrLine2, row.BillAddrBlock, row.BillAddrBuilding, row.BillAddrCity,
+              row.ShipAddrLine1, row.ShipAddrLine2, row.ShipAddrBlock, row.ShipAddrBuilding, row.ShipAddrCity,
             ],
           );
           existingCodes.add(row.CardCode);
@@ -3816,6 +3848,10 @@ export function setupProjectRoutes(app: express.Express) {
         UStateSupply: string; UBpGstType: string; UPanNumber: string;
         Contacts: VContactEntry[];
         BillToAddress: string | null; ShipToAddress: string | null;
+        BillAddrLine1: string | null; BillAddrLine2: string | null;
+        BillAddrBlock: string | null; BillAddrBuilding: string | null; BillAddrCity: string | null;
+        ShipAddrLine1: string | null; ShipAddrLine2: string | null;
+        ShipAddrBlock: string | null; ShipAddrBuilding: string | null; ShipAddrCity: string | null;
       };
       const parseVendorBpRow = (bp: any): VBPRow => {
         const code = String(bp.CardCode ?? '').trim();
@@ -3852,6 +3888,16 @@ export function setupProjectRoutes(app: express.Express) {
           UPanNumber:    String(bp.U_PAN_Number   ?? '').trim(),
           BillToAddress: fmtAddr(billEntry) || String(bp.Address ?? '').trim() || null,
           ShipToAddress: fmtAddr(shipEntry),
+          BillAddrLine1:    billEntry?.Address2  ? String(billEntry.Address2).trim()  || null : null,
+          BillAddrLine2:    billEntry?.Address3  ? String(billEntry.Address3).trim()  || null : null,
+          BillAddrBlock:    billEntry?.Block     ? String(billEntry.Block).trim()     || null : null,
+          BillAddrBuilding: billEntry?.Building  ? String(billEntry.Building).trim()  || null : null,
+          BillAddrCity:     billEntry?.City      ? String(billEntry.City).trim()      || null : null,
+          ShipAddrLine1:    shipEntry?.Address2  ? String(shipEntry.Address2).trim()  || null : null,
+          ShipAddrLine2:    shipEntry?.Address3  ? String(shipEntry.Address3).trim()  || null : null,
+          ShipAddrBlock:    shipEntry?.Block     ? String(shipEntry.Block).trim()     || null : null,
+          ShipAddrBuilding: shipEntry?.Building  ? String(shipEntry.Building).trim()  || null : null,
+          ShipAddrCity:     shipEntry?.City      ? String(shipEntry.City).trim()      || null : null,
         };
       };
       const testCardCode: string = (req.body?.cardCode ?? '').toString().trim().toUpperCase();
@@ -3955,6 +4001,16 @@ export function setupProjectRoutes(app: express.Express) {
                u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $21),
                sap_currency       = COALESCE(NULLIF(sap_currency,''),       $22),
                pan_number         = CASE WHEN $23::text IS NOT NULL AND $23::text != '' THEN $23::text ELSE pan_number END,
+               bill_addr_line1    = $24,
+               bill_addr_line2    = $25,
+               bill_addr_block    = $26,
+               bill_addr_building = $27,
+               bill_addr_city     = $28,
+               ship_addr_line1    = $29,
+               ship_addr_line2    = $30,
+               ship_addr_block    = $31,
+               ship_addr_building = $32,
+               ship_addr_city     = $33,
                sap_synced_at = NOW(), updated_at = NOW()
              WHERE sap_card_code = $1`,
             [
@@ -3975,6 +4031,8 @@ export function setupProjectRoutes(app: express.Express) {
               row.UBpGstType || null,
               row.Currency || null,
               row.UPanNumber || null,
+              row.BillAddrLine1, row.BillAddrLine2, row.BillAddrBlock, row.BillAddrBuilding, row.BillAddrCity,
+              row.ShipAddrLine1, row.ShipAddrLine2, row.ShipAddrBlock, row.ShipAddrBuilding, row.ShipAddrCity,
             ],
           );
           skipped++;
@@ -3999,6 +4057,8 @@ export function setupProjectRoutes(app: express.Express) {
                 sap_mail_city, sap_mail_country, sap_email, sap_currency,
                 currency, country_name, country_code, continent,
                 glbl_loc_num, u_state_supply, u_bp_gst_type, pan_number,
+                bill_addr_line1, bill_addr_line2, bill_addr_block, bill_addr_building, bill_addr_city,
+                ship_addr_line1, ship_addr_line2, ship_addr_block, ship_addr_building, ship_addr_city,
                 sap_sync_status, sap_synced_at, created_at, updated_at)
              VALUES
                ($1,$2,$3,$4,$5,
@@ -4009,6 +4069,8 @@ export function setupProjectRoutes(app: express.Express) {
                 $20,$21,$22,$23,
                 $24,$25,$26,$27,
                 $28,$29,$30,$31,
+                $32,$33,$34,$35,$36,
+                $37,$38,$39,$40,$41,
                 'synced',NOW(),NOW(),NOW())
              ON CONFLICT DO NOTHING`,
             [
@@ -4020,6 +4082,8 @@ export function setupProjectRoutes(app: express.Express) {
               row.City || null, row.Country || null, vPrimaryEmail, row.Currency || null,
               row.Currency || 'USD', vCountryInfo?.name || null, row.Country || null, vCountryInfo?.continent || null,
               vGstin, row.UStateSupply || 'MH', row.UBpGstType || 'G', row.UPanNumber || null,
+              row.BillAddrLine1, row.BillAddrLine2, row.BillAddrBlock, row.BillAddrBuilding, row.BillAddrCity,
+              row.ShipAddrLine1, row.ShipAddrLine2, row.ShipAddrBlock, row.ShipAddrBuilding, row.ShipAddrCity,
             ],
           );
           existingCodes.add(row.CardCode);
