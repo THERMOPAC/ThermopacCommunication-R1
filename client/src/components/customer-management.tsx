@@ -208,6 +208,10 @@ function CustomerFormBody({
   setContact2Open,
   contact3Open,
   setContact3Open,
+  currencyManuallySet,
+  setCurrencyManuallySet,
+  gstTypeManuallySet,
+  setGstTypeManuallySet,
 }: {
   form: UseFormReturn<CustomerFormValues>;
   onSubmit: (data: CustomerFormValues) => void;
@@ -219,17 +223,37 @@ function CustomerFormBody({
   setContact2Open: (v: boolean) => void;
   contact3Open: boolean;
   setContact3Open: (v: boolean) => void;
+  currencyManuallySet: boolean;
+  setCurrencyManuallySet: (v: boolean) => void;
+  gstTypeManuallySet: boolean;
+  setGstTypeManuallySet: (v: boolean) => void;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
     const cont = countryToContinent[val];
     if (cont) form.setValue("continent", cont);
-    form.setValue("currency", val === "India" ? "INR" : "USD");
+    // Only auto-set currency from country if not manually overridden
+    if (!currencyManuallySet) {
+      form.setValue("currency", val === "India" ? "INR" : "USD");
+    }
     const phoneCode = countryToPhoneCode[val];
     if (phoneCode) {
       const current = form.getValues("phone1") || "";
       const stripped = current.replace(/^\+\d+\s*/, "");
       form.setValue("phone1", phoneCode + " " + stripped);
+    }
+  };
+
+  const handleCardTypeChange = (val: string, fieldOnChange: (v: string) => void) => {
+    fieldOnChange(val);
+    if (val === "C") {
+      // Customer → Export defaults
+      if (!currencyManuallySet) form.setValue("currency", "USD");
+      if (!gstTypeManuallySet) form.setValue("uBpGstType", "E");
+    } else if (val === "S") {
+      // Supplier → Domestic defaults
+      if (!currencyManuallySet) form.setValue("currency", "INR");
+      if (!gstTypeManuallySet) form.setValue("uBpGstType", "G");
     }
   };
 
@@ -597,24 +621,41 @@ function CustomerFormBody({
             <FormField
               control={form.control}
               name="cardType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Card Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || "C"}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="C">Customer</SelectItem>
-                      <SelectItem value="S">Supplier</SelectItem>
-                      <SelectItem value="L">Lead</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const cardType = field.value || "C";
+                const helperText =
+                  cardType === "C"
+                    ? "Export defaults applied (USD + GST E)"
+                    : cardType === "S"
+                    ? "Domestic defaults applied (INR + GST G)"
+                    : null;
+                return (
+                  <FormItem>
+                    <FormLabel>Card Type</FormLabel>
+                    <Select
+                      onValueChange={(val) => handleCardTypeChange(val, field.onChange)}
+                      value={cardType}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="C">Customer</SelectItem>
+                        <SelectItem value="S">Supplier</SelectItem>
+                        <SelectItem value="L">Lead</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {helperText && (
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+                        {helperText}
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}
@@ -622,7 +663,13 @@ function CustomerFormBody({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Currency</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || "USD"}>
+                  <Select
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      setCurrencyManuallySet(true);
+                    }}
+                    value={field.value || "USD"}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue />
@@ -637,6 +684,11 @@ function CustomerFormBody({
                       <SelectItem value="SAR">SAR</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!currencyManuallySet && (
+                    <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+                      Auto-set · change to override
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -647,7 +699,13 @@ function CustomerFormBody({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>GST Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || "G"}>
+                  <Select
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      setGstTypeManuallySet(true);
+                    }}
+                    value={field.value || "G"}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue />
@@ -660,6 +718,11 @@ function CustomerFormBody({
                       <SelectItem value="E">Export (E)</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!gstTypeManuallySet && (
+                    <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+                      Auto-set · change to override
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -717,6 +780,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   // Collapsible contact sections (shared state — reset on dialog open)
   const [contact2Open, setContact2Open] = useState(false);
   const [contact3Open, setContact3Open] = useState(false);
+
+  // Track whether Currency / GST Type were manually set by the user
+  // false = auto-managed by Card Type logic; true = user explicitly chose a value
+  const [currencyManuallySet, setCurrencyManuallySet] = useState(false);
+  const [gstTypeManuallySet, setGstTypeManuallySet] = useState(false);
 
   const SAP_SYNC_ROLES = ['Superuser', 'General Manager', 'Senior Manager'];
   const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
@@ -898,6 +966,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     // Auto-expand additional contact sections if they have data
     setContact2Open(!!c2Name);
     setContact3Open(!!c3Name);
+    // For edit: treat existing Currency & GST Type as manually set — don't auto-overwrite them
+    setCurrencyManuallySet(true);
+    setGstTypeManuallySet(true);
     form.reset({
       bpCode: customer.bpCode,
       bpName: customer.bpName,
@@ -987,6 +1058,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               form.reset(defaultFormValues);
               setContact2Open(false);
               setContact3Open(false);
+              setCurrencyManuallySet(false);
+              setGstTypeManuallySet(false);
+              // Apply Customer defaults on fresh open
+              form.setValue("currency", "USD");
+              form.setValue("uBpGstType", "E");
               try {
                 const res = await apiRequest("GET", "/api/customers/next-bp-code");
                 if (res?.nextBpCode) {
@@ -1103,6 +1179,10 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             setContact2Open={setContact2Open}
             contact3Open={contact3Open}
             setContact3Open={setContact3Open}
+            currencyManuallySet={currencyManuallySet}
+            setCurrencyManuallySet={setCurrencyManuallySet}
+            gstTypeManuallySet={gstTypeManuallySet}
+            setGstTypeManuallySet={setGstTypeManuallySet}
           />
         </DialogContent>
       </Dialog>
@@ -1127,6 +1207,10 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             setContact2Open={setContact2Open}
             contact3Open={contact3Open}
             setContact3Open={setContact3Open}
+            currencyManuallySet={currencyManuallySet}
+            setCurrencyManuallySet={setCurrencyManuallySet}
+            gstTypeManuallySet={gstTypeManuallySet}
+            setGstTypeManuallySet={setGstTypeManuallySet}
           />
         </DialogContent>
       </Dialog>
