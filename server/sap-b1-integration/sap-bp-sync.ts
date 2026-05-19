@@ -243,20 +243,21 @@ class SapBPSyncService {
         return { success: false, error: msg };
       }
 
-      const bpData = this.mapCustomerToSapBP(customer);
-      const cardCode = bpData.CardCode;
-      delete (bpData as any).CardCode;
-      delete (bpData as any).CardType;
-      // SAP Service Layer: navigation properties (ContactEmployees, BPAddresses) in a PATCH
-      // attempt to INSERT new child rows — causing ODBC -2035 duplicate errors.
-      delete (bpData as any).ContactEmployees;
-      delete (bpData as any).BPAddresses;
-      delete (bpData as any).ContactPerson;
-      // GlobalLocationNumber (GSTIN) and U_PAN_Number are SAP-owned tax fields — they flow
-      // FROM SAP into QMS during sync, never the reverse. Pushing them back causes Error -1
-      // because SAP India localisation locks these fields after they are set.
-      delete (bpData as any).GlobalLocationNumber;
-      delete (bpData as any).U_PAN_Number;
+      // Build update payload from scratch with ONLY safe scalar fields.
+      // Navigation properties (ContactEmployees, BPAddresses) cause ODBC -2035 on PATCH.
+      // UDFs (U_StateSupply, U_BP_GstType, U_PAN_Number) and tax fields (GlobalLocationNumber)
+      // flow FROM SAP into QMS — never the reverse. SAP rejects them with Error -1 / "invalid".
+      const cardCode = customer.bpCode;
+      const rawPhone = (customer.phone1 || '').trim();
+      const validPhone = rawPhone && rawPhone !== '-' && rawPhone !== 'NA' && !/^-+\d*$/.test(rawPhone)
+        ? rawPhone : undefined;
+
+      const bpData: Record<string, unknown> = {
+        CardName: customer.bpName,
+      };
+      if (validPhone)          bpData.Cellular      = validPhone;
+      if (customer.email)      bpData.EmailAddress  = customer.email;
+      if (customer.currency)   bpData.Currency      = customer.currency;
 
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);
       console.log(`📦 SAP BP Sync: Update payload:`, JSON.stringify(bpData, null, 2));
