@@ -304,31 +304,45 @@ class SapBPSyncService {
       if (countryCode)        bpData.Country       = countryCode;
       if (customer.currency)  bpData.Currency      = customer.currency;
 
-      // ContactEmployees (up to 3 contacts)
-      if (customer.contactPerson) {
-        const contacts: Array<{ Name: string; Position?: string; E_Mail?: string; Phone1?: string }> = [];
-        contacts.push({
-          Name: customer.contactPerson,
-          Position: customer.contactPosition || undefined,
-          E_Mail: customer.email || undefined,
-          Phone1: customer.phone1 || undefined,
+      // Fetch existing contacts from SAP to retrieve their InternalCode.
+      // SAP Service Layer PATCH treats ContactEmployees entries WITHOUT InternalCode
+      // as INSERT operations — causing ODBC -2035 "already exists" if the contact
+      // already exists on the BP. Including InternalCode tells SAP to UPDATE instead.
+      const existingContactCode: Record<string, number> = {};
+      try {
+        const getResp = await sapSession.request({
+          method: 'GET',
+          path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')?$select=ContactEmployees`,
         });
-        if (customer.contact2Name) {
-          contacts.push({
-            Name: customer.contact2Name,
-            Position: customer.contact2Position || undefined,
-            E_Mail: customer.contact2Email || undefined,
-            Phone1: customer.contact2Phone || undefined,
-          });
+        if (getResp.ok) {
+          const bpBody = JSON.parse(getResp.body);
+          const existing: any[] = Array.isArray(bpBody.ContactEmployees) ? bpBody.ContactEmployees : [];
+          for (const c of existing) {
+            if (c.Name && c.InternalCode != null) {
+              existingContactCode[String(c.Name)] = Number(c.InternalCode);
+            }
+          }
+          console.log(`[SAP BP Sync] Fetched ${existing.length} existing contact(s) for ${cardCode}:`, Object.keys(existingContactCode));
         }
-        if (customer.contact3Name) {
-          contacts.push({
-            Name: customer.contact3Name,
-            Position: customer.contact3Position || undefined,
-            E_Mail: customer.contact3Email || undefined,
-            Phone1: customer.contact3Phone || undefined,
-          });
-        }
+      } catch (e: any) {
+        console.warn(`[SAP BP Sync] Could not pre-fetch contacts for ${cardCode}: ${e.message}`);
+      }
+
+      // ContactEmployees (up to 3 contacts) — InternalCode included for existing contacts
+      if (customer.contactPerson) {
+        const buildContact = (name: string, pos?: string, email?: string, phone?: string) => {
+          const entry: Record<string, unknown> = { Name: name };
+          if (existingContactCode[name] != null) entry.InternalCode = existingContactCode[name];
+          if (pos)   entry.Position = pos;
+          if (email) entry.E_Mail  = email;
+          if (phone) entry.Phone1  = phone;
+          return entry;
+        };
+        const contacts = [
+          buildContact(customer.contactPerson, customer.contactPosition || undefined, customer.email || undefined, customer.phone1 || undefined),
+          ...(customer.contact2Name ? [buildContact(customer.contact2Name, customer.contact2Position || undefined, customer.contact2Email || undefined, customer.contact2Phone || undefined)] : []),
+          ...(customer.contact3Name ? [buildContact(customer.contact3Name, customer.contact3Position || undefined, customer.contact3Email || undefined, customer.contact3Phone || undefined)] : []),
+        ];
         bpData.ContactEmployees = contacts;
         bpData.ContactPerson = customer.contactPerson;
       }
