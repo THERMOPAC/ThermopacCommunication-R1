@@ -30,7 +30,7 @@ interface SapBPData {
   GlobalLocationNumber?: string;
   U_PAN_Number?: string;
   U_StateSupply?: string;
-  U_BP_GstType?: string;
+  U_BP_GST_Type?: string;
 }
 
 class SapBPSyncService {
@@ -216,7 +216,7 @@ class SapBPSyncService {
 
       const gstType = customer.uBpGstType;
       if (gstType && gstType.trim() !== '') {
-        result.U_BP_GstType = gstType;
+        result.U_BP_GST_Type = gstType;
       }
 
       const pan = customer.panNumber;
@@ -360,9 +360,9 @@ class SapBPSyncService {
 
       // India-specific UDFs and GST fields
       if (countryCode === 'IN') {
-        if (customer.uStateSupply?.trim())  bpData.U_StateSupply  = customer.uStateSupply.trim();
-        if (customer.uBpGstType?.trim())    bpData.U_BP_GstType   = customer.uBpGstType.trim();
-        if (customer.panNumber?.trim())     bpData.U_PAN_Number   = customer.panNumber.trim();
+        if (customer.uStateSupply?.trim())  bpData.U_StateSupply   = customer.uStateSupply.trim();
+        if (customer.uBpGstType?.trim())    bpData.U_BP_GST_Type   = customer.uBpGstType.trim();
+        if (customer.panNumber?.trim())     bpData.U_PAN_Number    = customer.panNumber.trim();
       }
 
       console.log(`📤 SAP BP Sync: Updating BP ${cardCode}`);

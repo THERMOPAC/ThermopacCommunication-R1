@@ -3517,8 +3517,8 @@ export function setupProjectRoutes(app: express.Express) {
           City:          String(bp.City          ?? '').trim(),
           Country:       String(bp.Country       ?? '').trim(),
           EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
-          UStateSupply:  String(bp.U_StateSupply ?? '').trim(),
-          UBpGstType:    String(bp.U_BP_GstType  ?? '').trim(),
+          UStateSupply:  String(bp.U_StateSupply  ?? '').trim(),
+          UBpGstType:    String(bp.U_BP_GST_Type  ?? '').trim(),
           Contacts: bpContacts.slice(0, 3).map((c) => ({
             Name:     sapStr(c.Name,     'Name'),
             Position: sapStr(c.Position, 'Position'),
@@ -3902,8 +3902,8 @@ export function setupProjectRoutes(app: express.Express) {
           City:          String(bp.City          ?? '').trim(),
           Country:       String(bp.Country       ?? '').trim(),
           EmailAddress:  String(bp.EmailAddress  ?? bp.ContactEmployees?.[0]?.E_Mail ?? '').trim(),
-          UStateSupply:  String(bp.U_StateSupply ?? '').trim(),
-          UBpGstType:    String(bp.U_BP_GstType  ?? '').trim(),
+          UStateSupply:  String(bp.U_StateSupply  ?? '').trim(),
+          UBpGstType:    String(bp.U_BP_GST_Type  ?? '').trim(),
           Contacts: bpContacts.slice(0, 3).map((c) => ({
             Name:     sapStr(c.Name,     'Name'),
             Position: sapStr(c.Position, 'Position'),
