@@ -21,7 +21,8 @@ interface SapBPData {
   BPAddresses?: SapBPAddress[];
   Country?: string;
   Currency?: string;
-  GlblLocNum?: string;
+  GlobalLocationNumber?: string;
+  U_PAN_Number?: string;
   U_StateSupply?: string;
   U_BP_GST_Type?: string;
 }
@@ -159,7 +160,7 @@ class SapBPSyncService {
 
     const gln = customer.glblLocNum;
     if (gln && gln !== 'NA' && gln.trim() !== '') {
-      result.GlblLocNum = gln;
+      result.GlobalLocationNumber = gln;
     }
 
     if (countryCode === 'IN') {
@@ -171,6 +172,11 @@ class SapBPSyncService {
       const gstType = customer.uBpGstType;
       if (gstType && gstType.trim() !== '') {
         result.U_BP_GST_Type = gstType;
+      }
+
+      const pan = customer.panNumber;
+      if (pan && pan.trim() !== '') {
+        result.U_PAN_Number = pan.trim();
       }
     }
 
