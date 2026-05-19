@@ -3720,11 +3720,12 @@ export function setupProjectRoutes(app: express.Express) {
             if (!gr.ok) continue;
             const gbp = JSON.parse(gr.body);
             const gstin = String(gbp.GlblLocNum ?? gbp.FederalTaxID ?? '').trim();
-            if (gstin && gstin.length >= 15) {
+            console.log(`[customer-sap-sync] GSTIN enrich ${nr.sap_card_code}: raw="${gstin}"`);
+            if (gstin && gstin.length >= 5) {
               await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
               gstinUpdated++;
             }
-          } catch { /* skip individual failure */ }
+          } catch (e2: any) { console.warn(`[customer-sap-sync] GSTIN enrich error ${nr.sap_card_code}:`, e2.message); }
         }
         console.log(`[customer-sap-sync] GSTIN enrichment: ${gstinUpdated}/${naRows.rows.length} records updated`);
       } catch (e: any) {
@@ -4014,11 +4015,12 @@ export function setupProjectRoutes(app: express.Express) {
             if (!gr.ok) continue;
             const gbp = JSON.parse(gr.body);
             const gstin = String(gbp.GlblLocNum ?? gbp.FederalTaxID ?? '').trim();
-            if (gstin && gstin.length >= 15) {
+            console.log(`[vendor-sap-sync] GSTIN enrich ${nr.sap_card_code}: raw="${gstin}"`);
+            if (gstin && gstin.length >= 5) {
               await pool.query(`UPDATE customers SET glbl_loc_num = $1, updated_at = NOW() WHERE sap_card_code = $2`, [gstin, nr.sap_card_code]);
               gstinUpdated++;
             }
-          } catch { /* skip individual failure */ }
+          } catch (e2: any) { console.warn(`[vendor-sap-sync] GSTIN enrich error ${nr.sap_card_code}:`, e2.message); }
         }
         console.log(`[vendor-sap-sync] GSTIN enrichment: ${gstinUpdated}/${naRows.rows.length} records updated`);
       } catch (e: any) {
