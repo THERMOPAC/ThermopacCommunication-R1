@@ -529,9 +529,26 @@ function VendorFormBody({
 
         {/* ── Section 4: Address ── */}
         <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-amber-500" />
-            <h4 className="text-sm font-semibold text-amber-700">Address</h4>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-amber-500" />
+              <h4 className="text-sm font-semibold text-amber-700">Address</h4>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-3 text-xs border-amber-300 text-amber-700 hover:bg-amber-100"
+              onClick={() => {
+                form.setValue("shipAddrLine1", form.getValues("billAddrLine1") || "");
+                form.setValue("shipAddrLine2", form.getValues("billAddrLine2") || "");
+                form.setValue("shipAddrBlock", form.getValues("billAddrBlock") || "");
+                form.setValue("shipAddrBuilding", form.getValues("billAddrBuilding") || "");
+                form.setValue("shipAddrCity", form.getValues("billAddrCity") || "");
+              }}
+            >
+              Transfer Billing → Shipping
+            </Button>
           </div>
 
           {/* Billing | Shipping side-by-side */}
@@ -578,24 +595,7 @@ function VendorFormBody({
 
             {/* RIGHT: Shipping Address */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between border-b border-amber-200 pb-1">
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Shipping Address</p>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 text-xs text-amber-600 hover:text-amber-800"
-                  onClick={() => {
-                    form.setValue("shipAddrLine1", form.getValues("billAddrLine1") || "");
-                    form.setValue("shipAddrLine2", form.getValues("billAddrLine2") || "");
-                    form.setValue("shipAddrBlock", form.getValues("billAddrBlock") || "");
-                    form.setValue("shipAddrBuilding", form.getValues("billAddrBuilding") || "");
-                    form.setValue("shipAddrCity", form.getValues("billAddrCity") || "");
-                  }}
-                >
-                  Copy from Billing
-                </Button>
-              </div>
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide border-b border-amber-200 pb-1">Shipping Address</p>
               <FormField control={form.control} name="shipAddrLine1" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Address Line 1 *</FormLabel>
