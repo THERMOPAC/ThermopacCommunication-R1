@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Customer, InsertCustomer } from "@shared/schema";
+import { Customer } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import CustomerImport from "./customer-import";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -27,7 +26,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -53,8 +51,13 @@ import {
   X,
   AlertCircle,
   Loader2,
-  FileSpreadsheet,
-  RefreshCw,
+  Building2,
+  Users,
+  MapPin,
+  Receipt,
+  ChevronDown,
+  ChevronUp,
+  Star,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -193,6 +196,511 @@ const customerSchema = z.object({
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
 
+// ── Shared form body (used in both Add and Edit dialogs) ──────────────────────
+function CustomerFormBody({
+  form,
+  onSubmit,
+  onCancel,
+  isPending,
+  submitLabel,
+  bpCodeReadOnly,
+  contact2Open,
+  setContact2Open,
+  contact3Open,
+  setContact3Open,
+}: {
+  form: UseFormReturn<CustomerFormValues>;
+  onSubmit: (data: CustomerFormValues) => void;
+  onCancel: () => void;
+  isPending: boolean;
+  submitLabel: string;
+  bpCodeReadOnly?: boolean;
+  contact2Open: boolean;
+  setContact2Open: (v: boolean) => void;
+  contact3Open: boolean;
+  setContact3Open: (v: boolean) => void;
+}) {
+  const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
+    fieldOnChange(val);
+    const cont = countryToContinent[val];
+    if (cont) form.setValue("continent", cont);
+    form.setValue("currency", val === "India" ? "INR" : "USD");
+    const phoneCode = countryToPhoneCode[val];
+    if (phoneCode) {
+      const current = form.getValues("phone1") || "";
+      const stripped = current.replace(/^\+\d+\s*/, "");
+      form.setValue("phone1", phoneCode + " " + stripped);
+    }
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+
+        {/* ── Section 1: Business Partner Info ── */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-slate-500" />
+            <h4 className="text-sm font-semibold text-slate-700">Business Partner Info</h4>
+          </div>
+          <div className="grid grid-cols-[1fr_3fr] gap-3">
+            <FormField
+              control={form.control}
+              name="bpCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>BP Code *</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="C00001"
+                      {...field}
+                      readOnly={bpCodeReadOnly}
+                      disabled={bpCodeReadOnly}
+                      className={bpCodeReadOnly ? "opacity-70 cursor-not-allowed font-mono" : "font-mono"}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bpName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>BP Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., ABC Industries Ltd." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* ── Section 2: Primary Contact (highlighted) ── */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Star className="h-4 w-4 text-blue-500" />
+            <h4 className="text-sm font-semibold text-blue-700">Primary Contact</h4>
+            <span className="ml-1 text-xs bg-blue-100 text-blue-600 border border-blue-200 rounded-full px-2 py-0.5">Required</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="contactPerson"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., John Smith" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="contactPosition"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Position / Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Managing Director" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email *</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="e.g., contact@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone1"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cellular *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., +91 98211 37879" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* ── Section 3: Contact 2 (collapsible) ── */}
+        <div className="rounded-xl border border-gray-200 bg-gray-50/40 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setContact2Open(!contact2Open)}
+            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-100/70 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-medium text-gray-600">
+                Contact 2&nbsp;
+                <span className="text-xs font-normal text-gray-400">(Optional)</span>
+              </span>
+            </div>
+            {contact2Open
+              ? <ChevronUp className="h-4 w-4 text-gray-400 shrink-0" />
+              : <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />}
+          </button>
+          {contact2Open && (
+            <div className="px-4 pb-4 pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="contact2Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Jane Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact2Position"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Position / Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Purchase Manager" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact2Email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="e.g., jane@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact2Phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cellular</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., +91 98765 43210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Section 4: Contact 3 (collapsible) ── */}
+        <div className="rounded-xl border border-gray-200 bg-gray-50/40 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setContact3Open(!contact3Open)}
+            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-100/70 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-medium text-gray-600">
+                Contact 3&nbsp;
+                <span className="text-xs font-normal text-gray-400">(Optional)</span>
+              </span>
+            </div>
+            {contact3Open
+              ? <ChevronUp className="h-4 w-4 text-gray-400 shrink-0" />
+              : <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />}
+          </button>
+          {contact3Open && (
+            <div className="px-4 pb-4 pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="contact3Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Bob Wilson" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact3Position"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Position / Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Technical Head" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact3Email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="e.g., bob@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact3Phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cellular</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., +44 7911 123456" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Section 5: Address / Location ── */}
+        <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-amber-500" />
+            <h4 className="text-sm font-semibold text-amber-700">Address / Location</h4>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="billToAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Billing Address *</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="e.g., 123 Business St, Mumbai 400001" rows={4} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="shipToAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center justify-between">
+                    <span>Shipping Address *</span>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs text-amber-600 hover:text-amber-800"
+                      onClick={() => form.setValue("shipToAddress", form.getValues("billToAddress") || "")}
+                    >
+                      Copy from Billing
+                    </Button>
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="e.g., 123 Business St, Mumbai 400001" rows={4} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="countryName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country *</FormLabel>
+                  <Select
+                    onValueChange={(val) => handleCountryChange(val, field.onChange)}
+                    value={field.value || ""}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-60">
+                      {countries.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="continent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Continent *</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value || ""}
+                      readOnly
+                      className="bg-muted/60 cursor-not-allowed"
+                      placeholder="Auto-filled from country"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* ── Section 6: Tax / Commercial Info ── */}
+        <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-violet-500" />
+            <h4 className="text-sm font-semibold text-violet-700">Tax / Commercial Info</h4>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <FormField
+              control={form.control}
+              name="cardType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Card Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "C"}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="C">Customer</SelectItem>
+                      <SelectItem value="S">Supplier</SelectItem>
+                      <SelectItem value="L">Lead</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Currency</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "USD"}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="INR">INR</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="AED">AED</SelectItem>
+                      <SelectItem value="SAR">SAR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="uBpGstType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>GST Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "G"}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="G">Regular (G)</SelectItem>
+                      <SelectItem value="C">Composition (C)</SelectItem>
+                      <SelectItem value="U">Unregistered (U)</SelectItem>
+                      <SelectItem value="E">Export (E)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="uStateSupply"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State of Supply</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., MH" maxLength={3} {...field} className="uppercase" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="pt-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {submitLabel === "Create Customer" ? "Creating..." : "Updating..."}
+              </>
+            ) : (
+              submitLabel
+            )}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function CustomerManagement({ customers }: { customers: Customer[] }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -206,29 +714,14 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     totalFetched: number; imported: number; skipped: number; failed: number; errors: string[];
   } | null>(null);
 
+  // Collapsible contact sections (shared state — reset on dialog open)
+  const [contact2Open, setContact2Open] = useState(false);
+  const [contact3Open, setContact3Open] = useState(false);
+
   const SAP_SYNC_ROLES = ['Superuser', 'General Manager', 'Senior Manager'];
   const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
 
   const [testCardCode, setTestCardCode] = useState('');
-  const [sapBpLookupPending, setSapBpLookupPending] = useState(false);
-
-  const checkSapBp = async () => {
-    if (!testCardCode) return;
-    setSapBpLookupPending(true);
-    try {
-      const data: any = await apiRequest('GET', `/api/customers/sap-bp/${testCardCode}`);
-      const email = data.EmailAddress || data.contactEmail || '(none in SAP)';
-      toast({
-        title: `SAP BP: ${data.CardCode}`,
-        description: `Name: ${data.CardName}\nEmail: ${email}\nPhone: ${data.Phone1 || '—'}\nContact: ${data.ContactPerson || '—'}`,
-        duration: 8000,
-      });
-    } catch (err: any) {
-      toast({ title: 'SAP Lookup failed', description: err.message ?? 'Unknown error', variant: 'destructive' });
-    } finally {
-      setSapBpLookupPending(false);
-    }
-  };
 
   const sapSyncMutation = useMutation({
     mutationFn: (cardCode?: string) => apiRequest('POST', '/api/customers/sap-sync', cardCode ? { cardCode } : {}),
@@ -256,63 +749,41 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
-  const [emailVerifyStatus, setEmailVerifyStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
-  const [emailVerifyMessage, setEmailVerifyMessage] = useState("");
-
-  const verifyEmail = async (email: string) => {
-    if (!email || !email.includes('@')) {
-      setEmailVerifyStatus('idle');
-      return;
-    }
-    setEmailVerifyStatus('checking');
-    try {
-      const res = await apiRequest("POST", "/api/customers/verify-email", { email });
-      if (res.valid) {
-        setEmailVerifyStatus('valid');
-        setEmailVerifyMessage('Email domain verified');
-      } else {
-        setEmailVerifyStatus('invalid');
-        setEmailVerifyMessage(res.reason || 'Email verification failed');
-      }
-    } catch {
-      setEmailVerifyStatus('idle');
-    }
+  const defaultFormValues: CustomerFormValues = {
+    bpCode: "",
+    bpName: "",
+    contactPerson: "",
+    contactPosition: "",
+    email: "",
+    phone1: "",
+    contact2Name: "",
+    contact2Position: "",
+    contact2Email: "",
+    contact2Phone: "",
+    contact3Name: "",
+    contact3Position: "",
+    contact3Email: "",
+    contact3Phone: "",
+    billToAddress: "",
+    shipToAddress: "",
+    cardType: "C",
+    glblLocNum: "NA",
+    uStateSupply: "MH",
+    uBpGstType: "G",
+    currency: "USD",
+    continent: "",
+    countryName: "",
   };
-  
+
   // Define form
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
-    defaultValues: {
-      bpCode: "",
-      bpName: "",
-      contactPerson: "",
-      contactPosition: "",
-      email: "",
-      phone1: "",
-      contact2Name: "",
-      contact2Position: "",
-      contact2Email: "",
-      contact2Phone: "",
-      contact3Name: "",
-      contact3Position: "",
-      contact3Email: "",
-      contact3Phone: "",
-      billToAddress: "",
-      shipToAddress: "",
-      cardType: "C",
-      glblLocNum: "NA",
-      uStateSupply: "MH",
-      uBpGstType: "G",
-      currency: "USD",
-      continent: "",
-      countryName: "",
-    },
+    defaultValues: defaultFormValues,
   });
 
   // Create customer mutation
   const createMutation = useMutation({
     mutationFn: async (data: CustomerFormValues) => {
-      // Set parseJson to true so apiRequest will handle the JSON parsing
       return await apiRequest("POST", "/api/customers", data);
     },
     onSuccess: (response: any) => {
@@ -320,15 +791,15 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       const sapStatus = response?.sapSyncStatus;
       toast({
         title: "Customer created",
-        description: sapStatus === 'synced' 
-          ? "Customer created and synced to SAP B1 successfully." 
+        description: sapStatus === 'synced'
+          ? "Customer created and synced to SAP B1 successfully."
           : sapStatus === 'failed'
           ? `Customer created locally. SAP sync failed: ${response?.sapSyncError || 'Unknown error'}`
           : "Customer created locally. SAP sync was skipped.",
         variant: sapStatus === 'failed' ? "destructive" : "default",
       });
       setIsCreateDialogOpen(false);
-      form.reset();
+      form.reset(defaultFormValues);
     },
     onError: (error) => {
       toast({
@@ -342,7 +813,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   // Update customer mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CustomerFormValues }) => {
-      // Set parseJson to true so apiRequest will handle the JSON parsing
       return await apiRequest("PUT", `/api/customers/${id}`, data);
     },
     onSuccess: (response: any) => {
@@ -350,8 +820,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       const sapStatus = response?.sapSyncStatus;
       toast({
         title: "Customer updated",
-        description: sapStatus === 'synced' 
-          ? "Customer updated and synced to SAP B1 successfully." 
+        description: sapStatus === 'synced'
+          ? "Customer updated and synced to SAP B1 successfully."
           : sapStatus === 'failed'
           ? `Customer updated locally. SAP sync failed: ${response?.sapSyncError || 'Unknown error'}`
           : "Customer updated locally. SAP sync was skipped.",
@@ -410,7 +880,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
   const onSubmitEdit = (data: CustomerFormValues) => {
     if (editingCustomer) {
-      // Don't need to manually set updatedAt as the server will handle it
       updateMutation.mutate({ id: editingCustomer.id, data });
     }
   };
@@ -424,6 +893,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   // Open edit dialog and populate form with customer data
   const openEditDialog = (customer: Customer) => {
     setEditingCustomer(customer);
+    const c2Name = (customer as any).contact2Name || "";
+    const c3Name = (customer as any).contact3Name || "";
+    // Auto-expand additional contact sections if they have data
+    setContact2Open(!!c2Name);
+    setContact3Open(!!c3Name);
     form.reset({
       bpCode: customer.bpCode,
       bpName: customer.bpName,
@@ -431,11 +905,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       contactPosition: (customer as any).contactPosition || "",
       email: customer.email || "",
       phone1: (customer as any).phone1 || "",
-      contact2Name: (customer as any).contact2Name || "",
+      contact2Name: c2Name,
       contact2Position: (customer as any).contact2Position || "",
       contact2Email: (customer as any).contact2Email || "",
       contact2Phone: (customer as any).contact2Phone || "",
-      contact3Name: (customer as any).contact3Name || "",
+      contact3Name: c3Name,
       contact3Position: (customer as any).contact3Position || "",
       contact3Email: (customer as any).contact3Email || "",
       contact3Phone: (customer as any).contact3Phone || "",
@@ -510,32 +984,9 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           )}
           <Button
             onClick={async () => {
-              form.reset({
-                bpCode: "",
-                bpName: "",
-                contactPerson: "",
-                contactPosition: "",
-                email: "",
-                phone1: "",
-                contact2Name: "",
-                contact2Position: "",
-                contact2Email: "",
-                contact2Phone: "",
-                contact3Name: "",
-                contact3Position: "",
-                contact3Email: "",
-                contact3Phone: "",
-                billToAddress: "",
-                shipToAddress: "",
-                cardType: "C",
-                glblLocNum: "NA",
-                uStateSupply: "MH",
-                uBpGstType: "G",
-                currency: "USD",
-                continent: "",
-                countryName: "",
-              });
-              setEmailVerifyStatus('idle');
+              form.reset(defaultFormValues);
+              setContact2Open(false);
+              setContact3Open(false);
               try {
                 const res = await apiRequest("GET", "/api/customers/next-bp-code");
                 if (res?.nextBpCode) {
@@ -593,7 +1044,10 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                       <TableCell className="font-medium font-mono text-xs">{customer.bpCode}</TableCell>
                       <TableCell className="font-medium">{customer.bpName}</TableCell>
                       <TableCell>
-                        <Badge variant={(customer as any).cardType === "S" ? "secondary" : (customer as any).cardType === "L" ? "outline" : "default"} className="text-xs">
+                        <Badge
+                          variant={(customer as any).cardType === "S" ? "secondary" : (customer as any).cardType === "L" ? "outline" : "default"}
+                          className="text-xs"
+                        >
                           {(customer as any).cardType === "S" ? "Supplier" : (customer as any).cardType === "L" ? "Lead" : "Customer"}
                         </Badge>
                       </TableCell>
@@ -629,621 +1083,55 @@ export default function CustomerManagement({ customers }: { customers: Customer[
         </CardContent>
       </Card>
 
-      {/* Create Customer Dialog */}
+      {/* ── Create Customer Dialog ── */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
             <DialogDescription>
               Enter the customer details below to create a new business partner record.
             </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitCreate)} className="space-y-2">
-              <div className="rounded-lg border p-2 px-3 space-y-1">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-[1fr_3fr] gap-2">
-                  <FormField
-                    control={form.control}
-                    name="bpCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>BP Code *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="C00001" {...field} readOnly disabled className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bpName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>BP Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., ABC Industries Ltd." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-              </div>
-
-              <div className="rounded-lg border p-2 px-3 space-y-1">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact 1 (Primary)</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="contactPerson"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., John Smith" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contactPosition"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Position</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Managing Director" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email *</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="e.g., contact@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cellular *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., +91 98211 37879" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Contact 2 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="contact2Name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Jane Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact2Position"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Position</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Purchase Manager" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact2Email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="e.g., jane@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact2Phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cellular</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., +91 98765 43210" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Contact 3 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="contact3Name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Bob Wilson" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact3Position"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Position</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Technical Head" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact3Email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="e.g., bob@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact3Phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cellular</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., +44 7911 123456" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-2 px-3 space-y-1">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address & Location</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="billToAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Billing Address *</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="shipToAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center justify-between">
-                          Shipping Address *
-                          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
-                            Copy from Billing
-                          </Button>
-                        </FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="countryName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Country *</FormLabel>
-                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); form.setValue('currency', val === 'India' ? 'INR' : 'USD'); const phoneCode = countryToPhoneCode[val]; if (phoneCode) { const currentPhone = form.getValues('phone1') || ''; const stripped = currentPhone.replace(/^\+\d+\s*/, ''); form.setValue('phone1', phoneCode + ' ' + stripped); } }} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select country" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="max-h-60">
-                            {countries.map((c) => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="continent"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Continent *</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Customer"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <CustomerFormBody
+            form={form}
+            onSubmit={onSubmitCreate}
+            onCancel={() => setIsCreateDialogOpen(false)}
+            isPending={createMutation.isPending}
+            submitLabel="Create Customer"
+            bpCodeReadOnly={true}
+            contact2Open={contact2Open}
+            setContact2Open={setContact2Open}
+            contact3Open={contact3Open}
+            setContact3Open={setContact3Open}
+          />
         </DialogContent>
       </Dialog>
 
-      {/* Edit Customer Dialog */}
+      {/* ── Edit Customer Dialog ── */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Customer</DialogTitle>
             <DialogDescription>
               Update the customer details below.
             </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-2">
-              <div className="rounded-lg border p-2 px-3 space-y-1">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Business Partner Info</h4>
-                <div className="grid grid-cols-[1fr_3fr] gap-2">
-                  <FormField
-                    control={form.control}
-                    name="bpCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>BP Code *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="C00001" {...field} readOnly={true} disabled={true} className="opacity-70 cursor-not-allowed" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bpName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>BP Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., ABC Industries Ltd." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-              </div>
-
-              <div className="rounded-lg border p-2 px-3 space-y-1">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact 1 (Primary)</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="contactPerson"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., John Smith" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contactPosition"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Position</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Managing Director" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email *</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="e.g., contact@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cellular *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., +91 98211 37879" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Contact 2 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="contact2Name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Jane Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact2Position"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Position</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Purchase Manager" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact2Email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="e.g., jane@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact2Phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cellular</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., +91 98765 43210" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Contact 3 (Optional)</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="contact3Name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Person</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Bob Wilson" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact3Position"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Position</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Technical Head" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact3Email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="e.g., bob@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contact3Phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cellular</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., +44 7911 123456" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-2 px-3 space-y-1">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address & Location</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="billToAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Billing Address *</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="shipToAddress"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center justify-between">
-                          Shipping Address *
-                          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => form.setValue('shipToAddress', form.getValues('billToAddress') || '')}>
-                            Copy from Billing
-                          </Button>
-                        </FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="e.g., 123 Business St, Mumbai" rows={5} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField
-                    control={form.control}
-                    name="countryName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Country *</FormLabel>
-                        <Select onValueChange={(val) => { field.onChange(val); const cont = countryToContinent[val]; if (cont) form.setValue('continent', cont); form.setValue('currency', val === 'India' ? 'INR' : 'USD'); const phoneCode = countryToPhoneCode[val]; if (phoneCode) { const currentPhone = form.getValues('phone1') || ''; const stripped = currentPhone.replace(/^\+\d+\s*/, ''); form.setValue('phone1', phoneCode + ' ' + stripped); } }} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select country" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="max-h-60">
-                            {countries.map((c) => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="continent"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Continent *</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update Customer"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <CustomerFormBody
+            form={form}
+            onSubmit={onSubmitEdit}
+            onCancel={() => { setIsEditDialogOpen(false); setEditingCustomer(null); }}
+            isPending={updateMutation.isPending}
+            submitLabel="Update Customer"
+            bpCodeReadOnly={true}
+            contact2Open={contact2Open}
+            setContact2Open={setContact2Open}
+            contact3Open={contact3Open}
+            setContact3Open={setContact3Open}
+          />
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* ── Delete Confirmation Dialog ── */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -1271,8 +1159,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
@@ -1288,10 +1176,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* Customer Import Dialog */}
-      <CustomerImport 
-        open={isImportDialogOpen} 
-        onOpenChange={setIsImportDialogOpen} 
+      <CustomerImport
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
       />
 
       {/* SAP Sync Result Dialog */}
