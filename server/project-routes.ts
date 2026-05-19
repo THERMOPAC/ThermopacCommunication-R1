@@ -3194,6 +3194,57 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  // ── GET /api/sap-diag/bp-addresses/:cardCode ─────────────────────────────
+  // Diagnostic: fetch raw BPAddresses from SAP Service Layer for a given CardCode.
+  // Returns the full BPAddresses array alongside a CRD1 field reference table so
+  // the caller can verify which Service Layer fields map to which CRD1 columns.
+  // Superuser only. Read-only — does NOT modify any data.
+  app.get('/api/sap-diag/bp-addresses/:cardCode', ensureAuthenticated, async (req: Request, res: Response) => {
+    if (req.user!.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Superuser only.' });
+    }
+    try {
+      const cardCode = req.params.cardCode;
+      const { sapSession } = await import('./sap-b1-integration/sap-central-session');
+      const getResp = await sapSession.request({
+        method: 'GET',
+        path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
+      });
+      if (!getResp.ok) {
+        return res.status(getResp.statusCode).json({ error: `SAP returned HTTP ${getResp.statusCode}`, body: getResp.body });
+      }
+      const bpBody = JSON.parse(getResp.body);
+      const bpAddresses: any[] = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
+
+      // CRD1 ↔ Service Layer field reference (SAP documentation)
+      const crd1Mapping = {
+        'CRD1.Address  (primary key / unique per CardCode+AdresType)': 'BPAddresses.AddressName',
+        'CRD1.AdresType (bo_BillTo | bo_ShipTo | bo_PayTo | bo_DeliveryTo)': 'BPAddresses.AddressType',
+        'CRD1.Address2 (Address Line 1)': 'BPAddresses.AddressName2',
+        'CRD1.Address3 (Address Line 2)': 'BPAddresses.AddressName3',
+        'CRD1.Block    (Block / Sector)': 'BPAddresses.Block',
+        'CRD1.Building (Building / Floor / Room)': 'BPAddresses.BuildingFloorRoom',
+        'CRD1.City': 'BPAddresses.City',
+        'CRD1.ZipCode': 'BPAddresses.ZipCode',
+        'CRD1.State': 'BPAddresses.State',
+        'CRD1.Country': 'BPAddresses.Country',
+        'CRD1.GSTRegnNo (GSTIN per address — India only)': 'BPAddresses.GSTRegnNo  [verify field name in live response]',
+        'CRD1.StreetNo': 'BPAddresses.StreetNo   [verify field name in live response]',
+      };
+
+      return res.json({
+        cardCode,
+        bpName: bpBody.CardName,
+        cardType: bpBody.CardType,
+        addressCount: bpAddresses.length,
+        bpAddresses,                      // raw SAP response — all fields as-is
+        crd1MappingReference: crd1Mapping, // reference only; confirm against live bpAddresses above
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   app.delete('/api/customers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const customerId = parseInt(req.params.id);
