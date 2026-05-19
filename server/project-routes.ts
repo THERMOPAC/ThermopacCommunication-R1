@@ -3533,7 +3533,7 @@ export function setupProjectRoutes(app: express.Express) {
         // Fetch one BP by primary key — no $select so all fields (including UDFs) are returned.
         console.log(`[customer-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
         const resp = await sapSession.request({
-          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')?$expand=BPAddresses,ContactEmployees`,
+          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
         });
         if (!resp.ok) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
@@ -3542,7 +3542,7 @@ export function setupProjectRoutes(app: express.Express) {
         // Dump ALL non-array top-level fields so we can identify GSTIN field name
         const testRaw = Object.keys(bp).filter(k => !Array.isArray(bp[k])).reduce((acc: any, k) => { acc[k] = bp[k]; return acc; }, {});
         console.log(`[customer-sap-sync] TEST RAW ALL FIELDS for ${bp.CardCode}:`, JSON.stringify(testRaw).substring(0, 4000));
-        console.log(`[customer-sap-sync] TEST BPAddresses for ${bp.CardCode}:`, JSON.stringify(Array.isArray(bp.BPAddresses) ? bp.BPAddresses : 'NOT_ARRAY'));
+        console.log(`[customer-sap-sync] TEST BPAddresses for ${bp.CardCode}:`, JSON.stringify(Array.isArray(bp.BPAddresses) ? bp.BPAddresses : 'NOT_ARRAY_or_MISSING'));
         if (bp.CardCode) filteredRows = [parseSapBpRow(bp)];
         totalFetched = filteredRows.length;
         const parsedCustRow = filteredRows[0];
@@ -3914,7 +3914,7 @@ export function setupProjectRoutes(app: express.Express) {
         // ── Single-card test mode ──────────────────────────────────────────────
         console.log(`[vendor-sap-sync] TEST MODE — fetching single BP: ${testCardCode}`);
         const resp = await sapSession.request({
-          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')?$expand=BPAddresses,ContactEmployees`,
+          method: 'GET', path: `/b1s/v1/BusinessPartners('${testCardCode}')`,
         });
         if (!resp.ok) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
@@ -3923,7 +3923,7 @@ export function setupProjectRoutes(app: express.Express) {
         // Dump ALL non-array top-level fields so we can identify correct field names
         const testRaw = Object.keys(bp).filter(k => !Array.isArray(bp[k])).reduce((acc: Record<string,any>, k) => { acc[k] = bp[k]; return acc; }, {});
         console.log(`[vendor-sap-sync] TEST RAW ALL FIELDS for ${bp.CardCode}:`, JSON.stringify(testRaw).substring(0, 5000));
-        console.log(`[vendor-sap-sync] TEST BPAddresses for ${bp.CardCode}:`, JSON.stringify(Array.isArray(bp.BPAddresses) ? bp.BPAddresses : 'NOT_ARRAY'));
+        console.log(`[vendor-sap-sync] TEST BPAddresses for ${bp.CardCode}:`, JSON.stringify(Array.isArray(bp.BPAddresses) ? bp.BPAddresses : 'NOT_ARRAY_or_MISSING'));
         if (bp.CardCode) filteredRows = [parseVendorBpRow(bp)];
         totalFetched = filteredRows.length;
         const parsedRow = filteredRows[0];
