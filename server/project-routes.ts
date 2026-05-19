@@ -2994,8 +2994,13 @@ export function setupProjectRoutes(app: express.Express) {
         }
       }
       
+      // Auto-derive shortCode from bpCode if not provided (e.g. "V11074" → "11074")
+      const derivedShortCode = req.body.shortCode ||
+        (req.body.bpCode ? String(req.body.bpCode).replace(/^[A-Za-z]+/, '') : undefined);
+
       const customerData = insertCustomerSchema.parse({
         ...req.body,
+        shortCode: derivedShortCode,
         createdAt: new Date(),
         updatedAt: new Date()
       });
