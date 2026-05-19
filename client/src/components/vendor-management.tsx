@@ -333,6 +333,13 @@ function VendorFormBody({
             <Building2 className="h-4 w-4 text-slate-500" />
             <h4 className="text-sm font-semibold text-slate-700">Business Partner Info</h4>
           </div>
+          {bpCodeFetchError && (
+            <Alert variant="destructive" className="mb-1 py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle className="text-xs font-semibold">SAP B1 Unavailable — BP Code cannot be generated</AlertTitle>
+              <AlertDescription className="text-xs">{bpCodeFetchError}</AlertDescription>
+            </Alert>
+          )}
           <div className="grid grid-cols-[1fr_3fr] gap-3">
             <FormField
               control={form.control}
@@ -344,8 +351,14 @@ function VendorFormBody({
                     <Input
                       {...field}
                       readOnly={bpCodeReadOnly}
-                      className={bpCodeReadOnly ? "bg-muted/60 cursor-not-allowed font-mono text-xs" : "font-mono text-xs"}
-                      placeholder="Fetching from SAP…"
+                      className={
+                        bpCodeReadOnly
+                          ? "bg-muted/60 cursor-not-allowed font-mono text-xs"
+                          : bpCodeFetchError
+                            ? "font-mono text-xs border-destructive focus-visible:ring-destructive"
+                            : "font-mono text-xs"
+                      }
+                      placeholder={bpCodeFetchError ? "SAP unavailable — close and retry" : "Fetching from SAP…"}
                     />
                   </FormControl>
                   <FormMessage />
@@ -704,13 +717,6 @@ function VendorFormBody({
           )}
         </div>
 
-        {bpCodeFetchError && (
-          <Alert variant="destructive" className="mb-2">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>SAP B1 Unavailable</AlertTitle>
-            <AlertDescription>{bpCodeFetchError}</AlertDescription>
-          </Alert>
-        )}
         {sapSyncFailureAlert && (
           <Alert variant="destructive" className="mb-2">
             <AlertCircle className="h-4 w-4" />
