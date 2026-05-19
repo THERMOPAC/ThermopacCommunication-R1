@@ -808,6 +808,13 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
     }
   };
 
+  // Auto-fetch BP code whenever the Add Vendor dialog opens
+  useEffect(() => {
+    if (isCreateDialogOpen) {
+      fetchNextBpCode();
+    }
+  }, [isCreateDialogOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const SAP_SYNC_ROLES = ['Superuser', 'General Manager', 'Senior Manager'];
   const canSapSync = SAP_SYNC_ROLES.includes((user as any)?.role ?? '');
 
@@ -1086,7 +1093,6 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
               setCurrencyManuallySet(false);
               setGstTypeManuallySet(false);
               setIsCreateDialogOpen(true);
-              await fetchNextBpCode();
             }}
           >
             <PlusCircle className="mr-2 h-4 w-4" />

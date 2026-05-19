@@ -946,6 +946,13 @@ export default function CustomerManagement({ customers }: { customers: Customer[
     }
   };
 
+  // Auto-fetch BP code whenever the Add Customer dialog opens
+  useEffect(() => {
+    if (isCreateDialogOpen) {
+      fetchNextBpCode();
+    }
+  }, [isCreateDialogOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Collapsible contact sections (shared state — reset on dialog open)
   const [contact2Open, setContact2Open] = useState(false);
   const [contact3Open, setContact3Open] = useState(false);
@@ -1256,7 +1263,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               form.setValue("uStateSupply", "--"); // Export → no state
               form.setValue("glblLocNum", "");   // Export → no GSTIN
               setIsCreateDialogOpen(true);
-              await fetchNextBpCode();
             }}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
