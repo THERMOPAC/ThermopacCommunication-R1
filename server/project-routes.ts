@@ -3307,7 +3307,10 @@ export function setupProjectRoutes(app: express.Express) {
         // Paginate SAP with $select — standard fields only, no UDF, so $select is safe.
         // EmailAddress is a standard BP field (not a UDF) — included in $select.
         // NOTE: SAP silently ignores $filter when combined with $select (documented).
-        // We fetch all Customers (CardType=C) and filter client-side to CardCode > 'C10300'.
+        // We fetch Customers (CardType=cCustomer) and filter client-side to C-prefix CardCode > 'C10300'.
+        // NOTE: SAP Service Layer uses 'cCustomer'/'cSupplier'/'cLead' — NOT single-letter codes.
+        // Using 'C' was a bug: SAP silently ignored the invalid filter and returned all BP types,
+        // allowing V-prefix vendor records to slip through with card_type='C'.
         const PAGE_SIZE = 20;
         let sapSkip = 0;
         const allRows: BPRow[] = [];
@@ -3315,7 +3318,7 @@ export function setupProjectRoutes(app: express.Express) {
         while (true) {
           const qs = new URLSearchParams({
             '$select': 'CardCode,CardName,ContactPerson,Phone1,Address,City,Country,EmailAddress',
-            '$filter': "CardType eq 'C'",
+            '$filter': "CardType eq 'cCustomer'",
             '$top':    String(PAGE_SIZE),
             '$skip':   String(sapSkip),
           }).toString();
@@ -3352,10 +3355,12 @@ export function setupProjectRoutes(app: express.Express) {
           }
         }
 
-        // Client-side filter: enforce CardCode > 'C10300' (lexicographic).
-        filteredRows = allRows.filter((r) => r.CardCode > 'C10300');
+        // Client-side filter: C-prefix only AND CardCode > 'C10300'.
+        // The old filter (r.CardCode > 'C10300') was lexicographic — 'V11006' > 'C10300' is true
+        // because 'V' > 'C' alphabetically, allowing vendor codes to slip through with card_type='C'.
+        filteredRows = allRows.filter((r) => /^C\d+$/i.test(r.CardCode) && r.CardCode > 'C10300');
         totalFetched = filteredRows.length;
-        console.log(`[customer-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass CardCode > 'C10300' filter`);
+        console.log(`[customer-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass C-prefix + CardCode > 'C10300' filter`);
       }
 
       // Load existing sap_card_codes in one query to avoid per-row round-trips
@@ -3529,6 +3534,14 @@ export function setupProjectRoutes(app: express.Express) {
 
       for (const row of filteredRows) {
         if (existingCodes.has(row.CardCode)) {
+          // Correct card_type if it was wrongly written as 'C' by the customer sync.
+          // This fixes the class of bug where 'CardType eq C' (invalid SAP filter value)
+          // caused SAP to return all BPs, and V-prefix vendors were inserted with card_type='C'.
+          await pool.query(
+            `UPDATE customers SET card_type = 'V', updated_at = NOW()
+             WHERE sap_card_code = $1 AND card_type <> 'V'`,
+            [row.CardCode],
+          );
           skipped++;
           continue;
         }
