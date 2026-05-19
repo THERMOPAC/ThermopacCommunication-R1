@@ -339,9 +339,8 @@ function VendorFormBody({
                     <Input
                       {...field}
                       readOnly={bpCodeReadOnly}
-                      disabled={bpCodeReadOnly}
                       className={bpCodeReadOnly ? "bg-muted/60 cursor-not-allowed font-mono text-xs" : "font-mono text-xs"}
-                      placeholder="Auto-assigned"
+                      placeholder="V10001"
                     />
                   </FormControl>
                   <FormMessage />
