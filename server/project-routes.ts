@@ -3149,6 +3149,13 @@ export function setupProjectRoutes(app: express.Express) {
       if (customer.sapSyncStatus !== 'failed') {
         return res.status(400).json({ error: "Retry is only available for records with SAP sync status 'failed'." });
       }
+      // Force a clean SAP session before the retry PATCH.
+      // "Error -1 detected during transaction" is caused by a stale/dirty session
+      // accumulated from previous bulk-sync requests. Invalidating here forces a
+      // fresh login so the retry starts with a clean transaction context.
+      const { sapSession } = await import('./sap-b1-integration/sap-central-session');
+      await sapSession.invalidate();
+      console.log(`[retry-sap-sync] Session invalidated — fresh login will be used for ${customer.bpCode}`);
       const { sapBPSyncService } = await import('./sap-b1-integration/sap-bp-sync');
       const sapResult = await sapBPSyncService.updateBusinessPartner(customer);
       if (sapResult.success) {
