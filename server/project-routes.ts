@@ -3109,10 +3109,19 @@ export function setupProjectRoutes(app: express.Express) {
         const sapResult = await sapBPSyncService.updateBusinessPartner(updatedCustomer);
         if (sapResult.success) {
           console.log(`✅ Customer ${updatedCustomer.bpCode} updated in SAP B1`);
-          await pool.query(
-            `UPDATE customers SET sap_sync_status='synced', sap_sync_error=NULL, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$1`,
-            [customerId]
-          );
+          // Store warning (e.g. address skipped due to duplicate AddressName) in sap_sync_error
+          // so the UI can surface it, while keeping sap_sync_status='synced'.
+          if (sapResult.warning) {
+            await pool.query(
+              `UPDATE customers SET sap_sync_status='synced', sap_sync_error=$1, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$2`,
+              [sapResult.warning, customerId]
+            );
+          } else {
+            await pool.query(
+              `UPDATE customers SET sap_sync_status='synced', sap_sync_error=NULL, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$1`,
+              [customerId]
+            );
+          }
         } else {
           console.error(`❌ Customer ${updatedCustomer.bpCode} updated locally but SAP sync failed: ${sapResult.error}`);
           await pool.query(
@@ -3125,7 +3134,7 @@ export function setupProjectRoutes(app: express.Express) {
             [req.user!.username ?? 'system', sapResult.error ?? 'Unknown SAP error']
           ).catch(() => {});
         }
-        res.json({ ...updatedCustomer, sapSyncStatus: sapResult.success ? 'synced' : 'failed', sapSyncError: sapResult.error });
+        res.json({ ...updatedCustomer, sapSyncStatus: sapResult.success ? 'synced' : 'failed', sapSyncError: sapResult.error, sapSyncWarning: sapResult.warning });
       } catch (sapError: any) {
         console.error(`❌ SAP sync failed for ${updatedCustomer.bpCode}: ${sapError.message}`);
         await pool.query(
@@ -3164,17 +3173,24 @@ export function setupProjectRoutes(app: express.Express) {
       const { sapBPSyncService } = await import('./sap-b1-integration/sap-bp-sync');
       const sapResult = await sapBPSyncService.updateBusinessPartner(customer);
       if (sapResult.success) {
-        await pool.query(
-          `UPDATE customers SET sap_sync_status='synced', sap_sync_error=NULL, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$1`,
-          [customerId]
-        );
+        if (sapResult.warning) {
+          await pool.query(
+            `UPDATE customers SET sap_sync_status='synced', sap_sync_error=$1, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$2`,
+            [sapResult.warning, customerId]
+          );
+        } else {
+          await pool.query(
+            `UPDATE customers SET sap_sync_status='synced', sap_sync_error=NULL, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$1`,
+            [customerId]
+          );
+        }
         await pool.query(
           `INSERT INTO sap_customer_sync_logs (triggered_by, started_at, completed_at, status, total_fetched, imported, skipped, failed, error_summary)
            VALUES ($1, NOW(), NOW(), 'synced', 1, 1, 0, 0, NULL)`,
           [req.user!.username ?? 'system']
         ).catch(() => {});
-        console.log(`✅ [retry-sap-sync] Customer ${customer.bpCode} re-synced to SAP B1 by ${req.user!.username}`);
-        return res.json({ success: true });
+        console.log(`✅ [retry-sap-sync] Customer ${customer.bpCode} re-synced to SAP B1 by ${req.user!.username}${sapResult.warning ? ' (with address warning)' : ''}`);
+        return res.json({ success: true, warning: sapResult.warning });
       } else {
         await pool.query(
           `UPDATE customers SET sap_sync_error=$1, updated_at=NOW() WHERE id=$2`,

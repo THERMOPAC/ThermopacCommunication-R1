@@ -292,7 +292,7 @@ class SapBPSyncService {
     }
   }
 
-  async updateBusinessPartner(customer: any, _retryDepth = 0): Promise<{ success: boolean; error?: string }> {
+  async updateBusinessPartner(customer: any, _retryDepth = 0): Promise<{ success: boolean; error?: string; warning?: string }> {
     try {
       if (_retryDepth > 1) {
         const msg = `SAP BP Sync: Max retry depth reached for ${customer.bpCode}, aborting`;
@@ -328,7 +328,8 @@ class SapBPSyncService {
       //   2. BPAddresses.AddressName — SAP uses AddressName as the unique key per CardCode per
       //      AddressType. We reuse the existing AddressName so SAP does an UPDATE, not an INSERT.
       const existingContactCode: Record<string, number> = {};
-      const existingAddressName: Record<string, string> = {}; // AddressType → AddressName
+      const existingAddressName: Record<string, string> = {}; // AddressType → first AddressName seen
+      let allExistingAddresses: any[] = [];
       try {
         const getResp = await sapSession.request({
           method: 'GET',
@@ -343,16 +344,16 @@ class SapBPSyncService {
             }
           }
           console.log(`[SAP BP Sync] Fetched ${existingContacts.length} existing contact(s) for ${cardCode}:`, Object.keys(existingContactCode));
-          const existingAddresses: any[] = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
-          for (const a of existingAddresses) {
+          allExistingAddresses = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
+          for (const a of allExistingAddresses) {
             if (a.AddressType && a.AddressName) {
-              // Keep first entry per type (SAP may have multiple; we match primary)
+              // Keep first (lowest RowNum) AddressName per AddressType as the canonical key
               if (!existingAddressName[String(a.AddressType)]) {
                 existingAddressName[String(a.AddressType)] = String(a.AddressName);
               }
             }
           }
-          console.log(`[SAP BP Sync] Fetched ${existingAddresses.length} existing address(es) for ${cardCode}:`, existingAddressName);
+          console.log(`[SAP BP Sync] Fetched ${allExistingAddresses.length} existing address(es) for ${cardCode}:`, existingAddressName);
         }
       } catch (e: any) {
         console.warn(`[SAP BP Sync] Could not pre-fetch BP data for ${cardCode}: ${e.message}`);
@@ -377,34 +378,75 @@ class SapBPSyncService {
         bpData.ContactPerson = customer.contactPerson;
       }
 
-      // BPAddresses — push granular address fields back to SAP using SAP's own
-      // AddressName as the unique key (fetched above). This tells SAP to UPDATE
-      // the existing address row rather than INSERT a new one, preventing ODBC -2035.
-      // If SAP has no existing address for a type, fall back to "Bill To"/"Ship To".
+      // ── BPAddresses PATCH (four rules) ────────────────────────────────────
+      // Rule 1: Only update rows that already exist in SAP, matched by AddressType.
+      // Rule 2: Preserve the existing AddressName from SAP — never substitute
+      //         "Bill To" / "Ship To" for an existing record.
+      // Rule 3: If any AddressName is shared across multiple AddressTypes
+      //         (duplicate-key condition) → skip BPAddresses entirely, emit warning.
+      //         Manual cleanup in SAP required before this BP can be address-patched.
+      // Rule 4: Never auto-delete or auto-clean duplicate rows in SAP.
+      let addressPatchWarning: string | undefined;
+
+      // Detect duplicate: same AddressName used for more than one AddressType
+      const nameToTypes: Record<string, Set<string>> = {};
+      for (const a of allExistingAddresses) {
+        if (a.AddressName && a.AddressType) {
+          const n = String(a.AddressName);
+          if (!nameToTypes[n]) nameToTypes[n] = new Set();
+          nameToTypes[n].add(String(a.AddressType));
+        }
+      }
+      const duplicateNames = Object.entries(nameToTypes)
+        .filter(([, types]) => types.size > 1)
+        .map(([name]) => `"${name}"`);
+
       const hasBillGranular = customer.billAddrLine1 || customer.billAddrLine2 || customer.billAddrCity;
       const hasShipGranular = customer.shipAddrLine1 || customer.shipAddrLine2 || customer.shipAddrCity;
+
       if (hasBillGranular || hasShipGranular) {
-        const patchAddresses: SapBPAddress[] = [];
-        if (hasBillGranular) {
-          const billName = existingAddressName['bo_BillTo'] || 'Bill To';
-          patchAddresses.push(this.buildGranularAddress(
-            billName, 'bo_BillTo',
-            customer.billAddrLine1, customer.billAddrLine2,
-            customer.billAddrBlock, customer.billAddrBuilding,
-            customer.billAddrCity, countryCode, stateCode,
-          ));
-        }
-        if (hasShipGranular) {
-          const shipName = existingAddressName['bo_ShipTo'] || 'Ship To';
-          patchAddresses.push(this.buildGranularAddress(
-            shipName, 'bo_ShipTo',
-            customer.shipAddrLine1, customer.shipAddrLine2,
-            customer.shipAddrBlock, customer.shipAddrBuilding,
-            customer.shipAddrCity, countryCode, stateCode,
-          ));
-        }
-        if (patchAddresses.length > 0) {
-          bpData.BPAddresses = patchAddresses;
+        if (duplicateNames.length > 0) {
+          // Rule 3: skip, warn
+          addressPatchWarning =
+            `BPAddresses not updated: duplicate AddressName(s) ${duplicateNames.join(', ')} ` +
+            `found across multiple AddressTypes for ${cardCode}. ` +
+            `Clean duplicate address rows in SAP manually, then retry sync.`;
+          console.warn(`⚠️  [SAP BP Sync] ${addressPatchWarning}`);
+        } else {
+          // Rules 1 & 2: only patch types that already exist in SAP, using SAP's own AddressName
+          const patchAddresses: SapBPAddress[] = [];
+
+          if (hasBillGranular) {
+            const billName = existingAddressName['bo_BillTo'];
+            if (billName) {
+              patchAddresses.push(this.buildGranularAddress(
+                billName, 'bo_BillTo',
+                customer.billAddrLine1, customer.billAddrLine2,
+                customer.billAddrBlock, customer.billAddrBuilding,
+                customer.billAddrCity, countryCode, stateCode,
+              ));
+            } else {
+              console.log(`[SAP BP Sync] ${cardCode}: no existing bo_BillTo in SAP — bill address skipped`);
+            }
+          }
+
+          if (hasShipGranular) {
+            const shipName = existingAddressName['bo_ShipTo'];
+            if (shipName) {
+              patchAddresses.push(this.buildGranularAddress(
+                shipName, 'bo_ShipTo',
+                customer.shipAddrLine1, customer.shipAddrLine2,
+                customer.shipAddrBlock, customer.shipAddrBuilding,
+                customer.shipAddrCity, countryCode, stateCode,
+              ));
+            } else {
+              console.log(`[SAP BP Sync] ${cardCode}: no existing bo_ShipTo in SAP — ship address skipped`);
+            }
+          }
+
+          if (patchAddresses.length > 0) {
+            bpData.BPAddresses = patchAddresses;
+          }
         }
       }
 
@@ -445,8 +487,8 @@ class SapBPSyncService {
       }
 
       if (response.ok || response.statusCode === 204) {
-        console.log(`✅ SAP BP Sync: BP ${cardCode} updated successfully`);
-        return { success: true };
+        console.log(`✅ SAP BP Sync: BP ${cardCode} updated successfully${addressPatchWarning ? ' (address skipped — see warning)' : ''}`);
+        return { success: true, ...(addressPatchWarning ? { warning: addressPatchWarning } : {}) };
       } else {
         let errorMsg = `Status ${response.statusCode}`;
         try {

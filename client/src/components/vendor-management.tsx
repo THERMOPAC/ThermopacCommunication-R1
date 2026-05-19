@@ -1035,11 +1035,15 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
         setEditSapSyncError(response?.sapSyncError || 'SAP B1 rejected the update. Check SAP connectivity.');
       } else {
         setEditSapSyncError(null);
+        const warning = response?.sapSyncWarning;
         toast({
           title: "Vendor updated",
-          description: sapStatus === 'synced'
-            ? "Vendor updated and synced to SAP B1 successfully."
-            : "Vendor updated locally. SAP sync was skipped.",
+          description: warning
+            ? `Synced to SAP B1. Note: ${warning}`
+            : sapStatus === 'synced'
+              ? "Vendor updated and synced to SAP B1 successfully."
+              : "Vendor updated locally. SAP sync was skipped.",
+          variant: warning ? "default" : undefined,
         });
         setIsEditDialogOpen(false);
         setEditingVendor(null);
@@ -1057,7 +1061,12 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       if (response?.success) {
-        toast({ title: "SAP sync successful", description: "Record is now synced to SAP B1." });
+        toast({
+          title: "SAP sync successful",
+          description: response?.warning
+            ? `Synced to SAP B1. Note: ${response.warning}`
+            : "Record is now synced to SAP B1.",
+        });
       } else {
         toast({ title: "SAP retry failed", description: response?.error || "Unknown error", variant: "destructive" });
       }
