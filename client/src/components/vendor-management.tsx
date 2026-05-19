@@ -266,6 +266,8 @@ function VendorFormBody({
   setCurrencyManuallySet,
   gstTypeManuallySet,
   setGstTypeManuallySet,
+  bpCodeFetchError,
+  sapSyncFailureAlert,
 }: {
   form: UseFormReturn<VendorFormValues>;
   onSubmit: (data: VendorFormValues) => void;
