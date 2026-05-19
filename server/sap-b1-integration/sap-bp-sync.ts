@@ -247,14 +247,14 @@ class SapBPSyncService {
       // Navigation properties (ContactEmployees, BPAddresses) cause ODBC -2035 on PATCH.
       // UDFs (U_StateSupply, U_BP_GstType, U_PAN_Number) and tax fields (GlobalLocationNumber)
       // flow FROM SAP into QMS — never the reverse. SAP rejects them with Error -1 / "invalid".
+      // CardName is intentionally excluded: SAP rejects PATCH on BPs with linked journal entries
+      // if CardName is present (error "Journal entries linked to card"). Name is read-only from SAP.
       const cardCode = customer.bpCode;
       const rawPhone = (customer.phone1 || '').trim();
       const validPhone = rawPhone && rawPhone !== '-' && rawPhone !== 'NA' && !/^-+\d*$/.test(rawPhone)
         ? rawPhone : undefined;
 
-      const bpData: Record<string, unknown> = {
-        CardName: customer.bpName,
-      };
+      const bpData: Record<string, unknown> = {};
       if (validPhone)          bpData.Cellular      = validPhone;
       if (customer.email)      bpData.EmailAddress  = customer.email;
       if (customer.currency)   bpData.Currency      = customer.currency;
