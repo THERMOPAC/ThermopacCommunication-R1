@@ -3810,7 +3810,7 @@ export function setupProjectRoutes(app: express.Express) {
       type VContactEntry = { Name: string; Position: string; Email: string; Phone: string; };
       type VBPRow = {
         CardCode: string; CardType: string; CardName: string;
-        Currency: string; FederalTaxID: string;
+        Currency: string; GlblLocNum: string;
         ContactPerson: string; Phone1: string;
         Address: string; City: string; Country: string; EmailAddress: string;
         UStateSupply: string; UBpGstType: string; UPanNumber: string;
@@ -3834,7 +3834,7 @@ export function setupProjectRoutes(app: express.Express) {
           CardType:      String(bp.CardType      ?? '').trim(),
           CardName:      String(bp.CardName      ?? '').trim(),
           Currency:      String(bp.Currency      ?? '').trim(),
-          FederalTaxID:  String(bp.GlblLocNum    ?? '').trim(),   // GSTIN from GlblLocNum only — never fall back to SAP FederalTaxID
+          GlblLocNum:    String(bp.GlblLocNum    ?? '').trim(),
           ContactPerson: String(bp.ContactPerson ?? '').trim(),
           Phone1:        String(bp.Cellular       ?? bp.Phone1       ?? '').trim(),
           Address:       String(bp.Address       ?? '').trim(),
@@ -3927,8 +3927,7 @@ export function setupProjectRoutes(app: express.Express) {
           // Correct card_type if wrong, AND backfill any previously-empty enrichment fields.
           const vPrimaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
           const vCountryInfo = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
-          // GSTIN: only from GlblLocNum (FederalTaxID field now maps exclusively to GlblLocNum)
-          const vGstin2 = (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : null;
+          const vGstin2 = (row.GlblLocNum && row.GlblLocNum !== '') ? row.GlblLocNum : null;
           console.log(`[vendor-sap-sync] SAVING ${row.CardCode} → glbl_loc_num="${vGstin2 ?? 'null'}" pan_number="${row.UPanNumber || 'null'}"`);
           await pool.query(
             `UPDATE customers SET
@@ -3988,7 +3987,7 @@ export function setupProjectRoutes(app: express.Express) {
           const localCardType = sapCardTypeMap[row.CardType] ?? 'V';
           const vPrimaryEmail = row.Contacts[0]?.Email || row.EmailAddress || null;
           const vCountryInfo = SAP_COUNTRY[(row.Country ?? '').toUpperCase()] ?? null;
-          const vGstin = (row.FederalTaxID && row.FederalTaxID !== '') ? row.FederalTaxID : 'NA';
+          const vGstin = (row.GlblLocNum && row.GlblLocNum !== '') ? row.GlblLocNum : 'NA';
           console.log(`[vendor-sap-sync] INSERTING ${row.CardCode} → glbl_loc_num="${vGstin}" pan_number="${row.UPanNumber || 'null'}"`);
           await pool.query(
             `INSERT INTO customers
