@@ -3522,6 +3522,9 @@ export function setupProjectRoutes(app: express.Express) {
           throw new Error(`SAP returned ${resp.statusCode}: ${resp.body?.substring(0, 300)}`);
         }
         const bp = JSON.parse(resp.body);
+        // Dump ALL non-array top-level fields so we can identify GSTIN field name
+        const testRaw = Object.keys(bp).filter(k => !Array.isArray(bp[k])).reduce((acc: any, k) => { acc[k] = bp[k]; return acc; }, {});
+        console.log(`[customer-sap-sync] TEST RAW ALL FIELDS for ${bp.CardCode}:`, JSON.stringify(testRaw).substring(0, 4000));
         if (bp.CardCode) filteredRows = [parseSapBpRow(bp)];
         totalFetched = filteredRows.length;
         console.log(`[customer-sap-sync] TEST fetched ${totalFetched} record(s)`);
