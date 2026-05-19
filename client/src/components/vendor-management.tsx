@@ -735,6 +735,7 @@ function VendorFormBody({
               submitLabel
             )}
           </Button>
+          )}
         </DialogFooter>
       </form>
     </Form>
