@@ -2900,8 +2900,7 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(503).json({ error: 'SAP B1 is unavailable. BP Code cannot be generated. Please retry after SAP connection is restored.' });
       }
 
-      const V_CODE_MIN = 10000; // V-codes start at V10001 (matching C-code convention)
-      let maxNum = V_CODE_MIN;
+      let maxNum = 0;
       const PAGE_SIZE = 100;
       let skip = 0;
       while (true) {
