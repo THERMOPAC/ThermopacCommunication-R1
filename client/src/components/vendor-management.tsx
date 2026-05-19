@@ -169,10 +169,10 @@ const countryToPhoneCode: Record<string, string> = {
 const vendorSchema = z.object({
   bpCode: z.string().min(1, "BP Code is required"),
   bpName: z.string().min(1, "BP Name is required"),
-  contactPerson: z.string().optional(),
-  contactPosition: z.string().optional(),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone1: z.string().optional(),
+  contactPerson: z.string().min(1, "Contact Person is required"),
+  contactPosition: z.string().min(1, "Position is required"),
+  email: z.string().email("Invalid email address").min(1, "Email is required"),
+  phone1: z.string().min(1, "Phone is required"),
   contact2Name: z.string().optional(),
   contact2Position: z.string().optional(),
   contact2Email: z.string().email("Invalid email").optional().or(z.literal("")),
@@ -185,9 +185,9 @@ const vendorSchema = z.object({
   shipToAddress: z.string().min(1, "Shipping Address is required"),
   cardType: z.string().default("V"),
   glblLocNum: z.string().optional().default(""),
-  uStateSupply: z.string().default("MH"),
-  uBpGstType: z.string().default("G"),
-  currency: z.string().default("INR"),
+  uStateSupply: z.string().min(1, "State of Supply is required"),
+  uBpGstType: z.string().min(1, "GST Type is required"),
+  currency: z.string().min(1, "Currency is required"),
   continent: z.string().min(1, "Continent is required"),
   countryName: z.string().min(1, "Country is required"),
 }).superRefine((data, ctx) => {
@@ -375,7 +375,7 @@ function VendorFormBody({
               name="contactPerson"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contact Person</FormLabel>
+                  <FormLabel>Contact Person *</FormLabel>
                   <FormControl>
                     <Input placeholder="Full name" {...field} value={field.value || ""} />
                   </FormControl>
@@ -388,7 +388,7 @@ function VendorFormBody({
               name="contactPosition"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Position</FormLabel>
+                  <FormLabel>Position *</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., Sales Manager" {...field} value={field.value || ""} />
                   </FormControl>
@@ -401,7 +401,7 @@ function VendorFormBody({
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Email *</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="contact@vendor.com" {...field} value={field.value || ""} />
                   </FormControl>
@@ -414,7 +414,7 @@ function VendorFormBody({
               name="phone1"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone</FormLabel>
+                  <FormLabel>Phone *</FormLabel>
                   <FormControl>
                     <Input placeholder="+91 98765 43210" {...field} value={field.value || ""} />
                   </FormControl>
@@ -580,7 +580,7 @@ function VendorFormBody({
               name="currency"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Currency</FormLabel>
+                  <FormLabel>Currency *</FormLabel>
                   <Select
                     onValueChange={(val) => {
                       field.onChange(val);
@@ -611,7 +611,7 @@ function VendorFormBody({
               name="uBpGstType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>GST Type</FormLabel>
+                  <FormLabel>GST Type *</FormLabel>
                   <Select
                     onValueChange={(val) => handleGstTypeChange(val, field.onChange)}
                     value={field.value || "G"}
@@ -641,7 +641,7 @@ function VendorFormBody({
                 const isExport = cardType === "C" && gstType === "E";
                 return (
                   <FormItem>
-                    <FormLabel>State of Supply</FormLabel>
+                    <FormLabel>State of Supply *</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value || "MH"}
