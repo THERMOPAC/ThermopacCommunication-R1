@@ -707,45 +707,11 @@ function CustomerFormBody({
             <h4 className="text-sm font-semibold text-violet-700">Tax / Commercial Info</h4>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <FormField
-              control={form.control}
-              name="cardType"
-              render={({ field }) => {
-                const cardType = field.value || "C";
-                const helperText =
-                  cardType === "C"
-                    ? "Export defaults applied (USD + GST E)"
-                    : cardType === "S"
-                    ? "Domestic defaults applied (INR + GST G)"
-                    : null;
-                return (
-                  <FormItem>
-                    <FormLabel>Card Type</FormLabel>
-                    <Select
-                      onValueChange={(val) => handleCardTypeChange(val, field.onChange)}
-                      value={cardType}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="C">Customer</SelectItem>
-                        <SelectItem value="S">Supplier</SelectItem>
-                        <SelectItem value="L">Lead</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {helperText && (
-                      <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
-                        {helperText}
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
-            />
+            {/* Card Type — locked to C (Customer), read-only display */}
+            <FormItem>
+              <FormLabel>Card Type</FormLabel>
+              <Input value="Customer (C)" readOnly className="bg-muted/60 cursor-not-allowed text-xs" />
+            </FormItem>
             <FormField
               control={form.control}
               name="currency"
@@ -989,7 +955,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   // Create customer mutation
   const createMutation = useMutation({
     mutationFn: async (data: CustomerFormValues) => {
-      return await apiRequest("POST", "/api/customers", data);
+      return await apiRequest("POST", "/api/customers", { ...data, cardType: "C" });
     },
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -1018,7 +984,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   // Update customer mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CustomerFormValues }) => {
-      return await apiRequest("PUT", `/api/customers/${id}`, data);
+      return await apiRequest("PUT", `/api/customers/${id}`, { ...data, cardType: "C" });
     },
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
