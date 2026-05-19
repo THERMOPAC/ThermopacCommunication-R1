@@ -24,7 +24,7 @@ interface SapBPData {
   GlobalLocationNumber?: string;
   U_PAN_Number?: string;
   U_StateSupply?: string;
-  U_BP_GST_Type?: string;
+  U_BP_GstType?: string;
 }
 
 class SapBPSyncService {
@@ -108,11 +108,16 @@ class SapBPSyncService {
 
     const countryCode = this.countryNameToCode(customer.countryName);
 
+    // Guard against dummy phone values that SAP rejects
+    const rawPhone = (customer.phone1 || '').trim();
+    const validPhone = rawPhone && rawPhone !== '-' && rawPhone !== '-111' && rawPhone !== 'NA'
+      ? rawPhone : undefined;
+
     const result: SapBPData = {
       CardCode: customer.bpCode,
       CardName: customer.bpName,
       CardType: cardTypeMap[customer.cardType] || 'cCustomer',
-      Cellular: customer.phone1 || undefined,
+      Cellular: validPhone,
       EmailAddress: customer.email || undefined,
       Country: countryCode,
       Currency: customer.currency || (customer.countryName === 'India' ? 'INR' : 'USD'),
@@ -171,7 +176,7 @@ class SapBPSyncService {
 
       const gstType = customer.uBpGstType;
       if (gstType && gstType.trim() !== '') {
-        result.U_BP_GST_Type = gstType;
+        result.U_BP_GstType = gstType;
       }
 
       const pan = customer.panNumber;
