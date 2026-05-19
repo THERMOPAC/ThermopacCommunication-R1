@@ -2866,6 +2866,27 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  app.get('/api/customers/next-vendor-bp-code', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const customers = await storage.getAllCustomers();
+      let maxNum = 10000;
+      for (const c of customers) {
+        if (c.bpCode) {
+          const match = c.bpCode.match(/^V(\d+)$/i);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+      }
+      const nextCode = 'V' + String(maxNum + 1);
+      res.json({ nextBpCode: nextCode });
+    } catch (error) {
+      console.error('Error generating next vendor BP code:', error);
+      sendError(res, error);
+    }
+  });
+
   app.get('/api/customers', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const customers = await storage.getAllCustomers();

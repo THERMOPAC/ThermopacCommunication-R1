@@ -968,12 +968,12 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
               setCurrencyManuallySet(false);
               setGstTypeManuallySet(false);
               try {
-                const res = await apiRequest("GET", "/api/customers/next-bp-code");
+                const res = await apiRequest("GET", "/api/customers/next-vendor-bp-code");
                 if (res?.nextBpCode) {
                   form.setValue('bpCode', res.nextBpCode);
                 }
               } catch (e) {
-                console.error('Failed to fetch next BP code:', e);
+                console.error('Failed to fetch next vendor BP code:', e);
               }
               setIsCreateDialogOpen(true);
             }}
