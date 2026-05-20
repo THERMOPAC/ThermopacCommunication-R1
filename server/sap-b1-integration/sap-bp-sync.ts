@@ -443,33 +443,27 @@ class SapBPSyncService {
           const patchAddresses: SapBPAddress[] = [];
 
           if (hasBillGranular) {
-            const billName = existingAddressName['bo_BillTo'];
-            if (billName) {
-              patchAddresses.push(this.buildGranularAddress(
-                billName, 'bo_BillTo',
-                customer.billAddrLine1, customer.billAddrLine2,
-                customer.billAddrBlock, customer.billAddrBuilding,
-                customer.billAddrCity, countryCode, stateCode,
-                patchGstin, patchGstType,
-              ));
-            } else {
-              console.log(`[SAP BP Sync] ${cardCode}: no existing bo_BillTo in SAP — bill address skipped`);
-            }
+            const billName = existingAddressName['bo_BillTo'] ?? 'Billing Address';
+            console.log(`[SAP BP Sync] ${cardCode}: bo_BillTo AddressName="${billName}" (${existingAddressName['bo_BillTo'] ? 'existing' : 'new'})`);
+            patchAddresses.push(this.buildGranularAddress(
+              billName, 'bo_BillTo',
+              customer.billAddrLine1, customer.billAddrLine2,
+              customer.billAddrBlock, customer.billAddrBuilding,
+              customer.billAddrCity, countryCode, stateCode,
+              patchGstin, patchGstType,
+            ));
           }
 
           if (hasShipGranular) {
-            const shipName = existingAddressName['bo_ShipTo'];
-            if (shipName) {
-              patchAddresses.push(this.buildGranularAddress(
-                shipName, 'bo_ShipTo',
-                customer.shipAddrLine1, customer.shipAddrLine2,
-                customer.shipAddrBlock, customer.shipAddrBuilding,
-                customer.shipAddrCity, countryCode, stateCode,
-                patchGstin, patchGstType,
-              ));
-            } else {
-              console.log(`[SAP BP Sync] ${cardCode}: no existing bo_ShipTo in SAP — ship address skipped`);
-            }
+            const shipName = existingAddressName['bo_ShipTo'] ?? 'Shipping Address';
+            console.log(`[SAP BP Sync] ${cardCode}: bo_ShipTo AddressName="${shipName}" (${existingAddressName['bo_ShipTo'] ? 'existing' : 'new'})`);
+            patchAddresses.push(this.buildGranularAddress(
+              shipName, 'bo_ShipTo',
+              customer.shipAddrLine1, customer.shipAddrLine2,
+              customer.shipAddrBlock, customer.shipAddrBuilding,
+              customer.shipAddrCity, countryCode, stateCode,
+              patchGstin, patchGstType,
+            ));
           }
 
           if (patchAddresses.length > 0) {
