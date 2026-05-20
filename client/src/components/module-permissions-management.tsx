@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, getQueryFn } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useReauthMutation } from '@/hooks/use-reauth';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -146,56 +147,46 @@ const ModulePermissionsManagement: React.FC = () => {
   });
   
   // Set custom permissions for a user
-  const updatePermissionMutation = useMutation<any, Error, { userId: number, moduleName: string, permissions: Partial<ModulePermission> }>({
-    mutationFn: async ({ userId, moduleName, permissions }: { userId: number, moduleName: string, permissions: Partial<ModulePermission> }) => {
-      // Create a proper permissions object to send to the API
-      // Include isCustom field to ensure server knows this is a custom permission
+  const updatePermissionMutation = useReauthMutation<any, { userId: number, moduleName: string, permissions: Partial<ModulePermission> }>({
+    mutationFn: async ({ userId, moduleName, permissions }) => {
       const permissionsToSend = {
         ...permissions,
         isCustom: true
       };
-      
-      // Using apiRequest to handle the response
       return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissionsToSend);
     },
-    // We're removing the optimistic update as it might be causing issues
-    onSuccess: async (data, variables) => {
-      // After successful update, get the latest permissions from server
+    onSuccess: async () => {
       await refetchUserPermissions();
-      
       toast({
         title: "Permissions updated",
         description: "The user's permissions have been successfully updated.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error updating permissions",
-        description: error.message || "Failed to update permissions. Please try again.",
+        description: error?.message || "Failed to update permissions. Please try again.",
         variant: "destructive",
       });
     }
   });
-  
+
   // Reset permissions for a user
-  const resetPermissionMutation = useMutation<any, Error, { userId: number, moduleName: string }>({
-    mutationFn: async ({ userId, moduleName }: { userId: number, moduleName: string }) => {
-      // apiRequest automatically handles response properly
+  const resetPermissionMutation = useReauthMutation<any, { userId: number, moduleName: string }>({
+    mutationFn: async ({ userId, moduleName }) => {
       return await apiRequest('DELETE', `/api/users/${userId}/module-permissions/${moduleName}`);
     },
     onSuccess: async () => {
-      // After successful reset, get the latest permissions from server
       await refetchUserPermissions();
-      
       toast({
         title: "Permissions reset",
         description: "The user's permissions have been reset to role defaults.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error resetting permissions",
-        description: error.message,
+        description: error?.message || "Failed to reset permissions. Please try again.",
         variant: "destructive",
       });
     }
