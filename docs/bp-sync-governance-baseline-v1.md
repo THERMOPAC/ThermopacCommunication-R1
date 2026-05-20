@@ -352,4 +352,49 @@ All create, update, and retry outcomes (success and failure) are written to `sap
 
 ---
 
-*Document authored by THERMOPAC QMS engineering. Phase 1 baseline: 2026-05-19. Phase 2A update: 2026-05-19.*
+## 13. SAP Service Layer — BP PATCH Rules (Confirmed 2026-05-20)
+
+These rules are confirmed by live diagnostic tests against `TPEL_LIVE` and govern all outbound BP update calls.
+
+### 13.1 PATCH Method
+
+- `PATCH /b1s/v1/BusinessPartners('{CardCode}')` is the correct method for BP updates.
+- `CardCode` is **read-only** — it must never appear in the PATCH body. SAP ignores it or rejects the call if included.
+
+### 13.2 BPAddresses — RowNum Required for Existing Rows
+
+- When updating existing address rows, each entry in `BPAddresses` **must include `RowNum`** matching the value SAP returned on the prior GET.
+- Without `RowNum`, SAP treats the address entry as a new INSERT. This causes duplicate rows in CRD1 and will eventually produce ODBC -2035 on the next PATCH.
+- `RowNum` is obtained by fetching the BP via GET before the PATCH and capturing the `RowNum` value per `AddressType`. The lowest `RowNum` per `AddressType` is the canonical row.
+
+### 13.3 ODBC -2035 — Deterministic Classification
+
+| Scenario | Classification | Action |
+|---|---|---|
+| PATCH without `RowNum` → SAP inserts duplicate → next PATCH fails | **Client-side error** — missing `RowNum` | Fix payload to include `RowNum` |
+| PATCH with correct `RowNum`, `AddressName`, `AddressType`, and all India-localisation fields echoed verbatim → still fails with -2035 | **SAP-side data conflict** for that CardCode | Do not retry. Set `sap_sync_status='failed'`. SAP B1 administrator must inspect `CRD1`, `OCRG`, and TAAS-related tables in SQL Server for the affected CardCode and resolve the duplicate entry there. |
+
+### 13.4 India Localisation Fields
+
+SAP B1 India localisation adds the following fields to `BPAddresses` that are **not present in non-India BPs**:
+
+| Service Layer field | CRD1 column | Notes |
+|---|---|---|
+| `GSTIN` | `GSTRegnNo` | GSTIN per address row. May carry a unique constraint in a secondary India GST table. |
+| `GstType` | `GstType` | GST registration type (e.g. `gstRegularTDSISD`). |
+| `TaasEnabled` | `TaasEnabled` | Tax Account Assignment flag. Always `"tYES"` for active India BPs. |
+
+**Diagnostic confirmed (2026-05-20):** Echoing all three fields back verbatim does NOT resolve ODBC -2035 when the conflict is SAP-side. These fields are therefore not a required fix for the payload — the conflict exists in a secondary SAP table, not in the Service Layer payload.
+
+### 13.5 `sap_sync_status` Outcomes — Two States Only
+
+| `sapResult.success` | `sap_sync_status` | `sap_sync_error` |
+|---|---|---|
+| `true` | `synced` | `NULL` |
+| `false` | `failed` | SAP error text (human-readable) |
+
+No partial sync state. No `synced` status when an error or warning exists. If BPAddresses PATCH causes ODBC -2035, the entire update is classified as `failed` and the error message directs the user to resolve the conflict in SAP B1 directly.
+
+---
+
+*Document authored by THERMOPAC QMS engineering. Phase 1 baseline: 2026-05-19. Phase 2A update: 2026-05-19. Section 13 added: 2026-05-20.*
