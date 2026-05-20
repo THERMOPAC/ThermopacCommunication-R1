@@ -4076,10 +4076,17 @@ export function setupProjectRoutes(app: express.Express) {
         console.log(`[vendor-sap-sync] fetched ${allRows.length} from SAP, ${totalFetched} pass V-prefix filter`);
       }
 
-      const existingRes = await pool.query<{ sap_card_code: string }>(
-        `SELECT sap_card_code FROM customers WHERE sap_card_code IS NOT NULL`,
+      // Build existingCodes from both sap_card_code AND bp_code so that vendors
+      // whose sap_card_code was never populated (NULL) are still recognised as
+      // existing and routed to the UPDATE path instead of INSERT.
+      const existingRes = await pool.query<{ sap_card_code: string | null; bp_code: string | null }>(
+        `SELECT sap_card_code, bp_code FROM customers WHERE sap_card_code IS NOT NULL OR bp_code IS NOT NULL`,
       );
-      const existingCodes = new Set(existingRes.rows.map((r) => r.sap_card_code));
+      const existingCodes = new Set<string>();
+      for (const r of existingRes.rows) {
+        if (r.sap_card_code) existingCodes.add(r.sap_card_code);
+        if (r.bp_code) existingCodes.add(r.bp_code);
+      }
 
       for (const row of filteredRows) {
         if (existingCodes.has(row.CardCode)) {
@@ -4090,6 +4097,7 @@ export function setupProjectRoutes(app: express.Express) {
           console.log(`[vendor-sap-sync] SAVING ${row.CardCode} → glbl_loc_num="${vGstin2 ?? 'null'}" pan_number="${row.UPanNumber || 'null'}"`);
           await pool.query(
             `UPDATE customers SET
+               sap_card_code      = $1,
                bp_name            = $2,
                card_type          = 'V',
                phone1             = COALESCE(NULLIF(phone1,''),             $3),
@@ -4126,7 +4134,7 @@ export function setupProjectRoutes(app: express.Express) {
                ship_addr_building = $33,
                ship_addr_city     = $34,
                sap_synced_at = NOW(), updated_at = NOW()
-             WHERE sap_card_code = $1`,
+             WHERE sap_card_code = $1 OR (sap_card_code IS NULL AND bp_code = $1)`,
             [
               row.CardCode,
               row.CardName || null,
