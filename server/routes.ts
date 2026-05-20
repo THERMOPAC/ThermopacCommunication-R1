@@ -83,6 +83,7 @@ import { default as calendarAttendanceRoutes } from "./calendar-attendance-route
 import { default as loanAdvanceRoutes } from "./loan-advance-routes";
 import { default as statutoryComplianceRoutes } from "./statutory-compliance-routes";
 import { default as vendorComplianceRoutes } from "./vendor-compliance-routes";
+import { default as companyRoutes } from "./company-routes";
 import { default as companyTaxRoutes } from "./company-tax-routes";
 import { default as salaryCalculationRoutes } from "./salary-calculation-routes";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
@@ -756,6 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/loan-advance', loanAdvanceRoutes);
   app.use('/api/statutory', statutoryComplianceRoutes);
   app.use('/api/vendor-compliance', vendorComplianceRoutes);
+  app.use('/api/company', companyRoutes);
   app.use('/api/company-tax', companyTaxRoutes);
   console.log('Payroll routes registered at /api/payroll');
   console.log('Statutory compliance routes registered at /api/statutory');
@@ -3929,6 +3931,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupGcsGovernanceRoutes(app);
   const { seedGovernanceData } = await import('./services/gcs-governance-service');
   seedGovernanceData();
+  const { seedCompanyData } = await import('./company-seed');
+  seedCompanyData();
 
   const { setupPlcEscalationJob, setupCockpitSummaryRefresh } = await import('./plc-escalation-job');
   setupPlcEscalationJob();

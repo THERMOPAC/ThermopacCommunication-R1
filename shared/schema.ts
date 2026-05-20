@@ -14452,3 +14452,213 @@ export const documentAgentJobs = pgTable('document_agent_jobs', {
   updatedAt:        timestamp('updated_at').notNull().defaultNow(),
 });
 export type DocumentAgentJob = typeof documentAgentJobs.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Company Information Master — 8 tables
+// Phase 1 baseline: docs/company-information-master-baseline-v1.md
+// Partial unique indexes created at startup via company-seed.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const COMPANY_DOC_TYPES = [
+  'GST_CERTIFICATE',
+  'PAN_CARD',
+  'IEC_CERTIFICATE',
+  'LUT_COPY',
+  'MSME_CERTIFICATE',
+  'CANCELLED_CHEQUE',
+  'INCORPORATION_CERTIFICATE',
+  'FACTORY_LICENSE',
+  'PF_ESI_DOCUMENT',
+] as const;
+
+export const COMPANY_DOC_LABELS: Record<string, string> = {
+  GST_CERTIFICATE:          'GST Certificate',
+  PAN_CARD:                 'PAN Card',
+  IEC_CERTIFICATE:          'IEC Certificate',
+  LUT_COPY:                 'LUT Copy',
+  MSME_CERTIFICATE:         'MSME Certificate',
+  CANCELLED_CHEQUE:         'Cancelled Cheque',
+  INCORPORATION_CERTIFICATE:'Incorporation Certificate',
+  FACTORY_LICENSE:          'Factory License',
+  PF_ESI_DOCUMENT:          'PF / ESI Documents',
+};
+
+export const COMPANY_DOC_MANDATORY = [
+  'GST_CERTIFICATE',
+  'PAN_CARD',
+  'CANCELLED_CHEQUE',
+  'INCORPORATION_CERTIFICATE',
+];
+
+export const COMPANY_ADDRESS_TYPES = [
+  'registered_office',
+  'corporate_office',
+  'factory',
+  'dispatch',
+  'billing',
+] as const;
+
+export const ISO4217_ALLOWLIST = ['INR','USD','EUR','GBP','AED','SGD','JPY','CHF'] as const;
+
+// 1. company_master
+export const companyMaster = pgTable('company_master', {
+  id:               serial('id').primaryKey(),
+  companyCode:      varchar('company_code', { length: 10 }).notNull().unique(),
+  shortName:        varchar('short_name', { length: 30 }).notNull(),
+  legalName:        varchar('legal_name', { length: 120 }).notNull(),
+  displayName:      varchar('display_name', { length: 120 }).notNull(),
+  companyType:      varchar('company_type', { length: 40 }),
+  industry:         varchar('industry', { length: 80 }),
+  fyStartMonth:     integer('fy_start_month').notNull().default(4),
+  baseCurrency:     varchar('base_currency', { length: 3 }).notNull().default('INR'),
+  timezone:         varchar('timezone', { length: 60 }).notNull().default('Asia/Kolkata'),
+  logoGcsPath:      text('logo_gcs_path'),
+  signatureGcsPath: text('signature_gcs_path'),
+  sealGcsPath:      text('seal_gcs_path'),
+  isActive:         boolean('is_active').notNull().default(true),
+  version:          integer('version').notNull().default(1),
+  createdBy:        integer('created_by'),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+export type CompanyMaster = typeof companyMaster.$inferSelect;
+
+// 2. company_legal_tax (1:1 with company_master)
+export const companyLegalTax = pgTable('company_legal_tax', {
+  id:                   serial('id').primaryKey(),
+  companyId:            integer('company_id').notNull().unique(),
+  cin:                  varchar('cin', { length: 21 }),
+  pan:                  varchar('pan', { length: 10 }),
+  gstin:                varchar('gstin', { length: 15 }),
+  iecCode:              varchar('iec_code', { length: 10 }),
+  iecBranch:            varchar('iec_branch', { length: 40 }),
+  lutNumber:            varchar('lut_number', { length: 40 }),
+  lutValidityDate:      date('lut_validity_date'),
+  lutFinancialYear:     varchar('lut_financial_year', { length: 10 }),
+  msmeUdyam:            varchar('msme_udyam', { length: 20 }),
+  tan:                  varchar('tan', { length: 10 }),
+  pfNumber:             varchar('pf_number', { length: 20 }),
+  esiNumber:            varchar('esi_number', { length: 17 }),
+  gstRegistrationType:  varchar('gst_registration_type', { length: 40 }),
+  gstStateCode:         varchar('gst_state_code', { length: 3 }),
+  exportWithoutGst:     boolean('export_without_gst').notNull().default(false),
+  adCode:               varchar('ad_code', { length: 14 }),
+  authorizedDealerBank: varchar('authorized_dealer_bank', { length: 80 }),
+  version:              integer('version').notNull().default(1),
+  updatedBy:            integer('updated_by'),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+});
+export type CompanyLegalTax = typeof companyLegalTax.$inferSelect;
+
+// 3. company_addresses
+export const companyAddresses = pgTable('company_addresses', {
+  id:           serial('id').primaryKey(),
+  companyId:    integer('company_id').notNull(),
+  addressType:  varchar('address_type', { length: 30 }).notNull(),
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  city:         varchar('city', { length: 60 }),
+  district:     varchar('district', { length: 60 }),
+  state:        varchar('state', { length: 60 }),
+  country:      varchar('country', { length: 60 }).notNull().default('India'),
+  pinCode:      varchar('pin_code', { length: 10 }),
+  geoLat:       numeric('geo_lat', { precision: 10, scale: 6 }),
+  geoLng:       numeric('geo_lng', { precision: 10, scale: 6 }),
+  isActive:     boolean('is_active').notNull().default(true),
+  version:      integer('version').notNull().default(1),
+  updatedBy:    integer('updated_by'),
+  updatedAt:    timestamp('updated_at').notNull().defaultNow(),
+});
+export type CompanyAddress = typeof companyAddresses.$inferSelect;
+
+// 4. company_bank_accounts
+export const companyBankAccounts = pgTable('company_bank_accounts', {
+  id:              serial('id').primaryKey(),
+  companyId:       integer('company_id').notNull(),
+  bankName:        varchar('bank_name', { length: 80 }).notNull(),
+  branch:          varchar('branch', { length: 80 }),
+  beneficiaryName: varchar('beneficiary_name', { length: 120 }).notNull(),
+  accountNumber:   varchar('account_number', { length: 20 }).notNull(),
+  ifsc:            varchar('ifsc', { length: 11 }),
+  swift:           varchar('swift', { length: 11 }),
+  iban:            varchar('iban', { length: 34 }),
+  currency:        varchar('currency', { length: 3 }).notNull().default('INR'),
+  isPrimary:       boolean('is_primary').notNull().default(false),
+  isActive:        boolean('is_active').notNull().default(true),
+  version:         integer('version').notNull().default(1),
+  createdBy:       integer('created_by'),
+  createdAt:       timestamp('created_at').notNull().defaultNow(),
+  updatedAt:       timestamp('updated_at').notNull().defaultNow(),
+});
+export type CompanyBankAccount = typeof companyBankAccounts.$inferSelect;
+
+// 5. company_erp_config (1:1 with company_master)
+export const companyErpConfig = pgTable('company_erp_config', {
+  id:                   serial('id').primaryKey(),
+  companyId:            integer('company_id').notNull().unique(),
+  sapCompanyDb:         varchar('sap_company_db', { length: 60 }),
+  sapBranchCode:        varchar('sap_branch_code', { length: 20 }),
+  defaultWarehouse:     varchar('default_warehouse', { length: 40 }),
+  defaultCostCenter:    varchar('default_cost_center', { length: 40 }),
+  defaultPaymentTerms:  varchar('default_payment_terms', { length: 80 }),
+  defaultDeliveryTerms: varchar('default_delivery_terms', { length: 80 }),
+  baseUom:              varchar('base_uom', { length: 20 }),
+  decimalPrecision:     integer('decimal_precision').notNull().default(2),
+  version:              integer('version').notNull().default(1),
+  updatedBy:            integer('updated_by'),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+});
+export type CompanyErpConfig = typeof companyErpConfig.$inferSelect;
+
+// 6. company_branding (1:1 with company_master)
+export const companyBranding = pgTable('company_branding', {
+  id:                serial('id').primaryKey(),
+  companyId:         integer('company_id').notNull().unique(),
+  defaultLetterhead: text('default_letterhead'),
+  footerText:        text('footer_text'),
+  termsConditions:   text('terms_conditions'),
+  rfqFooter:         text('rfq_footer'),
+  offerFooter:       text('offer_footer'),
+  purchaseFooter:    text('purchase_footer'),
+  reportWatermark:   text('report_watermark'),
+  version:           integer('version').notNull().default(1),
+  updatedBy:         integer('updated_by'),
+  updatedAt:         timestamp('updated_at').notNull().defaultNow(),
+});
+export type CompanyBranding = typeof companyBranding.$inferSelect;
+
+// 7. company_documents — GCS-governed revision chain
+export const companyDocuments = pgTable('company_documents', {
+  id:             serial('id').primaryKey(),
+  companyId:      integer('company_id').notNull(),
+  docType:        varchar('doc_type', { length: 40 }).notNull(),
+  revisionNumber: integer('revision_number').notNull().default(1),
+  fileName:       varchar('file_name', { length: 255 }).notNull(),
+  gcsPath:        text('gcs_path').notNull(),
+  contentType:    varchar('content_type', { length: 80 }),
+  sizeBytes:      integer('size_bytes'),
+  status:         varchar('status', { length: 20 }).notNull().default('uploaded'),
+  expiryDate:     date('expiry_date'),
+  isActive:       boolean('is_active').notNull().default(true),
+  uploadedBy:     integer('uploaded_by').notNull(),
+  uploadedAt:     timestamp('uploaded_at').notNull().defaultNow(),
+  notes:          text('notes'),
+});
+export type CompanyDocument = typeof companyDocuments.$inferSelect;
+
+// 8. company_audit_log — append-only, permanent retention
+export const companyAuditLog = pgTable('company_audit_log', {
+  id:         serial('id').primaryKey(),
+  companyId:  integer('company_id').notNull(),
+  action:     varchar('action', { length: 40 }).notNull(),
+  tableName:  varchar('table_name', { length: 60 }),
+  fieldName:  varchar('field_name', { length: 80 }),
+  oldValue:   text('old_value'),
+  newValue:   text('new_value'),
+  changedBy:  integer('changed_by'),
+  changedAt:  timestamp('changed_at').notNull().defaultNow(),
+  ipAddress:  varchar('ip_address', { length: 45 }),
+  userAgent:  text('user_agent'),
+  notes:      text('notes'),
+});
+export type CompanyAuditLog = typeof companyAuditLog.$inferSelect;

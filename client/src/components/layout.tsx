@@ -205,7 +205,7 @@ function Layout({ children }: LayoutProps) {
                         location === '/finance/brc';
   
   // Check if we're on any administration-related page
-  const isOnAdministrationPage = location.startsWith('/admin') ||
+  const isOnAdministrationPage = location.startsWith('/administration') || location.startsWith('/admin') ||
                                location === '/module-permissions';
 
   // Check if we're on any meetings-related page
@@ -355,6 +355,7 @@ function Layout({ children }: LayoutProps) {
       toggle: () => setIsAdministrationMenuOpen(!isAdministrationMenuOpen),
       children: [
         { icon: Settings, label: "Administration Dashboard", href: "/admin" },
+        { icon: Building2, label: "Company Information", href: "/administration/company-information" },
         { icon: UserCog, label: "User Management", href: "/admin/users" },
         { icon: CalendarClock, label: "Attendance Management", href: "/admin/attendance" },
         { icon: Calendar, label: "Leave Management", href: "/admin/leave" },

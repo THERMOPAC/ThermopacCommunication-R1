@@ -149,6 +149,7 @@ function Router() {
       <ProtectedRoute path="/finance/company-income-tax" component={() => <Finance.CompanyIncomeTaxPage />} />
       
       {/* Administration Module Routes */}
+      <ProtectedRoute path="/administration/company-information" component={() => <Admin.CompanyInformationPage />} />
       <ProtectedRoute path="/admin/settings" component={() => <Admin.SystemSettingsPage />} />
       <ProtectedRoute path="/admin" component={() => <Admin.AdministrationPage />} />
       <ProtectedRoute path="/admin/administration" component={() => <Layout><Admin.AdministrationPage /></Layout>} />
