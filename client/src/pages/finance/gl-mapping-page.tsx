@@ -159,6 +159,7 @@ export default function GlMappingPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterContext, setFilterContext] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchName, setSearchName] = useState<string>('');
   const [form, setForm] = useState({ glAccountCode: '', glAccountName: '' });
   const [sapAccounts, setSapAccounts] = useState<any[]>([]);
   const [sapLoading, setSapLoading] = useState(false);
@@ -305,6 +306,12 @@ export default function GlMappingPage() {
     if (filterContext !== 'all' && m.postingContext !== filterContext) return false;
     if (filterStatus === 'mapped' && !isMapped(m)) return false;
     if (filterStatus === 'unmapped' && isMapped(m)) return false;
+    if (searchName.trim() !== '') {
+      const q = searchName.trim().toLowerCase();
+      const nameMatch = (m.componentName || '').toLowerCase().includes(q);
+      const codeMatch = (m.componentCode || '').toLowerCase().includes(q);
+      if (!nameMatch && !codeMatch) return false;
+    }
     return true;
   });
 
@@ -466,6 +473,15 @@ export default function GlMappingPage() {
       )}
 
       <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            className="pl-8 w-56"
+            placeholder="Search component name…"
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+          />
+        </div>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="w-52"><SelectValue placeholder="Filter by Category" /></SelectTrigger>
           <SelectContent>
@@ -488,8 +504,8 @@ export default function GlMappingPage() {
             <SelectItem value="unmapped">Unmapped Only</SelectItem>
           </SelectContent>
         </Select>
-        {(filterCategory !== 'all' || filterContext !== 'all' || filterStatus !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setFilterCategory('all'); setFilterContext('all'); setFilterStatus('all'); }}>
+        {(filterCategory !== 'all' || filterContext !== 'all' || filterStatus !== 'all' || searchName.trim() !== '') && (
+          <Button variant="ghost" size="sm" onClick={() => { setFilterCategory('all'); setFilterContext('all'); setFilterStatus('all'); setSearchName(''); }}>
             Clear Filters
           </Button>
         )}
