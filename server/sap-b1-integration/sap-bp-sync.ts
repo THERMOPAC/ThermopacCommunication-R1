@@ -374,6 +374,9 @@ class SapBPSyncService {
             }
           }
           console.log(`[SAP BP Sync] Fetched ${allExistingAddresses.length} existing address(es) for ${cardCode}:`, existingAddressName);
+          for (const a of allExistingAddresses) {
+            console.log(`[SAP BP Sync]   row — RowNum:${a.RowNum ?? 'n/a'} | AddressType:${a.AddressType ?? 'n/a'} | AddressName:"${a.AddressName ?? ''}" | AddressName2:"${a.AddressName2 ?? ''}"`);
+          }
         }
       } catch (e: any) {
         console.warn(`[SAP BP Sync] Could not pre-fetch BP data for ${cardCode}: ${e.message}`);
