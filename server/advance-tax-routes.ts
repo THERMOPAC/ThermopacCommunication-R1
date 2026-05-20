@@ -3,6 +3,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { db } from './db';
 import { advanceTaxCalculations, advanceTaxPayments, users } from '@shared/schema';
 import { ensureAuthenticated } from './auth-middleware';
+import { getActiveCompany } from './utils/company-context';
 
 const router = Router();
 
@@ -88,7 +89,7 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
   try {
     const userId = req.user!.id;
     const {
-      companyName = 'TPEL',
+      companyName: companyNameFromBody,
       financialYear,
       annualTaxableIncome,
       taxRate,
@@ -105,6 +106,16 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
       notes,
       estimationData
     } = req.body;
+
+    let companyName: string = companyNameFromBody || '';
+    if (!companyName) {
+      try {
+        const co = await getActiveCompany();
+        companyName = co.companyCode;
+      } catch {
+        companyName = 'TPEL';
+      }
+    }
 
     // Calculate tax amounts
     const income = parseFloat(annualTaxableIncome);

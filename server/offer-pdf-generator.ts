@@ -3,6 +3,20 @@ import { Response } from 'express';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getActiveCompany, ActiveCompanyContext } from './utils/company-context';
+
+// ─── Company fallback — used when FF_COMPANY_LIVE_PDF is off ──────────────────
+const OFFER_COMPANY_FALLBACK = {
+  legalName:   'THERMOPAC PROCESS ENGINEERING LLP',
+  displayName: 'THERMOPAC Process Engineering LLP',
+  shortName:   'THERMOPAC',
+  phone:       '+91 22 2617 8080 to 84',
+  fax:         '+91 22 2617 8084',
+  email:       'sales@thermopac.in',
+  logoPath:    path.join(process.cwd(), 'client', 'public', 'assets', 'thermopac-logo.jpg'),
+  address:     'THERMOPAC | L 4, 405 The Summit Business Bay, Vile Parle (East), W E Highway, Mumbai India 400 057',
+  introText:   `Thermopac is building the Re-refining plants and equipment's Since 1986, Thermopac has developed in-house technology for lower Capex and higher yields. We have the state of the art Manufacturing facility located at Rabale near Navi Mumbai. We manufacture all key equipment's like evaporator, distillation columns, etc. and forward integration for grease, lubricants, etc.\n\nWe have constructed more than 35 Re-refining plants in 5 different Continents. All these Re-refining plants manufacture environment-friendly re-refine Base Oil\n\nWe build refineries / Lubricant re-refining plants with modular construction with a room to enhance the capacity. We take pride to mention that Thermopac is the only company that is building true turnkey re-refinery plants all over the Globe\n\nMoreover, Thermopac expertise extends beyond the construction of re-refinery plants. The company offers a range of services, including technical support, training, and ongoing maintenance. This holistic approach ensures that clients can operate their plants efficiently and effectively, maximizing their investment and achieving long-term success. Thermopac dedication to customer satisfaction is evident in their commitment to providing top-notch service and support throughout the entire lifecycle of the plant.`,
+};
 
 interface OfferPdfData {
   offerNumber: string;
@@ -49,17 +63,8 @@ const ENGLISH_STRINGS = {
   sub: 'Sub.:',
   dear: 'Dear',
   dearSirMadam: 'Dear Sir/Madam,',
-  introText: `We are pleased to submit our Techno-Commercial proposal for the Design, Engineering, and Manufacture, supply, installation and commissioning.
-Our portfolio consists off Lubricant re-refining plants, Regenerative type base oil polishing system & Lubricant Blending Plant
-
-Thermopac is building the Re-refining plants and equipment's Since 1986, Thermopac has developed in-house technology for lower Capex and higher yields. We have the state of the art Manufacturing facility located at Rabale near Navi Mumbai. We manufacture all key equipment's like evaporator, distillation columns, etc. and forward integration for grease, lubricants, etc.
-
-We have constructed more than 35 Re-refining plants in 5 different Continents. All these Re-refining plants manufacture environment-friendly re-refine Base Oil
-
-We build refineries / Lubricant re-refining plants with modular construction with a room to enhance the capacity. We take pride to mention that Thermopac is the only company that is building true turnkey re-refinery plants all over the Globe
-
-Moreover, Thermopac expertise extends beyond the construction of re-refinery plants. The company offers a range of services, including technical support, training, and ongoing maintenance. This holistic approach ensures that clients can operate their plants efficiently and effectively, maximizing their investment and achieving long-term success. Thermopac dedication to customer satisfaction is evident in their commitment to providing top-notch service and support throughout the entire lifecycle of the plant.`,
-  forThermopac: 'For THERMOPAC',
+  introText: `We are pleased to submit our Techno-Commercial proposal for the Design, Engineering, and Manufacture, supply, installation and commissioning.\nOur portfolio consists off Lubricant re-refining plants, Regenerative type base oil polishing system & Lubricant Blending Plant\n\n${OFFER_COMPANY_FALLBACK.introText}`,
+  forThermopac: `For ${OFFER_COMPANY_FALLBACK.shortName}`,
   turnkeyDivision: '(Turnkey Engineering Solution Division)',
   marketingManager: 'Marketing Manager',
   priceSchedule: 'PRICE SCHEDULE',
@@ -91,6 +96,7 @@ export class OfferPdfGenerator {
   private data: OfferPdfData;
   private strings = ENGLISH_STRINGS;
   private priceMode: 'combined' | 'breakup' | 'technical' = 'breakup';
+  private companyCtx: ActiveCompanyContext | null = null;
 
   constructor(data: OfferPdfData, options?: { priceMode?: 'combined' | 'breakup' | 'technical' }) {
     this.data = data;
@@ -102,10 +108,29 @@ export class OfferPdfGenerator {
       bufferPages: true,
       info: {
         Title: `Offer ${data.offerNumber}`,
-        Author: 'THERMOPAC',
+        Author: OFFER_COMPANY_FALLBACK.shortName,
         Subject: data.subject,
       },
     });
+  }
+
+  private async loadCompanyContext(): Promise<void> {
+    const FF_LIVE_PDF = process.env.FF_COMPANY_LIVE_PDF === 'true';
+    if (FF_LIVE_PDF) {
+      this.companyCtx = await getActiveCompany();
+      this.doc.info['Author'] = this.companyCtx.shortName;
+      this.strings = {
+        ...ENGLISH_STRINGS,
+        introText: `We are pleased to submit our Techno-Commercial proposal for the Design, Engineering, and Manufacture, supply, installation and commissioning.\nOur portfolio consists off Lubricant re-refining plants, Regenerative type base oil polishing system & Lubricant Blending Plant\n\n${this.companyCtx.description ?? OFFER_COMPANY_FALLBACK.introText}`,
+        forThermopac: `For ${this.companyCtx.displayName}`,
+      };
+    } else {
+      this.companyCtx = null;
+    }
+  }
+
+  private get co(): ActiveCompanyContext | null {
+    return this.companyCtx;
   }
 
   private formatNumber(val: string | number): string {
@@ -140,9 +165,11 @@ export class OfferPdfGenerator {
   private drawHeader(): void {
     this.currentY = this.margin;
 
-    const logoPath = path.join(process.cwd(), 'client', 'public', 'assets', 'thermopac-logo.jpg');
+    const logoPath = this.co?.logoGcsPath
+      ? null
+      : OFFER_COMPANY_FALLBACK.logoPath;
     try {
-      if (fs.existsSync(logoPath)) {
+      if (logoPath && fs.existsSync(logoPath)) {
         const logoWidth = 60;
         const logoHeight = 17;
         const logoX = this.pageWidth - this.margin - logoWidth;
@@ -625,16 +652,17 @@ export class OfferPdfGenerator {
       'Commissioning and final acceptance testing shall include mechanical and process commissioning of the Equipment to demonstrate its ability to produce products in accordance with the offer above. In performing the commissioning and testing it shall be the responsibility of Customer to provide the raw material/fuel required to operate the Equipment at desired levels, along with operational and maintenance personnel sufficient to operate the Equipment.',
       10,
     );
+    const cn = this.co?.shortName ?? OFFER_COMPANY_FALLBACK.shortName;
     this.drawTermsBody(
-      'THERMOPAC\'s sole responsibility will be to provide technical assistance and guidance of the overall equipment commissioning test procedure. Equipment acceptance testing shall commence upon seven (7) calendar days\' notice by Customer to THERMOPAC that the plant has been completed to the point that such trials can begin following the delivery and installation of the equipment and structure and final installation activities of Customer.',
+      `${cn}'s sole responsibility will be to provide technical assistance and guidance of the overall equipment commissioning test procedure. Equipment acceptance testing shall commence upon seven (7) calendar days' notice by Customer to ${cn} that the plant has been completed to the point that such trials can begin following the delivery and installation of the equipment and structure and final installation activities of Customer.`,
       10,
     );
     this.drawTermsBody(
-      'THERMOPAC will then provide Customer a detailed plan for process commission of the Equipment. Final Acceptance and the date of Final Acceptance shall have deemed to have occurred upon the Equipment operating per the specifications set forth in the offer above for Twelve Hours (12) Hours Test run performance guarantee operation.',
+      `${cn} will then provide Customer a detailed plan for process commission of the Equipment. Final Acceptance and the date of Final Acceptance shall have deemed to have occurred upon the Equipment operating per the specifications set forth in the offer above for Twelve Hours (12) Hours Test run performance guarantee operation.`,
       10,
     );
     this.drawTermsBody(
-      'Services for commissioning and Final Acceptance include the services of THERMOPAC\'s representative(s) on-site for up to Three (3) days with additional Twelve Hours (12) Hours Test run performance guarantee operation after operation begins to ensure that the installation has been made in a good and workmanlike manner from the point of view of mechanical working and to set various controls that are necessary. THERMOPAC will further conduct all necessary demonstrations and training to Customer for the purpose of user education and for the operation / maintenance of the equipment.',
+      `Services for commissioning and Final Acceptance include the services of ${cn}'s representative(s) on-site for up to Three (3) days with additional Twelve Hours (12) Hours Test run performance guarantee operation after operation begins to ensure that the installation has been made in a good and workmanlike manner from the point of view of mechanical working and to set various controls that are necessary. ${cn} will further conduct all necessary demonstrations and training to Customer for the purpose of user education and for the operation / maintenance of the equipment.`,
       10,
     );
 
@@ -738,8 +766,13 @@ export class OfferPdfGenerator {
       .lineTo(this.pageWidth - this.margin, footerY)
       .stroke();
 
-    const line1 = 'THERMOPAC | L 4, 405 The Summit Business Bay, Vile Parle (East), W E Highway, Mumbai India 400 057';
-    const line2 = 'Tel: +91 22 2617 8080 to 84 | Fax: +91 22 2617 8084 | E-Mail: sales@thermopac.in';
+    const co = this.co;
+    const line1 = co?.registeredOffice
+      ? `${co.shortName} | ${[co.registeredOffice.line1, co.registeredOffice.city, co.registeredOffice.pinCode].filter(Boolean).join(', ')}`
+      : OFFER_COMPANY_FALLBACK.address;
+    const line2 = co
+      ? `Tel: ${co.phone ?? ''} | Fax: ${co.fax ?? ''} | E-Mail: ${co.email ?? ''}`
+      : `Tel: ${OFFER_COMPANY_FALLBACK.phone} | Fax: ${OFFER_COMPANY_FALLBACK.fax} | E-Mail: ${OFFER_COMPANY_FALLBACK.email}`;
 
     this.doc.fontSize(6.5).font('Helvetica').fillColor('#999999');
     const w1 = this.doc.widthOfString(line1);
@@ -783,6 +816,7 @@ export class OfferPdfGenerator {
   }
 
   public async generateToBuffer(): Promise<Buffer> {
+    await this.loadCompanyContext();
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       this.doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -812,6 +846,7 @@ export class OfferPdfGenerator {
   }
 
   public async generate(res: Response): Promise<void> {
+    await this.loadCompanyContext();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -842,6 +877,7 @@ export class OfferPdfGenerator {
   }
 
   public async generateWithTemplateToBuffer(templatePdfPath: string, pageRange?: { startPage?: number | null; endPage?: number | null }): Promise<Buffer> {
+    await this.loadCompanyContext();
     const templateBytes = fs.readFileSync(templatePdfPath);
     const templateDoc = await PDFLibDocument.load(templateBytes);
     const mergedPdf = await PDFLibDocument.create();

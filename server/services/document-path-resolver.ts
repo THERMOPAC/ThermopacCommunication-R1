@@ -189,12 +189,25 @@ export function resolveDocumentIdentity(
 
 // ─── Sample path preview ─────────────────────────────────────────────────
 /**
+ * Call once at server startup after reading company_master.
+ * Stores the company code for use in previewResolvedPath defaults.
+ * If never called (startup guard failed), preview falls back to 'TPEL'.
+ */
+let _resolverCompanyCode: string | null = null;
+export function initDocumentPathResolver(companyCode: string): void {
+  _resolverCompanyCode = companyCode;
+}
+
+/**
  * Generates a sample resolved path using placeholder values for unset tokens.
  * Useful for UI preview without requiring a real project.
  */
 export function previewResolvedPath(template: string, partialCtx: Partial<TokenContext> = {}): string {
+  if (_resolverCompanyCode === null) {
+    console.warn('[document-path-resolver] previewResolvedPath called before initDocumentPathResolver — using fallback company code');
+  }
   const defaults: TokenContext = {
-    COMPANY: 'TPEL',
+    COMPANY: _resolverCompanyCode ?? 'TPEL',
     CC: 'EPC',
     CO: 'C10357',
     Cust: 'ApolloRefinery',

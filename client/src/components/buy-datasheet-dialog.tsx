@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FileSpreadsheet, Download, Loader2 } from "lucide-react";
 import { buildDatasheetEntries } from "@/lib/buy-subgroup-fields";
+import { useActiveCompany } from "@/hooks/use-active-company";
 
 export interface DatasheetLine {
   line_number?: number | null;
@@ -53,7 +54,9 @@ const S = StyleSheet.create({
 });
 
 // ── PDF Document component ─────────────────────────────────────────────────────
-function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
+function BuyDatasheetPdfDocument({ line, companyLegalName }: { line: DatasheetLine; companyLegalName?: string }) {
+  const displayLegalName = companyLegalName ?? 'THERMOPAC PROCESS ENGINEERING LLP';
+  const displayFooterName = companyLegalName ?? 'THERMOPAC Process Engineering LLP';
   const entries = buildDatasheetEntries(line.buy_subgroup_code, line.technical_attributes);
   const subgroupDisplay = line.buy_subgroup_label || line.buy_subgroup_code || "—";
   const groupDisplay    = line.buy_group_label    || line.buy_group_code    || "—";
@@ -66,7 +69,7 @@ function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
         {/* ── Header ── */}
         <View style={S.header}>
           <View style={S.hLeft}>
-            <Text style={S.hTitle}>THERMOPAC PROCESS ENGINEERING LLP</Text>
+            <Text style={S.hTitle}>{displayLegalName}</Text>
           </View>
           <View style={S.hRight}>
             <Text style={S.hBadge}>TECHNICAL DATASHEET</Text>
@@ -140,7 +143,7 @@ function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
 
         {/* ── Footer ── */}
         <View style={S.footer} fixed>
-          <Text style={S.footerText}>THERMOPAC Process Engineering LLP — THERMOPAC QMS</Text>
+          <Text style={S.footerText}>{displayFooterName} — THERMOPAC QMS</Text>
           <Text style={S.footerText}>CONFIDENTIAL — For internal use only</Text>
         </View>
       </Page>
@@ -149,8 +152,8 @@ function BuyDatasheetPdfDocument({ line }: { line: DatasheetLine }) {
 }
 
 // ── PDF download helper ────────────────────────────────────────────────────────
-export async function downloadDatasheetPdf(line: DatasheetLine): Promise<void> {
-  const blob = await pdf(<BuyDatasheetPdfDocument line={line} />).toBlob();
+export async function downloadDatasheetPdf(line: DatasheetLine, companyLegalName?: string): Promise<void> {
+  const blob = await pdf(<BuyDatasheetPdfDocument line={line} companyLegalName={companyLegalName} />).toBlob();
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
   a.href     = url;
@@ -168,6 +171,7 @@ export function DatasheetPreviewDialog({
   line, open, onClose,
 }: { line: DatasheetLine | null; open: boolean; onClose: () => void }) {
   const [downloading, setDownloading] = useState(false);
+  const { data: company } = useActiveCompany();
 
   if (!line) return null;
 
@@ -177,7 +181,7 @@ export function DatasheetPreviewDialog({
   async function handleDownload() {
     setDownloading(true);
     try {
-      await downloadDatasheetPdf(line!);
+      await downloadDatasheetPdf(line!, company?.legalName);
     } finally {
       setDownloading(false);
     }

@@ -2,6 +2,19 @@ import PDFDocument from 'pdfkit';
 import { Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import { getActiveCompany, ActiveCompanyContext } from './utils/company-context';
+
+// ─── Company fallback — used when FF_COMPANY_LIVE_PDF is off ──────────────────
+const SALARY_SLIP_COMPANY_FALLBACK = {
+  legalName:   'THERMOPAC PROCESS ENGINEERING LLP',
+  displayName: 'THERMOPAC Process Engineering LLP',
+  shortName:   'THERMOPAC',
+  phone:       '+91 22 2617 8080-84',
+  fax:         '+91 22 2617 8084',
+  email:       'sales@thermopac.in',
+  logoPath:    path.join(process.cwd(), 'client', 'public', 'images', 'thermopac-logo.jpg'),
+  address:     'THERMOPAC  |  L 4, 405 The Summit Business Bay, Vile Parle, Western Express Highway, Mumbai 400 057',
+};
 
 interface SalarySlipData {
   employee: {
@@ -95,6 +108,7 @@ export class SalarySlipGenerator {
   private ph: number = 841.89;
   private m: number = 36;
   private w: number;
+  private companyCtx: ActiveCompanyContext | null = null;
 
   constructor() {
     this.doc = new PDFDocument({ size: 'A4', margin: this.m });
@@ -111,6 +125,13 @@ export class SalarySlipGenerator {
   }
 
   async generateSalarySlip(data: SalarySlipData, res: Response): Promise<void> {
+    const FF_LIVE_PDF = process.env.FF_COMPANY_LIVE_PDF === 'true';
+    if (FF_LIVE_PDF) {
+      this.companyCtx = await getActiveCompany();
+    } else {
+      this.companyCtx = null;
+    }
+
     return new Promise((resolve, reject) => {
       try {
         const fn = `Salary_Slip_${data.employee.name.replace(/\s+/g, '_')}_${data.period.month}_${data.period.year}.pdf`;
@@ -156,7 +177,16 @@ export class SalarySlipGenerator {
 
     const headerH = 44;
 
-    const logoPath = path.join(process.cwd(), 'client', 'public', 'images', 'thermopac-logo.jpg');
+    const co = this.companyCtx;
+    const companyLegalName = co?.legalName ?? SALARY_SLIP_COMPANY_FALLBACK.legalName;
+    const companyAddress   = co?.registeredOffice
+      ? `${co.shortName}  |  ${[co.registeredOffice.line1, co.registeredOffice.city, co.registeredOffice.pinCode].filter(Boolean).join(', ')}`
+      : SALARY_SLIP_COMPANY_FALLBACK.address;
+    const companyContact   = co
+      ? `Tel: ${co.phone ?? ''}  |  Fax: ${co.fax ?? ''}  |  Email: ${co.email ?? ''}`.trim()
+      : `Tel: ${SALARY_SLIP_COMPANY_FALLBACK.phone}  |  Fax: ${SALARY_SLIP_COMPANY_FALLBACK.fax}  |  Email: ${SALARY_SLIP_COMPANY_FALLBACK.email}`;
+    const logoPath = SALARY_SLIP_COMPANY_FALLBACK.logoPath;
+
     if (fs.existsSync(logoPath)) {
       try {
         doc.image(logoPath, m + w - 50, y + 2, { width: 38, height: 38 });
@@ -164,7 +194,7 @@ export class SalarySlipGenerator {
     }
 
     doc.font(FONT_BOLD).fontSize(13).fillColor('#000000');
-    this.t('THERMOPAC PROCESS ENGINEERING LLP', m, y + 4);
+    this.t(companyLegalName, m, y + 4);
     doc.font(FONT_BOLD).fontSize(9).fillColor('#000000');
     this.t('SALARY SLIP', m, y + 20);
     doc.font(FONT_REGULAR).fontSize(7).fillColor('#374151');
@@ -516,7 +546,7 @@ export class SalarySlipGenerator {
     y += 16;
 
     doc.font(FONT_REGULAR).fontSize(7).fillColor('#6B7280');
-    this.t('For THERMOPAC PROCESS ENGINEERING LLP', m, y, { width: w - 16, align: 'right' });
+    this.t(`For ${companyLegalName}`, m, y, { width: w - 16, align: 'right' });
     y += 24;
     doc.font(FONT_BOLD).fontSize(7).fillColor('#1F2937');
     this.t('Authorized Signatory', m, y, { width: w - 16, align: 'right' });
@@ -528,14 +558,8 @@ export class SalarySlipGenerator {
     const footerY = this.ph - 32;
     this.hLine(footerY - 3, '#1E3A5F', 0.6);
     doc.font(FONT_REGULAR).fontSize(5.5).fillColor('#6B7280');
-    this.t(
-      'THERMOPAC  |  L 4, 405 The Summit Business Bay, Vile Parle, Western Express Highway, Mumbai 400 057',
-      m, footerY, { width: w, align: 'center' }
-    );
-    this.t(
-      'Tel: +91 22 2617 8080-84  |  Fax: +91 22 2617 8084  |  Email: sales@thermopac.in',
-      m, footerY + 8, { width: w, align: 'center' }
-    );
+    this.t(companyAddress, m, footerY, { width: w, align: 'center' });
+    this.t(companyContact, m, footerY + 8, { width: w, align: 'center' });
   }
 }
 

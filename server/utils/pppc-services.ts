@@ -35,6 +35,7 @@ export async function validateSubgroupBelongsToGroup(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface DatasheetGcsPathParams {
+  companyCode:   string;
   continentCode: string;
   countryCode:   string;
   customerCode:  string;
@@ -51,7 +52,7 @@ export function buildDatasheetGcsPath(p: DatasheetGcsPathParams): string {
   const safeTag = p.tagNo.replace(/[^A-Za-z0-9\-_]/g, '_');
   const safeExt = p.ext.toLowerCase().replace(/^\./, '');
   return (
-    `TPEL/${p.continentCode}/${p.countryCode}/${p.customerCode}` +
+    `${p.companyCode}/${p.continentCode}/${p.countryCode}/${p.customerCode}` +
     `/${p.fyCode}/${p.projectSeq}/PROCUREMENT/DATASHEETS` +
     `/${p.listNumber}/${safeTag}` +
     `/${p.lineId}_ds-rev-${p.revisionSeq}.${safeExt}`

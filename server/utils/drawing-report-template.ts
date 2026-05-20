@@ -90,6 +90,7 @@ export function generateVerificationReport(
   extraction: DrawingExtraction,
   layer1: RuleResult[],
   layer2: RuleResult[],
+  companyShortName: string = 'THERMOPAC',
 ): string {
   const all = [...layer1, ...layer2];
   const pass    = all.filter(r => r.status === 'pass').length;
@@ -206,7 +207,7 @@ export function generateVerificationReport(
   <!-- Header -->
   <div class="header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
     <div>
-      <h1>THERMOPAC — Drawing Verification Report</h1>
+      <h1>${companyShortName} — Drawing Verification Report</h1>
       <div class="sub">Automated Drawing Verification System (DVS) — Inline Gate</div>
     </div>
     <a href="/api/epc-drawing-verifications/${verification.id}/report.pdf"
@@ -328,7 +329,7 @@ export function generateVerificationReport(
 
   <!-- Footer -->
   <div class="footer">
-    THERMOPAC ERP — Drawing Verification System v1.0 &nbsp;|&nbsp;
+    ${companyShortName} ERP — Drawing Verification System v1.0 &nbsp;|&nbsp;
     Report ID: DVR-${verification.id} &nbsp;|&nbsp;
     Generated: ${new Date().toISOString()} &nbsp;|&nbsp;
     This report is an automated pre-upload gate result. It does not replace engineering review.
