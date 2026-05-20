@@ -4100,62 +4100,70 @@ export function setupProjectRoutes(app: express.Express) {
                sap_card_code      = $1,
                bp_name            = $2,
                card_type          = 'V',
-               phone1             = COALESCE(NULLIF(phone1,''),             $3),
-               contact_position   = COALESCE(NULLIF(contact_position,''),  $4),
-               email              = COALESCE(NULLIF(email,''),              $5),
-               sap_email          = COALESCE(NULLIF(sap_email,''),          $5),
-               contact2_name      = COALESCE(NULLIF(contact2_name,''),      $6),
-               contact2_position  = COALESCE(NULLIF(contact2_position,''),  $7),
-               contact2_email     = COALESCE(NULLIF(contact2_email,''),     $8),
-               contact2_phone     = COALESCE(NULLIF(contact2_phone,''),     $9),
-               contact3_name      = COALESCE(NULLIF(contact3_name,''),      $10),
-               contact3_position  = COALESCE(NULLIF(contact3_position,''),  $11),
-               contact3_email     = COALESCE(NULLIF(contact3_email,''),     $12),
-               contact3_phone     = COALESCE(NULLIF(contact3_phone,''),     $13),
-               bill_to_address    = COALESCE(NULLIF(bill_to_address,''),    $14),
-               ship_to_address    = COALESCE(NULLIF(ship_to_address,''),    $15),
-               currency           = COALESCE(NULLIF(currency,''),           $16),
-               country_name       = COALESCE(NULLIF(country_name,''),       $17),
-               country_code       = COALESCE(NULLIF(country_code,''),       $18),
-               continent          = COALESCE(NULLIF(continent,''),          $19),
+               contact_person     = COALESCE(NULLIF($35::text, ''), contact_person),
+               phone1             = COALESCE(NULLIF($3::text,  ''), phone1),
+               contact_position   = COALESCE(NULLIF($4::text,  ''), contact_position),
+               email              = COALESCE(NULLIF($5::text,  ''), email),
+               sap_email          = COALESCE(NULLIF($5::text,  ''), sap_email),
+               contact2_name      = COALESCE(NULLIF($6::text,  ''), contact2_name),
+               contact2_position  = COALESCE(NULLIF($7::text,  ''), contact2_position),
+               contact2_email     = COALESCE(NULLIF($8::text,  ''), contact2_email),
+               contact2_phone     = COALESCE(NULLIF($9::text,  ''), contact2_phone),
+               contact3_name      = COALESCE(NULLIF($10::text, ''), contact3_name),
+               contact3_position  = COALESCE(NULLIF($11::text, ''), contact3_position),
+               contact3_email     = COALESCE(NULLIF($12::text, ''), contact3_email),
+               contact3_phone     = COALESCE(NULLIF($13::text, ''), contact3_phone),
+               bill_to_address    = COALESCE(NULLIF($14::text, ''), bill_to_address),
+               ship_to_address    = COALESCE(NULLIF($15::text, ''), ship_to_address),
+               currency           = COALESCE(NULLIF($16::text, ''), currency),
+               country_name       = COALESCE(NULLIF($17::text, ''), country_name),
+               country_code       = COALESCE(NULLIF($18::text, ''), country_code),
+               continent          = COALESCE(NULLIF($19::text, ''), continent),
                glbl_loc_num       = CASE WHEN $20::text IS NOT NULL AND $20::text != '' THEN $20::text ELSE COALESCE(NULLIF(glbl_loc_num,''), 'NA') END,
-               u_state_supply     = COALESCE(NULLIF(u_state_supply,''),     $21),
-               u_bp_gst_type      = COALESCE(NULLIF(u_bp_gst_type,''),      $22),
-               sap_currency       = COALESCE(NULLIF(sap_currency,''),       $23),
+               u_state_supply     = COALESCE(NULLIF($21::text, ''), u_state_supply),
+               u_bp_gst_type      = COALESCE(NULLIF($22::text, ''), u_bp_gst_type),
+               sap_currency       = COALESCE(NULLIF($23::text, ''), sap_currency),
                pan_number         = CASE WHEN $24::text IS NOT NULL AND $24::text != '' THEN $24::text ELSE pan_number END,
-               bill_addr_line1    = $25,
-               bill_addr_line2    = $26,
-               bill_addr_block    = $27,
-               bill_addr_building = $28,
-               bill_addr_city     = $29,
-               ship_addr_line1    = $30,
-               ship_addr_line2    = $31,
-               ship_addr_block    = $32,
-               ship_addr_building = $33,
-               ship_addr_city     = $34,
+               bill_addr_line1    = COALESCE(NULLIF($25::text, ''), bill_addr_line1),
+               bill_addr_line2    = COALESCE(NULLIF($26::text, ''), bill_addr_line2),
+               bill_addr_block    = COALESCE(NULLIF($27::text, ''), bill_addr_block),
+               bill_addr_building = COALESCE(NULLIF($28::text, ''), bill_addr_building),
+               bill_addr_city     = COALESCE(NULLIF($29::text, ''), bill_addr_city),
+               ship_addr_line1    = COALESCE(NULLIF($30::text, ''), ship_addr_line1),
+               ship_addr_line2    = COALESCE(NULLIF($31::text, ''), ship_addr_line2),
+               ship_addr_block    = COALESCE(NULLIF($32::text, ''), ship_addr_block),
+               ship_addr_building = COALESCE(NULLIF($33::text, ''), ship_addr_building),
+               ship_addr_city     = COALESCE(NULLIF($34::text, ''), ship_addr_city),
+               sap_mail_city      = COALESCE(NULLIF($36::text, ''), sap_mail_city),
+               sap_mail_country   = COALESCE(NULLIF($37::text, ''), sap_mail_country),
+               sap_sync_status    = 'synced',
+               sap_sync_error     = NULL,
                sap_synced_at = NOW(), updated_at = NOW()
              WHERE sap_card_code = $1 OR (sap_card_code IS NULL AND bp_code = $1)`,
             [
-              row.CardCode,
-              row.CardName || null,
-              row.Phone1 || null,
-              row.Contacts[0]?.Position || null,
-              vPrimaryEmail,
-              row.Contacts[1]?.Name || null, row.Contacts[1]?.Position || null,
-              row.Contacts[1]?.Email || null, row.Contacts[1]?.Phone || null,
-              row.Contacts[2]?.Name || null, row.Contacts[2]?.Position || null,
-              row.Contacts[2]?.Email || null, row.Contacts[2]?.Phone || null,
-              row.BillToAddress,
-              row.ShipToAddress,
-              row.Currency || null,
-              vCountryInfo?.name || null, row.Country || null, vCountryInfo?.continent || null,
-              vGstin2,
-              row.UStateSupply || null,
-              row.UBpGstType || null,
-              row.Currency || null,
-              row.UPanNumber || null,
-              row.BillAddrLine1, row.BillAddrLine2, row.BillAddrBlock, row.BillAddrBuilding, row.BillAddrCity,
-              row.ShipAddrLine1, row.ShipAddrLine2, row.ShipAddrBlock, row.ShipAddrBuilding, row.ShipAddrCity,
+              row.CardCode,                                                              // $1
+              row.CardName || null,                                                      // $2
+              row.Phone1 || null,                                                        // $3
+              row.Contacts[0]?.Position || null,                                         // $4
+              vPrimaryEmail,                                                             // $5
+              row.Contacts[1]?.Name || null, row.Contacts[1]?.Position || null,          // $6, $7
+              row.Contacts[1]?.Email || null, row.Contacts[1]?.Phone || null,            // $8, $9
+              row.Contacts[2]?.Name || null, row.Contacts[2]?.Position || null,          // $10, $11
+              row.Contacts[2]?.Email || null, row.Contacts[2]?.Phone || null,            // $12, $13
+              row.BillToAddress,                                                         // $14
+              row.ShipToAddress,                                                         // $15
+              row.Currency || null,                                                      // $16
+              vCountryInfo?.name || null, row.Country || null, vCountryInfo?.continent || null, // $17, $18, $19
+              vGstin2,                                                                   // $20
+              row.UStateSupply || null,                                                  // $21
+              row.UBpGstType || null,                                                    // $22
+              row.Currency || null,                                                      // $23
+              row.UPanNumber || null,                                                    // $24
+              row.BillAddrLine1, row.BillAddrLine2, row.BillAddrBlock, row.BillAddrBuilding, row.BillAddrCity, // $25-$29
+              row.ShipAddrLine1, row.ShipAddrLine2, row.ShipAddrBlock, row.ShipAddrBuilding, row.ShipAddrCity, // $30-$34
+              row.ContactPerson || null,                                                 // $35
+              row.City || null,                                                          // $36
+              row.Country || null,                                                       // $37
             ],
           );
           skipped++;
@@ -4204,7 +4212,7 @@ export function setupProjectRoutes(app: express.Express) {
               row.BillToAddress, row.ShipToAddress,
               row.City || null, row.Country || null, vPrimaryEmail, row.Currency || null,
               row.Currency || 'USD', vCountryInfo?.name || null, row.Country || null, vCountryInfo?.continent || null,
-              vGstin, row.UStateSupply || 'MH', row.UBpGstType || 'G', row.UPanNumber || null,
+              vGstin, row.UStateSupply || null, row.UBpGstType || null, row.UPanNumber || null,
               row.BillAddrLine1, row.BillAddrLine2, row.BillAddrBlock, row.BillAddrBuilding, row.BillAddrCity,
               row.ShipAddrLine1, row.ShipAddrLine2, row.ShipAddrBlock, row.ShipAddrBuilding, row.ShipAddrCity,
             ],
