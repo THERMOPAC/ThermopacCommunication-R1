@@ -511,6 +511,31 @@ class SapBPSyncService {
         console.error(`❌ SAP BP Sync: PATCH failed for ${cardCode} — SAP error: ${errorMsg}`);
         console.error(`❌ SAP BP Sync: Payload that was rejected:`, JSON.stringify(bpData, null, 2));
 
+        // ODBC -2035 "already exists" on a payload that includes BPAddresses:
+        // SAP B1 Service Layer rejects the address rows as duplicates even when RowNum is present.
+        // Retry once with BPAddresses stripped — all non-address fields will still sync.
+        if (errorMsg.includes('-2035') && bpData.BPAddresses && _retryDepth === 0) {
+          const addrCount = (bpData.BPAddresses as any[]).length;
+          console.warn(`⚠️ SAP BP Sync: ODBC -2035 with BPAddresses for ${cardCode} — retrying without BPAddresses (${addrCount} row(s) skipped)`);
+          const bpDataNoAddr = { ...bpData };
+          delete bpDataNoAddr.BPAddresses;
+          const retryResp = await sapSession.request({
+            method: 'PATCH',
+            path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
+            body: bpDataNoAddr,
+          });
+          if (retryResp.ok || retryResp.statusCode === 204) {
+            const addrWarn = `BPAddresses not synced to SAP (ODBC -2035 on address rows — update addresses directly in SAP B1)`;
+            console.log(`✅ SAP BP Sync: BP ${cardCode} updated (non-address fields only). Warning: ${addrWarn}`);
+            return { success: true, warning: addrWarn };
+          } else {
+            let retryErr = `Status ${retryResp.statusCode}`;
+            try { retryErr = JSON.parse(retryResp.body)?.error?.message?.value || retryErr; } catch {}
+            console.error(`❌ SAP BP Sync: Retry without BPAddresses also failed for ${cardCode}: ${retryErr}`);
+            return { success: false, error: retryErr };
+          }
+        }
+
         if (errorMsg.includes('does not exist') && !errorMsg.includes('Linked value') && !errorMsg.includes('BPAddresses')) {
           console.log(`⚠️ SAP BP Sync: BP ${cardCode} not found in SAP, creating instead`);
           return await this.createBusinessPartner(customer, _retryDepth + 1);
