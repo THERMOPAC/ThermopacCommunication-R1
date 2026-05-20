@@ -100,7 +100,7 @@ router.get('/connection/status', async (req, res) => {
       status: health.alive ? 'connected' : 'configured',
       isConnected: health.alive,
       credentialsConfigured: true,
-      activeSessions: 0,
+      activeSessions: health.alive ? 1 : 0,
       systemSession: {
         alive: health.alive,
         ttlSeconds: health.ttlSeconds,
