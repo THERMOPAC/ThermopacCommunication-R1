@@ -511,6 +511,14 @@ class SapBPSyncService {
         console.error(`❌ SAP BP Sync: PATCH failed for ${cardCode} — SAP error: ${errorMsg}`);
         console.error(`❌ SAP BP Sync: Payload that was rejected:`, JSON.stringify(bpData, null, 2));
 
+        // ODBC -2035 with BPAddresses in the payload = address row conflict in SAP (CRD1 duplicate key).
+        // Rule: no retry, no strip, no partial sync. Fail hard with a clear diagnostic message.
+        if (errorMsg.includes('-2035') && bpData.BPAddresses) {
+          const addrError = `Address sync failed (ODBC -2035): SAP rejected BPAddresses as a duplicate entry. Resolve the address conflict directly in SAP B1, then retry sync.`;
+          console.error(`❌ SAP BP Sync: Address conflict for ${cardCode} — ${addrError}`);
+          return { success: false, error: addrError };
+        }
+
         if (errorMsg.includes('does not exist') && !errorMsg.includes('Linked value') && !errorMsg.includes('BPAddresses')) {
           console.log(`⚠️ SAP BP Sync: BP ${cardCode} not found in SAP, creating instead`);
           return await this.createBusinessPartner(customer, _retryDepth + 1);
