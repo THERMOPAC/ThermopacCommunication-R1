@@ -315,24 +315,119 @@ async function postDisbursementJE(
     return { success: false, error: `Employee ${empName} has no SAP BP code linked. Please assign a BP code before posting.` };
   }
 
-  const debitContext = type === 'loan' ? 'loan_disbursement' : 'advance_disbursement';
+  // ── Advance disbursement: pure BP-to-BP entry (no GL mapping needed) ──
+  // Dr: loanCardCode (employee's loan/advance receivable BP account in SAP)
+  // Cr: cardCode    (employee's own BP account in SAP)
+  // ── Loan disbursement: GL-mapped entry ──
+  // Dr: LOAN_RECEIVABLE GL mapping  (ShortName = loanCardCode)
+  // Cr: LOAN_ADVANCE_BANK GL mapping
+
+  if (type === 'advance') {
+    if (!employee.loanCardCode || employee.loanCardCode.trim() === '') {
+      await db.update(table).set({
+        sapPostingStatus: 'failed',
+        sapErrorMessage: `Employee ${empName} has no Loan Card Code linked. Please assign a Loan Card Code before posting an advance.`,
+        updatedAt: new Date(),
+      } as any).where(eq(table.id, recordId));
+      return { success: false, error: `Employee ${empName} has no Loan Card Code linked.` };
+    }
+
+    const disbAmount = parseFloat(amount);
+    const postingDate = disbursementDate || new Date().toISOString().split('T')[0];
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `Advance Disbursement - ${empName} - ${reference}`,
+      Reference2: employee.cardCode,
+      Reference3: reference,
+      JournalEntryLines: [
+        {
+          Line_ID: 0,
+          ShortName: employee.loanCardCode,
+          Debit: disbAmount,
+          Credit: 0,
+          LineMemo: `Advance Disbursement - ${empName} - ${reference}`,
+        },
+        {
+          Line_ID: 1,
+          ShortName: employee.cardCode,
+          Debit: 0,
+          Credit: disbAmount,
+          LineMemo: `Advance Disbursement - ${empName} - ${reference}`,
+        },
+      ],
+    };
+
+    await db.update(table).set({
+      sapPostingStatus: 'pending',
+      sapErrorMessage: null,
+      updatedAt: new Date(),
+    } as any).where(eq(table.id, recordId));
+
+    const sapUrl = process.env.SAP_SERVICE_LAYER_URL || '';
+    const sapUser = process.env.SAP_B1_USERNAME || '';
+    const sapPass = process.env.SAP_B1_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+
+    if (!sapUser || !sapPass || !sapDb || !sapUrl) {
+      await db.update(table).set({
+        sapPostingStatus: 'failed',
+        sapErrorMessage: 'SAP credentials not configured.',
+        updatedAt: new Date(),
+      } as any).where(eq(table.id, recordId));
+      return { success: false, error: 'SAP credentials not configured' };
+    }
+
+    try {
+      const sapResponse = await sapSession.request({ method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload });
+      if (sapResponse.ok) {
+        const responseData = JSON.parse(sapResponse.body);
+        const docEntry = responseData.DocEntry;
+        const jeNumber = String(responseData.Number || responseData.DocNum || responseData.DocEntry);
+        await db.update(table).set({
+          sapPostingStatus: 'posted',
+          sapDocEntry: docEntry,
+          sapJeNumber: jeNumber,
+          sapErrorMessage: null,
+          updatedAt: new Date(),
+        } as any).where(eq(table.id, recordId));
+        return { success: true, sapDocEntry: docEntry, sapJeNumber: jeNumber };
+      } else {
+        const errBody = sapResponse.body ? JSON.parse(sapResponse.body) : {};
+        const errMsg = errBody?.error?.message?.value || errBody?.error?.message || `SAP error ${sapResponse.status}`;
+        await db.update(table).set({
+          sapPostingStatus: 'failed',
+          sapErrorMessage: errMsg,
+          updatedAt: new Date(),
+        } as any).where(eq(table.id, recordId));
+        return { success: false, error: errMsg };
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || 'Unknown SAP error';
+      await db.update(table).set({
+        sapPostingStatus: 'failed',
+        sapErrorMessage: errMsg,
+        updatedAt: new Date(),
+      } as any).where(eq(table.id, recordId));
+      return { success: false, error: errMsg };
+    }
+  }
+
+  // ── Loan disbursement path (GL-mapped) ──
+  const debitContext = 'loan_disbursement';
   const creditContext = debitContext;
-  // Debit leg: LOAN_RECEIVABLE (loans) or ADVANCE_RECEIVABLE (advances) — control GL account.
-  // ShortName on the debit line is set to employee.cardCode to link the JE line to the employee BP.
-  const debitCode = type === 'loan' ? 'LOAN_RECEIVABLE' : 'ADVANCE_RECEIVABLE';
   const creditCode = 'LOAN_ADVANCE_BANK';
 
   const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
 
   const debitMapping = allMappings.find(
-    m => m.componentCode === debitCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
+    m => m.componentCode === 'LOAN_RECEIVABLE' && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
   );
   const creditMapping = allMappings.find(
     m => m.componentCode === creditCode && m.postingContext === creditContext && m.glAccountCode && m.glAccountCode.trim() !== ''
   );
 
   const missingMappings: string[] = [];
-  if (!debitMapping) missingMappings.push(`${debitCode} (${debitContext})`);
+  if (!debitMapping) missingMappings.push(`LOAN_RECEIVABLE (${debitContext})`);
   if (!creditMapping) missingMappings.push(`${creditCode} (${creditContext})`);
 
   if (missingMappings.length > 0) {
@@ -345,13 +440,12 @@ async function postDisbursementJE(
   }
 
   const disbAmount = parseFloat(amount);
-  const typeLabel = type === 'loan' ? 'Loan' : 'Advance';
+  const typeLabel = 'Loan';
   const postingDate = disbursementDate || new Date().toISOString().split('T')[0];
 
-  // AccountCode = control GL account (ADVANCE_RECEIVABLE / LOAN_RECEIVABLE mapping).
-  // ShortName = employee.cardCode — this links the JE line to the employee's BP record in SAP.
+  const loanCardCode = employee.loanCardCode || null;
   const debitLine: any = { Line_ID: 0, AccountCode: debitMapping!.glAccountCode };
-  debitLine.ShortName = employee.cardCode;
+  if (loanCardCode) debitLine.ShortName = loanCardCode;
   debitLine.Debit = disbAmount;
   debitLine.Credit = 0;
   debitLine.LineMemo = `${typeLabel} Disbursement - ${empName} - ${reference}`;
@@ -525,34 +619,91 @@ export async function postReversalJE(
     ? `${employee.firstName} ${employee.lastName}`
     : employee?.username || 'Unknown';
 
-  const debitContext = type === 'loan' ? 'loan_disbursement' : 'advance_disbursement';
-  // Credit leg (reversal): LOAN_RECEIVABLE (loans) or ADVANCE_RECEIVABLE (advances) — control GL account.
-  // ShortName = employee.cardCode to link the line back to the employee BP in SAP.
-  const reversalDebitCode = type === 'loan' ? 'LOAN_RECEIVABLE' : 'ADVANCE_RECEIVABLE';
-  const creditCode = 'LOAN_ADVANCE_BANK';
+  // ── Advance reversal: pure BP-to-BP (mirror of disbursement) ──
+  // Dr: cardCode (reverses the original Cr leg)
+  // Cr: loanCardCode (reverses the original Dr leg)
+  // ── Loan reversal: GL-mapped ──
 
+  if (type === 'advance') {
+    if (!employee?.loanCardCode || employee.loanCardCode.trim() === '') {
+      return { success: false, error: `Employee ${empName} has no Loan Card Code linked — cannot reverse advance.` };
+    }
+    if (!employee?.cardCode || employee.cardCode.trim() === '') {
+      return { success: false, error: `Employee ${empName} has no Card Code linked — cannot reverse advance.` };
+    }
+
+    const postingDate = new Date().toISOString().split('T')[0];
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `REVERSAL - Advance Disbursement - ${empName} - ${reference}`,
+      Reference2: employee.cardCode,
+      Reference3: `REV-${reference}`,
+      JournalEntryLines: [
+        {
+          Line_ID: 0,
+          ShortName: employee.cardCode,
+          Debit: amount,
+          Credit: 0,
+          LineMemo: `REVERSAL - Advance Disbursement - ${empName} - ${reference}`,
+        },
+        {
+          Line_ID: 1,
+          ShortName: employee.loanCardCode,
+          Debit: 0,
+          Credit: amount,
+          LineMemo: `REVERSAL - Advance Disbursement - ${empName} - ${reference}`,
+        },
+      ],
+    };
+
+    const sapUrl = process.env.SAP_SERVICE_LAYER_URL || '';
+    const sapUser = process.env.SAP_B1_USERNAME || '';
+    const sapPass = process.env.SAP_B1_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+
+    if (!sapUser || !sapPass || !sapDb || !sapUrl) {
+      return { success: false, error: 'SAP credentials not configured' };
+    }
+
+    try {
+      const sapResponse = await sapSession.request({ method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload });
+      if (sapResponse.ok) {
+        const responseData = JSON.parse(sapResponse.body);
+        const docEntry = responseData.DocEntry;
+        const jeNumber = String(responseData.Number || responseData.DocNum || responseData.DocEntry);
+        return { success: true, reversalDocEntry: docEntry, reversalJeNumber: jeNumber };
+      } else {
+        const errBody = sapResponse.body ? JSON.parse(sapResponse.body) : {};
+        const errMsg = errBody?.error?.message?.value || errBody?.error?.message || `SAP error ${sapResponse.status}`;
+        return { success: false, error: errMsg };
+      }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Unknown SAP error' };
+    }
+  }
+
+  // ── Loan reversal (GL-mapped) ──
   const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
 
   const reversalDebitMapping = allMappings.find(
-    m => m.componentCode === reversalDebitCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
+    m => m.componentCode === 'LOAN_RECEIVABLE' && m.postingContext === 'loan_disbursement' && m.glAccountCode && m.glAccountCode.trim() !== ''
   );
   const creditMapping = allMappings.find(
-    m => m.componentCode === creditCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
+    m => m.componentCode === 'LOAN_ADVANCE_BANK' && m.postingContext === 'loan_disbursement' && m.glAccountCode && m.glAccountCode.trim() !== ''
   );
 
   if (!reversalDebitMapping) {
-    return { success: false, error: `GL mapping missing for reversal: ${reversalDebitCode} (${debitContext}). Go to Finance > GL Mapping.` };
+    return { success: false, error: `GL mapping missing for reversal: LOAN_RECEIVABLE (loan_disbursement). Go to Finance > GL Mapping.` };
   }
   if (!creditMapping) {
-    return { success: false, error: `GL mapping missing for reversal: ${creditCode} (${debitContext}). Go to Finance > GL Mapping.` };
+    return { success: false, error: `GL mapping missing for reversal: LOAN_ADVANCE_BANK (loan_disbursement). Go to Finance > GL Mapping.` };
   }
 
-  const typeLabel = type === 'loan' ? 'Loan' : 'Advance';
+  const typeLabel = 'Loan';
   const postingDate = new Date().toISOString().split('T')[0];
 
-  // AccountCode = control GL account; ShortName = employee.cardCode links to the employee's BP in SAP.
   const creditLine: any = { Line_ID: 1, AccountCode: reversalDebitMapping.glAccountCode };
-  creditLine.ShortName = employee?.cardCode || '';
+  if (employee?.loanCardCode) creditLine.ShortName = employee.loanCardCode;
   creditLine.Debit = 0;
   creditLine.Credit = amount;
   creditLine.LineMemo = `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`;
