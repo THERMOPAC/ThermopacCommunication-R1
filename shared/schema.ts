@@ -14376,6 +14376,58 @@ export type DocumentAgentNode = typeof documentAgentNodes.$inferSelect;
 // pending → processing → completed | failed
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Vendor Mandatory Compliance Documents
+// One row per upload (immutable history). isActive=true marks the latest revision.
+// GCS path: TPEL/VENDORS/{bpCode}/{docType}/rev-{NN}/{seq}-{label}.{ext}
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const VENDOR_COMPLIANCE_DOC_TYPES = [
+  'GST_CERTIFICATE',
+  'PAN_CARD',
+  'MSME_CERTIFICATE',
+  'CANCELLED_CHEQUE',
+  'VENDOR_REGISTRATION_FORM',
+  'CONTACT_DETAILS_SHEET',
+  'ADDRESS_PROOF',
+] as const;
+
+export const VENDOR_COMPLIANCE_DOC_LABELS: Record<string, string> = {
+  GST_CERTIFICATE:        'GST Certificate',
+  PAN_CARD:               'PAN Card',
+  MSME_CERTIFICATE:       'MSME Certificate',
+  CANCELLED_CHEQUE:       'Cancelled Cheque / Bank Proof',
+  VENDOR_REGISTRATION_FORM: 'Vendor Registration Form',
+  CONTACT_DETAILS_SHEET:  'Contact Details Sheet',
+  ADDRESS_PROOF:          'Address Proof',
+};
+
+// Docs that must be present before a vendor can be approved.
+export const VENDOR_COMPLIANCE_MANDATORY = ['GST_CERTIFICATE', 'PAN_CARD', 'CANCELLED_CHEQUE'];
+
+export const vendorComplianceDocs = pgTable('vendor_compliance_docs', {
+  id:             serial('id').primaryKey(),
+  vendorId:       integer('vendor_id').notNull(),
+  bpCode:         varchar('bp_code', { length: 50 }).notNull(),
+  docType:        varchar('doc_type', { length: 50 }).notNull(),
+  revisionNumber: integer('revision_number').notNull().default(0),
+  fileName:       varchar('file_name', { length: 255 }).notNull(),
+  gcsPath:        text('gcs_path').notNull(),
+  contentType:    varchar('content_type', { length: 100 }),
+  sizeBytes:      bigint('size_bytes', { mode: 'number' }),
+  // 'uploaded' | 'expired' | 'pending_approval'
+  status:         varchar('status', { length: 30 }).notNull().default('uploaded'),
+  expiryDate:     date('expiry_date'),
+  // Only the latest revision is active. Previous revisions: isActive=false.
+  isActive:       boolean('is_active').notNull().default(true),
+  uploadedBy:     integer('uploaded_by'),
+  notes:          text('notes'),
+  createdAt:      timestamp('created_at').notNull().defaultNow(),
+  updatedAt:      timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type VendorComplianceDoc = typeof vendorComplianceDocs.$inferSelect;
+
 export const documentAgentJobs = pgTable('document_agent_jobs', {
   id:               serial('id').primaryKey(),
   jobType:          varchar('job_type', { length: 50 }).notNull(),

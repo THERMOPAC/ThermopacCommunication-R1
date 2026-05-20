@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { VendorComplianceCard } from "@/components/vendor-compliance-card";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Customer } from "@shared/schema";
@@ -279,6 +280,7 @@ function VendorFormBody({
   sapSyncFailureAlert,
   onRetryBpCode,
   isRetryingBpCode,
+  vendorId,
 }: {
   form: UseFormReturn<VendorFormValues>;
   onSubmit: (data: VendorFormValues) => void;
@@ -298,6 +300,7 @@ function VendorFormBody({
   sapSyncFailureAlert?: string | null;
   onRetryBpCode?: () => void;
   isRetryingBpCode?: boolean;
+  vendorId?: number;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -845,6 +848,9 @@ function VendorFormBody({
           </div>
         </div>
 
+        {/* ── Section 6: Mandatory Compliance Documents ── */}
+        <VendorComplianceCard vendorId={vendorId} />
+
         {sapSyncFailureAlert && (
           <Alert variant="destructive" className="mb-2">
             <AlertCircle className="h-4 w-4" />
@@ -1350,6 +1356,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
             onRetryBpCode={fetchNextBpCode}
             isRetryingBpCode={isRetryingBpCode}
           />
+          {/* vendorId intentionally omitted — compliance docs require vendor to exist first */}
         </DialogContent>
       </Dialog>
 
@@ -1376,6 +1383,7 @@ export default function VendorManagement({ vendors }: { vendors: Customer[] }) {
             gstTypeManuallySet={gstTypeManuallySet}
             setGstTypeManuallySet={setGstTypeManuallySet}
             sapSyncFailureAlert={editSapSyncError}
+            vendorId={editingVendor?.id}
           />
         </DialogContent>
       </Dialog>

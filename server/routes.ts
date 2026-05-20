@@ -82,6 +82,7 @@ import { default as manualSalaryRoutes } from "./manual-salary-routes";
 import { default as calendarAttendanceRoutes } from "./calendar-attendance-routes";
 import { default as loanAdvanceRoutes } from "./loan-advance-routes";
 import { default as statutoryComplianceRoutes } from "./statutory-compliance-routes";
+import { default as vendorComplianceRoutes } from "./vendor-compliance-routes";
 import { default as companyTaxRoutes } from "./company-tax-routes";
 import { default as salaryCalculationRoutes } from "./salary-calculation-routes";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
@@ -754,6 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/calendar-attendance', calendarAttendanceRoutes);
   app.use('/api/loan-advance', loanAdvanceRoutes);
   app.use('/api/statutory', statutoryComplianceRoutes);
+  app.use('/api/vendor-compliance', vendorComplianceRoutes);
   app.use('/api/company-tax', companyTaxRoutes);
   console.log('Payroll routes registered at /api/payroll');
   console.log('Statutory compliance routes registered at /api/statutory');
