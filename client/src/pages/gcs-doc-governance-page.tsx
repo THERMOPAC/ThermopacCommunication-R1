@@ -133,6 +133,7 @@ interface MonitorStats {
 const MODULE_LABELS: Record<string, string> = {
   epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design", hr: "HR / Admin",
   legal: "Legal", finance: "Finance", sap: "SAP", legacy: "Legacy",
+  vendor: "Vendor",
 };
 
 const MODULE_COLORS: Record<string, string> = {
@@ -145,6 +146,7 @@ const MODULE_COLORS: Record<string, string> = {
   finance: "bg-red-100 text-red-800",
   sap: "bg-teal-100 text-teal-800",
   legacy: "bg-gray-100 text-gray-700",
+  vendor: "bg-amber-100 text-amber-800",
 };
 
 const REVISION_MODES = ["none", "numeric", "alphabetic"];
@@ -2283,6 +2285,263 @@ function MigrationTrackerTab() {
   );
 }
 
+// ─── Tab: Vendor Compliance Governance ─────────────────────────────────────
+
+const VENDOR_COMPLIANCE_RULES = [
+  {
+    docType: "GST_CERTIFICATE",
+    displayName: "GST Certificate",
+    mandatory: true,
+    pathTemplate: "TPEL/VENDORS/{BPCode}/GST_CERTIFICATE/rev-{RevNo}/{Seq}-gst-certificate.{Ext}",
+    allowedMimes: "PDF, JPG, PNG, WEBP",
+    maxSizeMb: 20,
+    revisionMode: "numeric",
+    notes: "MANDATORY — vendor approval blocked until present. GST registration number must be validated before upload.",
+    example: "TPEL/VENDORS/V10001/GST_CERTIFICATE/rev-01/001-gst-certificate.pdf",
+  },
+  {
+    docType: "PAN_CARD",
+    displayName: "PAN Card",
+    mandatory: true,
+    pathTemplate: "TPEL/VENDORS/{BPCode}/PAN_CARD/rev-{RevNo}/{Seq}-pan-card.{Ext}",
+    allowedMimes: "PDF, JPG, PNG, WEBP",
+    maxSizeMb: 20,
+    revisionMode: "numeric",
+    notes: "MANDATORY — vendor approval blocked until present. 10-character PAN must be on record.",
+    example: "TPEL/VENDORS/V10001/PAN_CARD/rev-01/001-pan-card.pdf",
+  },
+  {
+    docType: "CANCELLED_CHEQUE",
+    displayName: "Cancelled Cheque / Bank Proof",
+    mandatory: true,
+    pathTemplate: "TPEL/VENDORS/{BPCode}/CANCELLED_CHEQUE/rev-{RevNo}/{Seq}-cancelled-cheque.{Ext}",
+    allowedMimes: "PDF, JPG, PNG, WEBP",
+    maxSizeMb: 20,
+    revisionMode: "numeric",
+    notes: "MANDATORY — vendor approval blocked until present. Account number and IFSC must match bank details in SAP BP record.",
+    example: "TPEL/VENDORS/V10001/CANCELLED_CHEQUE/rev-01/001-cancelled-cheque.pdf",
+  },
+  {
+    docType: "MSME_CERTIFICATE",
+    displayName: "MSME Certificate",
+    mandatory: false,
+    pathTemplate: "TPEL/VENDORS/{BPCode}/MSME_CERTIFICATE/rev-{RevNo}/{Seq}-msme-certificate.{Ext}",
+    allowedMimes: "PDF, JPG, PNG, WEBP",
+    maxSizeMb: 20,
+    revisionMode: "numeric",
+    notes: "Optional — required for MSME-registered vendors only. Udyam registration preferred over old EM Part-II certificates.",
+    example: "TPEL/VENDORS/V10001/MSME_CERTIFICATE/rev-01/001-msme-certificate.pdf",
+  },
+  {
+    docType: "VENDOR_REGISTRATION_FORM",
+    displayName: "Vendor Registration Form",
+    mandatory: false,
+    pathTemplate: "TPEL/VENDORS/{BPCode}/VENDOR_REGISTRATION_FORM/rev-{RevNo}/{Seq}-vendor-registration-form.{Ext}",
+    allowedMimes: "PDF, JPG, PNG, WEBP",
+    maxSizeMb: 20,
+    revisionMode: "numeric",
+    notes: "Optional — signed and stamped THERMOPAC vendor enrolment form. Must carry authorised signatory signature.",
+    example: "TPEL/VENDORS/V10001/VENDOR_REGISTRATION_FORM/rev-01/001-vendor-registration-form.pdf",
+  },
+  {
+    docType: "CONTACT_DETAILS_SHEET",
+    displayName: "Contact Details Sheet",
+    mandatory: false,
+    pathTemplate: "TPEL/VENDORS/{BPCode}/CONTACT_DETAILS_SHEET/rev-{RevNo}/{Seq}-contact-details-sheet.{Ext}",
+    allowedMimes: "PDF, JPG, PNG, WEBP",
+    maxSizeMb: 20,
+    revisionMode: "numeric",
+    notes: "Optional — key contacts (purchase, accounts, technical). Update on personnel changes.",
+    example: "TPEL/VENDORS/V10001/CONTACT_DETAILS_SHEET/rev-01/001-contact-details-sheet.pdf",
+  },
+  {
+    docType: "ADDRESS_PROOF",
+    displayName: "Address Proof",
+    mandatory: false,
+    pathTemplate: "TPEL/VENDORS/{BPCode}/ADDRESS_PROOF/rev-{RevNo}/{Seq}-address-proof.{Ext}",
+    allowedMimes: "PDF, JPG, PNG, WEBP",
+    maxSizeMb: 20,
+    revisionMode: "numeric",
+    notes: "Optional — utility bill, rent agreement, or any govt-issued address document. Address must match SAP BP record.",
+    example: "TPEL/VENDORS/V10001/ADDRESS_PROOF/rev-01/001-address-proof.pdf",
+  },
+];
+
+function VendorComplianceGovernanceTab() {
+  const { data: rules = [], isLoading } = useQuery<GcsGovernanceRule[]>({
+    queryKey: ["/api/gcs-governance/rules"],
+    select: (all) => all.filter(r => r.moduleKey === "vendor" && r.submoduleKey === "compliance"),
+  });
+
+  const findLiveRule = (docType: string) =>
+    rules.find(r => r.documentType === docType);
+
+  return (
+    <div className="space-y-5">
+      {/* Policy banner */}
+      <Card className="border-amber-200 bg-amber-50/40">
+        <CardContent className="py-3 px-4">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-800">Vendor Compliance — GCS Governance Rules</p>
+              <p className="text-xs text-amber-700">
+                All 7 documents are stored under <span className="font-mono bg-amber-100 px-1 rounded">TPEL/VENDORS/</span> with immutable numeric revision chains.
+                Each new upload creates a new <span className="font-mono bg-amber-100 px-1 rounded">rev-NN</span> folder — prior revisions are never overwritten.
+                Handler: <span className="font-mono bg-amber-100 px-1 rounded">server/vendor-compliance-routes.ts</span>.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span className="inline-flex items-center gap-1 text-[11px] bg-red-100 text-red-700 border border-red-200 rounded px-2 py-0.5 font-medium">
+                  <AlertCircle className="h-3 w-3" /> 3 Mandatory (approval blocked)
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] bg-slate-100 text-slate-600 border border-slate-200 rounded px-2 py-0.5">
+                  4 Optional
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] bg-green-100 text-green-700 border border-green-200 rounded px-2 py-0.5">
+                  <CheckCircle className="h-3 w-3" /> Max 20 MB per file
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] bg-blue-100 text-blue-700 border border-blue-200 rounded px-2 py-0.5">
+                  PDF · JPG · PNG · WEBP
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Path structure */}
+      <Card>
+        <CardHeader className="pb-2 pt-3 px-4">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4 text-slate-500" /> GCS Path Structure
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Token reference for the <span className="font-mono">TPEL/VENDORS/</span> root
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-4 pb-3 space-y-3">
+          <div className="font-mono text-xs bg-slate-900 text-green-300 rounded-lg px-4 py-3 break-all">
+            TPEL/VENDORS/<span className="text-yellow-300">{"{BPCode}"}</span>/<span className="text-cyan-300">{"{DocType}"}</span>/rev-<span className="text-pink-300">{"{RevNo}"}</span>/<span className="text-orange-300">{"{Seq}"}</span>-<span className="text-slate-300">{"{Label}"}</span>.<span className="text-slate-400">{"{Ext}"}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px]">
+            {[
+              ["{BPCode}", "SAP Business Partner code", "V10001, S20034"],
+              ["{DocType}", "Controlled vocabulary (7 fixed types)", "GST_CERTIFICATE, PAN_CARD …"],
+              ["{RevNo}", "2-digit zero-padded numeric revision", "01, 02, 03 …"],
+              ["{Seq}", "3-digit zero-padded sequence", "001"],
+              ["{Label}", "Kebab-case doc type label", "gst-certificate, pan-card …"],
+              ["{Ext}", "File extension from uploaded MIME", "pdf, jpg, png …"],
+            ].map(([token, desc, example]) => (
+              <div key={token} className="flex gap-2">
+                <span className="font-mono text-indigo-600 shrink-0 w-44">{token}</span>
+                <span className="text-slate-500">{desc} <span className="text-slate-400 italic">({example})</span></span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 7 document rules */}
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="text-center py-12 text-slate-400 text-sm">Loading governance rules…</div>
+        ) : (
+          VENDOR_COMPLIANCE_RULES.map((def) => {
+            const liveRule = findLiveRule(def.docType);
+            return (
+              <Card key={def.docType} className={`border ${def.mandatory ? "border-l-4 border-l-red-400" : "border-l-4 border-l-slate-200"}`}>
+                <CardContent className="p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      {/* Header row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Vendor</span>
+                        <span className="text-[10px] text-slate-400 font-mono">compliance</span>
+                        <span className="text-xs font-semibold text-slate-700">{def.displayName}</span>
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1 rounded">{def.docType}</span>
+                        {def.mandatory ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-700 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
+                            <AlertCircle className="h-2.5 w-2.5" /> Mandatory
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">Optional</span>
+                        )}
+                        {liveRule ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+                            <CheckCircle className="h-2.5 w-2.5" /> In DB (rule #{liveRule.id})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                            <Clock className="h-2.5 w-2.5" /> Pending seed
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Path template */}
+                      <p className="text-[11px] font-mono text-slate-500 break-all">{def.pathTemplate}</p>
+
+                      {/* Metadata row */}
+                      <div className="flex items-center gap-4 text-[11px] text-slate-400 flex-wrap">
+                        <span>Rev: <span className="font-medium capitalize text-slate-600">{def.revisionMode}</span></span>
+                        <span>Max: <span className="font-medium text-slate-600">{def.maxSizeMb} MB</span></span>
+                        <span>Allowed: <span className="font-medium text-slate-600">{def.allowedMimes}</span></span>
+                      </div>
+
+                      {/* Example path */}
+                      <div className="flex items-start gap-1.5 text-[10px]">
+                        <span className="text-slate-400 shrink-0 mt-0.5">Example:</span>
+                        <span className="font-mono text-slate-500 break-all">{def.example}</span>
+                      </div>
+
+                      {/* Notes */}
+                      {def.notes && (
+                        <p className={`text-[11px] ${def.mandatory ? "text-red-600 font-medium" : "text-slate-400"}`}>
+                          {def.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Governance policies */}
+      <Card>
+        <CardHeader className="pb-2 pt-3 px-4">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Lock className="h-4 w-4 text-slate-500" /> Governance Policies
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className="space-y-2 text-xs text-slate-600">
+            {[
+              ["Immutable Revisions", "Every upload creates a new rev-NN subfolder. Prior revisions are never deleted or overwritten. Full history is accessible via the vendor form History action."],
+              ["Mandatory Enforcement", "Vendor approval is blocked in the UI until GST Certificate, PAN Card, and Cancelled Cheque are all uploaded (status ≠ missing). The compliance card shows a red alert banner."],
+              ["Status Lifecycle", "Uploaded → Verified → Expired. Admins can mark a document Verified or flag it Expired via the status PATCH endpoint. Missing = no file on record."],
+              ["Expiry Tracking", "An optional expiry date can be set at upload time (e.g. GST registration renewal date). Expired docs are highlighted in the vendor form."],
+              ["File Size & Type", "Max 20 MB per upload. Accepted: PDF, JPG, PNG, WEBP. Server rejects any other MIME type with 400."],
+              ["Audit Trail", "Every upload records: uploader user ID, timestamp, GCS object path, revision number, file size, MIME type. Immutable — cannot be deleted."],
+              ["SAP BP Code Binding", "Files are namespaced by the SAP BP code ({BPCode}). If a vendor's BP code changes (rare), documents remain under the original code — admin must manually migrate."],
+              ["No Raw Path Acceptance", "The GCS path is always computed server-side by vendor-compliance-routes.ts. Clients never supply a raw GCS path. Path = TPEL/VENDORS/{BPCode}/{DocType}/rev-{RevNo}/001-{label}.{ext}"],
+            ].map(([title, body]) => (
+              <div key={title as string} className="flex gap-2">
+                <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-slate-700">{title}: </span>
+                  <span>{body}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function GcsDocGovernancePage() {
@@ -2336,6 +2595,9 @@ export default function GcsDocGovernancePage() {
             <TabsTrigger value="rules" className="flex items-center gap-1.5">
               <List className="h-4 w-4" /> Governance Rules
             </TabsTrigger>
+            <TabsTrigger value="vendor-compliance" className="flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4" /> Vendor Compliance
+            </TabsTrigger>
             <TabsTrigger value="tokens" className="flex items-center gap-1.5">
               <Key className="h-4 w-4" /> Token Registry
             </TabsTrigger>
@@ -2358,6 +2620,10 @@ export default function GcsDocGovernancePage() {
 
           <TabsContent value="rules" className="mt-4">
             <GovernanceRulesTab />
+          </TabsContent>
+
+          <TabsContent value="vendor-compliance" className="mt-4">
+            <VendorComplianceGovernanceTab />
           </TabsContent>
 
           <TabsContent value="tokens" className="mt-4">
