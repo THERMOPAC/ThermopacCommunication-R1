@@ -2965,7 +2965,8 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       // Check if the user has permission to create customers
       const managementRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
-      if (!managementRoles.includes(req.user!.role)) {
+      const hasProcurementCreate = await checkModulePermission(req.user!.id, 'Procurement Management', 'create');
+      if (!managementRoles.includes(req.user!.role) && !hasProcurementCreate) {
         return res.status(403).json({ error: 'Not authorized to create customers' });
       }
 
@@ -3057,7 +3058,8 @@ export function setupProjectRoutes(app: express.Express) {
       
       // Check if the user has permission to update customers
       const managementRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
-      if (!managementRoles.includes(req.user!.role)) {
+      const hasProcurementEdit = await checkModulePermission(req.user!.id, 'Procurement Management', 'edit');
+      if (!managementRoles.includes(req.user!.role) && !hasProcurementEdit) {
         return res.status(403).json({ error: 'Not authorized to update customers' });
       }
       
