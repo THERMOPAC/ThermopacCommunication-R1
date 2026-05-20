@@ -174,9 +174,16 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
     return res.json({
       success: true,
       status: health.alive ? 'connected' : 'session_not_established',
+      isConnected: health.alive,
       message: health.alive
         ? 'SAP B1 central session is active'
         : 'SAP B1 central session not yet established (will connect on first request)',
+      activeSessions: health.alive ? 1 : 0,
+      details: {
+        username: health.username || 'Not configured',
+        companyDb: health.companyDb || 'Not configured',
+        serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL || 'Not configured',
+      },
       session: {
         alive: health.alive,
         ttlSeconds: health.ttlSeconds,
