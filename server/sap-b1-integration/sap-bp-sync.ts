@@ -214,16 +214,13 @@ class SapBPSyncService {
     // AddressName values are canonical and unique per AddressType for all ERP-created BPs:
     //   "Billing Address" → bo_BillTo
     //   "Shipping Address" → bo_ShipTo
-    // Prefer granular address fields (sent by the vendor/customer form).
-    // Fall back to legacy combined billToAddress string only if granular fields absent.
+    // Only granular address fields are used. No legacy combined-string fallback.
     const hasBillGranular = customer.billAddrLine1 || customer.billAddrLine2 || customer.billAddrCity;
     if (hasBillGranular) {
       bpAddresses.push(this.buildGranularAddress('Billing Address', 'bo_BillTo',
         customer.billAddrLine1, customer.billAddrLine2,
         customer.billAddrBlock, customer.billAddrBuilding,
         customer.billAddrCity, countryCode, stateCode, addrGstin, addrGstType));
-    } else if (customer.billToAddress) {
-      bpAddresses.push(this.parseAddress('Billing Address', 'bo_BillTo', customer.billToAddress, countryCode, stateCode));
     }
 
     const hasShipGranular = customer.shipAddrLine1 || customer.shipAddrLine2 || customer.shipAddrCity;
@@ -232,8 +229,6 @@ class SapBPSyncService {
         customer.shipAddrLine1, customer.shipAddrLine2,
         customer.shipAddrBlock, customer.shipAddrBuilding,
         customer.shipAddrCity, countryCode, stateCode, addrGstin, addrGstType));
-    } else if (customer.shipToAddress) {
-      bpAddresses.push(this.parseAddress('Shipping Address', 'bo_ShipTo', customer.shipToAddress, countryCode, stateCode));
     }
 
     if (bpAddresses.length > 0) {
@@ -347,7 +342,10 @@ class SapBPSyncService {
       //      causing ODBC -2035 "already exists". Including InternalCode tells SAP to UPDATE.
       //   2. BPAddresses.AddressName — SAP uses AddressName as the unique key per CardCode per
       //      AddressType. We reuse the existing AddressName so SAP does an UPDATE, not an INSERT.
-      const existingContactCode: Record<string, number> = {};
+      // InternalCodes stored by position — not by name.
+      // Positional match: ERP contact[0] → SAP existingInternalCodes[0], regardless of name.
+      // Name-based match would omit InternalCode for a renamed contact → SAP treats it as INSERT → ODBC -2035.
+      const existingInternalCodes: number[] = [];
       const existingAddressName: Record<string, string> = {}; // AddressType → first AddressName seen
       let allExistingAddresses: any[] = [];
       try {
@@ -359,11 +357,11 @@ class SapBPSyncService {
           const bpBody = JSON.parse(getResp.body);
           const existingContacts: any[] = Array.isArray(bpBody.ContactEmployees) ? bpBody.ContactEmployees : [];
           for (const c of existingContacts) {
-            if (c.Name && c.InternalCode != null) {
-              existingContactCode[String(c.Name)] = Number(c.InternalCode);
+            if (c.InternalCode != null) {
+              existingInternalCodes.push(Number(c.InternalCode));
             }
           }
-          console.log(`[SAP BP Sync] Fetched ${existingContacts.length} existing contact(s) for ${cardCode}:`, Object.keys(existingContactCode));
+          console.log(`[SAP BP Sync] Fetched ${existingContacts.length} existing contact(s) for ${cardCode}: InternalCodes=[${existingInternalCodes.join(',')}]`);
           allExistingAddresses = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
           for (const a of allExistingAddresses) {
             if (a.AddressType && a.AddressName) {
@@ -382,20 +380,20 @@ class SapBPSyncService {
         console.warn(`[SAP BP Sync] Could not pre-fetch BP data for ${cardCode}: ${e.message}`);
       }
 
-      // ContactEmployees (up to 3 contacts) — InternalCode included for existing contacts
+      // ContactEmployees (up to 3 contacts) — InternalCode matched by position, not by name.
       if (customer.contactPerson) {
-        const buildContact = (name: string, pos?: string, email?: string, phone?: string) => {
+        const buildContact = (idx: number, name: string, pos?: string, email?: string, phone?: string) => {
           const entry: Record<string, unknown> = { Name: name };
-          if (existingContactCode[name] != null) entry.InternalCode = existingContactCode[name];
+          if (existingInternalCodes[idx] != null) entry.InternalCode = existingInternalCodes[idx];
           if (pos)   entry.Position = pos;
           if (email) entry.E_Mail  = email;
           if (phone) entry.Phone1  = phone;
           return entry;
         };
         const contacts = [
-          buildContact(customer.contactPerson, customer.contactPosition || undefined, customer.email || undefined, customer.phone1 || undefined),
-          ...(customer.contact2Name ? [buildContact(customer.contact2Name, customer.contact2Position || undefined, customer.contact2Email || undefined, customer.contact2Phone || undefined)] : []),
-          ...(customer.contact3Name ? [buildContact(customer.contact3Name, customer.contact3Position || undefined, customer.contact3Email || undefined, customer.contact3Phone || undefined)] : []),
+          buildContact(0, customer.contactPerson, customer.contactPosition || undefined, customer.email || undefined, customer.phone1 || undefined),
+          ...(customer.contact2Name ? [buildContact(1, customer.contact2Name, customer.contact2Position || undefined, customer.contact2Email || undefined, customer.contact2Phone || undefined)] : []),
+          ...(customer.contact3Name ? [buildContact(2, customer.contact3Name, customer.contact3Position || undefined, customer.contact3Email || undefined, customer.contact3Phone || undefined)] : []),
         ];
         bpData.ContactEmployees = contacts;
         bpData.ContactPerson = customer.contactPerson;
@@ -474,6 +472,8 @@ class SapBPSyncService {
 
       // GSTIN (GlobalLocationNumber)
       const gln = customer.glblLocNum;
+      // 'NA' is the sentinel stored locally when SAP returns no GSTIN on inbound sync.
+      // It must not be sent back to SAP — it is not a valid GSTIN value.
       if (gln && gln !== 'NA' && gln.trim()) bpData.GlobalLocationNumber = gln.trim();
 
       // India-specific UDFs and GST fields
