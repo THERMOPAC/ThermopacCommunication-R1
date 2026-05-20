@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useReauthMutation } from "@/hooks/use-reauth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -180,7 +181,7 @@ export default function AttendanceRegularizationPage() {
     },
   });
 
-  const approveMutation = useMutation({
+  const approveMutation = useReauthMutation({
     mutationFn: async ({ id, remarks }: { id: number; remarks: string }) => {
       return await apiRequest('POST', `/api/attendance/regularization/${id}/approve`, { remarks });
     },

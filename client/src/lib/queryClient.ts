@@ -51,6 +51,9 @@ async function throwIfResNotOk(res: Response) {
     if (body) {
       try {
         const parsed = JSON.parse(body);
+        if (parsed?.code === 'REAUTH_REQUIRED') {
+          throw parsed;
+        }
         if (isStructuredError(parsed)) {
           throw new ApiError(res.status, parsed);
         }
@@ -71,6 +74,7 @@ async function throwIfResNotOk(res: Response) {
         }
       } catch (e) {
         if (e instanceof ApiError) throw e;
+        if ((e as any)?.code === 'REAUTH_REQUIRED') throw e;
       }
     }
 
