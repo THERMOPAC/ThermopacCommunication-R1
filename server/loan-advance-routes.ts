@@ -317,23 +317,22 @@ async function postDisbursementJE(
 
   const debitContext = type === 'loan' ? 'loan_disbursement' : 'advance_disbursement';
   const creditContext = debitContext;
-  // For advances the debit goes directly to the employee's SAP BP account (cardCode),
-  // so ADVANCE_RECEIVABLE GL mapping is not required — only loans need a debit GL mapping.
-  const debitCode = 'LOAN_RECEIVABLE';
+  // Debit leg: LOAN_RECEIVABLE (loans) or ADVANCE_RECEIVABLE (advances) — control GL account.
+  // ShortName on the debit line is set to employee.cardCode to link the JE line to the employee BP.
+  const debitCode = type === 'loan' ? 'LOAN_RECEIVABLE' : 'ADVANCE_RECEIVABLE';
   const creditCode = 'LOAN_ADVANCE_BANK';
 
   const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
 
-  const debitMapping = type === 'loan'
-    ? allMappings.find(m => m.componentCode === debitCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== '')
-    : null; // advances: debit AccountCode = employee.cardCode, no GL mapping needed
-
+  const debitMapping = allMappings.find(
+    m => m.componentCode === debitCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
+  );
   const creditMapping = allMappings.find(
     m => m.componentCode === creditCode && m.postingContext === creditContext && m.glAccountCode && m.glAccountCode.trim() !== ''
   );
 
   const missingMappings: string[] = [];
-  if (type === 'loan' && !debitMapping) missingMappings.push(`${debitCode} (${debitContext})`);
+  if (!debitMapping) missingMappings.push(`${debitCode} (${debitContext})`);
   if (!creditMapping) missingMappings.push(`${creditCode} (${creditContext})`);
 
   if (missingMappings.length > 0) {
@@ -349,10 +348,10 @@ async function postDisbursementJE(
   const typeLabel = type === 'loan' ? 'Loan' : 'Advance';
   const postingDate = disbursementDate || new Date().toISOString().split('T')[0];
 
-  // Advances: debit the employee's BP account directly (employee.cardCode).
-  // Loans: debit the LOAN_RECEIVABLE GL account.
-  const debitAccountCode = type === 'advance' ? employee.cardCode : debitMapping!.glAccountCode;
-  const debitLine: any = { Line_ID: 0, AccountCode: debitAccountCode };
+  // AccountCode = control GL account (ADVANCE_RECEIVABLE / LOAN_RECEIVABLE mapping).
+  // ShortName = employee.cardCode — this links the JE line to the employee's BP record in SAP.
+  const debitLine: any = { Line_ID: 0, AccountCode: debitMapping!.glAccountCode };
+  debitLine.ShortName = employee.cardCode;
   debitLine.Debit = disbAmount;
   debitLine.Credit = 0;
   debitLine.LineMemo = `${typeLabel} Disbursement - ${empName} - ${reference}`;
@@ -527,22 +526,22 @@ export async function postReversalJE(
     : employee?.username || 'Unknown';
 
   const debitContext = type === 'loan' ? 'loan_disbursement' : 'advance_disbursement';
-  // For advances the original debit was to the employee's BP account (cardCode),
-  // so the reversal credit goes back to the same BP account — no GL mapping needed for that leg.
+  // Credit leg (reversal): LOAN_RECEIVABLE (loans) or ADVANCE_RECEIVABLE (advances) — control GL account.
+  // ShortName = employee.cardCode to link the line back to the employee BP in SAP.
+  const reversalDebitCode = type === 'loan' ? 'LOAN_RECEIVABLE' : 'ADVANCE_RECEIVABLE';
   const creditCode = 'LOAN_ADVANCE_BANK';
 
   const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
 
-  const loanDebitMapping = type === 'loan'
-    ? allMappings.find(m => m.componentCode === 'LOAN_RECEIVABLE' && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== '')
-    : null; // advances: reversal credit AccountCode = employee.cardCode
-
+  const reversalDebitMapping = allMappings.find(
+    m => m.componentCode === reversalDebitCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
+  );
   const creditMapping = allMappings.find(
     m => m.componentCode === creditCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
   );
 
-  if (type === 'loan' && !loanDebitMapping) {
-    return { success: false, error: `GL mapping missing for reversal: LOAN_RECEIVABLE (${debitContext}). Go to Finance > GL Mapping.` };
+  if (!reversalDebitMapping) {
+    return { success: false, error: `GL mapping missing for reversal: ${reversalDebitCode} (${debitContext}). Go to Finance > GL Mapping.` };
   }
   if (!creditMapping) {
     return { success: false, error: `GL mapping missing for reversal: ${creditCode} (${debitContext}). Go to Finance > GL Mapping.` };
@@ -551,10 +550,9 @@ export async function postReversalJE(
   const typeLabel = type === 'loan' ? 'Loan' : 'Advance';
   const postingDate = new Date().toISOString().split('T')[0];
 
-  // Advances: reversal credit goes back to the employee's BP account (cardCode).
-  // Loans: reversal credit goes to the LOAN_RECEIVABLE GL account.
-  const reversalAccountCode = type === 'advance' ? (employee?.cardCode || '') : loanDebitMapping!.glAccountCode;
-  const creditLine: any = { Line_ID: 1, AccountCode: reversalAccountCode };
+  // AccountCode = control GL account; ShortName = employee.cardCode links to the employee's BP in SAP.
+  const creditLine: any = { Line_ID: 1, AccountCode: reversalDebitMapping.glAccountCode };
+  creditLine.ShortName = employee?.cardCode || '';
   creditLine.Debit = 0;
   creditLine.Credit = amount;
   creditLine.LineMemo = `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`;
