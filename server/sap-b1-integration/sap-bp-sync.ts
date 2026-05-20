@@ -352,14 +352,21 @@ class SapBPSyncService {
       //   - Address field changes submitted via UI are saved locally only.
       // Restore when SAP admin confirms the underlying conflict is resolved.
 
-      const patchWarning: string = 'Contact and address changes saved locally. SAP contact and address PATCH is temporarily disabled.';
+      const patchWarning: string = 'Contact, address, and GSTIN changes saved locally. SAP contact, address, and GlobalLocationNumber PATCH is temporarily disabled.';
       console.warn(`⚠️  [SAP BP Sync] ${cardCode}: ${patchWarning}`);
 
-      // GSTIN (GlobalLocationNumber)
-      const gln = customer.glblLocNum;
-      // 'NA' is the sentinel stored locally when SAP returns no GSTIN on inbound sync.
-      // It must not be sent back to SAP — it is not a valid GSTIN value.
-      if (gln && gln !== 'NA' && gln.trim()) bpData.GlobalLocationNumber = gln.trim();
+      // ── GlobalLocationNumber PATCH — EXCLUDED (2026-05-20) ───────────────────
+      // Governance rule: GlobalLocationNumber is excluded from all PATCH payloads.
+      // Diagnostic evidence (2026-05-20): Service Layer PATCH with GlobalLocationNumber
+      // consistently triggers "Could not commit transaction: Error -1" on India-localised
+      // BPs, regardless of whether the value matches the existing SAP record or not.
+      // Confirmed on V10459 (clean synced BP) and V11006 (failed BP).
+      // Rules:
+      //   - GlobalLocationNumber excluded from all PATCH payloads.
+      //   - POST (createBusinessPartner): GlobalLocationNumber unaffected — still included.
+      //   - GET (SAP → ERP inbound sync): GlobalLocationNumber read and stored locally — unaffected.
+      //   - glbl_loc_num local column: unchanged, continues to hold the GSTIN from SAP.
+      // Restore when SAP admin confirms the India GST addon conflict is resolved.
 
       // India-specific UDFs and GST fields
       if (countryCode === 'IN') {
