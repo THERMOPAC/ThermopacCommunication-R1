@@ -12,6 +12,7 @@ interface SapBPAddress {
   ZipCode?: string;
   State?: string;
   Country?: string;
+  RowNum?: number;            // Required on PATCH to UPDATE an existing row (omit to INSERT)
   // Legacy Street field kept for the CREATE path (parseAddress) only
   Street?: string;
 }
@@ -333,6 +334,7 @@ class SapBPSyncService {
       // Name-based match would omit InternalCode for a renamed contact → SAP treats it as INSERT → ODBC -2035.
       const existingInternalCodes: number[] = [];
       const existingAddressName: Record<string, string> = {}; // AddressType → first AddressName seen
+      const existingAddressRowNum: Record<string, number> = {}; // AddressType → RowNum (for PATCH UPDATE)
       let allExistingAddresses: any[] = [];
       try {
         const getResp = await sapSession.request({
@@ -351,9 +353,10 @@ class SapBPSyncService {
           allExistingAddresses = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
           for (const a of allExistingAddresses) {
             if (a.AddressType && a.AddressName) {
-              // Keep first (lowest RowNum) AddressName per AddressType as the canonical key
+              // Keep first (lowest RowNum) AddressName and RowNum per AddressType as the canonical key
               if (!existingAddressName[String(a.AddressType)]) {
                 existingAddressName[String(a.AddressType)] = String(a.AddressName);
+                if (a.RowNum != null) existingAddressRowNum[String(a.AddressType)] = Number(a.RowNum);
               }
             }
           }
@@ -425,24 +428,30 @@ class SapBPSyncService {
 
           if (hasBillGranular) {
             const billName = existingAddressName['bo_BillTo'] ?? 'Billing Address';
-            console.log(`[SAP BP Sync] ${cardCode}: bo_BillTo AddressName="${billName}" (${existingAddressName['bo_BillTo'] ? 'existing' : 'new'})`);
-            patchAddresses.push(this.buildGranularAddress(
+            const billRowNum = existingAddressRowNum['bo_BillTo'];
+            console.log(`[SAP BP Sync] ${cardCode}: bo_BillTo AddressName="${billName}" RowNum=${billRowNum ?? 'n/a'} (${existingAddressName['bo_BillTo'] ? 'existing' : 'new'})`);
+            const billAddr = this.buildGranularAddress(
               billName, 'bo_BillTo',
               customer.billAddrLine1, customer.billAddrLine2,
               customer.billAddrBlock, customer.billAddrBuilding,
               customer.billAddrCity, countryCode, stateCode,
-            ));
+            );
+            if (billRowNum != null) billAddr.RowNum = billRowNum;
+            patchAddresses.push(billAddr);
           }
 
           if (hasShipGranular) {
             const shipName = existingAddressName['bo_ShipTo'] ?? 'Shipping Address';
-            console.log(`[SAP BP Sync] ${cardCode}: bo_ShipTo AddressName="${shipName}" (${existingAddressName['bo_ShipTo'] ? 'existing' : 'new'})`);
-            patchAddresses.push(this.buildGranularAddress(
+            const shipRowNum = existingAddressRowNum['bo_ShipTo'];
+            console.log(`[SAP BP Sync] ${cardCode}: bo_ShipTo AddressName="${shipName}" RowNum=${shipRowNum ?? 'n/a'} (${existingAddressName['bo_ShipTo'] ? 'existing' : 'new'})`);
+            const shipAddr = this.buildGranularAddress(
               shipName, 'bo_ShipTo',
               customer.shipAddrLine1, customer.shipAddrLine2,
               customer.shipAddrBlock, customer.shipAddrBuilding,
               customer.shipAddrCity, countryCode, stateCode,
-            ));
+            );
+            if (shipRowNum != null) shipAddr.RowNum = shipRowNum;
+            patchAddresses.push(shipAddr);
           }
 
           if (patchAddresses.length > 0) {
