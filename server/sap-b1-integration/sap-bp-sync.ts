@@ -323,52 +323,22 @@ class SapBPSyncService {
       if (countryCode)        bpData.Country       = countryCode;
       if (customer.currency)  bpData.Currency      = customer.currency;
 
-      // Pre-fetch the full BP record from SAP (no $select — adding $select strips UDFs and
-      // can cause session contamination). Needed for:
-      //   ContactEmployees.InternalCode — SAP treats entries WITHOUT InternalCode as INSERTs,
-      //   causing ODBC -2035 "already exists". Including InternalCode tells SAP to UPDATE.
-      // InternalCodes stored by position — not by name.
-      // Positional match: ERP contact[0] → SAP existingInternalCodes[0], regardless of name.
-      // Name-based match would omit InternalCode for a renamed contact → SAP treats it as INSERT → ODBC -2035.
-      // Note: BPAddresses pre-fetch removed — BPAddresses PATCH is temporarily disabled (2026-05-20).
-      const existingInternalCodes: number[] = [];
-      try {
-        const getResp = await sapSession.request({
-          method: 'GET',
-          path: `/b1s/v1/BusinessPartners('${encodeURIComponent(cardCode)}')`,
-        });
-        if (getResp.ok) {
-          const bpBody = JSON.parse(getResp.body);
-          const existingContacts: any[] = Array.isArray(bpBody.ContactEmployees) ? bpBody.ContactEmployees : [];
-          for (const c of existingContacts) {
-            if (c.InternalCode != null) {
-              existingInternalCodes.push(Number(c.InternalCode));
-            }
-          }
-          console.log(`[SAP BP Sync] Fetched ${existingContacts.length} existing contact(s) for ${cardCode}: InternalCodes=[${existingInternalCodes.join(',')}]`);
-        }
-      } catch (e: any) {
-        console.warn(`[SAP BP Sync] Could not pre-fetch BP data for ${cardCode}: ${e.message}`);
-      }
+      // Pre-fetch removed (2026-05-20): ContactEmployees and BPAddresses are both temporarily
+      // disabled in PATCH. No GET pre-fetch is needed until either is restored.
 
-      // ContactEmployees (up to 3 contacts) — InternalCode matched by position, not by name.
-      if (customer.contactPerson) {
-        const buildContact = (idx: number, name: string, pos?: string, email?: string, phone?: string) => {
-          const entry: Record<string, unknown> = { Name: name };
-          if (existingInternalCodes[idx] != null) entry.InternalCode = existingInternalCodes[idx];
-          if (pos)   entry.Position = pos;
-          if (email) entry.E_Mail  = email;
-          if (phone) entry.Phone1  = phone;
-          return entry;
-        };
-        const contacts = [
-          buildContact(0, customer.contactPerson, customer.contactPosition || undefined, customer.email || undefined, customer.phone1 || undefined),
-          ...(customer.contact2Name ? [buildContact(1, customer.contact2Name, customer.contact2Position || undefined, customer.contact2Email || undefined, customer.contact2Phone || undefined)] : []),
-          ...(customer.contact3Name ? [buildContact(2, customer.contact3Name, customer.contact3Position || undefined, customer.contact3Email || undefined, customer.contact3Phone || undefined)] : []),
-        ];
-        bpData.ContactEmployees = contacts;
-        bpData.ContactPerson = customer.contactPerson;
-      }
+      // ── ContactEmployees PATCH — TEMPORARILY DISABLED (2026-05-20) ──────────
+      // Governance exception approved 2026-05-20:
+      // Observed pattern: ODBC -2035 on ContactEmployees.Name when two or more contacts
+      // share the same Name value (confirmed on V11006: both contacts named
+      // "SHAILESH KUMAR JAIN", InternalCodes 2563 and 2639). SAP enforces Name uniqueness
+      // within ContactEmployees per CardCode — duplicate Names are rejected even when
+      // InternalCode is correctly supplied.
+      // Rules during this exception:
+      //   - ContactEmployees and ContactPerson excluded from all PATCH payloads.
+      //   - POST (createBusinessPartner): ContactEmployees unaffected.
+      //   - GET (SAP → ERP inbound sync): ContactEmployees reads unaffected.
+      //   - Contact changes submitted via UI are saved locally only.
+      // Restore when SAP admin resolves the duplicate Name conflict for affected BPs.
 
       // ── BPAddresses PATCH — TEMPORARILY DISABLED (2026-05-20) ────────────
       // Governance exception approved 2026-05-20:
@@ -381,8 +351,9 @@ class SapBPSyncService {
       //   - GET (SAP → ERP inbound sync): BPAddresses reads unaffected.
       //   - Address field changes submitted via UI are saved locally only.
       // Restore when SAP admin confirms the underlying conflict is resolved.
-      const addressPatchWarning: string = 'Address changes saved locally. SAP address PATCH is temporarily disabled.';
-      console.warn(`⚠️  [SAP BP Sync] ${cardCode}: ${addressPatchWarning}`);
+
+      const patchWarning: string = 'Contact and address changes saved locally. SAP contact and address PATCH is temporarily disabled.';
+      console.warn(`⚠️  [SAP BP Sync] ${cardCode}: ${patchWarning}`);
 
       // GSTIN (GlobalLocationNumber)
       const gln = customer.glblLocNum;
@@ -406,9 +377,8 @@ class SapBPSyncService {
         body: bpData,
       });
 
-      // Auto-retry on "Error -1 / commit transaction" — stale session from bulk sync or
-      // from the GET pre-fetch above contaminating the session.
-      // Invalidate and retry the FULL flow (GET InternalCode + PATCH) with a fresh login.
+      // Auto-retry on "Error -1 / commit transaction" — stale session from bulk sync.
+      // Invalidate and retry the FULL flow with a fresh login.
       if (!response.ok && response.statusCode !== 204 && _retryDepth === 0) {
         let firstErrorMsg = `Status ${response.statusCode}`;
         try {
@@ -423,8 +393,8 @@ class SapBPSyncService {
       }
 
       if (response.ok || response.statusCode === 204) {
-        console.log(`✅ SAP BP Sync: BP ${cardCode} updated successfully${addressPatchWarning ? ' (address skipped — see warning)' : ''}`);
-        return { success: true, ...(addressPatchWarning ? { warning: addressPatchWarning } : {}) };
+        console.log(`✅ SAP BP Sync: BP ${cardCode} updated successfully (contacts + addresses skipped — temporarily disabled)`);
+        return { success: true, warning: patchWarning };
       } else {
         let errorMsg = `Status ${response.statusCode}`;
         try {

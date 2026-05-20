@@ -397,42 +397,54 @@ No partial sync state. No `synced` status when an error or warning exists. If BP
 
 ---
 
-## 14. Temporary Governance Exception — BPAddresses PATCH Disabled (2026-05-20)
+## 14. Temporary Governance Exception — ContactEmployees + BPAddresses PATCH Disabled (2026-05-20)
 
 ### Status: ACTIVE
 
 ### Trigger
 
-Diagnostic confirmed ODBC -2035 on BPAddresses PATCH for multiple India-localised BPs (V11074, V11006). Verbatim full-field echo payload also rejected. Root cause (specific SAP-side table conflict) is unproven — SAP admin SQL evidence not yet available.
+Two separate ODBC -2035 failures observed during ERP → SAP PATCH for V11006 and V11074:
+
+1. **BPAddresses**: Verbatim full-field echo PATCH rejected with -2035 for India-localised BPs (TaasEnabled="tYES", GstType present). Confirmed on V11074 and V11006. Root cause unproven — SAP admin SQL evidence pending.
+
+2. **ContactEmployees**: PATCH rejected with -2035 on `ContactEmployees.Name` when two contacts share the same Name value. Confirmed on V11006 (both contacts named "SHAILESH KUMAR JAIN", InternalCodes 2563 and 2639). SAP enforces Name uniqueness within ContactEmployees per CardCode — correct InternalCodes do not override this constraint.
 
 ### Rules in effect from 2026-05-20
 
 | Rule | Detail |
 |---|---|
+| ContactEmployees in PATCH | **Excluded.** ContactEmployees and ContactPerson are never sent in ERP → SAP PATCH calls. |
 | BPAddresses in PATCH | **Excluded.** BPAddresses array is never sent in ERP → SAP PATCH calls. |
+| ContactEmployees in POST | **Unaffected.** New BP creation sends ContactEmployees as before. |
 | BPAddresses in POST | **Unaffected.** New BP creation sends BPAddresses as before. |
-| BPAddresses in GET | **Unaffected.** SAP → ERP inbound sync reads BPAddresses as before. |
-| Address field changes via UI | Saved to local DB only. Not pushed to SAP. |
-| `sap_sync_status` on PATCH success | `synced` — non-address fields ARE synced. |
-| `sap_sync_error` on PATCH success | `"Address changes saved locally. SAP address PATCH is temporarily disabled."` |
-| Retry sync for previously-failed BPs | Allowed. Retry will now succeed (BPAddresses excluded). Non-address fields will sync. `sap_sync_error` will carry the address warning. |
+| ContactEmployees/BPAddresses in GET | **Unaffected.** SAP → ERP inbound sync reads both as before. |
+| Contact + address field changes via UI | Saved to local DB only. Not pushed to SAP. |
+| SAP GET pre-fetch | **Removed.** No pre-fetch call is made during PATCH (was needed for InternalCode and RowNum — both now excluded). |
+| `sap_sync_status` on PATCH success | `synced` — scalar fields (CardName, Cellular, EmailAddress, Country, Currency, GlobalLocationNumber, UDFs) ARE synced. |
+| `sap_sync_error` on PATCH success | `"Contact and address changes saved locally. SAP contact and address PATCH is temporarily disabled."` |
+| Retry sync for previously-failed BPs | Allowed. Retry will now succeed (both excluded). Scalar fields will sync. `sap_sync_error` will carry the warning. |
 
 ### What the user sees
 
 After any BP save or retry sync:
 - `sap_sync_status = synced`
-- `sap_sync_error = "Address changes saved locally. SAP address PATCH is temporarily disabled."`
+- `sap_sync_error = "Contact and address changes saved locally. SAP contact and address PATCH is temporarily disabled."`
 
 This message must be surfaced in the UI wherever `sap_sync_error` is displayed.
 
-### Restore condition
+### Restore condition — BPAddresses
 
-Remove this exception and restore the BPAddresses PATCH block in `server/sap-b1-integration/sap-bp-sync.ts` only when:
-
+Restore `BPAddresses` in PATCH only when:
 1. SAP B1 administrator provides SQL evidence identifying the table and constraint causing ODBC -2035 for India-localised BPs.
-2. The conflict is confirmed resolved in the SAP B1 MSSQL instance for `TPEL_LIVE`.
+2. The conflict is confirmed resolved in `TPEL_LIVE`.
 3. A live PATCH test against at least V11074 and V11006 returns HTTP 204 with BPAddresses in the payload.
-4. The governance doc is updated to reflect confirmed root cause (Section 13).
+
+### Restore condition — ContactEmployees
+
+Restore `ContactEmployees` in PATCH only when:
+1. Duplicate contact Name entries for affected BPs (e.g. V11006) are resolved in SAP B1 — either by renaming one contact or removing the duplicate.
+2. A live PATCH test with two distinct contact Names returns HTTP 204.
+3. The GET pre-fetch block (InternalCode lookup) is re-added before `ContactEmployees` is restored in the payload.
 
 ---
 
