@@ -3108,10 +3108,13 @@ export function setupProjectRoutes(app: express.Express) {
         const { sapBPSyncService } = await import('./sap-b1-integration/sap-bp-sync');
         const sapResult = await sapBPSyncService.updateBusinessPartner(updatedCustomer);
         if (sapResult.success) {
-          console.log(`✅ Customer ${updatedCustomer.bpCode} updated in SAP B1`);
+          // Temporary exception (2026-05-20): BPAddresses PATCH disabled — warning stored in sap_sync_error.
+          // sap_sync_status='synced' because all non-address fields DID sync. Address changes are local-only.
+          const syncNote = sapResult.warning ?? null;
+          console.log(`✅ Customer ${updatedCustomer.bpCode} updated in SAP B1${syncNote ? ' (address PATCH skipped — temporarily disabled)' : ''}`);
           await pool.query(
-            `UPDATE customers SET sap_sync_status='synced', sap_sync_error=NULL, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$1`,
-            [customerId]
+            `UPDATE customers SET sap_sync_status='synced', sap_sync_error=$1, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$2`,
+            [syncNote, customerId]
           );
         } else {
           console.error(`❌ Customer ${updatedCustomer.bpCode} updated locally but SAP sync failed: ${sapResult.error}`);
@@ -3125,7 +3128,7 @@ export function setupProjectRoutes(app: express.Express) {
             [req.user!.username ?? 'system', sapResult.error ?? 'Unknown SAP error']
           ).catch(() => {});
         }
-        res.json({ ...updatedCustomer, sapSyncStatus: sapResult.success ? 'synced' : 'failed', sapSyncError: sapResult.error ?? null });
+        res.json({ ...updatedCustomer, sapSyncStatus: sapResult.success ? 'synced' : 'failed', sapSyncError: sapResult.success ? (sapResult.warning ?? null) : (sapResult.error ?? null) });
       } catch (sapError: any) {
         console.error(`❌ SAP sync failed for ${updatedCustomer.bpCode}: ${sapError.message}`);
         await pool.query(
@@ -3164,17 +3167,19 @@ export function setupProjectRoutes(app: express.Express) {
       const { sapBPSyncService } = await import('./sap-b1-integration/sap-bp-sync');
       const sapResult = await sapBPSyncService.updateBusinessPartner(customer);
       if (sapResult.success) {
+        // Temporary exception (2026-05-20): BPAddresses PATCH disabled — warning stored in sap_sync_error.
+        const syncNote = sapResult.warning ?? null;
         await pool.query(
-          `UPDATE customers SET sap_sync_status='synced', sap_sync_error=NULL, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$1`,
-          [customerId]
+          `UPDATE customers SET sap_sync_status='synced', sap_sync_error=$1, sap_synced_at=NOW(), updated_at=NOW() WHERE id=$2`,
+          [syncNote, customerId]
         );
         await pool.query(
           `INSERT INTO sap_customer_sync_logs (triggered_by, started_at, completed_at, status, total_fetched, imported, skipped, failed, error_summary)
-           VALUES ($1, NOW(), NOW(), 'synced', 1, 1, 0, 0, NULL)`,
-          [req.user!.username ?? 'system']
+           VALUES ($1, NOW(), NOW(), 'synced', 1, 1, 0, 0, $2)`,
+          [req.user!.username ?? 'system', syncNote]
         ).catch(() => {});
-        console.log(`✅ [retry-sap-sync] Customer ${customer.bpCode} re-synced to SAP B1 by ${req.user!.username}`);
-        return res.json({ success: true });
+        console.log(`✅ [retry-sap-sync] Customer ${customer.bpCode} re-synced to SAP B1 by ${req.user!.username}${syncNote ? ' (address PATCH skipped)' : ''}`);
+        return res.json({ success: true, ...(syncNote ? { warning: syncNote } : {}) });
       } else {
         await pool.query(
           `UPDATE customers SET sap_sync_error=$1, updated_at=NOW() WHERE id=$2`,

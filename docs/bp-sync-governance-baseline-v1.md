@@ -397,4 +397,43 @@ No partial sync state. No `synced` status when an error or warning exists. If BP
 
 ---
 
-*Document authored by THERMOPAC QMS engineering. Phase 1 baseline: 2026-05-19. Phase 2A update: 2026-05-19. Section 13 added: 2026-05-20.*
+## 14. Temporary Governance Exception — BPAddresses PATCH Disabled (2026-05-20)
+
+### Status: ACTIVE
+
+### Trigger
+
+Diagnostic confirmed ODBC -2035 on BPAddresses PATCH for multiple India-localised BPs (V11074, V11006). Verbatim full-field echo payload also rejected. Root cause (specific SAP-side table conflict) is unproven — SAP admin SQL evidence not yet available.
+
+### Rules in effect from 2026-05-20
+
+| Rule | Detail |
+|---|---|
+| BPAddresses in PATCH | **Excluded.** BPAddresses array is never sent in ERP → SAP PATCH calls. |
+| BPAddresses in POST | **Unaffected.** New BP creation sends BPAddresses as before. |
+| BPAddresses in GET | **Unaffected.** SAP → ERP inbound sync reads BPAddresses as before. |
+| Address field changes via UI | Saved to local DB only. Not pushed to SAP. |
+| `sap_sync_status` on PATCH success | `synced` — non-address fields ARE synced. |
+| `sap_sync_error` on PATCH success | `"Address changes saved locally. SAP address PATCH is temporarily disabled."` |
+| Retry sync for previously-failed BPs | Allowed. Retry will now succeed (BPAddresses excluded). Non-address fields will sync. `sap_sync_error` will carry the address warning. |
+
+### What the user sees
+
+After any BP save or retry sync:
+- `sap_sync_status = synced`
+- `sap_sync_error = "Address changes saved locally. SAP address PATCH is temporarily disabled."`
+
+This message must be surfaced in the UI wherever `sap_sync_error` is displayed.
+
+### Restore condition
+
+Remove this exception and restore the BPAddresses PATCH block in `server/sap-b1-integration/sap-bp-sync.ts` only when:
+
+1. SAP B1 administrator provides SQL evidence identifying the table and constraint causing ODBC -2035 for India-localised BPs.
+2. The conflict is confirmed resolved in the SAP B1 MSSQL instance for `TPEL_LIVE`.
+3. A live PATCH test against at least V11074 and V11006 returns HTTP 204 with BPAddresses in the payload.
+4. The governance doc is updated to reflect confirmed root cause (Section 13).
+
+---
+
+*Document authored by THERMOPAC QMS engineering. Phase 1 baseline: 2026-05-19. Phase 2A update: 2026-05-19. Section 13 added: 2026-05-20. Section 14 (temporary exception) added: 2026-05-20.*

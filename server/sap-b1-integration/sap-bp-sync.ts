@@ -324,18 +324,14 @@ class SapBPSyncService {
       if (customer.currency)  bpData.Currency      = customer.currency;
 
       // Pre-fetch the full BP record from SAP (no $select — adding $select strips UDFs and
-      // can cause session contamination). We need:
-      //   1. ContactEmployees.InternalCode — SAP treats entries WITHOUT InternalCode as INSERTs,
-      //      causing ODBC -2035 "already exists". Including InternalCode tells SAP to UPDATE.
-      //   2. BPAddresses.AddressName — SAP uses AddressName as the unique key per CardCode per
-      //      AddressType. We reuse the existing AddressName so SAP does an UPDATE, not an INSERT.
+      // can cause session contamination). Needed for:
+      //   ContactEmployees.InternalCode — SAP treats entries WITHOUT InternalCode as INSERTs,
+      //   causing ODBC -2035 "already exists". Including InternalCode tells SAP to UPDATE.
       // InternalCodes stored by position — not by name.
       // Positional match: ERP contact[0] → SAP existingInternalCodes[0], regardless of name.
       // Name-based match would omit InternalCode for a renamed contact → SAP treats it as INSERT → ODBC -2035.
+      // Note: BPAddresses pre-fetch removed — BPAddresses PATCH is temporarily disabled (2026-05-20).
       const existingInternalCodes: number[] = [];
-      const existingAddressName: Record<string, string> = {}; // AddressType → first AddressName seen
-      const existingAddressRowNum: Record<string, number> = {}; // AddressType → RowNum (for PATCH UPDATE)
-      let allExistingAddresses: any[] = [];
       try {
         const getResp = await sapSession.request({
           method: 'GET',
@@ -350,20 +346,6 @@ class SapBPSyncService {
             }
           }
           console.log(`[SAP BP Sync] Fetched ${existingContacts.length} existing contact(s) for ${cardCode}: InternalCodes=[${existingInternalCodes.join(',')}]`);
-          allExistingAddresses = Array.isArray(bpBody.BPAddresses) ? bpBody.BPAddresses : [];
-          for (const a of allExistingAddresses) {
-            if (a.AddressType && a.AddressName) {
-              // Keep first (lowest RowNum) AddressName and RowNum per AddressType as the canonical key
-              if (!existingAddressName[String(a.AddressType)]) {
-                existingAddressName[String(a.AddressType)] = String(a.AddressName);
-                if (a.RowNum != null) existingAddressRowNum[String(a.AddressType)] = Number(a.RowNum);
-              }
-            }
-          }
-          console.log(`[SAP BP Sync] Fetched ${allExistingAddresses.length} existing address(es) for ${cardCode}:`, existingAddressName);
-          for (const a of allExistingAddresses) {
-            console.log(`[SAP BP Sync]   row — RowNum:${a.RowNum ?? 'n/a'} | AddressType:${a.AddressType ?? 'n/a'} | AddressName:"${a.AddressName ?? ''}" | AddressName2:"${a.AddressName2 ?? ''}"`);
-          }
         }
       } catch (e: any) {
         console.warn(`[SAP BP Sync] Could not pre-fetch BP data for ${cardCode}: ${e.message}`);
@@ -388,77 +370,19 @@ class SapBPSyncService {
         bpData.ContactPerson = customer.contactPerson;
       }
 
-      // ── BPAddresses PATCH (four rules) ────────────────────────────────────
-      // Rule 1: Only update rows that already exist in SAP, matched by AddressType.
-      // Rule 2: Preserve the existing AddressName from SAP — never substitute
-      //         "Bill To" / "Ship To" for an existing record.
-      // Rule 3: If any AddressName is shared across multiple AddressTypes
-      //         (duplicate-key condition) → skip BPAddresses entirely, emit warning.
-      //         Manual cleanup in SAP required before this BP can be address-patched.
-      // Rule 4: Never auto-delete or auto-clean duplicate rows in SAP.
-      let addressPatchWarning: string | undefined;
-
-      // Detect duplicate: same AddressName used for more than one AddressType
-      const nameToTypes: Record<string, Set<string>> = {};
-      for (const a of allExistingAddresses) {
-        if (a.AddressName && a.AddressType) {
-          const n = String(a.AddressName);
-          if (!nameToTypes[n]) nameToTypes[n] = new Set();
-          nameToTypes[n].add(String(a.AddressType));
-        }
-      }
-      const duplicateNames = Object.entries(nameToTypes)
-        .filter(([, types]) => types.size > 1)
-        .map(([name]) => `"${name}"`);
-
-      const hasBillGranular = customer.billAddrLine1 || customer.billAddrLine2 || customer.billAddrCity;
-      const hasShipGranular = customer.shipAddrLine1 || customer.shipAddrLine2 || customer.shipAddrCity;
-
-      if (hasBillGranular || hasShipGranular) {
-        if (duplicateNames.length > 0) {
-          // Rule 3: skip, warn
-          addressPatchWarning =
-            `BPAddresses not updated: duplicate AddressName(s) ${duplicateNames.join(', ')} ` +
-            `found across multiple AddressTypes for ${cardCode}. ` +
-            `Clean duplicate address rows in SAP manually, then retry sync.`;
-          console.warn(`⚠️  [SAP BP Sync] ${addressPatchWarning}`);
-        } else {
-          // Rules 1 & 2: only patch types that already exist in SAP, using SAP's own AddressName
-          const patchAddresses: SapBPAddress[] = [];
-
-          if (hasBillGranular) {
-            const billName = existingAddressName['bo_BillTo'] ?? 'Billing Address';
-            const billRowNum = existingAddressRowNum['bo_BillTo'];
-            console.log(`[SAP BP Sync] ${cardCode}: bo_BillTo AddressName="${billName}" RowNum=${billRowNum ?? 'n/a'} (${existingAddressName['bo_BillTo'] ? 'existing' : 'new'})`);
-            const billAddr = this.buildGranularAddress(
-              billName, 'bo_BillTo',
-              customer.billAddrLine1, customer.billAddrLine2,
-              customer.billAddrBlock, customer.billAddrBuilding,
-              customer.billAddrCity, countryCode, stateCode,
-            );
-            if (billRowNum != null) billAddr.RowNum = billRowNum;
-            patchAddresses.push(billAddr);
-          }
-
-          if (hasShipGranular) {
-            const shipName = existingAddressName['bo_ShipTo'] ?? 'Shipping Address';
-            const shipRowNum = existingAddressRowNum['bo_ShipTo'];
-            console.log(`[SAP BP Sync] ${cardCode}: bo_ShipTo AddressName="${shipName}" RowNum=${shipRowNum ?? 'n/a'} (${existingAddressName['bo_ShipTo'] ? 'existing' : 'new'})`);
-            const shipAddr = this.buildGranularAddress(
-              shipName, 'bo_ShipTo',
-              customer.shipAddrLine1, customer.shipAddrLine2,
-              customer.shipAddrBlock, customer.shipAddrBuilding,
-              customer.shipAddrCity, countryCode, stateCode,
-            );
-            if (shipRowNum != null) shipAddr.RowNum = shipRowNum;
-            patchAddresses.push(shipAddr);
-          }
-
-          if (patchAddresses.length > 0) {
-            bpData.BPAddresses = patchAddresses;
-          }
-        }
-      }
+      // ── BPAddresses PATCH — TEMPORARILY DISABLED (2026-05-20) ────────────
+      // Governance exception approved 2026-05-20:
+      // Observed pattern: India-localised BPs (TaasEnabled="tYES", GstType present) fail
+      // BPAddresses PATCH with ODBC -2035. Confirmed on V11074, V11006. Root cause
+      // (specific SAP-side table conflict) is unproven — SAP admin SQL evidence pending.
+      // Rules during this exception:
+      //   - BPAddresses excluded from all PATCH payloads.
+      //   - POST (createBusinessPartner): BPAddresses unaffected.
+      //   - GET (SAP → ERP inbound sync): BPAddresses reads unaffected.
+      //   - Address field changes submitted via UI are saved locally only.
+      // Restore when SAP admin confirms the underlying conflict is resolved.
+      const addressPatchWarning: string = 'Address changes saved locally. SAP address PATCH is temporarily disabled.';
+      console.warn(`⚠️  [SAP BP Sync] ${cardCode}: ${addressPatchWarning}`);
 
       // GSTIN (GlobalLocationNumber)
       const gln = customer.glblLocNum;
@@ -510,14 +434,6 @@ class SapBPSyncService {
 
         console.error(`❌ SAP BP Sync: PATCH failed for ${cardCode} — SAP error: ${errorMsg}`);
         console.error(`❌ SAP BP Sync: Payload that was rejected:`, JSON.stringify(bpData, null, 2));
-
-        // ODBC -2035 with BPAddresses in the payload = address row conflict in SAP (CRD1 duplicate key).
-        // Rule: no retry, no strip, no partial sync. Fail hard with a clear diagnostic message.
-        if (errorMsg.includes('-2035') && bpData.BPAddresses) {
-          const addrError = `Address sync failed (ODBC -2035): SAP rejected BPAddresses as a duplicate entry. Resolve the address conflict directly in SAP B1, then retry sync.`;
-          console.error(`❌ SAP BP Sync: Address conflict for ${cardCode} — ${addrError}`);
-          return { success: false, error: addrError };
-        }
 
         if (errorMsg.includes('does not exist') && !errorMsg.includes('Linked value') && !errorMsg.includes('BPAddresses')) {
           console.log(`⚠️ SAP BP Sync: BP ${cardCode} not found in SAP, creating instead`);
