@@ -4337,6 +4337,7 @@ export function setupProjectRoutes(app: express.Express) {
                               mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                               mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                               mi.standard_cost as item_standard_cost,
+                              prod.item_property_1_label AS product_p1_label,
                               prod.item_property_2_label AS product_p2_label,
                               prod.item_property_3       AS product_p3
                        FROM item_planning_records ipr
@@ -4374,6 +4375,7 @@ export function setupProjectRoutes(app: express.Express) {
                    mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                    mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                    mi.standard_cost as item_standard_cost,
+                   prod.item_property_1_label AS product_p1_label,
                    prod.item_property_2_label AS product_p2_label,
                    prod.item_property_3       AS product_p3
             FROM item_planning_records ipr

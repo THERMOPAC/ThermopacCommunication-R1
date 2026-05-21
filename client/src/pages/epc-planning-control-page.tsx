@@ -354,14 +354,14 @@ export default function EpcPlanningControlPage() {
                                       <div className="space-y-1">
                                         <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
                                         <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
-                                        {(expandedDetail.product_p2_label || expandedDetail.product_p3) && (
+                                        {(expandedDetail.product_p1_label || expandedDetail.product_p2_label || expandedDetail.product_p3) && (
                                           <div className="flex items-start gap-2 text-[10px]">
                                             <span className="text-muted-foreground w-32 shrink-0"></span>
                                             <div
                                               className="text-[12px] text-blue-600 font-bold leading-snug truncate"
-                                              title={[expandedDetail.product_p2_label, expandedDetail.product_p3].filter(Boolean).join(' ')}
+                                              title={[expandedDetail.product_p1_label, expandedDetail.product_p2_label, expandedDetail.product_p3].filter(Boolean).join(' ')}
                                             >
-                                              {[expandedDetail.product_p2_label, expandedDetail.product_p3].filter(Boolean).join(' ')}
+                                              {[expandedDetail.product_p1_label, expandedDetail.product_p2_label, expandedDetail.product_p3].filter(Boolean).join(' ')}
                                             </div>
                                           </div>
                                         )}
