@@ -350,7 +350,7 @@ export default function EpcDrawingControlPage() {
   return (
     <Layout>
       <TooltipProvider>
-        <div className="p-4 space-y-4 max-w-[1400px] mx-auto">
+        <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-bold flex items-center gap-2">
@@ -362,7 +362,7 @@ export default function EpcDrawingControlPage() {
             </div>
             <div className="flex items-center gap-2">
               <Select value={projectId?.toString() || ""} onValueChange={(v) => { setProjectId(parseInt(v)); setExpandedId(null); }}>
-                <SelectTrigger className="w-[360px] h-8 text-xs">
+                <SelectTrigger className="w-[600px] h-8 text-xs">
                   <SelectValue placeholder="Select project..." />
                 </SelectTrigger>
                 <SelectContent>
