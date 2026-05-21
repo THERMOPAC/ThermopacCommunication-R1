@@ -452,10 +452,11 @@ export default function EpcDrawingControlPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-[10px] w-8"></TableHead>
-                        <TableHead className="text-[10px]">DWG Control #</TableHead>
-                        <TableHead className="text-[10px]">Drawing No</TableHead>
+                        <TableHead className="text-[10px] w-[110px]">DWG Control #</TableHead>
+                        <TableHead className="text-[10px] w-[130px]">Drawing No</TableHead>
                         <TableHead className="text-[10px] text-center w-14">Rev</TableHead>
                         <TableHead className="text-[10px]">Item</TableHead>
+                        <TableHead className="text-[10px]">Product Identity</TableHead>
                         <TableHead className="text-[10px] text-center">Status</TableHead>
                         <TableHead className="text-[10px] text-center">Procurement</TableHead>
                         <TableHead className="text-[10px] text-center">Manufacturing</TableHead>
@@ -467,7 +468,7 @@ export default function EpcDrawingControlPage() {
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
-                        <TableRow><TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-8">No drawing controls found.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={13} className="text-center text-sm text-muted-foreground py-8">No drawing controls found.</TableCell></TableRow>
                       ) : filtered.map((rec) => {
                         const isExpanded = expandedId === rec.id;
                         const actions = getAvailableActions(rec);
@@ -490,6 +491,18 @@ export default function EpcDrawingControlPage() {
                               </TableCell>
                               <TableCell className="text-[10px] py-1.5">
                                 <div className="truncate max-w-[140px]" title={rec.item_description || ""}>{rec.item_code}</div>
+                              </TableCell>
+                              <TableCell className="text-[10px] py-1.5">
+                                {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
+                                  <div className="leading-tight">
+                                    {rec.product_p1_label && <div className="truncate max-w-[160px] font-medium" title={rec.product_p1_label}>{rec.product_p1_label}</div>}
+                                    {(rec.product_p2_label || rec.product_p3) && (
+                                      <div className="truncate max-w-[160px] text-blue-600 font-bold" title={[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}>
+                                        {[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : <span className="text-muted-foreground italic">—</span>}
                               </TableCell>
                               <TableCell className="text-center py-1.5"><StatusBadge status={rec.status} /></TableCell>
                               <TableCell className="text-center py-1.5"><GateBadge label="P" active={rec.released_for_procurement} required={rec.procurement_release_required} /></TableCell>
@@ -542,7 +555,7 @@ export default function EpcDrawingControlPage() {
 
                             {isExpanded && (
                               <TableRow className="bg-muted/10">
-                                <TableCell colSpan={12} className="p-3">
+                                <TableCell colSpan={13} className="p-3">
                                   <div className="space-y-3">
 
                                     {/* ── 2-column responsive grid ── */}
