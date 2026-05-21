@@ -49,6 +49,9 @@ const SEVERITIES = [
   { value: "S4", label: "S4 — Minor (1 month response)", color: "text-blue-600" },
 ];
 
+// Categories for which vendor linkage is relevant
+const VENDOR_RELEVANT_CATEGORIES = ["PROC", "MFG", "LOG"];
+
 const captureSchema = z.object({
   title:              z.string().min(5, "Title must be at least 5 characters").max(500),
   description:        z.string().min(10, "Describe the issue in at least 10 characters"),
@@ -56,6 +59,8 @@ const captureSchema = z.object({
   projectPhase:       z.string().min(1, "Project phase is required"),
   severity:           z.string().min(1, "Severity is required"),
   projectId:          z.string().optional(),
+  customerId:         z.string().optional(),
+  vendorId:           z.string().optional(),
   equipmentFamily:    z.string().optional(),
   equipmentType:      z.string().optional(),
   criticalEquipmentFlag: z.boolean().optional(),
@@ -69,6 +74,8 @@ export default function OiIssueCaptureePage() {
   const { toast } = useToast();
 
   const { data: projects } = useQuery<any[]>({ queryKey: ["/api/projects"] });
+  const { data: customers } = useQuery<any[]>({ queryKey: ["/api/customers"] });
+  const { data: vendors } = useQuery<any[]>({ queryKey: ["/api/vendors"] });
 
   const form = useForm<CaptureForm>({
     resolver: zodResolver(captureSchema),
@@ -79,12 +86,29 @@ export default function OiIssueCaptureePage() {
   });
 
   const selectedSeverity = form.watch("severity");
+  const selectedCategory = form.watch("category");
+  const selectedProjectId = form.watch("projectId");
+
+  // Auto-populate customer when project is selected
+  const handleProjectChange = (val: string) => {
+    form.setValue("projectId", val);
+    if (val) {
+      const proj = (projects ?? []).find((p: any) => String(p.id) === val);
+      if (proj && (proj.customerId || proj.customer_id)) {
+        form.setValue("customerId", String(proj.customerId ?? proj.customer_id));
+      }
+    }
+  };
+
+  const showVendorField = VENDOR_RELEVANT_CATEGORIES.includes(selectedCategory);
 
   const mutation = useMutation({
     mutationFn: async (data: CaptureForm) => {
       const payload: any = {
         ...data,
-        projectId: data.projectId ? parseInt(data.projectId) : null,
+        projectId:  data.projectId  ? parseInt(data.projectId)  : null,
+        customerId: data.customerId ? parseInt(data.customerId) : null,
+        vendorId:   data.vendorId   ? parseInt(data.vendorId)   : null,
       };
       return apiRequest("POST", "/api/oi/issues", payload);
     },
@@ -188,23 +212,65 @@ export default function OiIssueCaptureePage() {
                   )} />
                 </div>
 
-                <FormField control={form.control} name="projectId" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Related Project (optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="">— No project —</SelectItem>
-                        {(projects ?? []).map((p: any) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.code} — {p.customerName ?? p.customer_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                {/* Project + Customer linkage */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="projectId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Related Project (optional)</FormLabel>
+                      <Select onValueChange={handleProjectChange} value={field.value ?? ""}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="">— No project —</SelectItem>
+                          {(projects ?? []).map((p: any) => (
+                            <SelectItem key={p.id} value={String(p.id)}>
+                              {p.code} — {p.customerName ?? p.customer_name ?? ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="customerId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer (optional)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="">— No customer —</SelectItem>
+                          {(customers ?? []).map((c: any) => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              {c.sapCardCode ? `${c.sapCardCode} — ` : ""}{c.name ?? c.bp_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+
+                {/* Vendor linkage — shown only for relevant categories */}
+                {showVendorField && (
+                  <FormField control={form.control} name="vendorId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Related Vendor (optional)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="">— No vendor —</SelectItem>
+                          {(vendors ?? []).map((v: any) => (
+                            <SelectItem key={v.id} value={String(v.id)}>
+                              {v.sapCardCode ? `${v.sapCardCode} — ` : ""}{v.displayName ?? v.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
               </CardContent>
             </Card>
 

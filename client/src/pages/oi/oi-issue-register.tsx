@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Clock, AlertTriangle, Filter } from "lucide-react";
+import { Plus, Search, Clock, AlertTriangle } from "lucide-react";
 import { fmtDate } from "@/lib/date-format";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,14 +29,16 @@ const SEV_COLORS: Record<string, string> = {
 };
 
 const CATEGORIES = ["QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COMP","SAFETY","FIN","LEGAL","HR","CUST","SYS","INT","OTHER"];
-const STATUSES = ["captured","classified","investigating","verified","closed","reopened","withdrawn"];
+const STATUSES   = ["captured","classified","investigating","verified","closed","reopened","withdrawn"];
 
 export default function OiIssueRegisterPage() {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch]           = useState("");
+  const [statusFilter, setStatusFilter]     = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [slaFilter, setSlaFilter] = useState("all");
+  const [slaFilter, setSlaFilter]           = useState("all");
+  const [dateFrom, setDateFrom]             = useState("");
+  const [dateTo, setDateTo]                 = useState("");
 
   const params = new URLSearchParams();
   if (statusFilter   !== "all") params.set("status",   statusFilter);
@@ -44,10 +46,12 @@ export default function OiIssueRegisterPage() {
   if (categoryFilter !== "all") params.set("category", categoryFilter);
   if (slaFilter      !== "all") params.set("slaBreached", slaFilter);
   if (search)                   params.set("search",   search);
+  if (dateFrom)                 params.set("dateFrom", new Date(dateFrom).toISOString());
+  if (dateTo)                   params.set("dateTo",   new Date(dateTo).toISOString());
   params.set("limit", "50");
 
   const { data: issues, isLoading } = useQuery<any[]>({
-    queryKey: ["/api/oi/issues", statusFilter, severityFilter, categoryFilter, slaFilter, search],
+    queryKey: ["/api/oi/issues", statusFilter, severityFilter, categoryFilter, slaFilter, search, dateFrom, dateTo],
     queryFn: async () => {
       const res = await fetch(`/api/oi/issues?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
@@ -71,7 +75,8 @@ export default function OiIssueRegisterPage() {
 
         {/* Filters */}
         <Card>
-          <CardContent className="p-3">
+          <CardContent className="p-3 space-y-2">
+            {/* Row 1 */}
             <div className="flex flex-wrap gap-2">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
@@ -109,8 +114,45 @@ export default function OiIssueRegisterPage() {
                   <SelectItem value="all">All SLA</SelectItem>
                   <SelectItem value="response">Response breached</SelectItem>
                   <SelectItem value="closure">Closure breached</SelectItem>
+                  <SelectItem value="any">Any SLA breach</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            {/* Row 2 — Date range */}
+            <div className="flex flex-wrap gap-2 items-center text-sm text-gray-500">
+              <span className="shrink-0 text-xs font-medium">Date range:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-400">From</span>
+                <Input
+                  type="date"
+                  className="h-8 w-36 text-xs"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-400">To</span>
+                <Input
+                  type="date"
+                  className="h-8 w-36 text-xs"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                />
+              </div>
+              {(dateFrom || dateTo || statusFilter !== "all" || severityFilter !== "all" || categoryFilter !== "all" || slaFilter !== "all" || search) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-gray-500"
+                  onClick={() => {
+                    setSearch(""); setStatusFilter("all"); setSeverityFilter("all");
+                    setCategoryFilter("all"); setSlaFilter("all");
+                    setDateFrom(""); setDateTo("");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -150,10 +192,10 @@ export default function OiIssueRegisterPage() {
                           <span>·</span>
                           <span>{fmtDate(issue.createdAt)}</span>
                           {issue.responseSlaBreached && (
-                            <><span>·</span><span className="text-red-600 flex items-center gap-0.5"><Clock className="h-3 w-3" /> Response SLA breached</span></>
+                            <><span>·</span><span className="text-red-600 flex items-center gap-0.5"><Clock className="h-3 w-3" /> Response SLA</span></>
                           )}
                           {issue.closureSlaBreached && (
-                            <><span>·</span><span className="text-orange-600 flex items-center gap-0.5"><Clock className="h-3 w-3" /> Closure SLA breached</span></>
+                            <><span>·</span><span className="text-orange-600 flex items-center gap-0.5"><Clock className="h-3 w-3" /> Closure SLA</span></>
                           )}
                         </div>
                       </div>

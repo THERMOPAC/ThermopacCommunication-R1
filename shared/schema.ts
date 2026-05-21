@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real, check, pgEnum, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real, check, pgEnum, index, smallint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -14784,6 +14784,48 @@ export const oiIssues = pgTable("oi_issues", {
   satReference:             text("sat_reference"),
   punchPointReference:      text("punch_point_reference"),
   readinessStatus:          text("readiness_status"),
+
+  // ─── Phase 1B: Linkage FKs ─────────────────────────────────────────────────
+  customerId:               integer("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  vendorId:                 integer("vendor_id").references(() => vendors.id, { onDelete: "set null" }),
+  epcDrawingControlId:      integer("epc_drawing_control_id").references(() => epcDrawingControls.id, { onDelete: "set null" }),
+  epcPoId:                  integer("epc_po_id").references(() => epcPurchaseOrders.id, { onDelete: "set null" }),
+  epcWoId:                  integer("epc_wo_id").references(() => epcWorkOrders.id, { onDelete: "set null" }),
+  inspectionOrderId:        integer("inspection_order_id").references(() => inspectionOrders.id, { onDelete: "set null" }),
+  fatInspectionOrderId:     integer("fat_inspection_order_id").references(() => inspectionOrders.id, { onDelete: "set null" }),
+  satInspectionOrderId:     integer("sat_inspection_order_id").references(() => inspectionOrders.id, { onDelete: "set null" }),
+  contractId:               integer("contract_id").references(() => contracts.id, { onDelete: "set null" }),
+
+  // ─── Phase 1B: Dimension Scores ────────────────────────────────────────────
+  technicalScore:           smallint("technical_score"),
+  qualityScore:             smallint("quality_score"),
+  safetyScore:              smallint("safety_score"),
+  financialScore:           smallint("financial_score"),
+  complianceScore:          smallint("compliance_score"),
+  scheduleScore:            smallint("schedule_score"),
+  liabilityScore:           smallint("liability_score"),
+  customerScore:            smallint("customer_score"),
+  operationalScore:         smallint("operational_score"),
+
+  // ─── Phase 1B: Financial Exposure ──────────────────────────────────────────
+  actualLossAmount:         decimal("actual_loss_amount", { precision: 15, scale: 2 }),
+  insuranceClaimFlag:       boolean("insurance_claim_flag").notNull().default(false),
+  claimReference:           text("claim_reference"),
+  recoveryAmount:           decimal("recovery_amount", { precision: 15, scale: 2 }),
+  netFinancialExposure:     decimal("net_financial_exposure", { precision: 15, scale: 2 }),
+
+  // ─── Phase 1B: Liability ───────────────────────────────────────────────────
+  liabilityType:            text("liability_type"),
+  indemnityRequired:        boolean("indemnity_required").notNull().default(false),
+  warrantyClaimFlag:        boolean("warranty_claim_flag").notNull().default(false),
+  warrantyClaimReference:   text("warranty_claim_reference"),
+
+  // ─── Phase 1B: Time Intelligence ───────────────────────────────────────────
+  captureDelayHours:              decimal("capture_delay_hours",            { precision: 10, scale: 2 }),
+  responseTimeActualHours:        decimal("response_time_actual_hours",     { precision: 10, scale: 2 }),
+  investigationDurationHours:     decimal("investigation_duration_hours",   { precision: 10, scale: 2 }),
+  totalResolutionHours:           decimal("total_resolution_hours",         { precision: 10, scale: 2 }),
+
   createdAt:                timestamp("created_at").notNull().defaultNow(),
   updatedAt:                timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
@@ -14871,6 +14913,9 @@ export const insertOiIssueSchema = createInsertSchema(oiIssues).omit({
   severityChangedBy: true, severityChangedAt: true, previousSeverity: true,
   responseDueAt: true, closureDueAt: true, responseSlaBreached: true,
   closureSlaBreached: true, createdAt: true, updatedAt: true,
+  // Phase 1B computed fields — server-side only
+  netFinancialExposure: true, captureDelayHours: true,
+  responseTimeActualHours: true, investigationDurationHours: true, totalResolutionHours: true,
 });
 
 export type OiIssue          = typeof oiIssues.$inferSelect;

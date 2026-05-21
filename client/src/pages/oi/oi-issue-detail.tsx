@@ -8,12 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
-import { ArrowLeft, Clock, AlertTriangle, User, ChevronRight, ShieldAlert, Activity } from "lucide-react";
+import {
+  ArrowLeft, Clock, AlertTriangle, User, ChevronRight, ShieldAlert, Activity,
+  Link2, DollarSign, Scale, Timer, BarChart2,
+} from "lucide-react";
 
 const SEV_COLORS: Record<string, string> = {
   S1: "bg-red-600 text-white", S2: "bg-orange-500 text-white",
@@ -26,16 +28,28 @@ const STATUS_COLORS: Record<string, string> = {
   withdrawn: "bg-slate-100 text-slate-500",
 };
 const TRANSITION_LABELS: Record<string, string> = {
-  classified: "Classify",
+  classified:    "Classify",
   investigating: "Start Investigation",
-  verified: "Mark Verified",
-  closed: "Close Issue",
-  reopened: "Reopen",
-  withdrawn: "Withdraw",
+  verified:      "Mark Verified",
+  closed:        "Close Issue",
+  reopened:      "Reopen",
+  withdrawn:     "Withdraw",
+};
+
+const DIMENSION_LABELS: Record<string, string> = {
+  technicalScore:   "Technical",
+  qualityScore:     "Quality",
+  safetyScore:      "Safety",
+  financialScore:   "Financial",
+  complianceScore:  "Compliance",
+  scheduleScore:    "Schedule",
+  liabilityScore:   "Liability",
+  customerScore:    "Customer",
+  operationalScore: "Operational",
 };
 
 function Field({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
+  if (value == null || value === "") return null;
   return (
     <div>
       <p className="text-xs text-gray-500">{label}</p>
@@ -43,6 +57,48 @@ function Field({ label, value }: { label: string; value?: string | null }) {
     </div>
   );
 }
+
+function DimensionScoreBar({ label, score }: { label: string; score: number | null }) {
+  if (score == null) return (
+    <div>
+      <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+      <div className="h-2 bg-gray-100 rounded-full" />
+      <p className="text-xs text-gray-300 mt-0.5">—</p>
+    </div>
+  );
+  const pct = (score / 10) * 100;
+  const color = score >= 8 ? "bg-red-500" : score >= 6 ? "bg-orange-400" : score >= 4 ? "bg-yellow-400" : "bg-green-400";
+  return (
+    <div>
+      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+      <div className="relative h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`absolute left-0 top-0 h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs font-semibold text-gray-700 mt-0.5">{score}/10</p>
+    </div>
+  );
+}
+
+function formatINR(n: number | string | null | undefined): string {
+  if (n == null) return "—";
+  const v = Number(n);
+  if (isNaN(v)) return "—";
+  if (v >= 10_000_000) return `₹${(v / 10_000_000).toFixed(2)}Cr`;
+  if (v >= 100_000)    return `₹${(v / 100_000).toFixed(2)}L`;
+  return `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatHours(h: number | string | null | undefined): string {
+  if (h == null) return "—";
+  const v = Number(h);
+  if (isNaN(v)) return "—";
+  const hrs = Math.floor(v);
+  const mins = Math.round((v - hrs) * 60);
+  return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+}
+
+const MANAGER_ROLES = ["Manager", "Senior Manager", "General Manager", "Superuser"];
+const SM_ROLES      = ["Senior Manager", "General Manager", "Superuser"];
 
 export default function OiIssueDetailPage() {
   const params = useParams<{ id: string }>();
@@ -85,9 +141,7 @@ export default function OiIssueDetailPage() {
     },
     onError: async (err: any) => {
       const body = err?.response ? await err.response.json().catch(() => ({})) : {};
-      const msg = body?.error === "phase_not_implemented"
-        ? "S1/S2 issues cannot advance past Investigating in Phase 1A."
-        : body?.error === "transition_not_allowed"
+      const msg = body?.error === "transition_not_allowed"
         ? "This transition is not permitted from the current status."
         : body?.error === "forbidden"
         ? "Your role does not permit this transition."
@@ -96,7 +150,9 @@ export default function OiIssueDetailPage() {
     },
   });
 
-  const needsReason = transitionTo === "withdrawn" || transitionTo === "reopened";
+  const needsReason  = transitionTo === "withdrawn" || transitionTo === "reopened";
+  const isManager    = MANAGER_ROLES.includes(user?.role ?? "");
+  const isSM         = SM_ROLES.includes(user?.role ?? "");
 
   if (isLoading) {
     return (
@@ -123,6 +179,14 @@ export default function OiIssueDetailPage() {
 
   const allowedTransitions: string[] = issue.allowedTransitions ?? [];
 
+  // Determine which Phase 1B panels to show
+  const hasDimensionScores = Object.keys(DIMENSION_LABELS).some(k => issue[k] != null);
+  const hasLinkageData = issue.customerId || issue.vendorId || issue.epcDrawingControlId ||
+    issue.epcPoId || issue.epcWoId || issue.inspectionOrderId || issue.contractId;
+  const hasFinancialData = issue.actualLossAmount != null || issue.estimatedLossAmount != null;
+  const hasTimeData = issue.captureDelayHours != null || issue.responseTimeActualHours != null ||
+    issue.investigationDurationHours != null || issue.totalResolutionHours != null;
+
   return (
     <Layout>
       <div className="p-4 space-y-4">
@@ -148,6 +212,12 @@ export default function OiIssueDetailPage() {
                   <Clock className="h-3 w-3 mr-1" /> Closure SLA Breached
                 </Badge>
               )}
+              {issue.insuranceClaimFlag && (
+                <Badge variant="outline" className="text-xs border-blue-400 text-blue-700 bg-blue-50">Insurance Claim</Badge>
+              )}
+              {issue.warrantyClaimFlag && (
+                <Badge variant="outline" className="text-xs border-purple-400 text-purple-700 bg-purple-50">Warranty Claim</Badge>
+              )}
             </div>
             <h1 className="text-lg font-bold text-gray-900 mt-1">{issue.title}</h1>
           </div>
@@ -171,13 +241,13 @@ export default function OiIssueDetailPage() {
                     {TRANSITION_LABELS[t] ?? t}
                   </Button>
                 ))}
-                <Link href={`/oi/issues/${issueId}/classify`}>
-                  {issue.status === "captured" && (
+                {issue.status === "captured" && (
+                  <Link href={`/oi/issues/${issueId}/classify`}>
                     <Button size="sm" variant="outline" className="gap-1 text-xs">
                       <Activity className="h-3 w-3" /> Classify & Assign
                     </Button>
-                  )}
-                </Link>
+                  </Link>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -185,7 +255,7 @@ export default function OiIssueDetailPage() {
 
         <div className="grid md:grid-cols-3 gap-4">
           {/* Main details */}
-          <Card className="md:col-span-2">
+          <Card className="md:col-span-2 space-y-0">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold text-gray-700">Issue Details</CardTitle>
             </CardHeader>
@@ -195,9 +265,9 @@ export default function OiIssueDetailPage() {
                 <p className="text-sm text-gray-900 whitespace-pre-wrap">{issue.description}</p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <Field label="Category"      value={issue.category} />
-                <Field label="Project Phase" value={issue.projectPhase} />
-                <Field label="Sub-Category"  value={issue.subCategory} />
+                <Field label="Category"         value={issue.category} />
+                <Field label="Project Phase"    value={issue.projectPhase} />
+                <Field label="Sub-Category"     value={issue.subCategory} />
                 <Field label="Equipment Family" value={issue.equipmentFamily} />
                 <Field label="Equipment Type"   value={issue.equipmentType} />
                 <Field label="Package Type"     value={issue.packageType} />
@@ -226,6 +296,24 @@ export default function OiIssueDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Project / Customer / Vendor — always show if linked */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                  <User className="h-3.5 w-3.5" /> Ownership & Links
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                <Field label="Reported by"       value={issue.reportedBy ? `User #${issue.reportedBy}` : null} />
+                <Field label="Assigned to"       value={issue.assignedTo ? `User #${issue.assignedTo}` : "Unassigned"} />
+                <Field label="Risk owner"        value={issue.riskOwner ? `User #${issue.riskOwner}` : null} />
+                <Field label="Escalation owner"  value={issue.escalationOwner ? `User #${issue.escalationOwner}` : null} />
+                {issue.projectDisplayName && <Field label="Project" value={issue.projectDisplayName} />}
+                {issue.customerName && <Field label="Customer" value={`${issue.customerName}${issue.customerBpCode ? ` (${issue.customerBpCode})` : ""}`} />}
+                {issue.vendorName && <Field label="Vendor" value={`${issue.vendorName}${issue.vendorSapCode ? ` (${issue.vendorSapCode})` : ""}`} />}
+              </CardContent>
+            </Card>
+
             {/* SLA */}
             <Card>
               <CardHeader className="pb-2">
@@ -233,49 +321,214 @@ export default function OiIssueDetailPage() {
                   <Clock className="h-3.5 w-3.5" /> SLA Dates
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <Field label="Response due"  value={issue.responseDueAt ? fmtDate(issue.responseDueAt) : "Not set"} />
-                <Field label="Closure due"   value={issue.closureDueAt  ? fmtDate(issue.closureDueAt)  : "Not set"} />
-                <Field label="Occurred"      value={issue.occurredAt    ? fmtDate(issue.occurredAt)    : null} />
-                <Field label="Detected"      value={issue.detectedAt    ? fmtDate(issue.detectedAt)    : null} />
+              <CardContent className="space-y-1.5 text-sm">
+                <Field label="Response due"  value={issue.responseDueAt ? fmtDate(issue.responseDueAt) : undefined} />
+                <Field label="Closure due"   value={issue.closureDueAt  ? fmtDate(issue.closureDueAt)  : undefined} />
+                <Field label="Occurred"      value={issue.occurredAt    ? fmtDate(issue.occurredAt)    : undefined} />
+                <Field label="Detected"      value={issue.detectedAt    ? fmtDate(issue.detectedAt)    : undefined} />
                 <Field label="Reported"      value={fmtDateTime(issue.createdAt)} />
               </CardContent>
             </Card>
 
             {/* Risk */}
-            {(issue.riskRating || issue.probabilityLevel || issue.impactLevel) && (
+            {(issue.riskRating || issue.probabilityLevel || issue.impactLevel || issue.oiRiskScore != null) && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-1">
                     <ShieldAlert className="h-3.5 w-3.5" /> Risk Assessment
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <Field label="Risk Rating"    value={issue.riskRating} />
-                  <Field label="Risk Score"     value={issue.riskScore ? String(issue.riskScore) : null} />
-                  <Field label="Probability"    value={issue.probabilityLevel} />
-                  <Field label="Impact"         value={issue.impactLevel} />
-                  <Field label="Recurrence"     value={issue.recurrenceRisk} />
+                <CardContent className="space-y-1.5 text-sm">
+                  <Field label="P×I Risk Rating"    value={issue.riskRating} />
+                  <Field label="P×I Score"          value={issue.riskScore != null ? String(issue.riskScore) : undefined} />
+                  <Field label="OI Risk Score"      value={issue.oiRiskScore != null ? String(issue.oiRiskScore) : undefined} />
+                  <Field label="Probability"        value={issue.probabilityLevel} />
+                  <Field label="Impact"             value={issue.impactLevel} />
+                  <Field label="Recurrence"         value={issue.recurrenceRisk} />
                 </CardContent>
               </Card>
             )}
-
-            {/* Ownership */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                  <User className="h-3.5 w-3.5" /> Ownership
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm">
-                <Field label="Reported by"    value={issue.reportedBy ? `#${issue.reportedBy}` : null} />
-                <Field label="Assigned to"    value={issue.assignedTo ? `#${issue.assignedTo}` : "Unassigned"} />
-                <Field label="Risk owner"     value={issue.riskOwner ? `#${issue.riskOwner}` : null} />
-                <Field label="Escalation owner" value={issue.escalationOwner ? `#${issue.escalationOwner}` : null} />
-              </CardContent>
-            </Card>
           </div>
         </div>
+
+        {/* Phase 1B: EPC Reference Linkage panel */}
+        {hasLinkageData && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-teal-600" /> EPC Reference Linkage
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              {issue.drawingNumber && (
+                <div>
+                  <p className="text-xs text-gray-400">Drawing</p>
+                  <p className="text-sm font-medium text-gray-800">{issue.drawingNumber}</p>
+                  {issue.drawingRevision && <p className="text-xs text-gray-500">Rev {issue.drawingRevision}</p>}
+                  {issue.drawingTitle && <p className="text-xs text-gray-500 truncate">{issue.drawingTitle}</p>}
+                </div>
+              )}
+              {issue.poNumber && (
+                <div>
+                  <p className="text-xs text-gray-400">Purchase Order</p>
+                  <p className="text-sm font-medium text-gray-800">{issue.poNumber}</p>
+                </div>
+              )}
+              {issue.woNumber && (
+                <div>
+                  <p className="text-xs text-gray-400">Work Order</p>
+                  <p className="text-sm font-medium text-gray-800">{issue.woNumber}</p>
+                </div>
+              )}
+              {issue.inspectionOrderNumber && (
+                <div>
+                  <p className="text-xs text-gray-400">Inspection Order</p>
+                  <p className="text-sm font-medium text-gray-800">{issue.inspectionOrderNumber}</p>
+                </div>
+              )}
+              {issue.fatInspectionOrderNumber && (
+                <div>
+                  <p className="text-xs text-gray-400">FAT Inspection Order</p>
+                  <p className="text-sm font-medium text-gray-800">{issue.fatInspectionOrderNumber}</p>
+                </div>
+              )}
+              {issue.satInspectionOrderNumber && (
+                <div>
+                  <p className="text-xs text-gray-400">SAT Inspection Order</p>
+                  <p className="text-sm font-medium text-gray-800">{issue.satInspectionOrderNumber}</p>
+                </div>
+              )}
+              {issue.contractNumber && (
+                <div>
+                  <p className="text-xs text-gray-400">Contract</p>
+                  <p className="text-sm font-medium text-gray-800">{issue.contractNumber}</p>
+                  {issue.contractTitle && <p className="text-xs text-gray-500 truncate">{issue.contractTitle}</p>}
+                  {issue.contractValue && <p className="text-xs text-gray-500">Value: {formatINR(issue.contractValue)}</p>}
+                </div>
+              )}
+              {issue.fatReference && <Field label="FAT Reference" value={issue.fatReference} />}
+              {issue.satReference && <Field label="SAT Reference" value={issue.satReference} />}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Phase 1B: Dimension Scores panel (Manager+) */}
+        {isManager && hasDimensionScores && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-indigo-500" /> Risk Dimension Scores
+                {issue.oiRiskScore != null && (
+                  <span className="ml-auto text-xs font-normal text-gray-500">
+                    OI Risk Score: <strong className="text-indigo-700">{issue.oiRiskScore}</strong>
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 md:grid-cols-9 gap-3">
+                {Object.entries(DIMENSION_LABELS).map(([key, label]) => (
+                  <DimensionScoreBar key={key} label={label} score={issue[key] ?? null} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Phase 1B: Financial Exposure (SM+) */}
+        {isSM && hasFinancialData && (
+          <Card className="border-l-4 border-l-orange-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-orange-500" /> Financial Exposure
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-gray-400">Estimated Loss</p>
+                  <p className="font-semibold text-gray-800">{formatINR(issue.estimatedLossAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Actual Loss</p>
+                  <p className="font-semibold text-red-700">{formatINR(issue.actualLossAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Recovered</p>
+                  <p className="font-semibold text-green-700">{formatINR(issue.recoveryAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Net Exposure</p>
+                  <p className="font-semibold text-orange-700">{formatINR(issue.netFinancialExposure)}</p>
+                </div>
+              </div>
+              {(issue.insuranceClaimFlag || issue.claimReference) && (
+                <div className="border rounded p-2 bg-blue-50 text-sm">
+                  <span className="font-medium text-blue-800">Insurance Claim</span>
+                  {issue.claimReference && <span className="text-blue-600 ml-2">Ref: {issue.claimReference}</span>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Phase 1B: Liability (SM+) */}
+        {isSM && (issue.liabilityType || issue.indemnityRequired || issue.warrantyClaimFlag) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Scale className="h-4 w-4 text-purple-500" /> Liability
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <Field label="Liability Type"    value={issue.liabilityType} />
+              <Field label="Liability Severity" value={issue.liabilitySeverity} />
+              {issue.indemnityRequired && (
+                <div><p className="text-xs text-gray-400">Indemnity</p><Badge variant="outline" className="text-xs border-red-400 text-red-700">Required</Badge></div>
+              )}
+              {issue.warrantyClaimFlag && (
+                <div>
+                  <p className="text-xs text-gray-400">Warranty Claim</p>
+                  <Badge variant="outline" className="text-xs border-purple-400 text-purple-700">Filed</Badge>
+                  {issue.warrantyClaimReference && <p className="text-xs text-gray-500 mt-0.5">{issue.warrantyClaimReference}</p>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Phase 1B: Time Intelligence (Manager+) */}
+        {isManager && hasTimeData && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Timer className="h-4 w-4 text-cyan-500" /> Time Intelligence
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-gray-400">Capture Delay</p>
+                <p className="font-semibold text-gray-800">{formatHours(issue.captureDelayHours)}</p>
+                <p className="text-xs text-gray-400">Detection → Report</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Response Time</p>
+                <p className="font-semibold text-gray-800">{formatHours(issue.responseTimeActualHours)}</p>
+                <p className="text-xs text-gray-400">Classify → Investigate</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Investigation Duration</p>
+                <p className="font-semibold text-gray-800">{formatHours(issue.investigationDurationHours)}</p>
+                <p className="text-xs text-gray-400">Start → Verified</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Total Resolution</p>
+                <p className="font-semibold text-blue-700">{formatHours(issue.totalResolutionHours)}</p>
+                <p className="text-xs text-gray-400">Classify → Close</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Audit log */}
         {(auditLogs ?? []).length > 0 && (
