@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real, check } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real, check, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -14666,3 +14666,216 @@ export const companyAuditLog = pgTable('company_audit_log', {
   notes:      text('notes'),
 });
 export type CompanyAuditLog = typeof companyAuditLog.$inferSelect;
+
+// ============================================================
+// OPERATIONAL INTELLIGENCE — Phase 1A
+// ============================================================
+
+export const oiIssueStatusEnum = pgEnum("oi_issue_status", [
+  "captured","classified","investigating","rca_draft","rca_review","rca_approved",
+  "capa_open","capa_in_progress","capa_verified","sop_review","erp_enforcement",
+  "verified","closed","reopened","withdrawn",
+]);
+export const oiSeverityEnum = pgEnum("oi_severity", ["S1","S2","S3","S4"]);
+export const oiCategoryEnum = pgEnum("oi_category", [
+  "QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COMP",
+  "SAFETY","FIN","LEGAL","HR","CUST","SYS","INT","OTHER",
+]);
+export const oiProjectPhaseEnum = pgEnum("oi_project_phase", [
+  "SALES","ENG","DVS","PROC","MFG","QC","FAT","DISP","LOG",
+  "SITE","ERECT","SAT","COMM","PERF","WARR","AFTS",
+]);
+export const oiProbabilityLevelEnum = pgEnum("oi_probability_level", [
+  "very_low","low","medium","high","very_high",
+]);
+export const oiImpactLevelEnum = pgEnum("oi_impact_level", [
+  "negligible","minor","moderate","major","catastrophic",
+]);
+export const oiRiskRatingEnum = pgEnum("oi_risk_rating", ["low","medium","high","critical"]);
+export const oiCriticalityLevelEnum = pgEnum("oi_criticality_level", [
+  "none","low","medium","high","critical",
+]);
+export const oiEscalationTypeEnum = pgEnum("oi_escalation_type", [
+  "s1_immediate","safety_escalation","statutory_escalation","financial_escalation",
+  "overdue_response","overdue_closure","severity_change","manual",
+]);
+export const oiAuditActionEnum = pgEnum("oi_audit_action", [
+  "created","status_changed","field_updated","severity_changed","assigned",
+  "escalated","comment_added","withdrawn","reopened","closed","verified",
+]);
+
+export const oiIssues = pgTable("oi_issues", {
+  id:                       serial("id").primaryKey(),
+  issueNumber:              text("issue_number").notNull().unique(),
+  title:                    text("title").notNull(),
+  description:              text("description").notNull(),
+  category:                 oiCategoryEnum("category").notNull(),
+  subCategory:              text("sub_category"),
+  projectPhase:             oiProjectPhaseEnum("project_phase").notNull(),
+  severity:                 oiSeverityEnum("severity").notNull(),
+  status:                   oiIssueStatusEnum("status").notNull().default("captured"),
+  projectId:                integer("project_id").references(() => projects.id, { onDelete: "set null" }),
+  equipmentFamily:          text("equipment_family"),
+  equipmentType:            text("equipment_type"),
+  packageType:              text("package_type"),
+  processSystem:            text("process_system"),
+  utilitySystem:            text("utility_system"),
+  skidSystem:               text("skid_system"),
+  customerIndustry:         text("customer_industry"),
+  criticalEquipmentFlag:    boolean("critical_equipment_flag").notNull().default(false),
+  criticalPathFlag:         boolean("critical_path_flag").notNull().default(false),
+  projectComplexity:        text("project_complexity"),
+  probabilityLevel:         oiProbabilityLevelEnum("probability_level"),
+  impactLevel:              oiImpactLevelEnum("impact_level"),
+  riskScore:                integer("risk_score"),
+  riskRating:               oiRiskRatingEnum("risk_rating"),
+  recurrenceRisk:           text("recurrence_risk"),
+  businessCriticality:      oiCriticalityLevelEnum("business_criticality"),
+  customerCriticality:      oiCriticalityLevelEnum("customer_criticality"),
+  safetyCriticality:        oiCriticalityLevelEnum("safety_criticality"),
+  statutoryCriticality:     oiCriticalityLevelEnum("statutory_criticality"),
+  financialCriticality:     oiCriticalityLevelEnum("financial_criticality"),
+  operationalCriticality:   oiCriticalityLevelEnum("operational_criticality"),
+  scheduleCriticality:      oiCriticalityLevelEnum("schedule_criticality"),
+  oiRiskScore:              integer("oi_risk_score"),
+  reportedBy:               integer("reported_by").notNull().references(() => users.id),
+  assignedTo:               integer("assigned_to").references(() => users.id),
+  riskOwner:                integer("risk_owner").references(() => users.id),
+  escalationOwner:          integer("escalation_owner").references(() => users.id),
+  technicalOwner:           integer("technical_owner").references(() => users.id),
+  complianceOwner:          integer("compliance_owner").references(() => users.id),
+  financialOwner:           integer("financial_owner").references(() => users.id),
+  legalOwner:               integer("legal_owner").references(() => users.id),
+  businessOwner:            integer("business_owner").references(() => users.id),
+  classifiedBy:             integer("classified_by").references(() => users.id),
+  classifiedAt:             timestamp("classified_at"),
+  investigatingStartedAt:   timestamp("investigating_started_at"),
+  verifiedBy:               integer("verified_by").references(() => users.id),
+  verifiedAt:               timestamp("verified_at"),
+  closedBy:                 integer("closed_by").references(() => users.id),
+  closedAt:                 timestamp("closed_at"),
+  reopenedBy:               integer("reopened_by").references(() => users.id),
+  reopenedAt:               timestamp("reopened_at"),
+  reopenReason:             text("reopen_reason"),
+  withdrawnBy:              integer("withdrawn_by").references(() => users.id),
+  withdrawnAt:              timestamp("withdrawn_at"),
+  withdrawalReason:         text("withdrawal_reason"),
+  severityChangedBy:        integer("severity_changed_by").references(() => users.id),
+  severityChangedAt:        timestamp("severity_changed_at"),
+  severityChangeReason:     text("severity_change_reason"),
+  previousSeverity:         oiSeverityEnum("previous_severity"),
+  occurredAt:               timestamp("occurred_at"),
+  detectedAt:               timestamp("detected_at"),
+  responseDueAt:            timestamp("response_due_at"),
+  closureDueAt:             timestamp("closure_due_at"),
+  responseSlaBreached:      boolean("response_sla_breached").notNull().default(false),
+  closureSlaBreached:       boolean("closure_sla_breached").notNull().default(false),
+  repeatIssue:              boolean("repeat_issue").notNull().default(false),
+  parentIssueId:            integer("parent_issue_id"),
+  estimatedLossAmount:      decimal("estimated_loss_amount", { precision: 15, scale: 2 }),
+  liabilitySeverity:        text("liability_severity"),
+  consequentialDamageFlag:  boolean("consequential_damage_flag").notNull().default(false),
+  businessInterruptionFlag: boolean("business_interruption_flag").notNull().default(false),
+  statutoryAuthority:       text("statutory_authority"),
+  complianceStatus:         text("compliance_status"),
+  statutorySeverity:        text("statutory_severity"),
+  legalReviewRequired:      boolean("legal_review_required").notNull().default(false),
+  fatReference:             text("fat_reference"),
+  satReference:             text("sat_reference"),
+  punchPointReference:      text("punch_point_reference"),
+  readinessStatus:          text("readiness_status"),
+  createdAt:                timestamp("created_at").notNull().defaultNow(),
+  updatedAt:                timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  statusIdx:           index("idx_oi_issues_status").on(table.status),
+  severityIdx:         index("idx_oi_issues_severity").on(table.severity),
+  categoryIdx:         index("idx_oi_issues_category").on(table.category),
+  reportedByIdx:       index("idx_oi_issues_reported_by").on(table.reportedBy),
+  assignedToIdx:       index("idx_oi_issues_assigned_to").on(table.assignedTo),
+  projectIdIdx:        index("idx_oi_issues_project_id").on(table.projectId),
+  createdAtIdx:        index("idx_oi_issues_created_at").on(table.createdAt),
+  severityStatusIdx:   index("idx_oi_issues_severity_status").on(table.severity, table.status),
+  statusSevCreatedIdx: index("idx_oi_issues_status_severity_created").on(table.status, table.severity, table.createdAt),
+}));
+
+export const oiAuditLog = pgTable("oi_audit_log", {
+  id:         serial("id").primaryKey(),
+  issueId:    integer("issue_id").notNull().references(() => oiIssues.id, { onDelete: "cascade" }),
+  action:     oiAuditActionEnum("action").notNull(),
+  actorId:    integer("actor_id").notNull().references(() => users.id),
+  actorName:  text("actor_name").notNull(),
+  actorRole:  text("actor_role").notNull(),
+  fieldName:  text("field_name"),
+  oldValue:   text("old_value"),
+  newValue:   text("new_value"),
+  context:    text("context"),
+  ipAddress:  text("ip_address"),
+  createdAt:  timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  issueIdIdx:   index("idx_oi_audit_issue_id").on(table.issueId),
+  actorIdIdx:   index("idx_oi_audit_actor_id").on(table.actorId),
+  createdAtIdx: index("idx_oi_audit_created_at").on(table.createdAt),
+  actionIdx:    index("idx_oi_audit_action").on(table.action),
+}));
+
+export const oiEscalations = pgTable("oi_escalations", {
+  id:                  serial("id").primaryKey(),
+  issueId:             integer("issue_id").notNull().references(() => oiIssues.id, { onDelete: "cascade" }),
+  escalationType:      oiEscalationTypeEnum("escalation_type").notNull(),
+  triggeredBy:         integer("triggered_by").references(() => users.id),
+  triggeredAt:         timestamp("triggered_at").notNull().defaultNow(),
+  escalatedTo:         integer("escalated_to").references(() => users.id),
+  notificationSent:    boolean("notification_sent").notNull().default(false),
+  notificationSentAt:  timestamp("notification_sent_at"),
+  context:             text("context"),
+  resolved:            boolean("resolved").notNull().default(false),
+  resolvedAt:          timestamp("resolved_at"),
+  resolvedBy:          integer("resolved_by").references(() => users.id),
+}, (table) => ({
+  issueIdIdx: index("idx_oi_escalations_issue_id").on(table.issueId),
+  typeIdx:    index("idx_oi_escalations_type").on(table.escalationType),
+}));
+
+export const oiRiskWeightConfig = pgTable("oi_risk_weight_config", {
+  id:                serial("id").primaryKey(),
+  technicalWeight:   decimal("technical_weight",   { precision: 4, scale: 2 }).notNull().default("1.0"),
+  qualityWeight:     decimal("quality_weight",     { precision: 4, scale: 2 }).notNull().default("1.2"),
+  safetyWeight:      decimal("safety_weight",      { precision: 4, scale: 2 }).notNull().default("2.0"),
+  financialWeight:   decimal("financial_weight",   { precision: 4, scale: 2 }).notNull().default("1.5"),
+  complianceWeight:  decimal("compliance_weight",  { precision: 4, scale: 2 }).notNull().default("1.8"),
+  scheduleWeight:    decimal("schedule_weight",    { precision: 4, scale: 2 }).notNull().default("1.0"),
+  liabilityWeight:   decimal("liability_weight",   { precision: 4, scale: 2 }).notNull().default("2.0"),
+  customerWeight:    decimal("customer_weight",    { precision: 4, scale: 2 }).notNull().default("1.5"),
+  operationalWeight: decimal("operational_weight", { precision: 4, scale: 2 }).notNull().default("1.0"),
+  updatedBy:         integer("updated_by").references(() => users.id),
+  updatedAt:         timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiRiskMatrixConfig = pgTable("oi_risk_matrix_config", {
+  id:          serial("id").primaryKey(),
+  probability: integer("probability").notNull(),
+  impact:      integer("impact").notNull(),
+  riskRating:  oiRiskRatingEnum("risk_rating").notNull(),
+  updatedBy:   integer("updated_by").references(() => users.id),
+  updatedAt:   timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  probImpactUniq: uniqueIndex("idx_oi_risk_matrix_prob_impact").on(table.probability, table.impact),
+}));
+
+export const insertOiIssueSchema = createInsertSchema(oiIssues).omit({
+  id: true, issueNumber: true, status: true, riskScore: true, riskRating: true,
+  oiRiskScore: true, classifiedBy: true, classifiedAt: true,
+  investigatingStartedAt: true, verifiedBy: true, verifiedAt: true,
+  closedBy: true, closedAt: true, reopenedBy: true, reopenedAt: true,
+  reopenReason: true, withdrawnBy: true, withdrawnAt: true, withdrawalReason: true,
+  severityChangedBy: true, severityChangedAt: true, previousSeverity: true,
+  responseDueAt: true, closureDueAt: true, responseSlaBreached: true,
+  closureSlaBreached: true, createdAt: true, updatedAt: true,
+});
+
+export type OiIssue          = typeof oiIssues.$inferSelect;
+export type InsertOiIssue    = z.infer<typeof insertOiIssueSchema>;
+export type OiAuditLog       = typeof oiAuditLog.$inferSelect;
+export type OiEscalation     = typeof oiEscalations.$inferSelect;
+export type OiRiskWeightConfig = typeof oiRiskWeightConfig.$inferSelect;
+export type OiRiskMatrixConfig = typeof oiRiskMatrixConfig.$inferSelect;

@@ -29,6 +29,7 @@ import * as Agents from "@/loaders/agents";
 import * as Employee from "@/loaders/employee";
 import * as System from "@/loaders/system";
 import * as Dvs from "@/loaders/dvs";
+import * as OI from "@/loaders/oi";
 
 function SuperuserRoute({
   path,
@@ -311,6 +312,15 @@ function Router() {
       <SuperuserRoute path="/gcs-test" component={() => <System.GcsTestPage />} />
       <SuperuserRoute path="/special-fixes" component={() => <System.SpecialFixesPage />} />
       <SuperuserRoute path="/calibration-test" component={() => <Quality.CalibrationTestPage />} />
+
+      {/* Operational Intelligence */}
+      <ProtectedRoute path="/oi" component={() => <OI.OiDashboardPage />} />
+      <ProtectedRoute path="/oi/issues" component={() => <OI.OiIssueRegister />} />
+      <ProtectedRoute path="/oi/issues/new" component={() => <OI.OiIssueCapture />} />
+      <ProtectedRoute path="/oi/issues/:id/classify" component={() => <OI.OiIssueClassify />} />
+      <ProtectedRoute path="/oi/issues/:id" component={() => <OI.OiIssueDetail />} />
+      <ProtectedRoute path="/oi/config" component={() => <OI.OiConfigPage />} />
+
       <Route component={NotFound} />
     </Switch>
   );

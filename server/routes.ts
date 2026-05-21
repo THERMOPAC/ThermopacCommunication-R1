@@ -3892,6 +3892,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', agentDownloadRoutes);
   console.log('Agent download routes registered');
 
+  // ── Operational Intelligence ─────────────────────────────────────────────────
+  const { oiRouter } = await import('./oi-routes');
+  app.use('/api/oi', ensureAuthenticated, oiRouter);
+  console.log('OI routes registered');
+
   // ── PPPC — Project Procurement Package Control ────────────────────────────────
   const { setupPppcRoutes } = await import('./pppc-routes');
   await setupPppcRoutes(app);

@@ -71,7 +71,8 @@ import {
   PenTool,
   Layers,
   ClipboardList,
-  FolderTree
+  FolderTree,
+  ActivitySquare
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -133,6 +134,7 @@ function Layout({ children }: LayoutProps) {
   const [isSapPurchasingMenuOpen, setIsSapPurchasingMenuOpen] = useState(false);
   const [isDrawingVerificationMenuOpen, setIsDrawingVerificationMenuOpen] = useState(false);
   const [isDocumentControlMenuOpen, setIsDocumentControlMenuOpen] = useState(false);
+  const [isOIMenuOpen, setIsOIMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -227,6 +229,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any Document Control page
   const isOnDocumentControlPage = location.startsWith('/document-control');
 
+  // Check if we're on any Operational Intelligence page
+  const isOnOIPage = location.startsWith('/oi');
+
 
   
   // Auto-open menus based on current page
@@ -282,7 +287,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnDocumentControlPage && !isDocumentControlMenuOpen) {
       setIsDocumentControlMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage, isOnDocumentControlPage, isDocumentControlMenuOpen]);
+
+    if (isOnOIPage && !isOIMenuOpen) {
+      setIsOIMenuOpen(true);
+    }
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -345,6 +354,19 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: FolderTree, label: "Doc Governance", href: "/document-control/doc-governance" },
         { icon: FolderTree, label: "GCS Doc Governance", href: "/document-control/gcs-doc-governance" },
+      ]
+    },
+    {
+      icon: ActivitySquare,
+      label: "Operational Intelligence",
+      isSubmenu: true,
+      isOpen: isOIMenuOpen,
+      toggle: () => setIsOIMenuOpen(!isOIMenuOpen),
+      children: [
+        { icon: ActivitySquare, label: "OI Dashboard",    href: "/oi" },
+        { icon: ClipboardList,  label: "Issue Register",  href: "/oi/issues" },
+        { icon: Zap,            label: "Report Issue",    href: "/oi/issues/new" },
+        ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Configuration", href: "/oi/config" }] : []),
       ]
     },
     ...(hasViewPermission("Administration") ? [{ 

@@ -313,6 +313,13 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
+    // Start OI SLA breach scheduler
+    import('./oi-scheduler').then(({ startOiScheduler }) => {
+      startOiScheduler();
+    }).catch((err: unknown) => {
+      console.error('❌ Failed to load OI scheduler:', err);
+    });
+
     // Start the attendance midnight processor (IST midnight cron + startup catch-up)
     import('./attendance-midnight-processor').then(({ attendanceMidnightProcessor }) => {
       attendanceMidnightProcessor.startSchedulerWithCatchup()
