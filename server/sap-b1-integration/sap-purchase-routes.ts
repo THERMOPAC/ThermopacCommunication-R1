@@ -119,12 +119,8 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
     let sapAvailable = false;
 
     try {
-      // Do NOT gate on getHealth().alive — that is a passive in-memory check which
-      // returns false on a fresh server start or after session expiry even though SAP
-      // is reachable. sapSession.request() calls getSession() internally which will
-      // auto-login if no session exists. Only fall back to sap_unavailable if the
-      // actual SAP requests throw (e.g. -1102, network error, VPN down).
       sapAvailable = true;
+      console.log('[Dashboard] sapAvailable set to true — beginning SAP requests');
 
         const [allPOResp, openPOResp, recentPOResp, invoiceResp, openInvoiceResp, grpoResp, openGrpoResp, vendorResp] = await Promise.all([
           sapSession.request({ method: 'GET', path: `/b1s/v1/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}'`, timeout: 30000 }),
