@@ -277,16 +277,16 @@ export default function EpcPlanningControlPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-[10px] w-8"></TableHead>
-                  <TableHead className="text-[10px]">Planning #</TableHead>
-                  <TableHead className="text-[10px]">Item Code</TableHead>
-                  <TableHead className="text-[10px]">Description</TableHead>
-                  <TableHead className="text-[10px]">Product Identity</TableHead>
-                  <TableHead className="text-[10px] text-center">Type</TableHead>
-                  <TableHead className="text-[10px] text-center">Status</TableHead>
-                  <TableHead className="text-[10px]">Assigned To</TableHead>
-                  <TableHead className="text-[10px]">Created</TableHead>
-                  <TableHead className="text-[10px] text-right">Actions</TableHead>
+                  <TableHead className="text-[10px] w-7 shrink-0"></TableHead>
+                  <TableHead className="text-[10px] w-24 shrink-0">Planning #</TableHead>
+                  <TableHead className="text-[10px] w-36 shrink-0">Item Code</TableHead>
+                  <TableHead className="text-[10px] w-[22%] min-w-[160px]">Description</TableHead>
+                  <TableHead className="text-[10px] w-[22%] min-w-[160px]">Product Identity</TableHead>
+                  <TableHead className="text-[10px] w-14 text-center shrink-0">Type</TableHead>
+                  <TableHead className="text-[10px] w-20 text-center shrink-0">Status</TableHead>
+                  <TableHead className="text-[10px] w-20 shrink-0">Assigned To</TableHead>
+                  <TableHead className="text-[10px] w-20 shrink-0">Created</TableHead>
+                  <TableHead className="text-[10px] text-right shrink-0">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -301,11 +301,13 @@ export default function EpcPlanningControlPage() {
                         </TableCell>
                         <TableCell className="py-1.5 font-mono text-[10px] font-medium">{rec.planning_number || `PLN-${rec.id}`}</TableCell>
                         <TableCell className="py-1.5"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
-                        <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate text-blue-600 font-medium">{rec.item_description || "—"}</TableCell>
-                        <TableCell className="py-1.5 max-w-[160px]">
+                        <TableCell className="py-1.5 text-[10px] text-blue-600 font-medium">
+                          <div className="truncate max-w-[260px]" title={rec.item_description || ""}>{rec.item_description || "—"}</div>
+                        </TableCell>
+                        <TableCell className="py-1.5">
                           {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
                             <div
-                              className="text-[12px] text-blue-600 font-bold truncate leading-snug"
+                              className="text-[12px] text-blue-600 font-bold truncate max-w-[260px] leading-snug"
                               title={[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
                             >
                               {[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
