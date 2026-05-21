@@ -402,3 +402,9 @@ id = "1x7Z-0M34GaMJMIblKiX1"
 uri = "file://docs/gcs-db-driven-routing-phase0-baseline.md"
 type = "text"
 title = "GCS DB-Driven Routing — Phase 0 Baseline v1.0"
+
+[[outputs]]
+id = "B21Hv-Ot943RcSHjbc20k"
+uri = "file://docs/operational-intelligence-baseline-v1.md"
+type = "text"
+title = "Operational Intelligence — Baseline v1.2"
