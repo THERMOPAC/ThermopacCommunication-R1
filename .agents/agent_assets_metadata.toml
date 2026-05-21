@@ -414,3 +414,9 @@ id = "wj9O7CijiNBMjahqbL6ct"
 uri = "file://docs/OI-Baseline-v1.2-FINAL.md"
 type = "text"
 title = "OI-Baseline-v1.2-FINAL"
+
+[[outputs]]
+id = "l1ow0GYgmpGKFKf9uNqxh"
+uri = "file://docs/operational-intelligence-phase1a-execution.md"
+type = "text"
+title = "OI Phase 1A Execution Plan — DRAFT"
