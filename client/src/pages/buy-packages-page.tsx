@@ -1492,7 +1492,7 @@ export default function BuyPackagesPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <Layout>
-      <div className="max-w-screen-xl mx-auto p-6 space-y-5">
+      <div className="p-4 space-y-4">
 
         {/* Page header */}
         <div className="flex items-center justify-between">

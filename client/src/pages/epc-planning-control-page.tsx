@@ -185,7 +185,7 @@ export default function EpcPlanningControlPage() {
 
   return (
     <Layout>
-      <div className="max-w-screen-xl mx-auto p-6 space-y-5">
+      <div className="p-4 space-y-4">
         <div className="flex items-center justify-between pb-3 border-b">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">
