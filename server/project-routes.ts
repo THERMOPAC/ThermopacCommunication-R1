@@ -3252,6 +3252,22 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  // Diagnostic: fetch SAP States (OCST) for a given country code. Superuser only.
+  app.get('/api/sap-diag/states/:countryCode', ensureAuthenticated, async (req: Request, res: Response) => {
+    if (req.user!.role !== 'Superuser') return res.status(403).json({ error: 'Superuser only.' });
+    try {
+      const cc = req.params.countryCode.toUpperCase();
+      const { sapSession } = await import('./sap-b1-integration/sap-central-session');
+      const r = await sapSession.request({
+        method: 'GET',
+        path: `/b1s/v1/States?$filter=Country eq '${cc}'&$select=Code,Name&$top=100`,
+      });
+      if (!r.ok) return res.status(r.statusCode).json({ error: `SAP HTTP ${r.statusCode}`, body: r.body });
+      const body = JSON.parse(r.body);
+      return res.json({ country: cc, count: (body.value || []).length, states: body.value || [] });
+    } catch (e: any) { return res.status(500).json({ error: e.message }); }
+  });
+
   app.delete('/api/customers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const customerId = parseInt(req.params.id);

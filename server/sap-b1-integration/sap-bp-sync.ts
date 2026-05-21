@@ -74,6 +74,28 @@ class SapBPSyncService {
     return map[countryName] || undefined;
   }
 
+  /**
+   * Maps an India U_StateSupply UDF code (2-letter GSTIN abbreviation) to the
+   * corresponding code in SAP's OCST (States) table for country "IN".
+   *
+   * Most codes are identical, but Gujarat is a known exception:
+   *   U_StateSupply = "GJ"  →  OCST.Code = "GU"
+   *
+   * This was confirmed by inspecting BPAddresses.State returned by SAP for
+   * vendor V10274 (Ratnadeep Metal & Tubes Ltd, Gujarat), which returns "GU"
+   * even though the U_StateSupply UDF stores "GJ".
+   *
+   * Any unknown code falls back to the UDF value itself (handles future states
+   * and the majority that already match between UDF and OCST).
+   */
+  private uStateToOcstCode(udfCode: string): string {
+    const ocstMap: Record<string, string> = {
+      // Known differences between U_StateSupply UDF codes and SAP OCST codes:
+      'GJ': 'GU',   // Gujarat — confirmed from live SAP BPAddresses data
+    };
+    return ocstMap[udfCode] ?? udfCode;
+  }
+
   // Used by CREATE path — parses a legacy freeform address string.
   private parseAddress(name: string, type: string, fullAddress: string, countryCode?: string, stateCode?: string): SapBPAddress {
     const lines = fullAddress.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -121,17 +143,13 @@ class SapBPSyncService {
     building: string | null | undefined,
     city: string | null | undefined,
     countryCode?: string,
-    // stateCode intentionally unused: OCRD.State1 (address state) uses a
-    // different code list from U_StateSupply UDF.  Sending uStateSupply ("GJ")
-    // as State1 triggers 'Linked value GJ does not exist' even though GJ is
-    // valid for the UDF.  Address state is left blank; U_StateSupply syncs
-    // correctly on the BP root object.
-    _stateCode?: string,
+    stateCode?: string,
   ): SapBPAddress {
     const addr: SapBPAddress = {
       AddressName: name,
       AddressType: type,
       Country: countryCode,
+      State: stateCode || undefined,
     };
     const s = (v: string | null | undefined) => (v && v.trim()) ? v.trim().substring(0, 100) : undefined;
     if (s(line1))     addr.AddressName2      = s(line1);
@@ -199,7 +217,9 @@ class SapBPSyncService {
       result.ContactPerson = customer.contactPerson;
     }
 
-    const stateCode = (countryCode === 'IN' && customer.uStateSupply) ? customer.uStateSupply : undefined;
+    const stateCode = (countryCode === 'IN' && customer.uStateSupply)
+      ? this.uStateToOcstCode(customer.uStateSupply)
+      : undefined;
     const bpAddresses: SapBPAddress[] = [];
 
     // AddressName values are canonical and unique per AddressType for all ERP-created BPs:
@@ -290,6 +310,23 @@ class SapBPSyncService {
           errorMsg = errorBody?.error?.message?.value || errorMsg;
         } catch {}
         console.error(`❌ SAP BP Sync: Failed to create BP ${bpData.CardCode}: ${errorMsg}`);
+
+        // Diagnostic: if error is state-related, query SAP's States list for IN
+        // so we can see the exact valid codes in the server log.
+        if (errorMsg.includes('State') || errorMsg.includes('OCRD.State') || errorMsg.includes('CRD1')) {
+          try {
+            const statesResp = await sapSession.request({
+              method: 'GET',
+              path: `/b1s/v1/States?$filter=Country eq 'IN'&$select=Code,Name&$top=50`,
+            });
+            if (statesResp.ok) {
+              const statesBody = JSON.parse(statesResp.body);
+              console.log(`[BP Sync Diag] SAP OCST states for IN (${(statesBody.value || []).length} entries):`,
+                JSON.stringify((statesBody.value || []).map((s: any) => `${s.Code}=${s.Name}`)));
+            }
+          } catch (de) { /* diagnostic only — ignore errors */ }
+        }
+
         return { success: false, error: errorMsg };
       }
     } catch (error: any) {
@@ -308,7 +345,9 @@ class SapBPSyncService {
 
       const cardCode = customer.bpCode;
       const countryCode = this.countryNameToCode(customer.countryName);
-      const stateCode = (countryCode === 'IN' && customer.uStateSupply) ? customer.uStateSupply : undefined;
+      const stateCode = (countryCode === 'IN' && customer.uStateSupply)
+      ? this.uStateToOcstCode(customer.uStateSupply)
+      : undefined;
 
       // Guard dummy phone values that SAP rejects
       const rawPhone = (customer.phone1 || '').trim();
