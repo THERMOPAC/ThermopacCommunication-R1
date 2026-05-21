@@ -1637,8 +1637,8 @@ export default function ExecutionControlDashboard() {
 
         <Card>
           <CardContent className="pt-4 pb-3 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="w-[600px]">
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Project</label>
                 <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
                   <SelectTrigger>
@@ -1660,7 +1660,7 @@ export default function ExecutionControlDashboard() {
                   <label htmlFor="showAllExecProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
                 </div>
               </div>
-              <div className="md:col-span-2">
+              <div className="w-[350px]">
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Search Items</label>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
