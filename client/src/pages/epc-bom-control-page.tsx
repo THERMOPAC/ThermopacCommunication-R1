@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -613,8 +613,8 @@ export default function EpcBomControlPage() {
                   {filtered.length === 0 ? (
                     <TableRow><TableCell colSpan={9} className="text-center text-xs text-muted-foreground py-8">No BOM records found.</TableCell></TableRow>
                   ) : filtered.map((rec: any) => (
-                    <>
-                      <TableRow key={rec.id} className="cursor-pointer hover:bg-muted/50 text-[10px]" onClick={() => setExpandedRow(expandedRow === rec.id ? null : rec.id)}>
+                    <React.Fragment key={rec.id}>
+                      <TableRow className="cursor-pointer hover:bg-muted/50 text-[10px]" onClick={() => setExpandedRow(expandedRow === rec.id ? null : rec.id)}>
                         <TableCell className="w-6 px-2">
                           {expandedRow === rec.id ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                         </TableCell>
@@ -883,7 +883,7 @@ export default function EpcBomControlPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
