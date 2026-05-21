@@ -200,7 +200,7 @@ export default function EpcPlanningControlPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 items-end">
-          <div className="w-[500px]">
+          <div className="w-[700px]">
             <Label className="text-[10px]">Project</Label>
             <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select project…" /></SelectTrigger>
