@@ -2578,16 +2578,17 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                       </Button>
                     </>
                   )}
-                  {(sheet.dds_pdf_status === 'error' || (!sheet.dds_gcs_path && sheet.dds_pdf_status !== 'ready')) && canEdit && (
+                  {canEdit && (
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-6 text-[9px] px-2 text-amber-700 border-amber-300"
+                      className="h-6 text-[9px] px-2 text-slate-600 border-slate-300"
                       onClick={handleRegeneratePdf}
                       disabled={regenerating}
+                      title="Regenerate PDF from current data"
                     >
                       {regenerating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                      Regenerate PDF
+                      Regenerate
                     </Button>
                   )}
                 </div>
