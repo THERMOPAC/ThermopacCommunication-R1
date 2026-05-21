@@ -13761,6 +13761,7 @@ function SurfaceFinishChart() {
 
 export default function DesignToolsPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpenTool, setSearchOpenTool] = useState<{ id: string; name: string } | null>(null);
 
   // Define all available tools with their metadata for search
   const allTools = useMemo(() => [
@@ -13926,7 +13927,7 @@ export default function DesignToolsPage() {
                                 </Badge>
                               )}
                             </div>
-                            <Button className="w-full" size="sm" disabled>
+                            <Button className="w-full" size="sm" onClick={() => setSearchOpenTool({ id: tool.id, name: tool.name })}>
                               <Calculator className="h-4 w-4 mr-2" />
                               Open Calculator
                             </Button>
@@ -13952,6 +13953,40 @@ export default function DesignToolsPage() {
               </p>
             </div>
           </div>
+        )}
+
+        {/* Search Result Calculator Dialog */}
+        {searchOpenTool && (
+          <Dialog open={true} onOpenChange={(open) => { if (!open) setSearchOpenTool(null); }}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{searchOpenTool.name}</DialogTitle>
+              </DialogHeader>
+              {searchOpenTool.id === "shaft-design" ? <ShaftDesignCalculator /> :
+               searchOpenTool.id === "gear-design" ? <GearDesignCalculator /> :
+               searchOpenTool.id === "spring-design" ? <SpringDesignCalculator /> :
+               searchOpenTool.id === "vacuum-pump-sizing" ? <VacuumPumpSizingCalculator /> :
+               searchOpenTool.id === "shell-thickness" ? <ShellThicknessCalculator /> :
+               searchOpenTool.id === "head-thickness" ? <HeadThicknessCalculator /> :
+               searchOpenTool.id === "helical-coil" ? <HelicalCoilPressureLossCalculator /> :
+               searchOpenTool.id === "thermal-oil-pump" ? <ThermalOilPumpSizingCalculator /> :
+               searchOpenTool.id === "combustion-air" ? <CombustionAirCalculator /> :
+               searchOpenTool.id === "burner-capacity" ? <BurnerCapacityCalculator /> :
+               searchOpenTool.id === "stack-design" ? <ChimneyDiameterHeightCalculator /> :
+               searchOpenTool.id === "pressure-drop" ? <PressureDropCalculator /> :
+               searchOpenTool.id === "pipe-support" ? <PipeSupportSpanEstimator /> :
+               searchOpenTool.id === "motor-starter" ? <MotorStarterSizing /> :
+               searchOpenTool.id === "power-factor" ? <PowerFactorCorrection /> :
+               searchOpenTool.id === "transformer-sizing" ? <TransformerSizing /> :
+               searchOpenTool.id === "fluid-flow" ? <PressureDropAnalyzer /> :
+               <div className="py-8 text-center text-muted-foreground text-sm">
+                 <Calculator className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                 <p>This calculator is available in the full tool browser.</p>
+                 <p className="text-xs mt-1">Clear the search bar to browse tools by category.</p>
+               </div>
+              }
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* Regular Tabs View - only show when not searching */}
