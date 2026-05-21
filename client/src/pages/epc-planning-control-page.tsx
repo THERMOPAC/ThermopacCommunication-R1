@@ -281,6 +281,7 @@ export default function EpcPlanningControlPage() {
                   <TableHead className="text-[10px]">Planning #</TableHead>
                   <TableHead className="text-[10px]">Item Code</TableHead>
                   <TableHead className="text-[10px]">Description</TableHead>
+                  <TableHead className="text-[10px]">Product Identity</TableHead>
                   <TableHead className="text-[10px] text-center">Type</TableHead>
                   <TableHead className="text-[10px] text-center">Status</TableHead>
                   <TableHead className="text-[10px]">Assigned To</TableHead>
@@ -301,6 +302,16 @@ export default function EpcPlanningControlPage() {
                         <TableCell className="py-1.5 font-mono text-[10px] font-medium">{rec.planning_number || `PLN-${rec.id}`}</TableCell>
                         <TableCell className="py-1.5"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
                         <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate text-blue-600 font-medium">{rec.item_description || "—"}</TableCell>
+                        <TableCell className="py-1.5 max-w-[160px]">
+                          {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
+                            <div
+                              className="text-[12px] text-blue-600 font-bold truncate leading-snug"
+                              title={[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
+                            >
+                              {[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
+                            </div>
+                          ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                        </TableCell>
                         <TableCell className="py-1.5 text-center">
                           <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${PLANNING_TYPE_COLORS[rec.planning_type] || ""}`}>
                             {rec.planning_type === "procurement" ? "Buy" : "Make"}
@@ -325,7 +336,7 @@ export default function EpcPlanningControlPage() {
                       </TableRow>
                       {isExpanded && (
                         <TableRow key={`${rec.id}-detail`}>
-                          <TableCell colSpan={9} className="p-0 bg-muted/10">
+                          <TableCell colSpan={10} className="p-0 bg-muted/10">
                             <div className="p-3 space-y-3">
                               {detailLoading ? (
                                 <div className="py-4 text-center"><Loader2 className="h-5 w-5 mx-auto animate-spin text-muted-foreground" /></div>
