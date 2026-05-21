@@ -1,4 +1,13 @@
-import { useState, useEffect } from 'react';
+/**
+ * SapLoginModal — DEPRECATED (SAP Session Unification, 2026-05-21)
+ *
+ * Per-user SAP credential prompting is no longer used by the SAP Purchasing
+ * Dashboard or SapAuthGuard. All SAP authentication is handled server-side
+ * via SapCentralSession (SAP_B1_USERNAME / SAP_B1_PASSWORD server secrets).
+ * Do not introduce new usages of this component. Retained only for
+ * backward compatibility with SapPurchaseOrders until that page is migrated.
+ */
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

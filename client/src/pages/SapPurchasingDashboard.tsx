@@ -1,5 +1,6 @@
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
+import { Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -275,16 +276,18 @@ function DashboardContent() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
+        <div className="text-center max-w-md">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 mb-4">
+            <AlertTriangle className="h-6 w-6 text-amber-600" />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Failed to Load Dashboard</h3>
-            <p className="text-sm text-gray-600">
-              {error instanceof Error ? error.message : 'Unable to fetch SAP purchase data'}
-            </p>
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900">SAP Service Layer unavailable</h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Contact admin or use{' '}
+            <Link href="/sap-integration" className="text-blue-600 underline font-medium">
+              SAP Integration page
+            </Link>
+            {' '}→ Force Reset.
+          </p>
         </div>
       </div>
     );
@@ -297,14 +300,18 @@ function DashboardContent() {
       <div className="space-y-6">
         {isSapUnavailable && (
           <div className="flex items-center justify-center min-h-[300px]">
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 max-w-md">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
                 <AlertTriangle className="h-7 w-7 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">SAP Service Layer Unavailable</h3>
-                <p className="text-sm text-gray-600 max-w-md mt-1">
-                  {responseAny?.warning || 'Unable to connect to SAP B1. Please check VPN connectivity and SAP server status.'}
+                <h3 className="text-lg font-semibold text-gray-900">SAP Service Layer unavailable</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Contact admin or use{' '}
+                  <Link href="/sap-integration" className="text-blue-600 underline font-medium">
+                    SAP Integration page
+                  </Link>
+                  {' '}→ Force Reset.
                 </p>
               </div>
               <Button
