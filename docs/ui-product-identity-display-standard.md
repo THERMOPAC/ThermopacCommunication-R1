@@ -19,13 +19,13 @@ Prior to this standard, expanded-row Details cards on EPC screens showed the ful
 | Line | Content | Source | Style |
 |------|---------|--------|-------|
 | Line 1 | Full engineering description | `drawing_title`, `item_description`, or equivalent project-specific field | `text-[10px] font-medium text-foreground/80` |
-| Line 2 | Reusable product identity: `P2_label + " " + P3` | `products.item_property_2_label` + `products.item_property_3` | `text-[12px] text-blue-600 font-bold` |
+| Line 2 | Reusable product identity: `P1_label + " " + P2_label + " " + P3` | `products.item_property_1_label` + `products.item_property_2_label` + `products.item_property_3` | `text-[12px] text-blue-600 font-bold` |
 
 ### Rules
 
 1. **Never duplicate** the full engineering description on Line 2.
 2. **Never show** BP suffix, project suffix, or any project-specific qualifier on Line 2.
-3. **Line 2 is hidden** entirely when both `item_property_2_label` and `item_property_3` are null or empty — do not render a blank line.
+3. **Line 2 is hidden** entirely when all of `item_property_1_label`, `item_property_2_label`, and `item_property_3` are null or empty — do not render a blank line.
 4. **Line 2 is read-only** in the UI — it derives from the linked product in the `products` table and is never editable inline.
 5. **P2 label and P3 are joined with a single space** with empty parts filtered out (use `.filter(Boolean).join(' ')`).
 
@@ -34,8 +34,9 @@ Prior to this standard, expanded-row Details cards on EPC screens showed the ful
 ```
 epc_drawing_controls.project_item_id
   → project_items.product_code
-    → products.item_property_2_label   (P2 label, e.g. "Column")
-    → products.item_property_3         (P3 value, e.g. "400 NB 2000 MM")
+    → products.item_property_1_label   (P1 label, e.g. "PLC Control Panel")
+    → products.item_property_2_label   (P2 label, e.g. "For CPS")
+    → products.item_property_3         (P3 value, e.g. "60")
 ```
 
 The same join pattern applies to any EPC module that links through `project_items` → `products`.
@@ -43,12 +44,12 @@ The same join pattern applies to any EPC module that links through `project_item
 ### Frontend Implementation Pattern
 
 ```tsx
-{(rec.product_p2_label || rec.product_p3) && (
+{(rec.product_p1_label || rec.product_p2_label || rec.product_p3) && (
   <div
     className="text-[12px] text-blue-600 font-bold mt-0.5 leading-snug truncate"
-    title={[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
+    title={[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
   >
-    {[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
+    {[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
   </div>
 )}
 ```
@@ -62,6 +63,7 @@ LEFT JOIN project_items pi ON pi.id = dc.project_item_id
 LEFT JOIN products p ON p.product_code = pi.product_code
 
 -- In SELECT:
+p.item_property_1_label AS product_p1_label,
 p.item_property_2_label AS product_p2_label,
 p.item_property_3       AS product_p3
 ```
