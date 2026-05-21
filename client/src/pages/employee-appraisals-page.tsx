@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,11 +72,12 @@ function RatingBadge({ rating }: { rating: string }) {
   );
 }
 
-export default function EmployeeAppraisalsPage() {
+export default function EmployeeAppraisalsPage({ initialId }: { initialId?: number } = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("my-appraisals");
   const [filterEmployeeId, setFilterEmployeeId] = useState<number | null>(null);
+  const [, navigate] = useLocation();
 
   const { data: roleCheck } = useQuery<any>({
     queryKey: ["/api/appraisals/user/role-check"],
@@ -132,6 +134,10 @@ export default function EmployeeAppraisalsPage() {
   }, [roleCheck, isHrOrSuperuser, isSuperuser]);
 
   const showFilter = userPool.length > 0;
+
+  if (initialId) {
+    return <AppraisalDetail appraisalId={initialId} onBack={() => navigate("/appraisals")} view="my" />;
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-4">

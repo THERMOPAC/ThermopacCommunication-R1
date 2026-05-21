@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, Redirect, useLocation, useParams } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -279,6 +279,10 @@ function Router() {
       <ProtectedRoute path="/dwar" component={() => <Layout><Employee.DwarPage /></Layout>} />
       <ProtectedRoute path="/leave-request" component={() => <Layout><Employee.LeaveRequestPage /></Layout>} />
       <ProtectedRoute path="/appraisals" component={() => <Layout><Employee.EmployeeAppraisalsPage /></Layout>} />
+      <ProtectedRoute path="/appraisals/:id" component={() => {
+        const params = useParams<{ id: string }>();
+        return <Layout><Employee.EmployeeAppraisalsPage initialId={params.id ? parseInt(params.id) : undefined} /></Layout>;
+      }} />
 
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={() => <System.ModulePermissionsPage />} />
