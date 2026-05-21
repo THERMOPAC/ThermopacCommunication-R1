@@ -451,19 +451,19 @@ export default function EpcDrawingControlPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-[10px] w-8"></TableHead>
-                        <TableHead className="text-[10px] w-[110px]">DWG Control #</TableHead>
-                        <TableHead className="text-[10px] w-[130px]">Drawing No</TableHead>
-                        <TableHead className="text-[10px] text-center w-14">Rev</TableHead>
-                        <TableHead className="text-[10px]">Item</TableHead>
-                        <TableHead className="text-[10px]">Product Identity</TableHead>
-                        <TableHead className="text-[10px] text-center">Status</TableHead>
-                        <TableHead className="text-[10px] text-center">Procurement</TableHead>
-                        <TableHead className="text-[10px] text-center">Manufacturing</TableHead>
-                        <TableHead className="text-[10px] text-center">Client</TableHead>
-                        <TableHead className="text-[10px]">Purpose</TableHead>
-                        <TableHead className="text-[10px]">Assigned To</TableHead>
-                        <TableHead className="text-[10px] text-center">Actions</TableHead>
+                        <TableHead className="text-[10px] w-6 px-1"></TableHead>
+                        <TableHead className="text-[10px] px-2">DWG Control #</TableHead>
+                        <TableHead className="text-[10px] w-[120px] px-2">Drawing No</TableHead>
+                        <TableHead className="text-[10px] text-center w-10 px-1">Rev</TableHead>
+                        <TableHead className="text-[10px] w-[120px] px-2">Item</TableHead>
+                        <TableHead className="text-[10px] px-2">Product Identity</TableHead>
+                        <TableHead className="text-[10px] text-center w-[72px] px-1">Status</TableHead>
+                        <TableHead className="text-[10px] text-center w-[80px] px-1">Procurement</TableHead>
+                        <TableHead className="text-[10px] text-center w-[90px] px-1">Manufacturing</TableHead>
+                        <TableHead className="text-[10px] text-center w-[52px] px-1">Client</TableHead>
+                        <TableHead className="text-[10px] w-[70px] px-2">Purpose</TableHead>
+                        <TableHead className="text-[10px] w-[80px] px-2">Assigned To</TableHead>
+                        <TableHead className="text-[10px] text-center px-2">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -475,12 +475,12 @@ export default function EpcDrawingControlPage() {
                         return (
                           <TooltipProvider key={rec.id}>
                             <TableRow className={`cursor-pointer hover:bg-muted/30 ${isExpanded ? "bg-muted/20" : ""} ${!rec.is_current ? "opacity-60" : ""}`} onClick={() => setExpandedId(isExpanded ? null : rec.id)}>
-                              <TableCell className="py-1.5 px-2">
+                              <TableCell className="py-1 px-1">
                                 {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                               </TableCell>
-                              <TableCell className="text-[10px] font-mono font-medium py-1.5">{rec.dwg_control_number}</TableCell>
-                              <TableCell className="text-[10px] py-1.5">{rec.drawing_number || <span className="text-muted-foreground italic">—</span>}</TableCell>
-                              <TableCell className="text-center py-1.5">
+                              <TableCell className="text-[10px] font-mono font-medium py-1 px-2">{rec.dwg_control_number}</TableCell>
+                              <TableCell className="text-[10px] py-1 px-2">{rec.drawing_number || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                              <TableCell className="text-center py-1 px-1">
                                 {projectId
                                   ? <LiveRevisionCell projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
                                   : <div className="flex items-center justify-center gap-1">
@@ -489,10 +489,10 @@ export default function EpcDrawingControlPage() {
                                     </div>
                                 }
                               </TableCell>
-                              <TableCell className="text-[10px] py-1.5">
-                                <div className="truncate max-w-[140px]" title={rec.item_description || ""}>{rec.item_code}</div>
+                              <TableCell className="text-[10px] py-1 px-2">
+                                <div className="truncate max-w-[110px]" title={rec.item_description || ""}>{rec.item_code}</div>
                               </TableCell>
-                              <TableCell className="text-[10px] py-1.5">
+                              <TableCell className="text-[10px] py-1 px-2">
                                 {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
                                   <div className="leading-tight">
                                     {rec.product_p1_label && <div className="truncate max-w-[160px] font-medium" title={rec.product_p1_label}>{rec.product_p1_label}</div>}
@@ -504,23 +504,23 @@ export default function EpcDrawingControlPage() {
                                   </div>
                                 ) : <span className="text-muted-foreground italic">—</span>}
                               </TableCell>
-                              <TableCell className="text-center py-1.5"><StatusBadge status={rec.status} /></TableCell>
-                              <TableCell className="text-center py-1.5"><GateBadge label="P" active={rec.released_for_procurement} required={rec.procurement_release_required} /></TableCell>
-                              <TableCell className="text-center py-1.5"><GateBadge label="M" active={rec.released_for_manufacturing} required={rec.manufacturing_release_required} /></TableCell>
-                              <TableCell className="text-center py-1.5">
+                              <TableCell className="text-center py-1 px-1"><StatusBadge status={rec.status} /></TableCell>
+                              <TableCell className="text-center py-1 px-1"><GateBadge label="P" active={rec.released_for_procurement} required={rec.procurement_release_required} /></TableCell>
+                              <TableCell className="text-center py-1 px-1"><GateBadge label="M" active={rec.released_for_manufacturing} required={rec.manufacturing_release_required} /></TableCell>
+                              <TableCell className="text-center py-1 px-1">
                                 {rec.client_approval_required ? (
                                   <Badge variant="outline" className={`text-[8px] px-1 py-0 border ${rec.client_approval_status === "approved" ? "bg-green-50 text-green-600 border-green-200" : rec.client_approval_status === "rejected" ? "bg-red-50 text-red-500 border-red-200" : "bg-yellow-50 text-yellow-600 border-yellow-200"}`}>
                                     {rec.client_approval_status || "pending"}
                                   </Badge>
                                 ) : <span className="text-[8px] text-muted-foreground">N/R</span>}
                               </TableCell>
-                              <TableCell className="text-[10px] py-1.5 capitalize">{rec.drawing_purpose || "—"}</TableCell>
-                              <TableCell className="text-[10px] py-1.5">
+                              <TableCell className="text-[10px] py-1 px-2 capitalize">{rec.drawing_purpose || "—"}</TableCell>
+                              <TableCell className="text-[10px] py-1 px-2">
                                 {rec.assigned_to_name ? (
                                   <span className="text-[10px]">{rec.assigned_to_name}</span>
                                 ) : <span className="text-[8px] text-muted-foreground italic">Unassigned</span>}
                               </TableCell>
-                              <TableCell className="text-center py-1.5">
+                              <TableCell className="text-center py-1 px-2">
                                 {actions.length > 0 ? (
                                   <div className="flex items-center justify-center gap-1">
                                     {actions.slice(0, 2).map((a) => {
