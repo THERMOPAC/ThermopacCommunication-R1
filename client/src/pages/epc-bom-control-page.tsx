@@ -449,7 +449,7 @@ export default function EpcBomControlPage() {
 
   return (
     <Layout>
-      <div className="p-3 space-y-3 max-w-[1400px] mx-auto">
+      <div className="p-4 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => window.history.back()}>
             ← Back
@@ -510,23 +510,27 @@ export default function EpcBomControlPage() {
           </Card>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
-            <SelectTrigger className="w-52 h-8 text-xs"><SelectValue placeholder="Select Project" /></SelectTrigger>
-            <SelectContent>
-              {filteredProjects.map((p: any) => (
-                <SelectItem key={p.id} value={String(p.id)} className="text-xs">{getProjectDisplayName(p)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-[600px]">
+            <label className="text-[10px] font-medium text-muted-foreground mb-1 block">Project</label>
+            <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Project" /></SelectTrigger>
+              <SelectContent>
+                {filteredProjects.map((p: any) => (
+                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{getProjectDisplayName(p)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-1.5 self-end pb-1">
             <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
             <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input className="pl-7 h-8 w-44 text-xs" placeholder="Search BOM#, item..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <div className="relative w-[350px]">
+            <label className="text-[10px] font-medium text-muted-foreground mb-1 block">Search</label>
+            <Search className="absolute left-2 top-[26px] h-3 w-3 text-muted-foreground" />
+            <Input className="pl-7 h-8 text-xs" placeholder="Search BOM#, item..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
