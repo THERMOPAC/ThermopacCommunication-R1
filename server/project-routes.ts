@@ -11207,7 +11207,9 @@ export function setupProjectRoutes(app: express.Express) {
       const projectId = parseInt(req.params.projectId);
       const results = await db.execute(
         sql`SELECT dc.*, COALESCE(att.cnt, 0)::int AS attachment_count,
-                   u_assigned.username AS assigned_to_name, u_assigned.department AS assigned_to_department
+                   u_assigned.username AS assigned_to_name, u_assigned.department AS assigned_to_department,
+                   p.item_property_2_label AS product_p2_label,
+                   p.item_property_3      AS product_p3
             FROM epc_drawing_controls dc
             LEFT JOIN (
               SELECT parent_entity_id, COUNT(*)::int AS cnt
@@ -11216,6 +11218,8 @@ export function setupProjectRoutes(app: express.Express) {
               GROUP BY parent_entity_id
             ) att ON att.parent_entity_id = dc.id
             LEFT JOIN users u_assigned ON u_assigned.id = dc.assigned_to
+            LEFT JOIN project_items pi ON pi.id = dc.project_item_id
+            LEFT JOIN products p ON p.product_code = pi.product_code
             WHERE dc.project_id = ${projectId}
             ORDER BY dc.created_at DESC`
       );
