@@ -115,16 +115,19 @@ export class SapHttpsClient {
     // Ref: SAP Session Unification Migration Plan v1.2, Section 12 — Control E.
     const stack = new Error().stack || '';
     const isAuthorized =
+      // dev / tsx mode — stack shows the source file path
       stack.includes('sap-central-session') ||
-      stack.includes('sap-routes');
+      // compiled bundle (dist/index.js) — class name is preserved in stack traces
+      // All legitimate callers are methods on SapCentralSession (_doLogin / _doTestCredentials)
+      stack.includes('SapCentralSession');
     if (!isAuthorized) {
       const callerLine = (stack.split('\n')[2] || stack.split('\n')[1] || '').trim();
       const msg = `[SAP GOVERNANCE VIOLATION] unauthorized sapHttpsClient.login() caller detected. ` +
         `This call creates a competing B1SESSION and will cause -1102 conflicts. Caller: ${callerLine}`;
       console.error(msg);
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(msg);
-      }
+      // Always throw — in v3.0 only SapCentralSession methods are authorised.
+      // If this fires it is a genuine out-of-band login call that must be blocked.
+      throw new Error(msg);
     }
     // ─────────────────────────────────────────────────────────────────────────
 
