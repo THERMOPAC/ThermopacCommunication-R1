@@ -189,12 +189,11 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
   // ── 1. Fresh session — always force a new login for Test SAP ────────────
   // The shared session may have been primed by Full Sync (which uses $select).
   // SAP only returns UDF fields (U_ERP_Group) on fresh sessions without
-  // prior $select usage. Invalidate first, wait 4 s for SAP to release the
-  // stale session server-side (same pattern as forceReset()), then re-login.
-  await sapSession.invalidate();
-  await new Promise<void>((r) => setTimeout(r, 4000)); // let SAP release stale session
+  // prior $select usage. Use forceLogin() which atomically invalidates,
+  // waits for SAP to release the stale session, and re-logins — all serialized
+  // through the global login queue so it cannot race with any concurrent request.
   try {
-    await sapSession.getSession(); // trigger a fresh login
+    await sapSession.forceLogin(4000);
   } catch (err: any) {
     const msg: string = err?.message ?? String(err);
     if (isSapSessionConflict(msg)) {
@@ -252,10 +251,10 @@ async function runVendorSapTest(_limit: number): Promise<VendorTestResult> {
   }
 
   // Helper: one full attempt = invalidate + wait + login + scan
+  // Uses forceLogin() for the atomic queued invalidate+wait+login so this cannot
+  // race with any concurrent SAP request or the outer forceLogin() call above.
   async function freshLoginAndScan(): Promise<{ rows: any[]; udfAvailable: boolean }> {
-    await sapSession.invalidate();
-    await new Promise<void>((r) => setTimeout(r, 5000)); // let SAP release stale session
-    await sapSession.getSession();                        // fresh login
+    await sapSession.forceLogin(5000);
     const rows = await fullScan();
     const udfAvailable = rows.some((bp) => 'U_ERP_Group' in bp);
     return { rows, udfAvailable };

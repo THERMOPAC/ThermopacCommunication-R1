@@ -191,17 +191,24 @@ export class SapHttpsClient {
 
   /**
    * Logout from SAP B1 Service Layer.
-   * Swallows errors silently — a failed logout is never fatal.
+   * Non-fatal but ALWAYS logs failures — a failed logout leaves a live SAP session
+   * which causes the next login to get -1102. Visible warnings are essential for
+   * diagnosing persistent -1102 in production.
    */
   async logout(sessionCookie: string): Promise<void> {
     try {
-      await this.authenticatedRequest(sessionCookie, {
+      const resp = await this.authenticatedRequest(sessionCookie, {
         method: 'POST',
         url: '',
         path: '/b1s/v1/Logout',
       });
-    } catch {
-      // Logout failure is non-fatal — session will expire on its own
+      if (!resp.ok) {
+        console.warn(`[SapHttpsClient] logout returned non-OK status ${resp.statusCode} — SAP session may still be alive: ${resp.body?.substring(0, 200)}`);
+      }
+    } catch (err: any) {
+      // Non-fatal but must be logged — if logout silently fails, the SAP session
+      // stays alive and the next login attempt will get -1102.
+      console.warn(`[SapHttpsClient] logout exception (non-fatal, but SAP session may persist): ${err.message}`);
     }
   }
 

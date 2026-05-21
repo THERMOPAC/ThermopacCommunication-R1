@@ -1,9 +1,24 @@
 /**
- * SAP Central Session Manager — v2.0
+ * SAP Central Session Manager — v3.0
  *
  * Single source of truth for all server-initiated SAP B1 Service Layer sessions.
  * Enforces ONE active session at all times. Handles login, expiry, -1102 recovery,
  * disk persistence for crash-safe logout, and SIGTERM cleanup.
+ *
+ * v3.0 changes over v2.0:
+ *  - Global login serialization queue (_loginQueue): ALL login operations —
+ *    _doLogin(), testCredentials(), forceLogin() — are serialized through a
+ *    FIFO promise queue. No two login calls can ever be in-flight simultaneously.
+ *  - invalidate() now nulls loginPromise immediately so the next getSession()
+ *    always starts a fresh queued login instead of joining a stale in-progress one.
+ *  - New public forceLogin(waitMs): atomic queued invalidate → wait → login.
+ *    Replaces the raw invalidate()+getSession() pattern used in procurement-routes.
+ *  - testCredentials() is now serialized through the login queue so it cannot
+ *    race with _doLogin().
+ *  - forceReset() resets the login queue, loginPromise, AND retryOn1102 counter.
+ *  - Raw SAP -1102 response body is logged separately before app interpretation.
+ *  - Logout now logs warnings instead of silently swallowing errors so failed
+ *    logouts are visible in production logs.
  *
  * v2.0 changes:
  *  - Crash-safe disk persistence: cookie written on login, KEPT on disk through
@@ -59,6 +74,7 @@ interface SessionStats {
   sessionReuses: number;
   invalidations: number;
   logouts: number;
+  logoutFailures: number;
   retryOn1102: number;
   lastLoginAt: string | null;
   lastInvalidateAt: string | null;
@@ -71,8 +87,20 @@ class SapCentralSession {
   private cookie: string | null = null;
   private expiresAt: Date | null = null;
 
-  /** Mutex — if a login is already in progress, subsequent callers await this */
+  /**
+   * Dedup mutex — if a login is already in progress via getSession(),
+   * subsequent callers await this shared promise instead of starting a new one.
+   * Nulled immediately by invalidate() so the next getSession() starts fresh.
+   */
   private loginPromise: Promise<string> | null = null;
+
+  /**
+   * Global login serialization queue — FIFO promise chain that ensures no two
+   * login operations (system login, testCredentials, forceLogin) are ever
+   * in-flight at the same time. This is the root fix for -1102 "competing session"
+   * errors caused by concurrent login attempts from different code paths.
+   */
+  private _loginQueue: Promise<void> = Promise.resolve();
 
   private stats: SessionStats = {
     loginAttempts: 0,
@@ -81,6 +109,7 @@ class SapCentralSession {
     sessionReuses: 0,
     invalidations: 0,
     logouts: 0,
+    logoutFailures: 0,
     retryOn1102: 0,
     lastLoginAt: null,
     lastInvalidateAt: null,
@@ -88,6 +117,23 @@ class SapCentralSession {
     lastErrorAt: null,
     lastError: null,
   };
+
+  // ─── Login Queue ──────────────────────────────────────────────────────────
+
+  /**
+   * Enqueues a login operation through the global FIFO queue.
+   * Guarantees no two login operations overlap regardless of caller.
+   * The queue tail always advances (even on failure) so subsequent ops run.
+   */
+  private _enqueueLoginOp<T>(fn: () => Promise<T>): Promise<T> {
+    const work = this._loginQueue.then(() => fn());
+    // Always advance the tail — failure must not block the queue
+    this._loginQueue = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -113,6 +159,7 @@ class SapCentralSession {
             this.stats.logouts++;
             console.log('[SapCentralSession] initialize() — stale session logged out successfully');
           } catch (err: any) {
+            this.stats.logoutFailures++;
             console.warn('[SapCentralSession] initialize() — stale session logout failed (non-fatal, may have already expired):', err.message);
           }
         } else {
@@ -131,6 +178,7 @@ class SapCentralSession {
     this.cookie = null;
     this.expiresAt = null;
     this.loginPromise = null;
+    this._loginQueue = Promise.resolve();
     console.log('[SapCentralSession] initialize() — ready');
   }
 
@@ -145,7 +193,8 @@ class SapCentralSession {
   /**
    * Returns a valid SAP session cookie string.
    * Creates a new session if none exists or if current one is expired.
-   * Thread-safe: concurrent callers during login share one login attempt.
+   * Thread-safe: concurrent callers during login share one login attempt (dedup),
+   * and the underlying login is serialized through the global login queue.
    */
   async getSession(): Promise<string> {
     if (this.cookie && this.expiresAt && this.expiresAt > new Date()) {
@@ -160,10 +209,11 @@ class SapCentralSession {
       return this.loginPromise;
     }
 
-    this.loginPromise = this._doLogin().finally(() => {
+    // Start a new login, serialized through the global queue, with dedup for
+    // concurrent callers that all arrive here before the login completes.
+    this.loginPromise = this._enqueueLoginOp(() => this._doLogin()).finally(() => {
       this.loginPromise = null;
     });
-
     return this.loginPromise;
   }
 
@@ -197,7 +247,8 @@ class SapCentralSession {
 
     // -1102 in response body — competing session appeared mid-flight
     if (typeof resp.body === 'string' && this._is1102(resp.body)) {
-      console.warn('[SapCentralSession] request() — -1102 in response body, invalidating and retrying...');
+      console.warn('[SapCentralSession] request() — -1102 in response body');
+      console.warn(`[SapCentralSession] RAW -1102 response body: ${resp.body.substring(0, 600)}`);
       this.stats.retryOn1102++;
       await this.invalidate();
       const freshCookie = await this.getSession();
@@ -209,6 +260,8 @@ class SapCentralSession {
 
   /**
    * Invalidates the current session: logs out from SAP, clears memory and disk.
+   * Also nulls loginPromise so the next getSession() starts a fresh queued login
+   * instead of joining a potentially stale in-progress one.
    *
    * Crash-safe: writes the cookie to disk as `pendingLogout` BEFORE attempting
    * logout, so if the process dies during the logout call, the next startup can
@@ -218,6 +271,9 @@ class SapCentralSession {
     const cookieToLogout = this.cookie;
     this.cookie = null;
     this.expiresAt = null;
+    // Null the dedup promise so the next getSession() call enqueues a fresh login
+    // rather than joining whatever was in-progress before this invalidate.
+    this.loginPromise = null;
     this.stats.invalidations++;
     this.stats.lastInvalidateAt = new Date().toISOString();
 
@@ -230,7 +286,8 @@ class SapCentralSession {
         this.stats.logouts++;
         console.log(`[SapCentralSession] ✅ invalidate #${this.stats.invalidations} — SAP logout OK`);
       } catch (err: any) {
-        console.warn(`[SapCentralSession] invalidate #${this.stats.invalidations} — logout warning (non-fatal):`, err.message);
+        this.stats.logoutFailures++;
+        console.warn(`[SapCentralSession] ⚠️  invalidate #${this.stats.invalidations} — SAP logout FAILED (cookie may linger in SAP):`, err.message);
       }
       // Only delete disk file after logout attempt (success or not — session is dead either way)
       this._deleteDisk();
@@ -241,17 +298,72 @@ class SapCentralSession {
   }
 
   /**
-   * Admin-callable hard reset: invalidates current session, waits 2 s, then
-   * re-runs initialize() so the next request triggers a clean fresh login.
+   * Atomic forced login: invalidate current session → wait → fresh login.
+   * Serialized through the global login queue so it cannot race with any
+   * concurrent _doLogin() or testCredentials() call.
+   *
+   * Use this instead of the raw invalidate() + getSession() pattern.
+   * waitMs: milliseconds to wait after logout before logging in (gives SAP time
+   * to release the stale session server-side before the new login attempt).
+   */
+  async forceLogin(waitMs: number = 4000): Promise<string> {
+    console.log(`[SapCentralSession] forceLogin(waitMs=${waitMs}) — queuing atomic invalidate+login`);
+    return this._enqueueLoginOp(async () => {
+      // Null the dedup inside the lock so no stale loginPromise can be joined
+      this.loginPromise = null;
+
+      // Logout existing session
+      const cookieToLogout = this.cookie;
+      this.cookie = null;
+      this.expiresAt = null;
+      this.stats.invalidations++;
+      this.stats.lastInvalidateAt = new Date().toISOString();
+
+      if (cookieToLogout) {
+        this._savePendingLogout(cookieToLogout);
+        console.log(`[SapCentralSession] forceLogin() — attempting SAP logout before re-login`);
+        try {
+          await sapHttpsClient.logout(cookieToLogout);
+          this.stats.logouts++;
+          console.log('[SapCentralSession] forceLogin() — SAP logout OK');
+        } catch (err: any) {
+          this.stats.logoutFailures++;
+          console.warn('[SapCentralSession] forceLogin() — SAP logout FAILED (cookie may linger in SAP):', err.message);
+        }
+        this._deleteDisk();
+      } else {
+        this._deleteDisk();
+        console.log('[SapCentralSession] forceLogin() — no active cookie, proceeding to fresh login');
+      }
+
+      if (waitMs > 0) {
+        console.log(`[SapCentralSession] forceLogin() — waiting ${waitMs}ms for SAP to release stale session server-side...`);
+        await new Promise<void>(r => setTimeout(r, waitMs));
+      }
+
+      console.log('[SapCentralSession] forceLogin() — triggering fresh login');
+      return this._doLogin();
+    });
+  }
+
+  /**
+   * Admin-callable hard reset: invalidates current session, resets all in-progress
+   * state, waits 5 s, then re-runs initialize() so the next request triggers a
+   * clean fresh login.
    */
   async forceReset(): Promise<{ ok: boolean; message: string; debugInfo: object }> {
     console.log('[SapCentralSession] forceReset() — admin-initiated hard reset');
 
-    // Abort any in-progress login mutex so it doesn't race
+    // Abort any in-progress login mutex and reset the queue so queued ops don't run
     this.loginPromise = null;
+    this._loginQueue = Promise.resolve();
 
     await this.invalidate();
+
+    // Reset retry counter on explicit admin force-reset
+    this.stats.retryOn1102 = 0;
     this.stats.lastForceResetAt = new Date().toISOString();
+
     console.log('[SapCentralSession] forceReset() — waiting 5 s for SAP to release stale session...');
     await new Promise<void>(r => setTimeout(r, 5000));
     await this.initialize();
@@ -279,6 +391,7 @@ class SapCentralSession {
     loginAttempts: number;
     sessionReuses: number;
     retryOn1102: number;
+    logoutFailures: number;
   } {
     const now = new Date();
     const alive = !!(this.cookie && this.expiresAt && this.expiresAt > now);
@@ -296,6 +409,7 @@ class SapCentralSession {
       loginAttempts:     this.stats.loginAttempts,
       sessionReuses:     this.stats.sessionReuses,
       retryOn1102:       this.stats.retryOn1102,
+      logoutFailures:    this.stats.logoutFailures,
     };
   }
 
@@ -358,15 +472,24 @@ class SapCentralSession {
 
   /**
    * Tests a set of credentials without touching the system session.
+   * Serialized through the global login queue — cannot race with _doLogin().
    * Used by /connection/test to validate user-entered SAP credentials.
-   * Does its own ephemeral login → API test → logout.
    */
   async testCredentials(
     username: string, password: string, companyDb: string,
   ): Promise<{ success: boolean; error?: string }> {
+    console.log(`[SapCentralSession] testCredentials() — queuing ephemeral login for user=${username} db=${companyDb}`);
+    return this._enqueueLoginOp(() => this._doTestCredentials(username, password, companyDb));
+  }
+
+  // ─── Private ──────────────────────────────────────────────────────────────
+
+  private async _doTestCredentials(
+    username: string, password: string, companyDb: string,
+  ): Promise<{ success: boolean; error?: string }> {
     for (let attempt = 1; attempt <= 2; attempt++) {
       let sessionCookie: string | undefined;
-      console.log(`[SapCentralSession] testCredentials() — ephemeral login attempt ${attempt}/2 for user=${username} db=${companyDb}`);
+      console.log(`[SapCentralSession] _doTestCredentials() — ephemeral login attempt ${attempt}/2 for user=${username} db=${companyDb}`);
       try {
         const { sessionCookie: sc } = await sapHttpsClient.login(username, password, companyDb);
         sessionCookie = sc;
@@ -375,11 +498,15 @@ class SapCentralSession {
           method: 'GET', url: '', path: '/b1s/v1/PurchaseOrders?$top=1',
         });
 
-        console.log('[SapCentralSession] testCredentials() — OK');
+        console.log('[SapCentralSession] _doTestCredentials() — OK');
         return { success: true };
       } catch (err: any) {
         const msg: string = err?.message ?? String(err);
         const is1102 = this._is1102(msg);
+
+        if (is1102) {
+          console.error(`[SapCentralSession] _doTestCredentials() RAW -1102 signal (attempt ${attempt}): ${msg.substring(0, 600)}`);
+        }
 
         // Always try to logout the ephemeral cookie if we managed to get one
         if (sessionCookie) {
@@ -389,7 +516,7 @@ class SapCentralSession {
 
         if (is1102 && attempt === 1) {
           console.warn(
-            '[SapCentralSession] testCredentials() — -1102 on attempt 1. ' +
+            '[SapCentralSession] _doTestCredentials() — -1102 on attempt 1. ' +
             'Also attempting stale disk-cookie logout, then waiting 5 s before retry...',
           );
           // Best-effort: kill any stale session we know about from disk
@@ -401,24 +528,22 @@ class SapCentralSession {
               if (staleCookie) {
                 await sapHttpsClient.logout(staleCookie);
                 try { fs.unlinkSync(DISK_PATH); } catch { /* non-fatal */ }
-                console.log('[SapCentralSession] testCredentials() — stale disk cookie force-logged-out ✅');
+                console.log('[SapCentralSession] _doTestCredentials() — stale disk cookie force-logged-out ✅');
               }
             }
           } catch (fe: any) {
-            console.warn('[SapCentralSession] testCredentials() — stale disk logout failed (non-fatal):', fe.message);
+            console.warn('[SapCentralSession] _doTestCredentials() — stale disk logout failed (non-fatal):', fe.message);
           }
           await new Promise<void>(r => setTimeout(r, 5000));
           continue; // retry attempt 2
         }
 
-        console.warn('[SapCentralSession] testCredentials() — failed:', msg);
+        console.warn('[SapCentralSession] _doTestCredentials() — failed:', msg);
         return { success: false, error: msg };
       }
     }
     return { success: false, error: 'SAP login failed after 2 attempts' };
   }
-
-  // ─── Private ──────────────────────────────────────────────────────────────
 
   private async _doLogin(): Promise<string> {
     const user = process.env.SAP_B1_USERNAME || '';
@@ -449,16 +574,21 @@ class SapCentralSession {
         const msg: string = err?.message ?? String(err);
         const is1102 = this._is1102(msg);
 
+        // Always log the raw SAP -1102 signal separately from the app-constructed message
+        if (is1102) {
+          console.error(`[SapCentralSession] RAW SAP -1102 signal (login attempt ${attempt}) — raw error: ${msg.substring(0, 800)}`);
+        }
+
         if (is1102 && attempt === 1) {
           this.stats.retryOn1102++;
           console.warn(
             `[SapCentralSession] ⚠️  retry_on_1102 #${this.stats.retryOn1102} — competing session detected on attempt 1. ` +
-            `Possible causes: parallel login in GRPO/sync route, user-session with same credentials, ` +
-            `or previous server run's session still alive.`,
+            `Possible causes: (1) previous server run session not yet expired on SAP side ` +
+            `(logout may have silently failed — check logoutFailures in stats), ` +
+            `(2) parallel testCredentials() or forceLogin() call (should not happen with v3.0 queue).`,
           );
 
           // Try to force-logout using the stale session cookie from disk.
-          // NOTE: a random B1SESSION token is needed — we cannot construct one from credentials.
           let staleKilled = false;
           try {
             if (fs.existsSync(DISK_PATH)) {
@@ -475,13 +605,14 @@ class SapCentralSession {
               }
             }
           } catch (forceErr: any) {
-            console.warn('[SapCentralSession] retry_on_1102 — force-logout of stale disk session failed (non-fatal):', forceErr.message);
+            this.stats.logoutFailures++;
+            console.warn('[SapCentralSession] retry_on_1102 — force-logout of stale disk session failed:', forceErr.message);
           }
 
           if (!staleKilled) {
             console.warn(
-              '[SapCentralSession] retry_on_1102 — no stale disk cookie available for force-logout. ' +
-              'Competing session is likely from another process, desktop client, or parallel login in this app. ' +
+              '[SapCentralSession] retry_on_1102 — no stale disk cookie available. ' +
+              'If logoutFailures stat is non-zero, the previous logout silently failed and SAP kept the session alive. ' +
               'Waiting 5 s before retry...',
             );
           }
@@ -505,9 +636,9 @@ class SapCentralSession {
             ? ' ⚠️  Integration user is "Manager" — SAP B1 "Manager" is a shared superuser account and is highly likely to conflict with SAP desktop sessions.'
             : '';
           const errMsg =
-            `SAP session conflict (-1102): a competing session is active for integration user "${integUser}".${managerWarn} ` +
+            `SAP B1 request failed: SAP session conflict (-1102): a competing session is active for integration user "${integUser}".${managerWarn} ` +
             `Current server session alive: ${sessionAlive}. ` +
-            `Possible causes: (1) SAP desktop client or SAP Web Client logged in with the same user, ` +
+            `Possible causes: (1) SAP desktop client or SAP Business Client logged in with the same user, ` +
             `(2) a parallel Full Sync or GRPO request is mid-flight in this server. ` +
             `Session stats — login_attempts: ${this.stats.loginAttempts}, retry_on_1102: ${this.stats.retryOn1102}. ` +
             `Use POST /api/sap/session/force-reset to attempt recovery.`;
