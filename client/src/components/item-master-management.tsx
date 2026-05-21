@@ -845,7 +845,7 @@ const ItemMasterManagement: React.FC = () => {
         {/* Project Filter */}
         <div className="flex-shrink-0">
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-            <SelectTrigger className="w-64">
+            <SelectTrigger className="w-[600px]">
               <SelectValue placeholder="Filter by Project" />
             </SelectTrigger>
             <SelectContent>
