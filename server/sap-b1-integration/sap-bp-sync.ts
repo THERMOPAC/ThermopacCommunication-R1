@@ -228,15 +228,12 @@ class SapBPSyncService {
     }
 
     if (countryCode === 'IN') {
-      const stateSupply = customer.uStateSupply;
-      if (stateSupply && stateSupply.trim() !== '') {
-        result.U_StateSupply = stateSupply;
-      }
-
-      const gstType = customer.uBpGstType;
-      if (gstType && gstType.trim() !== '') {
-        result.U_BP_GST_Type = gstType;
-      }
+      // ── U_StateSupply / U_BP_GST_Type POST — EXCLUDED (2026-05-21) ───────────
+      // SAP's U_StateSupply UDF is linked to the internal state-codes list which
+      // uses numeric GSTIN codes (e.g. "24" for Gujarat), not 2-letter ISO codes
+      // ("GJ") stored by the ERP for manually-created customers.  Sending a
+      // mismatched value yields [OCRD.State1] 'Linked value XX does not exist'.
+      // Restore once a proper ERP→SAP state-code mapping table is implemented.
 
       const pan = customer.panNumber;
       if (pan && pan.trim() !== '') {
@@ -370,8 +367,10 @@ class SapBPSyncService {
 
       // India-specific UDFs and GST fields
       if (countryCode === 'IN') {
-        if (customer.uStateSupply?.trim())  bpData.U_StateSupply   = customer.uStateSupply.trim();
-        if (customer.uBpGstType?.trim())    bpData.U_BP_GST_Type   = customer.uBpGstType.trim();
+        // ── U_StateSupply / U_BP_GST_Type PATCH — EXCLUDED (2026-05-21) ─────────
+        // Same governance rule as the POST flow: SAP state codes are numeric GSTIN
+        // codes; ERP stores 2-letter ISO codes for manually-created BPs, causing
+        // [OCRD.State1] 'Linked value XX does not exist' on PATCH.
         if (customer.panNumber?.trim())     bpData.U_PAN_Number    = customer.panNumber.trim();
       }
 
