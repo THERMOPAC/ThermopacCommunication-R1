@@ -461,10 +461,10 @@ export default function EpcExecutionControlPage() {
                   ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-1.5 mt-1">
-              <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
-              <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
-            </div>
+          </div>
+          <div className="flex items-center gap-1.5 self-end pb-1">
+            <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
+            <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
           </div>
           <div className="w-[350px] relative">
             <Label className="text-[10px]">Search</Label>
