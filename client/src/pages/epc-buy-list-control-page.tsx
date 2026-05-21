@@ -1316,7 +1316,7 @@ export default function EpcBuyListControlPage() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex flex-wrap gap-4 items-end">
-              <div className="space-y-1 w-72">
+              <div className="space-y-1 w-[600px]">
                 <Label className="text-xs">Project</Label>
                 <Select
                   value={selectedProjectId ? String(selectedProjectId) : ""}
@@ -1376,7 +1376,7 @@ export default function EpcBuyListControlPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 flex-1 min-w-48">
+              <div className="space-y-1 w-[350px]">
                 <Label className="text-xs">Search</Label>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
