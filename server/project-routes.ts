@@ -834,7 +834,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/members', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/members', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
@@ -871,7 +871,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.delete('/api/projects/:projectId/members/:userId', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+  app.delete('/api/projects/:projectId/members/:userId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const memberUserId = parseInt(req.params.userId);
@@ -903,7 +903,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.put('/api/projects/:projectId/members/:userId', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+  app.put('/api/projects/:projectId/members/:userId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const memberUserId = parseInt(req.params.userId);
