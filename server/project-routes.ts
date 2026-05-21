@@ -4336,7 +4336,9 @@ export function setupProjectRoutes(app: express.Express) {
                               mi.description as item_description, mi.item_code,
                               mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                               mi.specification as item_specification, mi.drawing_no as item_drawing_no,
-                              mi.standard_cost as item_standard_cost
+                              mi.standard_cost as item_standard_cost,
+                              prod.item_property_2_label AS product_p2_label,
+                              prod.item_property_3       AS product_p3
                        FROM item_planning_records ipr
                        LEFT JOIN users u1 ON ipr.assigned_to = u1.id
                        LEFT JOIN users u2 ON ipr.created_by = u2.id
@@ -4344,6 +4346,8 @@ export function setupProjectRoutes(app: express.Express) {
                        LEFT JOIN users u4 ON ipr.released_by = u4.id
                        LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
                        LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
+                       LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
+                       LEFT JOIN products prod ON prod.product_code = pi.product_code
                        WHERE ipr.project_id = ${projectId}`;
 
       if (statusFilter) query = sql`${query} AND ipr.status = ${statusFilter}`;
@@ -4369,7 +4373,9 @@ export function setupProjectRoutes(app: express.Express) {
                    mi.description as item_description, mi.item_code,
                    mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                    mi.specification as item_specification, mi.drawing_no as item_drawing_no,
-                   mi.standard_cost as item_standard_cost
+                   mi.standard_cost as item_standard_cost,
+                   prod.item_property_2_label AS product_p2_label,
+                   prod.item_property_3       AS product_p3
             FROM item_planning_records ipr
             LEFT JOIN users u1 ON ipr.assigned_to = u1.id
             LEFT JOIN users u2 ON ipr.created_by = u2.id
@@ -4377,6 +4383,8 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN users u4 ON ipr.released_by = u4.id
             LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
             LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
+            LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
+            LEFT JOIN products prod ON prod.product_code = pi.product_code
             WHERE ipr.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Planning record not found');

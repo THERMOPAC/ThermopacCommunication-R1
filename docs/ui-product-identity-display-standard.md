@@ -71,6 +71,7 @@ p.item_property_3       AS product_p3
 | Screen | Route | Status |
 |--------|-------|--------|
 | Drawing Controls — Details card | `/epc/drawing-controls` | Implemented (2026-05-21) |
+| Planning Control — Item Information card | `/epc/planning-control` | Implemented (2026-05-21) |
 
 ## Screens Pending Assessment
 
