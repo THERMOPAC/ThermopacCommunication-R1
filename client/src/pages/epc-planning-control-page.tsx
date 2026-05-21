@@ -186,7 +186,7 @@ export default function EpcPlanningControlPage() {
   return (
     <Layout>
       <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pb-3 border-b">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-primary" />
@@ -199,7 +199,7 @@ export default function EpcPlanningControlPage() {
           </Button>
         </div>
 
-        <div className="flex flex-wrap gap-3 items-end">
+        <div className="flex flex-wrap gap-3 items-end bg-muted/30 border rounded-lg px-3 py-2.5 shadow-sm">
           <div className="w-[600px]">
             <Label className="text-[10px]">Project</Label>
             <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
@@ -247,13 +247,13 @@ export default function EpcPlanningControlPage() {
 
         {selectedProjectId && records.length > 0 && (
           <div className="grid grid-cols-3 sm:grid-cols-7 gap-2">
-            <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold">{stats.total}</p><p className="text-[9px] text-muted-foreground">Total</p></CardContent></Card>
-            <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-slate-600">{stats.draft}</p><p className="text-[9px] text-muted-foreground">Draft</p></CardContent></Card>
-            <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-amber-600">{stats.underReview}</p><p className="text-[9px] text-muted-foreground">Under Review</p></CardContent></Card>
-            <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-emerald-600">{stats.released}</p><p className="text-[9px] text-muted-foreground">Released</p></CardContent></Card>
-            <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-red-600">{stats.cancelled}</p><p className="text-[9px] text-muted-foreground">Cancelled</p></CardContent></Card>
-            <Card className="p-2 border-blue-200 bg-blue-50/30"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-blue-600">{stats.procurement}</p><p className="text-[9px] text-muted-foreground">Buy Items</p></CardContent></Card>
-            <Card className="p-2 border-purple-200 bg-purple-50/30"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-purple-600">{stats.production}</p><p className="text-[9px] text-muted-foreground">Make Items</p></CardContent></Card>
+            <Card className="p-2 shadow-sm border-border/70"><CardContent className="p-0 text-center"><p className="text-xl font-bold">{stats.total}</p><p className="text-[9px] text-muted-foreground">Total</p></CardContent></Card>
+            <Card className="p-2 shadow-sm border-slate-200 bg-slate-50/40"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-slate-600">{stats.draft}</p><p className="text-[9px] text-muted-foreground">Draft</p></CardContent></Card>
+            <Card className="p-2 shadow-sm border-amber-200 bg-amber-50/30"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-amber-600">{stats.underReview}</p><p className="text-[9px] text-muted-foreground">Under Review</p></CardContent></Card>
+            <Card className="p-2 shadow-sm border-emerald-200 bg-emerald-50/30"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-emerald-600">{stats.released}</p><p className="text-[9px] text-muted-foreground">Released</p></CardContent></Card>
+            <Card className="p-2 shadow-sm border-red-200 bg-red-50/20"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-red-600">{stats.cancelled}</p><p className="text-[9px] text-muted-foreground">Cancelled</p></CardContent></Card>
+            <Card className="p-2 shadow-sm border-blue-200 bg-blue-50/40"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-blue-600">{stats.procurement}</p><p className="text-[9px] text-muted-foreground">Buy Items</p></CardContent></Card>
+            <Card className="p-2 shadow-sm border-purple-200 bg-purple-50/40"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-purple-600">{stats.production}</p><p className="text-[9px] text-muted-foreground">Make Items</p></CardContent></Card>
           </div>
         )}
 
@@ -273,10 +273,10 @@ export default function EpcPlanningControlPage() {
             <p className="text-[10px] text-muted-foreground mt-1">Planning records are auto-created when items are added to a project.</p>
           </Card>
         ) : (
-          <Card className="overflow-x-auto">
+          <Card className="overflow-x-auto shadow-md border-border/80">
             <Table className="table-fixed w-full">
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/60 border-b-2 border-border/60">
                   <TableHead className="text-[10px] w-7"></TableHead>
                   <TableHead className="text-[10px] w-24">Planning #</TableHead>
                   <TableHead className="text-[10px] w-32">Item Code</TableHead>
@@ -295,7 +295,7 @@ export default function EpcPlanningControlPage() {
                   const actions = getAvailableActions(rec);
                   return (
                     <React.Fragment key={rec.id}>
-                      <TableRow className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : rec.id)}>
+                      <TableRow className={`cursor-pointer hover:bg-muted/40 transition-colors ${isExpanded ? "bg-primary/5 border-b-0" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : rec.id)}>
                         <TableCell className="py-1.5">
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </TableCell>
@@ -342,32 +342,37 @@ export default function EpcPlanningControlPage() {
                       </TableRow>
                       {isExpanded && (
                         <TableRow key={`${rec.id}-detail`}>
-                          <TableCell colSpan={10} className="p-0 bg-muted/10">
-                            <div className="p-3 space-y-3">
+                          <TableCell colSpan={10} className="p-0 bg-muted/20 border-t border-primary/10">
+                            <div className="p-4 space-y-3">
                               {detailLoading ? (
                                 <div className="py-4 text-center"><Loader2 className="h-5 w-5 mx-auto animate-spin text-muted-foreground" /></div>
                               ) : expandedDetail ? (
                                 <>
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Card className="p-2.5">
-                                      <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1">
-                                        <FileText className="h-3 w-3" /> Planning Details
-                                      </h4>
-                                      <div className="space-y-1">
-                                        <DetailRow label="Planning Number" value={expandedDetail.planning_number} mono />
-                                        <DetailRow label="Status" value={STATUS_LABELS[expandedDetail.status as StatusType] || expandedDetail.status} />
-                                        <DetailRow label="Planning Type" value={expandedDetail.planning_type === "procurement" ? "Procurement (Buy)" : "Production (Make)"} />
-                                        <DetailRow label="Classification" value={expandedDetail.classification_snapshot} />
-                                        <DetailRow label="Quantity" value={expandedDetail.quantity} />
-                                        <DetailRow label="Source" value={expandedDetail.source} />
-                                        <DetailRow label="Notes" value={expandedDetail.notes} />
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <Card className="p-0 shadow-sm border-l-2 border-l-blue-400 overflow-hidden">
+                                      <div className="bg-blue-50/60 border-b px-3 py-1.5 flex items-center gap-1.5">
+                                        <FileText className="h-3 w-3 text-blue-500" />
+                                        <h4 className="text-[10px] font-semibold text-blue-800">Planning Details</h4>
+                                      </div>
+                                      <div className="px-3 py-2">
+                                        <div className="space-y-1">
+                                          <DetailRow label="Planning Number" value={expandedDetail.planning_number} mono />
+                                          <DetailRow label="Status" value={STATUS_LABELS[expandedDetail.status as StatusType] || expandedDetail.status} />
+                                          <DetailRow label="Planning Type" value={expandedDetail.planning_type === "procurement" ? "Procurement (Buy)" : "Production (Make)"} />
+                                          <DetailRow label="Classification" value={expandedDetail.classification_snapshot} />
+                                          <DetailRow label="Quantity" value={expandedDetail.quantity} />
+                                          <DetailRow label="Source" value={expandedDetail.source} />
+                                          <DetailRow label="Notes" value={expandedDetail.notes} />
+                                        </div>
                                       </div>
                                     </Card>
 
-                                    <Card className="p-2.5">
-                                      <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1">
-                                        <Package className="h-3 w-3" /> Item Information
-                                      </h4>
+                                    <Card className="p-0 shadow-sm border-l-2 border-l-purple-400 overflow-hidden">
+                                      <div className="bg-purple-50/60 border-b px-3 py-1.5 flex items-center gap-1.5">
+                                        <Package className="h-3 w-3 text-purple-500" />
+                                        <h4 className="text-[10px] font-semibold text-purple-800">Item Information</h4>
+                                      </div>
+                                      <div className="px-3 py-2">
                                       <div className="space-y-1">
                                         <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
                                         <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
@@ -406,12 +411,15 @@ export default function EpcPlanningControlPage() {
                                           <DetailRow label="Parent Item ID" value={expandedDetail.parent_project_item_id} />
                                         )}
                                       </div>
+                                      </div>
                                     </Card>
 
-                                    <Card className="p-2.5">
-                                      <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1">
-                                        <UserCheck className="h-3 w-3" /> Lifecycle & Audit
-                                      </h4>
+                                    <Card className="p-0 shadow-sm border-l-2 border-l-emerald-400 overflow-hidden">
+                                      <div className="bg-emerald-50/60 border-b px-3 py-1.5 flex items-center gap-1.5">
+                                        <UserCheck className="h-3 w-3 text-emerald-600" />
+                                        <h4 className="text-[10px] font-semibold text-emerald-800">Lifecycle & Audit</h4>
+                                      </div>
+                                      <div className="px-3 py-2">
                                       <div className="space-y-1">
                                         <DetailRow label="Created By" value={expandedDetail.created_by_name} />
                                         <DetailRow label="Created" value={formatDate(expandedDetail.created_at)} />
@@ -440,6 +448,7 @@ export default function EpcPlanningControlPage() {
                                           </>
                                         )}
                                       </div>
+                                      </div>
                                     </Card>
                                   </div>
 
@@ -467,17 +476,21 @@ export default function EpcPlanningControlPage() {
                                     </div>
                                   )}
 
-                                  <Separator />
-                                  <div>
-                                    <h4 className="text-[10px] font-semibold mb-1.5">Document Attachments</h4>
-                                    <EpcDocumentPanel
-                                      projectId={selectedProjectId!}
-                                      docType="PLN"
-                                      parentEntityId={rec.id}
-                                      documentNumber={rec.planning_number || `PLN-${rec.id}`}
-                                      userRole={userRole}
-                                      compact={false}
-                                    />
+                                  <div className="rounded-lg border border-border/70 bg-card shadow-sm overflow-hidden">
+                                    <div className="bg-muted/50 border-b px-3 py-1.5 flex items-center gap-1.5">
+                                      <FileText className="h-3 w-3 text-muted-foreground" />
+                                      <h4 className="text-[10px] font-semibold text-foreground">Document Attachments</h4>
+                                    </div>
+                                    <div className="p-3">
+                                      <EpcDocumentPanel
+                                        projectId={selectedProjectId!}
+                                        docType="PLN"
+                                        parentEntityId={rec.id}
+                                        documentNumber={rec.planning_number || `PLN-${rec.id}`}
+                                        userRole={userRole}
+                                        compact={false}
+                                      />
+                                    </div>
                                   </div>
 
                                   {actions.length > 0 && (
