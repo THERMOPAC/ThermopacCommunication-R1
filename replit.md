@@ -81,6 +81,7 @@ Read it before starting any discussion or implementation.
 - **QMS Upload Hardening Phase 2B Baseline v1.0**: `docs/qms-upload-hardening-phase2b-baseline-v1.0.md`
 - **EPC Project Naming Governance v1.0**: `docs/epc-project-naming-governance-v1.0.md`
 - **BP Sync Governance Baseline v1.0**: `docs/bp-sync-governance-baseline-v1.md`
+- **UI Product Identity Display Standard v1.0**: `docs/ui-product-identity-display-standard.md`
 - **Drizzle ORM Docs**: `https://orm.drizzle.team/`
 - **Radix UI Docs**: `https://www.radix-ui.com/`
 - **TanStack Query Docs**: `https://tanstack.com/query/latest`
