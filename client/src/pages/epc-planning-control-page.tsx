@@ -200,7 +200,7 @@ export default function EpcPlanningControlPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 items-end">
-          <div className="w-52">
+          <div className="w-80">
             <Label className="text-[10px]">Project</Label>
             <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select project…" /></SelectTrigger>
@@ -306,7 +306,7 @@ export default function EpcPlanningControlPage() {
                           <div className="truncate"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></div>
                         </TableCell>
                         <TableCell className="py-1.5 overflow-hidden">
-                          <div className="truncate text-[10px] text-blue-600 font-medium" title={rec.item_description || ""}>{rec.item_description || "—"}</div>
+                          <div className="truncate text-[10px] text-foreground font-medium" title={rec.item_description || ""}>{rec.item_description || "—"}</div>
                         </TableCell>
                         <TableCell className="py-1.5 overflow-hidden">
                           {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
