@@ -3,7 +3,7 @@ import type { MechanicalColumn, MechanicalData, GeneralData, ColumnHazardData } 
 
 const MECH_PARAM_ROWS: { key: keyof MechanicalColumn; label: string; group: string }[] = [
   { key: 'internalDesignPressureMawp', label: 'INTERNAL DESIGN PRESSURE / MAWP (Barg)', group: 'PRESSURE (Barg)' },
-  { key: 'externalDesignPressureMawp', label: 'EXTERNAL DESIGN PRESSURE / MAWP (Barg)', group: 'PRESSURE (Barg)' },
+  { key: 'externalDesignPressureMawp', label: 'EXTERNAL DESIGN PRESSURE / MAWP (Bara)', group: 'PRESSURE (Barg)' },
   { key: 'workingPressure',            label: 'WORKING PRESSURE (Barg)',                 group: 'PRESSURE (Barg)' },
   { key: 'hydroTestPressure',          label: 'HYDRO TEST PRESSURE (Barg)',              group: 'PRESSURE (Barg)' },
   { key: 'mdmt',                       label: 'MDMT (DEG. C)',                           group: 'TEMPERATURE (DEG. C)' },
