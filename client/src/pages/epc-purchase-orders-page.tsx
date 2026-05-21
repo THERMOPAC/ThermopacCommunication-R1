@@ -240,7 +240,7 @@ export default function EpcPurchaseOrdersPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 items-end">
-          <div className="w-52">
+          <div className="w-[600px]">
             <Label className="text-[10px]">Project</Label>
             <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
               <SelectTrigger className="h-8 text-xs">
@@ -257,7 +257,7 @@ export default function EpcPurchaseOrdersPage() {
             <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
             <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
           </div>
-          <div className="w-52 relative">
+          <div className="w-[350px] relative">
             <Label className="text-[10px]">Search</Label>
             <Search className="absolute left-2 top-[22px] h-3.5 w-3.5 text-muted-foreground" />
             <Input className="h-8 text-xs pl-7" placeholder="PO number, vendor…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
