@@ -264,6 +264,7 @@ function Router() {
         {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
       </Route>
       <ProtectedRoute path="/inspections" component={() => <Quality.InspectionsPage />} />
+      <ProtectedRoute path="/quality/inspection-orders" component={() => <Redirect to="/quality/inspections" />} />
       <ProtectedRoute path="/quality/inspections" component={() => <Quality.InspectionsPage />} />
       <ProtectedRoute path="/quality-assurance-plan" component={() => <Quality.QualityAssurancePlanPage />} />
       <ProtectedRoute path="/quality-assurance-plan/form/:id?" component={() => <Quality.CreateQAPPage />} />
