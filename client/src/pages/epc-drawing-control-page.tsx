@@ -621,7 +621,7 @@ export default function EpcDrawingControlPage() {
                                                   <div className="text-[10px] font-medium leading-snug mt-0.5 text-foreground/80 truncate" title={rec.drawing_title}>{rec.drawing_title}</div>
                                                 )}
                                                 {(rec.product_p2_label || rec.product_p3) && (
-                                                  <div className="text-[9px] text-blue-600 font-bold mt-0.5 leading-snug truncate" title={[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}>
+                                                  <div className="text-[10px] text-blue-600 font-bold mt-0.5 leading-snug truncate" title={[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}>
                                                     {[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
                                                   </div>
                                                 )}
