@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { useProjectFilter } from "@/hooks/use-project-filter";
@@ -273,20 +273,20 @@ export default function EpcPlanningControlPage() {
             <p className="text-[10px] text-muted-foreground mt-1">Planning records are auto-created when items are added to a project.</p>
           </Card>
         ) : (
-          <Card>
-            <Table>
+          <Card className="overflow-x-auto">
+            <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-[10px] w-7 shrink-0"></TableHead>
-                  <TableHead className="text-[10px] w-24 shrink-0">Planning #</TableHead>
-                  <TableHead className="text-[10px] w-36 shrink-0">Item Code</TableHead>
-                  <TableHead className="text-[10px] w-[22%] min-w-[160px]">Description</TableHead>
-                  <TableHead className="text-[10px] w-[22%] min-w-[160px]">Product Identity</TableHead>
-                  <TableHead className="text-[10px] w-14 text-center shrink-0">Type</TableHead>
-                  <TableHead className="text-[10px] w-20 text-center shrink-0">Status</TableHead>
-                  <TableHead className="text-[10px] w-20 shrink-0">Assigned To</TableHead>
-                  <TableHead className="text-[10px] w-20 shrink-0">Created</TableHead>
-                  <TableHead className="text-[10px] text-right shrink-0">Actions</TableHead>
+                  <TableHead className="text-[10px] w-7"></TableHead>
+                  <TableHead className="text-[10px] w-24">Planning #</TableHead>
+                  <TableHead className="text-[10px] w-32">Item Code</TableHead>
+                  <TableHead className="text-[10px] w-[24%]">Description</TableHead>
+                  <TableHead className="text-[10px] w-[22%]">Product Identity</TableHead>
+                  <TableHead className="text-[10px] w-12 text-center">Type</TableHead>
+                  <TableHead className="text-[10px] w-20 text-center">Status</TableHead>
+                  <TableHead className="text-[10px] w-20">Assigned To</TableHead>
+                  <TableHead className="text-[10px] w-20">Created</TableHead>
+                  <TableHead className="text-[10px] w-24 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -294,20 +294,24 @@ export default function EpcPlanningControlPage() {
                   const isExpanded = expandedRow === rec.id;
                   const actions = getAvailableActions(rec);
                   return (
-                    <>
-                      <TableRow key={rec.id} className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : rec.id)}>
+                    <React.Fragment key={rec.id}>
+                      <TableRow className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : rec.id)}>
                         <TableCell className="py-1.5">
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </TableCell>
-                        <TableCell className="py-1.5 font-mono text-[10px] font-medium">{rec.planning_number || `PLN-${rec.id}`}</TableCell>
-                        <TableCell className="py-1.5"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
-                        <TableCell className="py-1.5 text-[10px] text-blue-600 font-medium">
-                          <div className="truncate max-w-[260px]" title={rec.item_description || ""}>{rec.item_description || "—"}</div>
+                        <TableCell className="py-1.5 font-mono text-[10px] font-medium overflow-hidden">
+                          <div className="truncate">{rec.planning_number || `PLN-${rec.id}`}</div>
                         </TableCell>
-                        <TableCell className="py-1.5">
+                        <TableCell className="py-1.5 overflow-hidden">
+                          <div className="truncate"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></div>
+                        </TableCell>
+                        <TableCell className="py-1.5 overflow-hidden">
+                          <div className="truncate text-[10px] text-blue-600 font-medium" title={rec.item_description || ""}>{rec.item_description || "—"}</div>
+                        </TableCell>
+                        <TableCell className="py-1.5 overflow-hidden">
                           {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
                             <div
-                              className="text-[12px] text-blue-600 font-bold truncate max-w-[260px] leading-snug"
+                              className="text-[12px] text-blue-600 font-bold truncate leading-snug"
                               title={[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
                             >
                               {[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
@@ -324,8 +328,8 @@ export default function EpcPlanningControlPage() {
                             {STATUS_LABELS[rec.status as StatusType] || rec.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="py-1.5 text-[10px]">{rec.assigned_to_name || "—"}</TableCell>
-                        <TableCell className="py-1.5 text-[10px] text-muted-foreground">{formatDate(rec.created_at)}</TableCell>
+                        <TableCell className="py-1.5 text-[10px] overflow-hidden"><div className="truncate">{rec.assigned_to_name || "—"}</div></TableCell>
+                        <TableCell className="py-1.5 text-[10px] text-muted-foreground overflow-hidden"><div className="truncate">{formatDate(rec.created_at)}</div></TableCell>
                         <TableCell className="py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
                             {actions.slice(0, 2).map((a) => (
@@ -494,7 +498,7 @@ export default function EpcPlanningControlPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </TableBody>
