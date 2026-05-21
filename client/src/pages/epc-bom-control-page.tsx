@@ -603,7 +603,7 @@ export default function EpcBomControlPage() {
                     <TableHead className="text-[10px]">Rev</TableHead>
                     <TableHead className="text-[10px]">Type</TableHead>
                     <TableHead className="text-[10px]">Item Code</TableHead>
-                    <TableHead className="text-[10px]">Title</TableHead>
+                    <TableHead className="text-[10px]">Product Identity</TableHead>
                     <TableHead className="text-[10px] text-center">Lines</TableHead>
                     <TableHead className="text-[10px]">Status</TableHead>
                     <TableHead className="text-[10px]">Current</TableHead>
@@ -628,7 +628,16 @@ export default function EpcBomControlPage() {
                           <Badge className={`text-[8px] h-4 ${BOM_TYPE_COLORS[rec.bom_type] || "bg-gray-100"}`}>{rec.bom_type}</Badge>
                         </TableCell>
                         <TableCell><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
-                        <TableCell className="text-[10px] max-w-[200px] truncate text-blue-600 font-medium">{rec.bom_title || rec.item_description || "—"}</TableCell>
+                        <TableCell>
+                          {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
+                            <div
+                              className="text-[12px] text-blue-600 font-bold truncate leading-snug"
+                              title={[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
+                            >
+                              {[rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
+                            </div>
+                          ) : null}
+                        </TableCell>
                         <TableCell className="text-center text-[10px]">{rec.total_line_count || 0}</TableCell>
                         <TableCell>
                           <Badge className={`text-[8px] h-4 ${STATUS_COLORS[rec.status as StatusType] || ""}`}>

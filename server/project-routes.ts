@@ -12157,13 +12157,18 @@ export function setupProjectRoutes(app: express.Express) {
       const projectId = parseInt(req.params.projectId);
       const { bomType, status, projectItemId } = req.query;
       let query = `SELECT bh.*, u1.username as created_by_name, u2.username as submitted_by_name,
-        u3.username as reviewed_by_name, u4.username as approved_by_name, u5.username as released_by_name
+        u3.username as reviewed_by_name, u4.username as approved_by_name, u5.username as released_by_name,
+        prod.item_property_1_label AS product_p1_label,
+        prod.item_property_2_label AS product_p2_label,
+        prod.item_property_3       AS product_p3
         FROM epc_bom_headers bh
         LEFT JOIN users u1 ON bh.created_by = u1.id
         LEFT JOIN users u2 ON bh.submitted_by = u2.id
         LEFT JOIN users u3 ON bh.reviewed_by = u3.id
         LEFT JOIN users u4 ON bh.approved_by = u4.id
         LEFT JOIN users u5 ON bh.released_by = u5.id
+        LEFT JOIN project_items pi ON pi.id = bh.project_item_id
+        LEFT JOIN products prod ON prod.product_code = pi.product_code
         WHERE bh.project_id = ${projectId}`;
       if (bomType) query += ` AND bh.bom_type = '${bomType}'`;
       if (status) query += ` AND bh.status = '${status}'`;
