@@ -177,7 +177,7 @@ export default function EpcControlTower() {
             value={projectId?.toString() || "all"}
             onValueChange={(v) => setProjectId(v === "all" ? null : parseInt(v))}
           >
-            <SelectTrigger className="w-[360px] h-8 text-xs">
+            <SelectTrigger className="w-[600px] h-8 text-xs">
               <SelectValue placeholder="Select project..." />
             </SelectTrigger>
             <SelectContent>
