@@ -211,37 +211,39 @@ export default function OiIssueClassifyPage() {
   const patchMutation = useMutation({
     mutationFn: async (data: ClassifyForm) => {
       const payload: any = {};
+      const ok = (v?: string) => !!v && v !== "__none__";
+      const toId = (v?: string) => ok(v) ? parseInt(v!) : null;
       // Assignment
-      if (data.assignedTo)      payload.assignedTo      = parseInt(data.assignedTo);
-      if (data.riskOwner)       payload.riskOwner       = parseInt(data.riskOwner);
-      if (data.escalationOwner) payload.escalationOwner = parseInt(data.escalationOwner);
+      if (ok(data.assignedTo))      payload.assignedTo      = parseInt(data.assignedTo!);
+      if (ok(data.riskOwner))       payload.riskOwner       = parseInt(data.riskOwner!);
+      if (ok(data.escalationOwner)) payload.escalationOwner = parseInt(data.escalationOwner!);
       // Risk
-      if (data.probabilityLevel)    payload.probabilityLevel    = data.probabilityLevel;
-      if (data.impactLevel)         payload.impactLevel         = data.impactLevel;
-      if (data.recurrenceRisk)      payload.recurrenceRisk      = data.recurrenceRisk;
-      if (data.estimatedLossAmount) payload.estimatedLossAmount = data.estimatedLossAmount;
+      if (ok(data.probabilityLevel))    payload.probabilityLevel    = data.probabilityLevel;
+      if (ok(data.impactLevel))         payload.impactLevel         = data.impactLevel;
+      if (ok(data.recurrenceRisk))      payload.recurrenceRisk      = data.recurrenceRisk;
+      if (data.estimatedLossAmount)     payload.estimatedLossAmount = data.estimatedLossAmount;
       // Criticality
-      if (data.businessCriticality)  payload.businessCriticality  = data.businessCriticality;
-      if (data.safetyCriticality)    payload.safetyCriticality    = data.safetyCriticality;
-      if (data.financialCriticality) payload.financialCriticality = data.financialCriticality;
-      if (data.statutoryCriticality) payload.statutoryCriticality = data.statutoryCriticality;
+      if (ok(data.businessCriticality))  payload.businessCriticality  = data.businessCriticality;
+      if (ok(data.safetyCriticality))    payload.safetyCriticality    = data.safetyCriticality;
+      if (ok(data.financialCriticality)) payload.financialCriticality = data.financialCriticality;
+      if (ok(data.statutoryCriticality)) payload.statutoryCriticality = data.statutoryCriticality;
       // Phase 1B EPC linkage (Manager+)
       if (isManager) {
-        if (data.customerId)           payload.customerId          = data.customerId ? parseInt(data.customerId) : null;
-        if (data.vendorId)             payload.vendorId            = data.vendorId ? parseInt(data.vendorId) : null;
-        if (data.epcDrawingControlId)  payload.epcDrawingControlId = data.epcDrawingControlId ? parseInt(data.epcDrawingControlId) : null;
-        if (data.epcPoId)              payload.epcPoId             = data.epcPoId ? parseInt(data.epcPoId) : null;
-        if (data.epcWoId)              payload.epcWoId             = data.epcWoId ? parseInt(data.epcWoId) : null;
-        if (data.inspectionOrderId)    payload.inspectionOrderId   = data.inspectionOrderId ? parseInt(data.inspectionOrderId) : null;
-        if (data.fatInspectionOrderId) payload.fatInspectionOrderId = data.fatInspectionOrderId ? parseInt(data.fatInspectionOrderId) : null;
-        if (data.satInspectionOrderId) payload.satInspectionOrderId = data.satInspectionOrderId ? parseInt(data.satInspectionOrderId) : null;
-        if (data.contractId)           payload.contractId          = data.contractId ? parseInt(data.contractId) : null;
+        if (data.customerId !== undefined)           payload.customerId          = toId(data.customerId);
+        if (data.vendorId !== undefined)             payload.vendorId            = toId(data.vendorId);
+        if (data.epcDrawingControlId !== undefined)  payload.epcDrawingControlId = toId(data.epcDrawingControlId);
+        if (data.epcPoId !== undefined)              payload.epcPoId             = toId(data.epcPoId);
+        if (data.epcWoId !== undefined)              payload.epcWoId             = toId(data.epcWoId);
+        if (data.inspectionOrderId !== undefined)    payload.inspectionOrderId   = toId(data.inspectionOrderId);
+        if (data.fatInspectionOrderId !== undefined) payload.fatInspectionOrderId = toId(data.fatInspectionOrderId);
+        if (data.satInspectionOrderId !== undefined) payload.satInspectionOrderId = toId(data.satInspectionOrderId);
+        if (data.contractId !== undefined)           payload.contractId          = toId(data.contractId);
         if (data.fatReference)         payload.fatReference        = data.fatReference;
         if (data.satReference)         payload.satReference        = data.satReference;
         // Dimension scores
         for (const { key } of DIMENSION_FIELDS) {
           const val = (data as any)[key];
-          if (val !== "" && val != null) payload[key] = parseInt(val);
+          if (val != null && val !== "" && val !== "__none__") payload[key] = parseInt(val);
         }
       }
       // Phase 1B financial / liability (SM+)
@@ -250,7 +252,7 @@ export default function OiIssueClassifyPage() {
         payload.insuranceClaimFlag = data.insuranceClaimFlag ?? false;
         if (data.claimReference)         payload.claimReference         = data.claimReference || null;
         if (data.recoveryAmount)         payload.recoveryAmount         = data.recoveryAmount || null;
-        if (data.liabilityType)          payload.liabilityType          = data.liabilityType || null;
+        if (ok(data.liabilityType))      payload.liabilityType          = data.liabilityType || null;
         payload.indemnityRequired  = data.indemnityRequired  ?? false;
         payload.warrantyClaimFlag  = data.warrantyClaimFlag  ?? false;
         if (data.warrantyClaimReference) payload.warrantyClaimReference = data.warrantyClaimReference || null;
@@ -316,10 +318,10 @@ export default function OiIssueClassifyPage() {
                   <FormField key={name} control={form.control} name={name as keyof ClassifyForm} render={({ field }) => (
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
-                      <Select onValueChange={field.onChange as any} value={field.value as string ?? ""}>
+                      <Select onValueChange={(v) => (field.onChange as any)(v === "__none__" ? undefined : v)} value={field.value as string ?? "__none__"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="">— None —</SelectItem>
+                          <SelectItem value="__none__">— None —</SelectItem>
                           {userOptions.map((u: any) => (
                             <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role})</SelectItem>
                           ))}
@@ -340,10 +342,10 @@ export default function OiIssueClassifyPage() {
                 <FormField control={form.control} name="probabilityLevel" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Probability</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select probability" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="">— Not assessed —</SelectItem>
+                        <SelectItem value="__none__">— Not assessed —</SelectItem>
                         {PROBABILITY_LEVELS.map(p => <SelectItem key={p} value={p}>{p.replace(/_/g," ")}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -352,10 +354,10 @@ export default function OiIssueClassifyPage() {
                 <FormField control={form.control} name="impactLevel" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Impact</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select impact" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="">— Not assessed —</SelectItem>
+                        <SelectItem value="__none__">— Not assessed —</SelectItem>
                         {IMPACT_LEVELS.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -364,10 +366,10 @@ export default function OiIssueClassifyPage() {
                 <FormField control={form.control} name="recurrenceRisk" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Recurrence Risk</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select risk level" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="">— None —</SelectItem>
+                        <SelectItem value="__none__">— None —</SelectItem>
                         {["low","medium","high"].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -397,10 +399,10 @@ export default function OiIssueClassifyPage() {
                   <FormField key={name} control={form.control} name={name as keyof ClassifyForm} render={({ field }) => (
                     <FormItem>
                       <FormLabel>{label}</FormLabel>
-                      <Select onValueChange={field.onChange as any} value={field.value as string ?? ""}>
+                      <Select onValueChange={(v) => (field.onChange as any)(v === "__none__" ? undefined : v)} value={field.value as string ?? "__none__"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Level" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="">— None —</SelectItem>
+                          <SelectItem value="__none__">— None —</SelectItem>
                           {CRITICALITY_LEVELS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                         </SelectContent>
                       </Select>
@@ -425,10 +427,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="customerId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(customers ?? []).map((c: any) => (
                               <SelectItem key={c.id} value={String(c.id)}>
                                 {c.sapCardCode ? `${c.sapCardCode} — ` : ""}{c.name ?? c.bp_name}
@@ -442,10 +444,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="vendorId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Vendor</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(vendors ?? []).map((v: any) => (
                               <SelectItem key={v.id} value={String(v.id)}>
                                 {v.sapCardCode ? `${v.sapCardCode} — ` : ""}{v.displayName ?? v.name}
@@ -459,10 +461,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="contractId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Contract</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select contract" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(contracts ?? []).map((c: any) => (
                               <SelectItem key={c.id} value={String(c.id)}>
                                 {c.contractNumber} — {c.title ?? ""}
@@ -479,10 +481,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="epcDrawingControlId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Drawing</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select drawing" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(drawings ?? []).map((d: any) => (
                               <SelectItem key={d.id} value={String(d.id)}>
                                 {d.drawingNumber}{d.drawingRevision ? ` Rev.${d.drawingRevision}` : ""}
@@ -497,10 +499,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="epcPoId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Purchase Order</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select PO" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(epcPos ?? []).map((p: any) => (
                               <SelectItem key={p.id} value={String(p.id)}>{p.poNumber}</SelectItem>
                             ))}
@@ -512,10 +514,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="epcWoId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Work Order</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select WO" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(epcWos ?? []).map((w: any) => (
                               <SelectItem key={w.id} value={String(w.id)}>{w.woNumber}</SelectItem>
                             ))}
@@ -530,10 +532,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="inspectionOrderId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Inspection Order</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select IO" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(inspectionOrders ?? []).map((io: any) => (
                               <SelectItem key={io.id} value={String(io.id)}>
                                 {io.inspectionOrderNumber}{io.title ? ` — ${io.title}` : ""}
@@ -547,10 +549,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="fatInspectionOrderId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>FAT Inspection Order</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select FAT IO" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(inspectionOrders ?? []).map((io: any) => (
                               <SelectItem key={io.id} value={String(io.id)}>
                                 {io.inspectionOrderNumber}{io.title ? ` — ${io.title}` : ""}
@@ -564,10 +566,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="satInspectionOrderId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>SAT Inspection Order</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select SAT IO" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {(inspectionOrders ?? []).map((io: any) => (
                               <SelectItem key={io.id} value={String(io.id)}>
                                 {io.inspectionOrderNumber}{io.title ? ` — ${io.title}` : ""}
@@ -610,10 +612,10 @@ export default function OiIssueClassifyPage() {
                     <FormField key={key} control={form.control} name={key as keyof ClassifyForm} render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs">{label}</FormLabel>
-                        <Select onValueChange={field.onChange as any} value={field.value as string ?? ""}>
+                        <Select onValueChange={(v) => (field.onChange as any)(v === "__none__" ? undefined : v)} value={field.value as string ?? "__none__"}>
                           <FormControl><SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">—</SelectItem>
+                            <SelectItem value="__none__">—</SelectItem>
                             {SCORE_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -680,10 +682,10 @@ export default function OiIssueClassifyPage() {
                     <FormField control={form.control} name="liabilityType" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Liability Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="">— None —</SelectItem>
+                            <SelectItem value="__none__">— None —</SelectItem>
                             {LIABILITY_TYPES.map(l => <SelectItem key={l} value={l}>{l.replace(/_/g," ")}</SelectItem>)}
                           </SelectContent>
                         </Select>

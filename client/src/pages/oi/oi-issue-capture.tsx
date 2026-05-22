@@ -91,12 +91,15 @@ export default function OiIssueCaptureePage() {
 
   // Auto-populate customer when project is selected
   const handleProjectChange = (val: string) => {
-    form.setValue("projectId", val);
-    if (val) {
-      const proj = (projects ?? []).find((p: any) => String(p.id) === val);
+    const resolved = val === "__none__" ? undefined : val;
+    form.setValue("projectId", resolved);
+    if (resolved) {
+      const proj = (projects ?? []).find((p: any) => String(p.id) === resolved);
       if (proj && (proj.customerId || proj.customer_id)) {
         form.setValue("customerId", String(proj.customerId ?? proj.customer_id));
       }
+    } else {
+      form.setValue("customerId", undefined);
     }
   };
 
@@ -104,11 +107,12 @@ export default function OiIssueCaptureePage() {
 
   const mutation = useMutation({
     mutationFn: async (data: CaptureForm) => {
+      const toId = (v?: string) => (v && v !== "__none__") ? parseInt(v) : null;
       const payload: any = {
         ...data,
-        projectId:  data.projectId  ? parseInt(data.projectId)  : null,
-        customerId: data.customerId ? parseInt(data.customerId) : null,
-        vendorId:   data.vendorId   ? parseInt(data.vendorId)   : null,
+        projectId:  toId(data.projectId),
+        customerId: toId(data.customerId),
+        vendorId:   toId(data.vendorId),
       };
       return apiRequest("POST", "/api/oi/issues", payload);
     },
@@ -217,10 +221,10 @@ export default function OiIssueCaptureePage() {
                   <FormField control={form.control} name="projectId" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Related Project (optional)</FormLabel>
-                      <Select onValueChange={handleProjectChange} value={field.value ?? ""}>
+                      <Select onValueChange={handleProjectChange} value={field.value ?? "__none__"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="">— No project —</SelectItem>
+                          <SelectItem value="__none__">— No project —</SelectItem>
                           {(projects ?? []).map((p: any) => (
                             <SelectItem key={p.id} value={String(p.id)}>
                               {p.code} — {p.customerName ?? p.customer_name ?? ""}
@@ -235,10 +239,10 @@ export default function OiIssueCaptureePage() {
                   <FormField control={form.control} name="customerId" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer (optional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="">— No customer —</SelectItem>
+                          <SelectItem value="__none__">— No customer —</SelectItem>
                           {(customers ?? []).map((c: any) => (
                             <SelectItem key={c.id} value={String(c.id)}>
                               {c.sapCardCode ? `${c.sapCardCode} — ` : ""}{c.name ?? c.bp_name}
@@ -256,10 +260,10 @@ export default function OiIssueCaptureePage() {
                   <FormField control={form.control} name="vendorId" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Related Vendor (optional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="">— No vendor —</SelectItem>
+                          <SelectItem value="__none__">— No vendor —</SelectItem>
                           {(vendors ?? []).map((v: any) => (
                             <SelectItem key={v.id} value={String(v.id)}>
                               {v.sapCardCode ? `${v.sapCardCode} — ` : ""}{v.displayName ?? v.name}
