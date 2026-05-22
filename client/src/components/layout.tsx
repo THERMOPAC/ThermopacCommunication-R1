@@ -72,7 +72,8 @@ import {
   Layers,
   ClipboardList,
   FolderTree,
-  ActivitySquare
+  ActivitySquare,
+  BookOpen
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -367,6 +368,7 @@ function Layout({ children }: LayoutProps) {
         { icon: ClipboardList,  label: "Issue Register",  href: "/oi/issues" },
         { icon: Zap,            label: "Report Issue",    href: "/oi/issues/new" },
         { icon: ShieldCheck,    label: "CAPA Register",   href: "/oi/capa" },
+        { icon: BookOpen,       label: "SOP Register",    href: "/oi/sop" },
         ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Configuration", href: "/oi/config" }] : []),
       ]
     },

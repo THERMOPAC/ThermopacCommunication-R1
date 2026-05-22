@@ -326,6 +326,38 @@ function CancelDialog({ capaId, capaNumber, open, onClose, onSuccess }: any) {
   );
 }
 
+function LinkedSopPanel({ capaId }: { capaId: number }) {
+  const { data: sops = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/oi/capa', capaId, 'sop'],
+    queryFn: async () => {
+      const res = await fetch(`/api/oi/capa/${capaId}/sop`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+  if (isLoading || (sops as any[]).length === 0) return null;
+  return (
+    <Card className="border-l-4 border-l-blue-400">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold text-gray-700">Linked SOPs</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {(sops as any[]).map((s: any) => (
+            <a key={s.id} href={`/oi/sop/${s.id}`} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50 text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-mono text-xs font-bold text-blue-700 shrink-0">{s.sopNumber}</span>
+                <span className="font-medium truncate">{s.title}</span>
+              </div>
+              <span className="text-xs text-gray-400 shrink-0">{s.department}</span>
+            </a>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function OiCapaDetailPage() {
   const params = useParams<{ capaId: string }>();
   const capaId = parseInt(params.capaId ?? "0");
@@ -638,6 +670,9 @@ export default function OiCapaDetailPage() {
           )}
         </Card>
       )}
+
+      {/* Linked SOPs */}
+      <LinkedSopPanel capaId={capaId} />
 
       {/* Timestamps timeline */}
       <Card>

@@ -14712,6 +14712,11 @@ export const oiAuditActionEnum = pgEnum("oi_audit_action", [
   "capa_action_added","capa_action_updated","capa_action_completed",
   "capa_action_cancelled","capa_action_verified","capa_action_verification_rejected",
   "capa_effectiveness_recorded","capa_sla_breach",
+  // Phase 2A: SOP audit actions
+  "sop_created","sop_revised","sop_submitted_for_review","sop_approved","sop_rejected",
+  "sop_activated","sop_retired","sop_linked","sop_unlinked",
+  "sop_acknowledgment_assigned","sop_acknowledged","sop_acknowledgment_withdrawn",
+  "sop_effectiveness_recorded",
 ]);
 
 export const oiIssues = pgTable("oi_issues", {
@@ -15083,6 +15088,102 @@ export const oiCapaEscalationLog = pgTable('oi_capa_escalation_log', {
   firedAt: timestamp('fired_at').notNull().defaultNow(),
 });
 
+// ─── Phase 2A: SOP Records ───────────────────────────────────────────────────
+export const oiSopRecords = pgTable("oi_sop_records", {
+  id:                serial("id").primaryKey(),
+  sopNumber:         text("sop_number").notNull().unique(),
+  title:             text("title").notNull(),
+  description:       text("description").notNull(),
+  sopType:           text("sop_type").notNull(),
+  department:        text("department").notNull(),
+  processArea:       text("process_area").notNull(),
+  documentReference: text("document_reference"),
+  status:            text("status").notNull().default("draft"),
+  ownerId:           integer("owner_id").references(() => users.id, { onDelete: "set null" }),
+  approverId:        integer("approver_id").references(() => users.id, { onDelete: "set null" }),
+  revisionNumber:    integer("revision_number").notNull().default(0),
+  effectiveDate:     timestamp("effective_date"),
+  reviewDueDate:     timestamp("review_due_date"),
+  nextReviewDate:    timestamp("next_review_date"),
+  activatedAt:       timestamp("activated_at"),
+  retiredAt:         timestamp("retired_at"),
+  createdBy:         integer("created_by").notNull().references(() => users.id),
+  createdAt:         timestamp("created_at").notNull().defaultNow(),
+  updatedAt:         timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiSopRevisions = pgTable("oi_sop_revisions", {
+  id:               serial("id").primaryKey(),
+  sopId:            integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "cascade" }),
+  revisionNumber:   integer("revision_number").notNull(),
+  changeSummary:    text("change_summary").notNull(),
+  changeRationale:  text("change_rationale").notNull(),
+  status:           text("status").notNull().default("draft"),
+  submittedBy:      integer("submitted_by").references(() => users.id, { onDelete: "set null" }),
+  submittedAt:      timestamp("submitted_at"),
+  reviewedBy:       integer("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewNotes:      text("review_notes"),
+  approvedBy:       integer("approved_by").references(() => users.id, { onDelete: "set null" }),
+  approvedAt:       timestamp("approved_at"),
+  rejectedBy:       integer("rejected_by").references(() => users.id, { onDelete: "set null" }),
+  rejectionReason:  text("rejection_reason"),
+  rejectedAt:       timestamp("rejected_at"),
+  createdBy:        integer("created_by").notNull().references(() => users.id),
+  createdAt:        timestamp("created_at").notNull().defaultNow(),
+  updatedAt:        timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiSopLinkages = pgTable("oi_sop_linkages", {
+  id:          serial("id").primaryKey(),
+  sopId:       integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "cascade" }),
+  linkedType:  text("linked_type").notNull(),
+  linkedId:    integer("linked_id").notNull(),
+  linkNote:    text("link_note").notNull(),
+  linkedBy:    integer("linked_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  createdAt:   timestamp("created_at").notNull().defaultNow(),
+});
+
+export const oiSopAcknowledgments = pgTable("oi_sop_acknowledgments", {
+  id:                  serial("id").primaryKey(),
+  sopId:               integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "cascade" }),
+  revisionNumber:      integer("revision_number").notNull(),
+  userId:              integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  assignedBy:          integer("assigned_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  assignedAt:          timestamp("assigned_at").notNull().defaultNow(),
+  dueDate:             timestamp("due_date"),
+  acknowledgedAt:      timestamp("acknowledged_at"),
+  acknowledgmentNote:  text("acknowledgment_note"),
+});
+
+export const oiSopEffectiveness = pgTable("oi_sop_effectiveness", {
+  id:                 serial("id").primaryKey(),
+  sopId:              integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "cascade" }),
+  reviewCycle:        integer("review_cycle").notNull().default(1),
+  reviewerId:         integer("reviewer_id").notNull().references(() => users.id),
+  reviewedAt:         timestamp("reviewed_at").notNull().defaultNow(),
+  effectivenessScore: integer("effectiveness_score").notNull(),
+  isEffective:        boolean("is_effective").notNull(),
+  deviationObserved:  boolean("deviation_observed").notNull().default(false),
+  requiresRevision:   boolean("requires_revision").notNull().default(false),
+  evidenceNotes:      text("evidence_notes"),
+  recommendation:     text("recommendation"),
+});
+
+export const oiSopAuditLog = pgTable("oi_sop_audit_log", {
+  id:        serial("id").primaryKey(),
+  sopId:     integer("sop_id").references(() => oiSopRecords.id, { onDelete: "set null" }),
+  action:    oiAuditActionEnum("action").notNull(),
+  actorId:   integer("actor_id").notNull().references(() => users.id),
+  actorName: text("actor_name").notNull(),
+  actorRole: text("actor_role").notNull(),
+  fieldName: text("field_name"),
+  oldValue:  text("old_value"),
+  newValue:  text("new_value"),
+  context:   text("context"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export type OiIssue          = typeof oiIssues.$inferSelect;
 export type InsertOiIssue    = z.infer<typeof insertOiIssueSchema>;
 export type OiAuditLog       = typeof oiAuditLog.$inferSelect;
@@ -15099,3 +15200,10 @@ export type OiCapaAction        = typeof oiCapaActions.$inferSelect;
 export type OiCapaEffectiveness = typeof oiCapaEffectiveness.$inferSelect;
 export type OiCapaEscalationLog = typeof oiCapaEscalationLog.$inferSelect;
 export type OiRcaSimilarLink   = typeof oiRcaSimilarLinks.$inferSelect;
+// Phase 2A SOP types
+export type OiSopRecord          = typeof oiSopRecords.$inferSelect;
+export type OiSopRevision        = typeof oiSopRevisions.$inferSelect;
+export type OiSopLinkage         = typeof oiSopLinkages.$inferSelect;
+export type OiSopAcknowledgment  = typeof oiSopAcknowledgments.$inferSelect;
+export type OiSopEffectiveness   = typeof oiSopEffectiveness.$inferSelect;
+export type OiSopAuditLog        = typeof oiSopAuditLog.$inferSelect;

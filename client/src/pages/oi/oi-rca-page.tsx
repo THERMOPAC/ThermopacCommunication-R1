@@ -391,6 +391,56 @@ function SimilarIssuesTab({ issueId }: { issueId: number }) {
   );
 }
 
+function LinkedSopTab({ rcaId }: { rcaId: number }) {
+  const { data: sops = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/oi/rca', rcaId, 'sop'],
+    queryFn: async () => {
+      const res = await fetch(`/api/oi/rca/${rcaId}/sop`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const SOP_STATUS_COLOR: Record<string, string> = {
+    draft: 'bg-gray-100 text-gray-600', under_review: 'bg-yellow-100 text-yellow-700',
+    approved: 'bg-blue-100 text-blue-700', active: 'bg-green-100 text-green-700',
+    retired: 'bg-red-100 text-red-600',
+  };
+  const SOP_STATUS_LABEL: Record<string, string> = {
+    draft: 'Draft', under_review: 'Under Review', approved: 'Approved', active: 'Active', retired: 'Retired',
+  };
+
+  if (isLoading) return <div className="text-sm text-muted-foreground p-4">Loading SOPs…</div>;
+
+  return (
+    <div className="space-y-3">
+      {sops.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">
+          <p className="text-sm">No SOPs linked to this RCA yet.</p>
+          <p className="text-xs mt-1">Link SOPs from the SOP Register to associate them with this RCA.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {(sops as any[]).map((s: any) => (
+            <a key={s.id} href={`/oi/sop/${s.id}`} className="block border rounded-lg p-3 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-xs font-bold text-blue-700 shrink-0">{s.sopNumber}</span>
+                  <span className="text-sm font-medium text-gray-900 truncate">{s.title}</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${SOP_STATUS_COLOR[s.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {SOP_STATUS_LABEL[s.status] ?? s.status}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{s.department} · {s.processArea} · Rev v{s.revisionNumber}</p>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LinkedCapaTab({ rcaId, issueId }: { rcaId: number; issueId: number }) {
   const { data: capas = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/oi/capa', { rcaId }],
@@ -707,6 +757,7 @@ export default function OiRcaPage() {
                 <TabsTrigger value="similar">Similar Issues</TabsTrigger>
                 <TabsTrigger value="correlations">Correlations</TabsTrigger>
                 <TabsTrigger value="capa">Linked CAPAs</TabsTrigger>
+                <TabsTrigger value="sop">Linked SOPs</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -800,6 +851,7 @@ export default function OiRcaPage() {
               <TabsContent value="similar" className="mt-4"><SimilarIssuesTab issueId={issueId} /></TabsContent>
               <TabsContent value="correlations" className="mt-4"><CorrelationsTab issueId={issueId} userRole={userRole} /></TabsContent>
               <TabsContent value="capa" className="mt-4"><LinkedCapaTab rcaId={rca.id} issueId={issueId} /></TabsContent>
+              <TabsContent value="sop"  className="mt-4"><LinkedSopTab  rcaId={rca.id} /></TabsContent>
             </Tabs>
           </>
         )}

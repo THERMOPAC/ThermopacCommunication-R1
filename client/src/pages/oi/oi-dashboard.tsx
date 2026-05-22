@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, ShieldAlert, AlertCircle,
-  Zap, Plus, BarChart3, Activity, Eye, DollarSign, Link2, Users, Truck, SearchCode,
+  Zap, Plus, BarChart3, Activity, Eye, DollarSign, Link2, Users, Truck, SearchCode, BookOpen,
 } from "lucide-react";
 import { CAPA_STATUS_LABELS, CAPA_STATUS_COLORS } from "./oi-capa-constants";
 
@@ -221,6 +221,78 @@ function formatINR(n: number) {
   if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(1)}Cr`;
   if (n >= 100_000)    return `₹${(n / 100_000).toFixed(1)}L`;
   return `₹${n.toLocaleString("en-IN")}`;
+}
+
+function SopDashboardPanels() {
+  const { data: sopSummary } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/sop-summary"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/sop-summary?periodDays=30"); if (!r.ok) return null; return r.json(); },
+  });
+  const { data: sopByDept } = useQuery<any[]>({
+    queryKey: ["/api/oi/dashboard/sop-by-department"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/sop-by-department"); if (!r.ok) return []; return r.json(); },
+  });
+
+  if (!sopSummary && (!sopByDept || sopByDept.length === 0)) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mt-2">
+        <BookOpen className="h-4 w-4 text-blue-600" />
+        <h2 className="text-base font-bold text-gray-800">Standard Operating Procedures (SOP)</h2>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {sopSummary && (
+          <Card className="border-l-4 border-l-blue-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-blue-600" /> SOP Overview (30 days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-2 text-center mb-3">
+                <div><p className="text-xl font-bold text-gray-800">{sopSummary.totalSop}</p><p className="text-xs text-gray-400">Total</p></div>
+                <div><p className="text-xl font-bold text-green-600">{sopSummary.activeCount}</p><p className="text-xs text-gray-400">Active</p></div>
+                <div><p className={`text-xl font-bold ${sopSummary.reviewOverdueCount > 0 ? "text-red-700" : "text-gray-400"}`}>{sopSummary.reviewOverdueCount}</p><p className="text-xs text-gray-400">Review Due</p></div>
+                <div><p className={`text-xl font-bold ${sopSummary.pendingAckCount > 0 ? "text-orange-600" : "text-gray-400"}`}>{sopSummary.pendingAckCount}</p><p className="text-xs text-gray-400">Pending Acks</p></div>
+              </div>
+              <div className="grid grid-cols-3 gap-1 text-xs text-center">
+                <div className="p-1 bg-gray-50 rounded"><p className="font-semibold">{sopSummary.draftCount}</p><p className="text-gray-400">Draft</p></div>
+                <div className="p-1 bg-yellow-50 rounded"><p className="font-semibold text-yellow-700">{sopSummary.underReviewCount}</p><p className="text-gray-400">Under Review</p></div>
+                <div className="p-1 bg-blue-50 rounded"><p className="font-semibold text-blue-700">{sopSummary.approvedCount}</p><p className="text-gray-400">Approved</p></div>
+              </div>
+              <div className="mt-2 text-center">
+                <a href="/oi/sop" className="text-xs text-blue-600 hover:underline">View SOP Register →</a>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {sopByDept && sopByDept.length > 0 && (
+          <Card className="border-l-4 border-l-teal-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Users className="h-4 w-4 text-teal-600" /> SOPs by Department
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                {(sopByDept as any[]).slice(0, 8).map((row: any) => (
+                  <div key={row.department} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-700 truncate">{row.department}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-semibold text-green-700">{row.active_count} active</span>
+                      {Number(row.review_overdue_count) > 0 && <span className="text-red-600">{row.review_overdue_count} overdue</span>}
+                      {Number(row.pending_ack_count) > 0 && <span className="text-orange-600">{row.pending_ack_count} acks</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function OiDashboardPage() {
@@ -726,6 +798,9 @@ export default function OiDashboardPage() {
 
         {/* Phase 1D: CAPA Dashboard Panels */}
         <CapaDashboardPanels />
+
+        {/* Phase 2A: SOP Dashboard Panels */}
+        <SopDashboardPanels />
 
         {/* Quick actions */}
         <Card>

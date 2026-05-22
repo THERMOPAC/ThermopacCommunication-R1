@@ -167,6 +167,38 @@ function formatHours(h: number | string | null | undefined): string {
 const MANAGER_ROLES = ["Manager", "Senior Manager", "General Manager", "Superuser"];
 const SM_ROLES      = ["Senior Manager", "General Manager", "Superuser"];
 
+function LinkedSopIssuePanel({ issueId }: { issueId: number }) {
+  const { data: sops = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/oi/issues', issueId, 'sop'],
+    queryFn: async () => {
+      const res = await fetch(`/api/oi/issues/${issueId}/sop`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+  if (isLoading || (sops as any[]).length === 0) return null;
+  return (
+    <Card className="border-l-4 border-l-blue-400 mt-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold text-gray-700">Linked SOPs</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {(sops as any[]).map((s: any) => (
+            <a key={s.id} href={`/oi/sop/${s.id}`} className="flex items-center justify-between p-2 border rounded hover:bg-gray-50 text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-mono text-xs font-bold text-blue-700 shrink-0">{s.sopNumber}</span>
+                <span className="font-medium truncate">{s.title}</span>
+              </div>
+              <span className="text-xs text-gray-400 shrink-0">{s.department} · Rev v{s.revisionNumber}</span>
+            </a>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function OiIssueDetailPage() {
   const params = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -675,6 +707,9 @@ export default function OiIssueDetailPage() {
           </Card>
         )}
       </div>
+
+      {/* Linked SOPs */}
+      <LinkedSopIssuePanel issueId={issue.id} />
 
       {/* Transition dialog */}
       <Dialog open={!!transitionTo} onOpenChange={() => { setTransitionTo(null); setReason(""); }}>
