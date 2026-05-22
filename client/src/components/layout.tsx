@@ -366,6 +366,7 @@ function Layout({ children }: LayoutProps) {
         { icon: ActivitySquare, label: "OI Dashboard",    href: "/oi" },
         { icon: ClipboardList,  label: "Issue Register",  href: "/oi/issues" },
         { icon: Zap,            label: "Report Issue",    href: "/oi/issues/new" },
+        { icon: ShieldCheck,    label: "CAPA Register",   href: "/oi/capa" },
         ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Configuration", href: "/oi/config" }] : []),
       ]
     },

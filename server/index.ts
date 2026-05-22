@@ -320,6 +320,13 @@ app.use((req, res, next) => {
       console.error('❌ Failed to load OI scheduler:', err);
     });
 
+    // Start CAPA SLA escalation scheduler
+    import('./oi-capa-escalation-service').then(({ startCapaEscalationScheduler }) => {
+      startCapaEscalationScheduler();
+    }).catch((err: unknown) => {
+      console.error('❌ Failed to load CAPA escalation scheduler:', err);
+    });
+
     // Start the attendance midnight processor (IST midnight cron + startup catch-up)
     import('./attendance-midnight-processor').then(({ attendanceMidnightProcessor }) => {
       attendanceMidnightProcessor.startSchedulerWithCatchup()

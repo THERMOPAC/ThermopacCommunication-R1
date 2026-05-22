@@ -1,7 +1,7 @@
 import { OiIssue } from "@shared/schema";
 import { db } from "./db";
-import { oiRcaRecords } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { oiRcaRecords, oiCapaRecords } from "@shared/schema";
+import { eq, and, not, inArray } from "drizzle-orm";
 
 export class TransitionError extends Error {
   constructor(public code: string, public httpStatus: number) {
@@ -71,6 +71,22 @@ export async function validateTransition(
       .limit(1);
     if (!rca || rca.status !== "approved") {
       throw new TransitionError("rca_approval_required_for_closure", 422);
+    }
+  }
+
+  // Phase 1D: Block → closed when any linked CAPA is not closed or cancelled
+  if (to === "closed") {
+    const openCapas = await db
+      .select({ id: oiCapaRecords.id, capaNumber: oiCapaRecords.capaNumber, status: oiCapaRecords.status })
+      .from(oiCapaRecords)
+      .where(
+        and(
+          eq(oiCapaRecords.issueId, issue.id),
+          not(inArray(oiCapaRecords.status, ["closed", "cancelled"]))
+        )
+      );
+    if (openCapas.length > 0) {
+      throw new TransitionError(`capa_closure_required:${openCapas.length}`, 409);
     }
   }
 }

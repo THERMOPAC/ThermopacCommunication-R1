@@ -14707,6 +14707,11 @@ export const oiAuditActionEnum = pgEnum("oi_audit_action", [
   "fishbone_cause_added","fishbone_cause_updated","fishbone_cause_deleted",
   "failure_tree_node_added","failure_tree_node_updated","failure_tree_node_deleted",
   "rca_evidence_uploaded","rca_evidence_deleted","correlation_link_created","correlation_link_deleted",
+  // Phase 1D: CAPA audit actions
+  "capa_created","capa_deleted","capa_cancelled","capa_reopened",
+  "capa_action_added","capa_action_updated","capa_action_completed",
+  "capa_action_cancelled","capa_action_verified","capa_action_verification_rejected",
+  "capa_effectiveness_recorded","capa_sla_breach",
 ]);
 
 export const oiIssues = pgTable("oi_issues", {
@@ -15008,6 +15013,76 @@ export const oiRcaSimilarLinks = pgTable('oi_rca_similar_links', {
   linkedAt:  timestamp('linked_at').notNull().defaultNow(),
 });
 
+// ─── Phase 1D: CAPA Records ──────────────────────────────────────────────────
+export const oiCapaRecords = pgTable('oi_capa_records', {
+  id:                     serial('id').primaryKey(),
+  capaNumber:             text('capa_number').notNull().unique(),
+  issueId:                integer('issue_id').notNull().references(() => oiIssues.id, { onDelete: 'restrict' }),
+  rcaId:                  integer('rca_id').notNull().references(() => oiRcaRecords.id, { onDelete: 'restrict' }),
+  capaType:               text('capa_type').notNull(),
+  title:                  text('title').notNull(),
+  description:            text('description').notNull(),
+  rootCauseRef:           text('root_cause_ref'),
+  priority:               text('priority').notNull().default('medium'),
+  assignedTo:             integer('assigned_to').references(() => users.id, { onDelete: 'set null' }),
+  verifierId:             integer('verifier_id').references(() => users.id, { onDelete: 'set null' }),
+  approverId:             integer('approver_id').references(() => users.id, { onDelete: 'set null' }),
+  status:                 text('status').notNull().default('draft'),
+  dueDate:                timestamp('due_date'),
+  extendedDueDate:        timestamp('extended_due_date'),
+  openedAt:               timestamp('opened_at'),
+  inProgressAt:           timestamp('in_progress_at'),
+  pendingVerificationAt:  timestamp('pending_verification_at'),
+  effectivenessReviewAt:  timestamp('effectiveness_review_at'),
+  closedAt:               timestamp('closed_at'),
+  cancelledAt:            timestamp('cancelled_at'),
+  cancellationReason:     text('cancellation_reason'),
+  reOpenCount:            integer('re_open_count').notNull().default(0),
+  createdBy:              integer('created_by').notNull().references(() => users.id),
+  createdAt:              timestamp('created_at').notNull().defaultNow(),
+  updatedAt:              timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const oiCapaActions = pgTable('oi_capa_actions', {
+  id:                 serial('id').primaryKey(),
+  capaId:             integer('capa_id').notNull().references(() => oiCapaRecords.id, { onDelete: 'cascade' }),
+  actionNo:           integer('action_no').notNull(),
+  description:        text('description').notNull(),
+  assignedTo:         integer('assigned_to').references(() => users.id, { onDelete: 'set null' }),
+  dueDate:            timestamp('due_date'),
+  status:             text('status').notNull().default('open'),
+  completedAt:        timestamp('completed_at'),
+  completedBy:        integer('completed_by').references(() => users.id, { onDelete: 'set null' }),
+  completionNote:     text('completion_note'),
+  verificationStatus: text('verification_status').notNull().default('pending'),
+  verifiedAt:         timestamp('verified_at'),
+  verifiedBy:         integer('verified_by').references(() => users.id, { onDelete: 'set null' }),
+  verificationNote:   text('verification_note'),
+  createdBy:          integer('created_by').notNull().references(() => users.id),
+  createdAt:          timestamp('created_at').notNull().defaultNow(),
+  updatedAt:          timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const oiCapaEffectiveness = pgTable('oi_capa_effectiveness', {
+  id:                  serial('id').primaryKey(),
+  capaId:              integer('capa_id').notNull().references(() => oiCapaRecords.id, { onDelete: 'cascade' }),
+  reviewCycle:         integer('review_cycle').notNull().default(1),
+  reviewerId:          integer('reviewer_id').notNull().references(() => users.id),
+  reviewedAt:          timestamp('reviewed_at').notNull().defaultNow(),
+  effectivenessScore:  integer('effectiveness_score').notNull(),
+  isEffective:         boolean('is_effective').notNull(),
+  recurrenceObserved:  boolean('recurrence_observed').notNull().default(false),
+  evidenceNotes:       text('evidence_notes'),
+  recommendation:      text('recommendation'),
+});
+
+export const oiCapaEscalationLog = pgTable('oi_capa_escalation_log', {
+  id:      serial('id').primaryKey(),
+  capaId:  integer('capa_id').notNull().references(() => oiCapaRecords.id, { onDelete: 'cascade' }),
+  level:   integer('level').notNull(),
+  firedAt: timestamp('fired_at').notNull().defaultNow(),
+});
+
 export type OiIssue          = typeof oiIssues.$inferSelect;
 export type InsertOiIssue    = z.infer<typeof insertOiIssueSchema>;
 export type OiAuditLog       = typeof oiAuditLog.$inferSelect;
@@ -15019,4 +15094,8 @@ export type OiRcaFiveWhy       = typeof oiRcaFiveWhy.$inferSelect;
 export type OiRcaFishbone      = typeof oiRcaFishbone.$inferSelect;
 export type OiRcaFailureTreeNode = typeof oiRcaFailureTreeNodes.$inferSelect;
 export type OiRcaEvidence      = typeof oiRcaEvidence.$inferSelect;
+export type OiCapaRecord        = typeof oiCapaRecords.$inferSelect;
+export type OiCapaAction        = typeof oiCapaActions.$inferSelect;
+export type OiCapaEffectiveness = typeof oiCapaEffectiveness.$inferSelect;
+export type OiCapaEscalationLog = typeof oiCapaEscalationLog.$inferSelect;
 export type OiRcaSimilarLink   = typeof oiRcaSimilarLinks.$inferSelect;

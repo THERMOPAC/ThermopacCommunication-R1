@@ -425,6 +425,19 @@ oiRcaRouter.post("/issues/:id/rca/:rcaId/reopen", async (req: any, res: any) => 
   const isOwnerOrCreator = (actor.id === rca.createdBy || actor.id === rca.assignedTo);
   if (!isOwnerOrCreator && !hasRole(actor.role, SM_ROLES)) return res.status(403).json({ error: "forbidden" });
 
+  // Phase 1D gate: block RCA reopen if any linked CAPA is active (not draft or cancelled)
+  {
+    const { oiCapaRecords } = await import("@shared/schema");
+    const { not: drNot, inArray: drInArray } = await import("drizzle-orm");
+    const activeCapa = await db.select({ id: oiCapaRecords.id, capaNumber: oiCapaRecords.capaNumber })
+      .from(oiCapaRecords)
+      .where(and(eq(oiCapaRecords.rcaId, rcaId), drNot(drInArray(oiCapaRecords.status, ['draft','cancelled']))))
+      .limit(1);
+    if (activeCapa.length) {
+      return res.status(409).json({ error: "active_capa_exists", message: `CAPA ${activeCapa[0].capaNumber} is active. Cancel or close all CAPAs linked to this RCA before reopening.` });
+    }
+  }
+
   const newRevision = rca.revisionNumber + 1;
   const [updated] = await db.update(oiRcaRecords).set({
     status: 'draft', revisionNumber: newRevision,

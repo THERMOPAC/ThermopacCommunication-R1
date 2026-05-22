@@ -18,6 +18,71 @@ import {
   Link2, DollarSign, Scale, Timer, BarChart2, SearchCode, CheckCircle,
 } from "lucide-react";
 import { RCA_STATUS_LABELS, RCA_STATUS_COLORS } from "./oi-rca-constants";
+import { CAPA_STATUS_LABELS, CAPA_STATUS_COLORS, CAPA_PRIORITY_LABELS, CAPA_PRIORITY_COLORS, CAPA_TYPE_LABELS } from "./oi-capa-constants";
+
+function CapaSummaryCard({ issueId }: { issueId: number }) {
+  const { data: capas = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/oi/issues", issueId, "capa"],
+    queryFn: async () => {
+      const res = await fetch(`/api/oi/issues/${issueId}/capa`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  if (isLoading) return null;
+  if (!capas.length) return null;
+
+  const active = capas.filter((c: any) => c.status !== 'closed' && c.status !== 'cancelled');
+  const overdue = capas.filter((c: any) => c.isOverdue);
+  const closed  = capas.filter((c: any) => c.status === 'closed');
+
+  return (
+    <Card className="border-l-4 border-l-indigo-400">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-indigo-500" /> CAPA Records
+          <span className="text-xs font-normal text-gray-400">({capas.length} total)</span>
+          {overdue.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold">
+              {overdue.length} overdue
+            </span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="grid grid-cols-3 gap-3 text-center text-sm mb-2">
+          <div><p className="text-xl font-bold text-indigo-700">{active.length}</p><p className="text-xs text-gray-400">Active</p></div>
+          <div><p className="text-xl font-bold text-green-600">{closed.length}</p><p className="text-xs text-gray-400">Closed</p></div>
+          <div><p className={`text-xl font-bold ${overdue.length > 0 ? "text-red-700" : "text-gray-400"}`}>{overdue.length}</p><p className="text-xs text-gray-400">Overdue</p></div>
+        </div>
+        <div className="space-y-1">
+          {capas.slice(0, 5).map((c: any) => (
+            <WouterLink key={c.id} href={`/oi/capa/${c.id}`}>
+              <div className="flex items-center justify-between py-1 px-2 rounded hover:bg-gray-50 cursor-pointer group">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-semibold text-indigo-600">{c.capaNumber}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${CAPA_TYPE_LABELS[c.capaType] ? "bg-blue-50 text-blue-700" : ""}`}>{CAPA_TYPE_LABELS[c.capaType]}</span>
+                  <span className="text-xs text-gray-600 truncate max-w-[140px]">{c.title}</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${CAPA_STATUS_COLORS[c.status]}`}>{CAPA_STATUS_LABELS[c.status]}</span>
+                  {c.isOverdue && <span className="px-1 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold">OD</span>}
+                </div>
+              </div>
+            </WouterLink>
+          ))}
+          {capas.length > 5 && <p className="text-xs text-gray-400 text-center pt-1">…and {capas.length - 5} more</p>}
+        </div>
+        <WouterLink href={`/oi/capa?issueId=${issueId}`}>
+          <button className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
+            <CheckCircle className="h-3 w-3" /> View all CAPAs for this issue →
+          </button>
+        </WouterLink>
+      </CardContent>
+    </Card>
+  );
+}
 
 const SEV_COLORS: Record<string, string> = {
   S1: "bg-red-600 text-white", S2: "bg-orange-500 text-white",
@@ -582,6 +647,9 @@ export default function OiIssueDetailPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Phase 1D: CAPA Summary Card */}
+        <CapaSummaryCard issueId={issueId} />
 
         {/* Audit log */}
         {(auditLogs ?? []).length > 0 && (

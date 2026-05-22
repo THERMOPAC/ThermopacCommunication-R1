@@ -7,3 +7,5 @@ export const OiIssueDetail      = lazyWithRetry(() => import("@/pages/oi/oi-issu
 export const OiIssueClassify    = lazyWithRetry(() => import("@/pages/oi/oi-issue-classify"));
 export const OiConfigPage       = lazyWithRetry(() => import("@/pages/oi/oi-config"));
 export const OiRcaPage          = lazyWithRetry(() => import("@/pages/oi/oi-rca-page"));
+export const OiCapaRegisterPage = lazyWithRetry(() => import("@/pages/oi/oi-capa-register"));
+export const OiCapaDetailPage   = lazyWithRetry(() => import("@/pages/oi/oi-capa-detail"));

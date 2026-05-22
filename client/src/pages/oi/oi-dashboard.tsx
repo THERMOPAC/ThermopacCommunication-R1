@@ -9,6 +9,163 @@ import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, ShieldAlert, AlertCircle,
   Zap, Plus, BarChart3, Activity, Eye, DollarSign, Link2, Users, Truck, SearchCode,
 } from "lucide-react";
+import { CAPA_STATUS_LABELS, CAPA_STATUS_COLORS } from "./oi-capa-constants";
+
+function CapaDashboardPanels() {
+  const { data: summary } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/capa-summary"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/capa-summary?periodDays=90"); if (!r.ok) return null; return r.json(); },
+  });
+  const { data: sla } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/capa-sla"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/capa-sla?periodDays=90"); if (!r.ok) return null; return r.json(); },
+  });
+  const { data: effectiveness } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/capa-effectiveness"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/capa-effectiveness?periodDays=365"); if (!r.ok) return null; return r.json(); },
+  });
+  const { data: byType } = useQuery<any[]>({
+    queryKey: ["/api/oi/dashboard/capa-by-type"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/capa-by-type?periodDays=180"); if (!r.ok) return []; return r.json(); },
+  });
+
+  if (!summary && !sla && !effectiveness) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mt-2">
+        <ShieldAlert className="h-4 w-4 text-indigo-600" />
+        <h2 className="text-base font-bold text-gray-800">Corrective & Preventive Actions (CAPA)</h2>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Summary panel */}
+        {summary && (
+          <Card className="border-l-4 border-l-indigo-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-indigo-600" /> CAPA Overview (90 days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-2 text-center mb-3">
+                <div><p className="text-xl font-bold text-gray-800">{summary.totalCapa}</p><p className="text-xs text-gray-400">Total</p></div>
+                <div><p className="text-xl font-bold text-yellow-700">{summary.openCount + summary.inProgressCount}</p><p className="text-xs text-gray-400">Active</p></div>
+                <div><p className="text-xl font-bold text-green-600">{summary.closedCount}</p><p className="text-xs text-gray-400">Closed</p></div>
+                <div><p className={`text-xl font-bold ${summary.overdueCount > 0 ? "text-red-700" : "text-gray-400"}`}>{summary.overdueCount}</p><p className="text-xs text-gray-400">Overdue</p></div>
+              </div>
+              <div className="grid grid-cols-3 gap-1 text-xs">
+                {[
+                  { label: 'Pending Verify', val: summary.pendingVerificationCount, cls: 'text-orange-600' },
+                  { label: 'Eff. Review',    val: summary.effectivenessReviewCount, cls: 'text-purple-600' },
+                  { label: 'Cancelled',      val: summary.cancelledCount,          cls: 'text-gray-500'   },
+                ].map(({ label, val, cls }) => (
+                  <div key={label} className="text-center">
+                    <p className={`font-semibold ${cls}`}>{val}</p><p className="text-gray-400">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* SLA panel */}
+        {sla && (
+          <Card className="border-l-4 border-l-amber-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-600" /> CAPA SLA (90 days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                <div><p className="text-xl font-bold text-green-600">{sla.closedOnTime ?? 0}</p><p className="text-xs text-gray-400">On Time</p></div>
+                <div><p className="text-xl font-bold text-red-600">{sla.closedOverdue ?? 0}</p><p className="text-xs text-gray-400">Overdue Close</p></div>
+                <div>
+                  <p className={`text-xl font-bold ${sla.slaAdherencePct != null ? (sla.slaAdherencePct >= 80 ? "text-green-600" : sla.slaAdherencePct >= 60 ? "text-yellow-600" : "text-red-600") : "text-gray-400"}`}>
+                    {sla.slaAdherencePct != null ? `${sla.slaAdherencePct}%` : "—"}
+                  </p>
+                  <p className="text-xs text-gray-400">SLA Rate</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="text-center bg-gray-50 rounded p-2">
+                  <p className="font-semibold text-teal-700">{sla.avgDaysToClose != null ? `${sla.avgDaysToClose}d` : "—"}</p>
+                  <p className="text-gray-400">Avg Close Time</p>
+                </div>
+                <div className="text-center bg-gray-50 rounded p-2">
+                  <p className={`font-semibold ${sla.currentlyOverdue > 0 ? "text-red-700" : "text-gray-500"}`}>{sla.currentlyOverdue ?? 0}</p>
+                  <p className="text-gray-400">Currently Overdue</p>
+                </div>
+              </div>
+              {(sla.l1EscalationsFired > 0 || sla.l2EscalationsFired > 0 || sla.l3EscalationsFired > 0) && (
+                <div className="flex gap-2 mt-2 text-xs">
+                  <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">L1: {sla.l1EscalationsFired}</span>
+                  <span className="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">L2: {sla.l2EscalationsFired}</span>
+                  <span className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded">L3: {sla.l3EscalationsFired}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Effectiveness panel */}
+        {effectiveness && (
+          <Card className="border-l-4 border-l-green-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-600" /> CAPA Effectiveness (12 months)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                <div><p className="text-xl font-bold text-green-600">{effectiveness.effectiveCount ?? 0}</p><p className="text-xs text-gray-400">Effective</p></div>
+                <div><p className="text-xl font-bold text-red-600">{effectiveness.ineffectiveCount ?? 0}</p><p className="text-xs text-gray-400">Ineffective</p></div>
+                <div><p className={`text-xl font-bold ${(effectiveness.effectivenessRatePct ?? 0) >= 80 ? "text-green-600" : "text-orange-600"}`}>{effectiveness.effectivenessRatePct != null ? `${effectiveness.effectivenessRatePct}%` : "—"}</p><p className="text-xs text-gray-400">Rate</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="text-center bg-gray-50 rounded p-2">
+                  <p className="font-semibold text-teal-700">{effectiveness.avgScore != null ? effectiveness.avgScore : "—"}</p>
+                  <p className="text-gray-400">Avg Score /5</p>
+                </div>
+                <div className="text-center bg-gray-50 rounded p-2">
+                  <p className={`font-semibold ${effectiveness.recurrenceObservedCount > 0 ? "text-amber-700" : "text-gray-500"}`}>{effectiveness.recurrenceObservedCount ?? 0}</p>
+                  <p className="text-gray-400">Recurrences</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* By-type panel */}
+        {byType && byType.length > 0 && (
+          <Card className="border-l-4 border-l-blue-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-blue-600" /> CAPA by Type (6 months)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {byType.map((t: any) => (
+                  <div key={t.capaType}>
+                    <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                      <span className="font-medium">{t.capaTypeLabel}</span>
+                      <span>{t.closedCount}/{t.total} closed{t.overdueCount > 0 ? `, ${t.overdueCount} OD` : ""}</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${t.capaType === 'corrective' ? 'bg-red-400' : t.capaType === 'preventive' ? 'bg-blue-400' : 'bg-purple-400'}`}
+                        style={{ width: t.total > 0 ? `${Math.round((t.closedCount / t.total) * 100)}%` : '0%' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
@@ -567,6 +724,9 @@ export default function OiDashboardPage() {
           </>
         )}
 
+        {/* Phase 1D: CAPA Dashboard Panels */}
+        <CapaDashboardPanels />
+
         {/* Quick actions */}
         <Card>
           <CardContent className="p-4">
@@ -576,6 +736,7 @@ export default function OiDashboardPage() {
               <Link href="/oi/issues?slaBreached=response"><Button size="sm" variant="outline" className="gap-2 border-yellow-400 text-yellow-700"><Clock className="h-3 w-3" /> SLA Breaches</Button></Link>
               <Link href="/oi/issues?severity=S1"><Button size="sm" variant="outline" className="gap-2 border-red-400 text-red-700"><ShieldAlert className="h-3 w-3" /> S1 Critical</Button></Link>
               <Link href="/oi/issues?rcaRequired=true"><Button size="sm" variant="outline" className="gap-2 border-amber-400 text-amber-700"><SearchCode className="h-3 w-3" /> RCA Required</Button></Link>
+              <Link href="/oi/capa"><Button size="sm" variant="outline" className="gap-2 border-indigo-400 text-indigo-700"><ShieldAlert className="h-3 w-3" /> CAPA Register</Button></Link>
             </div>
           </CardContent>
         </Card>

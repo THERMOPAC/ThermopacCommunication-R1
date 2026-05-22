@@ -391,6 +391,79 @@ function SimilarIssuesTab({ issueId }: { issueId: number }) {
   );
 }
 
+function LinkedCapaTab({ rcaId, issueId }: { rcaId: number; issueId: number }) {
+  const { data: capas = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/oi/capa', { rcaId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/oi/capa?rcaId=${rcaId}&limit=50`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const STATUS_COLOR: Record<string, string> = {
+    draft: 'bg-gray-100 text-gray-600', open: 'bg-blue-100 text-blue-700',
+    in_progress: 'bg-yellow-100 text-yellow-700', pending_verification: 'bg-orange-100 text-orange-700',
+    effectiveness_review: 'bg-purple-100 text-purple-700', closed: 'bg-green-100 text-green-700',
+    cancelled: 'bg-red-100 text-red-600',
+  };
+  const STATUS_LABEL: Record<string, string> = {
+    draft: 'Draft', open: 'Open', in_progress: 'In Progress', pending_verification: 'Pending Verification',
+    effectiveness_review: 'Effectiveness Review', closed: 'Closed', cancelled: 'Cancelled',
+  };
+  const TYPE_LABEL: Record<string, string> = { corrective: 'Corrective', preventive: 'Preventive', combined: 'Combined' };
+  const PRI_COLOR: Record<string, string> = {
+    critical: 'text-red-700 font-bold', high: 'text-orange-700 font-semibold',
+    medium: 'text-yellow-700', low: 'text-gray-500',
+  };
+
+  if (isLoading) return <div className="text-sm text-muted-foreground p-4">Loading CAPAs…</div>;
+
+  return (
+    <div className="space-y-3">
+      {capas.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">
+          <p className="text-sm">No CAPAs linked to this RCA yet.</p>
+          <p className="text-xs mt-1">CAPAs are created from the issue detail page once this RCA is approved.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {(capas as any[]).map((c: any) => {
+            const effectiveDue = c.extendedDueDate ?? c.dueDate;
+            return (
+              <a key={c.id} href={`/oi/capa/${c.id}`} className="block border rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-xs font-bold text-indigo-700 shrink-0">{c.capaNumber}</span>
+                    <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shrink-0">{TYPE_LABEL[c.capaType] ?? c.capaType}</span>
+                    <span className="text-sm font-medium text-gray-900 truncate">{c.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[c.status]}`}>
+                      {STATUS_LABEL[c.status] ?? c.status}
+                    </span>
+                    <span className={`text-xs ${PRI_COLOR[c.priority]}`}>
+                      {String(c.priority ?? '').toUpperCase()}
+                    </span>
+                    {c.isOverdue && <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold">OD</span>}
+                  </div>
+                </div>
+                {(effectiveDue || c.assignedToName) && (
+                  <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                    {c.assignedToName && <span>Assignee: {c.assignedToName}</span>}
+                    {effectiveDue && <span>Due: {new Date(effectiveDue).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                    {c.actionSummary && <span>Actions: {c.actionSummary.completed}/{c.actionSummary.total}</span>}
+                  </div>
+                )}
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CorrelationsTab({ issueId, userRole }: { issueId: number; userRole: string }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -633,6 +706,7 @@ export default function OiRcaPage() {
                 <TabsTrigger value="evidence">Evidence {rca.evidenceCount > 0 && `(${rca.evidenceCount})`}</TabsTrigger>
                 <TabsTrigger value="similar">Similar Issues</TabsTrigger>
                 <TabsTrigger value="correlations">Correlations</TabsTrigger>
+                <TabsTrigger value="capa">Linked CAPAs</TabsTrigger>
               </TabsList>
 
               {/* Overview Tab */}
@@ -725,6 +799,7 @@ export default function OiRcaPage() {
               <TabsContent value="evidence" className="mt-4"><EvidenceTab rcaId={rca.id} issueId={issueId} rca={rca} userRole={userRole} /></TabsContent>
               <TabsContent value="similar" className="mt-4"><SimilarIssuesTab issueId={issueId} /></TabsContent>
               <TabsContent value="correlations" className="mt-4"><CorrelationsTab issueId={issueId} userRole={userRole} /></TabsContent>
+              <TabsContent value="capa" className="mt-4"><LinkedCapaTab rcaId={rca.id} issueId={issueId} /></TabsContent>
             </Tabs>
           </>
         )}
