@@ -12,10 +12,12 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
+import { Link as WouterLink } from "wouter";
 import {
   ArrowLeft, Clock, AlertTriangle, User, ChevronRight, ShieldAlert, Activity,
-  Link2, DollarSign, Scale, Timer, BarChart2,
+  Link2, DollarSign, Scale, Timer, BarChart2, SearchCode, CheckCircle,
 } from "lucide-react";
+import { RCA_STATUS_LABELS, RCA_STATUS_COLORS } from "./oi-rca-constants";
 
 const SEV_COLORS: Record<string, string> = {
   S1: "bg-red-600 text-white", S2: "bg-orange-500 text-white",
@@ -218,6 +220,21 @@ export default function OiIssueDetailPage() {
               {issue.warrantyClaimFlag && (
                 <Badge variant="outline" className="text-xs border-purple-400 text-purple-700 bg-purple-50">Warranty Claim</Badge>
               )}
+              {issue.rcaRequired && !issue.rcaSummary && (
+                <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 bg-amber-50">
+                  <SearchCode className="h-3 w-3 mr-1" /> RCA Required
+                </Badge>
+              )}
+              {issue.rcaRequired && issue.rcaSummary?.status === 'approved' && (
+                <Badge variant="outline" className="text-xs border-green-500 text-green-700 bg-green-50">
+                  <CheckCircle className="h-3 w-3 mr-1" /> RCA Approved
+                </Badge>
+              )}
+              {issue.rcaDueDate && new Date(issue.rcaDueDate) < new Date() && issue.rcaSummary?.status !== 'approved' && (
+                <Badge variant="outline" className="text-xs border-red-500 text-red-700 bg-red-50">
+                  <Clock className="h-3 w-3 mr-1" /> RCA Overdue
+                </Badge>
+              )}
             </div>
             <h1 className="text-lg font-bold text-gray-900 mt-1">{issue.title}</h1>
           </div>
@@ -327,6 +344,7 @@ export default function OiIssueDetailPage() {
                 <Field label="Occurred"      value={issue.occurredAt    ? fmtDate(issue.occurredAt)    : undefined} />
                 <Field label="Detected"      value={issue.detectedAt    ? fmtDate(issue.detectedAt)    : undefined} />
                 <Field label="Reported"      value={fmtDateTime(issue.createdAt)} />
+                {issue.rcaRequired && <Field label="RCA due"      value={issue.rcaDueDate ? fmtDate(issue.rcaDueDate) : "Not set"} />}
               </CardContent>
             </Card>
 
@@ -526,6 +544,41 @@ export default function OiIssueDetailPage() {
                 <p className="font-semibold text-blue-700">{formatHours(issue.totalResolutionHours)}</p>
                 <p className="text-xs text-gray-400">Classify → Close</p>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Phase 1C: RCA Card */}
+        {issue.rcaRequired && (
+          <Card className={`border-l-4 ${issue.rcaSummary?.status === 'approved' ? 'border-l-green-500' : issue.rcaDueDate && new Date(issue.rcaDueDate) < new Date() ? 'border-l-red-500' : 'border-l-amber-400'}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <SearchCode className="h-4 w-4" /> Root Cause Analysis
+                {issue.rcaSummary && (
+                  <span className={`ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${RCA_STATUS_COLORS[issue.rcaSummary.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                    {RCA_STATUS_LABELS[issue.rcaSummary.status] ?? issue.rcaSummary.status}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {issue.rcaSummary ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div><p className="text-xs text-gray-400">Root Cause</p><p className="font-medium">{issue.rcaSummary.rootCauseLabel}</p></div>
+                  <div><p className="text-xs text-gray-400">Methodology</p><p className="font-medium">{issue.rcaSummary.methodology?.replace(/_/g,' ')}</p></div>
+                  <div><p className="text-xs text-gray-400">Revision</p><p className="font-medium">Rev {issue.rcaSummary.revisionNumber}</p></div>
+                  {issue.rcaSummary.approvedAt && <div><p className="text-xs text-gray-400">Approved</p><p className="font-medium">{fmtDate(issue.rcaSummary.approvedAt)}</p></div>}
+                  {issue.rcaSummary.assignedToName && <div><p className="text-xs text-gray-400">Assigned To</p><p className="font-medium">{issue.rcaSummary.assignedToName}</p></div>}
+                  <div><p className="text-xs text-gray-400">Evidence Files</p><p className="font-medium">{issue.rcaSummary.evidenceCount}</p></div>
+                </div>
+              ) : (
+                <p className="text-sm text-amber-700">RCA has not been started yet.{issue.rcaDueDate && <span> Due: {fmtDate(issue.rcaDueDate)}.</span>}</p>
+              )}
+              <WouterLink href={`/oi/issues/${issueId}/rca`}>
+                <button className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
+                  <SearchCode className="h-3 w-3" /> {issue.rcaSummary ? 'View / Edit RCA' : 'Start RCA'} →
+                </button>
+              </WouterLink>
             </CardContent>
           </Card>
         )}

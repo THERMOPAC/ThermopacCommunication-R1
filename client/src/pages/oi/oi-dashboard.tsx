@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, ShieldAlert, AlertCircle,
-  Zap, Plus, BarChart3, Activity, Eye, DollarSign, Link2, Users, Truck,
+  Zap, Plus, BarChart3, Activity, Eye, DollarSign, Link2, Users, Truck, SearchCode,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -70,6 +70,48 @@ export default function OiDashboardPage() {
   const { data: summary,  isLoading: sumLoading }     = useQuery<any>({ queryKey: ["/api/oi/dashboard/summary"] });
   const { data: byStatus, isLoading: statusLoading }  = useQuery<any[]>({ queryKey: ["/api/oi/dashboard/by-status"] });
   const { data: recentIssues, isLoading: issuesLoading } = useQuery<any[]>({ queryKey: ["/api/oi/issues"] });
+
+  // Phase 1C: RCA dashboard queries
+  const { data: rcaCompletion } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/rca-completion"],
+    queryFn: async () => {
+      const res = await fetch("/api/oi/dashboard/rca-completion");
+      if (res.status === 403) return null;
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+  });
+  const { data: rcaByRootCause } = useQuery<any[]>({
+    queryKey: ["/api/oi/dashboard/rca-by-root-cause"],
+    queryFn: async () => {
+      const res = await fetch("/api/oi/dashboard/rca-by-root-cause");
+      if (res.status === 403) return null;
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+  });
+  const { data: rcaMttr } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/rca-time-to-complete"],
+    queryFn: async () => {
+      const res = await fetch("/api/oi/dashboard/rca-time-to-complete");
+      if (res.status === 403) return null;
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+  });
+  const { data: rcaRecurrence } = useQuery<any[]>({
+    queryKey: ["/api/oi/dashboard/recurrence-rate"],
+    queryFn: async () => {
+      const res = await fetch("/api/oi/dashboard/recurrence-rate");
+      if (res.status === 403) return null;
+      if (!res.ok) return null;
+      return res.json();
+    },
+    retry: false,
+  });
 
   // Phase 1B dashboard queries — fetch but handle 403 gracefully
   const { data: financialExposure } = useQuery<any>({
@@ -389,6 +431,142 @@ export default function OiDashboardPage() {
           </Card>
         )}
 
+        {/* Phase 1C: RCA Panels */}
+        {(rcaCompletion || rcaByRootCause || rcaMttr || rcaRecurrence) && (
+          <>
+            {/* Section header */}
+            <div className="flex items-center gap-2 pt-2">
+              <SearchCode className="h-5 w-5 text-purple-600" />
+              <h2 className="text-base font-bold text-gray-800">Root Cause Analysis</h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* RCA Completion */}
+              {rcaCompletion && (
+                <Card className="border-l-4 border-l-purple-400">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-purple-600" /> RCA Completion
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-3 text-center mb-3">
+                      <div><p className="text-2xl font-bold text-gray-800">{rcaCompletion.totalRcaRequired ?? 0}</p><p className="text-xs text-gray-400">Required</p></div>
+                      <div><p className="text-2xl font-bold text-green-600">{rcaCompletion.rcaApprovedCount ?? 0}</p><p className="text-xs text-gray-400">Approved</p></div>
+                      <div><p className="text-2xl font-bold text-red-600">{rcaCompletion.overdueCount ?? 0}</p><p className="text-xs text-gray-400">Overdue</p></div>
+                    </div>
+                    {(rcaCompletion.totalRcaRequired ?? 0) > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Completion rate</span>
+                          <span className="font-semibold">{rcaCompletion.completionPct ?? 0}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(100, rcaCompletion.completionPct ?? 0)}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                      {[
+                        { label: 'Draft', val: rcaCompletion.rcaDraftCount ?? 0, cls: 'text-gray-600' },
+                        { label: 'In Review', val: (rcaCompletion.rcaSubmittedCount ?? 0) + (rcaCompletion.rcaUnderReviewCount ?? 0), cls: 'text-blue-600' },
+                        { label: 'Rejected', val: rcaCompletion.rcaRejectedCount ?? 0, cls: 'text-red-600' },
+                      ].map(({ label, val, cls }) => (
+                        <div key={label} className="text-center">
+                          <p className={`font-semibold ${cls}`}>{val}</p>
+                          <p className="text-gray-400">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Root Cause Breakdown */}
+              {rcaByRootCause && rcaByRootCause.length > 0 && (
+                <Card className="border-l-4 border-l-indigo-400">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-indigo-600" /> Root Cause Breakdown
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={160}>
+                      <BarChart data={rcaByRootCause.slice(0, 8)} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
+                        <XAxis type="number" tick={{ fontSize: 10 }} />
+                        <YAxis type="category" dataKey="label" tick={{ fontSize: 9 }} width={120} />
+                        <Tooltip formatter={(v: any) => [`${v} issues`, 'Count']} />
+                        <Bar dataKey="count" radius={[0, 3, 3, 0]}>
+                          {rcaByRootCause.slice(0, 8).map((_: any, i: number) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* RCA Time-to-Complete KPIs */}
+              {rcaMttr && (
+                <Card className="border-l-4 border-l-teal-400">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-teal-600" /> RCA Time-to-Complete
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <p className="text-xl font-bold text-teal-700">{rcaMttr.avgDaysToApproval != null ? `${Number(rcaMttr.avgDaysToApproval).toFixed(1)}d` : '—'}</p>
+                        <p className="text-xs text-gray-400">Avg Days</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-gray-800">{rcaMttr.medianDaysToApproval != null ? `${Number(rcaMttr.medianDaysToApproval).toFixed(1)}d` : '—'}</p>
+                        <p className="text-xs text-gray-400">Median Days</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-orange-600">{rcaMttr.maxDaysToApproval != null ? `${Number(rcaMttr.maxDaysToApproval).toFixed(1)}d` : '—'}</p>
+                        <p className="text-xs text-gray-400">Max Days</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3 text-center">Based on {rcaMttr.approvedInPeriod ?? 0} approved RCA(s)</p>
+                    {!rcaMttr.approvedInPeriod && <p className="text-xs text-muted-foreground text-center mt-1 italic">No approved RCAs yet.</p>}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recurrence Rate Table */}
+              {rcaRecurrence && (rcaRecurrence as any[]).length > 0 && (
+                <Card className="border-l-4 border-l-orange-400">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-orange-600" /> Recurrence Radar
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(rcaRecurrence as any[]).slice(0, 6).map((row: any) => {
+                        const recRate = row.issueCount > 1 ? Math.round((row.recurrenceCount / (row.issueCount - 1)) * 100) : 0;
+                        return (
+                          <div key={row.rootCauseCode} className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-800 truncate">{row.rootCauseLabel}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs text-gray-500">{row.issueCount} issues</span>
+                              <span className={`text-xs font-bold ${recRate > 50 ? 'text-red-600' : recRate > 25 ? 'text-orange-500' : 'text-green-600'}`}>
+                                {recRate}% rec.
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </>
+        )}
+
         {/* Quick actions */}
         <Card>
           <CardContent className="p-4">
@@ -397,6 +575,7 @@ export default function OiDashboardPage() {
               <Link href="/oi/issues"><Button size="sm" variant="outline" className="gap-2"><Activity className="h-3 w-3" /> Issue Register</Button></Link>
               <Link href="/oi/issues?slaBreached=response"><Button size="sm" variant="outline" className="gap-2 border-yellow-400 text-yellow-700"><Clock className="h-3 w-3" /> SLA Breaches</Button></Link>
               <Link href="/oi/issues?severity=S1"><Button size="sm" variant="outline" className="gap-2 border-red-400 text-red-700"><ShieldAlert className="h-3 w-3" /> S1 Critical</Button></Link>
+              <Link href="/oi/issues?rcaRequired=true"><Button size="sm" variant="outline" className="gap-2 border-amber-400 text-amber-700"><SearchCode className="h-3 w-3" /> RCA Required</Button></Link>
             </div>
           </CardContent>
         </Card>

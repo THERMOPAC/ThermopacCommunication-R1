@@ -174,6 +174,8 @@ const ALLOWED_SM_FIELDS = [
   "actualLossAmount","insuranceClaimFlag","claimReference","recoveryAmount",
   // Phase 1B liability
   "liabilityType","indemnityRequired","warrantyClaimFlag","warrantyClaimReference",
+  // Phase 1C: RCA control fields — SM+ only
+  "rcaRequired","rcaDueDate",
 ];
 
 // COMPUTED-ONLY — never accepted from client in any field set
@@ -352,6 +354,8 @@ oiRouter.get("/issues", async (req: any, res: any) => {
     customerId, vendorId, contractId, epcPoId, epcWoId,
     inspectionOrderId, epcDrawingControlId, hasFinancialExposure,
     dateFrom, dateTo,
+    // Phase 1C filters
+    rcaRequired, rcaOverdue, rcaStatus, rootCauseCode,
   } = req.query;
 
   const pageNum  = Math.max(1, parseInt(page as string) || 1);
@@ -394,15 +398,40 @@ oiRouter.get("/issues", async (req: any, res: any) => {
   if (dateFrom) conditions.push(gte(oiIssues.createdAt, new Date(dateFrom as string)));
   if (dateTo)   conditions.push(lte(oiIssues.createdAt, new Date(dateTo as string)));
 
+  // Phase 1C filters
+  if (rcaRequired === "true")  conditions.push(eq(oiIssues.rcaRequired, true));
+  if (rcaOverdue  === "true")  conditions.push(
+    and(
+      eq(oiIssues.rcaRequired, true),
+      isNotNull(oiIssues.rcaDueDate),
+      lt(oiIssues.rcaDueDate, new Date())
+    )
+  );
+
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const [issues, totalRows] = await Promise.all([
-    db.select().from(oiIssues).where(where).orderBy(desc(oiIssues.createdAt)).limit(pageSize).offset(offset),
-    db.select({ n: count() }).from(oiIssues).where(where),
-  ]);
+  let issues = await db.select().from(oiIssues).where(where).orderBy(desc(oiIssues.createdAt)).limit(pageSize * 3).offset(offset);
+  const totalBeforeRcaFilter = await db.select({ n: count() }).from(oiIssues).where(where);
 
-  res.setHeader("X-Total-Count", String(totalRows[0]?.n ?? 0));
-  return res.json(issues);
+  // Phase 1C: rcaStatus and rootCauseCode require a join — filter in memory
+  if (rcaStatus || rootCauseCode) {
+    const { oiRcaRecords: rcaTable } = await import("@shared/schema");
+    const issueIds = issues.map(i => i.id);
+    if (issueIds.length > 0) {
+      const rcaRows = await db.select({ issueId: rcaTable.issueId, status: rcaTable.status, rootCauseCode: rcaTable.rootCauseCode }).from(rcaTable).where(inArray(rcaTable.issueId, issueIds));
+      const rcaMap = new Map(rcaRows.map(r => [r.issueId, r]));
+      issues = issues.filter(i => {
+        const rca = rcaMap.get(i.id);
+        if (rcaStatus === "none") { return i.rcaRequired && !rca; }
+        if (rcaStatus && rcaStatus !== "none") { return rca?.status === rcaStatus; }
+        if (rootCauseCode) { return rca?.rootCauseCode === rootCauseCode; }
+        return true;
+      });
+    }
+  }
+
+  res.setHeader("X-Total-Count", String(totalBeforeRcaFilter[0]?.n ?? 0));
+  return res.json(issues.slice(0, pageSize));
 });
 
 // ─── GET /api/oi/issues/:id ───────────────────────────────────────────────────
@@ -472,9 +501,36 @@ oiRouter.get("/issues/:id", async (req: any, res: any) => {
   const ctr     = (contractRow as any[])[0];
   const proj    = (projectRow as any[])[0];
 
+  // Phase 1C: rcaSummary via LEFT JOIN lookup
+  let rcaSummary: any = null;
+  if (hasRole(actor.role, ["Manager","Senior Manager","General Manager","Superuser"])) {
+    const { oiRcaRecords: rcaT, oiRcaFiveWhy: fwT, oiRcaFishbone: fbT, oiRcaFailureTreeNodes: ftT, oiRcaEvidence: evT } = await import("@shared/schema");
+    const { count: cnt } = await import("drizzle-orm");
+    const [rca] = await db.select().from(rcaT).where(eq(rcaT.issueId, id));
+    if (rca) {
+      const [fwC, fbC, ftC, evC] = await Promise.all([
+        db.select({ n: cnt() }).from(fwT).where(eq(fwT.rcaId, rca.id)),
+        db.select({ n: cnt() }).from(fbT).where(eq(fbT.rcaId, rca.id)),
+        db.select({ n: cnt() }).from(ftT).where(eq(ftT.rcaId, rca.id)),
+        db.select({ n: cnt() }).from(evT).where(eq(evT.rcaId, rca.id)),
+      ]);
+      const rcaLabels: Record<string, string> = { DESIGN_ERROR:'Design Error', MANUFACTURING_DEFECT:'Manufacturing Defect', MATERIAL_FAILURE:'Material Failure', PROCESS_DEVIATION:'Process Deviation', HUMAN_ERROR:'Human Error', EQUIPMENT_FAILURE:'Equipment Failure', SUPPLIER_QUALITY:'Supplier Quality', SPECIFICATION_GAP:'Specification Gap', COMMUNICATION_FAILURE:'Communication Failure', ENVIRONMENTAL_FACTOR:'Environmental Factor', SYSTEMIC_WEAKNESS:'Systemic Weakness', INSPECTION_FAILURE:'Inspection Failure', MAINTENANCE_FAILURE:'Maintenance Failure', SOFTWARE_ERROR:'Software / Configuration Error', UNKNOWN:'Unknown' };
+      const assignedUsr = rca.assignedTo ? await db.select({ name: users.name, username: users.username }).from(users).where(eq(users.id, rca.assignedTo)).limit(1) : [];
+      rcaSummary = {
+        id: rca.id, status: rca.status, methodology: rca.methodology,
+        rootCauseCode: rca.rootCauseCode, rootCauseLabel: rcaLabels[rca.rootCauseCode] ?? rca.rootCauseCode,
+        revisionNumber: rca.revisionNumber, approvedAt: rca.approvedAt,
+        assignedToName: assignedUsr[0] ? (assignedUsr[0].name || assignedUsr[0].username) : null,
+        fiveWhyCount: Number(fwC[0]?.n ?? 0), fishboneCount: Number(fbC[0]?.n ?? 0),
+        failureTreeCount: Number(ftC[0]?.n ?? 0), evidenceCount: Number(evC[0]?.n ?? 0),
+      };
+    }
+  }
+
   return res.json({
     ...issue,
     allowedTransitions,
+    rcaSummary,
     // Customer
     customerName:    cust?.name ?? null,
     customerBpCode:  cust?.bpCode ?? null,
@@ -657,7 +713,7 @@ oiRouter.post("/issues/:id/transition", async (req: any, res: any) => {
   if (!issue) return res.status(404).json({ error: "not_found" });
 
   try {
-    validateTransition(issue as any, to, actor.role, reason);
+    await validateTransition(issue as any, to, actor.role, reason);
   } catch (e: any) {
     if (e instanceof TransitionError) {
       return res.status(e.httpStatus).json({ error: e.code, from: issue.status, to });

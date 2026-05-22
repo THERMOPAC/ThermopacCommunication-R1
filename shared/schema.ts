@@ -14702,6 +14702,11 @@ export const oiEscalationTypeEnum = pgEnum("oi_escalation_type", [
 export const oiAuditActionEnum = pgEnum("oi_audit_action", [
   "created","status_changed","field_updated","severity_changed","assigned",
   "escalated","comment_added","withdrawn","reopened","closed","verified",
+  // Phase 1C: RCA audit actions
+  "rca_created","rca_deleted","rca_reopened","five_why_updated",
+  "fishbone_cause_added","fishbone_cause_updated","fishbone_cause_deleted",
+  "failure_tree_node_added","failure_tree_node_updated","failure_tree_node_deleted",
+  "rca_evidence_uploaded","rca_evidence_deleted","correlation_link_created","correlation_link_deleted",
 ]);
 
 export const oiIssues = pgTable("oi_issues", {
@@ -14826,6 +14831,10 @@ export const oiIssues = pgTable("oi_issues", {
   investigationDurationHours:     decimal("investigation_duration_hours",   { precision: 10, scale: 2 }),
   totalResolutionHours:           decimal("total_resolution_hours",         { precision: 10, scale: 2 }),
 
+  // ─── Phase 1C: RCA Control Fields ─────────────────────────────────────────
+  rcaRequired:              boolean("rca_required").notNull().default(false),
+  rcaDueDate:               timestamp("rca_due_date"),
+
   createdAt:                timestamp("created_at").notNull().defaultNow(),
   updatedAt:                timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
@@ -14916,6 +14925,87 @@ export const insertOiIssueSchema = createInsertSchema(oiIssues).omit({
   // Phase 1B computed fields — server-side only
   netFinancialExposure: true, captureDelayHours: true,
   responseTimeActualHours: true, investigationDurationHours: true, totalResolutionHours: true,
+  // Phase 1C: SM+ patched fields — not accepted at issue creation
+  rcaRequired: true, rcaDueDate: true,
+});
+
+// ─── Phase 1C: RCA Tables ─────────────────────────────────────────────────────
+export const oiRcaRecords = pgTable('oi_rca_records', {
+  id:                 serial('id').primaryKey(),
+  issueId:            integer('issue_id').notNull().references(() => oiIssues.id, { onDelete: 'cascade' }),
+  methodology:        text('methodology').notNull(),
+  rootCauseCode:      text('root_cause_code').notNull().default('UNKNOWN'),
+  rootCauseSummary:   text('root_cause_summary').notNull().default(''),
+  contributingFactors: text('contributing_factors'),
+  immediateCause:     text('immediate_cause'),
+  underlyingCause:    text('underlying_cause'),
+  systemicCause:      text('systemic_cause'),
+  assignedTo:         integer('assigned_to').references(() => users.id, { onDelete: 'set null' }),
+  reviewerId:         integer('reviewer_id').references(() => users.id, { onDelete: 'set null' }),
+  approverId:         integer('approver_id').references(() => users.id, { onDelete: 'set null' }),
+  status:             text('status').notNull().default('draft'),
+  submittedAt:        timestamp('submitted_at'),
+  reviewStartedAt:    timestamp('review_started_at'),
+  approvedAt:         timestamp('approved_at'),
+  rejectedAt:         timestamp('rejected_at'),
+  rejectionReason:    text('rejection_reason'),
+  revisionNumber:     integer('revision_number').notNull().default(1),
+  createdBy:          integer('created_by').notNull().references(() => users.id),
+  createdAt:          timestamp('created_at').notNull().defaultNow(),
+  updatedAt:          timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const oiRcaFiveWhy = pgTable('oi_rca_five_why', {
+  id:           serial('id').primaryKey(),
+  rcaId:        integer('rca_id').notNull().references(() => oiRcaRecords.id, { onDelete: 'cascade' }),
+  whyLevel:     integer('why_level').notNull(),
+  whyQuestion:  text('why_question').notNull(),
+  whyAnswer:    text('why_answer').notNull(),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+});
+
+export const oiRcaFishbone = pgTable('oi_rca_fishbone', {
+  id:               serial('id').primaryKey(),
+  rcaId:            integer('rca_id').notNull().references(() => oiRcaRecords.id, { onDelete: 'cascade' }),
+  category:         text('category').notNull(),
+  causeDescription: text('cause_description').notNull(),
+  isPrimaryCause:   boolean('is_primary_cause').notNull().default(false),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const oiRcaFailureTreeNodes = pgTable('oi_rca_failure_tree_nodes', {
+  id:            serial('id').primaryKey(),
+  rcaId:         integer('rca_id').notNull().references(() => oiRcaRecords.id, { onDelete: 'cascade' }),
+  parentId:      integer('parent_id'),  // self-ref FK enforced by migration only — no Drizzle .references() to avoid circular ref
+  nodeType:      text('node_type').notNull(),
+  nodeLabel:     text('node_label').notNull(),
+  nodeNote:      text('node_note'),
+  isTopEvent:    boolean('is_top_event').notNull().default(false),
+  sequenceOrder: integer('sequence_order').notNull().default(0),
+  createdAt:     timestamp('created_at').notNull().defaultNow(),
+  updatedAt:     timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const oiRcaEvidence = pgTable('oi_rca_evidence', {
+  id:            serial('id').primaryKey(),
+  rcaId:         integer('rca_id').notNull().references(() => oiRcaRecords.id, { onDelete: 'cascade' }),
+  fileName:      text('file_name').notNull(),
+  gcsPath:       text('gcs_path').notNull(),
+  fileSizeBytes: integer('file_size_bytes'),
+  contentType:   text('content_type'),
+  uploadedBy:    integer('uploaded_by').notNull().references(() => users.id),
+  uploadedAt:    timestamp('uploaded_at').notNull().defaultNow(),
+});
+
+export const oiRcaSimilarLinks = pgTable('oi_rca_similar_links', {
+  id:        serial('id').primaryKey(),
+  issueIdA:  integer('issue_id_a').notNull().references(() => oiIssues.id, { onDelete: 'cascade' }),
+  issueIdB:  integer('issue_id_b').notNull().references(() => oiIssues.id, { onDelete: 'cascade' }),
+  linkType:  text('link_type').notNull().default('same_root_cause'),
+  linkNote:  text('link_note'),
+  linkedBy:  integer('linked_by').notNull().references(() => users.id),
+  linkedAt:  timestamp('linked_at').notNull().defaultNow(),
 });
 
 export type OiIssue          = typeof oiIssues.$inferSelect;
@@ -14924,3 +15014,9 @@ export type OiAuditLog       = typeof oiAuditLog.$inferSelect;
 export type OiEscalation     = typeof oiEscalations.$inferSelect;
 export type OiRiskWeightConfig = typeof oiRiskWeightConfig.$inferSelect;
 export type OiRiskMatrixConfig = typeof oiRiskMatrixConfig.$inferSelect;
+export type OiRcaRecord        = typeof oiRcaRecords.$inferSelect;
+export type OiRcaFiveWhy       = typeof oiRcaFiveWhy.$inferSelect;
+export type OiRcaFishbone      = typeof oiRcaFishbone.$inferSelect;
+export type OiRcaFailureTreeNode = typeof oiRcaFailureTreeNodes.$inferSelect;
+export type OiRcaEvidence      = typeof oiRcaEvidence.$inferSelect;
+export type OiRcaSimilarLink   = typeof oiRcaSimilarLinks.$inferSelect;

@@ -3897,6 +3897,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/oi', ensureAuthenticated, oiRouter);
   console.log('OI routes registered');
 
+  // ── Operational Intelligence — Phase 1C RCA ───────────────────────────────
+  const { oiRcaRouter } = await import('./oi-rca-routes');
+  app.use('/api/oi', ensureAuthenticated, oiRcaRouter);
+  console.log('OI RCA routes registered');
+
   // ── PPPC — Project Procurement Package Control ────────────────────────────────
   const { setupPppcRoutes } = await import('./pppc-routes');
   await setupPppcRoutes(app);

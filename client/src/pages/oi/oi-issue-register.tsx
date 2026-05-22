@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Search, Clock, AlertTriangle, SearchCode } from "lucide-react";
 import { fmtDate } from "@/lib/date-format";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -32,13 +32,17 @@ const CATEGORIES = ["QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COM
 const STATUSES   = ["captured","classified","investigating","verified","closed","reopened","withdrawn"];
 
 export default function OiIssueRegisterPage() {
-  const [search, setSearch]           = useState("");
+  const [search, setSearch]                 = useState("");
   const [statusFilter, setStatusFilter]     = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [slaFilter, setSlaFilter]           = useState("all");
   const [dateFrom, setDateFrom]             = useState("");
   const [dateTo, setDateTo]                 = useState("");
+  // Phase 1C filters
+  const [rcaRequired, setRcaRequired]       = useState(false);
+  const [rcaOverdue, setRcaOverdue]         = useState(false);
+  const [rcaStatusFilter, setRcaStatusFilter] = useState("all");
 
   const params = new URLSearchParams();
   if (statusFilter   !== "all") params.set("status",   statusFilter);
@@ -48,10 +52,16 @@ export default function OiIssueRegisterPage() {
   if (search)                   params.set("search",   search);
   if (dateFrom)                 params.set("dateFrom", new Date(dateFrom).toISOString());
   if (dateTo)                   params.set("dateTo",   new Date(dateTo).toISOString());
+  if (rcaRequired)              params.set("rcaRequired", "true");
+  if (rcaOverdue)               params.set("rcaOverdue",  "true");
+  if (rcaStatusFilter !== "all") params.set("rcaStatus", rcaStatusFilter);
   params.set("limit", "50");
 
+  const hasActiveFilters = search || statusFilter !== "all" || severityFilter !== "all" || categoryFilter !== "all"
+    || slaFilter !== "all" || dateFrom || dateTo || rcaRequired || rcaOverdue || rcaStatusFilter !== "all";
+
   const { data: issues, isLoading } = useQuery<any[]>({
-    queryKey: ["/api/oi/issues", statusFilter, severityFilter, categoryFilter, slaFilter, search, dateFrom, dateTo],
+    queryKey: ["/api/oi/issues", statusFilter, severityFilter, categoryFilter, slaFilter, search, dateFrom, dateTo, rcaRequired, rcaOverdue, rcaStatusFilter],
     queryFn: async () => {
       const res = await fetch(`/api/oi/issues?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
@@ -118,40 +128,51 @@ export default function OiIssueRegisterPage() {
                 </SelectContent>
               </Select>
             </div>
-            {/* Row 2 — Date range */}
+            {/* Row 2 — Date range + RCA filters */}
             <div className="flex flex-wrap gap-2 items-center text-sm text-gray-500">
               <span className="shrink-0 text-xs font-medium">Date range:</span>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-gray-400">From</span>
-                <Input
-                  type="date"
-                  className="h-8 w-36 text-xs"
-                  value={dateFrom}
-                  onChange={e => setDateFrom(e.target.value)}
-                />
+                <Input type="date" className="h-8 w-36 text-xs" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-gray-400">To</span>
-                <Input
-                  type="date"
-                  className="h-8 w-36 text-xs"
-                  value={dateTo}
-                  onChange={e => setDateTo(e.target.value)}
-                />
+                <Input type="date" className="h-8 w-36 text-xs" value={dateTo} onChange={e => setDateTo(e.target.value)} />
               </div>
-              {(dateFrom || dateTo || statusFilter !== "all" || severityFilter !== "all" || categoryFilter !== "all" || slaFilter !== "all" || search) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs text-gray-500"
+              <span className="shrink-0 text-xs font-medium ml-2">RCA:</span>
+              <button
+                className={`h-8 px-2 text-xs rounded border transition-colors ${rcaRequired ? 'bg-amber-100 border-amber-400 text-amber-800 font-medium' : 'border-gray-200 text-gray-500 hover:border-amber-300'}`}
+                onClick={() => setRcaRequired(p => !p)}
+              >
+                <SearchCode className="inline h-3 w-3 mr-1" />Required
+              </button>
+              <button
+                className={`h-8 px-2 text-xs rounded border transition-colors ${rcaOverdue ? 'bg-red-100 border-red-400 text-red-800 font-medium' : 'border-gray-200 text-gray-500 hover:border-red-300'}`}
+                onClick={() => setRcaOverdue(p => !p)}
+              >
+                <Clock className="inline h-3 w-3 mr-1" />Overdue
+              </button>
+              <Select value={rcaStatusFilter} onValueChange={setRcaStatusFilter}>
+                <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="RCA Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All RCA status</SelectItem>
+                  <SelectItem value="none">No RCA yet</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="under_review">Under Review</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500"
                   onClick={() => {
                     setSearch(""); setStatusFilter("all"); setSeverityFilter("all");
                     setCategoryFilter("all"); setSlaFilter("all");
                     setDateFrom(""); setDateTo("");
+                    setRcaRequired(false); setRcaOverdue(false); setRcaStatusFilter("all");
                   }}
-                >
-                  Clear filters
-                </Button>
+                >Clear filters</Button>
               )}
             </div>
           </CardContent>
@@ -196,6 +217,9 @@ export default function OiIssueRegisterPage() {
                           )}
                           {issue.closureSlaBreached && (
                             <><span>·</span><span className="text-orange-600 flex items-center gap-0.5"><Clock className="h-3 w-3" /> Closure SLA</span></>
+                          )}
+                          {issue.rcaRequired && (
+                            <><span>·</span><span className="text-amber-700 flex items-center gap-0.5"><SearchCode className="h-3 w-3" /> RCA</span></>
                           )}
                         </div>
                       </div>

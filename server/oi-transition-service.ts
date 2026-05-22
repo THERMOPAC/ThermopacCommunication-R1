@@ -1,4 +1,7 @@
 import { OiIssue } from "@shared/schema";
+import { db } from "./db";
+import { oiRcaRecords } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export class TransitionError extends Error {
   constructor(public code: string, public httpStatus: number) {
@@ -30,12 +33,12 @@ const ROLE_TRANSITION_MAP: Record<string, string[]> = {
   "reopened->classified":      ["Manager", "Senior Manager", "General Manager", "Superuser"],
 };
 
-export function validateTransition(
+export async function validateTransition(
   issue: OiIssue,
   to: string,
   actorRole: string,
   reason?: string
-): void {
+): Promise<void> {
   const allowed = PHASE_1A_TRANSITIONS[issue.status];
   if (!allowed || !allowed.includes(to)) {
     throw new TransitionError("transition_not_allowed", 422);
@@ -58,16 +61,29 @@ export function validateTransition(
   if (to === "reopened" && !reason) {
     throw new TransitionError("reopen_reason_required", 422);
   }
+
+  // Phase 1C: Block → closed when rca_required = TRUE and no approved RCA exists
+  if (to === "closed" && issue.rcaRequired) {
+    const [rca] = await db
+      .select({ status: oiRcaRecords.status })
+      .from(oiRcaRecords)
+      .where(eq(oiRcaRecords.issueId, issue.id))
+      .limit(1);
+    if (!rca || rca.status !== "approved") {
+      throw new TransitionError("rca_approval_required_for_closure", 422);
+    }
+  }
 }
 
 export function getAllowedTransitions(issue: OiIssue, actorRole: string): string[] {
   const allowed = PHASE_1A_TRANSITIONS[issue.status] ?? [];
+  // Note: closure RCA check is async — caller filters sync-only; rca_required closure
+  // block is enforced at transition time, not pre-computed here.
   return allowed.filter(to => {
-    try {
-      validateTransition(issue, to, actorRole, to === "withdrawn" || to === "reopened" ? "placeholder" : undefined);
-      return true;
-    } catch {
-      return false;
-    }
+    const key = `${issue.status}->${to}`;
+    const permitted = ROLE_TRANSITION_MAP[key] ?? [];
+    if (!permitted.includes(actorRole)) return false;
+    if (to === "verified" && (issue.severity === "S1" || issue.severity === "S2")) return false;
+    return true;
   });
 }
