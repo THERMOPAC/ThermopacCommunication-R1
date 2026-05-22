@@ -4,9 +4,9 @@
 **Date:** 2026-05-22 (revised 2026-05-22)  
 **Phase 2A Baseline:** `docs/operational-intelligence-phase2a-execution.md` (COMPLETE)  
 **Amendment 001:** `docs/phase2a-amendment-001-sop-audit-governance.md` (APPROVED)  
-**Phase 2B Scope:** ERP Enforcement Framework — SOP-to-ERP Control Mapping, Workflow Gate Definitions, Checklist Injection, Mandatory Evidence Rules, Hold Points, Dispatch Holds, QC Holds, Drawing/DVS Gates, Procurement Holds, FAT/SAT/Commissioning Blocks, Enforcement Approval Workflow, Enforcement Audit Logs, Enforcement Dashboards  
+**Phase 2B Scope:** ERP Enforcement Framework — SOP-to-ERP Control Mapping, Workflow Gate Definitions, Checklist Injection, Mandatory Evidence Rules, Hold Points, Dispatch Holds, QC Holds, DVS Gates, Procurement Holds, FAT/SAT/Commissioning Blocks, Enforcement Approval Workflow, Enforcement Audit Logs, Enforcement Dashboards  
 **Prepared by:** Architecture review session  
-**Revision:** 2 (corrections C1–C9 incorporated)
+**Revision:** 3 (corrections R1–R10 incorporated)
 
 ---
 
@@ -22,7 +22,7 @@
 - `MANAGER_ROLES` = `['Manager', 'Senior Manager', 'General Manager', 'Superuser']`.
 - `SM_ROLES` = `['Senior Manager', 'General Manager', 'Superuser']`.
 - `SUPERUSER_ROLES` = `['Superuser']`.
-- **Audit governance (Amendment 001 pattern):** All enforcement audit writes go to `oi_enforcement_audit_log` via `writeEnforcementAuditLog()`. The shared `oi_audit_log` table has `issue_id NOT NULL` and cannot receive enforcement audit entries. This pattern is identical to the SOP audit pattern approved in Amendment 001.
+- **Audit governance (Amendment 001 pattern):** All enforcement audit writes go to `oi_enforcement_audit_log` via `writeEnforcementAuditLog()`. See §A (Audit Governance) for the formal architectural decision record.
 - Enforcement control numbers are server-assigned. Never accepted from client.
 - Hold numbers are server-assigned. Never accepted from client.
 - Role ladder (ascending): Staff → Manager → Senior Manager (SM) → General Manager (GM) → Superuser.
@@ -31,32 +31,42 @@
 
 ## Explicit Exclusions — Forbidden in Phase 2B Code
 
+**Important clarification (R1):** Phase 2B IS the ERP Enforcement Framework. The word "enforcement" in the module name refers to SOP-compliance enforcement within ERP workflows via controlled hold gates. The exclusion below is NOT "ERP enforcement" — it is specifically "automatic ERP transaction mutation". Controlled workflow blocking via human-raised holds IS the purpose of this phase and IS permitted.
+
 | Category | Prohibited |
 |---|---|
 | AI agents | OpenAI API calls, LLM-generated enforcement rules, AI-suggested hold raises, AI checklist generation |
 | Predictive analytics | ML-based risk scoring, trend forecasting, automatic hold prediction |
 | Automatic enforcement activation | Controls do not auto-activate on SOP activation, on ERP state changes, or on any system event. Activation is always a manual `activate` transition by an authorised SM+ user. |
 | Automatic hold raising | Holds are never raised automatically by the system. Raising a hold is always a deliberate manual action by a Manager+ user. |
+| **Automatic ERP transaction mutation** | Phase 2B code must never write to ERP entity tables (`epc_purchase_orders`, `epc_work_orders`, `epc_dispatch_readiness`, `epc_commissioning_readiness`, `inspection_execution_records`, `purchase_orders`, `work_orders`) as a side effect of enforcement actions. ERP state changes remain in their own existing routes only. |
 | Legal hold | Legal hold flags, immutability for legal purposes, legal hold lifecycle |
 | Evidence hash | SHA-256 cryptographic proof, tamper detection, blockchain anchoring, hash verification |
 | Lessons learned | Lessons learned records, lessons learned linkage |
 | Email notifications | No SendGrid or any email dispatch in Phase 2B. All notification data is computed and audit-logged only. |
 | File attachments to holds | GCS file upload against holds or checklist responses is excluded. Evidence is free-text only. |
-| ERP state mutation | Phase 2B does NOT modify ERP entity states. It observes and records enforcement status. ERP state changes remain in their existing routes. |
+
+**What IS permitted in Phase 2B (to avoid all ambiguity):**
+- Creating, activating, suspending, and retiring enforcement controls
+- Raising, approving, releasing, overriding, and emergency-bypassing holds on ERP entity instances (by ID reference only — no mutation of the ERP entity itself)
+- Reading ERP entity data to validate scope and populate `erp_entity_ref`
+- Providing a hold-check query API for ERP routes to call voluntarily (not wired in Phase 2B)
+- Enforcing checklist completion before hold release
+- Logging all enforcement actions in `oi_enforcement_audit_log`
 
 ---
 
 ## Future-Phase Leakage Guard (Non-Negotiable)
 
-The following are explicitly prohibited from appearing in any Phase 2B code, routes, services, schemas, UI, or comments. Their presence in any Phase 2B file constitutes a critical deviation.
+The following are explicitly prohibited from appearing in any Phase 2B code, routes, services, schemas, UI, or comments.
 
 | Prohibited Pattern | Reason |
 |---|---|
-| AI-driven holds — any logic that auto-raises a hold based on an algorithm, score, or model output | Reserved for future AI phase only; not approved for Phase 2B |
-| Automatic ERP transaction mutation — any code that writes to ERP entity tables (epc_purchase_orders, epc_work_orders, etc.) as a side effect of enforcement actions | Phase 2B observes only; never mutates ERP records |
-| Autonomous enforcement escalation — any logic that promotes a hold, increases enforcement_level, or changes a control's status without a direct human actor triggering the transition | All transitions require an authenticated human actor |
-| Predictive blocking — any logic that pre-emptively raises a hold or advisory based on trend data, risk score, or ML output | Not approved for any phase without explicit governance review |
-| Auto-generated checklists — any logic that creates checklist items from templates, SOP text, AI output, or any source other than a Manager+ user manually adding items | Checklist items are human-authored only |
+| AI-driven holds — any logic that auto-raises a hold based on an algorithm, score, or model output | Reserved for future AI phase only |
+| Automatic ERP transaction mutation — any code that writes to ERP entity tables as a side effect of enforcement | Phase 2B observes and gates only; never mutates ERP records |
+| Autonomous enforcement escalation — any logic that promotes a hold, increases enforcement_level, or changes a control's status without a direct human actor | All transitions require an authenticated human actor |
+| Predictive blocking — any logic that pre-emptively raises a hold based on trend data, risk score, or ML output | Not approved for any phase without explicit governance review |
+| Auto-generated checklists — any logic that creates checklist items from templates, SOP text, AI output, or any non-human source | Checklist items are human-authored only |
 
 ---
 
@@ -67,35 +77,37 @@ The following are explicitly prohibited from appearing in any Phase 2B code, rou
 | Area | Detail |
 |---|---|
 | Enforcement Control Master | Control definition: SOP → ERP entity type mapping, control type, enforcement level, scope, checklist, ownership |
-| Control Numbering | Server-assigned format `ENF-{YYYY}-{NNN}` |
+| Control Numbering | Server-assigned `ENF-{YYYY}-{NNN}` |
 | Control Workflow | Four-state lifecycle: `draft → active → suspended → retired` |
-| Enforcement Activation Governance | 4 mandatory pre-conditions checked at server before activation (see §5.1) |
+| Enforcement Activation Approval Rule | Named rule: SM+ approval, `approved_by`, `approved_at`, activation audit event — all mandatory (see §6.2) |
+| 4 Activation Pre-conditions | SOP active, SOP revision activated, owner assigned, erp_entity_type assigned |
 | SOP-to-ERP Control Mapping | Each control links exactly one active SOP to one ERP entity type and one control/gate type |
 | Enforcement Scope | 4 explicit scope types: `global`, `department`, `project`, `equipment_type`. No hidden inheritance. |
-| Duplicate Control Prevention | Only one active control per (sop_id, erp_entity_type, control_type, scope combination). HTTP 409. |
-| Checklist Injection | Ordered checklist items per control; injected at hold-raise time; versioned snapshot stored per response |
-| Checklist Versioning | Responses store `sop_revision_number` and `checklist_revision_number` at raise time; immutable after submission |
-| Workflow Gate Definitions | 9 gate types covering the full ERP workflow chain |
-| Enforcement Level | `advisory` or `mandatory` |
-| Hold Records | Per-entity-instance hold with designated hold approver |
-| Hold Number | Server-assigned format `HLD-{YYYY}-{NNN}` |
-| Hold Lifecycle | Five states: `open → approved_to_proceed → released / overridden / emergency_bypassed` |
-| Hold Release Governance | 3 mandatory pre-conditions before release is permitted (see §6.3) |
-| Override Governance | SM+ only; 4 mandatory fields; dedicated audit event; tagged in audit log |
-| Emergency Bypass Governance | Superuser only; separate from override; mandatory reason; dashboard-visible; tagged in audit log |
-| Enforcement Audit Logs | Dedicated `oi_enforcement_audit_log`; immutable; never hard deleted; override/bypass events specially tagged |
-| Audit Retention Rule | All enforcement audit rows are permanent; no DELETE or UPDATE permitted at any layer |
-| Enforcement Dashboards | 4 dashboard panels including emergency bypass count |
-| SOP Reverse Lookup | List all controls linked to a given SOP |
-| ERP Entity Lookup | List all active controls and open holds for a given ERP entity instance |
+| Enforcement Applicability Precedence | Deterministic precedence when multiple controls apply to the same ERP entity instance (see §4) |
+| Gate Type Vocabulary | 16 control types: 9 core gates + 3 DVS-specific + 4 procurement-specific |
+| DVS Enforcement Specificity | 3 exact DVS control types: revision_mismatch, unverified_drawing, missing_custom_property |
+| Procurement Enforcement Specificity | 4 exact procurement control types: blocked_vendor, missing_tbe_cbe, missing_qc_requirement, expired_vendor_qualification |
+| Duplicate Control Prevention | One active control per (sop_id, erp_entity_type, control_type, scope). HTTP 409. |
+| Checklist Injection | Ordered items per control; injected at hold-raise time; versioned |
+| Checklist Versioning | Responses store `sop_revision_number` and `checklist_revision_number` at raise time |
+| Checklist Response Governance | Response statuses: pending/submitted/rejected; rejection workflow; immutable after submission by submitter |
+| Hold Ownership Governance | Every hold requires `hold_owner_id`, `responsible_department`, `escalation_owner_id` |
+| Hold Lifecycle | Five terminal paths: released / overridden / emergency_bypassed |
+| Enforcement Activation Approval Rule | SM+ approval; `approved_by`/`approved_at` server-set; mandatory activation audit |
+| Mandatory Release Evidence Rule | `release_note` (min 10 chars), `released_by`, `released_at` — server-set atomically |
+| Override Governance | SM+ only; 4 mandatory fields; dedicated audit event; `is_override_event = true` |
+| Emergency Bypass Governance | Superuser only; 4 mandatory visibility surfaces: dashboard, hold detail, audit log, management KPI |
+| Enforcement Audit Logs | Dedicated `oi_enforcement_audit_log`; immutable; never deleted; see §A |
+| Audit Governance — Amendment 001 | Formal decision record: why `oi_audit_log` cannot be reused (see §A) |
+| Management KPI Dashboard | Emergency bypass count, hold override rate, avg hold duration, release rate |
 
 ---
 
 ## 1. ERP Entity Landscape (Phase 2B Target Entities)
 
-These are the ERP tables that enforcement controls target. Phase 2B observes their state — it does NOT mutate them.
+Phase 2B reads these tables to validate entity existence and extract `erp_entity_ref`. It never writes to them.
 
-| ERP Entity Type Enum Value | DB Table | Key Status Field | Lifecycle States |
+| ERP Entity Type Value | DB Table | Key Status Field | Lifecycle States |
 |---|---|---|---|
 | `epc_purchase_order` | `epc_purchase_orders` | `status` | draft → approved → issued → cancelled/superseded |
 | `epc_work_order` | `epc_work_orders` | `status` | draft → approved → released → cancelled/superseded |
@@ -106,267 +118,306 @@ These are the ERP tables that enforcement controls target. Phase 2B observes the
 | `purchase_order` | `purchase_orders` | `status` | draft → submitted → approved → ordered → shipped → received/on_hold/cancelled |
 | `work_order` | `work_orders` | `status` | planned → in_progress → on_hold → completed/cancelled |
 
-**Important:** The `erp_entity_type` value identifies which DB table the `erp_entity_id` refers to. Foreign keys across tables are enforced at the application layer only (no cross-table DB FK constraint is possible for polymorphic references).
+**Polymorphic FK:** `erp_entity_type` identifies the DB table; `erp_entity_id` is the numeric PK in that table. Cross-table FK constraints are not possible in Postgres for polymorphic references — enforced at the application layer only.
 
 ---
 
-## 2. Gate Type Definitions
+## 2. Gate Type Definitions (16 control types)
 
-Each control type maps to a specific point in the ERP workflow where the enforcement gate applies.
+### 2.1 Core Gate Types (9)
 
 | `control_type` | Target Entity Types | Gate Description | What a Hold Blocks |
 |---|---|---|---|
 | `hold_point` | `epc_work_order`, `work_order` | In-process manufacturing hold point | Work order progression past the hold point step |
-| `qc_hold` | `inspection_execution`, `epc_purchase_order`, `epc_work_order` | Quality clearance required before the next state | Quality clearance / status update to cleared |
-| `dispatch_hold` | `epc_dispatch_readiness`, `dispatch_record` | Dispatch is blocked until hold released | `epc_dispatch_readiness` transition to dispatched |
+| `qc_hold` | `inspection_execution`, `epc_purchase_order`, `epc_work_order` | Quality clearance required | Quality clearance / status update to cleared |
+| `dispatch_hold` | `epc_dispatch_readiness` | Dispatch blocked until hold released | Transition to dispatched |
 | `procurement_hold` | `epc_purchase_order`, `purchase_order` | Procurement approval blocked | PO approval / issuance |
 | `drawing_gate` | `epc_drawing_verification` | Drawing must pass DVS gate before dispatch | Drawing acceptance (`accepted = true`) |
 | `dvs_gate` | `epc_drawing_verification` | DDS gate result must be `pass` | Drawing acceptance |
 | `fat_block` | `inspection_execution` (type=FAT) | Factory Acceptance Test must pass | Inspection completion |
 | `sat_block` | `epc_commissioning_readiness` | Site Acceptance Test must pass | Commissioning readiness approval |
-| `commissioning_block` | `epc_commissioning_readiness` | Commissioning blocked until SOP checklist satisfied | Commissioning readiness transition to commissioned |
+| `commissioning_block` | `epc_commissioning_readiness` | Commissioning blocked until SOP checklist satisfied | Transition to commissioned |
 
-**Enforcement level modifier:**
-- `advisory`: Hold is raised, visible to all parties, recorded in audit. The ERP entity can still proceed. No blocking enforced at the DB layer.
-- `mandatory`: Hold is raised and recorded. The ERP entity's state-change route must check for open mandatory holds before permitting the transition. If an open mandatory hold exists → HTTP 422 with `hold_open` error code.
+### 2.2 DVS-Specific Control Types (3)
+
+These are exact enforcement control definitions for Drawing Verification System (DVS) gates. Each maps to `epc_drawing_verification` entity type.
+
+| `control_type` | Description | What It Checks | What a Hold Blocks |
+|---|---|---|---|
+| `dvs_revision_mismatch` | Drawing revision does not match the revision specified in the associated DDS | Compares `epc_drawing_verifications.layer1Results` revision fields against DDS `drawingRevision` | Drawing cannot be accepted; dispatch readiness for the linked item is blocked |
+| `dvs_unverified_drawing` | Drawing has not been submitted for or completed DVS verification | Checks whether an `epc_drawing_verifications` record exists with `overallStatus` = `pass` or `warn` for the drawing control | Linked dispatch readiness cannot proceed to dispatched state |
+| `dvs_missing_custom_property` | Required custom properties (tag number, item code, revision, title block fields) are absent in drawing extraction result | Checks `epc_drawing_verifications.extractionResult` and `layer2Results` for missing or null required fields | Drawing cannot be accepted; blocks `accepted = true` |
+
+**DVS hold raise context:** When raising a hold of a DVS-specific type, the server populates `erp_entity_ref` with the drawing control number and filename from `epc_drawing_verifications`. The `reason` field supplied by the Manager+ user must describe the specific mismatch or missing property. Min 10 chars enforced.
+
+### 2.3 Procurement-Specific Control Types (4)
+
+These are exact enforcement control definitions for procurement workflow gates. Each maps to `epc_purchase_order` or `purchase_order` entity types.
+
+| `control_type` | Description | What It Checks | What a Hold Blocks |
+|---|---|---|---|
+| `procurement_blocked_vendor` | Vendor is on the blocked list, is disqualified, or has `is_active = false` in the vendor master | Checks `vendors.is_active` and any disqualification flag in vendor data | PO cannot be approved or issued |
+| `procurement_missing_tbe_cbe` | Techno-Commercial Bid Evaluation (TBE/CBE) document is absent for this PO | Checks whether a TBE or CBE document has been attached or referenced in the procurement record | PO cannot proceed past draft/submitted |
+| `procurement_missing_qc_requirement` | Quality Control plan or inspection requirement is not defined for the procured item | Checks whether a `qualityPlanId` is set on the PO or whether inspection type is defined | PO cannot be approved |
+| `procurement_expired_vendor_qualification` | Vendor qualification, approval certificate, or audit validity has expired | Checks vendor qualification expiry date against the hold-raise date (server compares at raise time) | PO cannot be issued |
+
+**Procurement hold raise context:** The `reason` field must identify which specific check failed (e.g. vendor name and blocked status, missing document reference). Min 10 chars. `erp_entity_ref` populated from `po_number` or `purchaseOrderNumber`.
+
+### 2.4 Enforcement Level Modifier
+
+- `advisory`: Hold raised, visible, audited. The ERP entity can still proceed. No hard block.
+- `mandatory`: Hold raised. The hold-check API (`GET /api/oi/enforcement/erp/:erpEntityType/:erpEntityId/holds?status=open&enforcementLevel=mandatory`) must return this hold. Consuming ERP route returns HTTP 422: `mandatory_hold_open`. (Not wired in Phase 2B — ERP routes unmodified.)
 
 ---
 
 ## 3. Enforcement Scope
 
-Each control has an explicit `enforcement_scope` that defines which ERP entity instances the control applies to. There is no hidden inheritance logic. Scope is always explicit and always checked at hold-raise time.
+Each control has an explicit `enforcement_scope`. No hidden inheritance. Scope always explicit, always checked at hold-raise time.
 
-| `enforcement_scope` | Description | Scope-Specific Field Required | Scope-Specific Field Null? |
+| `enforcement_scope` | Description | Required Scope Field | Null Fields |
 |---|---|---|---|
-| `global` | Applies to all instances of the `erp_entity_type` across all projects, departments, and equipment | None | `scope_project_id` must be null; `scope_equipment_type` must be null |
-| `department` | Applies only to entity instances owned by or assigned to the control's `department` field | None (uses `department`) | `scope_project_id` must be null; `scope_equipment_type` must be null |
-| `project` | Applies only to entity instances belonging to a specific project | `scope_project_id` (FK → projects.id) must be set | `scope_equipment_type` must be null |
-| `equipment_type` | Applies only to entity instances for a specific equipment type | `scope_equipment_type` (free-text, min 2 chars) must be set | `scope_project_id` must be null |
+| `global` | Applies to all instances of the `erp_entity_type` | None | `scope_project_id` null; `scope_equipment_type` null |
+| `department` | Applies only where ERP entity's department matches `control.department` | None (uses `department`) | `scope_project_id` null; `scope_equipment_type` null |
+| `project` | Applies only to entity instances in a specific project | `scope_project_id` (FK → projects.id) | `scope_equipment_type` null |
+| `equipment_type` | Applies only to entity instances for a specific equipment type | `scope_equipment_type` (min 2 chars) | `scope_project_id` null |
 
-**Server enforcement at hold-raise time:** When a Manager+ user raises a hold against a specific ERP entity instance, the server checks whether the control's scope covers that entity instance:
-- `global` → no restriction; any entity of the correct type is in scope.
-- `department` → the ERP entity's owning department must match the control's `department`. HTTP 422: `entity_out_of_scope`.
-- `project` → the ERP entity's `project_id` must match `control.scope_project_id`. HTTP 422: `entity_out_of_scope`.
-- `equipment_type` → the ERP entity's `item_description` or `equipment_type` field must contain the `control.scope_equipment_type` value (case-insensitive). HTTP 422: `entity_out_of_scope`.
+**Server enforcement at hold-raise time:**
+- `global` → no restriction.
+- `department` → ERP entity's owning department must match `control.department`. HTTP 422: `entity_out_of_scope`.
+- `project` → ERP entity's `project_id` must match `control.scope_project_id`. HTTP 422: `entity_out_of_scope`.
+- `equipment_type` → ERP entity's `item_description` must contain `control.scope_equipment_type` (case-insensitive match). HTTP 422: `entity_out_of_scope`.
 
-No scope is inferred from any other scope. A `project` scope control does not apply to other projects in the same department. A `department` scope control does not apply to all projects in that department — only to entity instances where the owning department field matches.
+No scope is inferred from any other scope. A `project` scope control does not apply to other projects in the same department.
 
 ---
 
-## 4. New Tables (5 tables)
+## 4. Enforcement Applicability Precedence
 
-### 4.1 `oi_enforcement_controls`
+When a Manager+ user raises holds for an ERP entity instance, multiple active controls may apply (each from a different SOP or a different control_type). Phase 2B raises separate holds for EACH applicable control — there is no silent de-duplication. However, a deterministic precedence order governs which hold is displayed as the "primary" hold for reporting and KPI purposes.
 
-The master control definition record. One row per control.
+### 4.1 Precedence Rules
+
+| Rule | Precedence |
+|---|---|
+| project scope vs department scope | `project` scope control is primary over `department` scope control when both apply to the same entity |
+| project scope vs global scope | `project` scope control is primary over `global` scope control |
+| department scope vs global scope | `department` scope control is primary over `global` scope control |
+| equipment_type scope vs global scope | `equipment_type` scope control is primary over `global` scope control |
+| project scope vs equipment_type scope | `project` scope control is primary over `equipment_type` scope control |
+| Same scope level, different SOPs | All controls at the same scope level apply equally — all generate holds — no de-duplication — no primary designation between them |
+| Same scope level, same SOP, same gate_type | Prevented by duplicate active control check at activation. Cannot occur. |
+
+### 4.2 No Ambiguous Control Resolution
+
+- The system never silently picks one control over another when multiple apply.
+- All applicable controls at all scope levels generate separate, independent holds.
+- Precedence affects only the `is_primary_hold` flag on `oi_enforcement_holds` (see §5.3), not whether a hold is raised.
+- A mandatory hold at any precedence level blocks the ERP entity transition. All mandatory holds must be released/overridden before the ERP route permits the state change (when wired in a future phase).
+- If no applicable active control exists for an ERP entity instance, no hold can be raised. The server returns HTTP 422: `no_applicable_control` if a hold raise is attempted for an entity/control combination that is out of scope.
+
+---
+
+## 5. New Tables (5 tables)
+
+### 5.1 `oi_enforcement_controls`
 
 | Column | Type | Nullable | Constraint | Description |
 |---|---|---|---|---|
 | `id` | serial | NOT NULL | PK | |
 | `control_number` | varchar(30) | NOT NULL | UNIQUE | Server-assigned `ENF-{YYYY}-{NNN}` |
-| `sop_id` | integer | NOT NULL | FK → oi_sop_records.id ON DELETE RESTRICT | The governing SOP |
-| `sop_revision_number` | integer | NOT NULL | — | Snapshot of SOP revision at control creation time |
-| `erp_entity_type` | varchar(50) | NOT NULL | — | One of the 8 enum values in §1 |
-| `control_type` | varchar(30) | NOT NULL | — | One of the 9 gate types in §2 |
+| `sop_id` | integer | NOT NULL | FK → oi_sop_records.id ON DELETE RESTRICT | |
+| `sop_revision_number` | integer | NOT NULL | — | Snapshot of SOP revision at creation time |
+| `erp_entity_type` | varchar(50) | NOT NULL | — | One of the 8 values in §1 |
+| `control_type` | varchar(50) | NOT NULL | — | One of the 16 gate types in §2 |
 | `enforcement_level` | varchar(20) | NOT NULL | DEFAULT `advisory` | `advisory` or `mandatory` |
-| `enforcement_scope` | varchar(30) | NOT NULL | DEFAULT `global` | `global`, `department`, `project`, `equipment_type` — see §3 |
-| `scope_project_id` | integer | NULL | FK → projects.id ON DELETE RESTRICT | Required when `enforcement_scope = 'project'`; null otherwise |
-| `scope_equipment_type` | varchar(100) | NULL | — | Required when `enforcement_scope = 'equipment_type'`; null otherwise |
-| `title` | text | NOT NULL | min 5 chars | Control display name |
-| `description` | text | NOT NULL | min 10 chars | What this control enforces |
-| `rationale` | text | NOT NULL | min 10 chars | Why this control exists |
-| `department` | varchar(100) | NOT NULL | — | Owning department (fixed list) |
-| `process_area` | varchar(255) | NULL | — | Free-text process area |
+| `enforcement_scope` | varchar(30) | NOT NULL | DEFAULT `global` | `global`, `department`, `project`, `equipment_type` |
+| `scope_project_id` | integer | NULL | FK → projects.id ON DELETE RESTRICT | Required when scope = `project` |
+| `scope_equipment_type` | varchar(100) | NULL | — | Required when scope = `equipment_type` (min 2 chars) |
+| `title` | text | NOT NULL | min 5 chars | |
+| `description` | text | NOT NULL | min 10 chars | |
+| `rationale` | text | NOT NULL | min 10 chars | |
+| `department` | varchar(100) | NOT NULL | — | Fixed list |
+| `process_area` | varchar(255) | NULL | — | |
 | `control_checklist_version` | integer | NOT NULL | DEFAULT 0 | Incremented on each checklist item add/edit/delete |
 | `status` | varchar(20) | NOT NULL | DEFAULT `draft` | `draft`, `active`, `suspended`, `retired` |
 | `owner_id` | integer | NOT NULL | FK → users.id | Manager+; must be assigned |
 | `approver_id` | integer | NOT NULL | FK → users.id | SM+; must be assigned; must ≠ owner_id |
-| `approved_by` | integer | NULL | FK → users.id | Set on activation |
-| `approved_at` | timestamp | NULL | — | Set on activation |
-| `suspended_by` | integer | NULL | FK → users.id | Set on suspension |
+| `approved_by` | integer | NULL | FK → users.id | Server-set on activation |
+| `approved_at` | timestamp | NULL | — | Server-set on activation |
+| `suspended_by` | integer | NULL | FK → users.id | |
 | `suspended_at` | timestamp | NULL | — | |
-| `suspension_reason` | text | NULL | — | Required on suspension (min 10 chars) |
-| `retired_by` | integer | NULL | FK → users.id | Set on retirement |
+| `suspension_reason` | text | NULL | — | min 10 chars; required on suspension |
+| `retired_by` | integer | NULL | FK → users.id | |
 | `retired_at` | timestamp | NULL | — | |
-| `retirement_reason` | text | NULL | — | Required on retirement (min 10 chars) |
+| `retirement_reason` | text | NULL | — | min 10 chars; required on retirement |
 | `created_by` | integer | NOT NULL | FK → users.id | |
 | `created_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 | `updated_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 
-**Indexes:**
-- `idx_oi_enforcement_controls_sop_id` ON `sop_id`
-- `idx_oi_enforcement_controls_erp_type` ON `erp_entity_type`
-- `idx_oi_enforcement_controls_status` ON `status`
-- `idx_oi_enforcement_controls_department` ON `department`
-- `idx_oi_enforcement_controls_scope_project` ON `scope_project_id` WHERE `scope_project_id IS NOT NULL`
+**Indexes:** `sop_id`, `erp_entity_type`, `status`, `department`, `scope_project_id` (partial, WHERE NOT NULL)
 
 **Business rules:**
-- `owner_id ≠ approver_id` — enforced at create, update, and activation. HTTP 422: `approver_must_differ_from_owner`.
-- `enforcement_scope = 'project'` → `scope_project_id` must be set, `scope_equipment_type` must be null. HTTP 422: `scope_field_required`.
-- `enforcement_scope = 'equipment_type'` → `scope_equipment_type` must be set (min 2 chars), `scope_project_id` must be null. HTTP 422: `scope_field_required`.
-- `enforcement_scope = 'global'` or `'department'` → both `scope_project_id` and `scope_equipment_type` must be null. HTTP 422: `scope_field_must_be_null`.
-- `control_number` is server-assigned using advisory lock: `pg_advisory_xact_lock(hashtext('enforcement_control_number_seq'))`.
-- `sop_revision_number` is snapshot-copied from `oi_sop_records.revision_number` at creation time. It is NOT updated if the SOP is later revised. If the SOP is revised, the control's SOP revision snapshot is stale — a warning banner is shown on the control detail page.
-- A retired SOP's controls must be reviewed. Retiring a SOP does not auto-retire its controls. The system shows a warning banner if the linked SOP is retired.
-- `control_checklist_version` is incremented (by 1) atomically by the server on each checklist item add, edit, or delete — before the checklist operation is committed. This increment is part of the same transaction as the checklist write.
+- `owner_id ≠ approver_id`. HTTP 422: `approver_must_differ_from_owner`.
+- Scope field consistency enforced at create and update (§3).
+- `control_checklist_version` incremented atomically in same transaction as each checklist mutation.
+- `sop_revision_number` snapshot at creation only; not auto-updated on SOP revision.
 
 ---
 
-### 4.2 `oi_enforcement_checklists`
-
-Ordered checklist items belonging to a control. Items are injected (as response rows) when a hold is raised.
+### 5.2 `oi_enforcement_checklists`
 
 | Column | Type | Nullable | Constraint | Description |
 |---|---|---|---|---|
 | `id` | serial | NOT NULL | PK | |
 | `control_id` | integer | NOT NULL | FK → oi_enforcement_controls.id ON DELETE CASCADE | |
-| `item_number` | integer | NOT NULL | — | Sequential within control (1, 2, 3…) |
-| `title` | text | NOT NULL | min 5 chars | Short checklist item label |
-| `description` | text | NULL | — | Detailed instruction |
-| `is_required` | boolean | NOT NULL | DEFAULT true | If false, item is informational only |
-| `evidence_required` | boolean | NOT NULL | DEFAULT false | If true, a non-empty `evidence_note` is required to check this item |
-| `sort_order` | integer | NOT NULL | DEFAULT 0 | Display order |
+| `item_number` | integer | NOT NULL | — | Sequential within control |
+| `title` | text | NOT NULL | min 5 chars | |
+| `description` | text | NULL | — | |
+| `is_required` | boolean | NOT NULL | DEFAULT true | |
+| `evidence_required` | boolean | NOT NULL | DEFAULT false | |
+| `sort_order` | integer | NOT NULL | DEFAULT 0 | |
 | `created_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 | `updated_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 
-**Index:**
-- `idx_oi_enforcement_checklists_control_id` ON `control_id`
-
 **Business rules:**
-- Checklist items can only be added, edited, or deleted when the control is in `draft` status. HTTP 422: `control_not_draft`.
-- `item_number` is auto-assigned: `MAX(item_number) + 1` within the control on insert.
-- If `evidence_required = true` then `is_required` is forced to `true` by the server. Client cannot submit `evidence_required = true` with `is_required = false`.
-- Each add/edit/delete of a checklist item increments `oi_enforcement_controls.control_checklist_version` atomically in the same transaction.
+- Add/edit/delete only when control is `draft`. HTTP 422: `control_not_draft`.
+- `evidence_required = true` forces `is_required = true` server-side.
+- Each write increments `oi_enforcement_controls.control_checklist_version` atomically.
 
 ---
 
-### 4.3 `oi_enforcement_holds`
-
-Per-instance hold record raised against a specific ERP entity record by its numeric ID.
+### 5.3 `oi_enforcement_holds`
 
 | Column | Type | Nullable | Constraint | Description |
 |---|---|---|---|---|
 | `id` | serial | NOT NULL | PK | |
 | `hold_number` | varchar(30) | NOT NULL | UNIQUE | Server-assigned `HLD-{YYYY}-{NNN}` |
-| `control_id` | integer | NOT NULL | FK → oi_enforcement_controls.id ON DELETE RESTRICT | The parent control |
+| `control_id` | integer | NOT NULL | FK → oi_enforcement_controls.id ON DELETE RESTRICT | |
 | `erp_entity_type` | varchar(50) | NOT NULL | — | Must match `control.erp_entity_type` |
-| `erp_entity_id` | integer | NOT NULL | — | Polymorphic ID into the target ERP table |
-| `erp_entity_ref` | varchar(100) | NULL | — | Denormalized display reference — server-populated at hold-raise time |
+| `erp_entity_id` | integer | NOT NULL | — | Polymorphic PK into target ERP table |
+| `erp_entity_ref` | varchar(100) | NULL | — | Server-populated at raise time; denormalized display ref |
 | `enforcement_level` | varchar(20) | NOT NULL | — | Snapshot from control at raise time |
-| `hold_type` | varchar(30) | NOT NULL | — | Snapshot from `control.control_type` at raise time |
+| `hold_type` | varchar(50) | NOT NULL | — | Snapshot from `control.control_type` at raise time |
 | `enforcement_scope` | varchar(30) | NOT NULL | — | Snapshot from `control.enforcement_scope` at raise time |
-| `reason` | text | NOT NULL | min 10 chars | Why this hold is being raised on this entity |
+| `is_primary_hold` | boolean | NOT NULL | DEFAULT false | Set by server per §4 precedence rules at raise time |
+| `reason` | text | NOT NULL | min 10 chars | Why this hold is raised on this entity |
 | `status` | varchar(30) | NOT NULL | DEFAULT `open` | `open`, `approved_to_proceed`, `released`, `overridden`, `emergency_bypassed` |
-| `hold_approver_id` | integer | NULL | FK → users.id | Designated approver for this hold (Manager+); must be set before hold can be released |
+| `hold_owner_id` | integer | NOT NULL | FK → users.id | Manager+; designated hold owner; required at hold-raise time |
+| `responsible_department` | varchar(100) | NOT NULL | — | Department responsible for resolving this hold; required at hold-raise time |
+| `escalation_owner_id` | integer | NOT NULL | FK → users.id | SM+; designated escalation owner if hold is not resolved; required at hold-raise time |
+| `hold_approver_id` | integer | NULL | FK → users.id | Designated approver; Manager+; can be set at raise time or updated while open |
 | `raised_by` | integer | NOT NULL | FK → users.id | Manager+ |
 | `raised_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 | `approved_to_proceed_by` | integer | NULL | FK → users.id | Manager+ |
 | `approved_to_proceed_at` | timestamp | NULL | — | |
-| `approved_to_proceed_note` | text | NULL | — | Required on approval (min 10 chars) |
-| `released_by` | integer | NULL | FK → users.id | Manager+ |
-| `released_at` | timestamp | NULL | — | |
-| `release_note` | text | NULL | — | Required on release (min 10 chars) |
-| `override_by` | integer | NULL | FK → users.id | SM+ only |
-| `override_at` | timestamp | NULL | — | |
-| `override_reason` | text | NULL | — | Required on override (min 20 chars) |
-| `bypass_by` | integer | NULL | FK → users.id | Superuser only |
-| `bypass_at` | timestamp | NULL | — | |
-| `bypass_reason` | text | NULL | — | Required on emergency bypass (min 20 chars) |
+| `approved_to_proceed_note` | text | NULL | — | min 10 chars; required on approval |
+| `released_by` | integer | NULL | FK → users.id | Manager+; server-set |
+| `released_at` | timestamp | NULL | — | Server-set |
+| `release_note` | text | NULL | — | min 10 chars; required on release |
+| `override_by` | integer | NULL | FK → users.id | SM+ only; server-set |
+| `override_at` | timestamp | NULL | — | Server-set |
+| `override_reason` | text | NULL | — | min 20 chars; required on override |
+| `bypass_by` | integer | NULL | FK → users.id | Superuser only; server-set |
+| `bypass_at` | timestamp | NULL | — | Server-set |
+| `bypass_reason` | text | NULL | — | min 20 chars; required on emergency bypass |
 | `created_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 | `updated_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 
-**Indexes:**
-- `idx_oi_enforcement_holds_control_id` ON `control_id`
-- `idx_oi_enforcement_holds_erp_entity` ON `(erp_entity_type, erp_entity_id)`
-- `idx_oi_enforcement_holds_status` ON `status`
+**Indexes:** `control_id`, `(erp_entity_type, erp_entity_id)`, `status`
 
-**Unique partial index (no duplicate open holds):**
+**Unique partial index:**
 ```sql
 CREATE UNIQUE INDEX idx_oi_enforcement_holds_no_duplicate_open
   ON oi_enforcement_holds (control_id, erp_entity_type, erp_entity_id)
   WHERE status = 'open';
 ```
 
-**Business rules:**
-- A hold can only be raised against a control in `active` status. HTTP 422: `control_not_active`.
-- `erp_entity_type` of the hold must match `control.erp_entity_type`. HTTP 422: `erp_entity_type_mismatch`.
-- The ERP entity's instance must be in scope per the control's `enforcement_scope` rule (§3). HTTP 422: `entity_out_of_scope`.
-- `erp_entity_ref` is populated by the server at raise time. If the ERP entity is not found → HTTP 404: `erp_entity_not_found`.
-- `enforcement_level`, `hold_type`, and `enforcement_scope` are snapshot-copied from the control at raise time.
-- `hold_approver_id` can be set at raise time or updated by Manager+ while hold is `open`. It must be non-null before the hold can be released. HTTP 422: `hold_approver_not_assigned`.
-- `approved_to_proceed` transition: only permitted for `mandatory` holds. HTTP 422: `advisory_hold_cannot_approve_to_proceed`.
-- Terminal states: `released`, `overridden`, `emergency_bypassed` — no further transitions.
+**Hold Ownership Governance (R3):** `hold_owner_id`, `responsible_department`, and `escalation_owner_id` are mandatory at hold-raise time. They cannot be null on insert. HTTP 422: `hold_owner_required` / `responsible_department_required` / `escalation_owner_required` if any are absent.
+
+- `hold_owner_id`: Manager+ user responsible for tracking and resolving this hold. May be the same as `raised_by`.
+- `responsible_department`: Explicit department string (from fixed list). Does not auto-inherit from the control or ERP entity.
+- `escalation_owner_id`: SM+ user who owns escalation if the hold is not resolved within an acceptable time. Must hold SM+ role at raise time. HTTP 422: `escalation_owner_must_be_sm_plus`.
 
 ---
 
-### 4.4 `oi_enforcement_checklist_responses`
+### 5.4 `oi_enforcement_checklist_responses`
 
-Per-hold completion state of each injected checklist item. Rows are created automatically at hold-raise time. **Immutable after submission** — once `is_checked = true`, the row cannot be updated or unchecked.
+Per-hold completion state of each injected checklist item. Rows created automatically at hold-raise time.
 
 | Column | Type | Nullable | Constraint | Description |
 |---|---|---|---|---|
 | `id` | serial | NOT NULL | PK | |
 | `hold_id` | integer | NOT NULL | FK → oi_enforcement_holds.id ON DELETE CASCADE | |
 | `checklist_item_id` | integer | NOT NULL | FK → oi_enforcement_checklists.id ON DELETE RESTRICT | |
-| `sop_revision_number` | integer | NOT NULL | — | Snapshot of `oi_enforcement_controls.sop_revision_number` at hold-raise time |
-| `checklist_revision_number` | integer | NOT NULL | — | Snapshot of `oi_enforcement_controls.control_checklist_version` at hold-raise time |
+| `sop_revision_number` | integer | NOT NULL | — | Snapshot from `control.sop_revision_number` at hold-raise time |
+| `checklist_revision_number` | integer | NOT NULL | — | Snapshot from `control.control_checklist_version` at hold-raise time |
+| `response_status` | varchar(20) | NOT NULL | DEFAULT `pending` | `pending`, `submitted`, `rejected` |
 | `is_checked` | boolean | NOT NULL | DEFAULT false | |
-| `evidence_note` | text | NULL | — | Required (non-empty) when parent item has `evidence_required = true` |
-| `responded_by` | integer | NULL | FK → users.id | Set by server when `is_checked` changes to true |
-| `responded_at` | timestamp | NULL | — | Set by server when `is_checked` changes to true |
+| `evidence_note` | text | NULL | — | Required (non-empty) when item has `evidence_required = true` |
+| `responded_by` | integer | NULL | FK → users.id | Server-set when `response_status` → `submitted` |
+| `responded_at` | timestamp | NULL | — | Server-set when `response_status` → `submitted` |
+| `rejection_reason` | text | NULL | — | Required (min 10 chars) when `response_status` → `rejected` |
+| `rejected_by` | integer | NULL | FK → users.id | Server-set when `response_status` → `rejected` |
+| `rejected_at` | timestamp | NULL | — | Server-set when `response_status` → `rejected` |
 | `created_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 | `updated_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 
-**Index:**
-- `idx_oi_enforcement_checklist_resp_hold_id` ON `hold_id`
+**UNIQUE:** `(hold_id, checklist_item_id)`
 
-**Unique constraint:** `UNIQUE (hold_id, checklist_item_id)`
+**Checklist Response Governance (R5):**
 
-**Business rules:**
-- `sop_revision_number` and `checklist_revision_number` are set by the server at hold-raise time. They are NOT accepted from client.
-- Checklist responses can only be updated when the parent hold is in `open` or `approved_to_proceed` status. HTTP 422: `hold_not_open`.
-- **Immutability after submission:** Once `is_checked = true`, the row is immutable. Any attempt to update (re-check or uncheck) an already-checked response returns HTTP 422: `response_immutable_after_submission`. Unchecking is not permitted.
-- When `is_checked` is set to `true`: `responded_by` and `responded_at` are set by the server. Client cannot supply these fields.
+**Submission (`pending` → `submitted`):**
+- Only possible when parent hold is `open` or `approved_to_proceed`. HTTP 422: `hold_not_open`.
+- `responded_by` and `responded_at` set by server. Not accepted from client.
+- `sop_revision_number` and `checklist_revision_number` are set at row creation (hold-raise time). Immutable thereafter.
+- If parent checklist item has `evidence_required = true`, `evidence_note` must be non-empty before submission. HTTP 422: `evidence_note_required`.
+
+**Immutability after submission:** Once `response_status = 'submitted'`, the submitter cannot alter the response. HTTP 422: `response_immutable_after_submission` if the original submitter attempts to modify.
+
+**Rejection workflow (`submitted` → `rejected` → `pending`):**
+- The hold's `hold_approver_id` or any SM+ user can reject a submitted response if it is inadequate.
+- On rejection: `rejection_reason` (min 10 chars) must be provided; `rejected_by` and `rejected_at` set by server; `response_status` set to `rejected`; `is_checked` reset to `false`; `responded_by` and `responded_at` cleared; `evidence_note` cleared.
+- After rejection: `response_status` returns to `pending`. The original submitter (or any Manager+ user) may resubmit.
+- Rejection is audited: `enforcement_checklist_item_rejected` audit event written (see §10).
+- A rejected response can be resubmitted (`pending` → `submitted`) following the same rules as initial submission.
 
 ---
 
-### 4.5 `oi_enforcement_audit_log`
+### 5.5 `oi_enforcement_audit_log`
 
-Dedicated enforcement audit table. Follows the Amendment 001 pattern — separate from `oi_audit_log`.
+Dedicated enforcement audit table. See §A for the formal architectural decision record.
 
 | Column | Type | Nullable | Constraint | Description |
 |---|---|---|---|---|
 | `id` | serial | NOT NULL | PK | |
-| `control_id` | integer | NULL | FK → oi_enforcement_controls.id ON DELETE SET NULL | Populated for control-level events |
-| `hold_id` | integer | NULL | FK → oi_enforcement_holds.id ON DELETE SET NULL | Populated for hold-level events |
-| `action` | oi_audit_action | NOT NULL | — | Uses the shared enum (11 new values added in Phase 2B — see §5) |
+| `control_id` | integer | NULL | FK → oi_enforcement_controls.id ON DELETE SET NULL | |
+| `hold_id` | integer | NULL | FK → oi_enforcement_holds.id ON DELETE SET NULL | |
+| `action` | oi_audit_action | NOT NULL | — | 12 new values added in Phase 2B (§6) |
 | `actor_id` | integer | NOT NULL | FK → users.id | |
 | `actor_name` | text | NOT NULL | — | Denormalized |
 | `actor_role` | text | NOT NULL | — | Denormalized |
 | `field_name` | text | NULL | — | For `field_updated` events |
 | `old_value` | text | NULL | — | |
 | `new_value` | text | NULL | — | |
-| `context` | text | NULL | — | E.g. `"ENF-2026-001 → HLD-2026-007"` |
+| `context` | text | NULL | — | e.g. `"ENF-2026-001 → HLD-2026-007"` |
 | `ip_address` | text | NULL | — | |
-| `is_override_event` | boolean | NOT NULL | DEFAULT false | `true` for `enforcement_hold_overridden` and `enforcement_hold_emergency_bypassed` actions |
+| `is_override_event` | boolean | NOT NULL | DEFAULT false | `true` for override and emergency bypass actions |
 | `created_at` | timestamp | NOT NULL | DEFAULT NOW() | |
 
-**Indexes:**
-- `idx_oi_enforcement_audit_control_id` ON `control_id`
-- `idx_oi_enforcement_audit_hold_id` ON `hold_id`
-- `idx_oi_enforcement_audit_override` ON `is_override_event` WHERE `is_override_event = true`
+**Indexes:** `control_id`, `hold_id`, partial index on `is_override_event = true`
 
 **Audit Retention Rules (non-negotiable):**
-- `oi_enforcement_audit_log` rows are **immutable**. No UPDATE statement is ever issued against this table.
-- `oi_enforcement_audit_log` rows are **never hard deleted**. No DELETE statement is ever issued against this table. Rows persist permanently, even if the parent control or hold is retired/cancelled.
-- `is_override_event = true` for all rows with action = `enforcement_hold_overridden` or `enforcement_hold_emergency_bypassed`. This flag enables dashboard filtering of override and emergency bypass events without requiring knowledge of the enum values.
-- `writeEnforcementAuditLog()` is the **only** permitted write path to this table. Direct DB inserts in route handlers are forbidden.
-- At least one of `control_id` or `hold_id` must be non-null per row. Enforced in `writeEnforcementAuditLog()` before insert.
+- Rows are **immutable**. No UPDATE ever.
+- Rows are **never deleted**. No DELETE ever. Persists even after control/hold retirement.
+- `is_override_event = true` for `enforcement_hold_overridden` and `enforcement_hold_emergency_bypassed` — enables dashboard filter without enum knowledge.
+- `writeEnforcementAuditLog()` is the **only** permitted write path. Direct route-level inserts are forbidden.
+- At least one of `control_id` or `hold_id` must be non-null. Enforced in `writeEnforcementAuditLog()`.
 
 ---
 
-## 5. Enum Additions — `oi_audit_action`
+## 6. Enum Additions — `oi_audit_action`
 
-**11 new values** added to the existing `oi_audit_action` Postgres enum (Phase 2B).
+**12 new values** (Phase 2B):
 
 ```sql
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_control_created';
@@ -378,17 +429,18 @@ ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_approved_to
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_released';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_overridden';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_checked';
-ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_unchecked';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_rejected';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_emergency_bypassed';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_resubmitted';
 ```
 
-Each statement is executed standalone, not in a transaction block.
+Each statement standalone, NOT in a transaction block.
 
 ---
 
-## 6. Control Workflow
+## 7. Control Workflow
 
-### 6.1 State Machine
+### 7.1 State Machine
 
 ```
 draft ──activate──► active ──suspend──► suspended ──re-activate──► active
@@ -396,373 +448,353 @@ draft ──activate──► active ──suspend──► suspended ──re-a
                     suspended ──retire──► retired
 ```
 
-### 6.2 Enforcement Activation Governance
+### 7.2 Enforcement Activation Approval Rule (R2)
 
-Before a control can transition from `draft` (or `suspended`) to `active`, the server checks all four pre-conditions. All four must pass. If any fail, the transition is rejected with HTTP 422 and a specific error code.
+This is a named governance rule. All four items are mandatory. No partial compliance.
 
-| # | Pre-condition | Error Code if Failed |
+| Item | Rule |
+|---|---|
+| Approving role | Actor must be SM+. The actor must be the control's designated `approver_id` OR a Superuser. HTTP 403 otherwise. |
+| `approved_by` | Set by the server from the authenticated actor's user ID at the moment of activation. Not accepted from client. |
+| `approved_at` | Set by the server as `NOW()` at the moment of activation. Not accepted from client. |
+| Activation audit event | `writeEnforcementAuditLog()` called with action = `enforcement_control_activated`, `control_id` populated. This is mandatory and part of the same DB transaction as the status update. The activation is not committed if the audit write fails. |
+
+### 7.3 Enforcement Activation Pre-conditions
+
+All four must pass before activation proceeds. Checked in order. First failure returns HTTP 422 with its specific error code.
+
+| # | Pre-condition | Error Code |
 |---|---|---|
-| 1 | The linked SOP (`sop_id`) must currently have `status = 'active'` in `oi_sop_records` | `sop_not_active` |
-| 2 | The linked SOP must have its current revision in an approved and activated state — specifically, there must be a revision record with `status = 'active'` for this SOP | `sop_revision_not_activated` |
-| 3 | `owner_id` must be assigned (non-null) and the referenced user must exist and hold Manager+ role | `control_owner_not_assigned` |
-| 4 | `erp_entity_type` must be assigned (non-null) and must be one of the 8 valid values from §1 | `erp_entity_type_not_assigned` |
+| 1 | The linked SOP (`sop_id`) must have `status = 'active'` in `oi_sop_records` | `sop_not_active` |
+| 2 | The linked SOP must have a revision record with `status = 'active'` — i.e. the current revision is approved and activated | `sop_revision_not_activated` |
+| 3 | `owner_id` must be non-null and the referenced user must hold Manager+ role | `control_owner_not_assigned` |
+| 4 | `erp_entity_type` must be non-null and must be one of the 8 valid values from §1 | `erp_entity_type_not_assigned` |
 
-Additionally:
-- `approver_id ≠ owner_id`. HTTP 422: `approver_must_differ_from_owner`.
-- The actor performing the activation must be SM+ and must be either the control's assigned `approver_id` or a Superuser. HTTP 403 otherwise.
-- Duplicate active control check: see §7 (checked at activation, not at creation).
+Additionally: `approver_id ≠ owner_id`. HTTP 422: `approver_must_differ_from_owner`.  
+Additionally: Duplicate active control check (§4.1). HTTP 409: `duplicate_active_control`.
 
-**Side effects on successful activation:** Set `approved_by` = actor.id, `approved_at` = NOW(). Write `enforcement_control_activated` audit. Clear `suspended_by`, `suspended_at`, `suspension_reason` if re-activating from suspended.
-
----
-
-### 6.3 State Transition Table
+### 7.4 State Transition Table
 
 | From | To | Action | Required Role | Pre-conditions | Side Effects |
 |---|---|---|---|---|---|
-| `draft` | `active` | `activate` | SM+ (must be `approver_id` or Superuser) | All 4 activation pre-conditions (§6.2); no duplicate active control for same scope (§7) | Set `approved_by`, `approved_at`; write `enforcement_control_activated` audit |
+| `draft` | `active` | `activate` | SM+ (must be `approver_id` or Superuser) | §7.3 (4 checks) + approver ≠ owner + duplicate check | Set `approved_by`, `approved_at` (server); write `enforcement_control_activated` audit (mandatory) |
 | `active` | `suspended` | `suspend` | SM+ | `suspension_reason` min 10 chars | Set `suspended_by`, `suspended_at`, `suspension_reason`; write `enforcement_control_suspended` audit |
-| `suspended` | `active` | `activate` | SM+ (must be `approver_id` or Superuser) | All 4 activation pre-conditions; no duplicate active control | Clear suspension fields; set `approved_by`, `approved_at` (re-stamped); write `enforcement_control_activated` audit |
-| `active` | `retired` | `retire` | SM+ | `retirement_reason` min 10 chars; zero open mandatory holds on this control (HTTP 422: `open_mandatory_holds_exist`) | Set `retired_by`, `retired_at`, `retirement_reason`; write `enforcement_control_retired` audit |
+| `suspended` | `active` | `activate` | SM+ (must be `approver_id` or Superuser) | §7.3 (4 checks) + duplicate check | Clear suspension fields; set `approved_by`, `approved_at` (re-stamped); write `enforcement_control_activated` audit |
+| `active` | `retired` | `retire` | SM+ | `retirement_reason` min 10 chars; zero open mandatory holds (HTTP 422: `open_mandatory_holds_exist`) | Set `retired_by`, `retired_at`, `retirement_reason`; write `enforcement_control_retired` audit |
 | `suspended` | `retired` | `retire` | SM+ | `retirement_reason` min 10 chars | Set `retired_by`, `retired_at`, `retirement_reason`; write `enforcement_control_retired` audit |
 
-**Advisory holds do not block retirement.** Only open `mandatory` enforcement_level holds block a control from being retired.
+### 7.5 Control Field Update Rules
+
+`PATCH` permitted only in `draft` or `suspended` status.
+
+| Field | Editable in `active`? |
+|---|---|
+| title, description, rationale, enforcement_level, enforcement_scope, scope_project_id, scope_equipment_type, department, owner_id, approver_id | No |
+| `process_area` | Yes |
+
+HTTP 422: `control_not_editable`.
 
 ---
 
-### 6.4 Control Field Update Rules
+## 8. Duplicate Control Prevention
 
-`PATCH /api/oi/enforcement/controls/:controlId` permitted only in `draft` or `suspended` status.
+Only one active enforcement control per (sop_id, erp_entity_type, control_type, scope combination).
 
-| Field | Editable in `active`? | Notes |
-|---|---|---|
-| `title` | No | Requires draft or suspended |
-| `description` | No | |
-| `rationale` | No | |
-| `enforcement_level` | No | Changing level after activation requires retire + new control |
-| `enforcement_scope` | No | Scope change after activation requires retire + new control |
-| `scope_project_id` | No | |
-| `scope_equipment_type` | No | |
-| `department` | No | |
-| `process_area` | Yes | Editable in any non-retired status |
-| `owner_id` | No | |
-| `approver_id` | No | |
+**Duplicate check algorithm** (server-side, inside advisory lock at activation):
 
-HTTP 422: `control_not_editable` when editing a non-editable field on an active or retired control.
+Lock: `pg_advisory_xact_lock(hashtext('enf_activate_' || sop_id::text))`
+
+Query `oi_enforcement_controls` WHERE: `status = 'active'` AND `sop_id = :x` AND `erp_entity_type = :x` AND `control_type = :x` AND `enforcement_scope = :x` AND scope-specific field matches (see §3) AND `id ≠ :x` (exclude self).
+
+If any row found → HTTP 409: `duplicate_active_control` with `{ conflicting_control_number: 'ENF-XXXX-NNN' }`.
 
 ---
 
-## 7. Duplicate Control Prevention
+## 9. Hold Lifecycle
 
-Only one active enforcement control is permitted per unique combination of SOP, entity type, gate type, and scope. This is enforced at the application layer at activation time (not at creation time).
-
-**Duplicate check algorithm (server-side, at activation):**
-
-Query `oi_enforcement_controls` for rows where:
-- `status = 'active'`
-- `sop_id = :controlBeingActivated.sop_id`
-- `erp_entity_type = :controlBeingActivated.erp_entity_type`
-- `control_type = :controlBeingActivated.control_type`
-- `enforcement_scope = :controlBeingActivated.enforcement_scope`
-- AND the scope-specific field matches:
-  - For `global`: no additional filter (one global control per sop+entity+gate is the limit)
-  - For `department`: `department = :controlBeingActivated.department`
-  - For `project`: `scope_project_id = :controlBeingActivated.scope_project_id`
-  - For `equipment_type`: `scope_equipment_type = :controlBeingActivated.scope_equipment_type` (case-insensitive)
-- AND `id ≠ :controlBeingActivated.id` (exclude self)
-
-If any matching row exists → HTTP 409: `duplicate_active_control` with `{ conflicting_control_number: 'ENF-XXXX-NNN' }` in the response body.
-
-**Note:** The duplicate check runs inside the activation transaction using `pg_advisory_xact_lock(hashtext('enforcement_control_activate_' || sop_id::text))` to prevent race conditions.
-
----
-
-## 8. Hold Lifecycle
-
-### 8.1 State Machine
+### 9.1 State Machine
 
 ```
-(raise)
-  │
-  ▼
-open ──approve_to_proceed──► approved_to_proceed
-  │                                │
-  └──release (if approver assigned + checklist complete)──► released  (terminal)
-  │
-  ├──override (SM+) ──────────────────────────────────────► overridden  (terminal)
-  │
-  └──emergency-bypass (Superuser only) ──────────────────► emergency_bypassed  (terminal)
+(raise) → open ──approve_to_proceed──► approved_to_proceed
+           │                                  │
+           └──release (§9.3 pre-conditions) ──► released  (terminal)
+           │
+           ├──override (SM+, §9.4) ──────────────────────► overridden  (terminal)
+           │
+           └──emergency-bypass (Superuser only, §9.5) ──► emergency_bypassed  (terminal)
 ```
 
-### 8.2 Hold Raise Pre-conditions
-
-Before a hold can be raised, the server checks all of the following. All must pass.
+### 9.2 Hold Raise Pre-conditions
 
 | # | Pre-condition | Error Code |
 |---|---|---|
-| 1 | Control must be in `active` status | `control_not_active` |
-| 2 | `erp_entity_type` of the hold request must match `control.erp_entity_type` | `erp_entity_type_mismatch` |
-| 3 | ERP entity with `erp_entity_id` must exist in the target table | `erp_entity_not_found` (HTTP 404) |
-| 4 | The ERP entity instance must be in scope per `control.enforcement_scope` (§3) | `entity_out_of_scope` |
-| 5 | No existing open hold for the same (control_id, erp_entity_type, erp_entity_id) | `hold_already_open` (HTTP 409) |
+| 1 | Control must be `active` | `control_not_active` |
+| 2 | `erp_entity_type` must match `control.erp_entity_type` | `erp_entity_type_mismatch` |
+| 3 | ERP entity with `erp_entity_id` must exist in target table | `erp_entity_not_found` (HTTP 404) |
+| 4 | ERP entity in scope per `control.enforcement_scope` (§3) | `entity_out_of_scope` |
+| 5 | No existing open hold for same (control_id, erp_entity_type, erp_entity_id) | `hold_already_open` (HTTP 409) |
 
-On successful raise: insert hold; insert one `oi_enforcement_checklist_responses` row per checklist item (with `is_checked = false`, `sop_revision_number` and `checklist_revision_number` snapshots populated from the control); set `erp_entity_ref`; write `enforcement_hold_raised` audit.
+On raise: insert hold with `hold_owner_id`, `responsible_department`, `escalation_owner_id` (all required); set `is_primary_hold` per §4; insert response rows with version snapshots; populate `erp_entity_ref`; write `enforcement_hold_raised` audit.
 
-### 8.3 Hold Release Governance
+### 9.3 Mandatory Release Evidence Rule (R4)
 
-A hold cannot be released unless all three pre-conditions are satisfied. The server checks all three before permitting the `released` transition.
+A hold cannot be released unless all three pre-conditions are satisfied. Checked server-side before the `released` transition is committed. This is a named governance rule.
 
 | # | Pre-condition | Error Code |
 |---|---|---|
-| 1 | All `is_required = true` checklist items must have `is_checked = true` | `checklist_incomplete` with list of incomplete item IDs |
-| 2 | All `is_required = true` AND `evidence_required = true` checklist items must have a non-empty `evidence_note` | `checklist_evidence_incomplete` with list of incomplete item IDs |
-| 3 | `hold_approver_id` must be non-null (a designated approver must have been assigned to this hold) | `hold_approver_not_assigned` |
+| 1 | All `is_required = true` checklist items must have `response_status = 'submitted'` (i.e. `is_checked = true`) | `checklist_incomplete` with list of incomplete item IDs |
+| 2 | All `is_required = true` AND `evidence_required = true` items must have a non-empty `evidence_note` in submitted state | `checklist_evidence_incomplete` with list of item IDs |
+| 3 | `hold_approver_id` must be non-null | `hold_approver_not_assigned` |
 
-Additionally: `release_note` min 10 chars. HTTP 422: `release_note_required`.
+Additionally: `release_note` minimum 10 chars — enforced server-side. HTTP 422: `release_note_required`.
 
-Released from: `open` or `approved_to_proceed`. Role: Manager+.
+**Mandatory release evidence fields (R4 named fields):**
+- `release_note` — TEXT NOT NULL at release time; min 10 chars; not accepted before release action is invoked.
+- `released_by` — set by server from the authenticated actor's user ID. Not accepted from client.
+- `released_at` — set by server as `NOW()`. Not accepted from client.
 
-### 8.4 Override Governance
+All three are set atomically in the same DB transaction as the `released` status update.
 
-Override is distinct from emergency bypass. Override is available to SM+ (Senior Manager, General Manager, Superuser). It permanently closes the hold without checklist completion.
+Release permitted from: `open` or `approved_to_proceed`. Role: Manager+.
 
-| Field | Rule |
-|---|---|
-| `override_reason` | Required. Minimum 20 characters. HTTP 422: `override_reason_required`. |
-| `override_by` | Set by the server from the authenticated actor's user ID. Not accepted from client. |
-| `override_at` | Set by the server as NOW(). Not accepted from client. |
-| Actor role | Must be SM+. HTTP 403 if actor is not SM+. Manager-only role is explicitly forbidden. |
+### 9.4 Override Governance
 
-**Mandatory audit event on override:** `writeEnforcementAuditLog()` with action = `enforcement_hold_overridden`, `is_override_event = true`. This is non-negotiable — the audit write is part of the same DB transaction as the hold status update.
-
-Override is permitted from `open` or `approved_to_proceed` status. Override has no checklist completion gate — it is the escape valve for mandatory holds when immediate operational continuity is required.
-
-### 8.5 Emergency Bypass Governance
-
-Emergency bypass is a separate, more restricted action from override. It exists for situations where the normal override path is insufficient.
+SM+ only. Bypasses checklist completion gate.
 
 | Field | Rule |
 |---|---|
-| Actor role | **Superuser only.** HTTP 403 if actor is not Superuser. SM+ (non-Superuser) is explicitly forbidden from using emergency bypass. |
-| `bypass_reason` | Required. Minimum 20 characters. HTTP 422: `bypass_reason_required`. |
-| `bypass_by` | Set by the server from the authenticated actor's user ID. Not accepted from client. |
-| `bypass_at` | Set by the server as NOW(). Not accepted from client. |
+| `override_reason` | Required. Min 20 chars. HTTP 422: `override_reason_required`. |
+| `override_by` | Server-set from actor. Not accepted from client. |
+| `override_at` | Server-set as `NOW()`. Not accepted from client. |
+| Actor role | SM+. HTTP 403 if not SM+. Manager-only is explicitly forbidden. |
+| Audit | `writeEnforcementAuditLog()` with action = `enforcement_hold_overridden`, `is_override_event = true`. Same transaction as status update. Mandatory. |
 
-**Mandatory audit event:** `writeEnforcementAuditLog()` with action = `enforcement_hold_emergency_bypassed`, `is_override_event = true`. This is part of the same DB transaction as the hold status update.
+Permitted from: `open` or `approved_to_proceed`.
 
-**Dashboard visibility mandatory:** The enforcement summary dashboard endpoint (`GET /api/oi/dashboard/enforcement-summary`) must include `emergency_bypass_count` (count of holds with `status = 'emergency_bypassed'`) in the response body. Emergency bypasses must be visible to Superusers at a glance on the dashboard.
+### 9.5 Emergency Bypass Governance
 
-Emergency bypass is permitted from `open` or `approved_to_proceed` status. It is a terminal state.
+Superuser only. Separate from override. Higher visibility.
 
-### 8.6 Full State Transition Table
+| Field | Rule |
+|---|---|
+| `bypass_reason` | Required. Min 20 chars. HTTP 422: `bypass_reason_required`. |
+| `bypass_by` | Server-set from actor. Not accepted from client. |
+| `bypass_at` | Server-set as `NOW()`. Not accepted from client. |
+| Actor role | **Superuser only**. HTTP 403 if not Superuser. SM+ (non-Superuser) explicitly forbidden. |
+| Audit | `writeEnforcementAuditLog()` with action = `enforcement_hold_emergency_bypassed`, `is_override_event = true`. Same transaction. Mandatory. |
+
+**Emergency Bypass Visibility (R10) — 4 mandatory surfaces:**
+
+| Surface | Requirement |
+|---|---|
+| Dashboard | `GET /api/oi/dashboard/enforcement-summary` must include `emergency_bypass_count` (all-time) and `emergency_bypass_count_this_month`. Both fields are mandatory in the response. |
+| Hold detail | The hold detail response (`GET /api/oi/enforcement/holds/:holdId`) must include a top-level `emergency_bypass` object when `status = 'emergency_bypassed'`: `{ bypass_by_name, bypass_at, bypass_reason }`. This section is always present and clearly labelled in the UI hold detail panel. |
+| Audit log | All emergency bypass events have `is_override_event = true` in `oi_enforcement_audit_log`. The audit log UI renders these rows with a distinct visual indicator (red badge "EMERGENCY BYPASS"). |
+| Management KPI | `GET /api/oi/dashboard/enforcement-management-kpi` (see §11.4) must include `emergency_bypass_count_this_month` and `emergency_bypass_count_total` as dedicated KPI fields, displayed prominently in the management KPI panel. |
+
+Permitted from: `open` or `approved_to_proceed`. Terminal state.
+
+### 9.6 Full State Transition Table
 
 | From | To | Action | Required Role | Pre-conditions | Side Effects |
 |---|---|---|---|---|---|
-| — | `open` | raise | Manager+ | §8.2 (5 checks) | Insert hold; insert checklist response rows with version snapshots; set `erp_entity_ref`; write `enforcement_hold_raised` audit |
-| `open` | `approved_to_proceed` | approve | Manager+ | `enforcement_level = 'mandatory'`; `approved_to_proceed_note` min 10 chars | Set `approved_to_proceed_by`, `approved_to_proceed_at`, `approved_to_proceed_note`; write `enforcement_hold_approved_to_proceed` audit |
-| `open` or `approved_to_proceed` | `released` | release | Manager+ | §8.3 (3 checks) + `release_note` min 10 chars | Set `released_by`, `released_at`, `release_note`; write `enforcement_hold_released` audit |
-| `open` or `approved_to_proceed` | `overridden` | override | SM+ | `override_reason` min 20 chars | Set `override_by`, `override_at`, `override_reason`; write `enforcement_hold_overridden` audit with `is_override_event = true` |
-| `open` or `approved_to_proceed` | `emergency_bypassed` | emergency-bypass | **Superuser only** | `bypass_reason` min 20 chars | Set `bypass_by`, `bypass_at`, `bypass_reason`; write `enforcement_hold_emergency_bypassed` audit with `is_override_event = true` |
+| — | `open` | raise | Manager+ | §9.2 (5 checks) + ownership fields required | Insert hold; insert response rows (version snapshots); set `erp_entity_ref`; set `is_primary_hold`; write `enforcement_hold_raised` audit |
+| `open` | `approved_to_proceed` | approve | Manager+ | `enforcement_level = 'mandatory'`; `approved_to_proceed_note` min 10 chars | Set `approved_to_proceed_by/at/note`; write `enforcement_hold_approved_to_proceed` audit |
+| `open` or `approved_to_proceed` | `released` | release | Manager+ | §9.3 (3 checks) + `release_note` min 10 chars | Set `released_by`, `released_at`, `release_note` (all server-set, atomic); write `enforcement_hold_released` audit |
+| `open` or `approved_to_proceed` | `overridden` | override | SM+ | `override_reason` min 20 chars | Set `override_by/at/reason` (server-set); write `enforcement_hold_overridden` audit (`is_override_event = true`) |
+| `open` or `approved_to_proceed` | `emergency_bypassed` | emergency-bypass | **Superuser only** | `bypass_reason` min 20 chars | Set `bypass_by/at/reason` (server-set); write `enforcement_hold_emergency_bypassed` audit (`is_override_event = true`) |
 
 ---
 
-### 8.7 Mandatory Hold Check API
+## A. Audit Governance — Why `oi_audit_log` Cannot Be Reused (Amendment 001 Pattern)
 
-When an ERP route needs to check whether a mandatory hold exists before permitting a state transition, it calls:
+This is the formal architectural decision record for the Phase 2B dedicated audit table.
 
-`GET /api/oi/enforcement/erp/:erpEntityType/:erpEntityId/holds?status=open&enforcementLevel=mandatory`
+### A.1 The DB Constraint
 
-Returns array of open mandatory hold summaries. The calling ERP route returns HTTP 422: `mandatory_hold_open` with `holds` array.
+The `oi_audit_log` table (created in Phase 1A) has the following column definition in `shared/schema.ts`:
 
-**Phase 2B does NOT modify any existing ERP routes.** This API is provided for future integration only.
+```
+issueId: integer('issue_id').notNull().references(() => oiIssues.id, ...)
+```
 
----
+The `issue_id` column is `NOT NULL`. It is a foreign key to `oi_issues.id`. This is a hard DB constraint — not a soft rule. Any INSERT into `oi_audit_log` without a valid `issue_id` will be rejected by Postgres with a `NOT NULL constraint violation`. This cannot be bypassed without altering the table — which would break all Phase 1A–2A code that relies on `issue_id` being present.
 
-## 9. API Endpoints (27 endpoints)
+### A.2 Amendment 001 Precedent
 
-### 9.1 Controls (8 endpoints)
+In Phase 2A, the same constraint was discovered when SOP audit entries were needed. The approved resolution (Amendment 001, `docs/phase2a-amendment-001-sop-audit-governance.md`) was:
 
-| # | Method | Path | Auth | Description |
-|---|---|---|---|---|
-| 1 | POST | `/api/oi/enforcement/controls` | Manager+ | Create control |
-| 2 | GET | `/api/oi/enforcement/controls` | Any | List controls (filter: status, erp_entity_type, control_type, department, sop_id, enforcement_scope) |
-| 3 | GET | `/api/oi/enforcement/controls/:controlId` | Any | Control detail |
-| 4 | PATCH | `/api/oi/enforcement/controls/:controlId` | Manager+ | Update draft/suspended fields |
-| 5 | POST | `/api/oi/enforcement/controls/:controlId/transition` | Role-gated | Activate / suspend / retire |
-| 6 | GET | `/api/oi/enforcement/controls/:controlId/audit-log` | Any | Control audit log |
-| 7 | GET | `/api/oi/sop/:sopId/enforcement-controls` | Any | All controls linked to a SOP |
-| 8 | GET | `/api/oi/enforcement/erp/:erpEntityType/controls` | Any | All active controls for an ERP entity type |
+> "Create a dedicated `oi_sop_audit_log` table with `sop_id NOT NULL`. Do not modify `oi_audit_log`. Use `writeSopAuditLog()` for all SOP audit writes."
 
-### 9.2 Checklists (4 endpoints)
+Phase 2B enforcement audit follows identical reasoning:
+- Enforcement events are not subordinate to any `oi_issues` record.
+- `oi_audit_log.issue_id` is `NOT NULL` — it cannot receive enforcement audit entries.
+- Creating `oi_enforcement_audit_log` with `control_id` and `hold_id` (both nullable; at least one required) is the correct pattern, consistent with Amendment 001.
 
-| # | Method | Path | Auth | Description |
-|---|---|---|---|---|
-| 9 | POST | `/api/oi/enforcement/controls/:controlId/checklist` | Manager+ | Add checklist item (draft only) |
-| 10 | GET | `/api/oi/enforcement/controls/:controlId/checklist` | Any | List checklist items |
-| 11 | PATCH | `/api/oi/enforcement/controls/:controlId/checklist/:itemId` | Manager+ | Update checklist item (draft only) |
-| 12 | DELETE | `/api/oi/enforcement/controls/:controlId/checklist/:itemId` | Manager+ | Delete checklist item (draft only) |
+### A.3 Architectural Principle
 
-### 9.3 Holds (13 endpoints)
+Each OI audit domain has its own dedicated audit table, keyed to its own primary entities:
 
-| # | Method | Path | Auth | Description |
-|---|---|---|---|---|
-| 13 | POST | `/api/oi/enforcement/holds` | Manager+ | Raise hold |
-| 14 | GET | `/api/oi/enforcement/holds` | Any | List holds (filter: status, control_id, erp_entity_type, hold_type, enforcement_level, enforcement_scope) |
-| 15 | GET | `/api/oi/enforcement/holds/:holdId` | Any | Hold detail |
-| 16 | PATCH | `/api/oi/enforcement/holds/:holdId` | Manager+ | Assign or update `hold_approver_id` (open holds only) |
-| 17 | POST | `/api/oi/enforcement/holds/:holdId/approve` | Manager+ | Approve to proceed (mandatory holds only) |
-| 18 | POST | `/api/oi/enforcement/holds/:holdId/release` | Manager+ | Release hold (§8.3 pre-conditions) |
-| 19 | POST | `/api/oi/enforcement/holds/:holdId/override` | SM+ | Override hold (§8.4 governance) |
-| 20 | POST | `/api/oi/enforcement/holds/:holdId/emergency-bypass` | Superuser only | Emergency bypass (§8.5 governance) |
-| 21 | GET | `/api/oi/enforcement/holds/:holdId/audit-log` | Any | Hold audit log |
-| 22 | GET | `/api/oi/enforcement/erp/:erpEntityType/:erpEntityId/holds` | Any | All holds for a specific ERP entity instance |
-| 23 | POST | `/api/oi/enforcement/holds/:holdId/checklist-responses` | Manager+ | Submit checklist responses (batch; immutable after checked) |
-| 24 | GET | `/api/oi/enforcement/holds/:holdId/checklist-responses` | Any | Get checklist responses for a hold |
+| Domain | Audit Table | Primary FK | Audit Service |
+|---|---|---|---|
+| Issues (Phase 1A) | `oi_audit_log` | `issue_id NOT NULL` | `writeAuditLog()` |
+| SOP (Phase 2A) | `oi_sop_audit_log` | `sop_id NOT NULL` | `writeSopAuditLog()` |
+| Enforcement (Phase 2B) | `oi_enforcement_audit_log` | `control_id` or `hold_id` (one required) | `writeEnforcementAuditLog()` |
 
-### 9.4 Dashboards (4 endpoints)
+This pattern prevents cross-domain coupling and ensures each domain's audit trail is independently queryable, independently retainable, and independently governable.
 
-| # | Method | Path | Auth | Description |
-|---|---|---|---|---|
-| 25 | GET | `/api/oi/dashboard/enforcement-summary` | Any | Total controls, active, holds open/released/overridden/emergency_bypassed (emergency_bypass_count mandatory) |
-| 26 | GET | `/api/oi/dashboard/enforcement-holds-by-type` | Any | Hold count by `hold_type` and `status` |
-| 27 | GET | `/api/oi/dashboard/enforcement-holds-by-department` | Any | Hold count by `department` |
+### A.4 `writeEnforcementAuditLog()` Contract
 
-**Note:** `enforcement-sop-coverage` (from v1) is removed; 27 total endpoints.
+- Signature: `writeEnforcementAuditLog(params: { controlId?: number, holdId?: number, action: OiAuditAction, actorId: number, actorName: string, actorRole: string, fieldName?: string, oldValue?: string, newValue?: string, context?: string, ipAddress?: string, isOverrideEvent?: boolean }): Promise<void>`
+- Validates: at least one of `controlId` or `holdId` is non-null. Throws if both are null.
+- Sets `is_override_event = true` automatically when action is `enforcement_hold_overridden` or `enforcement_hold_emergency_bypassed`.
+- Issues INSERT only. Never UPDATE or DELETE.
+- Must be called in the same DB transaction as the triggering mutation. Activation/release/override/bypass are only committed if the audit write succeeds.
 
 ---
 
 ## 10. Enforcement Audit — Mandatory Events
 
-Every enforcement mutation must write to `oi_enforcement_audit_log` via `writeEnforcementAuditLog()`.
-
-| Event | Action | `control_id` | `hold_id` | `is_override_event` | `context` |
-|---|---|---|---|---|---|
-| Control created | `enforcement_control_created` | populated | null | false | `ENF-{num}` |
-| Control field updated | `field_updated` | populated | null | false | `ENF-{num}` |
-| Control activated | `enforcement_control_activated` | populated | null | false | `ENF-{num}` |
-| Control suspended | `enforcement_control_suspended` | populated | null | false | `ENF-{num} reason=…` |
-| Control retired | `enforcement_control_retired` | populated | null | false | `ENF-{num} reason=…` |
-| Hold raised | `enforcement_hold_raised` | populated | populated | false | `HLD-{num} on {erpEntityType}:{erpEntityRef}` |
-| Hold approved to proceed | `enforcement_hold_approved_to_proceed` | populated | populated | false | `HLD-{num}` |
-| Hold released | `enforcement_hold_released` | populated | populated | false | `HLD-{num}` |
-| Hold overridden | `enforcement_hold_overridden` | populated | populated | **true** | `HLD-{num} reason=…` |
-| Hold emergency bypassed | `enforcement_hold_emergency_bypassed` | populated | populated | **true** | `HLD-{num} EMERGENCY-BYPASS reason=…` |
-| Checklist item checked | `enforcement_checklist_item_checked` | populated | populated | false | `HLD-{num} item #{N}` |
+| Event | Action | `control_id` | `hold_id` | `is_override_event` |
+|---|---|---|---|---|
+| Control created | `enforcement_control_created` | populated | null | false |
+| Control field updated | `field_updated` | populated | null | false |
+| Control activated | `enforcement_control_activated` | populated | null | false |
+| Control suspended | `enforcement_control_suspended` | populated | null | false |
+| Control retired | `enforcement_control_retired` | populated | null | false |
+| Hold raised | `enforcement_hold_raised` | populated | populated | false |
+| Hold approved to proceed | `enforcement_hold_approved_to_proceed` | populated | populated | false |
+| Hold released | `enforcement_hold_released` | populated | populated | false |
+| Hold overridden | `enforcement_hold_overridden` | populated | populated | **true** |
+| Hold emergency bypassed | `enforcement_hold_emergency_bypassed` | populated | populated | **true** |
+| Checklist item submitted (checked) | `enforcement_checklist_item_checked` | populated | populated | false |
+| Checklist item rejected | `enforcement_checklist_item_rejected` | populated | populated | false |
+| Checklist item resubmitted | `enforcement_checklist_item_resubmitted` | populated | populated | false |
 
 ---
 
-## 11. Server Files (3 new files)
+## 11. API Endpoints (28 endpoints)
+
+### 11.1 Controls (8)
+
+| # | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| 1 | POST | `/api/oi/enforcement/controls` | Manager+ | Create control |
+| 2 | GET | `/api/oi/enforcement/controls` | Any | List (filter: status, erp_entity_type, control_type, department, sop_id, enforcement_scope) |
+| 3 | GET | `/api/oi/enforcement/controls/:controlId` | Any | Detail |
+| 4 | PATCH | `/api/oi/enforcement/controls/:controlId` | Manager+ | Update (draft/suspended only) |
+| 5 | POST | `/api/oi/enforcement/controls/:controlId/transition` | Role-gated | Activate / suspend / retire |
+| 6 | GET | `/api/oi/enforcement/controls/:controlId/audit-log` | Any | Control audit log |
+| 7 | GET | `/api/oi/sop/:sopId/enforcement-controls` | Any | All controls linked to a SOP |
+| 8 | GET | `/api/oi/enforcement/erp/:erpEntityType/controls` | Any | All active controls for an ERP entity type |
+
+### 11.2 Checklists (4)
+
+| # | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| 9 | POST | `/api/oi/enforcement/controls/:controlId/checklist` | Manager+ | Add item (draft only) |
+| 10 | GET | `/api/oi/enforcement/controls/:controlId/checklist` | Any | List items |
+| 11 | PATCH | `/api/oi/enforcement/controls/:controlId/checklist/:itemId` | Manager+ | Update item (draft only) |
+| 12 | DELETE | `/api/oi/enforcement/controls/:controlId/checklist/:itemId` | Manager+ | Delete item (draft only) |
+
+### 11.3 Holds (16)
+
+| # | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| 13 | POST | `/api/oi/enforcement/holds` | Manager+ | Raise hold (§9.2; ownership fields required) |
+| 14 | GET | `/api/oi/enforcement/holds` | Any | List (filter: status, control_id, erp_entity_type, hold_type, enforcement_level, responsible_department) |
+| 15 | GET | `/api/oi/enforcement/holds/:holdId` | Any | Detail (includes emergency_bypass object when applicable) |
+| 16 | PATCH | `/api/oi/enforcement/holds/:holdId` | Manager+ | Assign/update `hold_approver_id`, `hold_owner_id`, `responsible_department`, `escalation_owner_id` (open only) |
+| 17 | POST | `/api/oi/enforcement/holds/:holdId/approve` | Manager+ | Approve to proceed (mandatory only) |
+| 18 | POST | `/api/oi/enforcement/holds/:holdId/release` | Manager+ | Release (§9.3 pre-conditions) |
+| 19 | POST | `/api/oi/enforcement/holds/:holdId/override` | SM+ | Override (§9.4) |
+| 20 | POST | `/api/oi/enforcement/holds/:holdId/emergency-bypass` | Superuser only | Emergency bypass (§9.5) |
+| 21 | GET | `/api/oi/enforcement/holds/:holdId/audit-log` | Any | Hold audit log (bypass events displayed distinctly) |
+| 22 | GET | `/api/oi/enforcement/erp/:erpEntityType/:erpEntityId/holds` | Any | All holds for a specific ERP entity instance |
+| 23 | POST | `/api/oi/enforcement/holds/:holdId/checklist-responses` | Manager+ | Submit/update responses (batch) |
+| 24 | GET | `/api/oi/enforcement/holds/:holdId/checklist-responses` | Any | Get responses |
+| 25 | POST | `/api/oi/enforcement/holds/:holdId/checklist-responses/:responseId/reject` | Hold approver or SM+ | Reject a submitted response (§5.4 rejection workflow) |
+
+### 11.4 Dashboards (4)
+
+| # | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| 26 | GET | `/api/oi/dashboard/enforcement-summary` | Any | Controls active, holds open/released/overridden; `emergency_bypass_count` and `emergency_bypass_count_this_month` mandatory |
+| 27 | GET | `/api/oi/dashboard/enforcement-holds-by-type` | Any | Hold count by `hold_type` and `status` |
+| 28 | GET | `/api/oi/dashboard/enforcement-management-kpi` | SM+ | `emergency_bypass_count_total`, `emergency_bypass_count_this_month`, `holds_overridden_count_this_month`, `avg_hold_open_duration_hours`, `released_without_override_pct`, `active_controls_count`, `controls_with_open_holds_count` |
+
+---
+
+## 12. Server Files (3 new files)
 
 | File | Description |
 |---|---|
-| `server/oi-enforcement-audit-service.ts` | `writeEnforcementAuditLog()` — inserts into `oi_enforcement_audit_log`; validates at least one of `controlId`/`holdId` is non-null; sets `is_override_event` for override/bypass actions; never issues UPDATE or DELETE |
-| `server/oi-enforcement-routes.ts` | 27 endpoints; imports `writeEnforcementAuditLog` from audit service; all governance checks per this document |
+| `server/oi-enforcement-audit-service.ts` | `writeEnforcementAuditLog()` — §A.4 contract; INSERT only; validates at least one of controlId/holdId; sets `is_override_event` automatically for override/bypass actions |
+| `server/oi-enforcement-routes.ts` | 28 endpoints; all governance rules per this document; imports `writeEnforcementAuditLog` |
 | `server/routes.ts` (patch) | Register `oiEnforcementRouter` after `oiSopRouter` |
 
-**Registration pattern:**
-```typescript
-const { oiEnforcementRouter } = await import('./oi-enforcement-routes');
-app.use('/api/oi', ensureAuthenticated, oiEnforcementRouter);
-console.log('OI Enforcement routes registered');
-```
-
 ---
 
-## 12. Client Files (3 new + 5 patches)
+## 13. Client Files (3 new + 5 patches)
 
-### 12.1 New Client Files
+### 13.1 New Files
 
 | File | Description |
 |---|---|
-| `client/src/pages/oi/oi-enforcement-constants.ts` | Status labels, colour maps, control type labels, gate type labels, ERP entity type labels, enforcement level labels, scope labels |
-| `client/src/pages/oi/oi-enforcement-register.tsx` | Control register page — filterable table; create control dialog |
-| `client/src/pages/oi/oi-enforcement-detail.tsx` | 5-tab control detail page: Overview / Checklist / Holds / SOP Link / Audit Log |
+| `client/src/pages/oi/oi-enforcement-constants.ts` | All vocabulary: status labels, control_type labels (16), scope labels, hold_status labels, colour maps, VALID_* arrays |
+| `client/src/pages/oi/oi-enforcement-register.tsx` | Control register: filterable table; create control dialog |
+| `client/src/pages/oi/oi-enforcement-detail.tsx` | 5-tab control detail: Overview / Checklist / Holds / SOP Link / Audit Log |
 
-### 12.2 Lazy Loader (`client/src/loaders/oi.ts` patch)
+### 13.2 Lazy Loader, Router, Sidebar (same as Revision 2 — no changes)
 
-```typescript
-export const OiEnforcementRegisterPage = lazy(() => import("../pages/oi/oi-enforcement-register"));
-export const OiEnforcementDetailPage   = lazy(() => import("../pages/oi/oi-enforcement-detail"));
-```
-
-### 12.3 Router (`client/src/App.tsx` patch)
-
-```tsx
-<Route path="/oi/enforcement"            component={OiEnforcementRegisterPage} />
-<Route path="/oi/enforcement/:controlId" component={OiEnforcementDetailPage} />
-```
-
-### 12.4 Sidebar (`client/src/components/layout.tsx` patch)
-
-Add `ShieldAlert` to lucide imports. Add sidebar entry under the SOP Register entry:
-```tsx
-{ href: "/oi/enforcement", icon: ShieldAlert, label: "Enforcement Controls" }
-```
-
-### 12.5 Integration Patches (4 existing files)
+### 13.3 Integration Patches
 
 | File | Patch |
 |---|---|
-| `client/src/pages/oi/oi-dashboard.tsx` | Add `EnforcementDashboardPanels` — renders summary panel (including emergency_bypass_count prominently), holds-by-type panel, holds-by-department panel |
-| `client/src/pages/oi/oi-sop-detail.tsx` | Add `EnforcementControlsTab` as 7th tab — linked controls via `GET /api/oi/sop/:sopId/enforcement-controls` |
-| `client/src/pages/oi/oi-enforcement-detail.tsx` | Holds tab: `HoldDetailPanel` with checklist responses inline; emergency bypass button visible only when actor is Superuser |
-| `client/src/pages/oi/oi-enforcement-register.tsx` | Open hold count badge per control row; emergency_bypassed badge distinguishable from overridden |
+| `client/src/pages/oi/oi-dashboard.tsx` | `EnforcementDashboardPanels`: summary (with emergency_bypass_count prominently), holds-by-type, management KPI panel (emergency bypass in red, SM+ only) |
+| `client/src/pages/oi/oi-sop-detail.tsx` | `EnforcementControlsTab` as 7th tab |
+| `client/src/pages/oi/oi-enforcement-detail.tsx` | Holds tab: `HoldDetailPanel` with checklist responses; emergency bypass section visible and prominent when status = `emergency_bypassed`; audit log renders `is_override_event = true` rows with red "EMERGENCY BYPASS" badge |
+| `client/src/pages/oi/oi-enforcement-register.tsx` | Open hold count badge; `emergency_bypassed` rows visually distinct |
 
----
-
-## 13. `oi-enforcement-constants.ts` Vocabulary
+### 13.4 `oi-enforcement-constants.ts` Vocabulary
 
 ```typescript
-CONTROL_STATUS_LABELS: { draft, active, suspended, retired }
-CONTROL_TYPE_LABELS: { hold_point, qc_hold, dispatch_hold, procurement_hold, drawing_gate, dvs_gate, fat_block, sat_block, commissioning_block }
-ENFORCEMENT_LEVEL_LABELS: { advisory, mandatory }
-ENFORCEMENT_SCOPE_LABELS: { global, department, project, equipment_type }
-ERP_ENTITY_TYPE_LABELS: { epc_purchase_order, epc_work_order, epc_dispatch_readiness, epc_commissioning_readiness, inspection_execution, epc_drawing_verification, purchase_order, work_order }
-HOLD_STATUS_LABELS: { open, approved_to_proceed, released, overridden, emergency_bypassed }
-CONTROL_STATUS_COLORS: (badge color map)
+VALID_CONTROL_TYPES (16): hold_point, qc_hold, dispatch_hold, procurement_hold,
+  drawing_gate, dvs_gate, fat_block, sat_block, commissioning_block,
+  dvs_revision_mismatch, dvs_unverified_drawing, dvs_missing_custom_property,
+  procurement_blocked_vendor, procurement_missing_tbe_cbe,
+  procurement_missing_qc_requirement, procurement_expired_vendor_qualification
+
+VALID_ERP_ENTITY_TYPES (8): (same as §1)
+VALID_ENFORCEMENT_SCOPES: ['global', 'department', 'project', 'equipment_type']
+VALID_ENFORCEMENT_LEVELS: ['advisory', 'mandatory']
+VALID_HOLD_STATUSES: ['open', 'approved_to_proceed', 'released', 'overridden', 'emergency_bypassed']
+VALID_RESPONSE_STATUSES: ['pending', 'submitted', 'rejected']
 HOLD_STATUS_COLORS: { open: 'yellow', approved_to_proceed: 'blue', released: 'green', overridden: 'orange', emergency_bypassed: 'red' }
-ENFORCEMENT_LEVEL_COLORS: { advisory: 'blue', mandatory: 'red' }
-VALID_CONTROL_TYPES: string[] (array for Zod enum)
-VALID_ERP_ENTITY_TYPES: string[] (array for Zod enum)
-VALID_ENFORCEMENT_LEVELS: ['advisory', 'mandatory'] as const
-VALID_ENFORCEMENT_SCOPES: ['global', 'department', 'project', 'equipment_type'] as const
-OI_DEPARTMENTS: (same fixed list as Phase 2A)
+RESPONSE_STATUS_COLORS: { pending: 'gray', submitted: 'green', rejected: 'red' }
 ```
 
 ---
 
-## 14. `oi-enforcement-detail.tsx` Tab Structure (5 tabs)
+## 14. Drizzle Schema Additions (`shared/schema.ts`)
 
-| Tab | Value | Content |
-|---|---|---|
-| Overview | `overview` | Control number, SOP link, erp_entity_type, control_type, enforcement_level, enforcement_scope, scope detail (project or equipment_type if set), status, department, process_area, description, rationale, owner, approver, control_checklist_version, timestamps; transition action buttons with role gates |
-| Checklist | `checklist` | Ordered list of checklist items; add/edit/delete (draft only); item title, description, is_required badge, evidence_required badge, sort_order; checklist_version shown |
-| Holds | `holds` | Table of all holds; hold_number, erp_entity_ref, status, enforcement_level, hold_approver, raised_by, raised_at; action buttons: approve / assign-approver / release / override (SM+) / emergency-bypass (Superuser only); emergency_bypassed rows highlighted red |
-| SOP Link | `sop-link` | Linked SOP card: sopNumber, title, status, revision_number, department; link to SOP detail; warning banner if SOP not active or revision not activated |
-| Audit Log | `audit-log` | Chronological from `oi_enforcement_audit_log` filtered by `control_id`; `is_override_event = true` rows highlighted distinctly |
-
----
-
-## 15. Drizzle Schema Additions (`shared/schema.ts`)
-
-The following must be added to `shared/schema.ts` in order:
-
-1. 11 new values added to `oiAuditActionEnum` TypeScript array literal
-2. `oiEnforcementControls` table (with `enforcement_scope`, `scope_project_id`, `scope_equipment_type`, `control_checklist_version`)
-3. `oiEnforcementChecklists` table
-4. `oiEnforcementHolds` table (with `enforcement_scope`, `hold_approver_id`, `bypass_*` columns)
-5. `oiEnforcementChecklistResponses` table (with `sop_revision_number`, `checklist_revision_number`)
-6. `oiEnforcementAuditLog` table (with `is_override_event`)
-7. Insert schemas for all 5 tables (`createInsertSchema(...).omit({ id: true, createdAt: true, updatedAt: true })`)
+In order:
+1. 12 new values in `oiAuditActionEnum` TypeScript array
+2. `oiEnforcementControls` (with `enforcement_scope`, `scope_project_id`, `scope_equipment_type`, `control_checklist_version`)
+3. `oiEnforcementChecklists`
+4. `oiEnforcementHolds` (with `hold_owner_id`, `responsible_department`, `escalation_owner_id`, `is_primary_hold`, `bypass_*`)
+5. `oiEnforcementChecklistResponses` (with `sop_revision_number`, `checklist_revision_number`, `response_status`, `rejection_*`)
+6. `oiEnforcementAuditLog` (with `is_override_event`)
+7. Insert schemas: `createInsertSchema(...).omit({ id: true, createdAt: true, updatedAt: true })` for all 5 tables
 8. Exported TypeScript types for all 5 tables
 
 ---
 
-## 16. DB Migration (psql direct)
+## 15. DB Migration (psql direct)
 
-**5 tables + 11 enum values + 12 indexes + 1 unique partial index**
+**5 tables + 12 enum values + 14 indexes + 1 unique partial index**
 
-### Step 1: Enum additions (each standalone, NOT in transaction)
+### Step 1: Enum additions (each standalone)
 ```sql
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_control_created';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_control_activated';
@@ -773,8 +805,9 @@ ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_approved_to
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_released';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_overridden';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_checked';
-ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_unchecked';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_rejected';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_hold_emergency_bypassed';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'enforcement_checklist_item_resubmitted';
 ```
 
 ### Step 2: Create tables (single transaction)
@@ -787,7 +820,7 @@ CREATE TABLE oi_enforcement_controls (
   sop_id                   INTEGER NOT NULL REFERENCES oi_sop_records(id) ON DELETE RESTRICT,
   sop_revision_number      INTEGER NOT NULL,
   erp_entity_type          VARCHAR(50) NOT NULL,
-  control_type             VARCHAR(30) NOT NULL,
+  control_type             VARCHAR(50) NOT NULL,
   enforcement_level        VARCHAR(20) NOT NULL DEFAULT 'advisory',
   enforcement_scope        VARCHAR(30) NOT NULL DEFAULT 'global',
   scope_project_id         INTEGER REFERENCES projects(id) ON DELETE RESTRICT,
@@ -835,10 +868,14 @@ CREATE TABLE oi_enforcement_holds (
   erp_entity_id             INTEGER NOT NULL,
   erp_entity_ref            VARCHAR(100),
   enforcement_level         VARCHAR(20) NOT NULL,
-  hold_type                 VARCHAR(30) NOT NULL,
+  hold_type                 VARCHAR(50) NOT NULL,
   enforcement_scope         VARCHAR(30) NOT NULL,
+  is_primary_hold           BOOLEAN NOT NULL DEFAULT FALSE,
   reason                    TEXT NOT NULL,
   status                    VARCHAR(30) NOT NULL DEFAULT 'open',
+  hold_owner_id             INTEGER NOT NULL REFERENCES users(id),
+  responsible_department    VARCHAR(100) NOT NULL,
+  escalation_owner_id       INTEGER NOT NULL REFERENCES users(id),
   hold_approver_id          INTEGER REFERENCES users(id),
   raised_by                 INTEGER NOT NULL REFERENCES users(id),
   raised_at                 TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -859,35 +896,39 @@ CREATE TABLE oi_enforcement_holds (
 );
 
 CREATE TABLE oi_enforcement_checklist_responses (
-  id                      SERIAL PRIMARY KEY,
-  hold_id                 INTEGER NOT NULL REFERENCES oi_enforcement_holds(id) ON DELETE CASCADE,
-  checklist_item_id       INTEGER NOT NULL REFERENCES oi_enforcement_checklists(id) ON DELETE RESTRICT,
-  sop_revision_number     INTEGER NOT NULL,
+  id                        SERIAL PRIMARY KEY,
+  hold_id                   INTEGER NOT NULL REFERENCES oi_enforcement_holds(id) ON DELETE CASCADE,
+  checklist_item_id         INTEGER NOT NULL REFERENCES oi_enforcement_checklists(id) ON DELETE RESTRICT,
+  sop_revision_number       INTEGER NOT NULL,
   checklist_revision_number INTEGER NOT NULL,
-  is_checked              BOOLEAN NOT NULL DEFAULT FALSE,
-  evidence_note           TEXT,
-  responded_by            INTEGER REFERENCES users(id),
-  responded_at            TIMESTAMP,
-  created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+  response_status           VARCHAR(20) NOT NULL DEFAULT 'pending',
+  is_checked                BOOLEAN NOT NULL DEFAULT FALSE,
+  evidence_note             TEXT,
+  responded_by              INTEGER REFERENCES users(id),
+  responded_at              TIMESTAMP,
+  rejection_reason          TEXT,
+  rejected_by               INTEGER REFERENCES users(id),
+  rejected_at               TIMESTAMP,
+  created_at                TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at                TIMESTAMP NOT NULL DEFAULT NOW(),
   UNIQUE (hold_id, checklist_item_id)
 );
 
 CREATE TABLE oi_enforcement_audit_log (
-  id               SERIAL PRIMARY KEY,
-  control_id       INTEGER REFERENCES oi_enforcement_controls(id) ON DELETE SET NULL,
-  hold_id          INTEGER REFERENCES oi_enforcement_holds(id) ON DELETE SET NULL,
-  action           oi_audit_action NOT NULL,
-  actor_id         INTEGER NOT NULL REFERENCES users(id),
-  actor_name       TEXT NOT NULL,
-  actor_role       TEXT NOT NULL,
-  field_name       TEXT,
-  old_value        TEXT,
-  new_value        TEXT,
-  context          TEXT,
-  ip_address       TEXT,
+  id                SERIAL PRIMARY KEY,
+  control_id        INTEGER REFERENCES oi_enforcement_controls(id) ON DELETE SET NULL,
+  hold_id           INTEGER REFERENCES oi_enforcement_holds(id) ON DELETE SET NULL,
+  action            oi_audit_action NOT NULL,
+  actor_id          INTEGER NOT NULL REFERENCES users(id),
+  actor_name        TEXT NOT NULL,
+  actor_role        TEXT NOT NULL,
+  field_name        TEXT,
+  old_value         TEXT,
+  new_value         TEXT,
+  context           TEXT,
+  ip_address        TEXT,
   is_override_event BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at       TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at        TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 COMMIT;
@@ -904,6 +945,8 @@ CREATE INDEX idx_oi_enforcement_checklists_control_id ON oi_enforcement_checklis
 CREATE INDEX idx_oi_enforcement_holds_control_id ON oi_enforcement_holds(control_id);
 CREATE INDEX idx_oi_enforcement_holds_erp_entity ON oi_enforcement_holds(erp_entity_type, erp_entity_id);
 CREATE INDEX idx_oi_enforcement_holds_status ON oi_enforcement_holds(status);
+CREATE INDEX idx_oi_enforcement_holds_owner ON oi_enforcement_holds(hold_owner_id);
+CREATE INDEX idx_oi_enforcement_holds_dept ON oi_enforcement_holds(responsible_department);
 CREATE INDEX idx_oi_enforcement_checklist_resp_hold_id ON oi_enforcement_checklist_responses(hold_id);
 CREATE INDEX idx_oi_enforcement_audit_control_id ON oi_enforcement_audit_log(control_id);
 CREATE INDEX idx_oi_enforcement_audit_hold_id ON oi_enforcement_audit_log(hold_id);
@@ -916,41 +959,45 @@ CREATE UNIQUE INDEX idx_oi_enforcement_holds_no_duplicate_open
 
 ---
 
-## 17. Mandatory Corrections — Consolidated (Phase 2A + Phase 2B revisions)
+## 16. Mandatory Corrections — Consolidated
 
-| # | Rule | Enforcement Point |
+| # | Rule | Error Code / Enforcement |
 |---|---|---|
-| C1 | `oi_audit_log` is NOT used for enforcement audit. Use `oi_enforcement_audit_log` only via `writeEnforcementAuditLog()`. | `writeEnforcementAuditLog()` must never import `oiAuditLog` |
-| C2 | `approver_id ≠ owner_id` — enforced at create, update, and activation (3 points). | HTTP 422: `approver_must_differ_from_owner` |
-| C3 | All 4 activation pre-conditions checked at activation time (SOP active, SOP revision activated, owner assigned, erp_entity_type assigned). | HTTP 422 with specific error code per condition (§6.2) |
-| C4 | Duplicate active control check runs inside advisory lock at activation. HTTP 409 with conflicting control number. | Application-layer check; advisory lock prevents race |
-| C5 | Hold raising checks scope compatibility before inserting. HTTP 422: `entity_out_of_scope`. | Server-side scope check against control's `enforcement_scope` |
-| C6 | Hold raising verifies ERP entity exists. HTTP 404: `erp_entity_not_found`. | Server-side query of target ERP table |
-| C7 | Checklist injection at hold-raise time snapshots `sop_revision_number` and `checklist_revision_number`. Both are server-populated; not accepted from client. | Server sets both fields in hold-raise transaction |
-| C8 | Checklist responses are immutable after `is_checked = true`. HTTP 422: `response_immutable_after_submission`. | No UPDATE path for checked responses |
-| C9 | `hold_approver_id` must be non-null before release. HTTP 422: `hold_approver_not_assigned`. | Server checks before `released` transition |
-| C10 | Hold override is SM+ only. HTTP 403 if actor is not SM+. | Role check before override logic |
-| C11 | Emergency bypass is Superuser only. HTTP 403 if actor is not Superuser. SM+ is explicitly forbidden. | `SUPERUSER_ROLES` check only |
-| C12 | Override and emergency bypass audit events set `is_override_event = true`. | `writeEnforcementAuditLog()` receives explicit flag |
-| C13 | `oi_enforcement_audit_log` rows: no DELETE, no UPDATE, ever. | No delete/update route exists; `writeEnforcementAuditLog()` is INSERT only |
-| C14 | Emergency bypass count visible in enforcement summary dashboard. `emergency_bypass_count` is a mandatory field in the response. | Dashboard query includes `WHERE status = 'emergency_bypassed'` count |
-| C15 | No AI, no auto-enforcement, no ERP state mutation, no auto-hold raising, no auto-generated checklists in Phase 2B code. | Per Future-Phase Leakage Guard section |
+| C1 | `oi_audit_log` NOT used for enforcement. Use `oi_enforcement_audit_log` only via `writeEnforcementAuditLog()`. | Never import `oiAuditLog` in `oi-enforcement-*.ts` |
+| C2 | `approver_id ≠ owner_id` at create, update, activation. | HTTP 422: `approver_must_differ_from_owner` |
+| C3 | All 4 activation pre-conditions checked at activation (§7.3). | HTTP 422 with specific code per condition |
+| C4 | Enforcement activation approval rule (§7.2): `approved_by`/`approved_at` server-set; audit mandatory in same transaction. | Activation rolled back if audit write fails |
+| C5 | Duplicate active control check inside advisory lock at activation. | HTTP 409: `duplicate_active_control` |
+| C6 | Hold ownership: `hold_owner_id`, `responsible_department`, `escalation_owner_id` all required at raise time. | HTTP 422: `hold_owner_required` / `responsible_department_required` / `escalation_owner_required` |
+| C7 | Hold raise scope check per §3. | HTTP 422: `entity_out_of_scope` |
+| C8 | `erp_entity_ref` server-populated; ERP entity existence verified. | HTTP 404: `erp_entity_not_found` |
+| C9 | Response `sop_revision_number` and `checklist_revision_number` server-populated at raise time. Immutable. | Not accepted from client |
+| C10 | Checklist responses immutable after submission by submitter. Only hold_approver or SM+ can reject. | HTTP 422: `response_immutable_after_submission` |
+| C11 | Mandatory release evidence rule (§9.3): 3 checks; `released_by`/`released_at`/`release_note` server-set atomically. | HTTP 422 with specific codes; server-set fields not accepted from client |
+| C12 | `hold_approver_id` non-null required before release. | HTTP 422: `hold_approver_not_assigned` |
+| C13 | Override SM+ only. | HTTP 403 if not SM+ |
+| C14 | Emergency bypass Superuser only. SM+ (non-Superuser) forbidden. | HTTP 403 if not Superuser |
+| C15 | Override and bypass: `is_override_event = true` in audit log. Audit in same transaction. | `writeEnforcementAuditLog()` auto-sets flag |
+| C16 | Emergency bypass visible in 4 surfaces (§9.5). `emergency_bypass_count` and `emergency_bypass_count_this_month` mandatory in summary and KPI responses. | Dashboard endpoint tests must verify both fields |
+| C17 | `oi_enforcement_audit_log` immutable: no UPDATE, no DELETE, ever. | No delete/update route; INSERT-only service |
+| C18 | `writeEnforcementAuditLog()` INSERT-only; validated; auto-sets `is_override_event`. | §A.4 contract |
+| C19 | No automatic ERP transaction mutation. No writes to ERP entity tables in enforcement code. | Zero writes to `epc_purchase_orders`, `epc_work_orders`, etc. in `oi-enforcement-*.ts` |
+| C20 | No AI, auto-enforcement, auto-hold raising, predictive blocking, auto-generated checklists. | Per Future-Phase Leakage Guard section |
 
 ---
 
-## 18. Existing Infrastructure Not Modified
+## 17. Existing Infrastructure Not Modified
 
-| Item | Change |
+| Item | Status |
 |---|---|
-| `oi_audit_log` | None |
-| `oi_sop_audit_log` | None |
-| `writeAuditLog()` | None — not used in Phase 2B |
-| `writeSopAuditLog()` | None — not used in Phase 2B |
-| All existing ERP routes | None — Phase 2B does not modify ERP state machines |
-| `oi_audit_action` enum | Additive only (11 new values) |
-| Any Phase 1A–2A client pages | Only `oi-dashboard.tsx` and `oi-sop-detail.tsx` patched (additive only) |
+| `oi_audit_log` | Unchanged |
+| `oi_sop_audit_log` | Unchanged |
+| `writeAuditLog()`, `writeSopAuditLog()` | Unchanged — not used in Phase 2B |
+| All existing ERP routes | Unchanged — Phase 2B does not modify ERP state machines |
+| `oi_audit_action` enum | Additive only (12 new values) |
+| Phase 1A–2A client pages | Only `oi-dashboard.tsx` and `oi-sop-detail.tsx` patched (additive) |
 
 ---
 
-*Prepared by: Architecture review session — 2026-05-22 (Revision 2)*  
+*Prepared by: Architecture review session — 2026-05-22 (Revision 3)*  
 *STOP — awaiting approval before implementation.*
