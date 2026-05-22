@@ -510,6 +510,31 @@ function AuditLogTab({ ctrl }: { ctrl: any }) {
   );
 }
 
+// ─── Lessons Learned Tab ──────────────────────────────────────────────────────
+function EnforcementLinkedLessonsTab({ controlId }: { controlId: number }) {
+  const { data: lessons = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/oi/lessons/by-entity", "enforcement_control", controlId],
+    queryFn: async () => { const r = await fetch(`/api/oi/lessons/by-entity/enforcement_control/${controlId}`); if (!r.ok) return []; return r.json(); },
+  });
+  if (isLoading) return <div className="text-sm text-gray-400 py-4">Loading…</div>;
+  if (!lessons.length) return (
+    <div className="text-sm text-gray-400 py-6 text-center">No lessons linked to this control yet.<br /><a href="/oi/lessons" className="text-blue-600 hover:underline">Go to Lessons Learned Register →</a></div>
+  );
+  return (
+    <div className="space-y-2">
+      {lessons.map((l: any) => (
+        <div key={l.id} className="flex items-start justify-between gap-2 p-3 rounded border bg-white hover:bg-gray-50">
+          <div className="min-w-0 flex-1">
+            <a href={`/oi/lessons/${l.id}`} className="font-mono text-blue-600 hover:underline text-sm font-medium">{l.lesson_number}</a>
+            <p className="text-sm text-gray-700 truncate">{l.title}</p>
+            <p className="text-xs text-gray-400">{l.category} · {l.lesson_type} · {l.status}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function OiEnforcementDetailPage() {
   const [, params] = useRoute("/oi/enforcement/:controlId");
@@ -561,12 +586,14 @@ export default function OiEnforcementDetailPage() {
             <TabsTrigger value="holds">Holds</TabsTrigger>
             <TabsTrigger value="responses">Checklist Responses</TabsTrigger>
             <TabsTrigger value="audit">Audit Log</TabsTrigger>
+            <TabsTrigger value="lessons">Lessons Learned</TabsTrigger>
           </TabsList>
           <TabsContent value="overview"   className="mt-4"><OverviewTab ctrl={ctrl} onRefresh={() => qc.invalidateQueries({ queryKey: ["/api/oi/enforcement/controls", controlId] })} /></TabsContent>
           <TabsContent value="checklist"  className="mt-4"><ChecklistTab ctrl={ctrl} /></TabsContent>
           <TabsContent value="holds"      className="mt-4"><HoldsTab ctrl={ctrl} /></TabsContent>
           <TabsContent value="responses"  className="mt-4"><ResponsesTab ctrl={ctrl} /></TabsContent>
           <TabsContent value="audit"      className="mt-4"><AuditLogTab ctrl={ctrl} /></TabsContent>
+          <TabsContent value="lessons"    className="mt-4"><EnforcementLinkedLessonsTab controlId={ctrl.id} /></TabsContent>
         </Tabs>
       </div>
     </Layout>

@@ -13,3 +13,5 @@ export const OiSopRegisterPage        = lazyWithRetry(() => import("@/pages/oi/o
 export const OiSopDetailPage          = lazyWithRetry(() => import("@/pages/oi/oi-sop-detail"));
 export const OiEnforcementRegisterPage = lazyWithRetry(() => import("@/pages/oi/oi-enforcement-register"));
 export const OiEnforcementDetailPage   = lazyWithRetry(() => import("@/pages/oi/oi-enforcement-detail"));
+export const OiLessonRegisterPage      = lazyWithRetry(() => import("@/pages/oi/oi-lesson-register"));
+export const OiLessonDetailPage        = lazyWithRetry(() => import("@/pages/oi/oi-lesson-detail"));

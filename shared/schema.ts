@@ -14722,6 +14722,13 @@ export const oiAuditActionEnum = pgEnum("oi_audit_action", [
   "enforcement_hold_raised","enforcement_hold_approved_to_proceed","enforcement_hold_released",
   "enforcement_hold_overridden","enforcement_checklist_item_checked","enforcement_checklist_item_rejected",
   "enforcement_hold_emergency_bypassed","enforcement_checklist_item_resubmitted",
+  // Phase 3A: Lessons Learned audit actions
+  "lesson_created","lesson_submitted_for_review","lesson_reviewer_assigned",
+  "lesson_reviewer_voted","lesson_review_recused","lesson_approved",
+  "lesson_rejected","lesson_published","lesson_archived","lesson_revised",
+  "lesson_linked","lesson_unlinked","lesson_recurrence_recorded",
+  "lesson_effectiveness_reviewed","lesson_cross_project_approved",
+  "lesson_acknowledgment_required","lesson_acknowledged",
 ]);
 
 export const oiIssues = pgTable("oi_issues", {
@@ -15345,3 +15352,154 @@ export type OiSopLinkage         = typeof oiSopLinkages.$inferSelect;
 export type OiSopAcknowledgment  = typeof oiSopAcknowledgments.$inferSelect;
 export type OiSopEffectiveness   = typeof oiSopEffectiveness.$inferSelect;
 export type OiSopAuditLog        = typeof oiSopAuditLog.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 3A: Lessons Learned Platform
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const oiLessonRecords = pgTable("oi_lesson_records", {
+  id:                           serial("id").primaryKey(),
+  lessonNumber:                 varchar("lesson_number", { length: 20 }).notNull().unique(),
+  parentLessonId:               integer("parent_lesson_id").references((): any => oiLessonRecords.id, { onDelete: "restrict" }),
+  revisionNumber:               integer("revision_number").notNull().default(1),
+  isCurrentRevision:            boolean("is_current_revision").notNull().default(true),
+  title:                        text("title").notNull(),
+  titleHash:                    varchar("title_hash", { length: 32 }).notNull(),
+  description:                  text("description").notNull(),
+  lessonCategory:               varchar("lesson_category", { length: 50 }).notNull(),
+  lessonType:                   varchar("lesson_type", { length: 30 }).notNull(),
+  applicabilityScope:           varchar("applicability_scope", { length: 30 }).notNull().default("global"),
+  scopeDepartment:              varchar("scope_department", { length: 100 }),
+  scopeProjectId:               integer("scope_project_id").references(() => projects.id, { onDelete: "set null" }),
+  scopeEquipmentType:           varchar("scope_equipment_type", { length: 100 }),
+  tags:                         text("tags").array(),
+  status:                       varchar("status", { length: 30 }).notNull().default("draft"),
+  processArea:                  varchar("process_area", { length: 100 }),
+  rootCauseSummary:             text("root_cause_summary"),
+  recommendation:               text("recommendation").notNull(),
+  implementationGuidance:       text("implementation_guidance"),
+  priority:                     varchar("priority", { length: 20 }).notNull().default("normal"),
+  recurrenceRisk:               varchar("recurrence_risk", { length: 20 }),
+  crossProjectApplicable:       boolean("cross_project_applicable").notNull().default(false),
+  crossProjectApprovedBy:       integer("cross_project_approved_by").references(() => users.id, { onDelete: "restrict" }),
+  crossProjectApprovedAt:       timestamp("cross_project_approved_at"),
+  effectivenessReviewDueMonths: integer("effectiveness_review_due_months").default(6),
+  // ts_document (tsvector) lives in the DB only — updated via raw SQL; not in Drizzle schema
+  authorId:                     integer("author_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  submittedAt:                  timestamp("submitted_at"),
+  reviewDueAt:                  timestamp("review_due_at"),
+  approvedBy:                   integer("approved_by").references(() => users.id, { onDelete: "restrict" }),
+  approvedAt:                   timestamp("approved_at"),
+  publishedBy:                  integer("published_by").references(() => users.id, { onDelete: "restrict" }),
+  publishedAt:                  timestamp("published_at"),
+  archivedBy:                   integer("archived_by").references(() => users.id, { onDelete: "restrict" }),
+  archivedAt:                   timestamp("archived_at"),
+  archiveReason:                text("archive_reason"),
+  rejectedBy:                   integer("rejected_by").references(() => users.id, { onDelete: "restrict" }),
+  rejectedAt:                   timestamp("rejected_at"),
+  rejectionReason:              text("rejection_reason"),
+  createdAt:                    timestamp("created_at").notNull().defaultNow(),
+  updatedAt:                    timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiLessonLinkages = pgTable("oi_lesson_linkages", {
+  id:              serial("id").primaryKey(),
+  lessonId:        integer("lesson_id").notNull().references(() => oiLessonRecords.id, { onDelete: "cascade" }),
+  linkType:        varchar("link_type", { length: 30 }).notNull(),
+  linkedEntityId:  integer("linked_entity_id").notNull(),
+  linkedEntityRef: varchar("linked_entity_ref", { length: 100 }),
+  linkNote:        text("link_note"),
+  createdBy:       integer("created_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
+});
+
+export const oiLessonReviewers = pgTable("oi_lesson_reviewers", {
+  id:           serial("id").primaryKey(),
+  lessonId:     integer("lesson_id").notNull().references(() => oiLessonRecords.id, { onDelete: "cascade" }),
+  reviewerId:   integer("reviewer_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  reviewStatus: varchar("review_status", { length: 20 }).notNull().default("pending"),
+  reviewNote:   text("review_note"),
+  reviewedAt:   timestamp("reviewed_at"),
+  assignedBy:   integer("assigned_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  assignedAt:   timestamp("assigned_at").notNull().defaultNow(),
+});
+
+export const oiLessonRecurrenceChecks = pgTable("oi_lesson_recurrence_checks", {
+  id:               serial("id").primaryKey(),
+  lessonId:         integer("lesson_id").notNull().references(() => oiLessonRecords.id, { onDelete: "cascade" }),
+  checkDate:        timestamp("check_date").notNull(),
+  checkerId:        integer("checker_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  recurrenceFound:  boolean("recurrence_found").notNull().default(false),
+  recurrenceDetail: text("recurrence_detail"),
+  linkedIssueId:    integer("linked_issue_id").references(() => oiIssues.id, { onDelete: "set null" }),
+  linkedRcaId:      integer("linked_rca_id").references(() => oiRcaRecords.id, { onDelete: "set null" }),
+  recommendation:   text("recommendation"),
+  createdAt:        timestamp("created_at").notNull().defaultNow(),
+});
+
+export const oiLessonEffectivenessReviews = pgTable("oi_lesson_effectiveness_reviews", {
+  id:                  serial("id").primaryKey(),
+  lessonId:            integer("lesson_id").notNull().references(() => oiLessonRecords.id, { onDelete: "cascade" }),
+  reviewDate:          timestamp("review_date").notNull(),
+  reviewerId:          integer("reviewer_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  reviewStatus:        varchar("review_status", { length: 20 }).notNull().default("pending"),
+  effectivenessRating: varchar("effectiveness_rating", { length: 30 }),
+  observations:        text("observations"),
+  recommendation:      text("recommendation"),
+  nextReviewDue:       timestamp("next_review_due"),
+  createdAt:           timestamp("created_at").notNull().defaultNow(),
+});
+
+export const oiLessonAcknowledgments = pgTable("oi_lesson_acknowledgments", {
+  id:                 serial("id").primaryKey(),
+  lessonId:           integer("lesson_id").notNull().references(() => oiLessonRecords.id, { onDelete: "cascade" }),
+  acknowledgmentType: varchar("acknowledgment_type", { length: 20 }).notNull(),
+  targetDepartment:   varchar("target_department", { length: 100 }),
+  targetProjectId:    integer("target_project_id").references(() => projects.id, { onDelete: "set null" }),
+  isRequired:         boolean("is_required").notNull().default(true),
+  dueDate:            timestamp("due_date"),
+  acknowledgedBy:     integer("acknowledged_by").references(() => users.id, { onDelete: "restrict" }),
+  acknowledgedAt:     timestamp("acknowledged_at"),
+  acknowledgmentNote: text("acknowledgment_note"),
+  status:             varchar("status", { length: 20 }).notNull().default("pending"),
+  assignedBy:         integer("assigned_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  assignedAt:         timestamp("assigned_at").notNull().defaultNow(),
+});
+
+export const oiLessonAuditLog = pgTable("oi_lesson_audit_log", {
+  id:        serial("id").primaryKey(),
+  lessonId:  integer("lesson_id").notNull().references(() => oiLessonRecords.id, { onDelete: "cascade" }),
+  action:    oiAuditActionEnum("action").notNull(),
+  actorId:   integer("actor_id").notNull(),
+  actorName: text("actor_name").notNull(),
+  actorRole: text("actor_role").notNull(),
+  fieldName: text("field_name"),
+  oldValue:  text("old_value"),
+  newValue:  text("new_value"),
+  context:   text("context"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertOiLessonRecordSchema             = createInsertSchema(oiLessonRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOiLessonLinkageSchema            = createInsertSchema(oiLessonLinkages).omit({ id: true, createdAt: true });
+export const insertOiLessonReviewerSchema           = createInsertSchema(oiLessonReviewers).omit({ id: true, assignedAt: true });
+export const insertOiLessonRecurrenceCheckSchema    = createInsertSchema(oiLessonRecurrenceChecks).omit({ id: true, createdAt: true });
+export const insertOiLessonEffectivenessReviewSchema = createInsertSchema(oiLessonEffectivenessReviews).omit({ id: true, createdAt: true });
+export const insertOiLessonAcknowledgmentSchema     = createInsertSchema(oiLessonAcknowledgments).omit({ id: true, assignedAt: true });
+export const insertOiLessonAuditLogSchema           = createInsertSchema(oiLessonAuditLog).omit({ id: true, createdAt: true });
+
+export type OiLessonRecord               = typeof oiLessonRecords.$inferSelect;
+export type InsertOiLessonRecord         = z.infer<typeof insertOiLessonRecordSchema>;
+export type OiLessonLinkage              = typeof oiLessonLinkages.$inferSelect;
+export type InsertOiLessonLinkage        = z.infer<typeof insertOiLessonLinkageSchema>;
+export type OiLessonReviewer             = typeof oiLessonReviewers.$inferSelect;
+export type InsertOiLessonReviewer       = z.infer<typeof insertOiLessonReviewerSchema>;
+export type OiLessonRecurrenceCheck      = typeof oiLessonRecurrenceChecks.$inferSelect;
+export type InsertOiLessonRecurrenceCheck = z.infer<typeof insertOiLessonRecurrenceCheckSchema>;
+export type OiLessonEffectivenessReview  = typeof oiLessonEffectivenessReviews.$inferSelect;
+export type InsertOiLessonEffectivenessReview = z.infer<typeof insertOiLessonEffectivenessReviewSchema>;
+export type OiLessonAcknowledgment       = typeof oiLessonAcknowledgments.$inferSelect;
+export type InsertOiLessonAcknowledgment = z.infer<typeof insertOiLessonAcknowledgmentSchema>;
+export type OiLessonAuditLog             = typeof oiLessonAuditLog.$inferSelect;
+export type InsertOiLessonAuditLog       = z.infer<typeof insertOiLessonAuditLogSchema>;

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, ShieldAlert, AlertCircle,
-  Zap, Plus, BarChart3, Activity, Eye, DollarSign, Link2, Users, Truck, SearchCode, BookOpen,
+  Zap, Plus, BarChart3, Activity, Eye, DollarSign, Link2, Users, Truck, SearchCode, BookOpen, BookMarked, RefreshCw, Star,
 } from "lucide-react";
 import { CAPA_STATUS_LABELS, CAPA_STATUS_COLORS } from "./oi-capa-constants";
 
@@ -358,6 +358,111 @@ function EnforcementDashboardPanels() {
                 ))}
               </div>
               {overrides.length > 5 && <p className="text-xs text-gray-400 mt-2">{overrides.length - 5} more event{overrides.length - 5 > 1 ? "s" : ""}…</p>}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LessonDashboardPanels() {
+  const { data: summary } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/lesson-summary"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/lesson-summary"); if (!r.ok) return null; return r.json(); },
+  });
+  const { data: pipeline = [] } = useQuery<any[]>({
+    queryKey: ["/api/oi/dashboard/lesson-pipeline"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/lesson-pipeline"); if (!r.ok) return []; return r.json(); },
+  });
+  const { data: effDue = [] } = useQuery<any[]>({
+    queryKey: ["/api/oi/dashboard/lesson-effectiveness-due"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/lesson-effectiveness-due"); if (!r.ok) return []; return r.json(); },
+  });
+
+  if (!summary) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mt-2">
+        <BookMarked className="h-4 w-4 text-emerald-600" />
+        <h2 className="text-base font-bold text-gray-800">Lessons Learned (Phase 3A)</h2>
+        <a href="/oi/lessons" className="text-xs text-blue-600 hover:underline ml-auto">View All →</a>
+      </div>
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card className="border-l-4 border-l-emerald-400">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <BookMarked className="h-4 w-4 text-emerald-600" /> Lesson Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div><p className="text-xl font-bold text-slate-700">{summary.draft_count ?? 0}</p><p className="text-xs text-gray-400">Draft</p></div>
+              <div><p className="text-xl font-bold text-blue-600">{(summary.submitted_count ?? 0) + (summary.under_review_count ?? 0)}</p><p className="text-xs text-gray-400">In Review</p></div>
+              <div><p className="text-xl font-bold text-emerald-600">{summary.published_count ?? 0}</p><p className="text-xs text-gray-400">Published</p></div>
+            </div>
+            <div className="grid grid-cols-2 gap-1 text-xs text-center mt-2">
+              <div className="p-1 bg-violet-50 rounded"><p className="font-semibold text-violet-700">{summary.cross_project_count ?? 0}</p><p className="text-gray-400">Cross-Project</p></div>
+              <div className="p-1 bg-orange-50 rounded"><p className="font-semibold text-orange-700">{summary.overdue_effectiveness_count ?? 0}</p><p className="text-gray-400">Eff. Overdue</p></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {pipeline.length > 0 && (
+          <Card className="border-l-4 border-l-amber-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-amber-500" /> Review Pipeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                {pipeline.slice(0, 4).map((item: any) => (
+                  <div key={item.id} className="flex items-start justify-between gap-1 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <a href={`/oi/lessons/${item.id}`} className="font-mono text-blue-600 hover:underline truncate block">
+                        {item.lesson_number}
+                      </a>
+                      <p className="text-gray-500 truncate">{item.title}</p>
+                    </div>
+                    {item.days_until_overdue != null && (
+                      <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-xs font-medium ${item.days_until_overdue < 0 ? "bg-red-100 text-red-700" : item.days_until_overdue <= 3 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
+                        {item.days_until_overdue < 0 ? `${Math.abs(item.days_until_overdue)}d over` : `${item.days_until_overdue}d`}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {pipeline.length > 4 && <p className="text-xs text-gray-400">{pipeline.length - 4} more…</p>}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {effDue.length > 0 && (
+          <Card className="border-l-4 border-l-purple-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Star className="h-4 w-4 text-purple-500" /> Effectiveness Overdue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                {effDue.slice(0, 4).map((item: any) => (
+                  <div key={item.id} className="flex items-start justify-between gap-1 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <a href={`/oi/lessons/${item.id}`} className="font-mono text-blue-600 hover:underline truncate block">
+                        {item.lesson_number}
+                      </a>
+                      <p className="text-gray-500 truncate">{item.title}</p>
+                    </div>
+                    <span className="flex-shrink-0 text-xs text-red-600 font-medium whitespace-nowrap">
+                      {item.effectiveness_review_due_months}mo due
+                    </span>
+                  </div>
+                ))}
+                {effDue.length > 4 && <p className="text-xs text-gray-400">{effDue.length - 4} more…</p>}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -875,6 +980,9 @@ export default function OiDashboardPage() {
 
         {/* Phase 2B: Enforcement Dashboard Panels */}
         <EnforcementDashboardPanels />
+
+        {/* Phase 3A: Lessons Learned Dashboard Panels */}
+        <LessonDashboardPanels />
 
         {/* Quick actions */}
         <Card>

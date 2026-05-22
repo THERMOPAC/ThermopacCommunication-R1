@@ -44,9 +44,9 @@ const wrap = (fn: (req: any, res: any) => Promise<any>) =>
 
 async function resolveUserName(userId: number | null): Promise<string | null> {
   if (!userId) return null;
-  const [u] = await db.select({ name: users.name, username: users.username })
+  const [u] = await db.select({ username: users.username })
     .from(users).where(eq(users.id, userId)).limit(1);
-  return u ? (u.name || u.username || null) : null;
+  return u ? (u.username || null) : null;
 }
 
 async function nextSopNumber(): Promise<string> {
@@ -195,7 +195,7 @@ oiSopRouter.get("/sop", wrap(async (req: any, res: any) => {
       createdBy:         oiSopRecords.createdBy,
       createdAt:         oiSopRecords.createdAt,
       updatedAt:         oiSopRecords.updatedAt,
-      ownerName:         users.name,
+      ownerName:         users.username,
     })
     .from(oiSopRecords)
     .leftJoin(users, eq(users.id, oiSopRecords.ownerId))
@@ -953,8 +953,16 @@ oiSopRouter.get("/sop/:sopId/acknowledgments", wrap(async (req: any, res: any) =
   const revNum = req.query.revisionNumber ? parseInt(req.query.revisionNumber as string) : sop.revisionNumber;
 
   const acks = await db.select({
-    ack:      oiSopAcknowledgments,
-    userName: users.name,
+    id:                 oiSopAcknowledgments.id,
+    sopId:              oiSopAcknowledgments.sopId,
+    revisionNumber:     oiSopAcknowledgments.revisionNumber,
+    userId:             oiSopAcknowledgments.userId,
+    assignedBy:         oiSopAcknowledgments.assignedBy,
+    assignedAt:         oiSopAcknowledgments.assignedAt,
+    dueDate:            oiSopAcknowledgments.dueDate,
+    acknowledgedAt:     oiSopAcknowledgments.acknowledgedAt,
+    acknowledgmentNote: oiSopAcknowledgments.acknowledgmentNote,
+    userName:           users.username,
   })
   .from(oiSopAcknowledgments)
   .leftJoin(users, eq(users.id, oiSopAcknowledgments.userId))
@@ -966,10 +974,9 @@ oiSopRouter.get("/sop/:sopId/acknowledgments", wrap(async (req: any, res: any) =
 
   const now = new Date();
   return res.json(acks.map(r => ({
-    ...r.ack,
-    userName:  r.userName,
-    isOverdue: !r.ack.acknowledgedAt && r.ack.dueDate != null && r.ack.dueDate < now,
-    isCurrentRevision: r.ack.revisionNumber === sop.revisionNumber,
+    ...r,
+    isOverdue: !r.acknowledgedAt && r.dueDate != null && r.dueDate < now,
+    isCurrentRevision: r.revisionNumber === sop.revisionNumber,
   })));
 }));
 
@@ -1115,15 +1122,25 @@ oiSopRouter.get("/sop/:sopId/effectiveness", wrap(async (req: any, res: any) => 
   if (!sop) return res.status(404).json({ error: "sop_not_found" });
 
   const reviews = await db.select({
-    review:       oiSopEffectiveness,
-    reviewerName: users.name,
+    id:                 oiSopEffectiveness.id,
+    sopId:              oiSopEffectiveness.sopId,
+    reviewCycle:        oiSopEffectiveness.reviewCycle,
+    reviewerId:         oiSopEffectiveness.reviewerId,
+    reviewedAt:         oiSopEffectiveness.reviewedAt,
+    effectivenessScore: oiSopEffectiveness.effectivenessScore,
+    isEffective:        oiSopEffectiveness.isEffective,
+    deviationObserved:  oiSopEffectiveness.deviationObserved,
+    requiresRevision:   oiSopEffectiveness.requiresRevision,
+    evidenceNotes:      oiSopEffectiveness.evidenceNotes,
+    recommendation:     oiSopEffectiveness.recommendation,
+    reviewerName:       users.username,
   })
   .from(oiSopEffectiveness)
   .leftJoin(users, eq(users.id, oiSopEffectiveness.reviewerId))
   .where(eq(oiSopEffectiveness.sopId, sopId))
   .orderBy(desc(oiSopEffectiveness.reviewCycle));
 
-  return res.json(reviews.map(r => ({ ...r.review, reviewerName: r.reviewerName })));
+  return res.json(reviews);
 }));
 
 // ─── 24. GET /dashboard/sop-summary ──────────────────────────────────────────

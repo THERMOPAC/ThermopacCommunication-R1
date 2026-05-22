@@ -3910,7 +3910,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/oi', ensureAuthenticated, oiSopRouter);
   const { oiEnforcementRouter } = await import('./oi-enforcement-routes');
   app.use('/api/oi', ensureAuthenticated, oiEnforcementRouter);
-  console.log('OI CAPA routes registered');
+  const { oiLessonRouter } = await import('./oi-lesson-routes');
+  app.use('/api/oi', ensureAuthenticated, oiLessonRouter);
+  console.log('OI CAPA / SOP / Enforcement / Lessons routes registered');
 
   // ── PPPC — Project Procurement Package Control ────────────────────────────────
   const { setupPppcRoutes } = await import('./pppc-routes');
