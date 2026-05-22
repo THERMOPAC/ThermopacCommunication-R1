@@ -357,3 +357,6 @@ const _gracefulShutdown = async (signal: string) => {
 };
 process.on('SIGTERM', () => _gracefulShutdown('SIGTERM'));
 process.on('SIGINT',  () => _gracefulShutdown('SIGINT'));
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[CRITICAL] Unhandled Promise Rejection — server continues:', reason);
+});

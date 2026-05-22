@@ -31,6 +31,17 @@ function actorFromReq(req: any) {
 }
 function hasRole(role: string, allowed: string[]): boolean { return allowed.includes(role); }
 
+// Async error wrapper — catches thrown errors in async route handlers and
+// returns 500 instead of leaving an unhandled promise rejection.
+const wrap = (fn: (req: any, res: any) => Promise<any>) =>
+  async (req: any, res: any) => {
+    try { await fn(req, res); }
+    catch (err) {
+      console.error("[OI-SOP] Unhandled route error:", err);
+      if (!res.headersSent) res.status(500).json({ error: "internal_error" });
+    }
+  };
+
 async function resolveUserName(userId: number | null): Promise<string | null> {
   if (!userId) return null;
   const [u] = await db.select({ name: users.name, username: users.username })
@@ -109,7 +120,7 @@ const createSopSchema = z.object({
   nextReviewDate:    z.string().datetime().optional(),
 });
 
-oiSopRouter.post("/sop", async (req: any, res: any) => {
+oiSopRouter.post("/sop", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -149,10 +160,10 @@ oiSopRouter.post("/sop", async (req: any, res: any) => {
   });
 
   return res.status(201).json(sop);
-});
+}));
 
 // ─── 2. GET /sop — List SOP Register ─────────────────────────────────────────
-oiSopRouter.get("/sop", async (req: any, res: any) => {
+oiSopRouter.get("/sop", wrap(async (req: any, res: any) => {
   const { status, department, sopType, ownerId, overdueReviewOnly, search, limit = "100", offset = "0" } = req.query;
 
   const conditions: any[] = [];
@@ -190,10 +201,10 @@ oiSopRouter.get("/sop", async (req: any, res: any) => {
   }));
 
   return res.json(result.filter(Boolean));
-});
+}));
 
 // ─── 3. GET /sop/:sopId — SOP Detail ─────────────────────────────────────────
-oiSopRouter.get("/sop/:sopId", async (req: any, res: any) => {
+oiSopRouter.get("/sop/:sopId", wrap(async (req: any, res: any) => {
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
 
@@ -212,7 +223,7 @@ oiSopRouter.get("/sop/:sopId", async (req: any, res: any) => {
   const isReviewOverdue = sop.status === "active" && sop.reviewDueDate != null && sop.reviewDueDate < now;
 
   return res.json({ ...sop, ownerName, approverName, pendingRevision, ackSummary, effectSummary, isReviewOverdue });
-});
+}));
 
 // ─── 4. PATCH /sop/:sopId — Update SOP Fields ────────────────────────────────
 const updateSopSchema = z.object({
@@ -229,7 +240,7 @@ const updateSopSchema = z.object({
   nextReviewDate:    z.string().datetime().nullable().optional(),
 });
 
-oiSopRouter.patch("/sop/:sopId", async (req: any, res: any) => {
+oiSopRouter.patch("/sop/:sopId", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -309,7 +320,7 @@ oiSopRouter.patch("/sop/:sopId", async (req: any, res: any) => {
   }
 
   return res.json(updated);
-});
+}));
 
 // ─── 5. POST /sop/:sopId/transition ──────────────────────────────────────────
 const transitionSchema = z.object({
@@ -318,7 +329,7 @@ const transitionSchema = z.object({
   retirementReason:  z.string().min(10).max(1000).optional(),
 });
 
-oiSopRouter.post("/sop/:sopId/transition", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/transition", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
@@ -465,7 +476,7 @@ oiSopRouter.post("/sop/:sopId/transition", async (req: any, res: any) => {
   }
 
   return res.status(400).json({ error: "unknown_action" });
-});
+}));
 
 // ─── 6. POST /sop/:sopId/revisions ────────────────────────────────────────────
 const createRevisionSchema = z.object({
@@ -473,7 +484,7 @@ const createRevisionSchema = z.object({
   changeRationale: z.string().min(10).max(2000),
 });
 
-oiSopRouter.post("/sop/:sopId/revisions", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/revisions", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -513,10 +524,10 @@ oiSopRouter.post("/sop/:sopId/revisions", async (req: any, res: any) => {
   });
 
   return res.status(201).json(rev);
-});
+}));
 
 // ─── 7. GET /sop/:sopId/revisions ────────────────────────────────────────────
-oiSopRouter.get("/sop/:sopId/revisions", async (req: any, res: any) => {
+oiSopRouter.get("/sop/:sopId/revisions", wrap(async (req: any, res: any) => {
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
 
@@ -528,7 +539,7 @@ oiSopRouter.get("/sop/:sopId/revisions", async (req: any, res: any) => {
     .orderBy(desc(oiSopRevisions.revisionNumber));
 
   return res.json(revisions);
-});
+}));
 
 // ─── 8. PATCH /sop/:sopId/revisions/:revId ────────────────────────────────────
 const updateRevisionSchema = z.object({
@@ -536,7 +547,7 @@ const updateRevisionSchema = z.object({
   changeRationale: z.string().min(10).max(2000).optional(),
 });
 
-oiSopRouter.patch("/sop/:sopId/revisions/:revId", async (req: any, res: any) => {
+oiSopRouter.patch("/sop/:sopId/revisions/:revId", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -572,10 +583,10 @@ oiSopRouter.patch("/sop/:sopId/revisions/:revId", async (req: any, res: any) => 
   });
 
   return res.json(updated);
-});
+}));
 
 // ─── 9. POST /sop/:sopId/revisions/:revId/submit ──────────────────────────────
-oiSopRouter.post("/sop/:sopId/revisions/:revId/submit", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/revisions/:revId/submit", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -608,10 +619,10 @@ oiSopRouter.post("/sop/:sopId/revisions/:revId/submit", async (req: any, res: an
   });
 
   return res.json(updated);
-});
+}));
 
 // ─── 10. POST /sop/:sopId/revisions/:revId/approve ────────────────────────────
-oiSopRouter.post("/sop/:sopId/revisions/:revId/approve", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/revisions/:revId/approve", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, SM_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -649,14 +660,14 @@ oiSopRouter.post("/sop/:sopId/revisions/:revId/approve", async (req: any, res: a
   });
 
   return res.json({ revision: updatedRev, sop: updatedSop });
-});
+}));
 
 // ─── 11. POST /sop/:sopId/revisions/:revId/reject ─────────────────────────────
 const rejectRevisionSchema = z.object({
   rejectionReason: z.string().min(10).max(1000),
 });
 
-oiSopRouter.post("/sop/:sopId/revisions/:revId/reject", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/revisions/:revId/reject", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, SM_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -691,7 +702,7 @@ oiSopRouter.post("/sop/:sopId/revisions/:revId/reject", async (req: any, res: an
   });
 
   return res.json(updated);
-});
+}));
 
 // ─── 12. POST /sop/:sopId/linkages — Add Linkage ─────────────────────────────
 const addLinkageSchema = z.object({
@@ -700,7 +711,7 @@ const addLinkageSchema = z.object({
   linkNote:   z.string().min(3).max(500),
 });
 
-oiSopRouter.post("/sop/:sopId/linkages", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/linkages", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -749,10 +760,10 @@ oiSopRouter.post("/sop/:sopId/linkages", async (req: any, res: any) => {
   });
 
   return res.status(201).json(linkage);
-});
+}));
 
 // ─── 13. GET /sop/:sopId/linkages ────────────────────────────────────────────
-oiSopRouter.get("/sop/:sopId/linkages", async (req: any, res: any) => {
+oiSopRouter.get("/sop/:sopId/linkages", wrap(async (req: any, res: any) => {
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
   const sop = await fetchSop(sopId);
@@ -763,10 +774,10 @@ oiSopRouter.get("/sop/:sopId/linkages", async (req: any, res: any) => {
     .orderBy(desc(oiSopLinkages.createdAt));
 
   return res.json(linkages);
-});
+}));
 
 // ─── 14. DELETE /sop/:sopId/linkages/:linkageId — Remove Linkage (C5) ────────
-oiSopRouter.delete("/sop/:sopId/linkages/:linkageId", async (req: any, res: any) => {
+oiSopRouter.delete("/sop/:sopId/linkages/:linkageId", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -792,10 +803,10 @@ oiSopRouter.delete("/sop/:sopId/linkages/:linkageId", async (req: any, res: any)
   });
 
   return res.json({ success: true, deleted: linkageId });
-});
+}));
 
 // ─── 15. GET /issues/:id/sop — SOPs linked to an issue ───────────────────────
-oiSopRouter.get("/issues/:id/sop", async (req: any, res: any) => {
+oiSopRouter.get("/issues/:id/sop", wrap(async (req: any, res: any) => {
   const issueId = parseInt(req.params.id);
   if (isNaN(issueId)) return res.status(400).json({ error: "invalid_id" });
 
@@ -808,10 +819,10 @@ oiSopRouter.get("/issues/:id/sop", async (req: any, res: any) => {
   const sopIds = linkages.map(l => l.sopId);
   const sops   = await db.select().from(oiSopRecords).where(inArray(oiSopRecords.id, sopIds));
   return res.json(sops);
-});
+}));
 
 // ─── 16. GET /capa/:capaId/sop — SOPs linked to a CAPA ──────────────────────
-oiSopRouter.get("/capa/:capaId/sop", async (req: any, res: any) => {
+oiSopRouter.get("/capa/:capaId/sop", wrap(async (req: any, res: any) => {
   const capaId = parseInt(req.params.capaId);
   if (isNaN(capaId)) return res.status(400).json({ error: "invalid_id" });
 
@@ -824,10 +835,10 @@ oiSopRouter.get("/capa/:capaId/sop", async (req: any, res: any) => {
   const sopIds = linkages.map(l => l.sopId);
   const sops   = await db.select().from(oiSopRecords).where(inArray(oiSopRecords.id, sopIds));
   return res.json(sops);
-});
+}));
 
 // ─── 17. GET /rca/:rcaId/sop — SOPs linked to an RCA ────────────────────────
-oiSopRouter.get("/rca/:rcaId/sop", async (req: any, res: any) => {
+oiSopRouter.get("/rca/:rcaId/sop", wrap(async (req: any, res: any) => {
   const rcaId = parseInt(req.params.rcaId);
   if (isNaN(rcaId)) return res.status(400).json({ error: "invalid_id" });
 
@@ -840,7 +851,7 @@ oiSopRouter.get("/rca/:rcaId/sop", async (req: any, res: any) => {
   const sopIds = linkages.map(l => l.sopId);
   const sops   = await db.select().from(oiSopRecords).where(inArray(oiSopRecords.id, sopIds));
   return res.json(sops);
-});
+}));
 
 // ─── 18. POST /sop/:sopId/acknowledgments — Assign Acks (C2, C6) ─────────────
 const assignAckSchema = z.object({
@@ -848,7 +859,7 @@ const assignAckSchema = z.object({
   dueDate: z.string().datetime().optional(),
 });
 
-oiSopRouter.post("/sop/:sopId/acknowledgments", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/acknowledgments", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -910,10 +921,10 @@ oiSopRouter.post("/sop/:sopId/acknowledgments", async (req: any, res: any) => {
   }
 
   return res.status(201).json({ created, skipped });
-});
+}));
 
 // ─── 19. GET /sop/:sopId/acknowledgments ─────────────────────────────────────
-oiSopRouter.get("/sop/:sopId/acknowledgments", async (req: any, res: any) => {
+oiSopRouter.get("/sop/:sopId/acknowledgments", wrap(async (req: any, res: any) => {
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
 
@@ -942,14 +953,14 @@ oiSopRouter.get("/sop/:sopId/acknowledgments", async (req: any, res: any) => {
     isOverdue: !r.ack.acknowledgedAt && r.ack.dueDate != null && r.ack.dueDate < now,
     isCurrentRevision: r.ack.revisionNumber === sop.revisionNumber,
   })));
-});
+}));
 
 // ─── 20. POST /sop/:sopId/acknowledgments/:ackId/acknowledge (C6) ─────────────
 const acknowledgeSchema = z.object({
   acknowledgmentNote: z.string().max(500).optional(),
 });
 
-oiSopRouter.post("/sop/:sopId/acknowledgments/:ackId/acknowledge", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/acknowledgments/:ackId/acknowledge", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   const sopId = parseInt(req.params.sopId);
   const ackId = parseInt(req.params.ackId);
@@ -983,10 +994,10 @@ oiSopRouter.post("/sop/:sopId/acknowledgments/:ackId/acknowledge", async (req: a
   });
 
   return res.json(updated);
-});
+}));
 
 // ─── 21. DELETE /sop/:sopId/acknowledgments/:ackId — Withdraw (C6) ────────────
-oiSopRouter.delete("/sop/:sopId/acknowledgments/:ackId", async (req: any, res: any) => {
+oiSopRouter.delete("/sop/:sopId/acknowledgments/:ackId", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -1012,7 +1023,7 @@ oiSopRouter.delete("/sop/:sopId/acknowledgments/:ackId", async (req: any, res: a
   });
 
   return res.json({ success: true, deleted: ackId });
-});
+}));
 
 // ─── 22. POST /sop/:sopId/effectiveness — Record Review (C7) ─────────────────
 const effectivenessSchema = z.object({
@@ -1024,7 +1035,7 @@ const effectivenessSchema = z.object({
   recommendation:     z.string().max(2000).optional(),
 });
 
-oiSopRouter.post("/sop/:sopId/effectiveness", async (req: any, res: any) => {
+oiSopRouter.post("/sop/:sopId/effectiveness", wrap(async (req: any, res: any) => {
   const actor = actorFromReq(req);
   if (!hasRole(actor.role, SM_ROLES)) return res.status(403).json({ error: "forbidden" });
 
@@ -1076,10 +1087,10 @@ oiSopRouter.post("/sop/:sopId/effectiveness", async (req: any, res: any) => {
   });
 
   return res.status(201).json(review);
-});
+}));
 
 // ─── 23. GET /sop/:sopId/effectiveness ───────────────────────────────────────
-oiSopRouter.get("/sop/:sopId/effectiveness", async (req: any, res: any) => {
+oiSopRouter.get("/sop/:sopId/effectiveness", wrap(async (req: any, res: any) => {
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
   const sop = await fetchSop(sopId);
@@ -1095,10 +1106,10 @@ oiSopRouter.get("/sop/:sopId/effectiveness", async (req: any, res: any) => {
   .orderBy(desc(oiSopEffectiveness.reviewCycle));
 
   return res.json(reviews.map(r => ({ ...r.review, reviewerName: r.reviewerName })));
-});
+}));
 
 // ─── 24. GET /dashboard/sop-summary ──────────────────────────────────────────
-oiSopRouter.get("/dashboard/sop-summary", async (req: any, res: any) => {
+oiSopRouter.get("/dashboard/sop-summary", wrap(async (req: any, res: any) => {
   const { periodDays = "30" } = req.query;
   const days = parseInt(periodDays as string) || 30;
   const now  = new Date();
@@ -1140,10 +1151,10 @@ oiSopRouter.get("/dashboard/sop-summary", async (req: any, res: any) => {
     pendingAckCount,
     periodDays:         days,
   });
-});
+}));
 
 // ─── 25. GET /dashboard/sop-acknowledgment ────────────────────────────────────
-oiSopRouter.get("/dashboard/sop-acknowledgment", async (req: any, res: any) => {
+oiSopRouter.get("/dashboard/sop-acknowledgment", wrap(async (req: any, res: any) => {
   const result = await db.execute(sql`
     SELECT
       s.department,
@@ -1163,10 +1174,10 @@ oiSopRouter.get("/dashboard/sop-acknowledgment", async (req: any, res: any) => {
   `);
 
   return res.json((result as any).rows ?? []);
-});
+}));
 
 // ─── 26. GET /dashboard/sop-effectiveness ────────────────────────────────────
-oiSopRouter.get("/dashboard/sop-effectiveness", async (req: any, res: any) => {
+oiSopRouter.get("/dashboard/sop-effectiveness", wrap(async (req: any, res: any) => {
   const { periodDays = "90" } = req.query;
   const days = parseInt(periodDays as string) || 90;
   const from = new Date(Date.now() - days * 86400000);
@@ -1188,10 +1199,10 @@ oiSopRouter.get("/dashboard/sop-effectiveness", async (req: any, res: any) => {
   `);
 
   return res.json((result as any).rows?.[0] ?? {});
-});
+}));
 
 // ─── 27. GET /dashboard/sop-by-department ─────────────────────────────────────
-oiSopRouter.get("/dashboard/sop-by-department", async (req: any, res: any) => {
+oiSopRouter.get("/dashboard/sop-by-department", wrap(async (req: any, res: any) => {
   const result = await db.execute(sql`
     SELECT
       s.department,
@@ -1209,10 +1220,10 @@ oiSopRouter.get("/dashboard/sop-by-department", async (req: any, res: any) => {
   `);
 
   return res.json((result as any).rows ?? []);
-});
+}));
 
 // ─── Audit Log for a SOP ──────────────────────────────────────────────────────
-oiSopRouter.get("/sop/:sopId/audit-log", async (req: any, res: any) => {
+oiSopRouter.get("/sop/:sopId/audit-log", wrap(async (req: any, res: any) => {
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
   const sop = await fetchSop(sopId);
@@ -1224,4 +1235,4 @@ oiSopRouter.get("/sop/:sopId/audit-log", async (req: any, res: any) => {
     .limit(200);
 
   return res.json(logs);
-});
+}));
