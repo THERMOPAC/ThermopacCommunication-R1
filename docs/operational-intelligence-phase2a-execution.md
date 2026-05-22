@@ -1,7 +1,7 @@
 # Operational Intelligence — Phase 2A Execution Plan
 
-**Status:** SUBMITTED FOR APPROVAL — DO NOT IMPLEMENT  
-**Date:** 2026-05-22  
+**Status:** REVISED — SUBMITTED FOR APPROVAL — DO NOT IMPLEMENT  
+**Date:** 2026-05-22 (revised 2026-05-22)  
 **Phase 1A Baseline:** `docs/operational-intelligence-phase1a-execution.md` (COMPLETE)  
 **Phase 1B Baseline:** `docs/operational-intelligence-phase1b-execution.md` (COMPLETE)  
 **Phase 1C Baseline:** `docs/operational-intelligence-phase1c-execution.md` (COMPLETE)  
@@ -36,8 +36,11 @@ The following logic is **prohibited** from appearing anywhere in Phase 2A code, 
 
 | Category | Prohibited |
 |---|---|
-| ERP enforcement | SAP-triggered SOP activation, purchase order gates, ERP-driven status changes |
-| AI / ML | OpenAI API calls, embeddings, semantic search, AI-generated SOP content, AI-suggested linkages |
+| ERP enforcement | SAP-triggered SOP activation, purchase order gates, ERP-driven status changes, ERP workflow blocking (SAP state gates on SOP transitions) |
+| ERP checklist injection | ERP-generated checklist items injected into SOP content or SOP workflow steps |
+| Dynamic ERP forms | ERP-populated form fields, SAP master data auto-filling SOP fields at any stage |
+| Auto-generated SOP content | AI-generated, ERP-generated, or template-engine-generated SOP text, sections, or procedures |
+| AI / ML | OpenAI API calls, embeddings, semantic search, AI-suggested linkages |
 | Predictive analytics | Trend forecasting, ML-based compliance scoring, risk prediction |
 | Legal hold | Legal hold flags, immutability for legal purposes |
 | Evidence integrity | SHA-256 cryptographic proof, tamper detection, blockchain anchoring |
@@ -71,7 +74,7 @@ The following logic is **prohibited** from appearing anywhere in Phase 2A code, 
 
 ### Explicitly Excluded from Phase 2A
 
-ERP enforcement, AI agents, AI governance, predictive analytics, legal hold, evidence integrity, file attachments to GCS, email notifications, SHA-256 cryptographic proof, OpenAI API calls, vector embeddings, automatic SOP activation, lessons learned linkage, commissioning checklists.
+ERP enforcement, ERP workflow blocking, ERP checklist injection, dynamic ERP forms, auto-generated SOP content, AI agents, AI governance, predictive analytics, legal hold, evidence integrity, file attachments to GCS, email notifications, SHA-256 cryptographic proof, OpenAI API calls, vector embeddings, automatic SOP activation, lessons learned linkage, commissioning checklists.
 
 ---
 
@@ -235,7 +238,8 @@ CREATE INDEX idx_oi_sop_linkages_linked_type ON oi_sop_linkages(linked_type, lin
 | `link_note` | Required. Min 5 chars, max 500 chars. Explains why this SOP is relevant to the linked entity. |
 | `linked_by` | Set server-side from `req.user.id`. Manager+ required to add or remove linkages. |
 | Duplicate guard | Unique constraint on `(sop_id, linked_type, linked_id)`. Duplicate returns HTTP 409. |
-| Deletion | Linkage deletion permitted by Manager+ and by Superuser. Does not affect the SOP or the linked entity. |
+| Retired SOP gate | Linkage creation is blocked if the SOP status is `retired`. Server returns HTTP 422: `"Retired SOPs cannot receive new linkages."` |
+| Deletion | Linkage deletion permitted by Manager+ and by Superuser. Does not affect the SOP or the linked entity. **Deletion must always write a `sop_unlinked` audit event.** The audit `context` field must contain the SOP number, and the `fieldName` field must carry `"{linked_type}:{linked_id}"` so that the linked entity type and ID are recoverable from the audit log. |
 | Reverse lookup | `GET /api/oi/issues/:id/sop`, `GET /api/oi/capa/:capaId/sop`, `GET /api/oi/rca/:rcaId/sop` — return all SOPs linked to the given entity, ordered by `created_at` descending. |
 
 ---
@@ -276,8 +280,11 @@ CREATE INDEX idx_oi_sop_ack_due     ON oi_sop_acknowledgments(due_date);
 | `acknowledged_at` | NULL until the user explicitly acknowledges. Set server-side to NOW() when `acknowledge` action fires. Only the assigned `user_id` may acknowledge their own assignment (or Superuser on their behalf). |
 | `acknowledgment_note` | Optional. Max 1000 chars. User may add a note when acknowledging (e.g. concerns noted). |
 | Duplicate guard | Unique constraint on `(sop_id, revision_number, user_id)`. Attempting to assign the same user twice for the same revision returns HTTP 409. |
-| Withdrawal | Assignment can be withdrawn (deleted) by Manager+ if `acknowledged_at IS NULL`. Cannot delete an already-acknowledged assignment. |
-| SOP must be active | Acknowledgment assignments can only be created when SOP status is `active`. HTTP 422 returned otherwise. |
+| Withdrawal | Assignment can be withdrawn (deleted) by Manager+ if `acknowledged_at IS NULL`. Cannot delete an already-acknowledged assignment. Withdrawal **must write a `sop_acknowledgment_withdrawn` audit event** with the withdrawn `user_id` and `revision_number` in the `context` field. |
+| SOP must be active | Acknowledgment assignments can only be created when: (a) SOP status = `active`, AND (b) SOP `revision_number >= 1` (at least one revision has been approved and activated). HTTP 422 with error `sop_not_ready_for_acknowledgment` if either condition is not met. No pending revision (`draft` or `under_review`) is permitted — a SOP mid-revision is considered not yet stable for new assignments. |
+| Retired SOP gate | Acknowledgment assignment creation is blocked if SOP status = `retired`. Server returns HTTP 422: `"Retired SOPs cannot receive acknowledgment assignments."` |
+| Assignment audit | Assignment (batch or single) **must write a `sop_acknowledgment_assigned` audit event** per assigned user. The `context` field carries the SOP number and revision number. The `fieldName` carries the assigned `user_id`. |
+| Acknowledge audit | User acknowledgment **must write a `sop_acknowledged` audit event**. The `context` field carries the SOP number and revision number. The `fieldName` carries the acknowledging `user_id`. |
 
 ---
 
@@ -317,15 +324,16 @@ CREATE INDEX idx_oi_sop_effectiveness_sop_id ON oi_sop_effectiveness(sop_id);
 | `requires_revision` | Required. Boolean. If TRUE, owner is expected to initiate a revision. |
 | `recommendation` | Required when `is_effective = FALSE` or `requires_revision = TRUE`. Min 10 chars, max 1000 chars. |
 | `evidence_notes` | Optional. Max 2000 chars. |
-| Contradiction rule | `is_effective = TRUE` and `deviation_observed = TRUE` cannot both be set. Server returns HTTP 422. |
-| Create rule | Permitted only when SOP status is `active`. SM+ only. |
+| Contradiction rule 1 | `is_effective = TRUE` AND `deviation_observed = TRUE` cannot both be set in the same record. Server returns HTTP 422: `"A SOP cannot be effective and have deviations observed simultaneously."` |
+| Contradiction rule 2 | `is_effective = TRUE` AND `requires_revision = TRUE` cannot both be set in the same record. Server returns HTTP 422: `"A SOP marked effective cannot simultaneously require revision."` |
+| Create rule | Permitted only when SOP status is `active`. SM+ only. Blocked if SOP status is `retired` — HTTP 422: `"Retired SOPs cannot receive effectiveness reviews."` |
 | Unique per cycle | One review per `(sop_id, review_cycle)`. Duplicate attempt returns HTTP 409. |
 
 ---
 
 ### 2.6 `oi_audit_action` Enum Additions (Phase 2A)
 
-**12 new values** added to the existing `oi_audit_action` Postgres enum.
+**13 new values** added to the existing `oi_audit_action` Postgres enum.
 
 **Migration script rule:** Each statement runs standalone, outside any transaction block.
 
@@ -342,6 +350,7 @@ ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_linked';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_unlinked';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_acknowledgment_assigned';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_acknowledged';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_acknowledgment_withdrawn';
 ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_effectiveness_recorded';
 ```
 
@@ -349,7 +358,8 @@ ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_effectiveness_recorded';
 - SOP workflow status transitions reuse the existing `status_changed` enum value with `fieldName = 'sop_status'`.
 - `field_updated` is used for individual field changes on `oi_sop_records`.
 - `sop_revised` is written when a revision is created (a new `oi_sop_revisions` row).
-- `shared/schema.ts` `oiAuditActionEnum` pgEnum array must be extended with all 12 values.
+- `sop_acknowledgment_withdrawn` is written whenever a pending acknowledgment assignment is deleted by a Manager+.
+- `shared/schema.ts` `oiAuditActionEnum` pgEnum array must be extended with all 13 values.
 - All `writeAuditLog` calls use `issueId = NULL` (SOP entities are not subordinate to a single issue). The audit log `issue_id` column must be confirmed as nullable before migration; it is nullable in the existing schema.
 
 ---
@@ -381,7 +391,7 @@ SOP linkage is managed entirely through `oi_sop_linkages`. No FK columns are add
 | `draft` | `under_review` | `submit` | Manager+ (must be owner or SM+) | `approver_id` must be set; `approver_id` ≠ `owner_id` | Set `submitted_at`; write `sop_submitted_for_review` audit |
 | `under_review` | `approved` | `approve` | SM+ (must be the SOP's `approver_id` or Superuser) | None | Increment `revision_number` to 1 (first approval); write `sop_approved` audit |
 | `under_review` | `draft` | `reject` | SM+ (must be the SOP's `approver_id` or Superuser) | `rejection_reason` required (min 10 chars) | Write rejection reason to latest revision; write `sop_rejected` audit |
-| `approved` | `active` | `activate` | SM+ | None | Set `activated_at = NOW()`; write `sop_activated` audit |
+| `approved` | `active` | `activate` | SM+ | **All five pre-conditions must pass** — see Section 5.3. HTTP 422 if any fails. | Set `activated_at = NOW()`; write `sop_activated` audit |
 | `active` | `approved` | `revise` | SM+ | No pending revision exists (status `draft` or `under_review`) | Triggers creation of a new `oi_sop_revisions` row; SOP status returns to `approved` after revision is approved — this is the Revision Workflow (Section 4.3) |
 | `active` | `retired` | `retire` | SM+ | No pending revision; `retirement_reason` required (min 10 chars) | Set `retired_at = NOW()`; write `sop_retired` audit |
 | `approved` | `retired` | `retire` | SM+ | `retirement_reason` required | Set `retired_at = NOW()`; write `sop_retired` audit |
@@ -394,7 +404,7 @@ A revision is a formal change proposal to an active or approved SOP. It follows 
 
 | From | To | Action | Role Required | Pre-conditions | Server Actions |
 |---|---|---|---|---|---|
-| — | `draft` (new row) | Create revision | Manager+ | SOP status `active` or `approved`; no existing revision in `draft` or `under_review` | Create row; write `sop_revised` audit |
+| — | `draft` (new row) | Create revision | Manager+ | SOP status `active` or `approved`; no existing revision in `draft` or `under_review`; SOP status must NOT be `retired` — HTTP 422: `"Retired SOPs cannot receive new revisions."` | Create row; write `sop_revised` audit |
 | `draft` | `under_review` | Submit revision | Manager+ (must be owner or SM+) | `change_summary` min 10 chars; `change_rationale` min 10 chars | Set `submitted_by`, `submitted_at`; write `sop_submitted_for_review` audit |
 | `under_review` | `approved` | Approve revision | SM+ (must be SOP's `approver_id` or Superuser) | None | Set `approved_by`, `approved_at`; increment SOP `revision_number`; SOP status returns to `approved` if currently `active`; write `sop_approved` audit |
 | `under_review` | `rejected` | Reject revision | SM+ (must be SOP's `approver_id` or Superuser) | `rejection_reason` min 10 chars | Set `rejected_by`, `rejected_at`, `rejection_reason`; write `sop_rejected` audit |
@@ -403,7 +413,12 @@ A revision is a formal change proposal to an active or approved SOP. It follows 
 **When a revision is approved:**
 - `oi_sop_records.revision_number` is incremented by 1 server-side.
 - If the SOP's status was `active` at the time of revision approval, the SOP status is set to `approved`. The owner must explicitly re-activate via the `activate` transition. This ensures the owner intentionally publishes the revised SOP.
-- Outstanding acknowledgments for prior revision numbers remain in the table as historical records but are no longer considered "pending" — the pending-acknowledgment metrics use `revision_number = sop.revision_number` (current revision).
+- Outstanding acknowledgments for prior revision numbers remain in the table as historical records but are immediately **obsolete** — they are excluded from all compliance metrics. Pending (unacknowledged) assignments from prior revisions do NOT transfer forward and are NOT auto-completed. Users must be re-assigned and must acknowledge the new revision separately.
+
+**When the revised SOP is re-activated (`activate` transition fires after a revision):**
+- The SOP's `revision_number` already reflects the new approved revision (incremented at approval time).
+- All compliance metrics (`pendingAckCount`, `acknowledgedCount`, acknowledgment rate) are now computed exclusively against `revision_number = sop.revision_number` (the new revision). Any unacknowledged rows from prior revision numbers are treated as historical records with no compliance weight.
+- The owner must explicitly create new acknowledgment assignments for the new revision. No automatic re-assignment occurs.
 
 ### 4.4 Immutable Fields Post-Under-Review
 
@@ -444,7 +459,21 @@ PATCH handler enforces this table. Attempt to write a restricted field returns H
 - `approver_id` must not equal `owner_id` at creation or on PATCH.
 - The `approve` revision action can only be executed by the SOP's `approver_id` or by a Superuser — not by the `owner_id`, even if the owner is SM+.
 
-### 5.3 Single Active Revision
+### 5.3 SOP Activation Pre-Conditions
+
+The `activate` transition (`approved → active`) is blocked unless **all five** of the following conditions are satisfied simultaneously. Each failed condition returns HTTP 422 with the specific error code listed.
+
+| # | Pre-Condition | Error Code | Error Message |
+|---|---|---|---|
+| 1 | An approved revision exists (`revision_number >= 1`) | `sop_no_approved_revision` | `"SOP cannot be activated without at least one approved revision."` |
+| 2 | `owner_id IS NOT NULL` | `sop_owner_required` | `"SOP cannot be activated without an owner assigned."` |
+| 3 | `approver_id IS NOT NULL` | `sop_approver_required` | `"SOP cannot be activated without an approver assigned."` |
+| 4 | `department IS NOT NULL AND department != ''` | `sop_department_required` | `"SOP cannot be activated without a department assigned."` |
+| 5 | `process_area IS NOT NULL AND process_area != ''` | `sop_process_area_required` | `"SOP cannot be activated without a process area assigned."` |
+
+If more than one pre-condition fails, the server returns the error for the first failing condition in the order listed above (top-down). All five are checked server-side; UI may surface them as a pre-flight checklist for usability.
+
+### 5.4 Single Active Revision
 
 - At most one revision in `draft` or `under_review` per SOP at any time.
 - Attempting to create a second open revision returns HTTP 409: `"A pending revision already exists. Approve or reject the current revision before creating a new one."`.
@@ -477,7 +506,7 @@ PATCH handler enforces this table. Attempt to write a restricted field returns H
 
 ---
 
-## 6. API Endpoints (26 endpoints)
+## 6. API Endpoints (27 endpoints)
 
 All endpoints are prefixed with `/api/oi`. All require session authentication (`req.user` must exist).
 
@@ -536,6 +565,7 @@ All endpoints are prefixed with `/api/oi`. All require session authentication (`
 | 24 | `GET` | `/dashboard/sop-summary` | Any | SOP portfolio overview KPIs |
 | 25 | `GET` | `/dashboard/sop-acknowledgment` | Any | Acknowledgment compliance rate by department |
 | 26 | `GET` | `/dashboard/sop-effectiveness` | Any | Effectiveness rate and deviation metrics |
+| 27 | `GET` | `/dashboard/sop-by-department` | Any | Active SOP count, review-overdue count, pending-ack count per department |
 
 ---
 
@@ -830,7 +860,7 @@ Four exported types:
 - `OiSopAcknowledgment` = `typeof oiSopAcknowledgments.$inferSelect`
 - `OiSopEffectiveness` = `typeof oiSopEffectiveness.$inferSelect`
 
-`oiAuditActionEnum` extended with all 12 new `sop_*` values.
+`oiAuditActionEnum` extended with all 13 new `sop_*` values.
 
 ---
 
@@ -838,7 +868,7 @@ Four exported types:
 
 **Order of execution (psql, each block run as a standalone transaction or direct command):**
 
-1. Run each `ALTER TYPE oi_audit_action ADD VALUE` statement individually (12 statements, standalone, not in a transaction).
+1. Run each `ALTER TYPE oi_audit_action ADD VALUE` statement individually (13 statements, standalone, not in a transaction).
 2. Run the 5 `CREATE TABLE` statements in a single `BEGIN … COMMIT` transaction block.
 3. Run all `CREATE INDEX` statements.
 4. Run all `CONSTRAINT` additions (already embedded in CREATE TABLE).
@@ -864,6 +894,10 @@ Four exported types:
 | Excluded Feature | Verification |
 |---|---|
 | ERP enforcement | No SAP API calls, no purchase order gate, no ERP-driven transitions |
+| ERP workflow blocking | No SAP state gates on SOP transitions; all transitions are manual and role-gated |
+| ERP checklist injection | No ERP-sourced checklist items in any SOP field or workflow step |
+| Dynamic ERP forms | No SAP master data auto-fills any SOP field; all fields are operator-entered |
+| Auto-generated SOP content | No AI, ERP, or template engine generates SOP text, sections, or procedures |
 | AI agents | No OpenAI calls, no embeddings, no semantic search |
 | Predictive analytics | No ML scoring, no trend forecasting |
 | Legal hold | No immutability flags, no legal hold field |
@@ -874,5 +908,5 @@ Four exported types:
 
 ---
 
-*Phase 2A Execution Plan v1.0 — submitted for approval*  
+*Phase 2A Execution Plan v1.1 (revised 2026-05-22) — submitted for approval*  
 *Implementation does not begin until written approval is received.*
