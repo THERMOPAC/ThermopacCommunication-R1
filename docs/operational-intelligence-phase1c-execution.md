@@ -1,7 +1,7 @@
 # Operational Intelligence — Phase 1C Execution Plan
 
-**Status:** SUBMITTED FOR APPROVAL — DO NOT IMPLEMENT
-**Date:** 22-May-2026
+**Status:** REVISED — SUBMITTED FOR APPROVAL — DO NOT IMPLEMENT
+**Date:** 22-May-2026 (revised 22-May-2026)
 **Phase 1A Baseline:** `docs/operational-intelligence-phase1a-execution.md` (COMPLETE)
 **Phase 1B Baseline:** `docs/operational-intelligence-phase1b-execution.md` (COMPLETE)
 **Phase 1C Scope:** RCA Framework, 5 Why, Fishbone, Failure Tree, RCA Workflow, RCA Approvals, RCA Assignments, RCA Evidence, RCA Audit Logs, RCA Dashboards, Similar Issue Intelligence, Cross-Issue Correlation, Root Cause Categorization
@@ -263,7 +263,7 @@ CREATE INDEX idx_oi_rca_evidence_rca_id ON oi_rca_evidence(rca_id);
 - Evidence files are readable (signed URL) at any status including `approved` and `rejected`.
 - Evidence files are deletable only by the `uploaded_by` user or a SM+ user, and only when RCA status is `draft`, `submitted`, or `rejected`. Deletion when `under_review` or `approved` returns HTTP 409.
 - Maximum 20 evidence files per RCA. Server returns HTTP 422 if limit exceeded.
-- Signed URL generation: `GET /api/oi/issues/:id/rca/:rcaId/evidence/:evidenceId/signed-url` returns a 15-minute signed URL for direct download.
+- Signed URL generation: `GET /api/oi/issues/:id/rca/:rcaId/evidence/:evidenceId/signed-url` returns a 15-minute signed URL for direct download. Call `gcsStorage.generateDownloadSignedUrl({ filePath, expirationMinutes: 15 })` from `server/utils/gcs-storage.ts`. Do NOT write a new signed URL function.
 
 ### 2.6 `oi_rca_similar_links`
 
@@ -279,9 +279,13 @@ CREATE TABLE oi_rca_similar_links (
   link_note   TEXT,
   linked_by   INTEGER NOT NULL REFERENCES users(id),
   linked_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-  CONSTRAINT no_self_link  CHECK (issue_id_a <> issue_id_b),
-  CONSTRAINT uq_similar_pair UNIQUE (LEAST(issue_id_a, issue_id_b), GREATEST(issue_id_a, issue_id_b))
+  CONSTRAINT no_self_link CHECK (issue_id_a <> issue_id_b)
 );
+
+-- Postgres UNIQUE constraints cannot use expressions. Canonical-pair uniqueness is
+-- enforced by a unique expression index instead of a table-level UNIQUE constraint.
+CREATE UNIQUE INDEX uq_similar_pair_canonical
+  ON oi_rca_similar_links (LEAST(issue_id_a, issue_id_b), GREATEST(issue_id_a, issue_id_b));
 
 CREATE INDEX idx_oi_similar_links_a ON oi_rca_similar_links(issue_id_a);
 CREATE INDEX idx_oi_similar_links_b ON oi_rca_similar_links(issue_id_b);
@@ -297,11 +301,49 @@ CREATE INDEX idx_oi_similar_links_b ON oi_rca_similar_links(issue_id_b);
 | `pattern` | Issues belong to a broader failure pattern (not a direct recurrence) |
 
 **Rules:**
-- `UNIQUE` constraint uses `LEAST`/`GREATEST` to enforce a canonical order — inserting A→B when B→A exists returns HTTP 409.
+- Bidirectional uniqueness is enforced by the `uq_similar_pair_canonical` unique expression index (`LEAST`/`GREATEST`) — inserting A→B when B→A already exists returns HTTP 409 (Postgres raises a unique violation on the expression index).
 - `link_note` — optional, max 500 chars.
 - Both referenced issue IDs must exist. Server validates before insert.
 - `linked_by` set server-side from `req.user.id`. Never accepted from client.
 - Create: Manager+ role. Delete: SM+ role. List: Manager+ role.
+
+### 2.7 `oi_audit_action` Enum Additions
+
+The existing `oi_audit_action` Postgres enum (defined in `shared/schema.ts` as `oiAuditActionEnum`) currently holds 11 values:
+
+```
+"created","status_changed","field_updated","severity_changed","assigned",
+"escalated","comment_added","withdrawn","reopened","closed","verified"
+```
+
+**Deterministic approach: extend the enum with `ALTER TYPE ... ADD VALUE`.**
+
+Using existing values with metadata-only context would make audit log queries ambiguous (e.g. `action = 'field_updated'` cannot distinguish a field edit on the issue from an RCA evidence deletion). Adding typed values keeps the audit log queryable and unambiguous.
+
+**14 new values required for Phase 1C:**
+
+```sql
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_created';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_reopened';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'five_why_updated';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'fishbone_cause_added';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'fishbone_cause_updated';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'fishbone_cause_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'failure_tree_node_added';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'failure_tree_node_updated';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'failure_tree_node_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_evidence_uploaded';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_evidence_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'correlation_link_created';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'correlation_link_deleted';
+```
+
+**Note:** `status_changed` is already in the enum. RCA workflow transitions (draft→submitted etc.) reuse `status_changed` with `fieldName = 'rca_status'` in the `writeAuditLog` call. No new value needed for transitions.
+
+**`shared/schema.ts` update required:** The `oiAuditActionEnum` `pgEnum(...)` call must be extended with all 14 new string values so the Drizzle type matches the DB enum. Add all 14 values to the existing array — do not redefine the enum, only extend it.
+
+**Implementation rule:** `ALTER TYPE ... ADD VALUE` statements must be run in the migration script (Step 0, before any table creation) because Postgres enum values cannot be added inside a transaction block. Run each `ALTER TYPE` statement as a standalone command outside any `BEGIN/COMMIT` block.
 
 ---
 
@@ -479,6 +521,24 @@ writeAuditLog({
 ## 6. API Routes — New File `server/oi-rca-routes.ts`
 
 All routes are registered in `server/routes.ts` immediately after the existing OI routes block, under `ensureAuthenticated`. Prefix: `/api/oi`.
+
+**Exact endpoint count: 31 new endpoints** (defined in `server/oi-rca-routes.ts`) **+ 3 modified existing endpoints** (in `server/oi-routes.ts`) = **34 total endpoint changes** in Phase 1C.
+
+| Group | New | Modified |
+|---|---|---|
+| RCA CRUD | 4 | — |
+| Workflow transitions | 5 | — |
+| 5 Why | 2 | — |
+| Fishbone | 4 | — |
+| Failure Tree | 4 | — |
+| Evidence | 4 | — |
+| Similar issues | 1 | — |
+| Correlations | 3 | — |
+| RCA Dashboards | 4 | — |
+| Issue register `GET /api/oi/issues` | — | 1 |
+| Issue detail `GET /api/oi/issues/:id` | — | 1 |
+| Issue PATCH `PATCH /api/oi/issues/:id` | — | 1 |
+| **Total** | **31** | **3** |
 
 ### 6.1 RCA CRUD
 
@@ -790,7 +850,7 @@ Upload a file to GCS and record the metadata.
 
 **Condition:** RCA must be in `draft`, `submitted`, or `under_review`. HTTP 409 if `approved` or `rejected`.
 
-**Implementation:** Use `multer` (already in project) with `memoryStorage()`. Server validates size and content type before GCS upload. Upload to GCS, then insert `oi_rca_evidence` row. If GCS upload fails, do not insert the DB row.
+**GCS upload implementation:** Use `multer` (already in project) with `memoryStorage()`. Server validates size and content type before GCS upload. Call `gcsStorage.uploadFileDirectly({ filePath, buffer, contentType })` from `server/utils/gcs-storage.ts` — this method accepts a `Buffer` directly (matching multer's `memoryStorage` output), handles bucket access, and returns `{ success, url }`. Do NOT write a new GCS upload function. If `uploadFileDirectly` returns `success: false`, return HTTP 502 and do not insert the DB row.
 
 Writes audit entry: `action = 'rca_evidence_uploaded'`, `metadata: { fileName, fileSizeBytes }`.
 
@@ -1080,10 +1140,11 @@ Inherits all Phase 1A and Phase 1B rules. The following additional rules apply:
 | Evidence content type restricted to 7 allowed types | MIME type check before GCS upload |
 | Fishbone `is_primary_cause` unique per RCA | Fishbone POST/PATCH — UPDATE existing rows in same transaction |
 | Cross-issue self-link blocked | DB CHECK constraint + 422 in POST handler |
-| Cross-issue duplicate link blocked | DB UNIQUE constraint + 409 in POST handler |
+| Cross-issue duplicate link blocked | Unique expression index `uq_similar_pair_canonical` raises Postgres unique violation; handler catches and returns HTTP 409 |
 | `similar` endpoint uses only approved RCAs — never draft/rejected | SELECT WHERE `r.status = 'approved'` |
 | `writeAuditLog` called for every RCA mutation | Every route handler — before `res.json()` |
 | RCA data is Manager+ only — Employee and below cannot see RCA section | Role check at the top of every RCA route handler |
+| Issue `closed` transition blocked when `rca_required = TRUE` and no approved RCA exists | `server/oi-transition-service.ts` — pre-transition check: `SELECT status FROM oi_rca_records WHERE issue_id = :id` before allowing `→ closed`; HTTP 422 with message `"RCA is required and must be approved before this issue can be closed"` |
 
 ---
 
@@ -1359,9 +1420,10 @@ Import: `import OiRcaPage from "@/pages/oi/oi-rca-page";`
 
 | File | Change |
 |---|---|
-| `shared/schema.ts` | Add 6 new table definitions; add `rcaRequired`, `rcaDueDate` to `oiIssues`; add both to `insertOiIssueSchema` `.omit()` |
+| `shared/schema.ts` | Add 6 new table definitions; extend `oiAuditActionEnum` with 14 new values; add `rcaRequired`, `rcaDueDate` to `oiIssues`; add both to `insertOiIssueSchema` `.omit()` |
 | `server/routes.ts` | Import and register `oi-rca-routes.ts` after existing OI routes block |
 | `server/oi-routes.ts` | Add `rcaRequired`, `rcaDueDate` to `ALLOWED_SM_FIELDS`; add `rcaSummary` join to `GET /api/oi/issues/:id`; add 4 new filter params to `GET /api/oi/issues` |
+| `server/oi-transition-service.ts` | Add pre-transition check before `→ closed`: if `rca_required = TRUE` and no approved RCA exists, block with HTTP 422 |
 | `client/src/App.tsx` | Add `/oi/issues/:id/rca` route |
 | `client/src/pages/oi/oi-issue-detail.tsx` | Add RCA tab; add RCA Required/Due Date/Overdue to right panel |
 | `client/src/pages/oi/oi-issue-register.tsx` | Add 4 new filter params; add opt-in RCA status column; add "RCA Req'd" chip |
@@ -1369,7 +1431,7 @@ Import: `import OiRcaPage from "@/pages/oi/oi-rca-page";`
 
 ### Unchanged Files (must not be touched)
 
-`vite.config.ts`, `drizzle.config.ts`, `package.json`, `server/vite.ts`, `server/oi-audit-service.ts`, `server/oi-transition-service.ts`, `server/oi-escalation-service.ts`, `server/oi-scheduler.ts`. All non-OI route files.
+`vite.config.ts`, `drizzle.config.ts`, `package.json`, `server/vite.ts`, `server/oi-audit-service.ts`, `server/oi-escalation-service.ts`, `server/oi-scheduler.ts`. All non-OI route files.
 
 ---
 
@@ -1377,7 +1439,25 @@ Import: `import OiRcaPage from "@/pages/oi/oi-rca-page";`
 
 Run in this exact order. All statements use `IF NOT EXISTS` for idempotency.
 
+**Critical:** Step 0 (`ALTER TYPE`) statements must be executed as individual standalone commands — NOT inside a `BEGIN/COMMIT` transaction block. Postgres does not allow enum value additions inside an explicit transaction.
+
 ```sql
+-- ─── Step 0: Extend oi_audit_action enum (run each statement standalone) ──────
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_created';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_reopened';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'five_why_updated';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'fishbone_cause_added';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'fishbone_cause_updated';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'fishbone_cause_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'failure_tree_node_added';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'failure_tree_node_updated';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'failure_tree_node_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_evidence_uploaded';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'rca_evidence_deleted';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'correlation_link_created';
+ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'correlation_link_deleted';
+
 -- ─── Step 1: oi_issues additions ─────────────────────────────────────────────
 ALTER TABLE oi_issues
   ADD COLUMN IF NOT EXISTS rca_required  BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1485,9 +1565,12 @@ CREATE TABLE IF NOT EXISTS oi_rca_similar_links (
   link_note  TEXT,
   linked_by  INTEGER NOT NULL REFERENCES users(id),
   linked_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-  CONSTRAINT no_self_link    CHECK (issue_id_a <> issue_id_b),
-  CONSTRAINT uq_similar_pair UNIQUE (LEAST(issue_id_a, issue_id_b), GREATEST(issue_id_a, issue_id_b))
+  CONSTRAINT no_self_link CHECK (issue_id_a <> issue_id_b)
 );
+
+-- Postgres UNIQUE constraints cannot use expressions. Use a unique expression index.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_similar_pair_canonical
+  ON oi_rca_similar_links (LEAST(issue_id_a, issue_id_b), GREATEST(issue_id_a, issue_id_b));
 
 CREATE INDEX IF NOT EXISTS idx_oi_similar_links_a ON oi_rca_similar_links(issue_id_a);
 CREATE INDEX IF NOT EXISTS idx_oi_similar_links_b ON oi_rca_similar_links(issue_id_b);
@@ -1563,4 +1646,5 @@ Before implementation begins, the implementer must confirm each item:
 | 12 | No CAPA, SOP, lessons learned, or legal hold fields or logic anywhere in Phase 1C code | ☐ |
 | 13 | All new `<Select>` components use `value="__none__"` sentinel — no `value=""` anywhere | ☐ |
 | 14 | `PERCENTILE_CONT` used via `db.execute(sql\`...\`)` — not via Drizzle ORM wrappers | ☐ |
-| 15 | `uq_similar_pair UNIQUE(LEAST(...), GREATEST(...))` verified supported in Postgres version in use | ☐ |
+| 15 | `CREATE UNIQUE INDEX uq_similar_pair_canonical ON oi_rca_similar_links (LEAST(...), GREATEST(...))` created successfully and confirmed via `\d oi_rca_similar_links` | ☐ |
+| 16 | All 14 new `oi_audit_action` enum values added via `ALTER TYPE` before any route in `oi-rca-routes.ts` is called | ☐ |
