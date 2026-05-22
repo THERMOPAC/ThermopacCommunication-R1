@@ -438,3 +438,9 @@ id = "G9TRhrkPbs7nT8MjpqR5V"
 uri = "file://docs/phase3a-evidence-package.md"
 type = "text"
 title = "Phase 3A Evidence Package"
+
+[[outputs]]
+id = "wQ9AjMQHrqyAZCKOGIUnq"
+uri = "file://docs/operational-intelligence-phase3b-execution.md"
+type = "text"
+title = "Phase 3B Execution Plan — OI Analytics Suite"
