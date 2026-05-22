@@ -58,17 +58,18 @@ Browser console: no runtime errors beyond expected auth redirects.
 
 ## 5. File Inventory
 
-### New Files (8)
+### New Files (9)
 | File | LOC | Purpose |
 |---|---|---|
-| `server/oi-sop-audit-service.ts` | ~30 | Dedicated SOP audit writer |
+| `server/oi-sop-audit-service.ts` | ~30 | `writeSopAuditLog()` — SOP-specific audit writer into `oi_sop_audit_log` |
 | `server/oi-sop-routes.ts` | ~620 | 28 endpoints, all 9 corrections |
 | `client/src/pages/oi/oi-sop-constants.ts` | ~60 | UI vocab/color maps |
 | `client/src/pages/oi/oi-sop-register.tsx` | ~170 | SOP register page |
 | `client/src/pages/oi/oi-sop-detail.tsx` | ~748 | 6-tab SOP detail page |
-| `docs/phase2a-implementation-tracker.md` | this | Implementation tracker |
-| `docs/phase2a-zero-trust-audit.md` | this | 9-correction audit |
-| `docs/phase2a-evidence-package.md` | this | Evidence package |
+| `docs/phase2a-implementation-tracker.md` | — | Implementation tracker |
+| `docs/phase2a-zero-trust-audit.md` | — | 9-correction audit |
+| `docs/phase2a-evidence-package.md` | — | Evidence package (this file) |
+| `docs/phase2a-amendment-001-sop-audit-governance.md` | — | Amendment 001: SOP audit governance decision |
 
 ### Patched Files (9)
 | File | Change |
@@ -116,7 +117,64 @@ The following Phase 2B+ items are explicitly NOT implemented:
 
 ---
 
-## 8. Architectural Decisions Recorded
+## 8. Amendment 001 Validation Results (2026-05-22)
+
+### Build Validation
+TypeScript was clean (NO TS ERRORS) before Amendment 001. All changes in this session are `.md` documentation files only — no TypeScript source was modified. Build status remains ✅ NO ERRORS.
+
+### SOP Audit Route Validation
+```
+GET /api/oi/sop/:sopId/audit-log  (line 1215, oi-sop-routes.ts)
+→ queries: oiSopAuditLog WHERE sop_id = :sopId ORDER BY created_at DESC LIMIT 200
+→ no issue_id dependency: ✅
+```
+
+### SOP Audit Insert Validation
+```
+grep -c "writeSopAuditLog" server/oi-sop-routes.ts  → 19  ✅
+grep -c "writeAuditLog"    server/oi-sop-routes.ts  →  0  ✅
+```
+Zero `writeAuditLog` calls in `oi-sop-routes.ts`. All 19 audit writes go through `writeSopAuditLog()` → `oi_sop_audit_log`.
+
+### SOP Audit Retrieval Validation
+```sql
+-- oi_sop_audit_log schema (psql):
+id          | NOT NULL | integer
+sop_id      | nullable | integer  ← FK to oi_sop_records.id
+action      | NOT NULL | USER-DEFINED (oi_audit_action enum)
+actor_id    | NOT NULL | integer
+actor_name  | NOT NULL | text
+actor_role  | NOT NULL | text
+field_name  | nullable | text
+old_value   | nullable | text
+new_value   | nullable | text
+context     | nullable | text
+ip_address  | nullable | text
+created_at  | NOT NULL | timestamp
+```
+
+### oi_audit_log Integrity Verification
+```sql
+-- oi_audit_log.issue_id (psql):
+column_name | is_nullable
+issue_id    | NO          ← unchanged, remains NOT NULL ✅
+```
+
+### Amendment 001 — Audit Governance Correction (2026-05-22)
+
+| Item | Detail |
+|---|---|
+| **Plan error** | `docs/operational-intelligence-phase2a-execution.md` v1.1 stated `oi_audit_log.issue_id` is nullable at lines 363, 503, 505, 886 |
+| **Actual schema** | `issueId: integer("issue_id").notNull()` — hard NOT NULL FK to `oi_issues.id` |
+| **Deviation** | Implementation used `oi_sop_audit_log` with `sop_id` FK instead of `oi_audit_log` with `issue_id = null` |
+| **Authorization** | Option B approved 2026-05-22 |
+| **Decision** | `oi_sop_audit_log` formally approved as SOP-specific audit table |
+| **No migration** | `oi_audit_log.issue_id` nullability NOT changed |
+| **No deletion** | `oi_sop_audit_log` and `writeSopAuditLog()` retained as-is |
+| **Plan corrected** | 4 erroneous passages updated in execution plan |
+| **Full rationale** | `docs/phase2a-amendment-001-sop-audit-governance.md` |
+
+## 9. Architectural Decisions Recorded
 
 1. **Separate audit table**: `oi_sop_audit_log` is separate from `oi_audit_log` because `oi_audit_log.issue_id` is `NOT NULL` — SOP audits have no `issue_id` and cannot use the shared table. `writeSopAuditLog()` in `server/oi-sop-audit-service.ts` enforces this.
 

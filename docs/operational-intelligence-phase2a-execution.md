@@ -360,7 +360,7 @@ ALTER TYPE oi_audit_action ADD VALUE IF NOT EXISTS 'sop_effectiveness_recorded';
 - `sop_revised` is written when a revision is created (a new `oi_sop_revisions` row).
 - `sop_acknowledgment_withdrawn` is written whenever a pending acknowledgment assignment is deleted by a Manager+.
 - `shared/schema.ts` `oiAuditActionEnum` pgEnum array must be extended with all 13 values.
-- All `writeAuditLog` calls use `issueId = NULL` (SOP entities are not subordinate to a single issue). The audit log `issue_id` column must be confirmed as nullable before migration; it is nullable in the existing schema.
+- All SOP audit writes use `writeSopAuditLog()` from `server/oi-sop-audit-service.ts`, which inserts into the dedicated `oi_sop_audit_log` table with a `sop_id` FK. **`writeAuditLog` is NOT used for SOP entities.** See Amendment 001 (`docs/phase2a-amendment-001-sop-audit-governance.md`) for the full rationale and governance decision.
 
 ---
 
@@ -498,11 +498,15 @@ If more than one pre-condition fails, the server returns the error for the first
 - On linkage creation, server queries the target table (`oi_issues`, `oi_rca_records`, or `oi_capa_records`) to confirm the record exists. HTTP 404 if not found.
 - Withdrawn issues and cancelled CAPAs may still be linked (informational record-keeping). No status gate on the target entity.
 
-### 5.8 Audit Log `issue_id` Field
+### 5.8 SOP Audit Store (Amendment 001)
 
-- All SOP audit entries use `issueId = null` in `writeAuditLog` calls, since SOPs are not subordinate to a single issue.
-- The `context` field carries the SOP number (e.g., `"SOP SOP-2026-001"`).
-- The `oi_audit_log.issue_id` column is confirmed nullable in the existing schema.
+**⚠ CORRECTED — see `docs/phase2a-amendment-001-sop-audit-governance.md`**
+
+- SOP audit entries are written to the dedicated `oi_sop_audit_log` table via `writeSopAuditLog()` in `server/oi-sop-audit-service.ts`.
+- `oi_audit_log.issue_id` is `NOT NULL` in the actual schema — the original plan's claim that it is nullable was incorrect.
+- `writeAuditLog` is NOT called for SOP entities. `oi_audit_log` remains an issue-subordinate-only audit table.
+- The `context` field in `oi_sop_audit_log` carries the SOP number (e.g., `"SOP SOP-2026-001"`).
+- `GET /api/oi/sop/:sopId/audit-log` queries `oi_sop_audit_log WHERE sop_id = :sopId` — no `issue_id` dependency.
 
 ---
 
@@ -883,7 +887,7 @@ Four exported types:
 | `oi_rca_records` table | None | No columns added; new "Linked SOPs" tab is read-only reverse lookup |
 | `oi_capa_records` table | None | No columns added; new "Linked SOPs" tab is read-only reverse lookup |
 | Phase 1A–1D routes | None | `oiSopRouter` is a new router; no existing route signatures changed |
-| `oi_audit_log` | Additive only | `issue_id = null` for SOP entries; confirmed nullable |
+| `oi_sop_audit_log` | New table (Phase 2A) | SOP-specific audit; `sop_id` FK; `oi_audit_log` is NOT used for SOP entries — see Amendment 001 |
 | Payroll, Leave, EPC, PPPC | None | No changes |
 | GCS governance | None | No new document flows; `document_reference` is free-text |
 

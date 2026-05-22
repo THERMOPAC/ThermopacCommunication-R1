@@ -25,7 +25,7 @@
 
 | File | Description | Status |
 |---|---|---|
-| `server/oi-sop-audit-service.ts` | `writeSopAuditLog()` — dedicated SOP audit (not `writeAuditLog` — avoids `oi_audit_log.issue_id NOT NULL` constraint) | ✅ |
+| `server/oi-sop-audit-service.ts` | `writeSopAuditLog()` — dedicated SOP audit into `oi_sop_audit_log` (formally approved, Amendment 001; `oi_audit_log.issue_id` is NOT NULL — `writeAuditLog` cannot be used for SOP entities) | ✅ |
 | `server/oi-sop-routes.ts` | 28 endpoints with all 9 corrections | ✅ |
 | `server/routes.ts` | `oiSopRouter` registered after `oiCapaRouter` | ✅ |
 
@@ -89,6 +89,12 @@
 | `client/src/pages/oi/oi-issue-detail.tsx` | `LinkedSopIssuePanel` component + render before transition dialog | ✅ |
 
 ---
+
+## Audit Governance (Amendment 001)
+
+**Deviation detected and resolved**: The approved plan incorrectly stated `oi_audit_log.issue_id` is nullable. Actual schema: `NOT NULL` FK to `oi_issues.id`.
+
+**Authorized decision** (2026-05-22): `oi_sop_audit_log` with `sop_id` FK is the formally approved SOP audit store. `writeAuditLog` / `oi_audit_log` are NOT used for SOP entities. Full rationale: `docs/phase2a-amendment-001-sop-audit-governance.md`.
 
 ## Validation Gates
 

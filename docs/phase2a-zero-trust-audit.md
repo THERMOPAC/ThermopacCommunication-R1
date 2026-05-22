@@ -91,7 +91,7 @@ await writeSopAuditLog({
 - `POST /acknowledgments/:ackId/acknowledge` → `action: "sop_acknowledged"` 
 - `DELETE /acknowledgments/:ackId` (withdraw) → `action: "sop_acknowledgment_withdrawn"`
 
-All 3 use `writeSopAuditLog()` (not `writeAuditLog` — avoids NOT NULL constraint on `oi_audit_log.issue_id`).
+All 3 use `writeSopAuditLog()` from `server/oi-sop-audit-service.ts`, which writes to `oi_sop_audit_log` (approved by Amendment 001 — `oi_audit_log.issue_id` is `NOT NULL` and cannot be used for SOP entities).
 
 **Status**: ✅ ENFORCED
 
