@@ -175,8 +175,27 @@ oiSopRouter.get("/sop", wrap(async (req: any, res: any) => {
 
   const rows = await db
     .select({
-      sop:      oiSopRecords,
-      ownerName:    users.name,
+      id:                oiSopRecords.id,
+      sopNumber:         oiSopRecords.sopNumber,
+      title:             oiSopRecords.title,
+      description:       oiSopRecords.description,
+      sopType:           oiSopRecords.sopType,
+      department:        oiSopRecords.department,
+      processArea:       oiSopRecords.processArea,
+      documentReference: oiSopRecords.documentReference,
+      status:            oiSopRecords.status,
+      ownerId:           oiSopRecords.ownerId,
+      approverId:        oiSopRecords.approverId,
+      revisionNumber:    oiSopRecords.revisionNumber,
+      effectiveDate:     oiSopRecords.effectiveDate,
+      reviewDueDate:     oiSopRecords.reviewDueDate,
+      nextReviewDate:    oiSopRecords.nextReviewDate,
+      activatedAt:       oiSopRecords.activatedAt,
+      retiredAt:         oiSopRecords.retiredAt,
+      createdBy:         oiSopRecords.createdBy,
+      createdAt:         oiSopRecords.createdAt,
+      updatedAt:         oiSopRecords.updatedAt,
+      ownerName:         users.name,
     })
     .from(oiSopRecords)
     .leftJoin(users, eq(users.id, oiSopRecords.ownerId))
@@ -187,13 +206,12 @@ oiSopRouter.get("/sop", wrap(async (req: any, res: any) => {
 
   const now = new Date();
   const result = await Promise.all(rows.map(async (r) => {
-    const isReviewOverdue = r.sop.status === "active" && r.sop.reviewDueDate != null && r.sop.reviewDueDate < now;
+    const isReviewOverdue = r.status === "active" && r.reviewDueDate != null && r.reviewDueDate < now;
     if (overdueReviewOnly === "true" && !isReviewOverdue) return null;
-    const ackSummary = await computeAckSummary(r.sop.id, r.sop.revisionNumber);
-    const linkCount = await db.select({ cnt: count() }).from(oiSopLinkages).where(eq(oiSopLinkages.sopId, r.sop.id));
+    const ackSummary = await computeAckSummary(r.id, r.revisionNumber);
+    const linkCount = await db.select({ cnt: count() }).from(oiSopLinkages).where(eq(oiSopLinkages.sopId, r.id));
     return {
-      ...r.sop,
-      ownerName:       r.ownerName,
+      ...r,
       isReviewOverdue,
       ackSummary,
       linkageCount: Number(linkCount[0]?.cnt ?? 0),

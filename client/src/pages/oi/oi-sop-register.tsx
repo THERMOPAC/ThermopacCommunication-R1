@@ -42,17 +42,17 @@ export default function OiSopRegister() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterDept, setFilterDept] = useState("");
-  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterDept, setFilterDept] = useState("all");
+  const [filterType, setFilterType] = useState("all");
 
   const isManager = MANAGER_ROLES.includes(user?.role ?? "");
 
   const params = new URLSearchParams();
-  if (search)       params.set("search", search);
-  if (filterStatus) params.set("status", filterStatus);
-  if (filterDept)   params.set("department", filterDept);
-  if (filterType)   params.set("sopType", filterType);
+  if (search)                  params.set("search", search);
+  if (filterStatus !== "all")  params.set("status", filterStatus);
+  if (filterDept   !== "all")  params.set("department", filterDept);
+  if (filterType   !== "all")  params.set("sopType", filterType);
 
   const { data: sops = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/oi/sop", filterStatus, filterDept, filterType, search],
@@ -173,21 +173,21 @@ export default function OiSopRegister() {
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="all">All Statuses</SelectItem>
             {SOP_STATUSES.map(s => <SelectItem key={s} value={s}>{SOP_STATUS_LABELS[s]}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterDept} onValueChange={setFilterDept}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Depts</SelectItem>
+            <SelectItem value="all">All Depts</SelectItem>
             {SOP_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="all">All Types</SelectItem>
             {SOP_TYPES.map(t => <SelectItem key={t} value={t}>{SOP_TYPE_LABELS[t]}</SelectItem>)}
           </SelectContent>
         </Select>
