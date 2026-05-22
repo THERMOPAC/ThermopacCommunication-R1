@@ -420,3 +420,21 @@ id = "l1ow0GYgmpGKFKf9uNqxh"
 uri = "file://docs/operational-intelligence-phase1a-execution.md"
 type = "text"
 title = "OI Phase 1A Execution Plan — DRAFT"
+
+[[outputs]]
+id = "6douB3qyadTE0WBIk6Mxr"
+uri = "file://docs/phase3a-implementation-tracker.md"
+type = "text"
+title = "Phase 3A Implementation Tracker"
+
+[[outputs]]
+id = "oQsPHar_SYZ3_Y724sZVn"
+uri = "file://docs/phase3a-zero-trust-audit.md"
+type = "text"
+title = "Phase 3A Zero-Trust Audit"
+
+[[outputs]]
+id = "G9TRhrkPbs7nT8MjpqR5V"
+uri = "file://docs/phase3a-evidence-package.md"
+type = "text"
+title = "Phase 3A Evidence Package"
