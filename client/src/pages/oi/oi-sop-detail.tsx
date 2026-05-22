@@ -641,6 +641,85 @@ function EffectivenessTab({ sop }: { sop: any }) {
   );
 }
 
+// ─── Enforcement Tab ──────────────────────────────────────────────────────────
+function SopEnforcementTab({ sop }: { sop: any }) {
+  const { data: controls, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/oi/sop", sop.id, "enforcement-controls"],
+    queryFn: async () => {
+      const r = await fetch(`/api/oi/sop/${sop.id}/enforcement-controls`);
+      if (!r.ok) return [];
+      return r.json();
+    },
+  });
+
+  const CTRL_STATUS_COLORS: Record<string, string> = {
+    draft:     "bg-gray-100 text-gray-700",
+    active:    "bg-green-100 text-green-800",
+    suspended: "bg-yellow-100 text-yellow-800",
+    retired:   "bg-red-100 text-red-700",
+  };
+  const CTRL_STATUS_LABELS: Record<string, string> = {
+    draft: "Draft", active: "Active", suspended: "Suspended", retired: "Retired",
+  };
+  const LEVEL_COLORS: Record<string, string> = {
+    advisory: "bg-sky-100 text-sky-800", mandatory: "bg-red-100 text-red-800",
+  };
+
+  if (isLoading) return (
+    <div className="space-y-2">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">{controls?.length ?? 0} enforcement control{controls?.length !== 1 ? "s" : ""} linked to this SOP</p>
+        <a href="/oi/enforcement" className="text-xs text-blue-600 hover:underline">Go to Enforcement Register →</a>
+      </div>
+
+      {(!controls || controls.length === 0) && (
+        <div className="text-center py-12 text-gray-400">
+          <div className="h-8 w-8 mx-auto mb-2 opacity-30 text-2xl">🛡</div>
+          <p className="text-sm">No enforcement controls linked to this SOP</p>
+          <a href="/oi/enforcement" className="text-xs text-blue-600 hover:underline mt-1 block">Create a control in the Enforcement Register</a>
+        </div>
+      )}
+
+      {controls?.map(ctrl => (
+        <a key={ctrl.id} href={`/oi/enforcement/${ctrl.id}`} className="block">
+          <div className="border rounded-lg p-3 hover:shadow-md transition-shadow border-l-4 border-l-blue-300">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-mono text-gray-500">{ctrl.controlNumber}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${CTRL_STATUS_COLORS[ctrl.status] ?? "bg-gray-100 text-gray-700"}`}>{CTRL_STATUS_LABELS[ctrl.status] ?? ctrl.status}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${LEVEL_COLORS[ctrl.enforcementLevel] ?? "bg-gray-100 text-gray-700"}`}>{ctrl.enforcementLevel === "mandatory" ? "Mandatory" : "Advisory"}</span>
+                </div>
+                <p className="font-medium text-gray-900 text-sm mt-1 truncate">{ctrl.title}</p>
+                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+                  <span>{ctrl.erpEntityType?.replace(/_/g, " ")}</span>
+                  <span>•</span>
+                  <span>{ctrl.controlType?.replace(/_/g, " ")}</span>
+                  <span>•</span>
+                  <span>{ctrl.department}</span>
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                {(ctrl.openHoldCount ?? 0) > 0 && (
+                  <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded">{ctrl.openHoldCount} hold{ctrl.openHoldCount > 1 ? "s" : ""}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 // ─── Audit Log Tab ────────────────────────────────────────────────────────────
 function AuditLogTab({ sop }: { sop: any }) {
   const { data: logs = [], isLoading } = useQuery<any[]>({
@@ -735,6 +814,7 @@ export default function OiSopDetail() {
           <TabsTrigger value="acknowledgments">Acknowledgments</TabsTrigger>
           <TabsTrigger value="effectiveness">Effectiveness</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
+          <TabsTrigger value="enforcement">Enforcement</TabsTrigger>
         </TabsList>
         <TabsContent value="overview"        className="mt-4"><OverviewTab sop={sop} onRefresh={handleRefresh} /></TabsContent>
         <TabsContent value="revisions"       className="mt-4"><RevisionsTab sop={sop} onRefresh={handleRefresh} /></TabsContent>
@@ -742,6 +822,7 @@ export default function OiSopDetail() {
         <TabsContent value="acknowledgments" className="mt-4"><AcknowledgmentsTab sop={sop} /></TabsContent>
         <TabsContent value="effectiveness"   className="mt-4"><EffectivenessTab sop={sop} /></TabsContent>
         <TabsContent value="audit"           className="mt-4"><AuditLogTab sop={sop} /></TabsContent>
+        <TabsContent value="enforcement"     className="mt-4"><SopEnforcementTab sop={sop} /></TabsContent>
       </Tabs>
     </div>
   );

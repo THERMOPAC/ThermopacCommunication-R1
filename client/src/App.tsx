@@ -324,6 +324,8 @@ function Router() {
       <ProtectedRoute path="/oi/capa" component={() => <OI.OiCapaRegisterPage />} />
       <ProtectedRoute path="/oi/sop/:sopId" component={() => <OI.OiSopDetailPage />} />
       <ProtectedRoute path="/oi/sop" component={() => <OI.OiSopRegisterPage />} />
+      <ProtectedRoute path="/oi/enforcement/:controlId" component={() => <OI.OiEnforcementDetailPage />} />
+      <ProtectedRoute path="/oi/enforcement" component={() => <OI.OiEnforcementRegisterPage />} />
       <ProtectedRoute path="/oi/config" component={() => <OI.OiConfigPage />} />
 
       <Route component={NotFound} />

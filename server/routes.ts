@@ -3908,6 +3908,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const { oiSopRouter } = await import('./oi-sop-routes');
   app.use('/api/oi', ensureAuthenticated, oiSopRouter);
+  const { oiEnforcementRouter } = await import('./oi-enforcement-routes');
+  app.use('/api/oi', ensureAuthenticated, oiEnforcementRouter);
   console.log('OI CAPA routes registered');
 
   // ── PPPC — Project Procurement Package Control ────────────────────────────────

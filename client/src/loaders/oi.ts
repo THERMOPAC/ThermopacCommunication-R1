@@ -9,5 +9,7 @@ export const OiConfigPage       = lazyWithRetry(() => import("@/pages/oi/oi-conf
 export const OiRcaPage          = lazyWithRetry(() => import("@/pages/oi/oi-rca-page"));
 export const OiCapaRegisterPage = lazyWithRetry(() => import("@/pages/oi/oi-capa-register"));
 export const OiCapaDetailPage   = lazyWithRetry(() => import("@/pages/oi/oi-capa-detail"));
-export const OiSopRegisterPage  = lazyWithRetry(() => import("@/pages/oi/oi-sop-register"));
-export const OiSopDetailPage    = lazyWithRetry(() => import("@/pages/oi/oi-sop-detail"));
+export const OiSopRegisterPage        = lazyWithRetry(() => import("@/pages/oi/oi-sop-register"));
+export const OiSopDetailPage          = lazyWithRetry(() => import("@/pages/oi/oi-sop-detail"));
+export const OiEnforcementRegisterPage = lazyWithRetry(() => import("@/pages/oi/oi-enforcement-register"));
+export const OiEnforcementDetailPage   = lazyWithRetry(() => import("@/pages/oi/oi-enforcement-detail"));

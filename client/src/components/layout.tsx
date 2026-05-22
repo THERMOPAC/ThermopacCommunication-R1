@@ -369,6 +369,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Zap,            label: "Report Issue",    href: "/oi/issues/new" },
         { icon: ShieldCheck,    label: "CAPA Register",   href: "/oi/capa" },
         { icon: BookOpen,       label: "SOP Register",    href: "/oi/sop" },
+        { icon: ShieldAlert,   label: "Enforcement Controls", href: "/oi/enforcement" },
         ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Configuration", href: "/oi/config" }] : []),
       ]
     },

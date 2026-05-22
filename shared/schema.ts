@@ -14717,6 +14717,11 @@ export const oiAuditActionEnum = pgEnum("oi_audit_action", [
   "sop_activated","sop_retired","sop_linked","sop_unlinked",
   "sop_acknowledgment_assigned","sop_acknowledged","sop_acknowledgment_withdrawn",
   "sop_effectiveness_recorded",
+  // Phase 2B: Enforcement audit actions
+  "enforcement_control_created","enforcement_control_activated","enforcement_control_suspended","enforcement_control_retired",
+  "enforcement_hold_raised","enforcement_hold_approved_to_proceed","enforcement_hold_released",
+  "enforcement_hold_overridden","enforcement_checklist_item_checked","enforcement_checklist_item_rejected",
+  "enforcement_hold_emergency_bypassed","enforcement_checklist_item_resubmitted",
 ]);
 
 export const oiIssues = pgTable("oi_issues", {
@@ -15183,6 +15188,139 @@ export const oiSopAuditLog = pgTable("oi_sop_audit_log", {
   ipAddress: text("ip_address"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// ─── Phase 2B: ERP Enforcement Framework ─────────────────────────────────────
+
+export const oiEnforcementControls = pgTable("oi_enforcement_controls", {
+  id:                     serial("id").primaryKey(),
+  controlNumber:          text("control_number").notNull().unique(),
+  sopId:                  integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "restrict" }),
+  sopRevisionNumber:      integer("sop_revision_number").notNull(),
+  erpEntityType:          text("erp_entity_type").notNull(),
+  controlType:            text("control_type").notNull(),
+  enforcementLevel:       text("enforcement_level").notNull().default("advisory"),
+  enforcementScope:       text("enforcement_scope").notNull().default("global"),
+  scopeProjectId:         integer("scope_project_id").references(() => projects.id, { onDelete: "restrict" }),
+  scopeEquipmentType:     text("scope_equipment_type"),
+  title:                  text("title").notNull(),
+  description:            text("description").notNull(),
+  rationale:              text("rationale").notNull(),
+  department:             text("department").notNull(),
+  processArea:            text("process_area"),
+  controlChecklistVersion: integer("control_checklist_version").notNull().default(0),
+  status:                 text("status").notNull().default("draft"),
+  ownerId:                integer("owner_id").notNull().references(() => users.id),
+  approverId:             integer("approver_id").notNull().references(() => users.id),
+  approvedBy:             integer("approved_by").references(() => users.id),
+  approvedAt:             timestamp("approved_at"),
+  suspendedBy:            integer("suspended_by").references(() => users.id),
+  suspendedAt:            timestamp("suspended_at"),
+  suspensionReason:       text("suspension_reason"),
+  retiredBy:              integer("retired_by").references(() => users.id),
+  retiredAt:              timestamp("retired_at"),
+  retirementReason:       text("retirement_reason"),
+  createdBy:              integer("created_by").notNull().references(() => users.id),
+  createdAt:              timestamp("created_at").notNull().defaultNow(),
+  updatedAt:              timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiEnforcementChecklists = pgTable("oi_enforcement_checklists", {
+  id:               serial("id").primaryKey(),
+  controlId:        integer("control_id").notNull().references(() => oiEnforcementControls.id, { onDelete: "cascade" }),
+  itemNumber:       integer("item_number").notNull(),
+  title:            text("title").notNull(),
+  description:      text("description"),
+  isRequired:       boolean("is_required").notNull().default(true),
+  evidenceRequired: boolean("evidence_required").notNull().default(false),
+  sortOrder:        integer("sort_order").notNull().default(0),
+  createdAt:        timestamp("created_at").notNull().defaultNow(),
+  updatedAt:        timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiEnforcementHolds = pgTable("oi_enforcement_holds", {
+  id:                      serial("id").primaryKey(),
+  holdNumber:              text("hold_number").notNull().unique(),
+  controlId:               integer("control_id").notNull().references(() => oiEnforcementControls.id, { onDelete: "restrict" }),
+  erpEntityType:           text("erp_entity_type").notNull(),
+  erpEntityId:             integer("erp_entity_id").notNull(),
+  erpEntityRef:            text("erp_entity_ref"),
+  enforcementLevel:        text("enforcement_level").notNull(),
+  holdType:                text("hold_type").notNull(),
+  enforcementScope:        text("enforcement_scope").notNull(),
+  isPrimaryHold:           boolean("is_primary_hold").notNull().default(false),
+  reason:                  text("reason").notNull(),
+  status:                  text("status").notNull().default("open"),
+  holdOwnerId:             integer("hold_owner_id").notNull().references(() => users.id),
+  responsibleDepartment:   text("responsible_department").notNull(),
+  escalationOwnerId:       integer("escalation_owner_id").notNull().references(() => users.id),
+  holdApproverId:          integer("hold_approver_id").references(() => users.id),
+  raisedBy:                integer("raised_by").notNull().references(() => users.id),
+  raisedAt:                timestamp("raised_at").notNull().defaultNow(),
+  approvedToProceedBy:     integer("approved_to_proceed_by").references(() => users.id),
+  approvedToProceedAt:     timestamp("approved_to_proceed_at"),
+  approvedToProceedNote:   text("approved_to_proceed_note"),
+  releasedBy:              integer("released_by").references(() => users.id),
+  releasedAt:              timestamp("released_at"),
+  releaseNote:             text("release_note"),
+  overrideBy:              integer("override_by").references(() => users.id),
+  overrideAt:              timestamp("override_at"),
+  overrideReason:          text("override_reason"),
+  bypassBy:                integer("bypass_by").references(() => users.id),
+  bypassAt:                timestamp("bypass_at"),
+  bypassReason:            text("bypass_reason"),
+  createdAt:               timestamp("created_at").notNull().defaultNow(),
+  updatedAt:               timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiEnforcementChecklistResponses = pgTable("oi_enforcement_checklist_responses", {
+  id:                       serial("id").primaryKey(),
+  holdId:                   integer("hold_id").notNull().references(() => oiEnforcementHolds.id, { onDelete: "cascade" }),
+  checklistItemId:          integer("checklist_item_id").notNull().references(() => oiEnforcementChecklists.id, { onDelete: "restrict" }),
+  sopRevisionNumber:        integer("sop_revision_number").notNull(),
+  checklistRevisionNumber:  integer("checklist_revision_number").notNull(),
+  responseStatus:           text("response_status").notNull().default("pending"),
+  isChecked:                boolean("is_checked").notNull().default(false),
+  evidenceNote:             text("evidence_note"),
+  respondedBy:              integer("responded_by").references(() => users.id),
+  respondedAt:              timestamp("responded_at"),
+  rejectionReason:          text("rejection_reason"),
+  rejectedBy:               integer("rejected_by").references(() => users.id),
+  rejectedAt:               timestamp("rejected_at"),
+  createdAt:                timestamp("created_at").notNull().defaultNow(),
+  updatedAt:                timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oiEnforcementAuditLog = pgTable("oi_enforcement_audit_log", {
+  id:              serial("id").primaryKey(),
+  controlId:       integer("control_id").references(() => oiEnforcementControls.id, { onDelete: "set null" }),
+  holdId:          integer("hold_id").references(() => oiEnforcementHolds.id, { onDelete: "set null" }),
+  action:          oiAuditActionEnum("action").notNull(),
+  actorId:         integer("actor_id").notNull().references(() => users.id),
+  actorName:       text("actor_name").notNull(),
+  actorRole:       text("actor_role").notNull(),
+  fieldName:       text("field_name"),
+  oldValue:        text("old_value"),
+  newValue:        text("new_value"),
+  context:         text("context"),
+  ipAddress:       text("ip_address"),
+  isOverrideEvent: boolean("is_override_event").notNull().default(false),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertOiEnforcementControlSchema = createInsertSchema(oiEnforcementControls).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOiEnforcementChecklistSchema = createInsertSchema(oiEnforcementChecklists).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOiEnforcementHoldSchema = createInsertSchema(oiEnforcementHolds).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOiEnforcementChecklistResponseSchema = createInsertSchema(oiEnforcementChecklistResponses).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOiEnforcementAuditLogSchema = createInsertSchema(oiEnforcementAuditLog).omit({ id: true, createdAt: true });
+
+export type OiEnforcementControl           = typeof oiEnforcementControls.$inferSelect;
+export type InsertOiEnforcementControl     = z.infer<typeof insertOiEnforcementControlSchema>;
+export type OiEnforcementChecklist         = typeof oiEnforcementChecklists.$inferSelect;
+export type InsertOiEnforcementChecklist   = z.infer<typeof insertOiEnforcementChecklistSchema>;
+export type OiEnforcementHold              = typeof oiEnforcementHolds.$inferSelect;
+export type InsertOiEnforcementHold        = z.infer<typeof insertOiEnforcementHoldSchema>;
+export type OiEnforcementChecklistResponse = typeof oiEnforcementChecklistResponses.$inferSelect;
+export type OiEnforcementAuditLog          = typeof oiEnforcementAuditLog.$inferSelect;
 
 export type OiIssue          = typeof oiIssues.$inferSelect;
 export type InsertOiIssue    = z.infer<typeof insertOiIssueSchema>;

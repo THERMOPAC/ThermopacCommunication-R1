@@ -295,6 +295,77 @@ function SopDashboardPanels() {
   );
 }
 
+function EnforcementDashboardPanels() {
+  const { data: summary } = useQuery<any>({
+    queryKey: ["/api/oi/dashboard/enforcement-summary"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/enforcement-summary"); if (!r.ok) return null; return r.json(); },
+  });
+  const { data: overrides } = useQuery<any[]>({
+    queryKey: ["/api/oi/dashboard/enforcement-overrides"],
+    queryFn: async () => { const r = await fetch("/api/oi/dashboard/enforcement-overrides?periodDays=30"); if (!r.ok) return []; return r.json(); },
+  });
+
+  if (!summary) return null;
+  const c = summary.controls ?? {};
+  const h = summary.holds ?? {};
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mt-2">
+        <ShieldAlert className="h-4 w-4 text-red-600" />
+        <h2 className="text-base font-bold text-gray-800">Enforcement Controls (Phase 2B)</h2>
+        <a href="/oi/enforcement" className="text-xs text-blue-600 hover:underline ml-auto">View All →</a>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="border-l-4 border-l-red-400">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-600" /> Active Hold Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-4 gap-2 text-center mb-3">
+              <div><p className="text-xl font-bold text-red-700">{h.open ?? 0}</p><p className="text-xs text-gray-400">Open</p></div>
+              <div><p className="text-xl font-bold text-orange-600">{h.mandatory ?? 0}</p><p className="text-xs text-gray-400">Mandatory</p></div>
+              <div><p className="text-xl font-bold text-blue-600">{h.approvedToProceed ?? 0}</p><p className="text-xs text-gray-400">ATP</p></div>
+              <div><p className={`text-xl font-bold ${(h.emergencyBypassed ?? 0) > 0 ? "text-purple-700" : "text-gray-400"}`}>{h.emergencyBypassed ?? 0}</p><p className="text-xs text-gray-400">Bypassed</p></div>
+            </div>
+            <div className="grid grid-cols-3 gap-1 text-xs text-center">
+              <div className="p-1 bg-green-50 rounded"><p className="font-semibold text-green-700">{h.released ?? 0}</p><p className="text-gray-400">Released</p></div>
+              <div className="p-1 bg-orange-50 rounded"><p className="font-semibold text-orange-700">{h.overridden ?? 0}</p><p className="text-gray-400">Overridden</p></div>
+              <div className="p-1 bg-gray-50 rounded"><p className="font-semibold">{c.active ?? 0}</p><p className="text-gray-400">Active Ctrl</p></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {overrides && overrides.length > 0 && (
+          <Card className="border-l-4 border-l-orange-400">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-orange-600" /> Recent Override Events (30d)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                {overrides.slice(0, 5).map((ev: any) => (
+                  <div key={ev.id} className="flex items-center justify-between text-xs">
+                    <div className="flex-1 min-w-0">
+                      <span className={`font-medium ${ev.action === "enforcement_hold_emergency_bypassed" ? "text-purple-700" : "text-orange-700"}`}>{ev.action === "enforcement_hold_emergency_bypassed" ? "⚠ BYPASS" : "OVERRIDE"}</span>
+                      <span className="text-gray-500 ml-1 truncate">{ev.actorName}</span>
+                    </div>
+                    <span className="text-gray-400 shrink-0 ml-2">{ev.context?.split(" ")[0]}</span>
+                  </div>
+                ))}
+              </div>
+              {overrides.length > 5 && <p className="text-xs text-gray-400 mt-2">{overrides.length - 5} more event{overrides.length - 5 > 1 ? "s" : ""}…</p>}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function OiDashboardPage() {
   const { data: summary,  isLoading: sumLoading }     = useQuery<any>({ queryKey: ["/api/oi/dashboard/summary"] });
   const { data: byStatus, isLoading: statusLoading }  = useQuery<any[]>({ queryKey: ["/api/oi/dashboard/by-status"] });
@@ -801,6 +872,9 @@ export default function OiDashboardPage() {
 
         {/* Phase 2A: SOP Dashboard Panels */}
         <SopDashboardPanels />
+
+        {/* Phase 2B: Enforcement Dashboard Panels */}
+        <EnforcementDashboardPanels />
 
         {/* Quick actions */}
         <Card>
