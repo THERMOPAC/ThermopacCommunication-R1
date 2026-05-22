@@ -428,7 +428,7 @@ oiRouter.get("/issues/:id", async (req: any, res: any) => {
     ioRow, fatIoRow, satIoRow, contractRow, projectRow,
   ] = await Promise.all([
     issue.customerId
-      ? db.select({ name: customers.name, bpCode: sql<string>`sap_card_code` }).from(customers).where(eq(customers.id, issue.customerId!)).limit(1)
+      ? db.select({ name: customers.bpName, bpCode: customers.bpCode }).from(customers).where(eq(customers.id, issue.customerId!)).limit(1)
       : Promise.resolve([]),
     issue.vendorId
       ? db.select({ name: vendors.name, displayName: vendors.displayName, sapCode: vendors.sapCardCode }).from(vendors).where(eq(vendors.id, issue.vendorId!)).limit(1)
@@ -1227,8 +1227,8 @@ oiRouter.get("/dashboard/by-customer", async (req: any, res: any) => {
 
   const rows = await db.select({
     customerId:   oiIssues.customerId,
-    customerName: customers.name,
-    customerBpCode: sql<string>`${customers.sapCardCode}`,
+    customerName: customers.bpName,
+    customerBpCode: sql<string>`${customers.bpCode}`,
     openCount:    sql<number>`SUM(CASE WHEN ${oiIssues.status} NOT IN ('closed','withdrawn') THEN 1 ELSE 0 END)`,
     closedCount:  sql<number>`SUM(CASE WHEN ${oiIssues.status} = 'closed' THEN 1 ELSE 0 END)`,
     totalCount:   count(),
@@ -1236,7 +1236,7 @@ oiRouter.get("/dashboard/by-customer", async (req: any, res: any) => {
     avgMttr:      sql<number>`AVG(CASE WHEN ${oiIssues.totalResolutionHours} IS NOT NULL THEN CAST(${oiIssues.totalResolutionHours} AS FLOAT) END)`,
   }).from(oiIssues)
     .innerJoin(customers, eq(oiIssues.customerId, customers.id))
-    .groupBy(oiIssues.customerId, customers.name, customers.sapCardCode)
+    .groupBy(oiIssues.customerId, customers.bpName, customers.bpCode)
     .orderBy(desc(count()))
     .limit(50);
 
