@@ -663,6 +663,7 @@ function Layout({ children }: LayoutProps) {
                     { type: 'single', href: '/sap-integration', label: 'SAP B1 Integration' },
                     { type: 'submenu', label: 'SAP Purchasing' },
                     { type: 'submenu', label: 'Document Control' },
+                    { type: 'submenu', label: 'Operational Intelligence' },
                     { type: 'submenu', label: 'Administration' },
                     { type: 'submenu', label: 'Finance' },
                     { type: 'submenu', label: 'Digital Marketing' },
