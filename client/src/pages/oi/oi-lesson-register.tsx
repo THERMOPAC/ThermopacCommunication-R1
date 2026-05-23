@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
+import Layout from "@/components/layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -427,6 +428,7 @@ export default function OiLessonRegisterPage() {
   }
 
   return (
+    <Layout>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -605,5 +607,6 @@ export default function OiLessonRegisterPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </Layout>
   );
 }
