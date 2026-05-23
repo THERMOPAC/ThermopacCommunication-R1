@@ -1,9 +1,15 @@
 # Department Master — Phase 2 Execution Plan
 **Status:** PENDING APPROVAL  
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** 2026-05-23  
 **Author:** System Architect  
 **Prerequisite:** Phase 1 Audit (`docs/department-master-phase1-audit.md`) approved.
+
+### Revision History
+| Version | Date | Changes |
+|---|---|---|
+| 1.0 | 2026-05-23 | Initial plan |
+| 1.1 | 2026-05-23 | Correction C1: `GET /api/departments` made public (no auth). Correction C2: name uniqueness changed to case-insensitive expression index. |
 
 ---
 
@@ -32,10 +38,15 @@ CREATE TABLE department_master (
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_active  BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_dept_name   UNIQUE (name),
-  CONSTRAINT uq_dept_code   UNIQUE (code),
-  CONSTRAINT chk_dept_name  CHECK (TRIM(name) <> '')
+  CONSTRAINT uq_dept_code  UNIQUE (code),
+  CONSTRAINT chk_dept_name CHECK (TRIM(name) <> '')
 );
+
+-- C2: Case-insensitive uniqueness on name via expression index.
+-- Prevents "Quality Control", "quality control", "QUALITY CONTROL" co-existing.
+-- Note: A plain UNIQUE constraint on TEXT is case-sensitive in PostgreSQL.
+-- An expression index on LOWER(name) enforces case-insensitive uniqueness at the DB level.
+CREATE UNIQUE INDEX uq_dept_master_name_ci ON department_master (LOWER(name));
 
 CREATE INDEX idx_dept_master_active ON department_master (is_active, sort_order);
 ```
@@ -51,13 +62,21 @@ export const departmentMaster = pgTable('department_master', {
   isActive:  boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
-  uqName:       uniqueIndex('uq_dept_master_name').on(table.name),
-  uqCode:       uniqueIndex('uq_dept_master_code').on(table.code),
+  // C2: Case-insensitive unique index — Drizzle uses sql`` for expression indexes.
+  // This creates: CREATE UNIQUE INDEX uq_dept_master_name_ci ON department_master (LOWER(name))
+  uqNameCI:    uniqueIndex('uq_dept_master_name_ci').on(sql`LOWER(${table.name})`),
+  uqCode:      uniqueIndex('uq_dept_master_code').on(table.code),
   activeOrdIdx: index('idx_dept_master_active').on(table.isActive, table.sortOrder),
 }));
 
 export const insertDepartmentMasterSchema = createInsertSchema(departmentMaster)
-  .omit({ id: true, createdAt: true });
+  .omit({ id: true, createdAt: true })
+  .extend({
+    // C2: Normalise name to title-case on insert via Zod transform — belt-and-suspenders
+    // alongside the DB-level case-insensitive unique index.
+    name: z.string().min(1).trim()
+      .transform(s => s.replace(/\b\w/g, c => c.toUpperCase())),
+  });
 
 export type DepartmentMaster       = typeof departmentMaster.$inferSelect;
 export type InsertDepartmentMaster = z.infer<typeof insertDepartmentMasterSchema>;
@@ -67,10 +86,12 @@ export type InsertDepartmentMaster = z.infer<typeof insertDepartmentMasterSchema
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| `name` uniqueness | Case-sensitive UNIQUE constraint | Prevents "quality control" vs "Quality Control" duplicates |
+| `name` uniqueness | **C2: Case-insensitive** via `UNIQUE INDEX ON LOWER(name)` | PostgreSQL TEXT UNIQUE is case-sensitive by default. Expression index on `LOWER(name)` prevents "Quality Control" / "quality control" / "QUALITY CONTROL" coexisting. Plain `UNIQUE(name)` constraint removed. |
+| Zod `.transform` on insert schema | Title-case normalisation | Belt-and-suspenders — normalises incoming strings before they hit the DB, so stored names are always title-cased regardless of how the API is called |
+| `GET /api/departments` auth | **C1: Public (no auth)** | Non-sensitive reference data. Needed for preload hooks, startup flows, public forms, and future integrations. No session cookie required. |
 | No FK on existing tables (Phase 2) | Deliberate | Too many tables; historical data must not break |
 | `is_active` instead of DELETE | Soft deactivation | Preserves historical row context in audit logs, appraisals, etc. |
-| `code` optional | Nullable, unique | Allows short-form usage in reports without forcing immediate adoption |
+| `code` optional | Nullable, unique (case-sensitive) | Allows short-form usage in reports without forcing immediate adoption |
 | `sort_order` integer | Manual ordering | Alphabetical is not always business-preferred |
 | `withTimezone: true` on `createdAt` | IST-safe | Consistent with project-wide timestamp standard |
 
@@ -146,7 +167,7 @@ Returns **active** departments only. Used by all dropdowns.
 
 ```
 GET /api/departments
-Auth: ensureAuthenticated (session cookie)
+Auth: NONE — public read endpoint (C1)
 Cache-Control: max-age=300 (5 min — departments change rarely)
 
 Response 200:
@@ -156,12 +177,14 @@ Response 200:
   ...
 ]
 
-Response 401: { "error": "Unauthorized" }
 Response 500: { "error": "Failed to fetch departments" }
 ```
 
+**No authentication required.** (C1 correction — non-sensitive reference data.)  
 **Sorting:** `ORDER BY sort_order ASC` — server-side, not client-side.  
 **Filter:** `WHERE is_active = true`.
+
+**Security note:** This endpoint returns only `id`, `name`, `code`, `sortOrder` — no PII, no internal IDs linked to users, no business-sensitive data. Rate limiting via existing Express middleware is sufficient protection.
 
 ### 3.2 `GET /api/admin/departments`
 
@@ -214,10 +237,19 @@ Steps must be executed in exact order. Each step is independently deployable and
 5. **Still no API route change** — old hardcoded lists still serve all traffic.
 
 ### Step 3 — New API route (`GET /api/departments`)
-1. Create `server/department-routes.ts` with the `GET /api/departments` handler
+1. Create `server/department-routes.ts` with the `GET /api/departments` handler (no `ensureAuthenticated` — C1)
 2. Mount router in `server/index.ts`: `app.use('/api', departmentRouter)`
-3. Verify endpoint: `curl -b session /api/departments` → 10 active records
-4. **Old routes still intact** — new route is additive, nothing migrates yet.
+3. Verify endpoint — no session cookie needed (C1):
+   ```
+   curl /api/departments
+   → 200 with 10 active records, sorted by sortOrder
+   ```
+4. Verify case-insensitive uniqueness constraint (C2):
+   ```sql
+   INSERT INTO department_master (name, sort_order) VALUES ('quality control', 999);
+   → ERROR: duplicate key value violates unique constraint "uq_dept_master_name_ci"
+   ```
+5. **Old routes still intact** — new route is additive, nothing migrates yet.
 
 ### Step 4 — Replace `GET /api/admin/departments`
 1. In `server/admin-routes.ts` replace the `users.department` DISTINCT query with `department_master` read
@@ -245,10 +277,14 @@ Steps must be executed in exact order. Each step is independently deployable and
 1. Create `client/src/hooks/use-departments.ts`
 2. Hook implementation:
    ```typescript
+   // C1: /api/departments is a public endpoint — no auth required.
+   // The default TanStack Query fetcher sends credentials: 'include' which is fine;
+   // the endpoint also works without a session cookie.
    export function useDepartments(): string[] {
-     const { data } = useQuery<DepartmentMaster[]>({
+     const { data } = useQuery<{ id: number; name: string; code: string | null; sortOrder: number }[]>({
        queryKey: ["/api/departments"],
-       staleTime: 5 * 60 * 1000,  // 5 min
+       staleTime: 5 * 60 * 1000,   // 5 min — departments are stable reference data
+       gcTime:    30 * 60 * 1000,  // 30 min garbage-collect time
      });
      return (data ?? []).map(d => d.name);
    }
@@ -358,11 +394,15 @@ Phase 2 only creates the hook. No component changes. The full sequence across ph
 - [ ] Seed is idempotent: restart app twice, count remains 12
 
 ### After Step 3 (New API route)
-- [ ] `GET /api/departments` (authenticated) → 200 with 10 objects, sorted by `sortOrder`
+- [ ] `GET /api/departments` (no cookie / unauthenticated) → **200** with 10 objects *(C1 — public)*
+- [ ] `GET /api/departments` (authenticated) → 200 with same 10 objects
 - [ ] Response contains `id`, `name`, `code`, `sortOrder` fields
+- [ ] Response is sorted by `sortOrder` ASC (not alphabetical)
 - [ ] "Engineering" and "General Management" NOT in response
-- [ ] `GET /api/departments` (unauthenticated) → 401
-- [ ] Existing OI/SOP dropdowns still work (still using hardcoded lists)
+- [ ] C2 — duplicate name test: `INSERT … 'quality control'` → DB error `uq_dept_master_name_ci`
+- [ ] C2 — duplicate name test: `INSERT … 'QUALITY CONTROL'` → DB error `uq_dept_master_name_ci`
+- [ ] C2 — Zod transform test: posting `name: "quality control"` via API → stored as `"Quality Control"`
+- [ ] Existing OI/SOP dropdowns still work (still using hardcoded lists — no regression)
 
 ### After Step 4 (Admin route)
 - [ ] `GET /api/admin/departments` (Superuser) → 12 rows including inactive
@@ -428,7 +468,10 @@ Set `USE_DB_VALID_DEPTS=false` during initial deploy; flip to `true` after valid
 | **No `users.department` mutation** | User records are read-only in this phase |
 | **No UI wiring in Phase 2** | All frontend dropdowns continue using hardcoded lists during Phase 2 |
 | **Additive API** | `GET /api/departments` is a new route — no existing route removed or changed until Step 4 |
-| **Backward-compatible admin route** | Step 4 changes shape of admin response — low blast radius (internal admin only) |
+| **C1 — Public endpoint exposure** | `GET /api/departments` returns only `id`, `name`, `code`, `sortOrder` — zero PII, zero business-sensitive data. Existing Express rate-limit middleware covers it. |
+| **C2 — Case-insensitive uniqueness is DB-enforced** | Expression index `LOWER(name)` is enforced at the PostgreSQL level — cannot be bypassed by any application path, including direct DB inserts during future admin operations |
+| **C2 — Zod title-case transform is belt-and-suspenders** | Applied on write only; never transforms stored names on read — no risk of corrupting existing data |
+| **Backward-compatible admin route** | Step 4 changes shape of admin response from `string[]` to `object[]` — low blast radius (internal admin use only, no known external consumers) |
 | **Legacy rows as inactive** | "Engineering" and "General Management" stored but hidden from dropdowns — no data loss |
 | **Git checkpoint** | Checkpoint `dae68cef` is the rollback baseline for full revert |
 | **5-min cache on frontend** | `staleTime: 5 * 60 * 1000` on the hook prevents thundering herd after deploy |
