@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, BookOpen, CheckCircle, Clock, AlertCircle, Plus, Trash2,
-  FileText, Link2, Users, Eye, ChevronRight, BarChart3, History, MessageSquarePlus, Download,
+  FileText, Link2, Users, Eye, ChevronRight, BarChart3, History, MessageSquarePlus, Download, Pencil,
 } from "lucide-react";
 import { downloadSopPdf } from "@/lib/sop-pdf";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
@@ -29,7 +29,7 @@ import {
   SOP_REVISION_STATUS_LABELS, SOP_REVISION_STATUS_COLORS,
   EFFECTIVENESS_SCORE_LABELS, EFFECTIVENESS_SCORE_COLORS,
   LINKED_TYPE_LABELS, SOP_TRANSITION_LABELS,
-  SOP_ROLE_LABELS, VALID_SOP_ROLES,
+  SOP_ROLE_LABELS, VALID_SOP_ROLES, SOP_TYPES,
   SUGGESTION_STATUS_LABELS, SUGGESTION_STATUS_COLORS,
 } from "./oi-sop-constants";
 
@@ -43,14 +43,85 @@ function OverviewTab({ sop, onRefresh }: { sop: any; onRefresh: () => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [transitionOpen, setTransitionOpen] = useState(false);
-  const [retireOpen, setRetireOpen] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
+  const [retireOpen, setRetireOpen]         = useState(false);
+  const [rejectOpen, setRejectOpen]         = useState(false);
+  const [editOpen, setEditOpen]             = useState(false);
   const [retirementReason, setRetirementReason] = useState("");
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionReason,  setRejectionReason]  = useState("");
 
   const isManager = hasRole(user?.role ?? "", MANAGER_ROLES);
   const isSM      = hasRole(user?.role ?? "", SM_ROLES);
+  const canEdit   = isManager && sop.status !== "retired";
 
+  // ── Users for owner / approver dropdowns ─────────────────────────────────
+  const { data: users = [] } = useQuery<any[]>({ queryKey: ["/api/users"] });
+  const { data: departments = [] } = useQuery<any[]>({ queryKey: ["/api/departments"] });
+
+  // ── Edit form ─────────────────────────────────────────────────────────────
+  const editSchema = z.object({
+    title:             z.string().min(5, "Min 5 chars").max(300),
+    description:       z.string().min(10, "Min 10 chars"),
+    sopType:           z.string().min(1),
+    department:        z.string().min(1),
+    applicableRole:    z.string().min(1),
+    processArea:       z.string().min(2, "Min 2 chars").max(200),
+    documentReference: z.string().max(200).optional(),
+    ownerId:           z.string().optional(),
+    approverId:        z.string().optional(),
+    effectiveDate:     z.string().optional(),
+    reviewDueDate:     z.string().optional(),
+    nextReviewDate:    z.string().optional(),
+  });
+
+  const editForm = useForm<z.infer<typeof editSchema>>({
+    resolver: zodResolver(editSchema),
+    defaultValues: {
+      title:             sop.title ?? "",
+      description:       sop.description ?? "",
+      sopType:           sop.sopType ?? "procedure",
+      department:        sop.department ?? "",
+      applicableRole:    sop.applicableRole ?? "Employee",
+      processArea:       sop.processArea ?? "",
+      documentReference: sop.documentReference ?? "",
+      ownerId:           sop.ownerId ? String(sop.ownerId) : "",
+      approverId:        sop.approverId ? String(sop.approverId) : "",
+      effectiveDate:     sop.effectiveDate ? sop.effectiveDate.slice(0, 10) : "",
+      reviewDueDate:     sop.reviewDueDate ? sop.reviewDueDate.slice(0, 10) : "",
+      nextReviewDate:    sop.nextReviewDate ? sop.nextReviewDate.slice(0, 10) : "",
+    },
+  });
+
+  const editMut = useMutation({
+    mutationFn: (vals: z.infer<typeof editSchema>) => {
+      const body: any = {
+        title:          vals.title,
+        description:    vals.description,
+        sopType:        vals.sopType,
+        department:     vals.department,
+        applicableRole: vals.applicableRole,
+        processArea:    vals.processArea,
+        documentReference: vals.documentReference || null,
+        ownerId:    vals.ownerId    ? parseInt(vals.ownerId)    : null,
+        approverId: vals.approverId ? parseInt(vals.approverId) : null,
+        ...(isSM && {
+          effectiveDate:  vals.effectiveDate  ? new Date(vals.effectiveDate).toISOString()  : null,
+          reviewDueDate:  vals.reviewDueDate  ? new Date(vals.reviewDueDate).toISOString()  : null,
+          nextReviewDate: vals.nextReviewDate ? new Date(vals.nextReviewDate).toISOString() : null,
+        }),
+      };
+      return apiRequest("PATCH", `/api/oi/sop/${sop.id}`, body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oi/sop", sop.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/oi/sop"] });
+      toast({ title: "SOP updated successfully" });
+      setEditOpen(false);
+      onRefresh();
+    },
+    onError: (e: any) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Transition mutation ───────────────────────────────────────────────────
   const transitionMut = useMutation({
     mutationFn: (body: any) => apiRequest("POST", `/api/oi/sop/${sop.id}/transition`, body),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/oi/sop", sop.id] }); toast({ title: "SOP status updated" }); setTransitionOpen(false); onRefresh(); },
@@ -78,6 +149,32 @@ function OverviewTab({ sop, onRefresh }: { sop: any; onRefresh: () => void }) {
             <span className="text-sm text-gray-500">Rev v{sop.revisionNumber}</span>
             {sop.isReviewOverdue && (
               <Badge className="bg-red-100 text-red-700 text-xs">Review Overdue</Badge>
+            )}
+            {/* Edit button */}
+            {canEdit && (
+              <div className="ml-auto">
+                <Button size="sm" variant="outline" className="gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50"
+                  onClick={() => {
+                    editForm.reset({
+                      title:             sop.title ?? "",
+                      description:       sop.description ?? "",
+                      sopType:           sop.sopType ?? "procedure",
+                      department:        sop.department ?? "",
+                      applicableRole:    sop.applicableRole ?? "Employee",
+                      processArea:       sop.processArea ?? "",
+                      documentReference: sop.documentReference ?? "",
+                      ownerId:           sop.ownerId    ? String(sop.ownerId)    : "",
+                      approverId:        sop.approverId ? String(sop.approverId) : "",
+                      effectiveDate:     sop.effectiveDate  ? sop.effectiveDate.slice(0, 10)  : "",
+                      reviewDueDate:     sop.reviewDueDate  ? sop.reviewDueDate.slice(0, 10)  : "",
+                      nextReviewDate:    sop.nextReviewDate ? sop.nextReviewDate.slice(0, 10) : "",
+                    });
+                    setEditOpen(true);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Edit SOP
+                </Button>
+              </div>
             )}
           </div>
           <p className="text-gray-700 text-sm leading-relaxed mb-4">{sop.description}</p>
@@ -140,6 +237,177 @@ function OverviewTab({ sop, onRefresh }: { sop: any; onRefresh: () => void }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Edit SOP Dialog ─────────────────────────────────────────────────── */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-blue-600" />
+              Edit SOP — {sop.sopNumber}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(v => editMut.mutate(v))} className="space-y-4">
+              {/* Title */}
+              <FormField control={editForm.control} name="title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Description */}
+              <FormField control={editForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl><Textarea rows={3} {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* SOP Type */}
+                <FormField control={editForm.control} name="sopType" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SOP Type</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {SOP_TYPES.map(t => (
+                          <SelectItem key={t} value={t}>{SOP_TYPE_LABELS[t] ?? t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Applicable Role */}
+                <FormField control={editForm.control} name="applicableRole" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Accessible To</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {VALID_SOP_ROLES.map(r => (
+                          <SelectItem key={r} value={r}>{SOP_ROLE_LABELS[r] ?? r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Department */}
+                <FormField control={editForm.control} name="department" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {(departments as any[]).map((d: any) => (
+                          <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Process Area */}
+                <FormField control={editForm.control} name="processArea" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Process Area</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Owner */}
+                <FormField control={editForm.control} name="ownerId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Owner</FormLabel>
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select owner…" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="">— None —</SelectItem>
+                        {(users as any[]).map((u: any) => (
+                          <SelectItem key={u.id} value={String(u.id)}>{u.displayName ?? u.username}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Approver (SM+ only) */}
+                {isSM && (
+                  <FormField control={editForm.control} name="approverId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Approver</FormLabel>
+                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select approver…" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="">— None —</SelectItem>
+                          {(users as any[]).map((u: any) => (
+                            <SelectItem key={u.id} value={String(u.id)}>{u.displayName ?? u.username}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
+
+                {/* Document Reference */}
+                <FormField control={editForm.control} name="documentReference" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Document Reference</FormLabel>
+                    <FormControl><Input placeholder="Optional" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              {/* Date fields — SM+ only */}
+              {isSM && (
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField control={editForm.control} name="effectiveDate" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Effective Date</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={editForm.control} name="reviewDueDate" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Review Due</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={editForm.control} name="nextReviewDate" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Next Review</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={editMut.isPending}>
+                  {editMut.isPending ? "Saving…" : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       {/* Details grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
