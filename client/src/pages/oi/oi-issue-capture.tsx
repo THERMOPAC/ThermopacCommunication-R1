@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { OI_DEPARTMENTS } from "./oi-lesson-constants";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check, RefreshCw, ClipboardList, LayoutGrid, Building2, Wrench } from "lucide-react";
 import { Link } from "wouter";
 
 export const ISSUE_CATEGORIES = [
@@ -210,31 +210,46 @@ export default function OiIssueCaptureePage() {
 
   return (
     <Layout>
-      <div className="p-4 space-y-4">
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+
+        {/* ── Page header ── */}
         <div className="flex items-center gap-3">
           <Link href="/oi/issues">
-            <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="shrink-0"><ArrowLeft className="h-4 w-4" /></Button>
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Report an Issue</h1>
-            <p className="text-sm text-gray-500">Operational Intelligence — Issue Capture</p>
+            <h1 className="text-2xl font-bold text-gray-900">Report an Issue</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Operational Intelligence — Issue Capture</p>
           </div>
         </div>
 
+        {/* ── S1 escalation banner ── */}
         {selectedSeverity === "S1" && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-red-800 text-sm">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
-            <strong>S1 Critical:</strong>&nbsp;Immediate escalation to General Manager and Senior Management will be triggered on submission.
+          <div className="bg-red-50 border border-red-300 rounded-xl p-4 flex items-start gap-3 text-red-800 text-sm shadow-sm">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+            <div>
+              <p className="font-semibold">S1 Critical — Immediate Escalation</p>
+              <p className="text-red-700 mt-0.5">On submission, General Manager and Senior Management will be notified immediately.</p>
+            </div>
           </div>
         )}
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700">Issue Details</CardTitle>
+          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-6">
+
+            {/* ══════════════════════════════════════════
+                Card 1 — Issue Summary
+            ══════════════════════════════════════════ */}
+            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
+              <CardHeader className="pb-4 border-b border-gray-100">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
+                  <ClipboardList className="h-4 w-4 text-blue-600" />
+                  Issue Summary
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-5 space-y-5">
+
+                {/* Issue Title */}
                 <FormField control={form.control} name="title" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Issue Title <span className="text-red-500">*</span></FormLabel>
@@ -293,6 +308,7 @@ export default function OiIssueCaptureePage() {
                   </FormItem>
                 )} />
 
+                {/* Description */}
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
                     <div className="flex items-center justify-between">
@@ -301,10 +317,7 @@ export default function OiIssueCaptureePage() {
                         type="button"
                         className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40"
                         disabled={!watchTitle || !watchDept || !selectedSeverity || !selectedCategory || !selectedPhase}
-                        onClick={() => {
-                          descEditedRef.current = false;
-                          setDescEditedDisplay(false);
-                        }}
+                        onClick={() => { descEditedRef.current = false; setDescEditedDisplay(false); }}
                         title="Regenerate description from current inputs"
                       >
                         <RefreshCw className="h-3 w-3" /> Regenerate
@@ -312,27 +325,41 @@ export default function OiIssueCaptureePage() {
                     </div>
                     <FormControl>
                       <Textarea
-                        placeholder="Fill in Title, Department, Severity, Category and Phase above — description will auto-draft here."
+                        placeholder="Fill in Title, Department, Severity, Category and Phase — description will auto-draft here."
                         rows={4}
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);
-                          // Set ref immediately (synchronous) so any concurrent effect
-                          // sees the gate before it can overwrite
                           descEditedRef.current = true;
                           setDescEditedDisplay(true);
                         }}
                       />
                     </FormControl>
                     {descEditedDisplay && (
-                      <p className="text-xs text-amber-600 flex items-center gap-1">
-                        Manually edited — click <strong>Regenerate</strong> above to reset to auto-draft.
+                      <p className="text-xs text-amber-600">
+                        Manually edited — click <strong>Regenerate</strong> to reset to auto-draft.
                       </p>
                     )}
                     <FormMessage />
                   </FormItem>
                 )} />
 
+              </CardContent>
+            </Card>
+
+            {/* ══════════════════════════════════════════
+                Card 2 — Classification
+            ══════════════════════════════════════════ */}
+            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
+              <CardHeader className="pb-4 border-b border-gray-100">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
+                  <LayoutGrid className="h-4 w-4 text-violet-600" />
+                  Classification
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-5 space-y-5">
+
+                {/* Department */}
                 <FormField control={form.control} name="department" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department <span className="text-red-500">*</span></FormLabel>
@@ -348,7 +375,8 @@ export default function OiIssueCaptureePage() {
                   </FormItem>
                 )} />
 
-                <div className="grid md:grid-cols-3 gap-4">
+                {/* Severity · Category · Project Phase */}
+                <div className="grid md:grid-cols-3 gap-5">
                   <FormField control={form.control} name="severity" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Severity <span className="text-red-500">*</span></FormLabel>
@@ -395,11 +423,27 @@ export default function OiIssueCaptureePage() {
                   )} />
                 </div>
 
-                {/* Customer → Project linkage */}
-                <div className="grid md:grid-cols-2 gap-4">
+              </CardContent>
+            </Card>
+
+            {/* ══════════════════════════════════════════
+                Card 3 — Project / Customer / Vendor Context
+            ══════════════════════════════════════════ */}
+            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
+              <CardHeader className="pb-4 border-b border-gray-100">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
+                  <Building2 className="h-4 w-4 text-emerald-600" />
+                  Project / Customer / Vendor Context
+                  <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-5 space-y-5">
+
+                {/* Customer → Project */}
+                <div className="grid md:grid-cols-2 gap-5">
                   <FormField control={form.control} name="customerId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer (optional)</FormLabel>
+                      <FormLabel>Customer</FormLabel>
                       <Select onValueChange={handleCustomerChange} value={field.value ?? "__none__"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
                         <SelectContent>
@@ -417,13 +461,17 @@ export default function OiIssueCaptureePage() {
 
                   <FormField control={form.control} name="projectId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Related Project (optional)</FormLabel>
+                      <FormLabel>Related Project</FormLabel>
                       <Select
                         onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)}
                         value={field.value ?? "__none__"}
                         disabled={!selectedCustomerId || selectedCustomerId === "__none__"}
                       >
-                        <FormControl><SelectTrigger><SelectValue placeholder={selectedCustomerId ? "Select project" : "Select a customer first"} /></SelectTrigger></FormControl>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={selectedCustomerId && selectedCustomerId !== "__none__" ? "Select project" : "Select a customer first"} />
+                          </SelectTrigger>
+                        </FormControl>
                         <SelectContent>
                           <SelectItem value="__none__">— No project —</SelectItem>
                           {filteredProjects.map((p: any) => (
@@ -438,11 +486,11 @@ export default function OiIssueCaptureePage() {
                   )} />
                 </div>
 
-                {/* Vendor linkage — shown only for relevant categories */}
+                {/* Vendor — shown only for Procurement / Manufacturing / Logistics */}
                 {showVendorField && (
                   <FormField control={form.control} name="vendorId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Related Vendor (optional)</FormLabel>
+                      <FormLabel>Related Vendor</FormLabel>
                       <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger></FormControl>
                         <SelectContent>
@@ -458,15 +506,24 @@ export default function OiIssueCaptureePage() {
                     </FormItem>
                   )} />
                 )}
+
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700">Equipment Context (optional)</CardTitle>
+            {/* ══════════════════════════════════════════
+                Card 4 — Equipment Context
+            ══════════════════════════════════════════ */}
+            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
+              <CardHeader className="pb-4 border-b border-gray-100">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
+                  <Wrench className="h-4 w-4 text-orange-500" />
+                  Equipment Context
+                  <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
+              <CardContent className="pt-5 space-y-5">
+
+                <div className="grid md:grid-cols-2 gap-5">
                   <FormField control={form.control} name="equipmentFamily" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Equipment Family</FormLabel>
@@ -480,31 +537,35 @@ export default function OiIssueCaptureePage() {
                     </FormItem>
                   )} />
                 </div>
-                <div className="flex gap-6">
+
+                <div className="flex gap-8 pt-1">
                   <FormField control={form.control} name="criticalEquipmentFlag" render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
+                    <FormItem className="flex items-center gap-2.5">
                       <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      <FormLabel className="m-0 cursor-pointer">Critical Equipment</FormLabel>
+                      <FormLabel className="m-0 cursor-pointer font-medium">Critical Equipment</FormLabel>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="criticalPathFlag" render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
+                    <FormItem className="flex items-center gap-2.5">
                       <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      <FormLabel className="m-0 cursor-pointer">Critical Path Item</FormLabel>
+                      <FormLabel className="m-0 cursor-pointer font-medium">Critical Path Item</FormLabel>
                     </FormItem>
                   )} />
                 </div>
+
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-3">
+            {/* ── Submit bar ── */}
+            <div className="flex justify-end gap-3 pt-2 pb-4">
               <Link href="/oi/issues">
-                <Button type="button" variant="outline">Cancel</Button>
+                <Button type="button" variant="outline" className="px-6">Cancel</Button>
               </Link>
-              <Button type="submit" disabled={mutation.isPending} className="gap-2">
-                {mutation.isPending ? "Submitting..." : <><Zap className="h-4 w-4" /> Submit Issue</>}
+              <Button type="submit" disabled={mutation.isPending} className="gap-2 px-6">
+                {mutation.isPending ? "Submitting…" : <><Zap className="h-4 w-4" /> Submit Issue</>}
               </Button>
             </div>
+
           </form>
         </Form>
       </div>
