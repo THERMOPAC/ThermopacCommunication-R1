@@ -64,11 +64,11 @@ async function nextLessonNumber(): Promise<string> {
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
   const year = now.getFullYear();
   const prefix = `LLN-${year}-`;
-  const [row] = await db.execute(sql`
+  const [row] = (await db.execute(sql`
     SELECT lesson_number FROM oi_lesson_records
     WHERE lesson_number LIKE ${prefix + "%"}
     ORDER BY lesson_number DESC LIMIT 1
-  `) as any[];
+  `) as any).rows ?? [];
   if (!row) return `${prefix}001`;
   const last = parseInt((row.lesson_number as string).slice(-3));
   return `${prefix}${String(last + 1).padStart(3, "0")}`;
@@ -128,7 +128,7 @@ oiLessonRouter.get("/lessons/cross-project", wrap(async (req: any, res: any) => 
 
   const { category, priority, scope, tags: tagsFilter } = req.query;
 
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     SELECT r.*,
            u.username AS author_name,
            (SELECT COUNT(*) FROM oi_lesson_acknowledgments a WHERE a.lesson_id = r.id AND a.status = 'pending')::int AS pending_acks,
@@ -144,7 +144,7 @@ oiLessonRouter.get("/lessons/cross-project", wrap(async (req: any, res: any) => 
       ${scope    ? sql`AND r.applicability_scope = ${scope}` : sql``}
       ${tagsFilter ? sql`AND r.tags @> ${tagsFilter.split(",").map((t: string) => t.trim())}::text[]` : sql``}
     ORDER BY r.lesson_category, r.published_at DESC
-  `) as any[];
+  `) as any).rows ?? [];
 
   // Group by category
   const grouped: Record<string, any[]> = {};
@@ -166,14 +166,14 @@ oiLessonRouter.get("/lessons/tag-suggestions", wrap(async (req: any, res: any) =
   const actor = actorFromReq(req);
   if (!MANAGER_ROLES.includes(actor.role)) return res.status(403).json({ error: "forbidden" });
 
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     SELECT tag, COUNT(*)::int AS usage_count
     FROM oi_lesson_records, unnest(tags) AS tag
     WHERE status <> 'archived'
     GROUP BY tag
     ORDER BY usage_count DESC
     LIMIT 50
-  `) as any[];
+  `) as any).rows ?? [];
   return res.json(rows);
 }));
 
@@ -187,7 +187,7 @@ oiLessonRouter.get("/lessons/by-entity/:linkType/:entityId", wrap(async (req: an
   const eid = parseInt(entityId);
   if (isNaN(eid)) return res.status(400).json({ error: "invalid_entity_id" });
 
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     SELECT r.id, r.lesson_number, r.title, r.status, r.lesson_category, r.lesson_type,
            r.priority, r.published_at, r.is_current_revision, r.revision_number,
            lk.id AS linkage_id, lk.linked_entity_ref, lk.link_note
@@ -196,7 +196,7 @@ oiLessonRouter.get("/lessons/by-entity/:linkType/:entityId", wrap(async (req: an
     WHERE lk.link_type = ${linkType} AND lk.linked_entity_id = ${eid}
       AND r.status <> 'archived'
     ORDER BY r.created_at DESC
-  `) as any[];
+  `) as any).rows ?? [];
   return res.json(rows);
 }));
 
@@ -206,7 +206,7 @@ oiLessonRouter.get("/dashboard/lesson-summary", wrap(async (req: any, res: any) 
   const actor = actorFromReq(req);
   if (!MANAGER_ROLES.includes(actor.role)) return res.status(403).json({ error: "forbidden" });
 
-  const [summary] = await db.execute(sql`
+  const [summary] = (await db.execute(sql`
     SELECT
       COUNT(*) FILTER (WHERE status='draft')::int                  AS draft_count,
       COUNT(*) FILTER (WHERE status='submitted_for_review')::int   AS submitted_count,
@@ -216,15 +216,15 @@ oiLessonRouter.get("/dashboard/lesson-summary", wrap(async (req: any, res: any) 
       COUNT(*) FILTER (WHERE status='archived')::int               AS archived_count,
       COUNT(*) FILTER (WHERE status='published' AND cross_project_applicable=true AND cross_project_approved_at IS NOT NULL)::int AS cross_project_count
     FROM oi_lesson_records
-  `) as any[];
+  `) as any).rows ?? [];
 
-  const topCategories = await db.execute(sql`
+  const topCategories = (await db.execute(sql`
     SELECT lesson_category, COUNT(*)::int AS cnt
     FROM oi_lesson_records WHERE status='published'
     GROUP BY lesson_category ORDER BY cnt DESC LIMIT 5
-  `) as any[];
+  `) as any).rows ?? [];
 
-  const [effDue] = await db.execute(sql`
+  const [effDue] = (await db.execute(sql`
     SELECT COUNT(*)::int AS overdue_count
     FROM oi_lesson_records r
     WHERE r.status = 'published'
@@ -234,7 +234,7 @@ oiLessonRouter.get("/dashboard/lesson-summary", wrap(async (req: any, res: any) 
         SELECT 1 FROM oi_lesson_effectiveness_reviews e
         WHERE e.lesson_id = r.id AND e.review_status = 'completed'
       )
-  `) as any[];
+  `) as any).rows ?? [];
 
   return res.json({ ...summary, topCategories, overdueEffectivenessCount: effDue?.overdue_count ?? 0 });
 }));
@@ -243,7 +243,7 @@ oiLessonRouter.get("/dashboard/lesson-recurrence-heatmap", wrap(async (req: any,
   const actor = actorFromReq(req);
   if (!MANAGER_ROLES.includes(actor.role)) return res.status(403).json({ error: "forbidden" });
 
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     SELECT r.lesson_category AS category, COUNT(*)::int AS recurrence_count
     FROM oi_lesson_recurrence_checks rc
     JOIN oi_lesson_records r ON r.id = rc.lesson_id
@@ -251,7 +251,7 @@ oiLessonRouter.get("/dashboard/lesson-recurrence-heatmap", wrap(async (req: any,
       AND rc.check_date >= now() - interval '12 months'
     GROUP BY r.lesson_category
     ORDER BY recurrence_count DESC
-  `) as any[];
+  `) as any).rows ?? [];
   return res.json(rows);
 }));
 
@@ -259,7 +259,7 @@ oiLessonRouter.get("/dashboard/lesson-pipeline", wrap(async (req: any, res: any)
   const actor = actorFromReq(req);
   if (!SM_ROLES.includes(actor.role)) return res.status(403).json({ error: "forbidden" });
 
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     SELECT r.id, r.lesson_number, r.title, r.lesson_category, r.priority,
            r.status, r.submitted_at, r.review_due_at,
            u.username AS author_name,
@@ -270,7 +270,7 @@ oiLessonRouter.get("/dashboard/lesson-pipeline", wrap(async (req: any, res: any)
     LEFT JOIN users u ON u.id = r.author_id
     WHERE r.status IN ('submitted_for_review','under_review')
     ORDER BY r.review_due_at ASC NULLS LAST
-  `) as any[];
+  `) as any).rows ?? [];
   return res.json(rows);
 }));
 
@@ -278,7 +278,7 @@ oiLessonRouter.get("/dashboard/lesson-effectiveness-due", wrap(async (req: any, 
   const actor = actorFromReq(req);
   if (!MANAGER_ROLES.includes(actor.role)) return res.status(403).json({ error: "forbidden" });
 
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     SELECT r.id, r.lesson_number, r.title, r.lesson_category, r.priority,
            r.published_at, r.effectiveness_review_due_months,
            (r.published_at + (r.effectiveness_review_due_months || ' months')::interval) AS review_due_date
@@ -291,7 +291,7 @@ oiLessonRouter.get("/dashboard/lesson-effectiveness-due", wrap(async (req: any, 
         WHERE e.lesson_id = r.id AND e.review_status = 'completed'
       )
     ORDER BY review_due_date ASC
-  `) as any[];
+  `) as any).rows ?? [];
   return res.json(rows);
 }));
 
@@ -345,14 +345,14 @@ oiLessonRouter.post("/lessons", wrap(async (req: any, res: any) => {
   const lessonNumber = await nextLessonNumber();
 
   // Draft duplicate warning (API-level, not blocking)
-  const [dupPublished] = await db.execute(sql`
+  const [dupPublished] = (await db.execute(sql`
     SELECT lesson_number FROM oi_lesson_records
     WHERE lesson_category = ${d.lessonCategory}
       AND title_hash = ${titleHash}
       AND status = 'published'
       AND is_current_revision = true
     LIMIT 1
-  `) as any[];
+  `) as any).rows ?? [];
 
   const [lesson] = await db.insert(oiLessonRecords).values({
     lessonNumber,
@@ -402,7 +402,7 @@ oiLessonRouter.get("/lessons", wrap(async (req: any, res: any) => {
   if (q && (q as string).trim().length < 2)
     return res.status(422).json({ error: "search_query_too_short" });
 
-  const rows = await db.execute(sql`
+  const rows = (await db.execute(sql`
     SELECT r.id, r.lesson_number, r.title, r.status, r.lesson_category, r.lesson_type,
            r.applicability_scope, r.priority, r.cross_project_applicable,
            r.cross_project_approved_at, r.is_current_revision, r.revision_number,
@@ -426,7 +426,7 @@ oiLessonRouter.get("/lessons", wrap(async (req: any, res: any) => {
       ${q ? sql`AND r.ts_document @@ plainto_tsquery('english', ${q})` : sql``}
     ORDER BY ${q ? sql`rank DESC,` : sql``} r.created_at DESC
     LIMIT ${parseInt(limit as string)} OFFSET ${parseInt(offset as string)}
-  `) as any[];
+  `) as any).rows ?? [];
 
   return res.json(rows);
 }));
@@ -824,7 +824,7 @@ oiLessonRouter.post("/lessons/:id/linkages", wrap(async (req: any, res: any) => 
   const ref = await resolveEntityRef(linkType, linkedEntityId);
 
   // Duplicate-entity API check for published lessons
-  const [dupLesson] = await db.execute(sql`
+  const [dupLesson] = (await db.execute(sql`
     SELECT r.lesson_number FROM oi_lesson_linkages lk
     JOIN oi_lesson_records r ON r.id = lk.lesson_id
     WHERE lk.link_type = ${linkType} AND lk.linked_entity_id = ${linkedEntityId}
@@ -832,7 +832,7 @@ oiLessonRouter.post("/lessons/:id/linkages", wrap(async (req: any, res: any) => 
       AND r.status = 'published' AND r.is_current_revision = true
       AND r.id <> ${id}
     LIMIT 1
-  `) as any[];
+  `) as any).rows ?? [];
   if (dupLesson) return res.status(409).json({ error: "duplicate_lesson_for_entity", conflicting_lesson_number: dupLesson.lesson_number });
 
   try {

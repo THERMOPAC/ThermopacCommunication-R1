@@ -470,42 +470,42 @@ export default function OiLessonRegisterPage() {
               )}
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter || "all"} onValueChange={v => setStatusFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="h-9 w-[160px] text-sm">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All statuses</SelectItem>
+                <SelectItem value="all">All statuses</SelectItem>
                 {LESSON_STATUSES.map(s => <SelectItem key={s} value={s}>{LESSON_STATUS_LABELS[s]}</SelectItem>)}
               </SelectContent>
             </Select>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <Select value={categoryFilter || "all"} onValueChange={v => setCategoryFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="h-9 w-[190px] text-sm">
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All categories</SelectItem>
+                <SelectItem value="all">All categories</SelectItem>
                 {LESSON_CATEGORIES.map(c => <SelectItem key={c} value={c}>{LESSON_CATEGORY_LABELS[c]}</SelectItem>)}
               </SelectContent>
             </Select>
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter || "all"} onValueChange={v => setTypeFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="h-9 w-[150px] text-sm">
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All types</SelectItem>
+                <SelectItem value="all">All types</SelectItem>
                 {LESSON_TYPES.map(t => <SelectItem key={t} value={t}>{LESSON_TYPE_LABELS[t]}</SelectItem>)}
               </SelectContent>
             </Select>
 
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <Select value={priorityFilter || "all"} onValueChange={v => setPriorityFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="h-9 w-[140px] text-sm">
                 <SelectValue placeholder="All priorities" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All priorities</SelectItem>
+                <SelectItem value="all">All priorities</SelectItem>
                 {LESSON_PRIORITIES.map(p => <SelectItem key={p} value={p}>{LESSON_PRIORITY_LABELS[p]}</SelectItem>)}
               </SelectContent>
             </Select>
