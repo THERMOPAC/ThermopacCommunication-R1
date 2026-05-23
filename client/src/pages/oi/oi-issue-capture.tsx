@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { OI_DEPARTMENTS } from "./oi-lesson-constants";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check, RefreshCw, ClipboardList, LayoutGrid, Building2, Wrench } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check, RefreshCw, ClipboardList, LayoutGrid, Building2, Wrench, Paperclip, UploadCloud, X, FileText, FileImage, Sheet } from "lucide-react";
 import { Link } from "wouter";
 
 export const ISSUE_CATEGORIES = [
@@ -187,6 +187,22 @@ export default function OiIssueCaptureePage() {
 
   const showVendorField = VENDOR_RELEVANT_CATEGORIES.includes(selectedCategory);
 
+  // ── Staged files (held in memory until after issue creation) ──
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [isDragOver, setIsDragOver]   = useState(false);
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+
+  const addFiles = (incoming: FileList | File[]) => {
+    const valid = Array.from(incoming).filter(f => ALLOWED_TYPES.includes(f.type));
+    setStagedFiles(prev => [...prev, ...valid]);
+    const rejected = Array.from(incoming).length - valid.length;
+    if (rejected > 0) toast({ title: "Some files skipped", description: `${rejected} file(s) not allowed. Use JPG, PNG, PDF, DOCX or XLSX.`, variant: "destructive" });
+  };
+
   const mutation = useMutation({
     mutationFn: async (data: CaptureForm) => {
       const toId = (v?: string) => (v && v !== "__none__") ? parseInt(v) : null;
@@ -200,9 +216,22 @@ export default function OiIssueCaptureePage() {
     },
     onSuccess: async (res) => {
       const issue = await res.json();
+      // Upload staged files sequentially after issue creation
+      if (stagedFiles.length > 0) {
+        for (let i = 0; i < stagedFiles.length; i++) {
+          setUploadingIdx(i);
+          const fd = new FormData();
+          fd.append("file", stagedFiles[i]);
+          try {
+            await fetch(`/api/oi/issues/${issue.id}/attachments`, { method: "POST", body: fd });
+          } catch {}
+        }
+        setUploadingIdx(null);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/oi/issues"] });
       queryClient.invalidateQueries({ queryKey: ["/api/oi/dashboard/summary"] });
-      toast({ title: "Issue captured", description: `${issue.issueNumber} created successfully.` });
+      const attachNote = stagedFiles.length > 0 ? ` · ${stagedFiles.length} attachment(s) uploaded.` : "";
+      toast({ title: "Issue captured", description: `${issue.issueNumber} created successfully.${attachNote}` });
       navigate(`/oi/issues/${issue.id}`);
     },
     onError: () => toast({ title: "Error", description: "Failed to capture issue.", variant: "destructive" }),
@@ -557,6 +586,83 @@ export default function OiIssueCaptureePage() {
                     </FormItem>
                   )} />
                 </div>
+
+              </CardContent>
+            </Card>
+
+            {/* ══════════════════════════════════════════
+                Card 5 — Evidence Attachments
+            ══════════════════════════════════════════ */}
+            <Card className="border border-rose-200 rounded-xl shadow-md overflow-hidden">
+              <CardHeader className="pb-4 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-pink-50">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-rose-800">
+                  <div className="p-1.5 bg-rose-100 rounded-lg"><Paperclip className="h-4 w-4 text-rose-500" /></div>
+                  Evidence Attachments
+                  <span className="ml-1 text-xs font-normal text-rose-400">(optional)</span>
+                  {stagedFiles.length > 0 && (
+                    <span className="ml-auto text-xs font-semibold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">
+                      {stagedFiles.length} file{stagedFiles.length > 1 ? "s" : ""} staged
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-5 space-y-4">
+
+                {/* Drag & drop zone */}
+                <div
+                  className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer
+                    ${isDragOver ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-gray-50 hover:border-rose-300 hover:bg-rose-50/40"}`}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={(e) => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files) addFiles(e.dataTransfer.files); }}
+                  onClick={() => document.getElementById("oi-evidence-input")?.click()}
+                >
+                  <input
+                    id="oi-evidence-input"
+                    type="file"
+                    multiple
+                    accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx"
+                    className="hidden"
+                    onChange={(e) => { if (e.target.files) { addFiles(e.target.files); e.target.value = ""; } }}
+                  />
+                  <UploadCloud className={`h-10 w-10 mx-auto mb-2 ${isDragOver ? "text-rose-500" : "text-gray-300"}`} />
+                  <p className="text-sm font-medium text-gray-600">
+                    {isDragOver ? "Drop files here" : "Drag & drop files here, or click to browse"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">JPG · PNG · PDF · DOCX · XLSX — max 50 MB each</p>
+                </div>
+
+                {/* Staged file list */}
+                {stagedFiles.length > 0 && (
+                  <div className="space-y-2">
+                    {stagedFiles.map((f, i) => {
+                      const isImg  = f.type.startsWith("image/");
+                      const isPdf  = f.type === "application/pdf";
+                      const isXlsx = f.type.includes("spreadsheetml");
+                      const Icon   = isImg ? FileImage : isPdf ? FileText : isXlsx ? Sheet : FileText;
+                      const isUploading = uploadingIdx === i;
+                      return (
+                        <div key={i} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm
+                          ${isUploading ? "border-rose-300 bg-rose-50" : "border-gray-200 bg-white"}`}>
+                          <Icon className={`h-4 w-4 shrink-0 ${isImg ? "text-blue-500" : isPdf ? "text-red-500" : "text-green-600"}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate font-medium text-gray-800">{f.name}</p>
+                            <p className="text-xs text-gray-400">{(f.size / 1024).toFixed(0)} KB</p>
+                          </div>
+                          {isUploading ? (
+                            <span className="text-xs text-rose-600 font-medium animate-pulse">Uploading…</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500"
+                              onClick={() => setStagedFiles(prev => prev.filter((_, j) => j !== i))}
+                            ><X className="h-3.5 w-3.5" /></button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
               </CardContent>
             </Card>

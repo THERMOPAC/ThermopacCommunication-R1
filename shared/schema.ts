@@ -15520,3 +15520,20 @@ export const oiIssueTitleMaster = pgTable('oi_issue_title_master', {
 export const insertOiIssueTitleMasterSchema = createInsertSchema(oiIssueTitleMaster).omit({ id: true, createdAt: true });
 export type OiIssueTitleMaster       = typeof oiIssueTitleMaster.$inferSelect;
 export type InsertOiIssueTitleMaster = z.infer<typeof insertOiIssueTitleMasterSchema>;
+
+// ─── OI Issue Attachments ─────────────────────────────────────────────────────
+export const oiIssueAttachments = pgTable("oi_issue_attachments", {
+  id:           serial("id").primaryKey(),
+  issueId:      integer("issue_id").notNull().references(() => oiIssues.id, { onDelete: "cascade" }),
+  gcsPath:      text("gcs_path").notNull(),
+  fileName:     text("file_name").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType:     text("mime_type").notNull(),
+  sizeBytes:    integer("size_bytes").notNull(),
+  seq:          integer("seq").notNull().default(1),
+  uploadedBy:   integer("uploaded_by").notNull().references(() => users.id),
+  uploadedAt:   timestamp("uploaded_at").notNull().defaultNow(),
+}, (table) => ({
+  issueIdIdx: index("idx_oi_att_issue_id").on(table.issueId),
+}));
+export type OiIssueAttachment = typeof oiIssueAttachments.$inferSelect;

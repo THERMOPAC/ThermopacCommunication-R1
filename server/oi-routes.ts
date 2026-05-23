@@ -1,11 +1,13 @@
 import { Router } from "express";
+import multer from "multer";
+import { Storage } from "@google-cloud/storage";
 import { db } from "./db";
 import {
   oiIssues, oiAuditLog, oiEscalations, oiRiskWeightConfig, oiRiskMatrixConfig,
   insertOiIssueSchema, OiIssue, users,
   customers, vendors, contracts,
   epcDrawingControls, epcPurchaseOrders, epcWorkOrders, inspectionOrders,
-  projects, oiIssueTitleMaster,
+  projects, oiIssueTitleMaster, oiIssueAttachments,
 } from "@shared/schema";
 import {
   eq, and, or, desc, asc, ilike, count, lt, isNotNull, isNull, inArray, sql, avg, gte, lte,
@@ -1466,4 +1468,132 @@ oiRouter.get("/issue-title-master", async (_req, res) => {
     console.error("[OI] title-master fetch error", err);
     return res.status(500).json({ error: "Failed to fetch title master" });
   }
+});
+
+// ─── Evidence Attachments ─────────────────────────────────────────────────────
+const attachUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      "image/jpeg", "image/png",
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
+
+function getGcsBucket() {
+  let opts: any = {};
+  if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+    try { opts = { credentials: JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS) }; } catch {}
+  }
+  return new Storage(opts).bucket(process.env.GCS_BUCKET_NAME || "thermopac_storage");
+}
+
+function deriveFY(date: Date): string {
+  const ist = new Date(date.getTime() + 5.5 * 3600 * 1000);
+  const y = ist.getFullYear();
+  const m = ist.getMonth() + 1;
+  return m >= 4
+    ? `${String(y).slice(-2)}${String(y + 1).slice(-2)}`
+    : `${String(y - 1).slice(-2)}${String(y).slice(-2)}`;
+}
+
+function sanitize(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_").toLowerCase();
+}
+
+// POST /api/oi/issues/:id/attachments
+oiRouter.post("/issues/:id/attachments", attachUpload.single("file"), async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  const issueId = parseInt(req.params.id);
+  if (isNaN(issueId)) return res.status(400).json({ error: "invalid_issue_id" });
+  if (!req.file) return res.status(400).json({ error: "no_file" });
+
+  const [issue] = await db.select({ id: oiIssues.id, issueNumber: oiIssues.issueNumber, createdAt: oiIssues.createdAt })
+    .from(oiIssues).where(eq(oiIssues.id, issueId)).limit(1);
+  if (!issue) return res.status(404).json({ error: "issue_not_found" });
+
+  const fy = deriveFY(issue.createdAt);
+  const existing = await db.select({ id: oiIssueAttachments.id })
+    .from(oiIssueAttachments).where(eq(oiIssueAttachments.issueId, issueId));
+  const seq = existing.length + 1;
+
+  const safeOrig = sanitize(req.file.originalname);
+  const fileName = `${String(seq).padStart(3, "0")}-${safeOrig}`;
+  const gcsPath  = `TPEL/OI/ISSUES/${fy}/${issue.issueNumber}/EVIDENCE/${fileName}`;
+
+  try {
+    const bucket = getGcsBucket();
+    await bucket.file(gcsPath).save(req.file.buffer, {
+      metadata: { contentType: req.file.mimetype },
+      resumable: false,
+    });
+  } catch (err: any) {
+    console.error("[OI-ATT] GCS upload error", err.message);
+    return res.status(500).json({ error: "gcs_upload_failed", detail: err.message });
+  }
+
+  const [row] = await db.insert(oiIssueAttachments).values({
+    issueId,
+    gcsPath,
+    fileName,
+    originalName: req.file.originalname,
+    mimeType:     req.file.mimetype,
+    sizeBytes:    req.file.size,
+    seq,
+    uploadedBy:   actor.id,
+  }).returning();
+
+  return res.status(201).json(row);
+});
+
+// GET /api/oi/issues/:id/attachments
+oiRouter.get("/issues/:id/attachments", async (req: any, res: any) => {
+  const issueId = parseInt(req.params.id);
+  if (isNaN(issueId)) return res.status(400).json({ error: "invalid_issue_id" });
+
+  const rows = await db.select().from(oiIssueAttachments)
+    .where(eq(oiIssueAttachments.issueId, issueId))
+    .orderBy(asc(oiIssueAttachments.seq));
+
+  const bucket = getGcsBucket();
+  const withUrls = await Promise.all(rows.map(async (r) => {
+    try {
+      const [url] = await bucket.file(r.gcsPath).getSignedUrl({
+        action: "read",
+        expires: Date.now() + 2 * 60 * 60 * 1000,
+      });
+      return { ...r, signedUrl: url };
+    } catch {
+      return { ...r, signedUrl: null };
+    }
+  }));
+
+  return res.json(withUrls);
+});
+
+// DELETE /api/oi/issues/:id/attachments/:attachId
+oiRouter.delete("/issues/:id/attachments/:attachId", async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  const issueId   = parseInt(req.params.id);
+  const attachId  = parseInt(req.params.attachId);
+  if (isNaN(issueId) || isNaN(attachId)) return res.status(400).json({ error: "invalid_id" });
+
+  const [att] = await db.select().from(oiIssueAttachments)
+    .where(and(eq(oiIssueAttachments.id, attachId), eq(oiIssueAttachments.issueId, issueId))).limit(1);
+  if (!att) return res.status(404).json({ error: "not_found" });
+
+  if (att.uploadedBy !== actor.id && !["Superuser", "General Manager"].includes(actor.role)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  try {
+    await getGcsBucket().file(att.gcsPath).delete({ ignoreNotFound: true });
+  } catch {}
+  await db.delete(oiIssueAttachments).where(eq(oiIssueAttachments.id, attachId));
+  return res.json({ deleted: true });
 });

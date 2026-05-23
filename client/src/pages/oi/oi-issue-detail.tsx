@@ -17,9 +17,131 @@ import { ISSUE_CATEGORY_LABEL, PHASE_LABEL } from "./oi-issue-capture";
 import {
   ArrowLeft, Clock, AlertTriangle, User, ChevronRight, ShieldAlert, Activity,
   Link2, DollarSign, Scale, Timer, BarChart2, SearchCode, CheckCircle,
+  Paperclip, FileText, FileImage, Download, Trash2,
 } from "lucide-react";
 import { RCA_STATUS_LABELS, RCA_STATUS_COLORS } from "./oi-rca-constants";
 import { CAPA_STATUS_LABELS, CAPA_STATUS_COLORS, CAPA_PRIORITY_LABELS, CAPA_PRIORITY_COLORS, CAPA_TYPE_LABELS } from "./oi-capa-constants";
+
+function IssueAttachmentsPanel({ issueId }: { issueId: number }) {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const ALLOWED = ["image/jpeg","image/png","application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+
+  const { data: attachments = [], refetch } = useQuery<any[]>({
+    queryKey: ["/api/oi/issues", issueId, "attachments"],
+    queryFn: async () => {
+      const res = await fetch(`/api/oi/issues/${issueId}/attachments`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (attachId: number) => {
+      const res = await fetch(`/api/oi/issues/${issueId}/attachments/${attachId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+    },
+    onSuccess: () => { refetch(); toast({ title: "Attachment removed" }); },
+    onError: () => toast({ title: "Error", description: "Could not remove attachment.", variant: "destructive" }),
+  });
+
+  async function uploadFiles(files: FileList | File[]) {
+    const valid = Array.from(files).filter(f => ALLOWED.includes(f.type));
+    const bad = Array.from(files).length - valid.length;
+    if (bad > 0) toast({ title: "Some files skipped", description: `${bad} file(s) are not allowed.`, variant: "destructive" });
+    if (!valid.length) return;
+    setUploading(true);
+    for (const file of valid) {
+      const fd = new FormData();
+      fd.append("file", file);
+      try { await fetch(`/api/oi/issues/${issueId}/attachments`, { method: "POST", body: fd }); } catch {}
+    }
+    setUploading(false);
+    refetch();
+    toast({ title: "Uploaded", description: `${valid.length} file(s) attached.` });
+  }
+
+  const isSuperuser = (user as any)?.role === "Superuser" || (user as any)?.role === "General Manager";
+
+  return (
+    <Card className="border border-rose-200 rounded-xl shadow-sm overflow-hidden mt-4">
+      <CardHeader className="pb-3 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-pink-50">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-rose-800">
+          <Paperclip className="h-4 w-4 text-rose-500" />
+          Evidence Attachments
+          <span className="ml-1 text-xs font-normal text-rose-400">({attachments.length})</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-4 space-y-3">
+        {/* Upload zone */}
+        <div
+          className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors cursor-pointer
+            ${isDragOver ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-gray-50 hover:border-rose-300 hover:bg-rose-50/40"}`}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files) uploadFiles(e.dataTransfer.files); }}
+          onClick={() => document.getElementById(`att-input-${issueId}`)?.click()}
+        >
+          <input
+            id={`att-input-${issueId}`}
+            type="file"
+            multiple
+            accept=".jpg,.jpeg,.png,.pdf,.docx,.xlsx"
+            className="hidden"
+            onChange={(e) => { if (e.target.files) { uploadFiles(e.target.files); e.target.value = ""; } }}
+          />
+          <div className="flex flex-col items-center gap-1 text-gray-400 text-xs">
+            {uploading
+              ? <><span className="text-rose-500 font-medium animate-pulse">Uploading…</span></>
+              : <><Download className="h-5 w-5 rotate-180 mb-0.5" /><span>Drop files or click to add — JPG · PNG · PDF · DOCX · XLSX</span></>}
+          </div>
+        </div>
+
+        {/* File list */}
+        {attachments.length > 0 && (
+          <div className="space-y-1.5">
+            {attachments.map((att: any) => {
+              const isImg = att.mimeType?.startsWith("image/");
+              const isPdf = att.mimeType === "application/pdf";
+              const Icon  = isImg ? FileImage : FileText;
+              const canDel = isSuperuser || att.uploadedBy === (user as any)?.id;
+              return (
+                <div key={att.id} className="flex items-center gap-2.5 rounded-lg border border-gray-100 bg-white px-3 py-2 text-sm hover:border-rose-200 hover:bg-rose-50/30 transition-colors">
+                  <Icon className={`h-4 w-4 shrink-0 ${isImg ? "text-blue-500" : isPdf ? "text-red-500" : "text-green-600"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-medium text-gray-800 text-xs">{att.originalName}</p>
+                    <p className="text-xs text-gray-400">{(att.sizeBytes / 1024).toFixed(0)} KB · seq {att.seq}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {att.signedUrl && (
+                      <a href={att.signedUrl} target="_blank" rel="noopener noreferrer"
+                        className="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600">
+                        <Download className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                    {canDel && (
+                      <button
+                        type="button"
+                        className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                        onClick={() => deleteMutation.mutate(att.id)}
+                        disabled={deleteMutation.isPending}
+                      ><Trash2 className="h-3.5 w-3.5" /></button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function CapaSummaryCard({ issueId }: { issueId: number }) {
   const { data: capas = [], isLoading } = useQuery<any[]>({
@@ -711,6 +833,9 @@ export default function OiIssueDetailPage() {
 
       {/* Linked SOPs */}
       <LinkedSopIssuePanel issueId={issue.id} />
+
+      {/* Evidence Attachments */}
+      <IssueAttachmentsPanel issueId={issue.id} />
 
       {/* Transition dialog */}
       <Dialog open={!!transitionTo} onOpenChange={() => { setTransitionTo(null); setReason(""); }}>
