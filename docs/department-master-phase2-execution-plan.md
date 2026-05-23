@@ -219,14 +219,23 @@ Steps must be executed in exact order. Each step is independently deployable and
 
 ### Step 1 — Schema migration (no data change)
 1. Add `departmentMaster` table definition to `shared/schema.ts`
-2. Run `psql` migration:
+2. Run `psql` migration (exact DDL — must match Section 1.1):
    ```sql
-   CREATE TABLE department_master ( ... );   -- as above
-   CREATE UNIQUE INDEX uq_dept_master_name ON department_master (name);
-   CREATE UNIQUE INDEX uq_dept_master_code ON department_master (code);
+   CREATE TABLE department_master (
+     id         SERIAL PRIMARY KEY,
+     name       TEXT NOT NULL,
+     code       VARCHAR(10),
+     sort_order INTEGER NOT NULL DEFAULT 0,
+     is_active  BOOLEAN NOT NULL DEFAULT true,
+     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+     CONSTRAINT uq_dept_code  UNIQUE (code),
+     CONSTRAINT chk_dept_name CHECK (TRIM(name) <> '')
+   );
+   -- C2: case-insensitive uniqueness on name
+   CREATE UNIQUE INDEX uq_dept_master_name_ci ON department_master (LOWER(name));
    CREATE INDEX idx_dept_master_active ON department_master (is_active, sort_order);
    ```
-3. Verify table exists: `\d department_master`
+3. Verify table and indexes: `\d department_master` — confirm `uq_dept_master_name_ci` is listed as expression index on `lower(name)`, not on `name` directly
 4. **No application code change yet** — table is empty, nothing reads it.
 
 ### Step 2 — Seed (data only, no routing change)
