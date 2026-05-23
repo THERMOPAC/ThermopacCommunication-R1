@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "./db";
 import {
   oiSopRecords, oiSopRevisions, oiSopLinkages, oiSopAcknowledgments,
-  oiSopEffectiveness, oiSopAuditLog,
+  oiSopEffectiveness, oiSopAuditLog, oiSopRevisionSuggestions,
   oiIssues, oiRcaRecords, oiCapaRecords, users,
   departmentMaster,
 } from "@shared/schema";
@@ -48,13 +48,45 @@ const VALID_LINKED_TYPES = ["issue","rca","capa"];
 
 function actorFromReq(req: any) {
   return {
-    id:   req.user.id as number,
-    name: (req.user.name || req.user.username || "Unknown") as string,
-    role: (req.user.role || "Employee") as string,
-    ip:   (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "") as string,
+    id:         req.user.id as number,
+    name:       (req.user.name || req.user.username || "Unknown") as string,
+    role:       (req.user.role || "Employee") as string,
+    department: (req.user.department || "") as string,
+    ip:         (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "") as string,
   };
 }
 function hasRole(role: string, allowed: string[]): boolean { return allowed.includes(role); }
+
+// ─── SOP Role Hierarchy ───────────────────────────────────────────────────────
+export const VALID_SOP_ROLES = [
+  "Superuser",
+  "General Manager",
+  "Senior Manager",
+  "Manager",
+  "Senior Executive",
+  "Employee",
+] as const;
+
+const ROLE_RANK: Record<string, number> = {
+  "Superuser":        1,
+  "General Manager":  2,
+  "Senior Manager":   3,
+  "Manager":          4,
+  "Senior Executive": 5,
+  "Employee":         6,
+};
+
+// Single source of truth for SOP access decisions.
+// Superuser bypasses all department and role restrictions.
+// Others: must share department AND have rank ≤ SOP's applicable role rank.
+function canAccessSop(
+  actor: { role: string; department: string },
+  sop:   { department: string; applicableRole: string },
+): boolean {
+  if (actor.role === "Superuser") return true;
+  if (actor.department !== sop.department) return false;
+  return (ROLE_RANK[actor.role] ?? 99) <= (ROLE_RANK[sop.applicableRole] ?? 99);
+}
 
 // Async error wrapper — catches thrown errors in async route handlers and
 // returns 500 instead of leaving an unhandled promise rejection.
@@ -135,7 +167,8 @@ const createSopSchema = z.object({
   title:             z.string().min(5).max(300),
   description:       z.string().min(10),
   sopType:           z.enum(["procedure","work_instruction","policy","guideline","checklist"]),
-  department:        z.enum(["Accounts","Administration","After Sales","Design","Marketing","Production","Projects","Purchase","Quality Control","Stores"]),
+  department:        z.string().min(1),
+  applicableRole:    z.enum(VALID_SOP_ROLES),
   processArea:       z.string().min(2).max(200),
   documentReference: z.string().max(200).optional(),
   ownerId:           z.number().int().positive().optional(),
@@ -153,6 +186,16 @@ oiSopRouter.post("/sop", wrap(async (req: any, res: any) => {
   if (!parsed.success) return res.status(400).json({ error: "validation_failed", details: parsed.error.flatten() });
   const data = parsed.data;
 
+  // Server-side department validation against live _validDepts Set.
+  if (!_validDepts.has(data.department)) {
+    return res.status(422).json({ error: "invalid_department", message: `Department '${data.department}' is not a recognised active department.` });
+  }
+
+  // Non-Superuser may only create SOPs for their own department.
+  if (actor.role !== "Superuser" && data.department !== actor.department) {
+    return res.status(403).json({ error: "forbidden_department", message: "You may only create SOPs for your own department." });
+  }
+
   const ownerId    = data.ownerId ?? actor.id;
   const approverId = data.approverId ?? null;
 
@@ -168,6 +211,7 @@ oiSopRouter.post("/sop", wrap(async (req: any, res: any) => {
     description:       data.description,
     sopType:           data.sopType,
     department:        data.department,
+    applicableRole:    data.applicableRole,
     processArea:       data.processArea,
     documentReference: data.documentReference ?? null,
     ownerId,
@@ -181,6 +225,7 @@ oiSopRouter.post("/sop", wrap(async (req: any, res: any) => {
   await writeSopAuditLog({
     sopId: sop.id, action: "sop_created",
     actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    department: sop.department, applicableRole: sop.applicableRole,
     context: `SOP ${sopNumber} created`, ipAddress: actor.ip,
   });
 
@@ -189,14 +234,28 @@ oiSopRouter.post("/sop", wrap(async (req: any, res: any) => {
 
 // ─── 2. GET /sop — List SOP Register ─────────────────────────────────────────
 oiSopRouter.get("/sop", wrap(async (req: any, res: any) => {
-  const { status, department, sopType, ownerId, overdueReviewOnly, search, limit = "100", offset = "0" } = req.query;
+  const actor = actorFromReq(req);
+  const { status, department, applicableRole, sopType, ownerId, overdueReviewOnly, search, limit = "100", offset = "0" } = req.query;
 
   const conditions: any[] = [];
-  if (status)     conditions.push(eq(oiSopRecords.status, status));
-  if (department) conditions.push(eq(oiSopRecords.department, department));
-  if (sopType)    conditions.push(eq(oiSopRecords.sopType, sopType));
-  if (ownerId)    conditions.push(eq(oiSopRecords.ownerId, parseInt(ownerId)));
-  if (search)     conditions.push(or(ilike(oiSopRecords.title, `%${search}%`), ilike(oiSopRecords.sopNumber, `%${search}%`)));
+
+  // Scope filter: non-Superuser sees only own department + accessible roles.
+  if (actor.role !== "Superuser") {
+    conditions.push(eq(oiSopRecords.department, actor.department));
+    const actorRank = ROLE_RANK[actor.role] ?? 99;
+    const accessibleRoles = VALID_SOP_ROLES.filter(r => (ROLE_RANK[r] ?? 99) >= actorRank);
+    if (accessibleRoles.length > 0) {
+      conditions.push(inArray(oiSopRecords.applicableRole, accessibleRoles));
+    }
+  }
+
+  // Optional explicit filters (applied on top of scope).
+  if (status)          conditions.push(eq(oiSopRecords.status, status));
+  if (department && actor.role === "Superuser") conditions.push(eq(oiSopRecords.department, department));
+  if (applicableRole)  conditions.push(eq(oiSopRecords.applicableRole, applicableRole as string));
+  if (sopType)         conditions.push(eq(oiSopRecords.sopType, sopType));
+  if (ownerId)         conditions.push(eq(oiSopRecords.ownerId, parseInt(ownerId as string)));
+  if (search)          conditions.push(or(ilike(oiSopRecords.title, `%${search}%`), ilike(oiSopRecords.sopNumber, `%${search}%`)));
 
   const rows = await db
     .select({
@@ -206,6 +265,7 @@ oiSopRouter.get("/sop", wrap(async (req: any, res: any) => {
       description:       oiSopRecords.description,
       sopType:           oiSopRecords.sopType,
       department:        oiSopRecords.department,
+      applicableRole:    oiSopRecords.applicableRole,
       processArea:       oiSopRecords.processArea,
       documentReference: oiSopRecords.documentReference,
       status:            oiSopRecords.status,
@@ -248,11 +308,17 @@ oiSopRouter.get("/sop", wrap(async (req: any, res: any) => {
 
 // ─── 3. GET /sop/:sopId — SOP Detail ─────────────────────────────────────────
 oiSopRouter.get("/sop/:sopId", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
   const sopId = parseInt(req.params.sopId);
   if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
 
   const sop = await fetchSop(sopId);
   if (!sop) return res.status(404).json({ error: "sop_not_found" });
+
+  // Department + role scope check.
+  if (!canAccessSop(actor, sop)) {
+    return res.status(403).json({ error: "sop_access_denied", message: "You do not have access to this SOP." });
+  }
 
   const [ownerName, approverName] = await Promise.all([
     resolveUserName(sop.ownerId),
@@ -273,7 +339,8 @@ const updateSopSchema = z.object({
   title:             z.string().min(5).max(300).optional(),
   description:       z.string().min(10).optional(),
   sopType:           z.enum(["procedure","work_instruction","policy","guideline","checklist"]).optional(),
-  department:        z.enum(["Accounts","Administration","After Sales","Design","Marketing","Production","Projects","Purchase","Quality Control","Stores"]).optional(),
+  department:        z.string().min(1).optional(),
+  applicableRole:    z.enum(VALID_SOP_ROLES).optional(),
   processArea:       z.string().min(2).max(200).optional(),
   documentReference: z.string().max(200).nullable().optional(),
   ownerId:           z.number().int().positive().nullable().optional(),
@@ -292,6 +359,12 @@ oiSopRouter.patch("/sop/:sopId", wrap(async (req: any, res: any) => {
 
   const sop = await fetchSop(sopId);
   if (!sop) return res.status(404).json({ error: "sop_not_found" });
+
+  // Department + role scope check before any write.
+  if (!canAccessSop(actor, sop)) {
+    return res.status(403).json({ error: "sop_access_denied", message: "You do not have access to this SOP." });
+  }
+
   if (sop.status === "retired") return res.status(422).json({ error: "sop_is_retired", message: "Retired SOPs cannot be edited." });
   if (sop.status === "active" && !hasRole(actor.role, SM_ROLES)) {
     return res.status(403).json({ error: "forbidden_active", message: "Only SM+ may edit an active SOP." });
@@ -300,6 +373,16 @@ oiSopRouter.patch("/sop/:sopId", wrap(async (req: any, res: any) => {
   const parsed = updateSopSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "validation_failed", details: parsed.error.flatten() });
   const data = parsed.data;
+
+  // Server-side department validation if department is being changed.
+  if (data.department !== undefined && !_validDepts.has(data.department)) {
+    return res.status(422).json({ error: "invalid_department", message: `Department '${data.department}' is not a recognised active department.` });
+  }
+
+  // Non-Superuser cannot change department to a different one.
+  if (data.department !== undefined && actor.role !== "Superuser" && data.department !== sop.department) {
+    return res.status(403).json({ error: "forbidden_department_change", message: "You cannot change the department of an SOP." });
+  }
 
   // SM+ only fields
   const smOnlyFields: (keyof typeof data)[] = ["approverId", "effectiveDate", "reviewDueDate", "nextReviewDate"];
@@ -332,6 +415,7 @@ oiSopRouter.patch("/sop/:sopId", wrap(async (req: any, res: any) => {
   track("description", data.description);
   track("sopType", data.sopType);
   track("department", data.department);
+  track("applicableRole", data.applicableRole);
   track("processArea", data.processArea);
   if ("documentReference" in data) track("documentReference", data.documentReference);
   if ("ownerId" in data) track("ownerId", data.ownerId);
@@ -358,6 +442,7 @@ oiSopRouter.patch("/sop/:sopId", wrap(async (req: any, res: any) => {
       sopId, action: "field_updated",
       actorId: actor.id, actorName: actor.name, actorRole: actor.role,
       fieldName: ev.fieldName, oldValue: ev.oldValue, newValue: ev.newValue,
+      department: updated.department, applicableRole: updated.applicableRole,
       context: `SOP ${sop.sopNumber}`, ipAddress: actor.ip,
     });
   }
@@ -384,6 +469,11 @@ oiSopRouter.post("/sop/:sopId/transition", wrap(async (req: any, res: any) => {
   const sop = await fetchSop(sopId);
   if (!sop) return res.status(404).json({ error: "sop_not_found" });
 
+  // Department + role scope check for all transitions (non-Superuser).
+  if (!canAccessSop(actor, sop)) {
+    return res.status(403).json({ error: "sop_access_denied", message: "You do not have access to this SOP." });
+  }
+
   // ── SUBMIT: draft → under_review ─────────────────────────────────────────
   if (action === "submit") {
     if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
@@ -402,6 +492,7 @@ oiSopRouter.post("/sop/:sopId/transition", wrap(async (req: any, res: any) => {
       sopId, action: "sop_submitted_for_review",
       actorId: actor.id, actorName: actor.name, actorRole: actor.role,
       oldValue: "draft", newValue: "under_review",
+      department: sop.department, applicableRole: sop.applicableRole,
       context: `SOP ${sop.sopNumber}`, ipAddress: actor.ip,
     });
     return res.json(updated);
@@ -424,6 +515,7 @@ oiSopRouter.post("/sop/:sopId/transition", wrap(async (req: any, res: any) => {
       sopId, action: "sop_approved",
       actorId: actor.id, actorName: actor.name, actorRole: actor.role,
       oldValue: "under_review", newValue: "approved",
+      department: sop.department, applicableRole: sop.applicableRole,
       context: `SOP ${sop.sopNumber} revision_number=${newRevisionNumber}`, ipAddress: actor.ip,
     });
     return res.json(updated);
@@ -448,21 +540,23 @@ oiSopRouter.post("/sop/:sopId/transition", wrap(async (req: any, res: any) => {
       sopId, action: "sop_rejected",
       actorId: actor.id, actorName: actor.name, actorRole: actor.role,
       oldValue: "under_review", newValue: "draft",
+      department: sop.department, applicableRole: sop.applicableRole,
       context: `SOP ${sop.sopNumber} | Reason: ${rejectionReason}`, ipAddress: actor.ip,
     });
     return res.json(updated);
   }
 
-  // ── ACTIVATE: approved → active (C3: 5 pre-conditions) ───────────────────
+  // ── ACTIVATE: approved → active (C3: 6 pre-conditions) ───────────────────
   if (action === "activate") {
     if (!hasRole(actor.role, SM_ROLES)) return res.status(403).json({ error: "forbidden" });
     if (sop.status !== "approved") return res.status(422).json({ error: "sop_invalid_status", message: `SOP must be approved to activate; current: ${sop.status}` });
 
-    // C3 — 5 activation pre-conditions
+    // C3 — 6 activation pre-conditions
     if (sop.revisionNumber < 1)   return res.status(422).json({ error: "sop_no_approved_revision",   message: "SOP cannot be activated without at least one approved revision." });
     if (!sop.ownerId)             return res.status(422).json({ error: "sop_owner_required",          message: "SOP cannot be activated without an owner assigned." });
     if (!sop.approverId)          return res.status(422).json({ error: "sop_approver_required",       message: "SOP cannot be activated without an approver assigned." });
     if (!sop.department)          return res.status(422).json({ error: "sop_department_required",     message: "SOP cannot be activated without a department assigned." });
+    if (!sop.applicableRole)      return res.status(422).json({ error: "sop_applicable_role_required", message: "SOP cannot be activated without an applicable role assigned." });
     if (!sop.processArea)         return res.status(422).json({ error: "sop_process_area_required",   message: "SOP cannot be activated without a process area assigned." });
 
     const [updated] = await db.update(oiSopRecords)
@@ -474,6 +568,7 @@ oiSopRouter.post("/sop/:sopId/transition", wrap(async (req: any, res: any) => {
       sopId, action: "sop_activated",
       actorId: actor.id, actorName: actor.name, actorRole: actor.role,
       oldValue: "approved", newValue: "active",
+      department: sop.department, applicableRole: sop.applicableRole,
       context: `SOP ${sop.sopNumber} rev=${sop.revisionNumber}`, ipAddress: actor.ip,
     });
     return res.json(updated);
@@ -513,6 +608,7 @@ oiSopRouter.post("/sop/:sopId/transition", wrap(async (req: any, res: any) => {
       sopId, action: "sop_retired",
       actorId: actor.id, actorName: actor.name, actorRole: actor.role,
       oldValue: sop.status, newValue: "retired",
+      department: sop.department, applicableRole: sop.applicableRole,
       context: `SOP ${sop.sopNumber} | Reason: ${retirementReason}`, ipAddress: actor.ip,
     });
     return res.json(updated);
@@ -1280,6 +1376,142 @@ oiSopRouter.get("/dashboard/sop-by-department", wrap(async (req: any, res: any) 
   `);
 
   return res.json((result as any).rows ?? []);
+}));
+
+// ─── 28. POST /sop/:sopId/suggestions — Submit a Revision Suggestion ──────────
+// Human users only. AI suggestions must NEVER write to SOP records directly.
+// This endpoint only writes to oi_sop_revision_suggestions — never touches oiSopRecords.
+const createSuggestionSchema = z.object({
+  suggestedChange: z.string().min(20).max(5000),
+  rationale:       z.string().min(10).max(2000),
+});
+
+oiSopRouter.post("/sop/:sopId/suggestions", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  const sopId = parseInt(req.params.sopId);
+  if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+
+  // SOP must be accessible to the actor.
+  if (!canAccessSop(actor, sop)) {
+    return res.status(403).json({ error: "sop_access_denied", message: "You do not have access to this SOP." });
+  }
+
+  // Only active SOPs can receive suggestions.
+  if (sop.status !== "active") {
+    return res.status(422).json({ error: "sop_not_active", message: "Revision suggestions can only be submitted for active SOPs." });
+  }
+
+  const parsed = createSuggestionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "validation_failed", details: parsed.error.flatten() });
+  const data = parsed.data;
+
+  const [suggestion] = await db.insert(oiSopRevisionSuggestions).values({
+    sopId,
+    sourceType:      "human",
+    sourceId:        null,
+    suggestedChange: data.suggestedChange,
+    rationale:       data.rationale,
+    status:          "pending",
+    suggestedBy:     actor.id,
+  }).returning();
+
+  await writeSopAuditLog({
+    sopId, action: "suggestion_submitted",
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    department: sop.department, applicableRole: sop.applicableRole,
+    context: `Suggestion #${suggestion.id} submitted for SOP ${sop.sopNumber}`,
+    ipAddress: actor.ip,
+  });
+
+  return res.status(201).json(suggestion);
+}));
+
+// ─── 29. GET /sop/:sopId/suggestions — List Suggestions (SM+ only) ────────────
+oiSopRouter.get("/sop/:sopId/suggestions", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  if (!hasRole(actor.role, SM_ROLES)) return res.status(403).json({ error: "forbidden" });
+
+  const sopId = parseInt(req.params.sopId);
+  if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+
+  if (!canAccessSop(actor, sop)) {
+    return res.status(403).json({ error: "sop_access_denied", message: "You do not have access to this SOP." });
+  }
+
+  const { status } = req.query;
+  const conditions: any[] = [eq(oiSopRevisionSuggestions.sopId, sopId)];
+  if (status) conditions.push(eq(oiSopRevisionSuggestions.status, status as string));
+
+  const rows = await db
+    .select()
+    .from(oiSopRevisionSuggestions)
+    .where(and(...conditions))
+    .orderBy(desc(oiSopRevisionSuggestions.suggestedAt));
+
+  return res.json(rows);
+}));
+
+// ─── 30. PATCH /sop/:sopId/suggestions/:suggestionId — Review Suggestion ───────
+const reviewSuggestionSchema = z.object({
+  status:      z.enum(["accepted","rejected","deferred"]),
+  reviewNotes: z.string().min(10).max(2000).optional(),
+});
+
+oiSopRouter.patch("/sop/:sopId/suggestions/:suggestionId", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  if (!hasRole(actor.role, SM_ROLES)) return res.status(403).json({ error: "forbidden" });
+
+  const sopId        = parseInt(req.params.sopId);
+  const suggestionId = parseInt(req.params.suggestionId);
+  if (isNaN(sopId) || isNaN(suggestionId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+
+  if (!canAccessSop(actor, sop)) {
+    return res.status(403).json({ error: "sop_access_denied", message: "You do not have access to this SOP." });
+  }
+
+  const [existing] = await db.select()
+    .from(oiSopRevisionSuggestions)
+    .where(and(eq(oiSopRevisionSuggestions.id, suggestionId), eq(oiSopRevisionSuggestions.sopId, sopId)))
+    .limit(1);
+
+  if (!existing) return res.status(404).json({ error: "suggestion_not_found" });
+  if (existing.status !== "pending") {
+    return res.status(422).json({ error: "suggestion_already_reviewed", message: `Suggestion is already '${existing.status}'.` });
+  }
+
+  const parsed = reviewSuggestionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "validation_failed", details: parsed.error.flatten() });
+  const data = parsed.data;
+
+  const [updated] = await db.update(oiSopRevisionSuggestions)
+    .set({
+      status:      data.status,
+      reviewedBy:  actor.id,
+      reviewedAt:  new Date(),
+      reviewNotes: data.reviewNotes ?? null,
+    })
+    .where(eq(oiSopRevisionSuggestions.id, suggestionId))
+    .returning();
+
+  await writeSopAuditLog({
+    sopId, action: "suggestion_reviewed",
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    department: sop.department, applicableRole: sop.applicableRole,
+    oldValue: "pending", newValue: data.status,
+    context: `Suggestion #${suggestionId} ${data.status} for SOP ${sop.sopNumber}`,
+    ipAddress: actor.ip,
+  });
+
+  return res.json(updated);
 }));
 
 // ─── Audit Log for a SOP ──────────────────────────────────────────────────────

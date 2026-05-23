@@ -10,19 +10,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { BookOpen, Plus, Search, Filter, AlertCircle, Clock, CheckCircle, Eye } from "lucide-react";
+import { BookOpen, Plus, Search, AlertCircle, Clock, CheckCircle, Eye } from "lucide-react";
 import { fmtDate } from "@/lib/date-format";
 import {
   SOP_STATUS_LABELS, SOP_STATUS_COLORS, SOP_TYPE_LABELS, SOP_TYPE_COLORS,
-  SOP_TYPES, SOP_STATUSES,
+  SOP_TYPES, SOP_STATUSES, VALID_SOP_ROLES, SOP_ROLE_LABELS,
 } from "./oi-sop-constants";
 import { useDepartments } from "@/hooks/use-departments";
 
@@ -32,7 +31,8 @@ const createSopSchema = z.object({
   title:             z.string().min(5, "Min 5 chars").max(300),
   description:       z.string().min(10, "Min 10 chars"),
   sopType:           z.enum(["procedure","work_instruction","policy","guideline","checklist"]),
-  department:        z.enum(["Accounts","Administration","After Sales","Design","Marketing","Production","Projects","Purchase","Quality Control","Stores"]),
+  department:        z.string().min(1, "Required"),
+  applicableRole:    z.enum(VALID_SOP_ROLES, { required_error: "Required" }),
   processArea:       z.string().min(2, "Min 2 chars").max(200),
   documentReference: z.string().max(200).optional(),
 });
@@ -47,18 +47,21 @@ export default function OiSopRegister() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDept, setFilterDept] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [filterRole, setFilterRole] = useState("all");
   const { departments, isLoading: deptsLoading, isError: deptsError } = useDepartments();
 
-  const isManager = MANAGER_ROLES.includes(user?.role ?? "");
+  const isSuperuser = user?.role === "Superuser";
+  const isManager   = MANAGER_ROLES.includes(user?.role ?? "");
 
   const params = new URLSearchParams();
   if (search)                  params.set("search", search);
   if (filterStatus !== "all")  params.set("status", filterStatus);
-  if (filterDept   !== "all")  params.set("department", filterDept);
+  if (filterDept   !== "all" && isSuperuser) params.set("department", filterDept);
   if (filterType   !== "all")  params.set("sopType", filterType);
+  if (filterRole   !== "all")  params.set("applicableRole", filterRole);
 
   const { data: sops = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/oi/sop", filterStatus, filterDept, filterType, search],
+    queryKey: ["/api/oi/sop", filterStatus, filterDept, filterType, filterRole, search],
     queryFn: async () => {
       const res = await fetch(`/api/oi/sop?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch SOPs");
@@ -68,7 +71,15 @@ export default function OiSopRegister() {
 
   const form = useForm<CreateSopData>({
     resolver: zodResolver(createSopSchema),
-    defaultValues: { title: "", description: "", sopType: "procedure", department: "Quality Control", processArea: "", documentReference: "" },
+    defaultValues: {
+      title:             "",
+      description:       "",
+      sopType:           "procedure",
+      department:        isSuperuser ? "Quality Control" : (user?.department ?? ""),
+      applicableRole:    "Employee",
+      processArea:       "",
+      documentReference: "",
+    },
   });
 
   const createMutation = useMutation({
@@ -126,17 +137,36 @@ export default function OiSopRegister() {
                     )} />
                     <FormField control={form.control} name="department" render={({ field }) => (
                       <FormItem><FormLabel>Department *</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange} disabled={deptsLoading || deptsError}>
-                          <FormControl><SelectTrigger><SelectValue placeholder={deptsLoading ? "Loading…" : deptsError ? "Unavailable" : undefined} /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {deptsLoading && <SelectItem value="__loading__" disabled>Loading departments…</SelectItem>}
-                            {!deptsLoading && !deptsError && departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        {deptsError && <p className="text-xs text-red-600 mt-1">Department list unavailable — cannot submit</p>}
+                        {isSuperuser ? (
+                          <Select value={field.value} onValueChange={field.onChange} disabled={deptsLoading || deptsError}>
+                            <FormControl><SelectTrigger><SelectValue placeholder={deptsLoading ? "Loading…" : deptsError ? "Unavailable" : undefined} /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              {deptsLoading && <SelectItem value="__loading__" disabled>Loading departments…</SelectItem>}
+                              {!deptsLoading && !deptsError && departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <FormControl>
+                            <Input value={field.value} disabled className="bg-gray-50 text-gray-600" />
+                          </FormControl>
+                        )}
+                        {deptsError && isSuperuser && <p className="text-xs text-red-600 mt-1">Department list unavailable — cannot submit</p>}
                         <FormMessage /></FormItem>
                     )} />
                   </div>
+                  <FormField control={form.control} name="applicableRole" render={({ field }) => (
+                    <FormItem><FormLabel>Accessible To *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {VALID_SOP_ROLES.map(r => (
+                            <SelectItem key={r} value={r}>{SOP_ROLE_LABELS[r]} {r === "Employee" ? "(all staff)" : "and above"}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-400 mt-0.5">All users at this level and above within the department can view this SOP.</p>
+                      <FormMessage /></FormItem>
+                  )} />
                   <FormField control={form.control} name="processArea" render={({ field }) => (
                     <FormItem><FormLabel>Process Area *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -145,7 +175,7 @@ export default function OiSopRegister() {
                   )} />
                   <div className="flex justify-end gap-2 pt-2">
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={createMutation.isPending || deptsLoading || deptsError}>
+                    <Button type="submit" disabled={createMutation.isPending || (isSuperuser && (deptsLoading || deptsError))}>
                       {createMutation.isPending ? "Creating…" : "Create SOP"}
                     </Button>
                   </div>
@@ -186,21 +216,30 @@ export default function OiSopRegister() {
             {SOP_STATUSES.map(s => <SelectItem key={s} value={s}>{SOP_STATUS_LABELS[s]}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div>
-          <Select value={filterDept} onValueChange={setFilterDept}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Depts</SelectItem>
-              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {deptsError && <p className="text-xs text-amber-600 mt-0.5">Using cached list</p>}
-        </div>
+        {isSuperuser && (
+          <div>
+            <Select value={filterDept} onValueChange={setFilterDept}>
+              <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Depts</SelectItem>
+                {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {deptsError && <p className="text-xs text-amber-600 mt-0.5">Using cached list</p>}
+          </div>
+        )}
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             {SOP_TYPES.map(t => <SelectItem key={t} value={t}>{SOP_TYPE_LABELS[t]}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterRole} onValueChange={setFilterRole}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Accessible To" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            {VALID_SOP_ROLES.map(r => <SelectItem key={r} value={r}>{SOP_ROLE_LABELS[r]}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -222,6 +261,7 @@ export default function OiSopRegister() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Title</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Department</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Accessible To</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Rev</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Owner</th>
@@ -244,6 +284,11 @@ export default function OiSopRegister() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-gray-600 text-xs">{sop.department}</td>
+                  <td className="px-4 py-3 text-xs">
+                    <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-xs font-medium">
+                      {SOP_ROLE_LABELS[sop.applicableRole] ?? sop.applicableRole ?? "—"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <Badge className={`text-xs ${SOP_STATUS_COLORS[sop.status] ?? ""}`}>
                       {SOP_STATUS_LABELS[sop.status] ?? sop.status}

@@ -14718,6 +14718,7 @@ export const oiAuditActionEnum = pgEnum("oi_audit_action", [
   "sop_activated","sop_retired","sop_linked","sop_unlinked",
   "sop_acknowledgment_assigned","sop_acknowledged","sop_acknowledgment_withdrawn",
   "sop_effectiveness_recorded",
+  "suggestion_submitted","suggestion_reviewed",
   // Phase 2B: Enforcement audit actions
   "enforcement_control_created","enforcement_control_activated","enforcement_control_suspended","enforcement_control_retired",
   "enforcement_hold_raised","enforcement_hold_approved_to_proceed","enforcement_hold_released",
@@ -15110,6 +15111,7 @@ export const oiSopRecords = pgTable("oi_sop_records", {
   description:       text("description").notNull(),
   sopType:           text("sop_type").notNull(),
   department:        text("department").notNull(),
+  applicableRole:    text("applicable_role").notNull().default("Employee"),
   processArea:       text("process_area").notNull(),
   documentReference: text("document_reference"),
   status:            text("status").notNull().default("draft"),
@@ -15184,19 +15186,39 @@ export const oiSopEffectiveness = pgTable("oi_sop_effectiveness", {
 });
 
 export const oiSopAuditLog = pgTable("oi_sop_audit_log", {
-  id:        serial("id").primaryKey(),
-  sopId:     integer("sop_id").references(() => oiSopRecords.id, { onDelete: "set null" }),
-  action:    oiAuditActionEnum("action").notNull(),
-  actorId:   integer("actor_id").notNull().references(() => users.id),
-  actorName: text("actor_name").notNull(),
-  actorRole: text("actor_role").notNull(),
-  fieldName: text("field_name"),
-  oldValue:  text("old_value"),
-  newValue:  text("new_value"),
-  context:   text("context"),
-  ipAddress: text("ip_address"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  id:             serial("id").primaryKey(),
+  sopId:          integer("sop_id").references(() => oiSopRecords.id, { onDelete: "set null" }),
+  action:         oiAuditActionEnum("action").notNull(),
+  actorId:        integer("actor_id").notNull().references(() => users.id),
+  actorName:      text("actor_name").notNull(),
+  actorRole:      text("actor_role").notNull(),
+  fieldName:      text("field_name"),
+  oldValue:       text("old_value"),
+  newValue:       text("new_value"),
+  department:     text("department"),
+  applicableRole: text("applicable_role"),
+  context:        text("context"),
+  ipAddress:      text("ip_address"),
+  createdAt:      timestamp("created_at").notNull().defaultNow(),
 });
+
+export const oiSopRevisionSuggestions = pgTable("oi_sop_revision_suggestions", {
+  id:              serial("id").primaryKey(),
+  sopId:           integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "cascade" }),
+  sourceType:      text("source_type").notNull(),
+  sourceId:        integer("source_id"),
+  suggestedChange: text("suggested_change").notNull(),
+  rationale:       text("rationale").notNull(),
+  status:          text("status").notNull().default("pending"),
+  suggestedBy:     integer("suggested_by").references(() => users.id, { onDelete: "set null" }),
+  suggestedAt:     timestamp("suggested_at").notNull().defaultNow(),
+  reviewedBy:      integer("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt:      timestamp("reviewed_at"),
+  reviewNotes:     text("review_notes"),
+  createdAt:       timestamp("created_at").notNull().defaultNow(),
+});
+
+export type OiSopRevisionSuggestion = typeof oiSopRevisionSuggestions.$inferSelect;
 
 // ─── Phase 2B: ERP Enforcement Framework ─────────────────────────────────────
 

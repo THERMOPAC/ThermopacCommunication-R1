@@ -96,3 +96,37 @@ export const SOP_TRANSITION_LABELS: Record<string, string> = {
   activate: "Activate SOP",
   retire:   "Retire SOP",
 };
+
+export const VALID_SOP_ROLES = [
+  "Superuser",
+  "General Manager",
+  "Senior Manager",
+  "Manager",
+  "Senior Executive",
+  "Employee",
+] as const;
+
+export type SopRole = typeof VALID_SOP_ROLES[number];
+
+export const SOP_ROLE_LABELS: Record<string, string> = {
+  "Superuser":        "Superuser",
+  "General Manager":  "General Manager",
+  "Senior Manager":   "Senior Manager",
+  "Manager":          "Manager",
+  "Senior Executive": "Senior Executive",
+  "Employee":         "All Employees",
+};
+
+export const SUGGESTION_STATUS_LABELS: Record<string, string> = {
+  pending:  "Pending Review",
+  accepted: "Accepted",
+  rejected: "Rejected",
+  deferred: "Deferred",
+};
+
+export const SUGGESTION_STATUS_COLORS: Record<string, string> = {
+  pending:  "bg-yellow-100 text-yellow-800",
+  accepted: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-700",
+  deferred: "bg-gray-100 text-gray-700",
+};

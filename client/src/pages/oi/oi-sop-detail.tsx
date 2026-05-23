@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, BookOpen, CheckCircle, Clock, AlertCircle, Plus, Trash2,
-  FileText, Link2, Users, Eye, ChevronRight, BarChart3, History,
+  FileText, Link2, Users, Eye, ChevronRight, BarChart3, History, MessageSquarePlus,
 } from "lucide-react";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import {
@@ -28,6 +28,8 @@ import {
   SOP_REVISION_STATUS_LABELS, SOP_REVISION_STATUS_COLORS,
   EFFECTIVENESS_SCORE_LABELS, EFFECTIVENESS_SCORE_COLORS,
   LINKED_TYPE_LABELS, SOP_TRANSITION_LABELS,
+  SOP_ROLE_LABELS, VALID_SOP_ROLES,
+  SUGGESTION_STATUS_LABELS, SUGGESTION_STATUS_COLORS,
 } from "./oi-sop-constants";
 
 const MANAGER_ROLES = ["Manager", "Senior Manager", "General Manager", "Superuser"];
@@ -143,6 +145,7 @@ function OverviewTab({ sop, onRefresh }: { sop: any; onRefresh: () => void }) {
         {[
           { label: "SOP Number",         value: sop.sopNumber },
           { label: "Department",         value: sop.department },
+          { label: "Accessible To",      value: SOP_ROLE_LABELS[sop.applicableRole] ?? sop.applicableRole ?? "—" },
           { label: "Process Area",       value: sop.processArea },
           { label: "Document Reference", value: sop.documentReference ?? "—" },
           { label: "Owner",              value: sop.ownerName ?? "—" },
@@ -745,6 +748,175 @@ function SopEnforcementTab({ sop }: { sop: any }) {
   );
 }
 
+// ─── Suggestions Tab ──────────────────────────────────────────────────────────
+function SuggestionsTab({ sop }: { sop: any }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState<number | null>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const isSM = hasRole(user?.role ?? "", SM_ROLES);
+
+  const { data: suggestions = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/oi/sop", sop.id, "suggestions"],
+    queryFn: async () => {
+      if (!isSM) return [];
+      const r = await fetch(`/api/oi/sop/${sop.id}/suggestions`);
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: isSM,
+  });
+
+  const submitSchema = z.object({
+    suggestedChange: z.string().min(20, "Min 20 chars").max(5000),
+    rationale:       z.string().min(10, "Min 10 chars").max(2000),
+  });
+
+  const form = useForm<z.infer<typeof submitSchema>>({
+    resolver: zodResolver(submitSchema),
+    defaultValues: { suggestedChange: "", rationale: "" },
+  });
+
+  const submitMut = useMutation({
+    mutationFn: (d: any) => apiRequest("POST", `/api/oi/sop/${sop.id}/suggestions`, d),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oi/sop", sop.id, "suggestions"] });
+      toast({ title: "Suggestion submitted" });
+      setSubmitOpen(false);
+      form.reset();
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const reviewMut = useMutation({
+    mutationFn: ({ id, status, notes }: { id: number; status: string; notes: string }) =>
+      apiRequest("PATCH", `/api/oi/sop/${sop.id}/suggestions/${id}`, { status, reviewNotes: notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oi/sop", sop.id, "suggestions"] });
+      toast({ title: "Suggestion reviewed" });
+      setReviewOpen(null);
+      setReviewNotes("");
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const canSubmit = sop.status === "active";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          Suggest improvements to this SOP. Suggestions are reviewed by SM+ — they never automatically change the SOP content.
+        </p>
+        {canSubmit && (
+          <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2"><MessageSquarePlus className="h-4 w-4" />Suggest Change</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Submit Revision Suggestion</DialogTitle></DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(d => submitMut.mutate(d))} className="space-y-4">
+                  <FormField control={form.control} name="suggestedChange" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Suggested Change *</FormLabel>
+                      <FormControl><Textarea rows={4} placeholder="Describe the specific change you are suggesting (min 20 chars)…" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="rationale" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rationale *</FormLabel>
+                      <FormControl><Textarea rows={3} placeholder="Why is this change needed? (min 10 chars)…" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                    This suggestion will be reviewed by a Senior Manager. It will NOT automatically modify the SOP.
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setSubmitOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={submitMut.isPending}>Submit Suggestion</Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {!isSM ? (
+        <div className="text-center py-10 text-gray-400">
+          <MessageSquarePlus className="h-10 w-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">You can submit suggestions above. Only SM+ can see the full suggestion list.</p>
+        </div>
+      ) : isLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : (suggestions as any[]).length === 0 ? (
+        <div className="text-center py-10 text-gray-400">
+          <MessageSquarePlus className="h-10 w-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">No suggestions submitted yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {(suggestions as any[]).map((s: any) => (
+            <Card key={s.id} className="border">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="font-semibold text-sm">Suggestion #{s.id}</span>
+                      <Badge className={`text-xs ${SUGGESTION_STATUS_COLORS[s.status] ?? "bg-gray-100"}`}>
+                        {SUGGESTION_STATUS_LABELS[s.status] ?? s.status}
+                      </Badge>
+                      <span className="text-xs text-gray-400">{fmtDateTime(s.suggestedAt)}</span>
+                    </div>
+                    <p className="text-xs font-medium text-gray-700 mb-1">Suggested Change:</p>
+                    <p className="text-sm text-gray-800 mb-2 whitespace-pre-wrap">{s.suggestedChange}</p>
+                    <p className="text-xs font-medium text-gray-700 mb-1">Rationale:</p>
+                    <p className="text-xs text-gray-600 whitespace-pre-wrap">{s.rationale}</p>
+                    {s.reviewNotes && (
+                      <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded mt-2">
+                        <span className="font-medium">Review notes:</span> {s.reviewNotes}
+                      </p>
+                    )}
+                  </div>
+                  {s.status === "pending" && isSM && (
+                    <div className="shrink-0">
+                      <Dialog open={reviewOpen === s.id} onOpenChange={o => { setReviewOpen(o ? s.id : null); if (!o) setReviewNotes(""); }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">Review</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>Review Suggestion #{s.id}</DialogTitle></DialogHeader>
+                          <div className="space-y-3">
+                            <div className="bg-gray-50 rounded p-3 text-xs text-gray-700 max-h-32 overflow-y-auto">{s.suggestedChange}</div>
+                            <div>
+                              <label className="text-sm font-medium">Review Notes (optional)</label>
+                              <Textarea className="mt-1" rows={3} placeholder="Add notes for the submitter…" value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} />
+                            </div>
+                            <div className="flex gap-2 justify-end flex-wrap">
+                              <Button variant="outline" onClick={() => { setReviewOpen(null); setReviewNotes(""); }}>Cancel</Button>
+                              <Button variant="outline" className="text-gray-600" onClick={() => reviewMut.mutate({ id: s.id, status: "deferred", notes: reviewNotes })} disabled={reviewMut.isPending}>Defer</Button>
+                              <Button variant="outline" className="text-red-600 border-red-300" onClick={() => reviewMut.mutate({ id: s.id, status: "rejected", notes: reviewNotes })} disabled={reviewMut.isPending}>Reject</Button>
+                              <Button className="bg-green-600 hover:bg-green-700" onClick={() => reviewMut.mutate({ id: s.id, status: "accepted", notes: reviewNotes })} disabled={reviewMut.isPending}>Accept</Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Audit Log Tab ────────────────────────────────────────────────────────────
 function AuditLogTab({ sop }: { sop: any }) {
   const { data: logs = [], isLoading } = useQuery<any[]>({
@@ -838,6 +1010,7 @@ export default function OiSopDetail() {
           <TabsTrigger value="linkages">Linkages</TabsTrigger>
           <TabsTrigger value="acknowledgments">Acknowledgments</TabsTrigger>
           <TabsTrigger value="effectiveness">Effectiveness</TabsTrigger>
+          <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
           <TabsTrigger value="enforcement">Enforcement</TabsTrigger>
           <TabsTrigger value="lessons">Lessons Learned</TabsTrigger>
@@ -847,6 +1020,7 @@ export default function OiSopDetail() {
         <TabsContent value="linkages"        className="mt-4"><LinkagesTab sop={sop} /></TabsContent>
         <TabsContent value="acknowledgments" className="mt-4"><AcknowledgmentsTab sop={sop} /></TabsContent>
         <TabsContent value="effectiveness"   className="mt-4"><EffectivenessTab sop={sop} /></TabsContent>
+        <TabsContent value="suggestions"     className="mt-4"><SuggestionsTab sop={sop} /></TabsContent>
         <TabsContent value="audit"           className="mt-4"><AuditLogTab sop={sop} /></TabsContent>
         <TabsContent value="enforcement"     className="mt-4"><SopEnforcementTab sop={sop} /></TabsContent>
         <TabsContent value="lessons"         className="mt-4"><SopLinkedLessonsTab sopId={sop.id} /></TabsContent>
