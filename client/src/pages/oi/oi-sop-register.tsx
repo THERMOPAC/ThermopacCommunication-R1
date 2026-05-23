@@ -254,8 +254,8 @@ export default function OiSopRegister() {
           <p>No SOPs found</p>
         </div>
       ) : (
-        <div className="rounded-lg border bg-white overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-lg border bg-white overflow-x-auto">
+          <table className="min-w-max w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">SOP #</th>
