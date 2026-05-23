@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Layout from "@/components/layout";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -78,6 +79,7 @@ export default function OiCapaRegisterPage() {
   });
 
   return (
+    <Layout>
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -264,5 +266,6 @@ export default function OiCapaRegisterPage() {
         </CardContent>
       </Card>
     </div>
+    </Layout>
   );
 }
