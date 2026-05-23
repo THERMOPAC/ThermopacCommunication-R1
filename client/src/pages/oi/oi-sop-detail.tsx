@@ -748,6 +748,220 @@ function SopEnforcementTab({ sop }: { sop: any }) {
   );
 }
 
+// ─── Sections Tab ─────────────────────────────────────────────────────────────
+function SectionsTab({ sop }: { sop: any }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [addOpen, setAddOpen]         = useState(false);
+  const [editSection, setEditSection] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const isManager = hasRole(user?.role ?? "", MANAGER_ROLES);
+  const canEdit   = isManager && sop.status !== "retired";
+
+  const { data: sections = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/oi/sop", sop.id, "sections"],
+    queryFn: async () => {
+      const r = await fetch(`/api/oi/sop/${sop.id}/sections`);
+      if (!r.ok) throw new Error("Failed to load sections");
+      return r.json();
+    },
+  });
+
+  const addSchema = z.object({
+    sectionNo:      z.string().min(1, "Required").max(20),
+    sectionTitle:   z.string().min(3, "Min 3 chars").max(300),
+    sectionContent: z.string().min(1, "Required").max(50000),
+  });
+
+  const addForm = useForm<z.infer<typeof addSchema>>({
+    resolver: zodResolver(addSchema),
+    defaultValues: { sectionNo: "", sectionTitle: "", sectionContent: "" },
+  });
+
+  const editSchema = z.object({
+    sectionTitle:   z.string().min(3).max(300),
+    sectionContent: z.string().min(0).max(50000),
+  });
+
+  const editForm = useForm<z.infer<typeof editSchema>>({
+    resolver: zodResolver(editSchema),
+    defaultValues: { sectionTitle: "", sectionContent: "" },
+  });
+
+  const addMut = useMutation({
+    mutationFn: (d: any) => apiRequest("POST", `/api/oi/sop/${sop.id}/sections`, d),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oi/sop", sop.id, "sections"] });
+      toast({ title: "Section added" });
+      setAddOpen(false);
+      addForm.reset();
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const editMut = useMutation({
+    mutationFn: ({ id, ...d }: any) => apiRequest("PATCH", `/api/oi/sop/${sop.id}/sections/${id}`, d),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oi/sop", sop.id, "sections"] });
+      toast({ title: "Section updated" });
+      setEditSection(null);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/oi/sop/${sop.id}/sections/${id}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oi/sop", sop.id, "sections"] });
+      toast({ title: "Section removed" });
+      setDeleteTarget(null);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const openEdit = (s: any) => {
+    editForm.reset({ sectionTitle: s.sectionTitle, sectionContent: s.sectionContent });
+    setEditSection(s);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          {sections.length} section{sections.length !== 1 ? "s" : ""} — structured content of this SOP
+        </p>
+        {canEdit && (
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Add Section</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader><DialogTitle>Add SOP Section</DialogTitle></DialogHeader>
+              <Form {...addForm}>
+                <form onSubmit={addForm.handleSubmit(d => addMut.mutate(d))} className="space-y-4">
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField control={addForm.control} name="sectionNo" render={({ field }) => (
+                      <FormItem><FormLabel>Section No. *</FormLabel>
+                        <FormControl><Input placeholder="e.g. 1.0" {...field} /></FormControl>
+                        <FormMessage /></FormItem>
+                    )} />
+                    <div className="col-span-3">
+                      <FormField control={addForm.control} name="sectionTitle" render={({ field }) => (
+                        <FormItem><FormLabel>Section Title *</FormLabel>
+                          <FormControl><Input placeholder="e.g. Work Order Release" {...field} /></FormControl>
+                          <FormMessage /></FormItem>
+                      )} />
+                    </div>
+                  </div>
+                  <FormField control={addForm.control} name="sectionContent" render={({ field }) => (
+                    <FormItem><FormLabel>Section Content *</FormLabel>
+                      <FormControl><Textarea rows={10} placeholder="Enter the full section content — procedures, steps, responsibilities, references…" {...field} /></FormControl>
+                      <FormMessage /></FormItem>
+                  )} />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={addMut.isPending}>Add Section</Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
+      ) : sections.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
+          <p className="text-sm font-medium">No sections yet</p>
+          <p className="text-xs mt-1">
+            {canEdit ? "Use "Add Section" to build out this SOP's content." : "This SOP has no sections defined yet."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {(sections as any[]).map((s: any) => (
+            <Card key={s.id} className="border border-gray-200">
+              <CardContent className="p-0">
+                <div className="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
+                  <div className="flex items-baseline gap-3 min-w-0">
+                    <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded shrink-0">
+                      {s.sectionNo}
+                    </span>
+                    <h3 className="font-semibold text-gray-900 text-sm">{s.sectionTitle}</h3>
+                  </div>
+                  {canEdit && (
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-gray-400 hover:text-blue-600"
+                        onClick={() => openEdit(s)}>
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
+                        onClick={() => setDeleteTarget(s)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="px-4 pb-4">
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border-t pt-2 mt-1">
+                    {s.sectionContent || <span className="text-gray-400 italic">No content entered.</span>}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Edit Section Dialog */}
+      <Dialog open={!!editSection} onOpenChange={o => { if (!o) setEditSection(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Section {editSection?.sectionNo} — {editSection?.sectionTitle}</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(d => editMut.mutate({ id: editSection.id, ...d }))} className="space-y-4">
+              <FormField control={editForm.control} name="sectionTitle" render={({ field }) => (
+                <FormItem><FormLabel>Section Title *</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage /></FormItem>
+              )} />
+              <FormField control={editForm.control} name="sectionContent" render={({ field }) => (
+                <FormItem><FormLabel>Section Content *</FormLabel>
+                  <FormControl><Textarea rows={12} {...field} /></FormControl>
+                  <FormMessage /></FormItem>
+              )} />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditSection(null)}>Cancel</Button>
+                <Button type="submit" disabled={editMut.isPending}>Save Changes</Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Remove Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={o => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Remove Section?</DialogTitle></DialogHeader>
+          <p className="text-sm text-gray-600">
+            This will soft-remove section <span className="font-semibold">{deleteTarget?.sectionNo} — {deleteTarget?.sectionTitle}</span>.
+            The section will no longer appear in the SOP but is retained for audit history.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteMut.mutate(deleteTarget.id)} disabled={deleteMut.isPending}>
+              Remove Section
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ─── Suggestions Tab ──────────────────────────────────────────────────────────
 function SuggestionsTab({ sop }: { sop: any }) {
   const { user } = useAuth();
@@ -1006,6 +1220,7 @@ export default function OiSopDetail() {
       <Tabs defaultValue="overview">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sections">Sections</TabsTrigger>
           <TabsTrigger value="revisions">Revisions</TabsTrigger>
           <TabsTrigger value="linkages">Linkages</TabsTrigger>
           <TabsTrigger value="acknowledgments">Acknowledgments</TabsTrigger>
@@ -1016,6 +1231,7 @@ export default function OiSopDetail() {
           <TabsTrigger value="lessons">Lessons Learned</TabsTrigger>
         </TabsList>
         <TabsContent value="overview"        className="mt-4"><OverviewTab sop={sop} onRefresh={handleRefresh} /></TabsContent>
+        <TabsContent value="sections"        className="mt-4"><SectionsTab sop={sop} /></TabsContent>
         <TabsContent value="revisions"       className="mt-4"><RevisionsTab sop={sop} onRefresh={handleRefresh} /></TabsContent>
         <TabsContent value="linkages"        className="mt-4"><LinkagesTab sop={sop} /></TabsContent>
         <TabsContent value="acknowledgments" className="mt-4"><AcknowledgmentsTab sop={sop} /></TabsContent>

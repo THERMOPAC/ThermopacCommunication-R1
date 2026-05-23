@@ -15128,6 +15128,20 @@ export const oiSopRecords = pgTable("oi_sop_records", {
   updatedAt:         timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const oiSopSections = pgTable("oi_sop_sections", {
+  id:             serial("id").primaryKey(),
+  sopId:          integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "cascade" }),
+  sectionNo:      varchar("section_no", { length: 20 }).notNull(),
+  sectionTitle:   text("section_title").notNull(),
+  sectionContent: text("section_content").notNull().default(""),
+  sequence:       integer("sequence").notNull().default(0),
+  isActive:       boolean("is_active").notNull().default(true),
+  createdBy:      integer("created_by").notNull().references(() => users.id),
+  updatedBy:      integer("updated_by").references(() => users.id),
+  createdAt:      timestamp("created_at").notNull().defaultNow(),
+  updatedAt:      timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const oiSopRevisions = pgTable("oi_sop_revisions", {
   id:               serial("id").primaryKey(),
   sopId:            integer("sop_id").notNull().references(() => oiSopRecords.id, { onDelete: "cascade" }),
@@ -15371,6 +15385,7 @@ export type OiCapaEscalationLog = typeof oiCapaEscalationLog.$inferSelect;
 export type OiRcaSimilarLink   = typeof oiRcaSimilarLinks.$inferSelect;
 // Phase 2A SOP types
 export type OiSopRecord          = typeof oiSopRecords.$inferSelect;
+export type OiSopSection         = typeof oiSopSections.$inferSelect;
 export type OiSopRevision        = typeof oiSopRevisions.$inferSelect;
 export type OiSopLinkage         = typeof oiSopLinkages.$inferSelect;
 export type OiSopAcknowledgment  = typeof oiSopAcknowledgments.$inferSelect;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "./db";
 import {
-  oiSopRecords, oiSopRevisions, oiSopLinkages, oiSopAcknowledgments,
+  oiSopRecords, oiSopSections, oiSopRevisions, oiSopLinkages, oiSopAcknowledgments,
   oiSopEffectiveness, oiSopAuditLog, oiSopRevisionSuggestions,
   oiIssues, oiRcaRecords, oiCapaRecords, users,
   departmentMaster,
@@ -1512,6 +1512,194 @@ oiSopRouter.patch("/sop/:sopId/suggestions/:suggestionId", wrap(async (req: any,
   });
 
   return res.json(updated);
+}));
+
+// ─── 31. GET /sop/:sopId/sections — List active sections ──────────────────────
+oiSopRouter.get("/sop/:sopId/sections", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  const sopId = parseInt(req.params.sopId);
+  if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+  if (!canAccessSop(actor, sop)) return res.status(403).json({ error: "sop_access_denied" });
+
+  const sections = await db
+    .select()
+    .from(oiSopSections)
+    .where(and(eq(oiSopSections.sopId, sopId), eq(oiSopSections.isActive, true)))
+    .orderBy(asc(oiSopSections.sequence), asc(oiSopSections.id));
+
+  return res.json(sections);
+}));
+
+// ─── 32. POST /sop/:sopId/sections — Create section (Manager+) ────────────────
+const createSectionSchema = z.object({
+  sectionNo:      z.string().min(1).max(20),
+  sectionTitle:   z.string().min(3).max(300),
+  sectionContent: z.string().min(1).max(50000).default(""),
+  sequence:       z.number().int().min(0).optional(),
+});
+
+oiSopRouter.post("/sop/:sopId/sections", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
+
+  const sopId = parseInt(req.params.sopId);
+  if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+  if (!canAccessSop(actor, sop)) return res.status(403).json({ error: "sop_access_denied" });
+  if (sop.status === "retired") return res.status(422).json({ error: "sop_retired", message: "Cannot add sections to a retired SOP." });
+
+  const parsed = createSectionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "validation_failed", details: parsed.error.flatten() });
+  const data = parsed.data;
+
+  // Sequence: if not provided, append after current max
+  let sequence = data.sequence;
+  if (sequence === undefined) {
+    const [maxRow] = await db
+      .select({ maxSeq: sql<number>`COALESCE(MAX(sequence), -1)` })
+      .from(oiSopSections)
+      .where(and(eq(oiSopSections.sopId, sopId), eq(oiSopSections.isActive, true)));
+    sequence = (maxRow?.maxSeq ?? -1) + 1;
+  }
+
+  const [section] = await db.insert(oiSopSections).values({
+    sopId,
+    sectionNo:      data.sectionNo,
+    sectionTitle:   data.sectionTitle,
+    sectionContent: data.sectionContent,
+    sequence,
+    isActive:   true,
+    createdBy:  actor.id,
+    updatedBy:  actor.id,
+  }).returning();
+
+  await writeSopAuditLog({
+    sopId, action: "sop_updated",
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    department: sop.department, applicableRole: sop.applicableRole,
+    fieldName: "sections", newValue: `Section ${data.sectionNo} — ${data.sectionTitle}`,
+    context: `Section added to SOP ${sop.sopNumber}`,
+    ipAddress: actor.ip,
+  });
+
+  return res.status(201).json(section);
+}));
+
+// ─── 33. PATCH /sop/:sopId/sections/:sectionId — Update section (Manager+) ────
+const updateSectionSchema = z.object({
+  sectionTitle:   z.string().min(3).max(300).optional(),
+  sectionContent: z.string().min(0).max(50000).optional(),
+  sequence:       z.number().int().min(0).optional(),
+});
+
+oiSopRouter.patch("/sop/:sopId/sections/:sectionId", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
+
+  const sopId     = parseInt(req.params.sopId);
+  const sectionId = parseInt(req.params.sectionId);
+  if (isNaN(sopId) || isNaN(sectionId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+  if (!canAccessSop(actor, sop)) return res.status(403).json({ error: "sop_access_denied" });
+  if (sop.status === "retired") return res.status(422).json({ error: "sop_retired" });
+
+  const [existing] = await db.select().from(oiSopSections)
+    .where(and(eq(oiSopSections.id, sectionId), eq(oiSopSections.sopId, sopId), eq(oiSopSections.isActive, true)))
+    .limit(1);
+  if (!existing) return res.status(404).json({ error: "section_not_found" });
+
+  const parsed = updateSectionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "validation_failed", details: parsed.error.flatten() });
+  const data = parsed.data;
+
+  const updates: Partial<typeof oiSopSections.$inferInsert> = { updatedBy: actor.id, updatedAt: new Date() };
+  if (data.sectionTitle   !== undefined) updates.sectionTitle   = data.sectionTitle;
+  if (data.sectionContent !== undefined) updates.sectionContent = data.sectionContent;
+  if (data.sequence       !== undefined) updates.sequence       = data.sequence;
+
+  const [updated] = await db.update(oiSopSections).set(updates)
+    .where(eq(oiSopSections.id, sectionId)).returning();
+
+  await writeSopAuditLog({
+    sopId, action: "sop_updated",
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    department: sop.department, applicableRole: sop.applicableRole,
+    fieldName: `section_${existing.sectionNo}`, newValue: data.sectionTitle ?? existing.sectionTitle,
+    context: `Section ${existing.sectionNo} updated in SOP ${sop.sopNumber}`,
+    ipAddress: actor.ip,
+  });
+
+  return res.json(updated);
+}));
+
+// ─── 34. DELETE /sop/:sopId/sections/:sectionId — Soft-delete (Manager+) ───────
+oiSopRouter.delete("/sop/:sopId/sections/:sectionId", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
+
+  const sopId     = parseInt(req.params.sopId);
+  const sectionId = parseInt(req.params.sectionId);
+  if (isNaN(sopId) || isNaN(sectionId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+  if (!canAccessSop(actor, sop)) return res.status(403).json({ error: "sop_access_denied" });
+  if (sop.status === "retired") return res.status(422).json({ error: "sop_retired" });
+
+  const [existing] = await db.select().from(oiSopSections)
+    .where(and(eq(oiSopSections.id, sectionId), eq(oiSopSections.sopId, sopId), eq(oiSopSections.isActive, true)))
+    .limit(1);
+  if (!existing) return res.status(404).json({ error: "section_not_found" });
+
+  await db.update(oiSopSections)
+    .set({ isActive: false, updatedBy: actor.id, updatedAt: new Date() })
+    .where(eq(oiSopSections.id, sectionId));
+
+  await writeSopAuditLog({
+    sopId, action: "sop_updated",
+    actorId: actor.id, actorName: actor.name, actorRole: actor.role,
+    department: sop.department, applicableRole: sop.applicableRole,
+    fieldName: `section_${existing.sectionNo}`, oldValue: existing.sectionTitle, newValue: "REMOVED",
+    context: `Section ${existing.sectionNo} removed from SOP ${sop.sopNumber}`,
+    ipAddress: actor.ip,
+  });
+
+  return res.json({ ok: true });
+}));
+
+// ─── 35. POST /sop/:sopId/sections/reorder — Bulk reorder (Manager+) ──────────
+const reorderSectionsSchema = z.object({
+  order: z.array(z.object({ id: z.number().int(), sequence: z.number().int().min(0) })).min(1),
+});
+
+oiSopRouter.post("/sop/:sopId/sections/reorder", wrap(async (req: any, res: any) => {
+  const actor = actorFromReq(req);
+  if (!hasRole(actor.role, MANAGER_ROLES)) return res.status(403).json({ error: "forbidden" });
+
+  const sopId = parseInt(req.params.sopId);
+  if (isNaN(sopId)) return res.status(400).json({ error: "invalid_id" });
+
+  const sop = await fetchSop(sopId);
+  if (!sop) return res.status(404).json({ error: "sop_not_found" });
+  if (!canAccessSop(actor, sop)) return res.status(403).json({ error: "sop_access_denied" });
+
+  const parsed = reorderSectionsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "validation_failed", details: parsed.error.flatten() });
+
+  await Promise.all(parsed.data.order.map(({ id, sequence }) =>
+    db.update(oiSopSections)
+      .set({ sequence, updatedBy: actor.id, updatedAt: new Date() })
+      .where(and(eq(oiSopSections.id, id), eq(oiSopSections.sopId, sopId)))
+  ));
+
+  return res.json({ ok: true });
 }));
 
 // ─── Audit Log for a SOP ──────────────────────────────────────────────────────
