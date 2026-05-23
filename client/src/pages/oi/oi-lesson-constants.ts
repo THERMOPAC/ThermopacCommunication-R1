@@ -139,6 +139,7 @@ export const REVIEWER_STATUS_COLORS: Record<string, string> = {
 };
 
 export const OI_DEPARTMENTS = [
-  "Quality Control","Engineering","Production","Procurement","Finance",
-  "Administration","Projects","HR","Sales","Dispatch","Stores",
+  "Accounts","Administration","After Sales","Design",
+  "Engineering","Marketing","Production","Projects",
+  "Purchase","Quality Control","Stores",
 ];
