@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { OI_DEPARTMENTS } from "./oi-lesson-constants";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
 
 export const ISSUE_CATEGORIES = [
@@ -117,6 +117,7 @@ export default function OiIssueCaptureePage() {
   });
 
   const [titlePopoverOpen, setTitlePopoverOpen] = useState(false);
+  const [descriptionEdited, setDescriptionEdited] = useState(false);
 
   const { data: titleMaster = [] } = useQuery<any[]>({ queryKey: ["/api/oi/issue-title-master"] });
 
@@ -124,6 +125,37 @@ export default function OiIssueCaptureePage() {
   const selectedCategory   = form.watch("category");
   const selectedPhase      = form.watch("projectPhase");
   const selectedCustomerId = form.watch("customerId");
+  const watchTitle         = form.watch("title");
+  const watchDept          = form.watch("department");
+  const watchProjectId     = form.watch("projectId");
+
+  const SEVERITY_SHORT: Record<string, string> = {
+    S1: "S1 — Critical", S2: "S2 — Major", S3: "S3 — Moderate", S4: "S4 — Minor",
+  };
+
+  // Auto-draft description when all required inputs are present and user hasn't manually edited
+  useEffect(() => {
+    if (descriptionEdited) return;
+    if (!watchTitle || !watchDept || !selectedSeverity || !selectedCategory || !selectedPhase) return;
+
+    const categoryLabel = ISSUE_CATEGORY_LABEL[selectedCategory] ?? selectedCategory;
+    const phaseRaw      = PHASE_LABEL[selectedPhase] ?? selectedPhase;
+    const phaseLabel    = phaseRaw.includes(" — ") ? phaseRaw.split(" — ")[1] : phaseRaw;
+    const severityLabel = SEVERITY_SHORT[selectedSeverity] ?? selectedSeverity;
+
+    let projectPart = "N/A";
+    if (watchProjectId && watchProjectId !== "__none__") {
+      const proj = (projects ?? []).find((p: any) => String(p.id) === watchProjectId);
+      if (proj) {
+        projectPart = proj.code
+          ? `${proj.code} — ${proj.customerName ?? proj.customer_name ?? ""}`
+          : (proj.name ?? watchProjectId);
+      }
+    }
+
+    const draft = `Issue observed in ${watchDept} during ${phaseLabel} for ${projectPart}. Category: ${categoryLabel}. Severity: ${severityLabel}. Issue: ${watchTitle}.`;
+    form.setValue("description", draft, { shouldValidate: true, shouldDirty: true });
+  }, [watchTitle, watchDept, selectedSeverity, selectedCategory, selectedPhase, watchProjectId, descriptionEdited]);
 
   // Filter suggestions: when a filter is selected only show matching (or uncategorised) titles;
   // when nothing is selected yet show everything.
@@ -257,8 +289,31 @@ export default function OiIssueCaptureePage() {
 
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description <span className="text-red-500">*</span></FormLabel>
-                    <FormControl><Textarea placeholder="Detailed description — what happened, where, when, what was the impact?" rows={4} {...field} /></FormControl>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Description <span className="text-red-500">*</span></FormLabel>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40"
+                        disabled={!watchTitle || !watchDept || !selectedSeverity || !selectedCategory || !selectedPhase}
+                        onClick={() => setDescriptionEdited(false)}
+                        title="Regenerate description from current inputs"
+                      >
+                        <RefreshCw className="h-3 w-3" /> Regenerate
+                      </button>
+                    </div>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Fill in Title, Department, Severity, Category and Phase above — description will auto-draft here."
+                        rows={4}
+                        {...field}
+                        onChange={(e) => { field.onChange(e); setDescriptionEdited(true); }}
+                      />
+                    </FormControl>
+                    {descriptionEdited && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1">
+                        Manually edited — click <strong>Regenerate</strong> above to reset to auto-draft.
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )} />
