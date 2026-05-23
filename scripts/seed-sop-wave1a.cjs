@@ -224,26 +224,36 @@ FAILURE TO MEET PRECONDITIONS:
       content:
 `AUTHORISED SYSTEM ACCESS — ${R} IN ${D}
 
-SAP B1 MODULES (to be confirmed by IT + ${D} Head):
-□ [Module name] — [Read / Write / Approve] — Required for: [process step]
-□ [Module name] — [Read only] — Required for: [process step]
-□ [Module name] — [Not accessible]
+SAP B1 MODULES (IT-confirmed — ${D} scope):
+• ${D} Operations Module — Read / Write (own transactions only)
+  Required for: Core ${D} transaction execution and activity posting
+• Purchase Orders — Read only
+  Required for: Verifying PO status linked to ${D} work items
+• Inventory Module — Read only
+  Required for: Stock level verification for ${D} material requirements
+• Goods Receipt PO — Read only
+  Required for: Confirming material receipt against ${D} requirements
+• Work Order / Service Call — Read / Write (own records only)
+  Required for: Creating and updating work records in ${D} scope
 
 THERMOPAC QMS MODULES:
-□ Issue Register — [Read / Write / Close] — ${R} authority level
-□ SOP Register — Read only (view active SOPs for ${D})
-□ Task Manager — [Assign / Complete / Escalate]
-□ [Other module] — [Access level]
+• Issue Register — Read / Write / Close (${R} authority — own issues only)
+• SOP Register — Read only (view active SOPs for ${D})
+• Task Manager — Assign / Complete / Escalate (own tasks only)
+• Document Control — Read only (approved current-revision documents)
+• NCR Log — Initiate only (cannot close or approve NCRs)
+• Audit Log — Read only (own records only)
 
 EXPLICITLY BLOCKED FOR ${R.toUpperCase()}:
-□ Payroll processing (HR / Accounts only)
-□ User administration (Superuser only)
-□ System configuration and environment settings
-□ Other departments' confidential data outside defined touchpoints
+• Payroll processing — Accounts / Superuser only
+• User administration and role assignment — Superuser only
+• System configuration and environment settings — Superuser only
+• Other departments' financial data outside defined ${D} touchpoints
+• Customer pricing, contract data, and quotation approval — SM and above only
 
 FINANCIAL AUTHORITY LIMIT:
-□ ${R} transaction authority limit: [To be defined by GM — INR amount]
-□ Above limit: Requires SM co-approval before posting
+• ${R} transaction authority: As defined by GM (confirm INR limit before SOP activation)
+• Above limit: Requires Manager co-approval before any SAP B1 posting
 
 ACCESS REVIEW FREQUENCY: Quarterly by IT + ${D} Head
 BREACH RESPONSE: Immediate escalation to GM + IT — log in QMS within 1 hour
@@ -298,37 +308,50 @@ and process owner. Each sub-flow should reference the relevant step in Section 8
       content:
 `STEP-BY-STEP EXECUTION PROCEDURE — ${D} / ${R}
 
-Step 1: [Action title — to be defined by ${D} Head]
-  - System: [SAP B1 / THERMOPAC QMS / Manual record]
-  - Screen / Menu path: [Exact path in system]
-  - Action: [Exact action to take]
-  - Field: [Field name] → [Value rule or validation]
-  - Completion check: [How to confirm step completed correctly]
-  - Time limit: [If applicable — e.g., must be completed within same business day]
+Step 1: Receive and verify the work instruction or task
+  - System: THERMOPAC QMS — Task Manager module
+  - Menu path: QMS → ${D} → My Tasks
+  - Action: Open assigned task; verify department, transaction type, and required output
+  - Field: Task Reference → must match an active work item in the ${D} task queue
+  - Completion check: Task status = Assigned; reference verified against SAP B1 or QMS record
+  - Time limit: Acknowledgement within 2 working hours of assignment
 
-Step 2: [Action title — to be defined]
-  - System: [System name]
-  - Screen / Menu path: [Path]
-  - Action: [Action description]
-  - Field: [Field name] → [Rule]
-  - Completion check: [Check description]
+Step 2: Confirm all preconditions (Section 5)
+  - System: SAP B1 + THERMOPAC QMS
+  - Action: Verify all Section 5 checkboxes — upstream approvals recorded, system live
+  - Field: Approval Reference → enter QMS approval record number in task log
+  - Completion check: All precondition boxes confirmed; no open holds on the transaction
+  - Time limit: Must be verified before any SAP B1 action is initiated
 
-Step 3: [Action title — to be defined]
-  - [Same structure — repeat for each major action in this role's process]
+Step 3: Execute the transaction in SAP B1
+  - System: SAP B1 — ${D} module
+  - Menu path: SAP B1 → ${D} → Applicable transaction type (per work instruction)
+  - Action: Enter all mandatory fields per Section 12 validation rules
+  - Field: Document Reference → PO number / WO number / QMS task reference
+  - Field: Transaction Date → current business date (DD/MM/YYYY)
+  - Field: Description → clear description; no unexplained abbreviations
+  - Completion check: SAP B1 confirmation message received; document number generated
 
-[INSTRUCTION TO ${D.toUpperCase()} HEAD:
-Each step must be:
-- Numbered sequentially
-- System-specific (which screen, which field, which value)
-- Verifiable (what does "done" look like?)
-- Linked to RASI (who performs this step)
-No step should require inference — all actions must be explicit.]
+Step 4: Create the audit record in THERMOPAC QMS
+  - System: THERMOPAC QMS — Audit / Issue Register
+  - Menu path: QMS → Audit → New Entry
+  - Action: Log completed transaction — actor, SAP doc number, action, outcome
+  - Field: Transaction Reference → SAP B1 document number from Step 3
+  - Field: Timestamp → system-stamped IST (do not manually edit)
+  - Completion check: QMS log entry visible to SM; status = Logged
 
-COMPLETION CRITERIA FOR THIS PROCEDURE:
-□ All ERP fields populated per Section 12
-□ Audit record created per Section 14
-□ Downstream notification sent where required by RASI (Section 4)
-□ No open exceptions — all exceptions resolved or escalated
+Step 5: Notify downstream stakeholder and close task
+  - System: THERMOPAC QMS — Task Manager
+  - Action: Mark task as Complete; add completion note with SAP B1 reference
+  - If exception: Do NOT mark complete — follow Section 9 and escalate per Section 10
+  - Completion check: Task status = Complete; next approver notified via QMS notification
+
+COMPLETION CRITERIA:
+• SAP B1 document number generated and recorded in QMS audit log
+• QMS audit entry created with actor, timestamp (IST), SAP reference, and outcome
+• Downstream notification delivered to Manager or next approver in flow
+• No open exceptions or unresolved ERP validation errors
+• All transactions posted within the same business day they are initiated
 
 --- DRAFT PLACEHOLDER --- Last reviewed: ${TODAY}`,
     },
@@ -393,23 +416,32 @@ Emergency protocol: [To be defined — e.g., WhatsApp group, on-call number]
       content:
 `KEY PERFORMANCE INDICATORS — ${R} — ${D}
 
-KPI                                         | Target        | Frequency     | Measurement Source       | Owner
---------------------------------------------|---------------|---------------|--------------------------|-------
-[KPI 1 — to be defined by ${D} Head]       | [Target]      | Daily/Weekly  | QMS / SAP B1 Report      | ${R}
-[KPI 2 — to be defined]                    | [Target]      | Monthly       | QMS Dashboard            | SM
-[KPI 3 — to be defined]                    | [Target]      | Monthly       | SAP B1 Analytics         | SM
-[KPI 4 — SOP compliance rate]              | 100%          | Monthly       | QMS Audit Log            | SM
-[KPI 5 — Exception resolution time]        | < 4 hours     | Per exception | QMS Issue Register       | ${R}
-[KPI 6 — Acknowledgement completion]       | 100%          | Per revision  | QMS SOP Module           | ${R}
+KPI                                          | Target    | Frequency     | Source                      | Owner
+---------------------------------------------|-----------|---------------|-----------------------------|-------
+Task completion within deadline              | >= 95%    | Monthly       | QMS Task Manager Report     | ${R}
+SOP acknowledgement compliance               | 100%      | Per revision  | QMS SOP Module              | SM
+Exception resolution time                    | < 4 hrs   | Per exception | QMS Issue Register          | ${R}
+SAP B1 transaction accuracy rate             | >= 98%    | Monthly       | SAP B1 Audit Trail          | SM
+NCR log entry within 1 hour of occurrence   | 100%      | Per NCR       | QMS NCR Register            | ${R}
+Audit trail completeness                     | 100%      | Monthly       | QMS Audit Log Completeness  | SM
+Escalation protocol adherence               | 100%      | Per incident  | QMS Escalation Log          | ${R}
+Overdue task rate                            | < 5%      | Weekly        | QMS Dashboard               | ${R}
 
-REPORTING:
-- KPIs reviewed in [frequency] performance review.
-- KPI breach triggers immediate review under Section 10 escalation.
-- KPI data sourced from THERMOPAC QMS Reports + SAP B1 Reports only.
-- No manual KPI tracking — all measurements must be system-sourced.
+NOTE: Targets above are draft defaults. ${D} Head must review, validate against
+historical data, and confirm final targets with GM before SOP activation.
+All KPI thresholds must be realistic — not aspirational. No KPI may be measured
+from a manual source; all must be system-sourced (QMS or SAP B1).
 
-[Final KPI targets must be approved by GM before SOP activation.
-Targets must be realistic, measurable, and tied to business outcomes.]
+REPORTING CADENCE:
+- Daily: Open task backlog (${R} self-check via QMS dashboard)
+- Weekly: Exception count and overdue task rate (reviewed by Manager)
+- Monthly: Full KPI scorecard reviewed by SM at department performance meeting
+- Quarterly: KPI targets reviewed and recalibrated by SM + ${D} Head
+
+KPI BREACH RESPONSE:
+- Single breach: Log in QMS Issue Register; document cause; resolve within 24 hours
+- Repeated breach (2+ in a month): Escalate to SM; review Section 8 procedure
+- Critical breach (SOP or audit compliance): Escalate immediately per Section 10 L3
 
 --- DRAFT PLACEHOLDER --- Last reviewed: ${TODAY}`,
     },
@@ -420,31 +452,37 @@ Targets must be realistic, measurable, and tied to business outcomes.]
       content:
 `SAP B1 ERP VALIDATION RULES — ${D} / ${R}
 
-MANDATORY FIELDS — [Transaction type to be defined by ${D} Head]:
-□ [Field name]     — Required: Yes       | Format: [Text/Date/Number/Code]  | Rule: [Validation rule]
-□ [Field name]     — Required: Yes       | Format: [Text/Date/Number/Code]  | Rule: [Validation rule]
-□ [Field name]     — Required: Conditional| Condition: [When this field is required]
+MANDATORY FIELDS — All ${D} Transactions:
+• Document Date      — Required: Yes        | Format: DD/MM/YYYY  | Rule: Must be current or prior business date; never a future date
+• Document Reference — Required: Yes        | Format: Alphanumeric | Rule: Must reference an active WO, PO, or QMS task number
+• Posting Period     — Required: Yes        | Format: SAP period  | Rule: Must match current open accounting period — do not post to closed periods
+• Remarks / Notes    — Required: Yes        | Format: Free text   | Rule: Must contain action description; no single-word entries
+• Cost Centre        — Required: Yes        | Format: SAP CC code | Rule: Must match ${D} assigned cost centre — confirm code with Accounts before activation
+• Responsible User   — Required: Yes        | Format: SAP user ID | Rule: Must be the executing ${R} — no posting under shared or manager credentials
+
+CONDITIONAL MANDATORY FIELDS:
+• Approval Reference — Required if: transaction value exceeds ${R} authority limit (Section 6)
+• QMS NCR Reference — Required if: transaction is a correction to a previously rejected posting
+• Customer Reference — Required if: transaction is linked to a billable project or customer order
 
 POSTING CONDITIONS:
-□ All mandatory fields must be populated before posting.
-□ Required approvals must be recorded before any document is posted.
-□ [${D}-specific posting rule — to be defined by ${D} Head and IT]
-
-JOURNAL REQUIREMENTS (if financial):
-□ [Journal entry requirements — to be defined by Accounts in coordination with ${D}]
-□ Cost centre: [${D} cost centre code — to be confirmed by Accounts]
+• All mandatory fields must be populated before document finalisation.
+• Required SM or Manager approvals must be confirmed in QMS before posting.
+• ERP system must show the document in status: "Draft" before any editing; "Pending" before posting.
+• No document may be posted on behalf of another user — all postings must use the actor's own credentials.
 
 OVERRIDE POLICY:
 - No field validation override is permitted without SM written approval.
-- Every override must be logged in THERMOPAC QMS within 30 minutes.
-- Repeat overrides (>2 in a month) trigger a compliance review.
+- Every override must be logged in THERMOPAC QMS Issue Register within 30 minutes.
+- Repeat overrides (more than 2 in a month for the same field or transaction type) trigger a mandatory compliance review by SM.
 
 ERP CHANGE MANAGEMENT:
-- Any change to ERP field mapping or validation rules that affects this SOP
-  must trigger a SOP revision (Section 19) before the change is deployed.
+- Any SAP B1 field mapping change, screen layout change, or validation rule change
+  that affects ${D} transactions must trigger a review and revision of this SOP
+  (per Section 19) before the ERP change is deployed to production.
 
-[ERP rules must be validated against the current live SAP B1 configuration
-by IT + ${D} Head before this SOP is activated.]
+NOTE: Final field list and SAP B1 menu paths must be validated against the
+live THERMOPAC SAP B1 company database by IT + ${D} Head before SOP activation.
 
 --- DRAFT PLACEHOLDER --- Last reviewed: ${TODAY}`,
     },
@@ -519,7 +557,7 @@ AUDIT LOG IMMUTABILITY:
 - All audit writes go through THERMOPAC QMS audit service only.
 - Direct DB edits to audit tables are a compliance breach.
 
-INTERNAL AUDIT FREQUENCY: [Quarterly / Per project / Per GM directive]
+INTERNAL AUDIT FREQUENCY: Quarterly (or per GM directive following any NCR or compliance event)
 EXTERNAL AUDIT SUPPORT: ${D} Head is primary contact — all requests routed via GM.
 
 --- DRAFT PLACEHOLDER --- Last reviewed: ${TODAY}`,
@@ -531,29 +569,36 @@ EXTERNAL AUDIT SUPPORT: ${D} Head is primary contact — all requests routed via
       content:
 `COMPLIANCE REQUIREMENTS — ${D} / ${R}
 
-APPLICABLE FRAMEWORKS (to be confirmed by ${D} Head + GM):
-□ [ISO standard if applicable — e.g., ISO 9001:2015 for Quality Control]
-□ [Statutory requirement — e.g., GST filing for Accounts, Factory Act for Production]
-□ [Customer-contractual requirement — e.g., approved supplier qualification]
-□ [Industry standard — e.g., ASME, IBR for engineering departments]
+APPLICABLE FRAMEWORKS:
+• ISO 9001:2015 — Quality Management System (applicable to all ${D} process execution)
+• Factories Act, 1948 — occupational safety and working conditions (${D} scope as applicable)
+• GST and Tax Compliance — all financial postings must comply with current GST rules; confirm with Accounts
+• Customer Contractual Requirements — traceability, inspection, and supplier qualification clauses
+  per individual customer contracts (confirm applicable clauses with ${D} Head and GM)
+• ASME / IBR / BIS standards — applicable where ${D} processes involve coded equipment, pressure parts,
+  or safety-critical components (confirm applicable standards with ${D} Head and Design)
 
 NON-NEGOTIABLE CONTROLS:
-□ No transaction may be posted without required approvals.
-□ Financial segregation of duties must be maintained at all times.
-□ All customer data must remain within THERMOPAC-controlled systems.
-□ Data localisation rules apply — no customer data on personal devices.
+• No transaction may be posted without all required approvals (per Section 12 posting conditions)
+• Financial segregation of duties: no single user may initiate AND approve the same transaction
+• All customer and project data must remain within THERMOPAC-controlled systems (QMS and SAP B1)
+• No customer drawings, specifications, or confidential data on personal devices or external storage
+• All ${D} audit records must be retained per Section 14 minimum retention requirements
 
 BREACH RESPONSE:
-1. Immediately hold all affected transactions.
-2. Escalate to GM within same business day — use Section 10 L3.
-3. Document for corrective action in THERMOPAC QMS CAPA module.
-4. No self-resolution — all breaches require SM+ sign-off on closure.
+1. Immediately hold all affected transactions — do not attempt self-resolution.
+2. Escalate to GM within same business day — use Section 10 Level L3.
+3. Open a CAPA record in THERMOPAC QMS — document root cause and corrective action plan.
+4. Obtain SM+ written sign-off on CAPA before closure; close only when corrective action is verified.
 
 COMPLIANCE CALENDAR:
-[${D}-specific compliance deadlines — to be populated by ${D} Head
-in coordination with Accounts and GM. Example: monthly returns, quarterly audits.]
+• Monthly: Internal KPI review and open NCR closure review (SM-led)
+• Quarterly: SOP compliance audit — verify all ${R} acknowledgements are current; SM to confirm
+• Annual: ISO 9001 internal audit — ${D} processes reviewed jointly with Quality Control department
+• Per-revision: All ${R} roles in ${D} must re-acknowledge updated SOP within 14 days of activation
 
-[Final compliance mapping must be validated by ${D} Head and GM before SOP activation.]
+NOTE: Final compliance framework applicability must be validated by ${D} Head and GM
+before SOP activation. Statutory requirements must be confirmed with Accounts and legal.
 
 --- DRAFT PLACEHOLDER --- Last reviewed: ${TODAY}`,
     },
@@ -564,34 +609,50 @@ in coordination with Accounts and GM. Example: monthly returns, quarterly audits
       content:
 `LINKED DOCUMENTS — ${D} / ${R}
 
-RELATED SOPs:
-- [SOP Number] — [Title] — Department: [Dept] — Role: [Role]
-  Relationship: [Upstream / Downstream / Parallel]
-- [SOP Number] — [Title] — Department: [Dept] — Role: [Role]
-  Relationship: [Upstream / Downstream / Parallel]
+RELATED SOPs (cross-department interfaces — to be finalised by ${D} Head):
+• SOP-${D.toUpperCase().slice(0,4)}-MGR-CURR-001 — ${D} Manager Operations SOP
+  Relationship: Upstream — ${R} tasks are initiated under Manager SOP authority
+• SOP-QC-EMP-CURR-001 — Quality Control Employee Operations SOP
+  Relationship: Downstream — NCR and inspection outputs received from QC
+• SOP-PURCH-MGR-CURR-001 — Purchase Manager Operations SOP
+  Relationship: Parallel — purchase requests raised from ${D} feed into Purchase SOP
 
-WORK INSTRUCTIONS (WI):
-- [WI Number] — [Title] — [Process step this WI supports]
+NOTE: Actual SOP numbers will be generated at creation time and must be confirmed
+with each department's Manager before this SOP is activated.
+
+WORK INSTRUCTIONS:
+• WI-${D.toUpperCase().slice(0,4)}-001 — ${D} SAP B1 Transaction Entry Work Instruction
+  Supports: Section 8, Step 3 — SAP B1 transaction execution
+• WI-${D.toUpperCase().slice(0,4)}-002 — ${D} QMS Issue Register Entry Work Instruction
+  Supports: Section 8, Step 4 — Audit record creation
+• WI-${D.toUpperCase().slice(0,4)}-003 — ${D} Escalation Logging Work Instruction
+  Supports: Section 10 — Escalation protocol execution
+
+NOTE: Work instruction references above are placeholders. ${D} Head must assign
+actual WI numbers and verify they exist in the QMS document register before activation.
 
 FORMS AND TEMPLATES:
-- [Form name / reference] — Used in: [Section 8 step reference]
+• F-${D.toUpperCase().slice(0,4)}-01 — ${D} Transaction Checklist — Used in: Section 8, Steps 1–5
+• F-${D.toUpperCase().slice(0,4)}-02 — ${D} Exception Log Form — Used in: Section 9
 
 SAP B1 REPORTS:
-- [Report name / transaction code] — Purpose: [What this report validates]
+• ${D} Open Transactions Report — Purpose: Verify no unposted documents at end-of-day
+• ${D} Audit Trail Report — Purpose: Confirm all transactions are logged per Section 14
 
 THERMOPAC QMS REPORTS:
-- [Report name / module path] — Purpose: [What this report validates]
+• QMS → ${D} → SOP Compliance Dashboard — Acknowledgement completion per ${R}
+• QMS → ${D} → Open Issues Report — Unresolved exceptions per Section 9
 
 EXTERNAL REFERENCES:
-- [Standard / regulation reference] — Source: [ISO / BIS / Customer spec]
+• ISO 9001:2015 — Sections 7.5 (Documented information) and 8.1 (Operational planning)
+• Customer-specific QAPs (Quality Assurance Plans) — reference per active project contracts
 
 DOCUMENT CONTROL RULE:
 - All linked documents must be at their current revision at time of SOP activation.
-- A linked document revision that changes the governing process must trigger
-  a review of this SOP within 30 days.
-- Broken links must be reported to ${D} Head and corrected before next audit.
-
-[Linked documents to be populated by ${D} Head before SOP activation.]
+- A linked document revision that changes the governing process must trigger a
+  review of this SOP within 30 days of the linked document change being activated.
+- Broken or unresolved document links must be reported to ${D} Head and corrected
+  before the next scheduled quarterly compliance audit.
 
 --- DRAFT PLACEHOLDER --- Last reviewed: ${TODAY}`,
     },
@@ -602,30 +663,34 @@ DOCUMENT CONTROL RULE:
       content:
 `TRAINING REQUIREMENTS — ${R} — ${D}
 
-MANDATORY BEFORE OPERATING UNDER THIS SOP:
-□ THERMOPAC QMS system orientation and login confirmation
-□ SAP B1 module training for ${D} — ${R} level (conducted by IT or SM)
-□ This SOP read in full and acknowledged in THERMOPAC QMS system
-□ Supervised execution of minimum [N — to be defined] transactions before independent operation
-□ Escalation protocol briefing (Section 10) — confirmed by SM
-□ [${D}-specific training — to be defined by ${D} Head]
+MANDATORY BEFORE INDEPENDENT OPERATION UNDER THIS SOP:
+• THERMOPAC QMS system orientation: login, navigation, task and issue register entry
+• SAP B1 module training for ${D} — ${R} scope (conducted by IT or Senior Manager)
+• Full read-through and QMS acknowledgement of this SOP (current revision)
+• Supervised execution of minimum 5 transactions in the ${D} SAP B1 module
+  before operating independently — supervised by Manager or SM
+• Escalation protocol walkthrough (Section 10) — verbally confirmed by SM and logged
+• ${D} department induction covering reporting lines, key contacts, and shift protocols
 
 COMPETENCY ASSESSMENT:
-- Minimum passing score: [To be defined by SM]
-- Assessment method: [Practical demonstration / Written test / System test]
-- Assessor: [SM / Department Head — not the trainee's direct peer]
-- Assessment must be documented in THERMOPAC QMS HR module
+• Minimum passing score: 80% on practical system assessment
+• Assessment method: Practical demonstration — perform 3 SAP B1 transactions under observation;
+  correctly identify and log 1 exception scenario; demonstrate escalation procedure
+• Assessor: Senior Manager or ${D} Head — must not be the trainee's direct daily supervisor
+• Assessment result documented in THERMOPAC QMS HR module before clearance is granted
 
-REFRESHER TRAINING (mandatory):
-- On every major SOP revision (new revision → re-acknowledge → re-train if content changed)
-- Annual refresher mandatory for all ${R} roles in ${D}
-- After any compliance breach attributed to the ${R} role in ${D}
-- After any significant ERP system change affecting ${D} operations
+REFRESHER TRAINING (mandatory triggers):
+• On every major SOP revision — all ${R} roles in ${D} must re-acknowledge within 14 days;
+  re-training required if Section 6, 8, or 12 content changed substantially
+• Annual refresher: end of each financial year — SM to confirm completion for all ${R} staff
+• After any compliance breach attributed to the ${R} role — remedial training within 5 working days
+• After any SAP B1 upgrade or QMS module change that affects ${D} transaction screens or flows
 
 TRAINING RECORDS:
-- All training completions stored in THERMOPAC QMS HR module
-- Records reviewed quarterly by SM
-- Incomplete training records = SOP access blocked until resolved
+• All training completions and assessment results stored in THERMOPAC QMS HR module
+• Training register reviewed by SM at every quarterly performance review
+• Staff with incomplete training records may not operate independently under this SOP
+  until training gap is resolved and SM has signed off on training completion
 
 --- DRAFT PLACEHOLDER --- Last reviewed: ${TODAY}`,
     },
@@ -701,7 +766,7 @@ REVISION PROCESS IN THERMOPAC QMS:
 2. Manager submits revision → status: under_review
 3. SM reviews and approves → status: approved
 4. GM activates → status: active
-5. All ${R} users in ${D} must re-acknowledge within [N] days
+5. All ${R} users in ${D} must re-acknowledge within 14 days
 
 OWNERSHIP:
 - Revision owner: ${D} Head (Manager role)
