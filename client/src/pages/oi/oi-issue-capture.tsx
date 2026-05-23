@@ -449,7 +449,7 @@ export default function OiIssueCaptureePage() {
                           <SelectItem value="__none__">— No vendor —</SelectItem>
                           {(vendors ?? []).map((v: any) => (
                             <SelectItem key={v.id} value={String(v.id)}>
-                              {v.sapCardCode ? `${v.sapCardCode} — ` : ""}{v.displayName ?? v.name}
+                              {v.sap_card_code ? `${v.sap_card_code} — ` : ""}{v.display_name ?? v.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
