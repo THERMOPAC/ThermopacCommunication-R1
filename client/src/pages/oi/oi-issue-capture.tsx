@@ -210,16 +210,21 @@ export default function OiIssueCaptureePage() {
 
   return (
     <Layout>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="min-h-screen bg-slate-50">
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
 
-        {/* ── Page header ── */}
-        <div className="flex items-center gap-3">
+        {/* ── Page hero header ── */}
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl px-6 py-5 flex items-center gap-4 shadow-md">
           <Link href="/oi/issues">
-            <Button variant="ghost" size="icon" className="shrink-0"><ArrowLeft className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="shrink-0 text-white hover:bg-white/20 hover:text-white"><ArrowLeft className="h-5 w-5" /></Button>
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Report an Issue</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Operational Intelligence — Issue Capture</p>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-white tracking-tight">Report an Issue</h1>
+            <p className="text-blue-100 text-sm mt-0.5">Operational Intelligence — Issue Capture</p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 bg-white/15 rounded-xl px-4 py-2 text-white text-sm">
+            <Zap className="h-4 w-4 text-yellow-300" />
+            <span className="font-medium">OI Module</span>
           </div>
         </div>
 
@@ -240,10 +245,10 @@ export default function OiIssueCaptureePage() {
             {/* ══════════════════════════════════════════
                 Card 1 — Issue Summary
             ══════════════════════════════════════════ */}
-            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
-              <CardHeader className="pb-4 border-b border-gray-100">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
-                  <ClipboardList className="h-4 w-4 text-blue-600" />
+            <Card className="border border-blue-200 rounded-xl shadow-md overflow-hidden">
+              <CardHeader className="pb-4 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-blue-800">
+                  <div className="p-1.5 bg-blue-100 rounded-lg"><ClipboardList className="h-4 w-4 text-blue-600" /></div>
                   Issue Summary
                 </CardTitle>
               </CardHeader>
@@ -350,10 +355,10 @@ export default function OiIssueCaptureePage() {
             {/* ══════════════════════════════════════════
                 Card 2 — Classification
             ══════════════════════════════════════════ */}
-            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
-              <CardHeader className="pb-4 border-b border-gray-100">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
-                  <LayoutGrid className="h-4 w-4 text-violet-600" />
+            <Card className="border border-violet-200 rounded-xl shadow-md overflow-hidden">
+              <CardHeader className="pb-4 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-purple-50">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-violet-800">
+                  <div className="p-1.5 bg-violet-100 rounded-lg"><LayoutGrid className="h-4 w-4 text-violet-600" /></div>
                   Classification
                 </CardTitle>
               </CardHeader>
@@ -429,12 +434,12 @@ export default function OiIssueCaptureePage() {
             {/* ══════════════════════════════════════════
                 Card 3 — Project / Customer / Vendor Context
             ══════════════════════════════════════════ */}
-            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
-              <CardHeader className="pb-4 border-b border-gray-100">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
-                  <Building2 className="h-4 w-4 text-emerald-600" />
+            <Card className="border border-emerald-200 rounded-xl shadow-md overflow-hidden">
+              <CardHeader className="pb-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-emerald-800">
+                  <div className="p-1.5 bg-emerald-100 rounded-lg"><Building2 className="h-4 w-4 text-emerald-600" /></div>
                   Project / Customer / Vendor Context
-                  <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
+                  <span className="ml-1 text-xs font-normal text-emerald-500">(optional)</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-5 space-y-5">
@@ -513,12 +518,12 @@ export default function OiIssueCaptureePage() {
             {/* ══════════════════════════════════════════
                 Card 4 — Equipment Context
             ══════════════════════════════════════════ */}
-            <Card className="border border-gray-200 rounded-xl shadow-sm bg-white">
-              <CardHeader className="pb-4 border-b border-gray-100">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold text-gray-800">
-                  <Wrench className="h-4 w-4 text-orange-500" />
+            <Card className="border border-orange-200 rounded-xl shadow-md overflow-hidden">
+              <CardHeader className="pb-4 border-b border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-orange-800">
+                  <div className="p-1.5 bg-orange-100 rounded-lg"><Wrench className="h-4 w-4 text-orange-500" /></div>
                   Equipment Context
-                  <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>
+                  <span className="ml-1 text-xs font-normal text-orange-400">(optional)</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-5 space-y-5">
@@ -568,6 +573,7 @@ export default function OiIssueCaptureePage() {
 
           </form>
         </Form>
+      </div>
       </div>
     </Layout>
   );
