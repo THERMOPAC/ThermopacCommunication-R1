@@ -33,8 +33,8 @@ import {
   LESSON_REC_RISK_LABELS,
   LINK_TYPE_LABELS, REVIEWER_STATUS_LABELS, REVIEWER_STATUS_COLORS,
   EFFECTIVENESS_RATINGS, EFFECTIVENESS_RATING_LABELS, EFFECTIVENESS_RATING_COLORS,
-  OI_DEPARTMENTS,
 } from "./oi-lesson-constants";
+import { useDepartments } from "@/hooks/use-departments";
 
 const MANAGER_ROLES = ["Manager","Senior Manager","General Manager","Superuser"];
 const SM_ROLES      = ["Senior Manager","General Manager","Superuser"];
@@ -427,6 +427,7 @@ function AcknowledgmentsTab({ lessonId, lesson }: { lessonId: number; lesson: an
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { departments, isLoading: deptsLoading, isError: deptsError } = useDepartments();
   const canAssign = SM_ROLES.includes(user?.role ?? "") && lesson.status === "published" && lesson.cross_project_approved_at;
 
   const { data: acks = [], refetch } = useQuery<any[]>({
@@ -481,12 +482,14 @@ function AcknowledgmentsTab({ lessonId, lesson }: { lessonId: number; lesson: an
             {ackType === "department" ? (
               <div>
                 <Label className="text-xs mb-1 block">Department</Label>
-                <Select value={targetDept} onValueChange={setTargetDept}>
-                  <SelectTrigger className="w-[160px] h-8 text-sm"><SelectValue placeholder="Select dept" /></SelectTrigger>
+                <Select value={targetDept} onValueChange={setTargetDept} disabled={deptsLoading || deptsError}>
+                  <SelectTrigger className="w-[160px] h-8 text-sm"><SelectValue placeholder={deptsLoading ? "Loading…" : deptsError ? "Unavailable" : "Select dept"} /></SelectTrigger>
                   <SelectContent>
-                    {OI_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    {deptsLoading && <SelectItem value="__loading__" disabled>Loading departments…</SelectItem>}
+                    {!deptsLoading && !deptsError && departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {deptsError && <p className="text-xs text-red-600 mt-1">Unavailable</p>}
               </div>
             ) : (
               <div>
@@ -498,7 +501,7 @@ function AcknowledgmentsTab({ lessonId, lesson }: { lessonId: number; lesson: an
               <Label className="text-xs mb-1 block">Due Date</Label>
               <Input className="w-36 h-8 text-sm" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
-            <Button size="sm" disabled={assignMutation.isPending || (ackType === "department" && !targetDept) || (ackType === "project" && !targetProjectId)} onClick={() => assignMutation.mutate()}>
+            <Button size="sm" disabled={assignMutation.isPending || (ackType === "department" && !targetDept) || (ackType === "project" && !targetProjectId) || (ackType === "department" && deptsError)} onClick={() => assignMutation.mutate()}>
               Assign
             </Button>
           </CardContent>

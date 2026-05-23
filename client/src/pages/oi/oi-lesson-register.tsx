@@ -31,8 +31,8 @@ import {
   LESSON_SCOPES, LESSON_SCOPE_LABELS,
   LESSON_PRIORITIES, LESSON_PRIORITY_LABELS, LESSON_PRIORITY_COLORS,
   LESSON_REC_RISKS, LESSON_REC_RISK_LABELS,
-  OI_DEPARTMENTS,
 } from "./oi-lesson-constants";
+import { useDepartments } from "@/hooks/use-departments";
 
 const createLessonSchema = z.object({
   title:                       z.string().min(5, "Minimum 5 characters"),
@@ -91,6 +91,7 @@ function CreateLessonDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { departments, isLoading: deptsLoading, isError: deptsError } = useDepartments();
 
   const form = useForm<CreateLessonForm>({
     resolver: zodResolver(createLessonSchema),
@@ -249,12 +250,14 @@ function CreateLessonDialog({ onCreated }: { onCreated: () => void }) {
                 <FormField control={form.control} name="scopeDepartment" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select dept" /></SelectTrigger></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""} disabled={deptsLoading || deptsError}>
+                      <FormControl><SelectTrigger><SelectValue placeholder={deptsLoading ? "Loading…" : deptsError ? "Unavailable" : "Select dept"} /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {OI_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        {deptsLoading && <SelectItem value="__loading__" disabled>Loading departments…</SelectItem>}
+                        {!deptsLoading && !deptsError && departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {deptsError && <p className="text-xs text-red-600 mt-1">Department list unavailable — cannot submit</p>}
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -324,7 +327,7 @@ function CreateLessonDialog({ onCreated }: { onCreated: () => void }) {
             )} />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending || deptsLoading || deptsError}>
                 {mutation.isPending ? "Creating…" : "Create Lesson"}
               </Button>
             </div>

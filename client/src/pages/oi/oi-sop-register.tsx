@@ -22,8 +22,9 @@ import { BookOpen, Plus, Search, Filter, AlertCircle, Clock, CheckCircle, Eye } 
 import { fmtDate } from "@/lib/date-format";
 import {
   SOP_STATUS_LABELS, SOP_STATUS_COLORS, SOP_TYPE_LABELS, SOP_TYPE_COLORS,
-  SOP_DEPARTMENTS, SOP_TYPES, SOP_STATUSES,
+  SOP_TYPES, SOP_STATUSES,
 } from "./oi-sop-constants";
+import { useDepartments } from "@/hooks/use-departments";
 
 const MANAGER_ROLES = ["Manager", "Senior Manager", "General Manager", "Superuser"];
 
@@ -46,6 +47,7 @@ export default function OiSopRegister() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDept, setFilterDept] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const { departments, isLoading: deptsLoading, isError: deptsError } = useDepartments();
 
   const isManager = MANAGER_ROLES.includes(user?.role ?? "");
 
@@ -124,10 +126,15 @@ export default function OiSopRegister() {
                     )} />
                     <FormField control={form.control} name="department" render={({ field }) => (
                       <FormItem><FormLabel>Department *</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>{SOP_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                        </Select><FormMessage /></FormItem>
+                        <Select value={field.value} onValueChange={field.onChange} disabled={deptsLoading || deptsError}>
+                          <FormControl><SelectTrigger><SelectValue placeholder={deptsLoading ? "Loading…" : deptsError ? "Unavailable" : undefined} /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {deptsLoading && <SelectItem value="__loading__" disabled>Loading departments…</SelectItem>}
+                            {!deptsLoading && !deptsError && departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        {deptsError && <p className="text-xs text-red-600 mt-1">Department list unavailable — cannot submit</p>}
+                        <FormMessage /></FormItem>
                     )} />
                   </div>
                   <FormField control={form.control} name="processArea" render={({ field }) => (
@@ -138,7 +145,7 @@ export default function OiSopRegister() {
                   )} />
                   <div className="flex justify-end gap-2 pt-2">
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={createMutation.isPending}>
+                    <Button type="submit" disabled={createMutation.isPending || deptsLoading || deptsError}>
                       {createMutation.isPending ? "Creating…" : "Create SOP"}
                     </Button>
                   </div>
@@ -179,13 +186,16 @@ export default function OiSopRegister() {
             {SOP_STATUSES.map(s => <SelectItem key={s} value={s}>{SOP_STATUS_LABELS[s]}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterDept} onValueChange={setFilterDept}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Depts</SelectItem>
-            {SOP_DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div>
+          <Select value={filterDept} onValueChange={setFilterDept}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Depts</SelectItem>
+              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {deptsError && <p className="text-xs text-amber-600 mt-0.5">Using cached list</p>}
+        </div>
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>

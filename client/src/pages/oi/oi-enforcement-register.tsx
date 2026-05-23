@@ -13,8 +13,9 @@ import { fmtDate } from "@/lib/date-format";
 import {
   CONTROL_STATUS_LABELS, CONTROL_STATUS_COLORS, HOLD_STATUS_LABELS, HOLD_STATUS_COLORS,
   ENFORCEMENT_LEVEL_LABELS, ENFORCEMENT_LEVEL_COLORS, CONTROL_TYPE_LABELS,
-  ERP_ENTITY_TYPE_LABELS, DEPARTMENTS,
+  ERP_ENTITY_TYPE_LABELS,
 } from "./oi-enforcement-constants";
+import { useDepartments } from "@/hooks/use-departments";
 
 function StatusBadge({ value, map, colorMap }: { value: string; map: Record<string, string>; colorMap: Record<string, string> }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colorMap[value] ?? "bg-gray-100 text-gray-700"}`}>{map[value] ?? value}</span>;
@@ -65,6 +66,7 @@ export default function OiEnforcementRegisterPage() {
   const [levelFilter, setLevelFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const { departments, isError: deptsError } = useDepartments();
 
   const { data: controls, isLoading: ctrlLoading } = useQuery<any[]>({
     queryKey: ["/api/oi/enforcement/controls"],
@@ -153,13 +155,18 @@ export default function OiEnforcementRegisterPage() {
               <SelectItem value="mandatory">Mandatory</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="Department" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div>
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="Department" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {deptsError && (
+              <p className="text-xs text-amber-600 mt-0.5">Using cached list</p>
+            )}
+          </div>
           {activeTab === "controls" && (
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="h-8 text-xs w-48"><SelectValue placeholder="Control Type" /></SelectTrigger>

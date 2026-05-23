@@ -81,10 +81,5 @@ export const ENFORCEMENT_LEVEL_COLORS: Record<string, string> = {
   mandatory: "bg-red-100 text-red-800",
 };
 
-export const DEPARTMENTS = [
-  "Accounts","Administration","After Sales","Design","Marketing",
-  "Production","Projects","Purchase","Quality Control","Stores",
-];
-
 export const ERP_ENTITY_TYPES = Object.keys(ERP_ENTITY_TYPE_LABELS);
 export const CONTROL_TYPES    = Object.keys(CONTROL_TYPE_LABELS);

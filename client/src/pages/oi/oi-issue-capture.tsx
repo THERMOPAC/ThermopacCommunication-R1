@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { OI_DEPARTMENTS } from "./oi-lesson-constants";
+import { useDepartments } from "@/hooks/use-departments";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check, RefreshCw, ClipboardList, LayoutGrid, Building2, Wrench, Paperclip, UploadCloud, X, FileText, FileImage, Sheet } from "lucide-react";
 import { Link } from "wouter";
@@ -103,6 +103,7 @@ type CaptureForm = z.infer<typeof captureSchema>;
 export default function OiIssueCaptureePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { departments, isLoading: deptsLoading, isError: deptsError } = useDepartments();
 
   const { data: projects } = useQuery<any[]>({ queryKey: ["/api/projects"] });
   const { data: customers } = useQuery<any[]>({ queryKey: ["/api/customers"] });
@@ -397,14 +398,16 @@ export default function OiIssueCaptureePage() {
                 <FormField control={form.control} name="department" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department <span className="text-red-500">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={deptsLoading || deptsError}>
+                      <FormControl><SelectTrigger><SelectValue placeholder={deptsLoading ? "Loading…" : deptsError ? "Unavailable" : "Select department"} /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {OI_DEPARTMENTS.map(d => (
+                        {deptsLoading && <SelectItem value="__loading__" disabled>Loading departments…</SelectItem>}
+                        {!deptsLoading && !deptsError && departments.map(d => (
                           <SelectItem key={d} value={d}>{d}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {deptsError && <p className="text-xs text-red-600 mt-1">Department list unavailable — cannot submit</p>}
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -672,7 +675,7 @@ export default function OiIssueCaptureePage() {
               <Link href="/oi/issues">
                 <Button type="button" variant="outline" className="px-6">Cancel</Button>
               </Link>
-              <Button type="submit" disabled={mutation.isPending} className="gap-2 px-6">
+              <Button type="submit" disabled={mutation.isPending || deptsLoading || deptsError} className="gap-2 px-6">
                 {mutation.isPending ? "Submitting…" : <><Zap className="h-4 w-4" /> Submit Issue</>}
               </Button>
             </div>

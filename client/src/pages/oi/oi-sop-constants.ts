@@ -66,19 +66,6 @@ export const LINKED_TYPE_LABELS: Record<string, string> = {
   capa:  "CAPA",
 };
 
-export const SOP_DEPARTMENTS = [
-  "Accounts",
-  "Administration",
-  "After Sales",
-  "Design",
-  "Marketing",
-  "Production",
-  "Projects",
-  "Purchase",
-  "Quality Control",
-  "Stores",
-] as const;
-
 export const SOP_TYPES = [
   "procedure",
   "work_instruction",

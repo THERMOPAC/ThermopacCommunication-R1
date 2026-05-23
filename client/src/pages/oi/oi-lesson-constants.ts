@@ -138,8 +138,3 @@ export const REVIEWER_STATUS_COLORS: Record<string, string> = {
   recused:  "bg-gray-100 text-gray-500",
 };
 
-export const OI_DEPARTMENTS = [
-  "Accounts","Administration","After Sales","Design",
-  "Engineering","Marketing","Production","Projects",
-  "Purchase","Quality Control","Stores",
-];

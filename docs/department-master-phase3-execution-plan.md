@@ -1,9 +1,25 @@
 # Department Master — Phase 3 Execution Plan
-**Version**: 1.0  
+**Version**: 1.1  
 **Date**: 2026-05-23  
-**Status**: AWAITING APPROVAL — No implementation until approved  
+**Status**: APPROVED — Execution in progress  
 **Prerequisite gate**: Engineering remapping complete ✅ (v1.1 planning doc)  
 **Parent document**: `docs/department-master-phase3-planning.md`
+
+---
+
+## Amendment A — API Error Behaviour on Forms (Approved 2026-05-23)
+
+Approved correction to the fallback behaviour specified in §Loading/Error UI Behaviour sections
+of Wave 2 and Wave 3:
+
+| Context | API error behaviour |
+|---|---|
+| **Filter dropdowns** | Show `DEPT_CLIENT_FALLBACK` (10 names) with a visible amber warning — filtering is read-only, no data loss risk |
+| **Create / Edit form fields** | **Disabled** — department Select disabled, submit button disabled, blocking error message shown. No fallback names displayed. No submission permitted while `/api/departments` is in error state. |
+
+This replaces the original plan's "fallback + amber warning badge" pattern for form fields.
+The hook's `DEPT_CLIENT_FALLBACK` return on `isError` is still correct for filter consumers;
+form consumers must also check `isError` and block submission independently.
 
 ---
 
