@@ -106,15 +106,61 @@ async function resolveUserName(userId: number | null): Promise<string | null> {
   return u ? (u.username || null) : null;
 }
 
-async function nextSopNumber(): Promise<string> {
-  const year = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).getFullYear();
-  const result = await db.execute(sql`
-    SELECT pg_advisory_xact_lock(hashtext('sop_number_seq'));
-    SELECT COUNT(*)::int AS cnt FROM oi_sop_records
-    WHERE EXTRACT(YEAR FROM created_at AT TIME ZONE 'Asia/Kolkata') = ${year}
-  `);
-  const cnt = Number((result as any).rows?.[(result as any).rows.length - 1]?.cnt ?? 0);
-  return `SOP-${year}-${String(cnt + 1).padStart(3, "0")}`;
+// ─── SOP Numbering Helpers ────────────────────────────────────────────────────
+// Indian financial year: April 1 – March 31.
+// FY code = last-2 of start year + last-2 of end year (e.g. 2026-27 → "2627").
+function indianFYCode(): string {
+  const now  = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const yr   = now.getFullYear();
+  const mo   = now.getMonth() + 1; // 1-indexed
+  const startYr = mo >= 4 ? yr : yr - 1;
+  const endYr   = startYr + 1;
+  return `${String(startYr).slice(-2)}${String(endYr).slice(-2)}`;
+}
+
+const DEPT_CODES: Record<string, string> = {
+  "Production":      "PROD",
+  "Quality Control": "QC",
+  "Projects":        "PROJ",
+  "Purchase":        "PURCH",
+  "Accounts":        "ACC",
+  "Design":          "DES",
+  "After Sales":     "AS",
+  "Stores":          "STR",
+  "Marketing":       "MKT",
+  "Administration":  "ADMIN",
+};
+
+const ROLE_CODES: Record<string, string> = {
+  "Superuser":        "SU",
+  "General Manager":  "GM",
+  "Senior Manager":   "SM",
+  "Manager":          "MGR",
+  "Senior Executive": "SE",
+  "Employee":         "EMP",
+};
+
+// Sequence is scoped per (deptCode, roleCode, FY) — resets each FY.
+// Advisory lock key is unique per scope to allow parallel creation of different dept/role combos.
+async function nextSopNumber(department: string, role: string): Promise<string> {
+  const deptCode = DEPT_CODES[department];
+  const roleCode = ROLE_CODES[role];
+  if (!deptCode) throw new Error(`Unknown department for SOP numbering: '${department}'`);
+  if (!roleCode) throw new Error(`Unknown role for SOP numbering: '${role}'`);
+
+  const fy      = indianFYCode();
+  const lockKey = `sop_seq_${deptCode}_${roleCode}_${fy}`;
+
+  await db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`);
+
+  const prefix = `SOP-${deptCode}-${roleCode}-${fy}-`;
+  const [{ cnt }] = await db
+    .select({ cnt: count() })
+    .from(oiSopRecords)
+    .where(sql`sop_number LIKE ${prefix + "%"}`);
+
+  const seq = Number(cnt) + 1;
+  return `${prefix}${String(seq).padStart(3, "0")}`;
 }
 
 async function fetchSop(sopId: number) {
@@ -203,7 +249,7 @@ oiSopRouter.post("/sop", wrap(async (req: any, res: any) => {
     return res.status(422).json({ error: "approver_must_differ_from_owner" });
   }
 
-  const sopNumber = await nextSopNumber();
+  const sopNumber = await nextSopNumber(data.department, data.applicableRole);
 
   const [sop] = await db.insert(oiSopRecords).values({
     sopNumber,
