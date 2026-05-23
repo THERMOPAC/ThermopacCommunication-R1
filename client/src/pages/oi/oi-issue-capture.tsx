@@ -127,10 +127,11 @@ export default function OiIssueCaptureePage() {
   const selectedPhase      = form.watch("projectPhase");
   const selectedCustomerId = form.watch("customerId");
 
-  // Filter suggestions by selected category / phase — null in master means "any"
+  // Filter suggestions: when a filter is selected only show matching (or uncategorised) titles;
+  // when nothing is selected yet show everything.
   const suggestedTitles = titleMaster.filter((t: any) => {
-    const catOk   = !t.category     || t.category     === selectedCategory;
-    const phaseOk = !t.projectPhase || t.projectPhase === selectedPhase;
+    const catOk   = !selectedCategory || !t.category     || t.category     === selectedCategory;
+    const phaseOk = !selectedPhase    || !t.projectPhase || t.projectPhase === selectedPhase;
     return catOk && phaseOk;
   });
 
@@ -202,53 +203,59 @@ export default function OiIssueCaptureePage() {
                   <FormItem>
                     <FormLabel>Issue Title <span className="text-red-500">*</span></FormLabel>
                     <Popover open={titlePopoverOpen} onOpenChange={setTitlePopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              placeholder="Type or select an anticipated issue title…"
-                              value={field.value ?? ""}
-                              onChange={(e) => field.onChange(e.target.value)}
-                              onFocus={() => setTitlePopoverOpen(true)}
-                              className="pr-8"
-                            />
-                            <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                          </div>
-                        </FormControl>
-                      </PopoverTrigger>
-                      {suggestedTitles.length > 0 && (
-                        <PopoverContent
-                          className="p-0 w-[--radix-popover-trigger-width]"
-                          align="start"
-                          onOpenAutoFocus={(e) => e.preventDefault()}
-                        >
-                          <Command>
-                            <CommandInput placeholder="Search suggestions…" className="h-9" />
-                            <CommandList>
-                              <CommandEmpty>No matching suggestions — your typed title will be used.</CommandEmpty>
-                              <CommandGroup heading={
-                                selectedCategory || selectedPhase
-                                  ? `Suggested for ${selectedCategory ?? ""}${selectedCategory && selectedPhase ? " · " : ""}${selectedPhase ?? ""}`
-                                  : "All suggestions"
-                              }>
-                                {suggestedTitles.map((t: any) => (
-                                  <CommandItem
-                                    key={t.id}
-                                    value={t.title}
-                                    onSelect={(v) => {
-                                      field.onChange(v);
-                                      setTitlePopoverOpen(false);
-                                    }}
-                                  >
-                                    <Check className={`mr-2 h-4 w-4 ${field.value === t.title ? "opacity-100" : "opacity-0"}`} />
-                                    {t.title}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      )}
+                      <div className="relative">
+                        <Input
+                          placeholder="Type or select an anticipated issue title…"
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          onFocus={() => setTitlePopoverOpen(true)}
+                          className="pr-8"
+                        />
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                            tabIndex={-1}
+                          >
+                            <ChevronsUpDown className="h-4 w-4" />
+                          </button>
+                        </PopoverTrigger>
+                      </div>
+                      <PopoverContent
+                        className="p-0 w-[--radix-popover-trigger-width]"
+                        align="start"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                        onInteractOutside={(e) => {
+                          const target = e.target as HTMLElement;
+                          if (target?.closest?.('[data-title-input]')) e.preventDefault();
+                        }}
+                      >
+                        <Command>
+                          <CommandInput placeholder="Search suggestions…" className="h-9" />
+                          <CommandList>
+                            <CommandEmpty>No matching suggestions — your typed title will be used.</CommandEmpty>
+                            <CommandGroup heading={
+                              selectedCategory || selectedPhase
+                                ? `Suggested for ${selectedCategory ?? ""}${selectedCategory && selectedPhase ? " · " : ""}${selectedPhase ?? ""}`
+                                : "All suggestions"
+                            }>
+                              {suggestedTitles.map((t: any) => (
+                                <CommandItem
+                                  key={t.id}
+                                  value={t.title}
+                                  onSelect={(v) => {
+                                    field.onChange(v);
+                                    setTitlePopoverOpen(false);
+                                  }}
+                                >
+                                  <Check className={`mr-2 h-4 w-4 ${field.value === t.title ? "opacity-100" : "opacity-0"}`} />
+                                  {t.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
                     </Popover>
                     <FormMessage />
                   </FormItem>
