@@ -116,22 +116,22 @@ export default function OiIssueCaptureePage() {
     },
   });
 
-  const selectedSeverity = form.watch("severity");
-  const selectedCategory = form.watch("category");
-  const selectedProjectId = form.watch("projectId");
+  const selectedSeverity  = form.watch("severity");
+  const selectedCategory  = form.watch("category");
+  const selectedCustomerId = form.watch("customerId");
 
-  // Auto-populate customer when project is selected
-  const handleProjectChange = (val: string) => {
+  // Filter projects to only those belonging to the selected customer
+  const filteredProjects = selectedCustomerId && selectedCustomerId !== "__none__"
+    ? (projects ?? []).filter((p: any) =>
+        String(p.customerId ?? p.customer_id) === selectedCustomerId
+      )
+    : (projects ?? []);
+
+  // When customer changes, clear project selection
+  const handleCustomerChange = (val: string) => {
     const resolved = val === "__none__" ? undefined : val;
-    form.setValue("projectId", resolved);
-    if (resolved) {
-      const proj = (projects ?? []).find((p: any) => String(p.id) === resolved);
-      if (proj && (proj.customerId || proj.customer_id)) {
-        form.setValue("customerId", String(proj.customerId ?? proj.customer_id));
-      }
-    } else {
-      form.setValue("customerId", undefined);
-    }
+    form.setValue("customerId", resolved);
+    form.setValue("projectId", undefined);
   };
 
   const showVendorField = VENDOR_RELEVANT_CATEGORIES.includes(selectedCategory);
@@ -262,18 +262,18 @@ export default function OiIssueCaptureePage() {
                   )} />
                 </div>
 
-                {/* Project + Customer linkage */}
+                {/* Customer → Project linkage */}
                 <div className="grid md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="projectId" render={({ field }) => (
+                  <FormField control={form.control} name="customerId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Related Project (optional)</FormLabel>
-                      <Select onValueChange={handleProjectChange} value={field.value ?? "__none__"}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger></FormControl>
+                      <FormLabel>Customer (optional)</FormLabel>
+                      <Select onValueChange={handleCustomerChange} value={field.value ?? "__none__"}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">— No project —</SelectItem>
-                          {(projects ?? []).map((p: any) => (
-                            <SelectItem key={p.id} value={String(p.id)}>
-                              {p.code} — {p.customerName ?? p.customer_name ?? ""}
+                          <SelectItem value="__none__">— No customer —</SelectItem>
+                          {(customers ?? []).map((c: any) => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              {c.sapCardCode ? `${c.sapCardCode} — ` : ""}{c.name ?? c.bp_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -282,16 +282,20 @@ export default function OiIssueCaptureePage() {
                     </FormItem>
                   )} />
 
-                  <FormField control={form.control} name="customerId" render={({ field }) => (
+                  <FormField control={form.control} name="projectId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer (optional)</FormLabel>
-                      <Select onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)} value={field.value ?? "__none__"}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
+                      <FormLabel>Related Project (optional)</FormLabel>
+                      <Select
+                        onValueChange={(v) => field.onChange(v === "__none__" ? undefined : v)}
+                        value={field.value ?? "__none__"}
+                        disabled={!selectedCustomerId || selectedCustomerId === "__none__"}
+                      >
+                        <FormControl><SelectTrigger><SelectValue placeholder={selectedCustomerId ? "Select project" : "Select a customer first"} /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">— No customer —</SelectItem>
-                          {(customers ?? []).map((c: any) => (
-                            <SelectItem key={c.id} value={String(c.id)}>
-                              {c.sapCardCode ? `${c.sapCardCode} — ` : ""}{c.name ?? c.bp_name}
+                          <SelectItem value="__none__">— No project —</SelectItem>
+                          {filteredProjects.map((p: any) => (
+                            <SelectItem key={p.id} value={String(p.id)}>
+                              {p.code} — {p.customerName ?? p.customer_name ?? ""}
                             </SelectItem>
                           ))}
                         </SelectContent>
