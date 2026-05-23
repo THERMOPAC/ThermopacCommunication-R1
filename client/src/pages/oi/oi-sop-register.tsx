@@ -323,7 +323,10 @@ export default function OiSopRegister() {
                         onClick={async (e) => {
                           e.preventDefault();
                           try { await downloadSopPdf(sop); }
-                          catch { /* silent — browser will show no download */ }
+                          catch (err: any) {
+                            console.error("SOP PDF error:", err);
+                            alert(`Download failed: ${err?.message ?? "Unknown error"}`);
+                          }
                         }}
                       >
                         <Download className="h-3 w-3" />
