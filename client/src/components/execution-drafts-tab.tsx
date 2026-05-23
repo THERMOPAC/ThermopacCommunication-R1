@@ -24,7 +24,7 @@ import {
 import {
   CheckCircle2, XCircle, PauseCircle, Play, Zap,
   RefreshCw, FileText, AlertTriangle, Clock, Ban,
-  Link2, RotateCcw,
+  Link2, RotateCcw, PackagePlus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -86,7 +86,11 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
   const generateMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/projects/${projectId}/execution-drafts/generate`),
     onSuccess: (data: any) => {
-      toast({ title: "Drafts Generated", description: `Created ${data.created} drafts, ${data.notApplicable} not applicable.` });
+      if (data.created === 0) {
+        toast({ title: "EPC Workflow Up to Date", description: "All project items already have execution drafts. No new items found." });
+      } else {
+        toast({ title: "EPC Workflow Updated", description: `Generated drafts for ${data.created} new item(s). ${data.notApplicable} not applicable.` });
+      }
       invalidateDrafts();
     },
     onError: (err: any) => {
@@ -143,9 +147,11 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Execution Drafts</h3>
+          <h3 className="text-lg font-semibold">EPC Execution Workflow</h3>
           <p className="text-sm text-muted-foreground">
-            Auto-generated DO/WO/PO/IO drafts for project items
+            {hasDrafts
+              ? "DO / WO / PO / IO drafts for all project items. Use the button to pick up any newly added items."
+              : "Auto-generate DO / WO / PO / IO drafts for all project items."}
           </p>
         </div>
         <Button
@@ -156,10 +162,12 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
         >
           {generateMutation.isPending ? (
             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+          ) : hasDrafts ? (
+            <PackagePlus className="h-4 w-4 mr-2" />
           ) : (
             <Zap className="h-4 w-4 mr-2" />
           )}
-          {hasDrafts ? "Re-generate" : "Generate Drafts"}
+          {hasDrafts ? "Update EPC Workflow" : "Generate EPC Workflow"}
         </Button>
       </div>
 
@@ -178,7 +186,7 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
           <CardContent className="p-8 text-center">
             <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
-              No execution drafts yet. Click "Generate Drafts" to auto-create DO/WO/PO/IO drafts for all project items.
+              No EPC workflow drafts yet. Click "Generate EPC Workflow" to auto-create DO / WO / PO / IO drafts for all project items.
             </p>
           </CardContent>
         </Card>
