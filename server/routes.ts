@@ -52,6 +52,8 @@ import { saveRoiStep, loadRoiProject, getRoiProjectProgress, deleteRoiProject } 
 import { default as financeRoutes } from "./finance-routes-fixed";
 import epcAssignmentRoutes from "./epc-assignment-routes";
 import { seedEpcAssignmentRules } from "./seed-epc-assignment-rules";
+import { departmentRouter } from "./department-routes";
+import { seedDepartmentMaster } from "./department-seed";
 import paymentReferenceRoutes from "./test-route/payment-reference";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { default as directInvoiceRoutes } from "./direct-invoice-routes";
@@ -712,6 +714,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(pipelineRoutes);
   app.use(epcAssignmentRoutes);
   seedEpcAssignmentRules().catch(err => console.error('[EPC-Assignment] Seed failed:', err));
+
+  // Department Master — Step 2 (seed) + Step 3 (public GET /api/departments)
+  // + Step 5 (VALID_DEPARTMENTS loaders — called after seed so DB is populated)
+  app.use('/api', departmentRouter);
+  seedDepartmentMaster()
+    .then(async () => {
+      const { loadValidDepartmentsSop } = await import('./oi-sop-routes');
+      const { loadValidDepartmentsEnforcement } = await import('./oi-enforcement-routes');
+      await Promise.all([
+        loadValidDepartmentsSop().catch((e: Error) => console.error('[DeptSeed] SOP loader failed:', e)),
+        loadValidDepartmentsEnforcement().catch((e: Error) => console.error('[DeptSeed] Enforcement loader failed:', e)),
+      ]);
+    })
+    .catch(err => console.error('[DeptSeed] Seed failed:', err));
 
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);

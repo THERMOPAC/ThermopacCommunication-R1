@@ -15521,6 +15521,30 @@ export const insertOiIssueTitleMasterSchema = createInsertSchema(oiIssueTitleMas
 export type OiIssueTitleMaster       = typeof oiIssueTitleMaster.$inferSelect;
 export type InsertOiIssueTitleMaster = z.infer<typeof insertOiIssueTitleMasterSchema>;
 
+// ─── Department Master ────────────────────────────────────────────────────────
+export const departmentMaster = pgTable('department_master', {
+  id:        serial('id').primaryKey(),
+  name:      text('name').notNull(),
+  code:      varchar('code', { length: 10 }),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive:  boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  uqNameCI:    uniqueIndex('uq_dept_master_name_ci').on(sql`LOWER(${table.name})`),
+  uqCode:      uniqueIndex('uq_dept_master_code').on(table.code),
+  activeOrdIdx: index('idx_dept_master_active').on(table.isActive, table.sortOrder),
+}));
+
+export const insertDepartmentMasterSchema = createInsertSchema(departmentMaster)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    name: z.string().min(1).trim()
+      .transform(s => s.replace(/\b\w/g, c => c.toUpperCase())),
+  });
+
+export type DepartmentMaster       = typeof departmentMaster.$inferSelect;
+export type InsertDepartmentMaster = z.infer<typeof insertDepartmentMasterSchema>;
+
 // ─── OI Issue Attachments ─────────────────────────────────────────────────────
 export const oiIssueAttachments = pgTable("oi_issue_attachments", {
   id:           serial("id").primaryKey(),

@@ -4,6 +4,7 @@ import {
   oiEnforcementControls, oiEnforcementChecklists, oiEnforcementHolds,
   oiEnforcementChecklistResponses, oiEnforcementAuditLog,
   oiSopRecords, oiSopRevisions, users, projects,
+  departmentMaster,
 } from "@shared/schema";
 import { eq, and, or, desc, asc, count, sql, inArray, ne } from "drizzle-orm";
 import { writeEnforcementAuditLog } from "./oi-enforcement-audit-service";
@@ -30,10 +31,35 @@ const VALID_CONTROL_TYPES = [
 const VALID_ENFORCEMENT_LEVELS = ["advisory","mandatory"];
 const VALID_ENFORCEMENT_SCOPES = ["global","department","project","equipment_type"];
 const VALID_HOLD_STATUSES      = ["open","approved_to_proceed","released","overridden","emergency_bypassed"];
-const VALID_DEPARTMENTS = [
+
+// Amendment B: hardcoded fallback — used only if DB query fails or returns 0 rows.
+// _validDepts is NEVER left empty. Three-layer guard below.
+const DEPT_HARDCODED_FALLBACK_ENF = new Set([
   "Accounts","Administration","After Sales","Design","Marketing",
   "Production","Projects","Purchase","Quality Control","Stores",
-];
+]);
+let _validDeptsEnf: Set<string> = new Set(DEPT_HARDCODED_FALLBACK_ENF); // safe default at module load
+
+export async function loadValidDepartmentsEnforcement(): Promise<void> {
+  try {
+    const rows = await db
+      .select({ name: departmentMaster.name })
+      .from(departmentMaster)
+      .where(eq(departmentMaster.isActive, true));
+    if (rows.length > 0) {
+      // Guard 1 (normal path): DB returned rows — use them.
+      _validDeptsEnf = new Set(rows.map(r => r.name));
+      console.log(`[DeptSeed] Enforcement _validDepts loaded from DB — ${_validDeptsEnf.size} active departments.`);
+    } else {
+      // Guard 2 (empty table): fall back to hardcoded list.
+      _validDeptsEnf = new Set(DEPT_HARDCODED_FALLBACK_ENF);
+      console.warn("[DeptSeed] WARNING: department_master has 0 active rows (Enforcement) — using hardcoded fallback. Run seed.");
+    }
+  } catch (err) {
+    // Guard 3 (DB failure): do NOT reassign — module-init hardcoded value remains active.
+    console.error("[DeptSeed] ERROR: Failed to load valid departments (Enforcement) — retaining fallback:", err);
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function actor(req: any) {
@@ -171,7 +197,7 @@ oiEnforcementRouter.post("/enforcement/controls", async (req, res) => {
     if (!VALID_CONTROL_TYPES.includes(controlType)) return res.status(422).json({ error: "invalid_control_type" });
     if (!VALID_ENFORCEMENT_LEVELS.includes(enforcementLevel)) return res.status(422).json({ error: "invalid_enforcement_level" });
     if (!VALID_ENFORCEMENT_SCOPES.includes(enforcementScope)) return res.status(422).json({ error: "invalid_enforcement_scope" });
-    if (!VALID_DEPARTMENTS.includes(department)) return res.status(422).json({ error: "invalid_department" });
+    if (!_validDeptsEnf.has(department)) return res.status(422).json({ error: "invalid_department" });
     if (title.length < 5) return res.status(422).json({ error: "title_too_short" });
     if (description.length < 10) return res.status(422).json({ error: "description_too_short" });
     if (rationale.length < 10) return res.status(422).json({ error: "rationale_too_short" });

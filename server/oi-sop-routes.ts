@@ -4,6 +4,7 @@ import {
   oiSopRecords, oiSopRevisions, oiSopLinkages, oiSopAcknowledgments,
   oiSopEffectiveness, oiSopAuditLog,
   oiIssues, oiRcaRecords, oiCapaRecords, users,
+  departmentMaster,
 } from "@shared/schema";
 import { eq, and, or, desc, asc, count, sql, inArray, lt, isNull, isNotNull, ne, ilike } from "drizzle-orm";
 import { z } from "zod";
@@ -14,10 +15,34 @@ export const oiSopRouter = Router();
 const MANAGER_ROLES = ["Manager", "Senior Manager", "General Manager", "Superuser"];
 const SM_ROLES      = ["Senior Manager", "General Manager", "Superuser"];
 
-const VALID_DEPARTMENTS = [
+// Amendment B: hardcoded fallback — used only if DB query fails or returns 0 rows.
+// _validDepts is NEVER left empty. Three-layer guard below.
+const DEPT_HARDCODED_FALLBACK = new Set([
   "Accounts","Administration","After Sales","Design","Marketing",
   "Production","Projects","Purchase","Quality Control","Stores",
-];
+]);
+let _validDepts: Set<string> = new Set(DEPT_HARDCODED_FALLBACK); // safe default at module load
+
+export async function loadValidDepartmentsSop(): Promise<void> {
+  try {
+    const rows = await db
+      .select({ name: departmentMaster.name })
+      .from(departmentMaster)
+      .where(eq(departmentMaster.isActive, true));
+    if (rows.length > 0) {
+      // Guard 1 (normal path): DB returned rows — use them.
+      _validDepts = new Set(rows.map(r => r.name));
+      console.log(`[DeptSeed] SOP _validDepts loaded from DB — ${_validDepts.size} active departments.`);
+    } else {
+      // Guard 2 (empty table): fall back to hardcoded list.
+      _validDepts = new Set(DEPT_HARDCODED_FALLBACK);
+      console.warn("[DeptSeed] WARNING: department_master has 0 active rows (SOP) — using hardcoded fallback. Run seed.");
+    }
+  } catch (err) {
+    // Guard 3 (DB failure): do NOT reassign — module-init hardcoded value remains active.
+    console.error("[DeptSeed] ERROR: Failed to load valid departments (SOP) — retaining fallback:", err);
+  }
+}
 const VALID_SOP_TYPES = ["procedure","work_instruction","policy","guideline","checklist"];
 const VALID_LINKED_TYPES = ["issue","rca","capa"];
 

@@ -1995,26 +1995,24 @@ router.get('/attendance/records/:id/override-log', ensureAuthenticated, async (r
   }
 });
 
-// Get list of departments for filter
+// Get list of departments — reads from department_master (all rows incl. inactive)
+// Response shape: DepartmentMaster[] — NOT string[]. Only Superuser may access.
 router.get('/departments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const departments = await db
-      .selectDistinct({ department: users.department })
-      .from(users)
-      .where(
-        and(
-          isNotNull(users.department),
-          ne(users.department, ''),
-          eq(users.isActive, true)
-        )
-      )
-      .orderBy(asc(users.department));
-
-    const departmentList = departments.map(d => d.department).filter(Boolean);
-    res.json(departmentList);
+    const user = (req as any).user;
+    if (!user || user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { departmentMaster } = await import('@shared/schema');
+    const { asc: ascDept } = await import('drizzle-orm');
+    const rows = await db
+      .select()
+      .from(departmentMaster)
+      .orderBy(ascDept(departmentMaster.sortOrder));
+    res.json(rows);
   } catch (error) {
-    console.error('Error fetching departments:', error);
-    res.json([]); // Return empty array on error
+    console.error('Error fetching departments from master:', error);
+    res.status(500).json({ error: 'Failed to fetch departments' });
   }
 });
 

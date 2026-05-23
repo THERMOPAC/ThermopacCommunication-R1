@@ -956,8 +956,8 @@ export default function AttendanceManagementPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-                  {Array.isArray(departments) && departments.map((dept: string) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  {Array.isArray(departments) && departments.map((dept: { id: number; name: string; isActive: boolean }) => (
+                    <SelectItem key={dept.name} value={dept.name}>{dept.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
