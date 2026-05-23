@@ -12,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { OI_DEPARTMENTS } from "./oi-lesson-constants";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -202,61 +200,57 @@ export default function OiIssueCaptureePage() {
                 <FormField control={form.control} name="title" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Issue Title <span className="text-red-500">*</span></FormLabel>
-                    <Popover open={titlePopoverOpen} onOpenChange={setTitlePopoverOpen}>
-                      <div className="relative">
-                        <Input
-                          placeholder="Type or select an anticipated issue title…"
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          onFocus={() => setTitlePopoverOpen(true)}
-                          className="pr-8"
-                        />
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                            tabIndex={-1}
-                          >
-                            <ChevronsUpDown className="h-4 w-4" />
-                          </button>
-                        </PopoverTrigger>
-                      </div>
-                      <PopoverContent
-                        className="p-0 w-[--radix-popover-trigger-width]"
-                        align="start"
-                        onOpenAutoFocus={(e) => e.preventDefault()}
-                        onInteractOutside={(e) => {
-                          const target = e.target as HTMLElement;
-                          if (target?.closest?.('[data-title-input]')) e.preventDefault();
-                        }}
+                    <div className="relative">
+                      <Input
+                        placeholder="Type or select an anticipated issue title…"
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        onFocus={() => setTitlePopoverOpen(true)}
+                        onBlur={() => setTimeout(() => setTitlePopoverOpen(false), 150)}
+                        className="pr-8"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                        onMouseDown={(e) => { e.preventDefault(); setTitlePopoverOpen((v) => !v); }}
                       >
-                        <Command>
-                          <CommandInput placeholder="Search suggestions…" className="h-9" />
-                          <CommandList>
-                            <CommandEmpty>No matching suggestions — your typed title will be used.</CommandEmpty>
-                            <CommandGroup heading={
-                              selectedCategory || selectedPhase
-                                ? `Suggested for ${selectedCategory ?? ""}${selectedCategory && selectedPhase ? " · " : ""}${selectedPhase ?? ""}`
-                                : "All suggestions"
-                            }>
-                              {suggestedTitles.map((t: any) => (
-                                <CommandItem
-                                  key={t.id}
-                                  value={t.title}
-                                  onSelect={(v) => {
-                                    field.onChange(v);
-                                    setTitlePopoverOpen(false);
-                                  }}
-                                >
-                                  <Check className={`mr-2 h-4 w-4 ${field.value === t.title ? "opacity-100" : "opacity-0"}`} />
-                                  {t.title}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                        <ChevronsUpDown className="h-4 w-4" />
+                      </button>
+                      {titlePopoverOpen && (
+                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto">
+                          {(() => {
+                            const typed = (field.value ?? "").toLowerCase().trim();
+                            const visible = suggestedTitles.filter((t: any) =>
+                              !typed || t.title.toLowerCase().includes(typed)
+                            );
+                            if (visible.length === 0) return (
+                              <div className="px-3 py-2 text-sm text-gray-400 italic">No matching suggestions — your typed title will be used.</div>
+                            );
+                            return (
+                              <>
+                                <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 border-b bg-gray-50">
+                                  {selectedCategory || selectedPhase
+                                    ? `Suggested for ${[selectedCategory, selectedPhase].filter(Boolean).join(" · ")}`
+                                    : "All suggestions"}
+                                </div>
+                                {visible.map((t: any) => (
+                                  <div
+                                    key={t.id}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-blue-50"
+                                    onMouseDown={(e) => { e.preventDefault(); field.onChange(t.title); setTitlePopoverOpen(false); }}
+                                  >
+                                    <Check className={`h-3.5 w-3.5 shrink-0 ${field.value === t.title ? "text-blue-600" : "text-transparent"}`} />
+                                    {t.title}
+                                  </div>
+                                ))}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )} />
