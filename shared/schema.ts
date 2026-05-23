@@ -14736,6 +14736,7 @@ export const oiIssues = pgTable("oi_issues", {
   issueNumber:              text("issue_number").notNull().unique(),
   title:                    text("title").notNull(),
   description:              text("description").notNull(),
+  department:               text("department"),
   category:                 oiCategoryEnum("category").notNull(),
   subCategory:              text("sub_category"),
   projectPhase:             oiProjectPhaseEnum("project_phase").notNull(),

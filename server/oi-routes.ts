@@ -189,6 +189,7 @@ const COMPUTED_FIELDS = new Set([
 const createIssueBodySchema = z.object({
   title:         z.string().min(1).max(500),
   description:   z.string().min(1),
+  department:    z.string().min(1),
   category:      z.enum(["QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COMP","SAFETY","FIN","LEGAL","HR","CUST","SYS","INT","OTHER"]),
   projectPhase:  z.enum(["SALES","ENG","DVS","PROC","MFG","QC","FAT","DISP","LOG","SITE","ERECT","SAT","COMM","PERF","WARR","AFTS"]),
   severity:      z.enum(["S1","S2","S3","S4"]),
@@ -306,6 +307,7 @@ oiRouter.post("/issues", async (req: any, res: any) => {
     issueNumber,
     title:        body.title,
     description:  body.description,
+    department:   body.department,
     category:     body.category as any,
     subCategory:  body.subCategory ?? null,
     projectPhase: body.projectPhase as any,

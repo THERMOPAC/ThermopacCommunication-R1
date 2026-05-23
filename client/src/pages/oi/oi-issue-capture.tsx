@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { OI_DEPARTMENTS } from "./oi-lesson-constants";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, AlertTriangle, Zap } from "lucide-react";
 import { Link } from "wouter";
@@ -55,6 +56,7 @@ const VENDOR_RELEVANT_CATEGORIES = ["PROC", "MFG", "LOG"];
 const captureSchema = z.object({
   title:              z.string().min(5, "Title must be at least 5 characters").max(500),
   description:        z.string().min(10, "Describe the issue in at least 10 characters"),
+  department:         z.string().min(1, "Department is required"),
   category:           z.string().min(1, "Category is required"),
   projectPhase:       z.string().min(1, "Project phase is required"),
   severity:           z.string().min(1, "Severity is required"),
@@ -80,7 +82,7 @@ export default function OiIssueCaptureePage() {
   const form = useForm<CaptureForm>({
     resolver: zodResolver(captureSchema),
     defaultValues: {
-      title: "", description: "", category: "", projectPhase: "", severity: "",
+      title: "", description: "", department: "", category: "", projectPhase: "", severity: "",
       criticalEquipmentFlag: false, criticalPathFlag: false,
     },
   });
@@ -165,6 +167,21 @@ export default function OiIssueCaptureePage() {
                   <FormItem>
                     <FormLabel>Description <span className="text-red-500">*</span></FormLabel>
                     <FormControl><Textarea placeholder="Detailed description — what happened, where, when, what was the impact?" rows={4} {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="department" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department <span className="text-red-500">*</span></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {OI_DEPARTMENTS.map(d => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
