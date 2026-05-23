@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -117,7 +117,10 @@ export default function OiIssueCaptureePage() {
   });
 
   const [titlePopoverOpen, setTitlePopoverOpen] = useState(false);
-  const [descriptionEdited, setDescriptionEdited] = useState(false);
+
+  // Ref = gate (synchronous, no stale-closure risk); state = amber note display only
+  const descEditedRef = useRef(false);
+  const [descEditedDisplay, setDescEditedDisplay] = useState(false);
 
   const { data: titleMaster = [] } = useQuery<any[]>({ queryKey: ["/api/oi/issue-title-master"] });
 
@@ -129,15 +132,16 @@ export default function OiIssueCaptureePage() {
   const watchDept          = form.watch("department");
   const watchProjectId     = form.watch("projectId");
 
-  const SEVERITY_SHORT: Record<string, string> = {
-    S1: "S1 — Critical", S2: "S2 — Major", S3: "S3 — Moderate", S4: "S4 — Minor",
-  };
-
-  // Auto-draft description when all required inputs are present and user hasn't manually edited
+  // Auto-draft description when all required inputs are present and user hasn't manually edited.
+  // Uses a ref (not state) for the gate so there is zero race between the user's keystroke
+  // and the effect — the ref is updated synchronously before any re-render.
   useEffect(() => {
-    if (descriptionEdited) return;
+    if (descEditedRef.current) return;
     if (!watchTitle || !watchDept || !selectedSeverity || !selectedCategory || !selectedPhase) return;
 
+    const SEVERITY_SHORT: Record<string, string> = {
+      S1: "S1 — Critical", S2: "S2 — Major", S3: "S3 — Moderate", S4: "S4 — Minor",
+    };
     const categoryLabel = ISSUE_CATEGORY_LABEL[selectedCategory] ?? selectedCategory;
     const phaseRaw      = PHASE_LABEL[selectedPhase] ?? selectedPhase;
     const phaseLabel    = phaseRaw.includes(" — ") ? phaseRaw.split(" — ")[1] : phaseRaw;
@@ -155,7 +159,9 @@ export default function OiIssueCaptureePage() {
 
     const draft = `Issue observed in ${watchDept} during ${phaseLabel} for ${projectPart}. Category: ${categoryLabel}. Severity: ${severityLabel}. Issue: ${watchTitle}.`;
     form.setValue("description", draft, { shouldValidate: true, shouldDirty: true });
-  }, [watchTitle, watchDept, selectedSeverity, selectedCategory, selectedPhase, watchProjectId, descriptionEdited]);
+  // descEditedRef intentionally omitted — it's a ref, not reactive state
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchTitle, watchDept, selectedSeverity, selectedCategory, selectedPhase, watchProjectId]);
 
   // Filter suggestions: when a filter is selected only show matching (or uncategorised) titles;
   // when nothing is selected yet show everything.
@@ -295,7 +301,10 @@ export default function OiIssueCaptureePage() {
                         type="button"
                         className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40"
                         disabled={!watchTitle || !watchDept || !selectedSeverity || !selectedCategory || !selectedPhase}
-                        onClick={() => setDescriptionEdited(false)}
+                        onClick={() => {
+                          descEditedRef.current = false;
+                          setDescEditedDisplay(false);
+                        }}
                         title="Regenerate description from current inputs"
                       >
                         <RefreshCw className="h-3 w-3" /> Regenerate
@@ -306,10 +315,16 @@ export default function OiIssueCaptureePage() {
                         placeholder="Fill in Title, Department, Severity, Category and Phase above — description will auto-draft here."
                         rows={4}
                         {...field}
-                        onChange={(e) => { field.onChange(e); setDescriptionEdited(true); }}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          // Set ref immediately (synchronous) so any concurrent effect
+                          // sees the gate before it can overwrite
+                          descEditedRef.current = true;
+                          setDescEditedDisplay(true);
+                        }}
                       />
                     </FormControl>
-                    {descriptionEdited && (
+                    {descEditedDisplay && (
                       <p className="text-xs text-amber-600 flex items-center gap-1">
                         Manually edited — click <strong>Regenerate</strong> above to reset to auto-draft.
                       </p>
