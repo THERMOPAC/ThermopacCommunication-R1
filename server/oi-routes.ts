@@ -5,7 +5,7 @@ import {
   insertOiIssueSchema, OiIssue, users,
   customers, vendors, contracts,
   epcDrawingControls, epcPurchaseOrders, epcWorkOrders, inspectionOrders,
-  projects,
+  projects, oiIssueTitleMaster,
 } from "@shared/schema";
 import {
   eq, and, or, desc, asc, ilike, count, lt, isNotNull, isNull, inArray, sql, avg, gte, lte,
@@ -1451,4 +1451,19 @@ oiRouter.put("/config/risk-matrix", async (req: any, res: any) => {
   const [created] = await db.insert(oiRiskMatrixConfig)
     .values({ probability, impact, riskRating, updatedBy: actor.id }).returning();
   return res.json(created);
+});
+
+// ─── Issue Title Master ───────────────────────────────────────────────────────
+oiRouter.get("/issue-title-master", async (_req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(oiIssueTitleMaster)
+      .where(eq(oiIssueTitleMaster.isActive, true))
+      .orderBy(asc(oiIssueTitleMaster.title));
+    return res.json(rows);
+  } catch (err) {
+    console.error("[OI] title-master fetch error", err);
+    return res.status(500).json({ error: "Failed to fetch title master" });
+  }
 });

@@ -12,10 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { OI_DEPARTMENTS } from "./oi-lesson-constants";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, AlertTriangle, Zap } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Zap, ChevronsUpDown, Check } from "lucide-react";
 import { Link } from "wouter";
 
 export const ISSUE_CATEGORIES = [
@@ -116,9 +118,21 @@ export default function OiIssueCaptureePage() {
     },
   });
 
-  const selectedSeverity  = form.watch("severity");
-  const selectedCategory  = form.watch("category");
+  const [titlePopoverOpen, setTitlePopoverOpen] = useState(false);
+
+  const { data: titleMaster = [] } = useQuery<any[]>({ queryKey: ["/api/oi/issue-title-master"] });
+
+  const selectedSeverity   = form.watch("severity");
+  const selectedCategory   = form.watch("category");
+  const selectedPhase      = form.watch("projectPhase");
   const selectedCustomerId = form.watch("customerId");
+
+  // Filter suggestions by selected category / phase — null in master means "any"
+  const suggestedTitles = titleMaster.filter((t: any) => {
+    const catOk   = !t.category     || t.category     === selectedCategory;
+    const phaseOk = !t.projectPhase || t.projectPhase === selectedPhase;
+    return catOk && phaseOk;
+  });
 
   // Filter projects to only those belonging to the selected customer
   const filteredProjects = selectedCustomerId && selectedCustomerId !== "__none__"
@@ -187,7 +201,55 @@ export default function OiIssueCaptureePage() {
                 <FormField control={form.control} name="title" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Issue Title <span className="text-red-500">*</span></FormLabel>
-                    <FormControl><Input placeholder="Brief, clear description of the issue" {...field} /></FormControl>
+                    <Popover open={titlePopoverOpen} onOpenChange={setTitlePopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              placeholder="Type or select an anticipated issue title…"
+                              value={field.value ?? ""}
+                              onChange={(e) => field.onChange(e.target.value)}
+                              onFocus={() => setTitlePopoverOpen(true)}
+                              className="pr-8"
+                            />
+                            <ChevronsUpDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                          </div>
+                        </FormControl>
+                      </PopoverTrigger>
+                      {suggestedTitles.length > 0 && (
+                        <PopoverContent
+                          className="p-0 w-[--radix-popover-trigger-width]"
+                          align="start"
+                          onOpenAutoFocus={(e) => e.preventDefault()}
+                        >
+                          <Command>
+                            <CommandInput placeholder="Search suggestions…" className="h-9" />
+                            <CommandList>
+                              <CommandEmpty>No matching suggestions — your typed title will be used.</CommandEmpty>
+                              <CommandGroup heading={
+                                selectedCategory || selectedPhase
+                                  ? `Suggested for ${selectedCategory ?? ""}${selectedCategory && selectedPhase ? " · " : ""}${selectedPhase ?? ""}`
+                                  : "All suggestions"
+                              }>
+                                {suggestedTitles.map((t: any) => (
+                                  <CommandItem
+                                    key={t.id}
+                                    value={t.title}
+                                    onSelect={(v) => {
+                                      field.onChange(v);
+                                      setTitlePopoverOpen(false);
+                                    }}
+                                  >
+                                    <Check className={`mr-2 h-4 w-4 ${field.value === t.title ? "opacity-100" : "opacity-0"}`} />
+                                    {t.title}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      )}
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )} />

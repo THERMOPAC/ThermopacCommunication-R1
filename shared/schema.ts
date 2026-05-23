@@ -15505,3 +15505,18 @@ export type OiLessonAcknowledgment       = typeof oiLessonAcknowledgments.$infer
 export type InsertOiLessonAcknowledgment = z.infer<typeof insertOiLessonAcknowledgmentSchema>;
 export type OiLessonAuditLog             = typeof oiLessonAuditLog.$inferSelect;
 export type InsertOiLessonAuditLog       = z.infer<typeof insertOiLessonAuditLogSchema>;
+
+// ─── OI Issue Title Master ────────────────────────────────────────────────────
+export const oiIssueTitleMaster = pgTable('oi_issue_title_master', {
+  id:           serial('id').primaryKey(),
+  title:        text('title').notNull(),
+  department:   text('department'),
+  category:     text('category'),
+  projectPhase: text('project_phase'),
+  isActive:     boolean('is_active').notNull().default(true),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertOiIssueTitleMasterSchema = createInsertSchema(oiIssueTitleMaster).omit({ id: true, createdAt: true });
+export type OiIssueTitleMaster       = typeof oiIssueTitleMaster.$inferSelect;
+export type InsertOiIssueTitleMaster = z.infer<typeof insertOiIssueTitleMasterSchema>;
