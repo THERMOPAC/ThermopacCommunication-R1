@@ -20,8 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, BookOpen, CheckCircle, Clock, AlertCircle, Plus, Trash2,
-  FileText, Link2, Users, Eye, ChevronRight, BarChart3, History, MessageSquarePlus,
+  FileText, Link2, Users, Eye, ChevronRight, BarChart3, History, MessageSquarePlus, Download,
 } from "lucide-react";
+import { downloadSopPdf } from "@/lib/sop-pdf";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import {
   SOP_STATUS_LABELS, SOP_STATUS_COLORS, SOP_TYPE_LABELS, SOP_TYPE_COLORS,
@@ -1202,18 +1203,29 @@ export default function OiSopDetail() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Link href="/oi/sop">
           <Button variant="ghost" size="sm" className="gap-1"><ArrowLeft className="h-4 w-4" />Register</Button>
         </Link>
         <ChevronRight className="h-4 w-4 text-gray-400" />
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-blue-100 rounded-lg"><BookOpen className="h-5 w-5 text-blue-700" /></div>
-          <div>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="p-2 bg-blue-100 rounded-lg shrink-0"><BookOpen className="h-5 w-5 text-blue-700" /></div>
+          <div className="min-w-0">
             <h1 className="text-xl font-bold text-gray-900">{sop.sopNumber}</h1>
-            <p className="text-sm text-gray-500">{sop.title}</p>
+            <p className="text-sm text-gray-500 truncate">{sop.title}</p>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 shrink-0"
+          onClick={async () => {
+            try { await downloadSopPdf(sop); }
+            catch { toast({ title: "Download failed", variant: "destructive" }); }
+          }}
+        >
+          <Download className="h-4 w-4" /> Download PDF
+        </Button>
       </div>
 
       {/* Tabs */}

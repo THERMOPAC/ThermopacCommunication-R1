@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Plus, Search, AlertCircle, Clock, CheckCircle, Eye } from "lucide-react";
+import { BookOpen, Plus, Search, AlertCircle, Clock, CheckCircle, Eye, Download } from "lucide-react";
+import { downloadSopPdf } from "@/lib/sop-pdf";
 import { fmtDate } from "@/lib/date-format";
 import {
   SOP_STATUS_LABELS, SOP_STATUS_COLORS, SOP_TYPE_LABELS, SOP_TYPE_COLORS,
@@ -308,11 +309,26 @@ export default function OiSopRegister() {
                     ) : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/oi/sop/${sop.id}`}>
-                      <Button size="sm" variant="ghost" className="gap-1 text-xs">
-                        <Eye className="h-3 w-3" /> View
+                    <div className="flex items-center gap-1">
+                      <Link href={`/oi/sop/${sop.id}`}>
+                        <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                          <Eye className="h-3 w-3" /> View
+                        </Button>
+                      </Link>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1 text-xs text-gray-500 hover:text-blue-700"
+                        title="Download PDF"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          try { await downloadSopPdf(sop); }
+                          catch { /* silent — browser will show no download */ }
+                        }}
+                      >
+                        <Download className="h-3 w-3" />
                       </Button>
-                    </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
