@@ -1228,8 +1228,8 @@ export default function OiSopDetail() {
         department: vals.department, applicableRole: vals.applicableRole,
         processArea: vals.processArea,
         documentReference: vals.documentReference || null,
-        ownerId:    vals.ownerId    ? parseInt(vals.ownerId)    : null,
-        approverId: vals.approverId ? parseInt(vals.approverId) : null,
+        ownerId:    (vals.ownerId    && vals.ownerId    !== "__none__") ? parseInt(vals.ownerId)    : null,
+        approverId: (vals.approverId && vals.approverId !== "__none__") ? parseInt(vals.approverId) : null,
         ...(isSM && {
           effectiveDate:  vals.effectiveDate  ? new Date(vals.effectiveDate).toISOString()  : null,
           reviewDueDate:  vals.reviewDueDate  ? new Date(vals.reviewDueDate).toISOString()  : null,
@@ -1364,10 +1364,10 @@ export default function OiSopDetail() {
                 )} />
                 <FormField control={editForm.control} name="ownerId" render={({ field }) => (
                   <FormItem><FormLabel>Owner</FormLabel>
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <Select value={field.value || "__none__"} onValueChange={field.onChange}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select owner…" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="">— None —</SelectItem>
+                        <SelectItem value="__none__">— None —</SelectItem>
                         {(users as any[]).map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.displayName ?? u.username}</SelectItem>)}
                       </SelectContent>
                     </Select><FormMessage />
@@ -1376,10 +1376,10 @@ export default function OiSopDetail() {
                 {isSM && (
                   <FormField control={editForm.control} name="approverId" render={({ field }) => (
                     <FormItem><FormLabel>Approver</FormLabel>
-                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <Select value={field.value ?? "__none__"} onValueChange={field.onChange}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select approver…" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          <SelectItem value="">— None —</SelectItem>
+                          <SelectItem value="__none__">— None —</SelectItem>
                           {(users as any[]).map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.displayName ?? u.username}</SelectItem>)}
                         </SelectContent>
                       </Select><FormMessage />
