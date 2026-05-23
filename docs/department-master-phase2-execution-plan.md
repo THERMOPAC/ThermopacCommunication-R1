@@ -1,6 +1,6 @@
 # Department Master — Phase 2 Execution Plan
-**Status:** PENDING APPROVAL  
-**Version:** 1.1  
+**Status:** APPROVED — READY FOR IMPLEMENTATION  
+**Version:** 1.2  
 **Date:** 2026-05-23  
 **Author:** System Architect  
 **Prerequisite:** Phase 1 Audit (`docs/department-master-phase1-audit.md`) approved.
@@ -10,6 +10,7 @@
 |---|---|---|
 | 1.0 | 2026-05-23 | Initial plan |
 | 1.1 | 2026-05-23 | Correction C1: `GET /api/departments` made public (no auth). Correction C2: name uniqueness changed to case-insensitive expression index. |
+| 1.2 | 2026-05-23 | **Amendment A:** Step 4 made atomic — `attendance-management-page.tsx` shape fix ships with route change. **Amendment B:** `loadValidDepartments()` hardened with DB-failure fallback, empty-table fallback, and hardcoded guard — `_validDepts` must never become empty. Impact assessment approved. |
 
 ---
 
@@ -260,27 +261,92 @@ Steps must be executed in exact order. Each step is independently deployable and
    ```
 5. **Old routes still intact** — new route is additive, nothing migrates yet.
 
-### Step 4 — Replace `GET /api/admin/departments`
+### Step 4 — Replace `GET /api/admin/departments` *(atomic with UI fix — deploy together)*
+
+> **Amendment A:** Impact assessment confirmed that `client/src/pages/admin/attendance-management-page.tsx`
+> (line 959) maps the response as `string[]`. When the shape changes to `object[]` this dropdown
+> renders `[object Object]`. The route change and the UI fix **must ship as one atomic commit**.
+> Deploying the route change alone will break the Attendance Management page.
+
 1. In `server/admin-routes.ts` replace the `users.department` DISTINCT query with `department_master` read
-2. Update response from `string[]` to `DepartmentMaster[]`
-3. Verify no caller breaks (internal admin use only)
+2. Update response from `string[]` to `DepartmentMaster[]` (returns all 12 rows including inactive)
+3. In `client/src/pages/admin/attendance-management-page.tsx` update line 959 — change:
+   ```tsx
+   // BEFORE (breaks after shape change):
+   departments.map((dept: string) => (
+     <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+   ))
+   ```
+   to:
+   ```tsx
+   // AFTER (correct — reads .name from object):
+   departments.map((dept: { id: number; name: string; isActive: boolean }) => (
+     <SelectItem key={dept.name} value={dept.name}>{dept.name}</SelectItem>
+   ))
+   ```
+4. Both files must be in the same deploy. Do not merge Step 4 with either file missing.
+5. Verify no other caller breaks (`grep -r "api/admin/departments"` — only `attendance-management-page.tsx` was the sole consumer)
 
 ### Step 5 — Replace `VALID_DEPARTMENTS` in route files
+
+> **Amendment B:** Impact assessment identified that if `loadValidDepartments()` fails (DB unavailable)
+> or the table is unexpectedly empty, `_validDepts` would become an empty `Set`. Every subsequent
+> SOP/enforcement `POST` would return `422 invalid_department`, locking out all writes.
+> **`_validDepts` must never become empty.** Three-layer guard is mandatory.
+
 1. `server/oi-sop-routes.ts` — replace hardcoded array with module-level cached DB load
 2. `server/oi-enforcement-routes.ts` — same
-3. Pattern:
+3. **Mandatory pattern — three-layer guard (Amendment B):**
    ```typescript
-   // Loaded once at module init; refreshed on deploy
-   let _validDepts: Set<string> = new Set();
-   export async function loadValidDepartments() {
-     const rows = await db.select({ name: departmentMaster.name })
-       .from(departmentMaster).where(eq(departmentMaster.isActive, true));
-     _validDepts = new Set(rows.map(r => r.name));
+   import { departmentMaster } from '@shared/schema';
+   import { eq } from 'drizzle-orm';
+   import { db } from './db';
+
+   // Hardcoded fallback — the 10 canonical active departments.
+   // ONLY used if DB query fails or returns 0 rows. Never used in normal operation.
+   // Must be kept in sync with seed data manually if canonical list changes.
+   const DEPT_HARDCODED_FALLBACK = new Set([
+     "Accounts", "Administration", "After Sales", "Design", "Marketing",
+     "Production", "Projects", "Purchase", "Quality Control", "Stores",
+   ]);
+
+   // Loaded once at module init; refreshed on every deploy/restart.
+   // Amendment B: _validDepts must NEVER become empty — three guards below.
+   let _validDepts: Set<string> = new Set(DEPT_HARDCODED_FALLBACK); // safe default at module load
+
+   export async function loadValidDepartments(): Promise<void> {
+     try {
+       const rows = await db
+         .select({ name: departmentMaster.name })
+         .from(departmentMaster)
+         .where(eq(departmentMaster.isActive, true));
+
+       if (rows.length > 0) {
+         // Guard 1 (normal path): DB returned rows — use them.
+         _validDepts = new Set(rows.map(r => r.name));
+         console.log(`[DeptSeed] _validDepts loaded from DB — ${_validDepts.size} active departments.`);
+       } else {
+         // Guard 2 (empty table): department_master exists but has 0 active rows.
+         // This should never happen after seed; fall back to hardcoded list, log prominently.
+         _validDepts = new Set(DEPT_HARDCODED_FALLBACK);
+         console.warn("[DeptSeed] WARNING: department_master has 0 active rows — using hardcoded fallback. Run seed.");
+       }
+     } catch (err) {
+       // Guard 3 (DB failure): connection error or query failure.
+       // Do NOT clear _validDepts — it was initialised to hardcoded fallback at module load,
+       // so it already contains the safe list. Log the error.
+       console.error("[DeptSeed] ERROR: Failed to load valid departments from DB — retaining fallback:", err);
+       // _validDepts is NOT reassigned here — hardcoded default from module init remains active.
+     }
    }
-   // In route handler:
-   if (!_validDepts.has(department)) return res.status(422).json({ error: "invalid_department" });
+
+   // In route handler — unchanged API:
+   if (!_validDepts.has(department)) {
+     return res.status(422).json({ error: "invalid_department" });
+   }
    ```
-4. `loadValidDepartments()` called from `server/index.ts` after seed.
+4. `loadValidDepartments()` called from `server/index.ts` after `seedDepartmentMaster()` completes.
+5. **Invariant:** `_validDepts.size` is always ≥ 10. If it is ever 0, a bug has been introduced — treat as P0.
 
 ### Step 6 — Frontend `useDepartments()` hook (no UI wiring yet)
 1. Create `client/src/hooks/use-departments.ts`
@@ -413,17 +479,26 @@ Phase 2 only creates the hook. No component changes. The full sequence across ph
 - [ ] C2 — Zod transform test: posting `name: "quality control"` via API → stored as `"Quality Control"`
 - [ ] Existing OI/SOP dropdowns still work (still using hardcoded lists — no regression)
 
-### After Step 4 (Admin route)
-- [ ] `GET /api/admin/departments` (Superuser) → 12 rows including inactive
+### After Step 4 (Admin route + UI fix — Amendment A)
+- [ ] `GET /api/admin/departments` (Superuser) → 12 rows including inactive, each an `object` with `id`, `name`, `code`, `sortOrder`, `isActive`
 - [ ] `GET /api/admin/departments` (Employee role) → 403
-- [ ] Admin user management page department filter still loads
+- [ ] **Attendance Management page** (`/admin/attendance`) loads without errors
+- [ ] Department filter dropdown on Attendance Management page shows correct department names (not `[object Object]`)
+- [ ] Selecting a department in the attendance filter correctly filters attendance records
+- [ ] No `[object Object]` visible anywhere on the page
+- [ ] `grep -r "api/admin/departments"` confirms no other consumer exists beyond `attendance-management-page.tsx`
 
-### After Step 5 (VALID_DEPARTMENTS replaced)
+### After Step 5 (VALID_DEPARTMENTS replaced — Amendment B)
+- [ ] Server startup log shows: `[DeptSeed] _validDepts loaded from DB — 10 active departments.`
+- [ ] `_validDepts.size` is 10 — never 0 at any point during or after startup
 - [ ] `POST /api/oi/sop` with valid dept (e.g. "Accounts") → 201 OK
 - [ ] `POST /api/oi/sop` with invalid dept (e.g. "Finance") → 422 `invalid_department`
 - [ ] `POST /api/oi/enforcement/controls` with valid dept → 201 OK
-- [ ] `POST /api/oi/enforcement/controls` with "Engineering" → 422 (inactive dept rejected)
-- [ ] Server log on startup shows departments loaded into `_validDepts`
+- [ ] `POST /api/oi/enforcement/controls` with "Engineering" → 422 (inactive dept correctly rejected)
+- [ ] **Guard 2 test (empty table):** Temporarily truncate `department_master` → restart → server log shows `WARNING: department_master has 0 active rows — using hardcoded fallback` → SOP `POST` with "Accounts" still returns 201 (not 422)
+- [ ] **Guard 3 test (DB failure):** Set invalid `DATABASE_URL` → restart → server log shows `ERROR: Failed to load valid departments from DB` → `_validDepts` still contains 10 hardcoded entries → restore `DATABASE_URL`
+- [ ] After restoring DB, restart → `_validDepts` reloads from DB (Guard 1 path), startup log shows 10 departments
+- [ ] Hardcoded fallback constant `DEPT_HARDCODED_FALLBACK` in source matches the 10 canonical active departments exactly
 
 ### After Step 6 (Hook)
 - [ ] `use-departments.ts` compiles without TypeScript errors
@@ -480,7 +555,8 @@ Set `USE_DB_VALID_DEPTS=false` during initial deploy; flip to `true` after valid
 | **C1 — Public endpoint exposure** | `GET /api/departments` returns only `id`, `name`, `code`, `sortOrder` — zero PII, zero business-sensitive data. Existing Express rate-limit middleware covers it. |
 | **C2 — Case-insensitive uniqueness is DB-enforced** | Expression index `LOWER(name)` is enforced at the PostgreSQL level — cannot be bypassed by any application path, including direct DB inserts during future admin operations |
 | **C2 — Zod title-case transform is belt-and-suspenders** | Applied on write only; never transforms stored names on read — no risk of corrupting existing data |
-| **Backward-compatible admin route** | Step 4 changes shape of admin response from `string[]` to `object[]` — low blast radius (internal admin use only, no known external consumers) |
+| **Backward-compatible admin route (Amendment A)** | Step 4 atomically updates `GET /api/admin/departments` (shape: `string[]` → `object[]`) **and** `attendance-management-page.tsx` line 959 (`dept` → `dept.name`) in one commit. The sole confirmed consumer is patched in the same deployment — zero blast radius. |
+| **`_validDepts` never-empty invariant (Amendment B)** | `_validDepts` initialised to `DEPT_HARDCODED_FALLBACK` at module load (Guard 3). Empty-table case (Guard 2) falls back to hardcoded list with a prominent warning log. DB failure (Guard 3) retains module-init value — `_validDepts` is never reassigned to an empty set in any failure path. Invariant: `_validDepts.size ≥ 10` always. |
 | **Legacy rows as inactive** | "Engineering" and "General Management" stored but hidden from dropdowns — no data loss |
 | **Git checkpoint** | Checkpoint `dae68cef` is the rollback baseline for full revert |
 | **5-min cache on frontend** | `staleTime: 5 * 60 * 1000` on the hook prevents thundering herd after deploy |
