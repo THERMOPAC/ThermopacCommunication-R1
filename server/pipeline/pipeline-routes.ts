@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { pool } from '../db';
 import { sql } from 'drizzle-orm';
-import { generateExecutionDrafts } from './generate-execution-drafts';
+import { generateExecutionDrafts, syncAndGenerateExecutionDrafts } from './generate-execution-drafts';
 import { approveDraft, rejectDraft, holdDraft, resumeDraft } from './draft-approval';
 import { activateDraft, linkEntityToDraft } from './draft-activation';
 import { redraftFromRejected } from './draft-redraft';
@@ -100,7 +100,7 @@ router.post('/api/projects/:projectId/execution-drafts/generate', async (req: Re
   if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
 
   try {
-    const summary = await generateExecutionDrafts(projectId, user.id);
+    const summary = await syncAndGenerateExecutionDrafts(projectId, user.id);
     res.json(summary);
   } catch (error: any) {
     console.error('[pipeline-routes] Error generating drafts:', error);

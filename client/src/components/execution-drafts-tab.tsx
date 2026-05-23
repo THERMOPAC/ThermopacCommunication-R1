@@ -86,10 +86,12 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
   const generateMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/projects/${projectId}/execution-drafts/generate`),
     onSuccess: (data: any) => {
-      if (data.created === 0) {
-        toast({ title: "EPC Workflow Up to Date", description: "All project items already have execution drafts. No new items found." });
+      if (data.itemsAdded === 0 && data.created === 0) {
+        toast({ title: "EPC Workflow Up to Date", description: "No new items found in the product catalog. All existing items already have execution drafts." });
+      } else if (data.itemsAdded > 0 && data.created === 0) {
+        toast({ title: "Items Synced", description: `${data.itemsAdded} new item(s) added from the product catalog, but all already had drafts.` });
       } else {
-        toast({ title: "EPC Workflow Updated", description: `Generated drafts for ${data.created} new item(s). ${data.notApplicable} not applicable.` });
+        toast({ title: "EPC Workflow Updated", description: `${data.itemsAdded > 0 ? `${data.itemsAdded} item(s) synced from catalog. ` : ""}Generated drafts for ${data.created} item(s).` });
       }
       invalidateDrafts();
     },

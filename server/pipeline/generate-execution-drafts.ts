@@ -1,12 +1,126 @@
-import { db } from '../db';
+import { db, pool } from '../db';
 import { sql } from 'drizzle-orm';
 import { getNextDocSeq } from '../doc-sequence-service';
 import { createEpcTask } from '../epc-task-helpers';
 import { resolveEpcAssignee } from '../epc-assignment-engine';
+import * as epcCoding from '../epc-coding';
 import {
   DraftDocType, ApprovalStatus, DependencyStatus,
   DraftGenerationSummary, ROUTING_MAP, SLA_DAYS, PRIORITY_MAP,
 } from './pipeline-types';
+
+export interface SyncAndGenerateSummary extends DraftGenerationSummary {
+  itemsAdded: number;
+}
+
+export async function syncAndGenerateExecutionDrafts(
+  projectId: number,
+  userId: number
+): Promise<SyncAndGenerateSummary> {
+  const itemsAdded = await syncMissingProductChildren(projectId);
+  const summary = await generateExecutionDrafts(projectId, userId);
+  return { ...summary, itemsAdded };
+}
+
+async function syncMissingProductChildren(projectId: number): Promise<number> {
+  const projResult = await db.execute(
+    sql`SELECT id, code, fy_code, project_seq FROM projects WHERE id = ${projectId}`
+  );
+  if (projResult.rows.length === 0) throw new Error(`Project ${projectId} not found`);
+  const project = projResult.rows[0];
+  const fyCode = project.fy_code as string;
+  const projectSeq = project.project_seq as string;
+  const projectCode = project.code as string;
+
+  const bpResult = await db.execute(
+    sql`SELECT bp_code FROM project_items WHERE project_id = ${projectId} AND bp_code IS NOT NULL LIMIT 1`
+  );
+  const customerBpCode = (bpResult.rows.length > 0 ? bpResult.rows[0].bp_code as string : '') || '';
+
+  const level2Items = await db.execute(
+    sql`SELECT id, product_code, parent_project_item_id
+        FROM project_items
+        WHERE project_id = ${projectId}
+          AND parent_project_item_id IS NOT NULL
+          AND product_code IS NOT NULL`
+  );
+
+  if (level2Items.rows.length === 0) return 0;
+
+  let itemsAdded = 0;
+  const client = await pool.connect();
+  try {
+    for (const parentItem of level2Items.rows) {
+      const parentProjectItemId = parentItem.id as number;
+      const productCode = parentItem.product_code as string;
+
+      const productResult = await db.execute(
+        sql`SELECT id FROM products WHERE product_code = ${productCode} LIMIT 1`
+      );
+      if (productResult.rows.length === 0) continue;
+      const productId = productResult.rows[0].id as number;
+
+      const childRows = await db.execute(
+        sql`SELECT pc.quantity, pc.sort_order, p.product_code, p.description, p.unit,
+                   p.unit_price, p.make_or_buy, p.hsn_sac_code
+            FROM product_children pc
+            JOIN products p ON p.id = pc.child_product_id
+            WHERE pc.parent_product_id = ${productId}
+            ORDER BY pc.sort_order, pc.id`
+      );
+      if (childRows.rows.length === 0) continue;
+
+      for (const child of childRows.rows) {
+        const childProductCode = child.product_code as string;
+        const likePattern = `%-${childProductCode}-%`;
+
+        const dupCheck = await db.execute(
+          sql`SELECT id FROM project_items
+              WHERE project_id = ${projectId}
+                AND parent_project_item_id = ${parentProjectItemId}
+                AND item_code LIKE ${likePattern}
+              LIMIT 1`
+        );
+        if (dupCheck.rows.length > 0) continue;
+
+        const childBaseCode = customerBpCode
+          ? `${customerBpCode}-${childProductCode}`
+          : childProductCode;
+        const childItemCode = epcCoding.buildProjectItemCode(childBaseCode, fyCode, projectSeq);
+        const childCodeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
+
+        const childMasterResult = await db.execute(
+          sql`SELECT id FROM master_items WHERE item_code = ${childBaseCode} LIMIT 1`
+        );
+        const childMasterItemId = childMasterResult.rows.length > 0
+          ? childMasterResult.rows[0].id as number
+          : null;
+
+        const makeOrBuy = (child.make_or_buy as string) || 'Make';
+        const qty = Number(child.quantity) || 1;
+        const desc = child.description as string;
+        const uom = (child.unit as string) || 'set';
+        const estimatedCost = child.unit_price as string | null;
+
+        await db.execute(
+          sql`INSERT INTO project_items
+              (project_id, project_code, item_id, item_code, code_bars, description, uom,
+               make_or_buy, quantity, estimated_cost, notes, status, source,
+               parent_project_item_id, product_code, created_at, updated_at)
+              VALUES (${projectId}, ${projectCode}, ${childMasterItemId}, ${childItemCode},
+                      ${childCodeBars}, ${desc}, ${uom}, ${makeOrBuy},
+                      ${qty}, ${estimatedCost}, ${desc}, 'Not Started', 'epc_workflow_sync',
+                      ${parentProjectItemId}, ${childProductCode}, NOW(), NOW())`
+        );
+        itemsAdded++;
+        console.log(`[EPC Sync] Added missing item ${childItemCode} under parent #${parentProjectItemId}`);
+      }
+    }
+  } finally {
+    client.release();
+  }
+  return itemsAdded;
+}
 
 interface ProjectRecord {
   id: number;
