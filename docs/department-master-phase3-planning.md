@@ -1,8 +1,8 @@
 # Department Master — Phase 3 Planning
-**Version**: 1.0 DRAFT  
+**Version**: 1.1  
 **Date**: 2026-05-23  
 **Status**: PLANNING ONLY — No implementation in this document  
-**Prerequisite**: Phase 2 complete and closed ✅
+**Prerequisite**: Phase 2 complete and closed ✅ | Engineering remapping complete ✅
 
 ---
 
@@ -17,14 +17,16 @@ entire OI module.
 
 ## 2. Mandatory Prerequisite Before Phase 3 Begins
 
-### 2.1 Legacy "Engineering" User Department Mapping
+### 2.1 Legacy "Engineering" User Department Mapping — RESOLVED ✅
 
-A database scan performed at Phase 2 closure found the following active "Engineering" references:
+**Resolution applied 2026-05-23.** Both Engineering references have been remapped to "Design".
+
+#### Pre-update state
 
 | Table | Column | Engineering rows |
 |---|---|---|
-| `users` | `department` | **1 user** |
-| `workweek_policies` | `department` | **1 row** |
+| `users` | `department` | 1 (`id=58`, `username=dvs_test_user`) |
+| `workweek_policies` | `department` | 1 (`id=5`) |
 | `oi_issues` | `department` | 0 |
 | `oi_sop_records` | `department` | 0 |
 | `oi_enforcement_controls` | `department` | 0 |
@@ -32,24 +34,62 @@ A database scan performed at Phase 2 closure found the following active "Enginee
 | `department_page_permissions` | `department` | 0 |
 | `epc_assignment_rules` | `department` | 0 |
 
-The `users.department` value is a free-text field; `department_page_permissions.department` is also
-free-text and currently has no "Engineering" row. The `workweek_policies.department` Engineering
-row must not be deleted — it governs leave/payroll computation for the user assigned to it.
+#### Updates applied
 
-**Resolution required before Phase 3:**
+```sql
+UPDATE users SET department = 'Design' WHERE department = 'Engineering';
+-- Affected: 1 row  — id=58, username=dvs_test_user
 
-1. **Confirm with HR/Admin** whether the 1 Engineering-department user should be remapped to an
-   active department (e.g. "Design" or "Projects") or left as-is.
-2. If the user is remapped in `users.department`, the corresponding `workweek_policies` row must
-   also be updated to match.
-3. `oi-lesson-constants.ts` currently lists "Engineering" in `OI_DEPARTMENTS` — this is the only
-   OI constant that includes Engineering (11 items vs 10 items in the other two). No OI records
-   currently reference Engineering, but the constant must still be addressed.
-4. **Decision gate**: If no Engineering remapping is feasible before Phase 3, `useDepartments()`
-   must be extended to accept an `includeInactive` flag so that legacy "Engineering" records can
-   be shown correctly without re-activating the department.
+UPDATE workweek_policies SET department = 'Design' WHERE department = 'Engineering';
+-- Affected: 1 row  — id=5
+```
 
-Until this decision is made and applied, **Phase 3 must not start**.
+#### Post-update verification
+
+```
+users id=58:             { username: "dvs_test_user", department: "Design" }  ✅
+workweek_policies id=5:  { department: "Design" }                             ✅
+```
+
+#### Global Engineering scan — all tables with a `department` column
+
+| Table | Engineering rows |
+|---|---|
+| `access_denied_log` | 0 |
+| `appraisal_kpi_templates` | 0 |
+| `department_page_permissions` | 0 |
+| `directory_templates` | 0 |
+| `employee_appraisals` | 0 |
+| `employee_salaries` | 0 |
+| `epc_assignment_rules` | 0 |
+| `gcs_directories` | 0 |
+| `oi_enforcement_controls` | 0 |
+| `oi_issue_title_master` | 0 |
+| `oi_issues` | 0 |
+| `oi_sop_records` | 0 |
+| `sap_purchase_requisitions` | 0 |
+| `users` | 0 ✅ |
+| `workweek_policies` | 0 ✅ |
+
+#### Only permitted remaining "Engineering" reference
+
+```
+department_master: id=11, name="Engineering", code="ENG", is_active=false  ✅
+```
+
+This inactive record is intentionally retained as an audit trail. It is excluded from
+`GET /api/departments` (active-only filter) and will never appear in any client dropdown.
+
+#### Impact on OI_DEPARTMENTS constant
+
+`oi-lesson-constants.ts` `OI_DEPARTMENTS` still lists "Engineering" (11 items). With the DB
+remapping complete, this is now a dead entry — no user, OI record, or policy references
+Engineering. Phase 3 Wave 3 will remove it during the `OI_DEPARTMENTS → useDepartments()`
+migration, reducing the list from 11 to 10 items to match the other two constants and the DB.
+
+The `includeInactive` flag decision (deferred option from original draft) is **no longer needed**.
+
+**This prerequisite is fully resolved. Phase 3 may proceed.**
 
 ---
 
