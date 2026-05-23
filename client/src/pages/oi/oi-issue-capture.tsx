@@ -49,9 +49,28 @@ export const ISSUE_CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
 
 const CATEGORIES = ISSUE_CATEGORIES;
 
-const PHASES = [
-  "SALES","ENG","DVS","PROC","MFG","QC","FAT","DISP","LOG","SITE","ERECT","SAT","COMM","PERF","WARR","AFTS"
+export const PHASES = [
+  { value: "SALES",  label: "SALES — Sales" },
+  { value: "ENG",    label: "ENG — Engineering" },
+  { value: "DVS",    label: "DVS — Design Verification" },
+  { value: "PROC",   label: "PROC — Procurement" },
+  { value: "MFG",    label: "MFG — Manufacturing" },
+  { value: "QC",     label: "QC — Quality Control" },
+  { value: "FAT",    label: "FAT — Factory Acceptance Test" },
+  { value: "DISP",   label: "DISP — Dispatch" },
+  { value: "LOG",    label: "LOG — Logistics" },
+  { value: "SITE",   label: "SITE — Site" },
+  { value: "ERECT",  label: "ERECT — Erection" },
+  { value: "SAT",    label: "SAT — Site Acceptance Test" },
+  { value: "COMM",   label: "COMM — Commissioning" },
+  { value: "PERF",   label: "PERF — Performance" },
+  { value: "WARR",   label: "WARR — Warranty" },
+  { value: "AFTS",   label: "AFTS — After Sales" },
 ];
+
+export const PHASE_LABEL: Record<string, string> = Object.fromEntries(
+  PHASES.map(p => [p.value, p.label])
+);
 
 const SEVERITIES = [
   { value: "S1", label: "S1 — Critical (immediate escalation)", color: "text-red-600" },
@@ -235,7 +254,7 @@ export default function OiIssueCaptureePage() {
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select phase" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {PHASES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                          {PHASES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       <FormMessage />

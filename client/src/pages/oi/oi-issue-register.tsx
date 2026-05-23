@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Clock, AlertTriangle, SearchCode } from "lucide-react";
 import { fmtDate } from "@/lib/date-format";
-import { ISSUE_CATEGORIES, ISSUE_CATEGORY_LABEL } from "./oi-issue-capture";
+import { ISSUE_CATEGORIES, ISSUE_CATEGORY_LABEL, PHASE_LABEL } from "./oi-issue-capture";
 
 const STATUS_COLORS: Record<string, string> = {
   captured:      "bg-gray-100 text-gray-800 border-gray-200",
@@ -210,7 +210,7 @@ export default function OiIssueRegisterPage() {
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
                           <span>{ISSUE_CATEGORY_LABEL[issue.category] ?? issue.category}</span>
                           <span>·</span>
-                          <span>{issue.projectPhase}</span>
+                          <span>{PHASE_LABEL[issue.projectPhase] ?? issue.projectPhase}</span>
                           <span>·</span>
                           <span>{fmtDate(issue.createdAt)}</span>
                           {issue.responseSlaBreached && (
