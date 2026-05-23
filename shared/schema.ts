@@ -2202,7 +2202,7 @@ export const projectItems = pgTable('project_items', {
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectCode: text('project_code').notNull(),
   itemId: integer('item_id').references(() => masterItems.id),
-  itemCode: text('item_code'),
+  itemCode: text('item_code').unique(),
   description: text('description'),
   uom: text('uom'),
   makeOrBuy: text('make_or_buy'),

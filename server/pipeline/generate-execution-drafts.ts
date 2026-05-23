@@ -72,21 +72,16 @@ async function syncMissingProductChildren(projectId: number): Promise<number> {
 
       for (const child of childRows.rows) {
         const childProductCode = child.product_code as string;
-        const likePattern = `%-${childProductCode}-%`;
-
-        const dupCheck = await db.execute(
-          sql`SELECT id FROM project_items
-              WHERE project_id = ${projectId}
-                AND parent_project_item_id = ${parentProjectItemId}
-                AND item_code LIKE ${likePattern}
-              LIMIT 1`
-        );
-        if (dupCheck.rows.length > 0) continue;
 
         const childBaseCode = customerBpCode
           ? `${customerBpCode}-${childProductCode}`
           : childProductCode;
         const childItemCode = epcCoding.buildProjectItemCode(childBaseCode, fyCode, projectSeq);
+
+        const dupCheck = await db.execute(
+          sql`SELECT id FROM project_items WHERE item_code = ${childItemCode} LIMIT 1`
+        );
+        if (dupCheck.rows.length > 0) continue;
         const childCodeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
 
         const childMasterResult = await db.execute(
