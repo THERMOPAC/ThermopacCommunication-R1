@@ -190,7 +190,7 @@ const createIssueBodySchema = z.object({
   title:         z.string().min(1).max(500),
   description:   z.string().min(1),
   department:    z.string().min(1),
-  category:      z.enum(["QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COMP","SAFETY","FIN","LEGAL","HR","CUST","SYS","INT","OTHER"]),
+  category:      z.enum(["QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COMP","SAFETY","FIN","LEGAL","HR","CUST","SYS","INT","OTHER","PROJECT","MAINT","STORE","SALES","QA"]),
   projectPhase:  z.enum(["SALES","ENG","DVS","PROC","MFG","QC","FAT","DISP","LOG","SITE","ERECT","SAT","COMM","PERF","WARR","AFTS"]),
   severity:      z.enum(["S1","S2","S3","S4"]),
   projectId:     z.number().int().positive().optional().nullable(),

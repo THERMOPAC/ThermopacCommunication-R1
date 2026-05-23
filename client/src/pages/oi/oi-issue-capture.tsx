@@ -18,26 +18,36 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, AlertTriangle, Zap } from "lucide-react";
 import { Link } from "wouter";
 
-const CATEGORIES = [
-  { value: "QC",     label: "Quality Control" },
-  { value: "DWG",    label: "Drawing / Design" },
-  { value: "PROC",   label: "Procurement" },
-  { value: "MFG",    label: "Manufacturing" },
-  { value: "SITE",   label: "Site" },
-  { value: "COMM",   label: "Commissioning" },
-  { value: "LOG",    label: "Logistics" },
-  { value: "DOC",    label: "Documentation" },
-  { value: "SAP",    label: "SAP / ERP" },
-  { value: "COMP",   label: "Compliance" },
-  { value: "SAFETY", label: "Safety" },
-  { value: "FIN",    label: "Finance" },
-  { value: "LEGAL",  label: "Legal" },
-  { value: "HR",     label: "HR" },
-  { value: "CUST",   label: "Customer" },
-  { value: "SYS",    label: "Systems / IT" },
-  { value: "INT",    label: "Integration" },
-  { value: "OTHER",  label: "Other" },
+export const ISSUE_CATEGORIES = [
+  { value: "QC",      label: "Quality Control" },
+  { value: "QA",      label: "Quality Assurance" },
+  { value: "DWG",     label: "Design / Drawings" },
+  { value: "PROC",    label: "Procurement" },
+  { value: "MFG",     label: "Production / Manufacturing" },
+  { value: "PROJECT", label: "Project Management" },
+  { value: "MAINT",   label: "Maintenance" },
+  { value: "STORE",   label: "Stores / Inventory" },
+  { value: "SITE",    label: "Site" },
+  { value: "COMM",    label: "Commissioning / Startup" },
+  { value: "LOG",     label: "Logistics" },
+  { value: "SALES",   label: "Sales / Proposal" },
+  { value: "DOC",     label: "Documentation" },
+  { value: "SAP",     label: "SAP / ERP" },
+  { value: "COMP",    label: "Compliance" },
+  { value: "SAFETY",  label: "Safety" },
+  { value: "FIN",     label: "Finance" },
+  { value: "LEGAL",   label: "Legal" },
+  { value: "HR",      label: "HR" },
+  { value: "CUST",    label: "Customer" },
+  { value: "SYS",     label: "Systems / IT Infrastructure" },
+  { value: "INT",     label: "Software / Integration" },
 ];
+
+export const ISSUE_CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  [...ISSUE_CATEGORIES, { value: "OTHER", label: "Other" }].map(c => [c.value, c.label])
+);
+
+const CATEGORIES = ISSUE_CATEGORIES;
 
 const PHASES = [
   "SALES","ENG","DVS","PROC","MFG","QC","FAT","DISP","LOG","SITE","ERECT","SAT","COMM","PERF","WARR","AFTS"

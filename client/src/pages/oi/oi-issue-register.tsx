@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Clock, AlertTriangle, SearchCode } from "lucide-react";
 import { fmtDate } from "@/lib/date-format";
+import { ISSUE_CATEGORIES, ISSUE_CATEGORY_LABEL } from "./oi-issue-capture";
 
 const STATUS_COLORS: Record<string, string> = {
   captured:      "bg-gray-100 text-gray-800 border-gray-200",
@@ -28,7 +29,7 @@ const SEV_COLORS: Record<string, string> = {
   S4: "bg-blue-400 text-white",
 };
 
-const CATEGORIES = ["QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COMP","SAFETY","FIN","LEGAL","HR","CUST","SYS","INT","OTHER"];
+const CATEGORIES = ISSUE_CATEGORIES;
 const STATUSES   = ["captured","classified","investigating","verified","closed","reopened","withdrawn"];
 
 export default function OiIssueRegisterPage() {
@@ -115,7 +116,7 @@ export default function OiIssueRegisterPage() {
                 <SelectTrigger className="h-9 w-32"><SelectValue placeholder="Category" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All categories</SelectItem>
-                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={slaFilter} onValueChange={setSlaFilter}>
@@ -207,7 +208,7 @@ export default function OiIssueRegisterPage() {
                           <span className="text-sm font-medium text-gray-900 truncate">{issue.title}</span>
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
-                          <span>{issue.category}</span>
+                          <span>{ISSUE_CATEGORY_LABEL[issue.category] ?? issue.category}</span>
                           <span>·</span>
                           <span>{issue.projectPhase}</span>
                           <span>·</span>

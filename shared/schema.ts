@@ -14680,6 +14680,7 @@ export const oiSeverityEnum = pgEnum("oi_severity", ["S1","S2","S3","S4"]);
 export const oiCategoryEnum = pgEnum("oi_category", [
   "QC","DWG","PROC","MFG","SITE","COMM","LOG","DOC","SAP","COMP",
   "SAFETY","FIN","LEGAL","HR","CUST","SYS","INT","OTHER",
+  "PROJECT","MAINT","STORE","SALES","QA",
 ]);
 export const oiProjectPhaseEnum = pgEnum("oi_project_phase", [
   "SALES","ENG","DVS","PROC","MFG","QC","FAT","DISP","LOG",

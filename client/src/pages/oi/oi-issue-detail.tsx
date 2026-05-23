@@ -13,6 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { fmtDate, fmtDateTime } from "@/lib/date-format";
 import { Link as WouterLink } from "wouter";
+import { ISSUE_CATEGORY_LABEL } from "./oi-issue-capture";
 import {
   ArrowLeft, Clock, AlertTriangle, User, ChevronRight, ShieldAlert, Activity,
   Link2, DollarSign, Scale, Timer, BarChart2, SearchCode, CheckCircle,
@@ -379,7 +380,7 @@ export default function OiIssueDetailPage() {
                 <p className="text-sm text-gray-900 whitespace-pre-wrap">{issue.description}</p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <Field label="Category"         value={issue.category} />
+                <Field label="Category"         value={ISSUE_CATEGORY_LABEL[issue.category] ?? issue.category} />
                 <Field label="Project Phase"    value={issue.projectPhase} />
                 <Field label="Sub-Category"     value={issue.subCategory} />
                 <Field label="Equipment Family" value={issue.equipmentFamily} />
