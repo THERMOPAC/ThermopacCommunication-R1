@@ -877,7 +877,7 @@ function SectionsTab({ sop }: { sop: any }) {
           <FileText className="h-12 w-12 mx-auto mb-2 opacity-30" />
           <p className="text-sm font-medium">No sections yet</p>
           <p className="text-xs mt-1">
-            {canEdit ? "Use "Add Section" to build out this SOP's content." : "This SOP has no sections defined yet."}
+            {canEdit ? "Use \u201cAdd Section\u201d to build out this SOP\u2019s content." : "This SOP has no sections defined yet."}
           </p>
         </div>
       ) : (
