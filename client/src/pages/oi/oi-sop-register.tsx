@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Plus, Search, AlertCircle, Clock, CheckCircle, Eye, Download } from "lucide-react";
+import { BookOpen, Plus, Search, AlertCircle, Clock, CheckCircle, Eye, Download, Pencil } from "lucide-react";
 import { downloadSopPdf } from "@/lib/sop-pdf";
 import { fmtDate } from "@/lib/date-format";
 import {
@@ -313,6 +313,11 @@ export default function OiSopRegister() {
                       <Link href={`/oi/sop/${sop.id}`}>
                         <Button size="sm" variant="ghost" className="gap-1 text-xs">
                           <Eye className="h-3 w-3" /> View
+                        </Button>
+                      </Link>
+                      <Link href={`/oi/sop/${sop.id}?tab=overview`}>
+                        <Button size="sm" variant="ghost" className="gap-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50">
+                          <Pencil className="h-3 w-3" /> Edit
                         </Button>
                       </Link>
                       <Button

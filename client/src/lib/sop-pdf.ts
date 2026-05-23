@@ -1,219 +1,290 @@
 import { jsPDF } from "jspdf";
 
-// THERMOPAC brand colours (RGB)
-const BRAND_BLUE  : [number, number, number] = [30,  58,  138];
-const BRAND_RED   : [number, number, number] = [185, 28,  28 ];
-const LIGHT_GRAY  : [number, number, number] = [245, 245, 245];
-const MID_GRAY    : [number, number, number] = [107, 114, 128];
-const DARK_GRAY   : [number, number, number] = [31,  41,  55 ];
-const WHITE       : [number, number, number] = [255, 255, 255];
+// ── Brand palette ─────────────────────────────────────────────────────────────
+const B_BLUE  : [number,number,number] = [30,  58,  138];
+const B_RED   : [number,number,number] = [185, 28,  28 ];
+const B_LGRAY : [number,number,number] = [241, 245, 249];
+const B_MGRAY : [number,number,number] = [148, 163, 184];
+const B_DGRAY : [number,number,number] = [30,  41,  59 ];
+const B_WHITE : [number,number,number] = [255, 255, 255];
+const B_LBORD : [number,number,number] = [203, 213, 225];
 
-// ─── Header / Footer helpers ───────────────────────────────────────────────────
-function addHeader(doc: jsPDF, sopNumber: string) {
-  doc.setFillColor(...BRAND_BLUE);
-  doc.rect(0, 0, 210, 16, "F");
-  doc.setFillColor(...BRAND_RED);
-  doc.rect(0, 16, 210, 2, "F");
+// ── Page constants ─────────────────────────────────────────────────────────────
+const ML = 15; // left margin
+const MR = 15; // right margin
+const PW = 210;
+const PH = 297;
+const CW = PW - ML - MR; // 180mm content width
+const BODY_FS = 9;
+const BODY_LH = 5.2; // line height mm for 9pt
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...WHITE);
-  doc.text("THERMOPAC", 14, 11);
-
-  doc.setFontSize(8);
-  doc.setTextColor(200, 210, 255);
-  doc.text(sopNumber, 196, 11, { align: "right" });
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function clamp(doc: jsPDF, y: number, minY = 24, limit = 278): number {
+  return Math.max(y, minY);
 }
 
-function addFooter(doc: jsPDF, page: number, total: number, sopNumber: string) {
-  doc.setDrawColor(...MID_GRAY);
-  doc.setLineWidth(0.3);
-  doc.line(14, 287, 196, 287);
+function hdr(doc: jsPDF, sopNum: string, title: string) {
+  // Blue top band
+  doc.setFillColor(...B_BLUE);
+  doc.rect(0, 0, PW, 14, "F");
+  // Red accent line
+  doc.setFillColor(...B_RED);
+  doc.rect(0, 14, PW, 1.5, "F");
+  // "THERMOPAC" wordmark
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...B_WHITE);
+  doc.text("THERMOPAC", ML, 9.5);
+  // Centre title (truncated)
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(180, 200, 240);
+  const maxTitle = 80;
+  const shortTitle = title.length > maxTitle ? title.slice(0, maxTitle - 1) + "…" : title;
+  doc.text(shortTitle, PW / 2, 9.5, { align: "center" });
+  // SOP number right
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(200, 215, 250);
+  doc.text(sopNum, PW - MR, 9.5, { align: "right" });
+}
+
+function ftr(doc: jsPDF, page: number, total: number, sopNum: string) {
+  const y = PH - 8;
+  doc.setDrawColor(...B_LBORD);
+  doc.setLineWidth(0.25);
+  doc.line(ML, y - 1, PW - MR, y - 1);
+  doc.setFont("helvetica", "italic");
   doc.setFontSize(7);
-  doc.setTextColor(...MID_GRAY);
-  doc.text(`${sopNumber}  |  THERMOPAC — CONFIDENTIAL  |  DRAFT`, 14, 292);
-  doc.text(`Page ${page} of ${total}`, 196, 292, { align: "right" });
+  doc.setTextColor(...B_MGRAY);
+  doc.text(`${sopNum}  ·  THERMOPAC Pvt. Ltd.  ·  CONFIDENTIAL DRAFT`, ML, y + 3);
+  doc.text(`Page ${page} / ${total}`, PW - MR, y + 3, { align: "right" });
 }
 
-// ─── Simple key-value row ──────────────────────────────────────────────────────
-function metaRow(
-  doc: jsPDF,
-  y: number,
-  label1: string, val1: string,
-  label2: string, val2: string,
-) {
-  doc.setFillColor(...LIGHT_GRAY);
-  doc.rect(14, y, 86, 7, "F");
-  doc.rect(104, y, 92, 7, "F");
-
+function sectionBar(doc: jsPDF, y: number, label: string): number {
+  doc.setFillColor(...B_BLUE);
+  doc.rect(ML, y, CW, 7, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...BRAND_BLUE);
-  doc.text(label1, 17, y + 5);
-  doc.text(label2, 107, y + 5);
+  doc.setFontSize(8.5);
+  doc.setTextColor(...B_WHITE);
+  doc.text(label, ML + 3, y + 5);
+  return y + 9;
+}
+
+function kvRow(
+  doc: jsPDF, y: number, shade: boolean,
+  k1: string, v1: string, k2: string, v2: string,
+): number {
+  const h = 6.5;
+  const colW = CW / 2;
+  if (shade) {
+    doc.setFillColor(...B_LGRAY);
+    doc.rect(ML, y, CW, h, "F");
+  }
+  doc.setDrawColor(...B_LBORD);
+  doc.setLineWidth(0.2);
+  doc.rect(ML, y, CW, h, "S");
+  doc.line(ML + colW, y, ML + colW, y + h);
+  doc.line(ML + colW / 2, y, ML + colW / 2, y + h);
+  doc.line(ML + colW + colW / 2, y, ML + colW + colW / 2, y + h);
+
+  const ky = y + h - 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...B_BLUE);
+  doc.text(k1, ML + 2, ky);
+  doc.text(k2, ML + colW + 2, ky);
 
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...DARK_GRAY);
-  doc.text(val1, 50, y + 5);
-  doc.text(val2, 140, y + 5);
-  return y + 8;
+  doc.setTextColor(...B_DGRAY);
+  doc.text(v1, ML + colW / 2 + 2, ky);
+  doc.text(v2, ML + colW + colW / 2 + 2, ky);
+  return y + h;
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export async function downloadSopPdf(sop: any): Promise<void> {
-  // 1. Fetch sections
   const res = await fetch(`/api/oi/sop/${sop.id}/sections`);
-  if (!res.ok) throw new Error(`Failed to fetch sections: ${res.status}`);
+  if (!res.ok) throw new Error(`Sections fetch failed: ${res.status}`);
   const sections: any[] = await res.json();
   const sorted = sections.slice().sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
 
-  const sopNum = sop.sopNumber ?? `SOP-${sop.id}`;
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const sopNum   = sop.sopNumber ?? `SOP-${sop.id}`;
+  const sopTitle = sop.title ?? sopNum;
 
-  // ── PAGE 1: Cover ────────────────────────────────────────────────────────────
-  addHeader(doc, sopNum);
-  let y = 24;
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
 
-  // Title block
-  doc.setFillColor(...BRAND_BLUE);
-  doc.rect(14, y, 182, 10, "F");
+  // ══════════════════════════════════════════════════════════════
+  // PAGE 1 — Cover
+  // ══════════════════════════════════════════════════════════════
+  hdr(doc, sopNum, sopTitle);
+  let y = 20;
+
+  // Hero title block
+  doc.setFillColor(245, 248, 255);
+  doc.rect(ML, y, CW, 26, "F");
+  doc.setDrawColor(...B_BLUE);
+  doc.setLineWidth(0.8);
+  doc.line(ML, y, ML, y + 26);
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...WHITE);
-  doc.text("STANDARD OPERATING PROCEDURE", 105, y + 7, { align: "center" });
-  y += 14;
+  doc.setFontSize(8);
+  doc.setTextColor(...B_MGRAY);
+  doc.text("STANDARD OPERATING PROCEDURE", ML + 5, y + 6);
 
-  // SOP title
-  const titleLines = doc.splitTextToSize(sop.title ?? "", 178);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.setTextColor(...BRAND_BLUE);
-  doc.text(titleLines, 105, y + 6, { align: "center" });
-  y += titleLines.length * 7 + 6;
+  doc.setTextColor(...B_BLUE);
+  const titleWrapped = doc.splitTextToSize(sopTitle, CW - 8);
+  doc.text(titleWrapped, ML + 5, y + 13);
+  y += 28;
 
-  // Divider
-  doc.setDrawColor(...BRAND_RED);
-  doc.setLineWidth(0.8);
-  doc.line(14, y, 196, y);
+  // Metadata table
+  const dept    = sop.department ?? "—";
+  const role    = sop.applicableRole ?? "—";
+  const type    = (sop.sopType ?? "—").replace(/_/g, " ");
+  const status  = (sop.status ?? "—").replace(/_/g, " ").toUpperCase();
+  const rev     = `v${sop.revisionNumber ?? 0}`;
+  const owner   = sop.ownerName ?? "—";
+  const effDate = sop.effectiveDate ? sop.effectiveDate.slice(0, 10) : "—";
+  const area    = sop.processArea ?? "—";
+
+  y = kvRow(doc, y, false, "SOP Number", sopNum,  "Type",          type);
+  y = kvRow(doc, y, true,  "Department", dept,    "Applicable To", role);
+  y = kvRow(doc, y, false, "Process Area",area,   "Status",        status);
+  y = kvRow(doc, y, true,  "Revision",   rev,     "Sections",      String(sorted.length));
+  y = kvRow(doc, y, false, "Owner",      owner,   "Effective Date",effDate);
   y += 5;
 
-  // Metadata grid
-  y = metaRow(doc, y, "SOP Number", sopNum,                                   "Type",         (sop.sopType ?? "—").replace(/_/g, " "));
-  y = metaRow(doc, y, "Department", sop.department ?? "—",                    "Applicable To", sop.applicableRole ?? "—");
-  y = metaRow(doc, y, "Process Area", sop.processArea ?? "—",                 "Status",        (sop.status ?? "—").replace(/_/g, " ").toUpperCase());
-  y = metaRow(doc, y, "Revision",   `v${sop.revisionNumber ?? 0}`,            "Sections",      String(sorted.length));
-  y = metaRow(doc, y, "Owner",      sop.ownerName ?? "—",                     "Effective Date",sop.effectiveDate ? sop.effectiveDate.slice(0, 10) : "—");
-  y += 4;
-
-  // Description
+  // Description block
   if (sop.description) {
-    doc.setFillColor(...BRAND_BLUE);
-    doc.rect(14, y, 182, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...WHITE);
-    doc.text("DESCRIPTION", 17, y + 4);
-    y += 8;
-
+    y = sectionBar(doc, y, "DESCRIPTION");
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...DARK_GRAY);
-    const descLines = doc.splitTextToSize(sop.description, 182);
-    doc.text(descLines, 14, y);
-    y += descLines.length * 4.5 + 6;
+    doc.setFontSize(BODY_FS);
+    doc.setTextColor(...B_DGRAY);
+    const dl = doc.splitTextToSize(sop.description, CW - 4);
+    for (const line of dl) {
+      if (y > 272) { doc.addPage(); hdr(doc, sopNum, sopTitle); y = 20; }
+      doc.text(line, ML + 2, y);
+      y += BODY_LH;
+    }
+    y += 3;
   }
 
-  // Table of contents
+  // Table of Contents
   if (sorted.length > 0) {
-    if (y > 240) { doc.addPage(); addHeader(doc, sopNum); y = 24; }
-
-    doc.setFillColor(...BRAND_BLUE);
-    doc.rect(14, y, 182, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...WHITE);
-    doc.text("TABLE OF CONTENTS", 17, y + 4);
-    y += 8;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
+    if (y > 240) { doc.addPage(); hdr(doc, sopNum, sopTitle); y = 20; }
+    y = sectionBar(doc, y, "TABLE OF CONTENTS");
 
     for (let i = 0; i < sorted.length; i++) {
-      if (y > 278) { doc.addPage(); addHeader(doc, sopNum); y = 24; }
+      if (y > 278) { doc.addPage(); hdr(doc, sopNum, sopTitle); y = 20; }
       const s = sorted[i];
-      const isEven = i % 2 === 0;
-      if (isEven) {
-        doc.setFillColor(...LIGHT_GRAY);
-        doc.rect(14, y - 3, 182, 5.5, "F");
-      }
+      const rowH = 5.5;
+      if (i % 2 === 0) { doc.setFillColor(...B_LGRAY); doc.rect(ML, y, CW, rowH, "F"); }
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...BRAND_BLUE);
-      doc.text(s.sectionNo, 17, y + 1);
+      doc.setFontSize(8);
+      doc.setTextColor(...B_BLUE);
+      doc.text(s.sectionNo ?? "", ML + 2, y + rowH - 1.5);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(...DARK_GRAY);
-      doc.text(s.sectionTitle, 32, y + 1);
-      y += 5.5;
+      doc.setTextColor(...B_DGRAY);
+      doc.text(s.sectionTitle ?? "", ML + 22, y + rowH - 1.5);
+      y += rowH;
     }
   }
 
-  // ── PAGES: Section Content ────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // CONTENT PAGES — one section per page (or continue on same if short)
+  // ══════════════════════════════════════════════════════════════
   for (const section of sorted) {
     doc.addPage();
-    addHeader(doc, sopNum);
-    y = 24;
+    hdr(doc, sopNum, sopTitle);
+    y = 20;
 
-    // Section heading bar
-    doc.setFillColor(...BRAND_BLUE);
-    doc.rect(14, y, 182, 8, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(...WHITE);
-    doc.text(`${section.sectionNo}   ${section.sectionTitle}`, 18, y + 5.5);
-    y += 12;
+    // Section title bar
+    const secLabel = `${section.sectionNo ?? ""}   ${section.sectionTitle ?? ""}`;
+    y = sectionBar(doc, y, secLabel);
 
-    // Content
-    const raw: string = section.sectionContent ?? "(No content)";
-    doc.setFontSize(8.5);
+    const raw: string = section.sectionContent ?? "(No content provided.)";
+    const lines = raw.split(/\r?\n/);
 
-    for (const line of raw.split("\n")) {
-      const trimmed = line.trimEnd();
+    doc.setFontSize(BODY_FS);
 
-      // Detect ALL-CAPS heading lines (min 4 chars, ends with optional colon)
-      const isHeading = /^[A-Z][A-Z &/|()\-]{3,}:?\s*$/.test(trimmed) && trimmed.length > 0;
+    for (let li = 0; li < lines.length; li++) {
+      const trimmed = lines[li].trimEnd();
 
       if (trimmed === "") {
-        y += 2;
-      } else if (isHeading) {
-        if (y > 272) { doc.addPage(); addHeader(doc, sopNum); y = 24; }
+        y += 2.5;
+        continue;
+      }
+
+      // Detect bold sub-headings: lines ending with ":" that are ≤70 chars
+      // OR lines that are ALL CAPS with optional colon
+      const isSubHdr =
+        (/^[A-Z][A-Z0-9 ,&/()\-]{2,}:?\s*$/.test(trimmed) && trimmed.length <= 80)
+        || (/^[A-Za-z0-9][^:]{1,60}:\s*$/.test(trimmed) && trimmed.length <= 70);
+
+      // Detect bullet points: -, •, *, or numbered list 1. 2. etc.
+      const bulletMatch = trimmed.match(/^([•\-\*]|\d{1,2}\.)\s+/);
+
+      if (isSubHdr && !bulletMatch) {
+        if (y > 272) { doc.addPage(); hdr(doc, sopNum, sopTitle); y = 20; }
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(...BRAND_BLUE);
-        doc.text(trimmed, 14, y);
-        y += 5.5;
+        doc.setTextColor(...B_BLUE);
+        doc.text(trimmed, ML + 2, y);
+        // Underline
+        const tw = doc.getTextWidth(trimmed);
+        doc.setDrawColor(...B_BLUE);
+        doc.setLineWidth(0.3);
+        doc.line(ML + 2, y + 0.8, ML + 2 + tw, y + 0.8);
+        y += BODY_LH + 1;
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(...DARK_GRAY);
-      } else {
-        const wrapped = doc.splitTextToSize(trimmed, 182);
-        for (const wl of wrapped) {
-          if (y > 278) { doc.addPage(); addHeader(doc, sopNum); y = 24; }
+        doc.setTextColor(...B_DGRAY);
+      } else if (bulletMatch) {
+        const prefix = bulletMatch[0];
+        const rest   = trimmed.slice(prefix.length);
+        const indent = ML + 6;
+        const bWidth = CW - 6 - 5;
+        const wrapped = doc.splitTextToSize(rest, bWidth);
+        for (let wi = 0; wi < wrapped.length; wi++) {
+          if (y > 278) { doc.addPage(); hdr(doc, sopNum, sopTitle); y = 20; }
           doc.setFont("helvetica", "normal");
-          doc.setTextColor(...DARK_GRAY);
-          doc.text(wl, 14, y);
-          y += 4.3;
+          doc.setTextColor(...B_DGRAY);
+          if (wi === 0) {
+            // Bullet symbol
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...B_BLUE);
+            const sym = /^\d/.test(prefix) ? prefix.trim() : "•";
+            doc.text(sym, ML + 2, y);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(...B_DGRAY);
+          }
+          doc.text(wrapped[wi], indent, y);
+          y += BODY_LH;
+        }
+      } else {
+        const wrapped = doc.splitTextToSize(trimmed, CW - 4);
+        for (const wl of wrapped) {
+          if (y > 278) { doc.addPage(); hdr(doc, sopNum, sopTitle); y = 20; }
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(...B_DGRAY);
+          doc.text(wl, ML + 2, y);
+          y += BODY_LH;
         }
       }
     }
   }
 
-  // ── Footers on all pages ──────────────────────────────────────────────────────
-  const total: number = typeof (doc as any).getNumberOfPages === "function"
-    ? (doc as any).getNumberOfPages()
-    : (doc as any).internal.getNumberOfPages();
+  // ══════════════════════════════════════════════════════════════
+  // Footers on all pages
+  // ══════════════════════════════════════════════════════════════
+  const total: number =
+    typeof (doc as any).getNumberOfPages === "function"
+      ? (doc as any).getNumberOfPages()
+      : (doc as any).internal.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
     doc.setPage(p);
-    addFooter(doc, p, total, sopNum);
+    ftr(doc, p, total, sopNum);
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────────
   doc.save(`${sopNum}.pdf`);
 }
