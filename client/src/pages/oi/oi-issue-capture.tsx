@@ -273,7 +273,7 @@ export default function OiIssueCaptureePage() {
                           <SelectItem value="__none__">— No customer —</SelectItem>
                           {(customers ?? []).map((c: any) => (
                             <SelectItem key={c.id} value={String(c.id)}>
-                              {c.sapCardCode ? `${c.sapCardCode} — ` : ""}{c.name ?? c.bp_name}
+                              {(c.sapCardCode ?? c.sap_card_code) ? `${c.sapCardCode ?? c.sap_card_code} — ` : ""}{c.bpName ?? c.bp_name ?? c.name ?? ""}
                             </SelectItem>
                           ))}
                         </SelectContent>
