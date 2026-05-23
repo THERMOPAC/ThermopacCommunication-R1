@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Layout from "@/components/layout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -87,6 +88,7 @@ export default function OiSopRegister() {
   };
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -264,5 +266,6 @@ export default function OiSopRegister() {
         </div>
       )}
     </div>
+    </Layout>
   );
 }
