@@ -444,3 +444,9 @@ id = "wQ9AjMQHrqyAZCKOGIUnq"
 uri = "file://docs/operational-intelligence-phase3b-execution.md"
 type = "text"
 title = "Phase 3B Execution Plan — OI Analytics Suite"
+
+[[outputs]]
+id = "w5F6PZ3cgSuhZxCcUUnKk"
+uri = "file://docs/department-master-phase2-execution-plan.md"
+type = "text"
+title = "Department Master — Phase 2 Execution Plan"
