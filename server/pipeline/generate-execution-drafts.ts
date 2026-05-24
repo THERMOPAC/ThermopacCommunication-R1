@@ -35,6 +35,19 @@ export async function syncAndGenerateExecutionDrafts(
     console.error(`[EPC Sync] Full-auto pipeline failed (non-blocking):`, pipeErr.message);
   }
 
+  try {
+    const { ensureBomsForAllProjectItems } = await import('./full-auto-orchestrator');
+    const bomResult = await ensureBomsForAllProjectItems(projectId, userId);
+    if (bomResult.created > 0) {
+      console.log(`[EPC Sync] BOM sweep: created ${bomResult.created} BOMs for project ${projectId}`);
+    }
+    if (bomResult.errors.length > 0) {
+      console.warn(`[EPC Sync] BOM sweep errors:`, bomResult.errors);
+    }
+  } catch (bomErr: any) {
+    console.error(`[EPC Sync] BOM sweep failed (non-blocking):`, bomErr.message);
+  }
+
   return { ...summary, itemsAdded };
 }
 

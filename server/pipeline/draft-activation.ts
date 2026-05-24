@@ -119,12 +119,16 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
   const classification = sd.make_or_buy || sd.classification || null;
 
   let itemBarcode: string | null = null;
+  let liveMasterItemId: number | null = sd.master_item_id || null;
   if (draft.project_item_id) {
     const piResult = await db.execute(
-      sql`SELECT code_bars FROM project_items WHERE id = ${draft.project_item_id}`
+      sql`SELECT code_bars, item_id FROM project_items WHERE id = ${draft.project_item_id}`
     );
     if (piResult.rows.length > 0) {
       itemBarcode = (piResult.rows[0] as any).code_bars || null;
+      if (!liveMasterItemId) {
+        liveMasterItemId = (piResult.rows[0] as any).item_id || null;
+      }
     }
   }
 
@@ -133,7 +137,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
         (do_number, project_id, project_item_id, master_item_id, item_code, item_description,
          status, created_by)
         VALUES (${draft.doc_number}, ${draft.project_id}, ${draft.project_item_id},
-                ${sd.master_item_id || null}, ${itemCode}, ${itemDesc},
+                ${liveMasterItemId}, ${itemCode}, ${itemDesc},
                 'open', ${userId})
         RETURNING id`
   );
@@ -163,7 +167,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
            client_approval_required, client_approval_status,
            status, notes, created_by, assigned_to)
           VALUES (${dwgControlNumber}, '00', true, 'draft',
-                  ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null},
+                  ${draft.project_id}, ${draft.project_item_id}, ${liveMasterItemId},
                   ${drawingNumber}, ${itemDesc}, ${'00'},
                   ${itemCode}, ${itemDesc}, ${classification},
                   'general', ${procReq}, ${mfgReq},
@@ -203,7 +207,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
              bom_type, bom_title, bom_description, item_code, item_description,
              classification_snapshot, drawing_number, drawing_revision,
              status, is_current, created_by, assigned_to)
-            VALUES (${bomNumber}, ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null}, ${dwgRecordId},
+            VALUES (${bomNumber}, ${draft.project_id}, ${draft.project_item_id}, ${liveMasterItemId}, ${dwgRecordId},
                     'assembly', ${'BOM for ' + (itemDesc || itemCode)}, ${'Auto-created from Drawing Order ' + draft.doc_number},
                     ${itemCode}, ${itemDesc},
                     ${classification}, ${drawingNumber}, ${'00'},
