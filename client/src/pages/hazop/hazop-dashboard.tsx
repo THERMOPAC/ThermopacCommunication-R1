@@ -176,7 +176,7 @@ function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps)
             <div className="space-y-1.5">
               <Label>Project <span className="text-red-500">*</span></Label>
               <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger>
+                <SelectTrigger style={{ width: '650px' }}>
                   <SelectValue placeholder="Select a project…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -276,7 +276,7 @@ function ProjectStudiesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="max-w-sm">
+      <div style={{ width: '650px' }}>
         <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
           <SelectTrigger>
             <SelectValue placeholder="Select a project to view studies…" />
