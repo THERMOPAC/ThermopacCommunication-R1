@@ -827,14 +827,41 @@ Identical in both modes.
 ---
 
 ## 19. Schema Migration
-14 new tables total (12 from v1.0 + 2 new concept tables + 1 new assumptions table = 15 tables, minus `hazop_studies` which is a modified existing table).  
 
-Correct count:
-- **New tables (15):** `hazop_studies`, `hazop_concept_equipment`, `hazop_concept_instruments`, `hazop_design_assumptions`, `hazop_process_loops`, `hazop_process_steps`, `hazop_nodes`, `hazop_deviations`, `hazop_causes`, `hazop_consequences`, `hazop_safeguards`, `hazop_actions`, `hazop_safety_functions`, `hazop_ce_matrix`, `hazop_ce_causes`, `hazop_ce_effects`, `hazop_ce_cells`, `hazop_fat_sat_items`, `hazop_revisions`, `hazop_deviation_library`
+### 19.1 Table Status
+`hazop_studies` is a **new table**. v1.0 of this plan was never implemented — no HAZOP tables exist in the database. All 20 tables listed below are new additions.
 
-All 20 tables are new — no existing tables modified.  
-`hazop_deviation_library` seeded by `server/scripts/seed-hazop-library.ts`.  
-Document sequences (`HAZOP`, `SIF`, `CEM`, `HAZFAT`, `HAZSAT`) inserted into `doc_number_sequences` on first use. `CONCEPT` prefix handled as a synthetic project code in the sequence service.
+### 19.2 New Tables — Complete List (20 total)
+
+| # | Table | Purpose |
+|---|---|---|
+| 1 | `hazop_studies` | Study header — supports both modes via `study_mode` field |
+| 2 | `hazop_concept_equipment` | Manually created expected equipment (Concept Mode only) |
+| 3 | `hazop_concept_instruments` | Expected instruments (Concept Mode only) |
+| 4 | `hazop_design_assumptions` | Design basis assumptions (both modes) |
+| 5 | `hazop_process_loops` | Named process loops within a study |
+| 6 | `hazop_process_steps` | Equipment steps within a loop |
+| 7 | `hazop_nodes` | Auto-generated HAZOP analysis node per step |
+| 8 | `hazop_deviations` | Deviations per node (guideword × parameter) |
+| 9 | `hazop_causes` | Causes per deviation |
+| 10 | `hazop_consequences` | Consequences per deviation |
+| 11 | `hazop_safeguards` | Existing safeguards per deviation |
+| 12 | `hazop_actions` | Recommended actions per deviation |
+| 13 | `hazop_safety_functions` | Extracted Safety Instrumented Functions (SIFs) |
+| 14 | `hazop_ce_matrix` | Cause & Effect Matrix header |
+| 15 | `hazop_ce_causes` | Cause rows of the C&E matrix |
+| 16 | `hazop_ce_effects` | Effect columns of the C&E matrix |
+| 17 | `hazop_ce_cells` | Cell values (cause × effect intersections) |
+| 18 | `hazop_fat_sat_items` | FAT/SAT test items |
+| 19 | `hazop_revisions` | Revision log for study documents |
+| 20 | `hazop_deviation_library` | Reference library (seeded at deployment, read-only at runtime) |
+
+**No existing tables are modified.**
+
+### 19.3 Migration Notes
+- All 20 tables created via `drizzle-kit push:pg` after adding to `shared/schema.ts`.
+- `hazop_deviation_library` seeded by `server/scripts/seed-hazop-library.ts` — run once after push.
+- Document sequences (`HAZOP`, `SIF`, `CEM`, `HAZFAT`, `HAZSAT`) inserted into `doc_number_sequences` on first use. `CONCEPT` is a reserved synthetic prefix for concept-mode document numbers — must not be used as a real project code.
 
 ---
 
