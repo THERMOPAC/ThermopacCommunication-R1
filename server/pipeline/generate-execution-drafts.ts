@@ -1,5 +1,6 @@
 import { db, pool } from '../db';
-import { sql } from 'drizzle-orm';
+import { sql, inArray } from 'drizzle-orm';
+import { projectItems } from '../../shared/schema';
 import { getNextDocSeq } from '../doc-sequence-service';
 import { createEpcTask } from '../epc-task-helpers';
 import { resolveEpcAssignee } from '../epc-assignment-engine';
@@ -17,12 +18,40 @@ export async function syncAndGenerateExecutionDrafts(
   projectId: number,
   userId: number
 ): Promise<SyncAndGenerateSummary> {
-  const itemsAdded = await syncMissingProductChildren(projectId);
+  const { itemsAdded, newItemIds } = await syncMissingProductChildren(projectId);
   const summary = await generateExecutionDrafts(projectId, userId);
+
+  if (newItemIds.length > 0) {
+    syncNewItemsToSap(newItemIds).catch(err =>
+      console.error(`[EPC Sync] SAP batch sync failed (non-blocking):`, err.message)
+    );
+  }
+
+  try {
+    const { executeFullAutoPipeline } = await import('./full-auto-orchestrator');
+    await executeFullAutoPipeline(projectId, userId);
+    console.log(`[EPC Sync] Full-auto pipeline complete for project ${projectId}`);
+  } catch (pipeErr: any) {
+    console.error(`[EPC Sync] Full-auto pipeline failed (non-blocking):`, pipeErr.message);
+  }
+
   return { ...summary, itemsAdded };
 }
 
-async function syncMissingProductChildren(projectId: number): Promise<number> {
+async function syncNewItemsToSap(itemIds: number[]): Promise<void> {
+  const { syncProjectItemToSap } = await import('../project-item-detail-routes');
+  const items = await db.select().from(projectItems).where(inArray(projectItems.id, itemIds));
+  for (const item of items) {
+    const result = await syncProjectItemToSap(item);
+    if (result.error) {
+      console.error(`[EPC Sync] SAP sync failed for item ${item.itemCode}: ${result.error}`);
+    } else {
+      console.log(`[EPC Sync] SAP sync OK for item ${item.itemCode}`);
+    }
+  }
+}
+
+async function syncMissingProductChildren(projectId: number): Promise<{ itemsAdded: number; newItemIds: number[] }> {
   const projResult = await db.execute(
     sql`SELECT id, code, fy_code, project_seq FROM projects WHERE id = ${projectId}`
   );
@@ -45,9 +74,10 @@ async function syncMissingProductChildren(projectId: number): Promise<number> {
           AND product_code IS NOT NULL`
   );
 
-  if (level2Items.rows.length === 0) return 0;
+  if (level2Items.rows.length === 0) return { itemsAdded: 0, newItemIds: [] };
 
   let itemsAdded = 0;
+  const newItemIds: number[] = [];
   const client = await pool.connect();
   try {
     for (const parentItem of level2Items.rows) {
@@ -97,7 +127,7 @@ async function syncMissingProductChildren(projectId: number): Promise<number> {
         const uom = (child.unit as string) || 'set';
         const estimatedCost = child.unit_price as string | null;
 
-        await db.execute(
+        const insertResult = await db.execute(
           sql`INSERT INTO project_items
               (project_id, project_code, item_id, item_code, code_bars, description, uom,
                make_or_buy, quantity, estimated_cost, notes, status, source,
@@ -105,8 +135,11 @@ async function syncMissingProductChildren(projectId: number): Promise<number> {
               VALUES (${projectId}, ${projectCode}, ${childMasterItemId}, ${childItemCode},
                       ${childCodeBars}, ${desc}, ${uom}, ${makeOrBuy},
                       ${qty}, ${estimatedCost}, ${desc}, 'Not Started', 'epc_workflow_sync',
-                      ${parentProjectItemId}, ${childProductCode}, NOW(), NOW())`
+                      ${parentProjectItemId}, ${childProductCode}, NOW(), NOW())
+              RETURNING id`
         );
+        const newId = (insertResult.rows[0] as any)?.id as number;
+        if (newId) newItemIds.push(newId);
         itemsAdded++;
         console.log(`[EPC Sync] Added missing item ${childItemCode} under parent #${parentProjectItemId}`);
       }
@@ -114,7 +147,7 @@ async function syncMissingProductChildren(projectId: number): Promise<number> {
   } finally {
     client.release();
   }
-  return itemsAdded;
+  return { itemsAdded, newItemIds };
 }
 
 interface ProjectRecord {

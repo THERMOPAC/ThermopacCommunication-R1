@@ -741,18 +741,17 @@ export async function executeOfferConversion(
       if (childRows.rows.length === 0) continue;
 
       for (const child of childRows.rows) {
-        // Avoid duplicate on re-run: skip if a project item with same parent + item_code exists
-        const dupCheck = await client.query(
-          `SELECT id FROM project_items
-           WHERE project_id = $1 AND parent_project_item_id = $2 AND item_code LIKE $3`,
-          [project.id, parentProjectItemId, `%-${child.product_code}-%`]
-        );
-        if (dupCheck.rows.length > 0) continue;
-
         const childBaseCode = customerBpCode
           ? `${customerBpCode}-${child.product_code}`
           : child.product_code;
         const childItemCode = epcCoding.buildProjectItemCode(childBaseCode, fyCode, projectSeq);
+
+        // Avoid duplicate: exact item_code match (consistent with DB unique constraint)
+        const dupCheck = await client.query(
+          `SELECT id FROM project_items WHERE item_code = $1 LIMIT 1`,
+          [childItemCode]
+        );
+        if (dupCheck.rows.length > 0) continue;
         const childCodeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
 
         const childMasterItemId = child.product_code
