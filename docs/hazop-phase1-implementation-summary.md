@@ -79,8 +79,8 @@ File: `server/hazop-routes.ts`
 File: `server/scripts/seed-hazop-library.ts`
 
 - 16 entries across 4 equipment categories: `centrifugal_pump`, `heat_exchanger`, `pressure_vessel`, `control_valve`
-- Idempotent (upsert by `equipment_category + guideword + parameter`)
-- Runs at server startup via `server/routes.ts`
+- Seed execution is automatic on server startup but remains fully idempotent (upsert by `equipment_category + guideword + parameter`)
+- Registered in `server/routes.ts`
 - Confirmed: `0 inserted, 16 already existed` on subsequent starts
 
 ---
