@@ -51,6 +51,41 @@ async function syncNewItemsToSap(itemIds: number[]): Promise<void> {
   }
 }
 
+async function findOrCreateMasterItem(
+  client: any,
+  productCode: string,
+  description: string,
+  unit: string,
+  estimatedCost: string | null,
+  hsnSacCode: string | null,
+  itemCode: string,
+): Promise<number> {
+  const existing = await client.query(
+    `SELECT id FROM master_items WHERE item_code = $1 LIMIT 1`,
+    [itemCode]
+  );
+  if (existing.rows.length > 0) return existing.rows[0].id as number;
+
+  const productRow = await client.query(
+    `SELECT make_or_buy FROM products WHERE product_code = $1 LIMIT 1`,
+    [productCode]
+  );
+  const makeOrBuy = productRow.rows.length > 0 ? (productRow.rows[0].make_or_buy || 'Make') : 'Make';
+
+  const created = await client.query(
+    `INSERT INTO master_items
+     (item_code, description, uom, make_or_buy, estimated_cost, notes, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+     RETURNING id`,
+    [
+      itemCode, description, unit || 'set', makeOrBuy,
+      estimatedCost || null,
+      hsnSacCode ? `HSN/SAC: ${hsnSacCode}` : null,
+    ]
+  );
+  return created.rows[0].id as number;
+}
+
 async function syncMissingProductChildren(projectId: number): Promise<{ itemsAdded: number; newItemIds: number[] }> {
   const projResult = await db.execute(
     sql`SELECT id, code, fy_code, project_seq FROM projects WHERE id = ${projectId}`
@@ -114,12 +149,11 @@ async function syncMissingProductChildren(projectId: number): Promise<{ itemsAdd
         if (dupCheck.rows.length > 0) continue;
         const childCodeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
 
-        const childMasterResult = await db.execute(
-          sql`SELECT id FROM master_items WHERE item_code = ${childBaseCode} LIMIT 1`
+        const childMasterItemId = await findOrCreateMasterItem(
+          client, childProductCode, child.description as string,
+          child.unit as string, child.unit_price as string,
+          child.hsn_sac_code as string | null, childBaseCode
         );
-        const childMasterItemId = childMasterResult.rows.length > 0
-          ? childMasterResult.rows[0].id as number
-          : null;
 
         const makeOrBuy = (child.make_or_buy as string) || 'Make';
         const qty = Number(child.quantity) || 1;
