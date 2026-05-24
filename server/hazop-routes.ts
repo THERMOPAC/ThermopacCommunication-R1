@@ -39,7 +39,7 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         SELECT
           s.id, s.study_number, s.title, s.study_mode, s.status, s.revision,
           s.study_date, s.created_by, s.created_at, s.updated_at,
-          u.name AS created_by_name
+          TRIM(u.first_name || ' ' || u.last_name) AS created_by_name
         FROM hazop_studies s
         LEFT JOIN users u ON u.id = s.created_by
         WHERE s.project_id = $1
@@ -57,7 +57,7 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         SELECT
           s.id, s.study_number, s.title, s.concept_title, s.study_mode,
           s.status, s.revision, s.study_date, s.created_by, s.created_at, s.updated_at,
-          u.name AS created_by_name
+          TRIM(u.first_name || ' ' || u.last_name) AS created_by_name
         FROM hazop_studies s
         LEFT JOIN users u ON u.id = s.created_by
         WHERE s.study_mode = 'concept_expected_project'
@@ -76,8 +76,8 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       const result = await pool.query(`
         SELECT
           s.*,
-          u.name AS created_by_name,
-          ul.name AS study_leader_name,
+          TRIM(u.first_name || ' ' || u.last_name) AS created_by_name,
+          TRIM(ul.first_name || ' ' || ul.last_name) AS study_leader_name,
           p.code AS project_code,
           p.customer_name
         FROM hazop_studies s
