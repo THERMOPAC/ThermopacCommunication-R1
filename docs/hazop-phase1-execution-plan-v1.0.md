@@ -11,12 +11,38 @@
 
 ## 1. Phase 1 Scope
 
-Phase 1 delivers the structural foundation only. No HAZOP generation logic is implemented in this phase.
+Phase 1 delivers the structural foundation only.
+
+### 1.0 Explicit Phase 1 Limitations
+
+The following are **explicitly prohibited** in Phase 1. Any of these appearing in Phase 1 implementation is a scope violation:
+
+| Prohibited | Deferred To |
+|---|---|
+| HAZOP generation logic of any kind | Phase 3 |
+| Process Intelligence Engine logic | Phase 3 |
+| FAT/SAT generation logic | Phase 5 |
+| Process Loop Builder UI | Phase 2 |
+| Process Loop Builder routes | Phase 2 |
+| Process step business logic (validation, topology, routing) | Phase 2 |
+| Concept Equipment / Instruments / Design Assumptions CRUD UI | Phase 2 |
+| Concept Equipment / Instruments / Design Assumptions routes | Phase 2 |
+| Safety function extraction | Phase 4 |
+| Cause & Effect matrix | Phase 4 |
+| Approval workflow | Phase 6 |
+| Revision control | Phase 6 |
+| GCS upload | Phase 6 |
+| Excel exports | Phase 5 |
+| Conversion (Concept → Project) | Phase 6 |
+
+**Tables `hazop_process_loops`, `hazop_process_steps`, and `hazop_nodes` are included in the Phase 1 DB schema push ONLY.** No routes, no UI, and no business logic for these tables are implemented in Phase 1. They are created empty and remain unused until Phase 2.
+
+---
 
 ### 1.1 In Scope
 | # | Deliverable |
 |---|---|
-| 1 | All 20 HAZOP DB tables added to `shared/schema.ts` and pushed to PostgreSQL |
+| 1 | All 20 HAZOP DB tables added to `shared/schema.ts` and pushed to PostgreSQL — **schema only** |
 | 2 | `hazop_deviation_library` seed script — runs once after DB push |
 | 3 | Study CRUD (both modes): create, list, get, update, delete (draft only) |
 | 4 | Document sequence generation for HAZOP study numbers (both modes) |
@@ -24,15 +50,17 @@ Phase 1 delivers the structural foundation only. No HAZOP generation logic is im
 | 6 | Navigation entry in `client/src/components/layout.tsx` |
 | 7 | `"HAZOP"` module permission registration — Superuser gets full access by default |
 | 8 | Page permissions for `"hazop"` page key |
-| 9 | `server/hazop-routes.ts` — Phase 1 routes only |
+| 9 | `server/hazop-routes.ts` — study CRUD routes only (no loop/step/node/generation routes) |
 
 ### 1.2 Out of Scope (deferred to Phase 2+)
-- Process Loop Builder and process steps
-- Concept Equipment / Concept Instruments / Design Assumptions CRUD
-- HAZOP auto-generation engine
+- Process Loop Builder UI and routes (tables created in Phase 1 schema push only)
+- Process step and node business logic (tables created in Phase 1 schema push only)
+- Concept Equipment / Concept Instruments / Design Assumptions UI and routes
+- HAZOP auto-generation engine — **no generation logic in Phase 1**
+- Process Intelligence Engine — **no intelligence logic in Phase 1**
 - Safety function extraction
 - Cause & Effect matrix
-- FAT/SAT
+- FAT/SAT generation — **no FAT/SAT generation logic in Phase 1**
 - Approval workflow and revision control
 - GCS upload
 - Excel exports
@@ -186,11 +214,29 @@ buy_list_line_id        integer REFERENCES project_buy_list_lines(id) ON DELETE 
 concept_equipment_id    integer REFERENCES hazop_concept_equipment(id) ON DELETE SET NULL
 equipment_role          varchar(100)
 connection_type         varchar(50) NOT NULL
-from_step               integer
-to_step                 integer
+from_step               integer  -- references sequence_no of the upstream step WITHIN THE SAME LOOP
+                                 -- NULL = this is the first step (no upstream within this loop)
+                                 -- NOT a foreign key to step id; value must exist in (loop_id, sequence_no)
+to_step                 integer  -- references sequence_no of the downstream step WITHIN THE SAME LOOP
+                                 -- NULL = this is a terminal step (Drain/Vent/Outlet/Next Loop)
+                                 -- NOT a foreign key to step id; value must exist in (loop_id, sequence_no)
 outlet_type             varchar(50)
 outlet_destination      varchar(50) NOT NULL
-outlet_destination_ref  varchar(100)
+                        -- Controlled vocabulary — EXACT allowed values:
+                        -- 'next_step'        → proceeds to immediately next sequence_no in this loop
+                        -- 'prev_step'        → returns to immediately previous sequence_no in this loop
+                        -- 'start_of_loop'    → returns to sequence_no = 1 of this loop
+                        -- 'specific_step'    → a specific sequence_no in this loop (ref in outlet_destination_ref)
+                        -- 'next_loop'        → feeds into the next process loop in this study
+                        -- 'recycle'          → recycle back to a referenced step or loop (ref in outlet_destination_ref)
+                        -- 'bypass'           → bypasses one or more steps (ref in outlet_destination_ref)
+                        -- 'drain'            → to drain system; terminal
+                        -- 'vent'             → to vent system; terminal
+                        -- 'product_outlet'   → final product outlet; terminal
+                        -- 'waste_outlet'     → waste stream; terminal
+                        -- No other values are permitted. Enforced server-side in Phase 2.
+outlet_destination_ref  varchar(100)  -- used when outlet_destination IN ('specific_step','recycle','bypass')
+                                      -- format: sequence_no (integer as string) or 'LOOP-{n}' for loop refs
 operating_pressure      numeric
 operating_temperature   numeric
 fluid                   varchar(100)
@@ -209,12 +255,19 @@ id                serial PRIMARY KEY
 study_id          integer NOT NULL REFERENCES hazop_studies(id) ON DELETE CASCADE
 loop_id           integer NOT NULL REFERENCES hazop_process_loops(id) ON DELETE CASCADE
 step_id           integer NOT NULL REFERENCES hazop_process_steps(id) ON DELETE CASCADE
-node_reference    varchar(100) NOT NULL
-node_description  varchar(300)
+                  -- One node per process step is INTENTIONAL by design.
+                  -- HAZOP analysis is performed at the level of a single equipment step.
+                  -- Each step (e.g. Pump P-101) becomes one HAZOP node.
+                  -- All deviations, causes, consequences, safeguards, and actions
+                  -- are children of that node, not of the loop or study.
+                  -- UNIQUE (step_id) enforced — a step can only have one node record.
+node_reference    varchar(100) NOT NULL  -- e.g. 'LOOP-1-STEP-3'
+node_description  varchar(300)           -- auto-built: '{equipment_category} {equipment_tag} — {equipment_role}'
 deviation_count   integer NOT NULL DEFAULT 0
 action_count      integer NOT NULL DEFAULT 0
 generated_at      timestamp
 generated_by      integer REFERENCES users(id)
+UNIQUE (step_id)
 ```
 
 ---
