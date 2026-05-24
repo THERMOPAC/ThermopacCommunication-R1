@@ -137,6 +137,7 @@ function Layout({ children }: LayoutProps) {
   const [isDrawingVerificationMenuOpen, setIsDrawingVerificationMenuOpen] = useState(false);
   const [isDocumentControlMenuOpen, setIsDocumentControlMenuOpen] = useState(false);
   const [isOIMenuOpen, setIsOIMenuOpen] = useState(false);
+  const [isHazopMenuOpen, setIsHazopMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -234,6 +235,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any Operational Intelligence page
   const isOnOIPage = location.startsWith('/oi');
 
+  // Check if we're on any HAZOP page
+  const isOnHazopPage = location.startsWith('/hazop');
+
 
   
   // Auto-open menus based on current page
@@ -293,7 +297,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnOIPage && !isOIMenuOpen) {
       setIsOIMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen]);
+
+    if (isOnHazopPage && !isHazopMenuOpen) {
+      setIsHazopMenuOpen(true);
+    }
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -483,6 +491,16 @@ function Layout({ children }: LayoutProps) {
         ...((user?.role === "Superuser" || user?.role === "General Manager" || user?.role === "Senior Executive") ? [{ icon: ShieldCheck, label: "EPC Assignment Control", href: "/epc/assignment-control" }] : []),
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
+      ]
+    }] : []),
+    ...(hasViewPermission("HAZOP") ? [{
+      icon: ShieldAlert,
+      label: "HAZOP",
+      isSubmenu: true,
+      isOpen: isHazopMenuOpen,
+      toggle: () => setIsHazopMenuOpen(!isHazopMenuOpen),
+      children: [
+        { icon: ShieldAlert, label: "HAZOP Dashboard", href: "/hazop/dashboard" },
       ]
     }] : []),
     ...((user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Senior Executive' || user?.role === 'Manager') ? [{

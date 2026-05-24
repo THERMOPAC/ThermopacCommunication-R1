@@ -3989,6 +3989,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     createReadStream(filePath).pipe(res);
   });
 
+  // ── HAZOP — Phase 1: Study CRUD ───────────────────────────────────────────────
+  const { setupHazopRoutes } = await import('./hazop-routes');
+  await setupHazopRoutes(app);
+  console.log('✅ HAZOP routes registered');
+
+  // ── HAZOP Deviation Library seed (idempotent) ─────────────────────────────
+  const { seedHazopDeviationLibrary } = await import('./scripts/seed-hazop-library');
+  seedHazopDeviationLibrary().catch((e) => console.error('[HAZOP Seed] Deviation library seed failed:', e));
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes

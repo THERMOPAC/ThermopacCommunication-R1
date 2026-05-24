@@ -27,7 +27,8 @@ export const modules = [
   "Employee Appraisal",
   "GCS Dashboard",
   "Usage Tracker",
-  "EPC Assignment Control"
+  "EPC Assignment Control",
+  "HAZOP"
 ] as const;
 
 export type Module = typeof modules[number];
@@ -15598,3 +15599,372 @@ export const oiIssueAttachments = pgTable("oi_issue_attachments", {
   issueIdIdx: index("idx_oi_att_issue_id").on(table.issueId),
 }));
 export type OiIssueAttachment = typeof oiIssueAttachments.$inferSelect;
+
+// ─── HAZOP Module — Phase 1 Foundation ───────────────────────────────────────
+// All 20 tables are additive. No existing tables modified.
+// Governed by: docs/hazop-phase1-execution-plan-v1.0.md
+
+// 1. hazop_studies
+export const hazopStudies = pgTable('hazop_studies', {
+  id:                  serial('id').primaryKey(),
+  studyMode:           varchar('study_mode', { length: 30 }).notNull(),
+  projectId:           integer('project_id').references(() => projects.id, { onDelete: 'restrict' }),
+  studyNumber:         varchar('study_number', { length: 50 }).notNull().unique(),
+  title:               varchar('title', { length: 200 }).notNull(),
+  revision:            varchar('revision', { length: 10 }).notNull().default('A'),
+  status:              varchar('status', { length: 30 }).notNull().default('draft'),
+  studyLeader:         integer('study_leader').references(() => users.id),
+  teamMembers:         jsonb('team_members'),
+  studyDate:           date('study_date'),
+  processDescription:  text('process_description'),
+  designBasis:         text('design_basis'),
+  conceptTitle:        varchar('concept_title', { length: 200 }),
+  convertedToStudyId:  integer('converted_to_study_id'),
+  convertedAt:         timestamp('converted_at'),
+  convertedBy:         integer('converted_by').references(() => users.id),
+  approvedBy:          integer('approved_by').references(() => users.id),
+  approvedAt:          timestamp('approved_at'),
+  createdBy:           integer('created_by').references(() => users.id),
+  createdAt:           timestamp('created_at').notNull().defaultNow(),
+  updatedAt:           timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  studyModeIdx:  index('idx_hazop_studies_mode').on(table.studyMode),
+  projectIdx:    index('idx_hazop_studies_project').on(table.projectId),
+  statusIdx:     index('idx_hazop_studies_status').on(table.status),
+}));
+export type HazopStudy = typeof hazopStudies.$inferSelect;
+
+// 2. hazop_concept_equipment
+export const hazopConceptEquipment = pgTable('hazop_concept_equipment', {
+  id:                   serial('id').primaryKey(),
+  studyId:              integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  equipmentCategory:    varchar('equipment_category', { length: 50 }).notNull(),
+  conceptTag:           varchar('concept_tag', { length: 50 }).notNull(),
+  equipmentRole:        varchar('equipment_role', { length: 100 }),
+  make:                 varchar('make', { length: 100 }),
+  model:                varchar('model', { length: 100 }),
+  kwRating:             numeric('kw_rating'),
+  estimatedPressureMin: numeric('estimated_pressure_min'),
+  estimatedPressureMax: numeric('estimated_pressure_max'),
+  estimatedTempMin:     numeric('estimated_temp_min'),
+  estimatedTempMax:     numeric('estimated_temp_max'),
+  fluid:                varchar('fluid', { length: 100 }),
+  hasVfd:               boolean('has_vfd').notNull().default(false),
+  hazardousArea:        boolean('hazardous_area').notNull().default(false),
+  areaClassification:   varchar('area_classification', { length: 30 }),
+  designAssumption:     text('design_assumption'),
+  isConfirmed:          boolean('is_confirmed').notNull().default(false),
+  notes:                text('notes'),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uqStudyTag: uniqueIndex('uq_hazop_concept_eq_tag').on(table.studyId, table.conceptTag),
+}));
+export type HazopConceptEquipment = typeof hazopConceptEquipment.$inferSelect;
+
+// 3. hazop_concept_instruments
+export const hazopConceptInstruments = pgTable('hazop_concept_instruments', {
+  id:                  serial('id').primaryKey(),
+  studyId:             integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  conceptTag:          varchar('concept_tag', { length: 50 }).notNull(),
+  instrumentClass:     varchar('instrument_class', { length: 30 }),
+  serviceDescription:  varchar('service_description', { length: 200 }),
+  signalType:          varchar('signal_type', { length: 20 }),
+  estimatedRangeMin:   numeric('estimated_range_min'),
+  estimatedRangeMax:   numeric('estimated_range_max'),
+  units:               varchar('units', { length: 20 }),
+  linkedEquipmentTag:  varchar('linked_equipment_tag', { length: 50 }),
+  designAssumption:    text('design_assumption'),
+  isConfirmed:         boolean('is_confirmed').notNull().default(false),
+  notes:               text('notes'),
+  createdAt:           timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uqStudyTag: uniqueIndex('uq_hazop_concept_inst_tag').on(table.studyId, table.conceptTag),
+}));
+export type HazopConceptInstrument = typeof hazopConceptInstruments.$inferSelect;
+
+// 4. hazop_design_assumptions
+export const hazopDesignAssumptions = pgTable('hazop_design_assumptions', {
+  id:                      serial('id').primaryKey(),
+  studyId:                 integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  assumptionNumber:        integer('assumption_number').notNull(),
+  assumptionCategory:      varchar('assumption_category', { length: 50 }),
+  description:             text('description').notNull(),
+  basis:                   text('basis'),
+  status:                  varchar('status', { length: 20 }).notNull().default('open'),
+  confirmedAt:             timestamp('confirmed_at'),
+  confirmedBy:             integer('confirmed_by').references(() => users.id),
+  preservedOnConversion:   boolean('preserved_on_conversion').notNull().default(true),
+  createdAt:               timestamp('created_at').notNull().defaultNow(),
+});
+export type HazopDesignAssumption = typeof hazopDesignAssumptions.$inferSelect;
+
+// 5. hazop_process_loops — schema only in Phase 1; no UI/routes until Phase 2
+export const hazopProcessLoops = pgTable('hazop_process_loops', {
+  id:                   serial('id').primaryKey(),
+  studyId:              integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  projectId:            integer('project_id'),
+  loopNumber:           integer('loop_number').notNull(),
+  loopName:             varchar('loop_name', { length: 200 }).notNull(),
+  designIntent:         text('design_intent'),
+  fluid:                varchar('fluid', { length: 100 }),
+  operatingPressureMin: numeric('operating_pressure_min'),
+  operatingPressureMax: numeric('operating_pressure_max'),
+  operatingTempMin:     numeric('operating_temp_min'),
+  operatingTempMax:     numeric('operating_temp_max'),
+  status:               varchar('status', { length: 20 }).notNull().default('draft'),
+  sortOrder:            integer('sort_order').notNull(),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+});
+export type HazopProcessLoop = typeof hazopProcessLoops.$inferSelect;
+
+// 6. hazop_process_steps — schema only in Phase 1; no UI/routes until Phase 2
+// from_step / to_step reference sequence_no WITHIN THE SAME LOOP (not step id)
+// outlet_destination: 'next_step'|'prev_step'|'start_of_loop'|'specific_step'|
+//   'next_loop'|'recycle'|'bypass'|'drain'|'vent'|'product_outlet'|'waste_outlet'
+export const hazopProcessSteps = pgTable('hazop_process_steps', {
+  id:                   serial('id').primaryKey(),
+  loopId:               integer('loop_id').notNull().references(() => hazopProcessLoops.id, { onDelete: 'cascade' }),
+  projectId:            integer('project_id'),
+  sequenceNo:           integer('sequence_no').notNull(),
+  equipmentCategory:    varchar('equipment_category', { length: 50 }).notNull(),
+  equipmentTag:         varchar('equipment_tag', { length: 50 }),
+  equipmentRole:        varchar('equipment_role', { length: 100 }),
+  connectionType:       varchar('connection_type', { length: 50 }).notNull(),
+  fromStep:             integer('from_step'),
+  toStep:               integer('to_step'),
+  outletType:           varchar('outlet_type', { length: 50 }),
+  outletDestination:    varchar('outlet_destination', { length: 50 }).notNull(),
+  outletDestinationRef: varchar('outlet_destination_ref', { length: 100 }),
+  operatingPressure:    numeric('operating_pressure'),
+  operatingTemperature: numeric('operating_temperature'),
+  fluid:                varchar('fluid', { length: 100 }),
+  remarks:              text('remarks'),
+  sortOrder:            integer('sort_order').notNull(),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  updatedAt:            timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uqLoopSeq: uniqueIndex('uq_hazop_step_loop_seq').on(table.loopId, table.sequenceNo),
+}));
+export type HazopProcessStep = typeof hazopProcessSteps.$inferSelect;
+
+// 7. hazop_nodes — schema only in Phase 1; no UI/routes until Phase 2
+// One node per process step is intentional by design.
+// UNIQUE (step_id) enforced.
+export const hazopNodes = pgTable('hazop_nodes', {
+  id:              serial('id').primaryKey(),
+  studyId:         integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  loopId:          integer('loop_id').notNull().references(() => hazopProcessLoops.id, { onDelete: 'cascade' }),
+  stepId:          integer('step_id').notNull().references(() => hazopProcessSteps.id, { onDelete: 'cascade' }),
+  nodeReference:   varchar('node_reference', { length: 100 }).notNull(),
+  nodeDescription: varchar('node_description', { length: 300 }),
+  deviationCount:  integer('deviation_count').notNull().default(0),
+  actionCount:     integer('action_count').notNull().default(0),
+  generatedAt:     timestamp('generated_at'),
+  generatedBy:     integer('generated_by').references(() => users.id),
+}, (table) => ({
+  uqStep: uniqueIndex('uq_hazop_node_step').on(table.stepId),
+}));
+export type HazopNode = typeof hazopNodes.$inferSelect;
+
+// 8. hazop_deviations
+export const hazopDeviations = pgTable('hazop_deviations', {
+  id:                   serial('id').primaryKey(),
+  nodeId:               integer('node_id').notNull().references(() => hazopNodes.id, { onDelete: 'cascade' }),
+  studyId:              integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  deviationNumber:      varchar('deviation_number', { length: 50 }).notNull(),
+  guideword:            varchar('guideword', { length: 20 }).notNull(),
+  parameter:            varchar('parameter', { length: 20 }).notNull(),
+  deviationDescription: varchar('deviation_description', { length: 200 }).notNull(),
+  isCredible:           boolean('is_credible').notNull().default(true),
+  credibilityReason:    text('credibility_reason'),
+  reviewed:             boolean('reviewed').notNull().default(false),
+  reviewedBy:           integer('reviewed_by').references(() => users.id),
+  reviewedAt:           timestamp('reviewed_at'),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uqNodeGP: uniqueIndex('uq_hazop_dev_node_gp').on(table.nodeId, table.guideword, table.parameter),
+}));
+export type HazopDeviation = typeof hazopDeviations.$inferSelect;
+
+// 9. hazop_causes
+export const hazopCauses = pgTable('hazop_causes', {
+  id:               serial('id').primaryKey(),
+  deviationId:      integer('deviation_id').notNull().references(() => hazopDeviations.id, { onDelete: 'cascade' }),
+  causeNumber:      integer('cause_number').notNull(),
+  causeDescription: text('cause_description').notNull(),
+  source:           varchar('source', { length: 10 }).notNull().default('library'),
+  deleted:          boolean('deleted').notNull().default(false),
+});
+export type HazopCause = typeof hazopCauses.$inferSelect;
+
+// 10. hazop_consequences
+export const hazopConsequences = pgTable('hazop_consequences', {
+  id:                       serial('id').primaryKey(),
+  deviationId:              integer('deviation_id').notNull().references(() => hazopDeviations.id, { onDelete: 'cascade' }),
+  consequenceNumber:        integer('consequence_number').notNull(),
+  consequenceDescription:   text('consequence_description').notNull(),
+  severity:                 varchar('severity', { length: 20 }),
+  source:                   varchar('source', { length: 10 }).notNull().default('library'),
+  deleted:                  boolean('deleted').notNull().default(false),
+});
+export type HazopConsequence = typeof hazopConsequences.$inferSelect;
+
+// 11. hazop_safeguards
+export const hazopSafeguards = pgTable('hazop_safeguards', {
+  id:                   serial('id').primaryKey(),
+  deviationId:          integer('deviation_id').notNull().references(() => hazopDeviations.id, { onDelete: 'cascade' }),
+  safeguardNumber:      integer('safeguard_number').notNull(),
+  safeguardDescription: text('safeguard_description').notNull(),
+  safeguardType:        varchar('safeguard_type', { length: 30 }),
+  tagRef:               varchar('tag_ref', { length: 50 }),
+  source:               varchar('source', { length: 10 }).notNull().default('library'),
+  deleted:              boolean('deleted').notNull().default(false),
+});
+export type HazopSafeguard = typeof hazopSafeguards.$inferSelect;
+
+// 12. hazop_actions
+export const hazopActions = pgTable('hazop_actions', {
+  id:                serial('id').primaryKey(),
+  deviationId:       integer('deviation_id').notNull().references(() => hazopDeviations.id, { onDelete: 'cascade' }),
+  actionNumber:      integer('action_number').notNull(),
+  actionDescription: text('action_description').notNull(),
+  actionType:        varchar('action_type', { length: 30 }),
+  assignedTo:        integer('assigned_to').references(() => users.id),
+  dueDate:           date('due_date'),
+  status:            varchar('status', { length: 20 }).notNull().default('open'),
+  closeComments:     text('close_comments'),
+  closedAt:          timestamp('closed_at'),
+  source:            varchar('source', { length: 10 }).notNull().default('library'),
+});
+export type HazopAction = typeof hazopActions.$inferSelect;
+
+// 13. hazop_safety_functions
+export const hazopSafetyFunctions = pgTable('hazop_safety_functions', {
+  id:                  serial('id').primaryKey(),
+  studyId:             integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  projectId:           integer('project_id'),
+  sifNumber:           varchar('sif_number', { length: 50 }).notNull(),
+  sifDescription:      varchar('sif_description', { length: 300 }).notNull(),
+  initiatingCause:     text('initiating_cause').notNull(),
+  initiatorTag:        varchar('initiator_tag', { length: 50 }),
+  initiatorCondition:  varchar('initiator_condition', { length: 100 }),
+  finalElementTag:     varchar('final_element_tag', { length: 50 }),
+  finalElementAction:  varchar('final_element_action', { length: 100 }),
+  sifType:             varchar('sif_type', { length: 30 }),
+  safetyCritical:      boolean('safety_critical').notNull().default(false),
+  sourceDeviationId:   integer('source_deviation_id').references(() => hazopDeviations.id, { onDelete: 'set null' }),
+  sourceActionId:      integer('source_action_id').references(() => hazopActions.id, { onDelete: 'set null' }),
+  silTarget:           varchar('sil_target', { length: 10 }),
+  status:              varchar('status', { length: 20 }).notNull().default('draft'),
+  createdAt:           timestamp('created_at').notNull().defaultNow(),
+  updatedAt:           timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uqStudySif: uniqueIndex('uq_hazop_sf_study_sif').on(table.studyId, table.sifNumber),
+}));
+export type HazopSafetyFunction = typeof hazopSafetyFunctions.$inferSelect;
+
+// 14. hazop_ce_matrix (Cause & Effect Matrix — one per study)
+export const hazopCeMatrix = pgTable('hazop_ce_matrix', {
+  id:           serial('id').primaryKey(),
+  studyId:      integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }).unique(),
+  projectId:    integer('project_id'),
+  matrixNumber: varchar('matrix_number', { length: 50 }).notNull(),
+  revision:     varchar('revision', { length: 10 }).notNull().default('A'),
+  status:       varchar('status', { length: 20 }).notNull().default('draft'),
+  generatedAt:  timestamp('generated_at'),
+  approvedBy:   integer('approved_by').references(() => users.id),
+  approvedAt:   timestamp('approved_at'),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+});
+export type HazopCeMatrix = typeof hazopCeMatrix.$inferSelect;
+
+// 15. hazop_ce_causes
+export const hazopCeCauses = pgTable('hazop_ce_causes', {
+  id:               serial('id').primaryKey(),
+  matrixId:         integer('matrix_id').notNull().references(() => hazopCeMatrix.id, { onDelete: 'cascade' }),
+  rowNumber:        integer('row_number').notNull(),
+  causeTag:         varchar('cause_tag', { length: 50 }).notNull(),
+  causeDescription: varchar('cause_description', { length: 200 }).notNull(),
+  causeCondition:   varchar('cause_condition', { length: 100 }),
+  causeType:        varchar('cause_type', { length: 20 }),
+  sourceSifId:      integer('source_sif_id').references(() => hazopSafetyFunctions.id, { onDelete: 'set null' }),
+});
+export type HazopCeCause = typeof hazopCeCauses.$inferSelect;
+
+// 16. hazop_ce_effects
+export const hazopCeEffects = pgTable('hazop_ce_effects', {
+  id:               serial('id').primaryKey(),
+  matrixId:         integer('matrix_id').notNull().references(() => hazopCeMatrix.id, { onDelete: 'cascade' }),
+  colNumber:        integer('col_number').notNull(),
+  effectTag:        varchar('effect_tag', { length: 50 }).notNull(),
+  effectDescription: varchar('effect_description', { length: 200 }).notNull(),
+  effectAction:     varchar('effect_action', { length: 50 }),
+  sourceSifId:      integer('source_sif_id').references(() => hazopSafetyFunctions.id, { onDelete: 'set null' }),
+});
+export type HazopCeEffect = typeof hazopCeEffects.$inferSelect;
+
+// 17. hazop_ce_cells
+export const hazopCeCells = pgTable('hazop_ce_cells', {
+  id:            serial('id').primaryKey(),
+  matrixId:      integer('matrix_id').notNull().references(() => hazopCeMatrix.id, { onDelete: 'cascade' }),
+  causeId:       integer('cause_id').notNull().references(() => hazopCeCauses.id, { onDelete: 'cascade' }),
+  effectId:      integer('effect_id').notNull().references(() => hazopCeEffects.id, { onDelete: 'cascade' }),
+  action:        varchar('action', { length: 10 }),
+  timeDelaySec:  integer('time_delay_sec').notNull().default(0),
+  notes:         varchar('notes', { length: 200 }),
+}, (table) => ({
+  uqCauseEffect: uniqueIndex('uq_hazop_ce_cell').on(table.causeId, table.effectId),
+}));
+export type HazopCeCell = typeof hazopCeCells.$inferSelect;
+
+// 18. hazop_fat_sat_items
+export const hazopFatSatItems = pgTable('hazop_fat_sat_items', {
+  id:              serial('id').primaryKey(),
+  studyId:         integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  projectId:       integer('project_id'),
+  checklistType:   varchar('checklist_type', { length: 5 }).notNull(),
+  itemNumber:      integer('item_number').notNull(),
+  sifId:           integer('sif_id').references(() => hazopSafetyFunctions.id, { onDelete: 'set null' }),
+  causeId:         integer('cause_id').references(() => hazopCeCauses.id, { onDelete: 'set null' }),
+  effectId:        integer('effect_id').references(() => hazopCeEffects.id, { onDelete: 'set null' }),
+  testDescription: text('test_description').notNull(),
+  expectedResult:  varchar('expected_result', { length: 300 }),
+  actualResult:    varchar('actual_result', { length: 300 }),
+  status:          varchar('status', { length: 20 }).notNull().default('not_tested'),
+  remarks:         text('remarks'),
+  testedBy:        integer('tested_by').references(() => users.id),
+  testedAt:        timestamp('tested_at'),
+});
+export type HazopFatSatItem = typeof hazopFatSatItems.$inferSelect;
+
+// 19. hazop_revisions
+export const hazopRevisions = pgTable('hazop_revisions', {
+  id:                serial('id').primaryKey(),
+  studyId:           integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  documentType:      varchar('document_type', { length: 30 }),
+  revision:          varchar('revision', { length: 10 }).notNull(),
+  changeDescription: text('change_description').notNull(),
+  changedBy:         integer('changed_by').notNull().references(() => users.id),
+  changedAt:         timestamp('changed_at').notNull().defaultNow(),
+});
+export type HazopRevision = typeof hazopRevisions.$inferSelect;
+
+// 20. hazop_deviation_library
+export const hazopDeviationLibrary = pgTable('hazop_deviation_library', {
+  id:                   serial('id').primaryKey(),
+  equipmentCategory:    varchar('equipment_category', { length: 50 }).notNull(),
+  guideword:            varchar('guideword', { length: 20 }).notNull(),
+  parameter:            varchar('parameter', { length: 20 }).notNull(),
+  applicable:           boolean('applicable').notNull().default(true),
+  deviationDescription: varchar('deviation_description', { length: 200 }).notNull(),
+  typicalCauses:        jsonb('typical_causes').notNull().default([]),
+  typicalConsequences:  jsonb('typical_consequences').notNull().default([]),
+  typicalSafeguards:    jsonb('typical_safeguards').notNull().default([]),
+  typicalActions:       jsonb('typical_actions').notNull().default([]),
+  version:              integer('version').notNull().default(1),
+}, (table) => ({
+  uqCatGP: uniqueIndex('uq_hazop_lib_cat_gp').on(table.equipmentCategory, table.guideword, table.parameter),
+}));
+export type HazopDeviationLibrary = typeof hazopDeviationLibrary.$inferSelect;

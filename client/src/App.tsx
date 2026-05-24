@@ -30,6 +30,7 @@ import * as Employee from "@/loaders/employee";
 import * as System from "@/loaders/system";
 import * as Dvs from "@/loaders/dvs";
 import * as OI from "@/loaders/oi";
+import * as Hazop from "@/loaders/hazop";
 
 function SuperuserRoute({
   path,
@@ -329,6 +330,8 @@ function Router() {
       <ProtectedRoute path="/oi/lessons/:id" component={() => <OI.OiLessonDetailPage />} />
       <ProtectedRoute path="/oi/lessons" component={() => <OI.OiLessonRegisterPage />} />
       <ProtectedRoute path="/oi/config" component={() => <OI.OiConfigPage />} />
+
+      <ProtectedRoute path="/hazop/dashboard" component={() => <Hazop.HazopDashboardPage />} />
 
       <Route component={NotFound} />
     </Switch>
