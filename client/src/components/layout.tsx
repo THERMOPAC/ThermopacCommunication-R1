@@ -693,6 +693,7 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Digital Marketing' },
                     { type: 'submenu', label: 'Sales and Marketing' },
                     { type: 'submenu', label: 'Project Management' },
+                    { type: 'submenu', label: 'HAZOP' },
                     { type: 'submenu', label: 'Drawing Verification', skipPermCheck: true },
                     { type: 'submenu', label: 'Design Management' },
                     { type: 'submenu', label: 'Procurement Management' },
