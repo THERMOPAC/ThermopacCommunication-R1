@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ShieldAlert, Plus, Trash2, Loader2 } from "lucide-react";
 import { fmtDate } from "@/lib/date-format";
+import { getProjectDisplayName } from "@/lib/project-utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -57,8 +58,8 @@ interface Project {
   id: number;
   code: string;
   customer_name: string;
-  project_display_name?: string;
-  offer_subject?: string;
+  project_display_name: string | null;
+  offer_subject: string | null;
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps)
                 <SelectContent>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
-                      {p.code} — {p.customer_name}
+                      {getProjectDisplayName(p)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -283,7 +284,7 @@ function ProjectStudiesTab() {
           <SelectContent>
             {projects.map((p) => (
               <SelectItem key={p.id} value={String(p.id)}>
-                {p.code} — {p.customer_name}
+                {getProjectDisplayName(p)}
               </SelectItem>
             ))}
           </SelectContent>
