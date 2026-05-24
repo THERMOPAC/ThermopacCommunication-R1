@@ -897,6 +897,7 @@ export async function ensureBomsForAllProjectItems(
     [projectId]
   );
 
+  console.log(`${LOG_PREFIX} [BOM] Sweep found ${missing.rows.length} items without BOMs for project ${projectId}`);
   if (missing.rows.length === 0) return { created, errors };
 
   // Get project code

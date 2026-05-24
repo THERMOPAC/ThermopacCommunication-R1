@@ -314,11 +314,22 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const itemCode = sd.item_code || sd.master_item_code || '';
   const itemDesc = sd.master_item_description || sd.item_description || '';
   const quantity = parseFloat(sd.quantity) || 1;
-  const masterItemId = sd.master_item_id;
   const uom = sd.uom || 'set';
   const classification = sd.make_or_buy || 'Make';
   const projectItemId = draft.project_item_id;
   const isService = classification.toLowerCase() === 'service';
+
+  // Resolve master_item_id live from project_items when source_data is stale/null
+  let masterItemId: number | null = sd.master_item_id ? Number(sd.master_item_id) : null;
+  if (!masterItemId) {
+    const piRow = await db.execute(
+      sql`SELECT item_id FROM project_items WHERE id = ${projectItemId} LIMIT 1`
+    );
+    masterItemId = (piRow.rows[0] as any)?.item_id || null;
+    if (masterItemId) {
+      console.log(`[DraftActivation] WO draft ${draft.id}: resolved live master_item_id=${masterItemId} for project_item_id=${projectItemId}`);
+    }
+  }
 
   const planningType = isService ? 'service' : 'make';
   const planningAssigneeResult = isService
@@ -467,10 +478,21 @@ async function activatePurchaseOrder(draft: any, userId: number): Promise<{ enti
   const itemCode = sd.item_code || sd.master_item_code || '';
   const itemDesc = sd.master_item_description || sd.item_description || '';
   const quantity = parseFloat(sd.quantity) || 1;
-  const masterItemId = sd.master_item_id;
   const uom = sd.uom || 'set';
   const classification = sd.make_or_buy || 'Buy';
   const projectItemId = draft.project_item_id;
+
+  // Resolve master_item_id live from project_items when source_data is stale/null
+  let masterItemId: number | null = sd.master_item_id ? Number(sd.master_item_id) : null;
+  if (!masterItemId) {
+    const piRow = await db.execute(
+      sql`SELECT item_id FROM project_items WHERE id = ${projectItemId} LIMIT 1`
+    );
+    masterItemId = (piRow.rows[0] as any)?.item_id || null;
+    if (masterItemId) {
+      console.log(`[DraftActivation] PO draft ${draft.id}: resolved live master_item_id=${masterItemId} for project_item_id=${projectItemId}`);
+    }
+  }
 
   const purchaseAssigneeResult = await requireEpcAssignee('PO_prepare', draft.project_id, 'full_auto');
   const purchaseAssignee = purchaseAssigneeResult.userId;
