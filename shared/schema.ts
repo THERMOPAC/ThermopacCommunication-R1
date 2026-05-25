@@ -15719,12 +15719,14 @@ export const hazopProcessLoops = pgTable('hazop_process_loops', {
 });
 export type HazopProcessLoop = typeof hazopProcessLoops.$inferSelect;
 
-// 6. hazop_process_steps — schema only in Phase 1; no UI/routes until Phase 2
-// from_step / to_step reference sequence_no WITHIN THE SAME LOOP (not step id)
-// outlet_destination: 'next_step'|'prev_step'|'start_of_loop'|'specific_step'|
-//   'next_loop'|'recycle'|'bypass'|'drain'|'vent'|'product_outlet'|'waste_outlet'
+// 6. hazop_process_steps — Phase 2 v2.0
+// sequence_no scoped to (node_id). loop_id is denormalized for query convenience.
+// outlet_destination: 'next_step'|'prev_step'|'start_of_loop'|'next_node'|
+//   'next_loop'|'specific_step'|'recycle'|'bypass'|
+//   'drain'|'vent'|'product_outlet'|'waste_outlet'
 export const hazopProcessSteps = pgTable('hazop_process_steps', {
   id:                   serial('id').primaryKey(),
+  nodeId:               integer('node_id').notNull().references(() => hazopNodes.id, { onDelete: 'cascade' }),
   loopId:               integer('loop_id').notNull().references(() => hazopProcessLoops.id, { onDelete: 'cascade' }),
   projectId:            integer('project_id'),
   sequenceNo:           integer('sequence_no').notNull(),
@@ -15745,26 +15747,29 @@ export const hazopProcessSteps = pgTable('hazop_process_steps', {
   createdAt:            timestamp('created_at').notNull().defaultNow(),
   updatedAt:            timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
-  uqLoopSeq: uniqueIndex('uq_hazop_step_loop_seq').on(table.loopId, table.sequenceNo),
+  uqNodeSeq: uniqueIndex('uq_hazop_step_node_seq').on(table.nodeId, table.sequenceNo),
 }));
 export type HazopProcessStep = typeof hazopProcessSteps.$inferSelect;
 
-// 7. hazop_nodes — schema only in Phase 1; no UI/routes until Phase 2
-// One node per process step is intentional by design.
-// UNIQUE (step_id) enforced.
+// 7. hazop_nodes — Phase 2 v2.0 — independent user-defined object under Loop
+// node_reference = '{loop_number}.{node_number}' (computed server-side, stored)
+// UNIQUE (loop_id, node_number) enforced.
 export const hazopNodes = pgTable('hazop_nodes', {
   id:              serial('id').primaryKey(),
   studyId:         integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
   loopId:          integer('loop_id').notNull().references(() => hazopProcessLoops.id, { onDelete: 'cascade' }),
-  stepId:          integer('step_id').notNull().references(() => hazopProcessSteps.id, { onDelete: 'cascade' }),
+  nodeNumber:      integer('node_number').notNull(),
+  nodeName:        varchar('node_name', { length: 200 }).notNull(),
   nodeReference:   varchar('node_reference', { length: 100 }).notNull(),
   nodeDescription: varchar('node_description', { length: 300 }),
+  designIntent:    text('design_intent'),
+  pAndIdRef:       varchar('p_and_id_ref', { length: 100 }),
   deviationCount:  integer('deviation_count').notNull().default(0),
   actionCount:     integer('action_count').notNull().default(0),
   generatedAt:     timestamp('generated_at'),
   generatedBy:     integer('generated_by').references(() => users.id),
 }, (table) => ({
-  uqStep: uniqueIndex('uq_hazop_node_step').on(table.stepId),
+  uqLoopNode: uniqueIndex('uq_hazop_node_loop_num').on(table.loopId, table.nodeNumber),
 }));
 export type HazopNode = typeof hazopNodes.$inferSelect;
 

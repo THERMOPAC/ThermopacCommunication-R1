@@ -26,20 +26,14 @@ const CONNECTION_TYPES = [
 ] as const;
 
 const OUTLET_DESTINATIONS = [
-  'next_step', 'prev_step', 'start_of_loop', 'specific_step', 'next_loop',
-  'recycle', 'bypass', 'drain', 'vent', 'product_outlet', 'waste_outlet',
+  'next_step', 'prev_step', 'start_of_loop', 'next_node', 'next_loop',
+  'specific_step', 'recycle', 'bypass',
+  'drain', 'vent', 'product_outlet', 'waste_outlet',
 ] as const;
 
-function buildNodeReference(loopNumber: number, sequenceNo: number, equipmentTag: string | null, equipmentCategory: string): string {
-  const tag = equipmentTag && equipmentTag.trim() ? equipmentTag.trim() : equipmentCategory;
-  return `${loopNumber}.${sequenceNo} \u2014 ${tag}`;
-}
-
-function buildNodeDescription(equipmentRole: string | null, remarks: string | null): string | null {
-  if (equipmentRole && equipmentRole.trim()) return equipmentRole.trim();
-  if (remarks && remarks.trim()) return remarks.trim();
-  return null;
-}
+// Outlet destinations that REQUIRE an outlet_destination_ref (V11/V12)
+const REF_REQUIRED_DESTINATIONS = new Set(['specific_step', 'recycle', 'bypass']);
+const REF_FORMAT = /^\d+\.\d+\.\d+$/;
 
 function getCurrentFyCode(): string {
   const now = new Date();
@@ -304,6 +298,7 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
 
       const result = await pool.query(`
         SELECT l.*,
+          (SELECT COUNT(*) FROM hazop_nodes n WHERE n.loop_id = l.id) AS node_count,
           (SELECT COUNT(*) FROM hazop_process_steps s WHERE s.loop_id = l.id) AS step_count
         FROM hazop_process_loops l
         WHERE l.study_id = $1
@@ -407,44 +402,169 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
-  // ── List steps for a loop (with node data) ──────────────────────────────────
-  app.get('/api/hazop/loops/:loopId/steps', ensureAuthenticated, async (req: Request, res: Response) => {
+  // ── resolveNode helper ──────────────────────────────────────────────────────
+  async function resolveNode(nodeId: number) {
+    const r = await pool.query(`
+      SELECT n.*, l.loop_number, l.study_id, l.project_id AS loop_project_id,
+             s.status AS study_status, s.study_mode
+      FROM hazop_nodes n
+      JOIN hazop_process_loops l ON l.id = n.loop_id
+      JOIN hazop_studies s ON s.id = l.study_id
+      WHERE n.id = $1
+    `, [nodeId]);
+    return r.rowCount === 0 ? null : r.rows[0];
+  }
+
+  // ── List nodes for a loop ───────────────────────────────────────────────────
+  app.get('/api/hazop/loops/:loopId/nodes', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const loopId = parseInt(req.params.loopId);
       if (isNaN(loopId)) return res.status(400).json({ error: 'Invalid loopId' });
 
-      const result = await pool.query(`
-        SELECT s.*,
-          n.id AS node_id, n.node_reference, n.node_description,
-          n.deviation_count, n.action_count,
-          ce.concept_tag AS concept_equipment_tag, ce.equipment_role AS concept_equipment_role,
-          bl.tag_no AS buy_list_tag, bl.service_description AS buy_list_service
-        FROM hazop_process_steps s
-        LEFT JOIN hazop_nodes n ON n.step_id = s.id
-        LEFT JOIN hazop_concept_equipment ce ON ce.id = s.concept_equipment_id
-        LEFT JOIN project_buy_list_lines bl ON bl.id = s.buy_list_line_id
-        WHERE s.loop_id = $1
-        ORDER BY s.sequence_no
-      `, [loopId]);
+      const loopRes = await pool.query('SELECT id FROM hazop_process_loops WHERE id=$1', [loopId]);
+      if (loopRes.rowCount === 0) return sendNotFound(res, 'Process Loop');
 
+      const result = await pool.query(`
+        SELECT n.*,
+          (SELECT COUNT(*) FROM hazop_process_steps s WHERE s.node_id = n.id) AS step_count
+        FROM hazop_nodes n
+        WHERE n.loop_id = $1
+        ORDER BY n.node_number
+      `, [loopId]);
       res.json(result.rows);
     } catch (err) { sendError(res, err); }
   });
 
-  // ── Create step + auto-create node ─────────────────────────────────────────
-  app.post('/api/hazop/loops/:loopId/steps', ensureAuthenticated, async (req: Request, res: Response) => {
-    const client = await pool.connect();
+  // ── Create node ─────────────────────────────────────────────────────────────
+  app.post('/api/hazop/loops/:loopId/nodes', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const loopId = parseInt(req.params.loopId);
       if (isNaN(loopId)) return res.status(400).json({ error: 'Invalid loopId' });
 
-      const loopRes = await client.query(`
-        SELECT l.*, s.status AS study_status, s.study_mode, s.project_id, s.id AS study_id
+      const loopRes = await pool.query(`
+        SELECT l.*, s.status AS study_status, s.id AS study_id
         FROM hazop_process_loops l JOIN hazop_studies s ON s.id = l.study_id WHERE l.id = $1
       `, [loopId]);
       if (loopRes.rowCount === 0) return sendNotFound(res, 'Process Loop');
       const loop = loopRes.rows[0];
       if (loop.study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+
+      const { node_name, node_description, design_intent, p_and_id_ref } = req.body;
+      if (!node_name || typeof node_name !== 'string' || !node_name.trim()) {
+        return res.status(400).json({ error: 'node_name is required' });
+      }
+
+      const seqRes = await pool.query(
+        'SELECT COALESCE(MAX(node_number),0)+1 AS next_num FROM hazop_nodes WHERE loop_id=$1',
+        [loopId]
+      );
+      const nodeNumber = seqRes.rows[0].next_num;
+      const nodeReference = `${loop.loop_number}.${nodeNumber}`;
+
+      const result = await pool.query(`
+        INSERT INTO hazop_nodes
+          (study_id, loop_id, node_number, node_name, node_reference,
+           node_description, design_intent, p_and_id_ref,
+           deviation_count, action_count)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,0)
+        RETURNING *
+      `, [
+        loop.study_id, loopId, nodeNumber, node_name.trim(), nodeReference,
+        node_description?.trim() ?? null,
+        design_intent?.trim() ?? null,
+        p_and_id_ref?.trim() ?? null,
+      ]);
+      res.status(201).json(result.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Patch node ──────────────────────────────────────────────────────────────
+  app.patch('/api/hazop/nodes/:nodeId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      if (isNaN(nodeId)) return res.status(400).json({ error: 'Invalid nodeId' });
+
+      const node = await resolveNode(nodeId);
+      if (!node) return sendNotFound(res, 'Process Node');
+      if (node.study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+
+      if ('node_name' in req.body && (!req.body.node_name || !req.body.node_name.trim())) {
+        return res.status(400).json({ error: 'node_name cannot be empty' });
+      }
+
+      const allowed = ['node_name', 'node_description', 'design_intent', 'p_and_id_ref'];
+      const updates: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      for (const f of allowed) {
+        if (f in req.body) { updates.push(`${f}=$${idx}`); values.push(req.body[f]); idx++; }
+      }
+      if (updates.length === 0) return res.status(400).json({ error: 'No updatable fields provided' });
+      values.push(nodeId);
+
+      const result = await pool.query(
+        `UPDATE hazop_nodes SET ${updates.join(',')} WHERE id=$${idx} RETURNING *`,
+        values
+      );
+      res.json(result.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Delete node (cascade: steps) ────────────────────────────────────────────
+  app.delete('/api/hazop/nodes/:nodeId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      if (isNaN(nodeId)) return res.status(400).json({ error: 'Invalid nodeId' });
+
+      const node = await resolveNode(nodeId);
+      if (!node) return sendNotFound(res, 'Process Node');
+      if (node.study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status to delete nodes' });
+
+      await pool.query('DELETE FROM hazop_nodes WHERE id=$1', [nodeId]);
+      res.status(204).send();
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── List steps for a node ───────────────────────────────────────────────────
+  app.get('/api/hazop/nodes/:nodeId/steps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      if (isNaN(nodeId)) return res.status(400).json({ error: 'Invalid nodeId' });
+
+      const nodeRes = await pool.query('SELECT id FROM hazop_nodes WHERE id=$1', [nodeId]);
+      if (nodeRes.rowCount === 0) return sendNotFound(res, 'Process Node');
+
+      const result = await pool.query(`
+        SELECT s.*,
+          ce.concept_tag AS concept_equipment_tag, ce.equipment_role AS concept_equipment_role,
+          bl.tag_no AS buy_list_tag, bl.service_description AS buy_list_service
+        FROM hazop_process_steps s
+        LEFT JOIN hazop_concept_equipment ce ON ce.id = s.concept_equipment_id
+        LEFT JOIN project_buy_list_lines bl ON bl.id = s.buy_list_line_id
+        WHERE s.node_id = $1
+        ORDER BY s.sequence_no
+      `, [nodeId]);
+      res.json(result.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Create step under a node ────────────────────────────────────────────────
+  app.post('/api/hazop/nodes/:nodeId/steps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      if (isNaN(nodeId)) return res.status(400).json({ error: 'Invalid nodeId' });
+
+      const nodeRes = await pool.query(`
+        SELECT n.*, l.loop_number, l.study_id, l.project_id AS loop_project_id,
+               s.status AS study_status, s.study_mode
+        FROM hazop_nodes n
+        JOIN hazop_process_loops l ON l.id = n.loop_id
+        JOIN hazop_studies s ON s.id = l.study_id
+        WHERE n.id = $1
+      `, [nodeId]);
+      if (nodeRes.rowCount === 0) return sendNotFound(res, 'Process Node');
+      const node = nodeRes.rows[0];
+      if (node.study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
 
       const {
         equipment_category, equipment_tag, equipment_role,
@@ -453,7 +573,6 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         buy_list_line_id, concept_equipment_id,
       } = req.body;
 
-      // Validate required fields
       if (!EQUIPMENT_CATEGORIES.includes(equipment_category)) {
         return res.status(400).json({ error: `Invalid equipment_category. Must be one of: ${EQUIPMENT_CATEGORIES.join(', ')}` });
       }
@@ -464,88 +583,73 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         return res.status(400).json({ error: `Invalid outlet_destination. Must be one of: ${OUTLET_DESTINATIONS.join(', ')}` });
       }
 
-      // Mutual exclusivity
+      // V11/V12 — outlet_destination_ref validation
+      const refVal = outlet_destination_ref?.trim() || null;
+      if (REF_REQUIRED_DESTINATIONS.has(outlet_destination) && !refVal) {
+        return res.status(400).json({ error: `V11: outlet_destination_ref is required when outlet_destination is '${outlet_destination}'` });
+      }
+      if (refVal && !REF_FORMAT.test(refVal)) {
+        return res.status(400).json({ error: 'V12: outlet_destination_ref must match format {L}.{N}.{S} (e.g. 1.2.3)' });
+      }
+
       if (buy_list_line_id != null && concept_equipment_id != null) {
         return res.status(400).json({ error: 'buy_list_line_id and concept_equipment_id are mutually exclusive' });
       }
-      if (concept_equipment_id != null && loop.study_mode === 'project_based') {
+      if (concept_equipment_id != null && node.study_mode === 'project_based') {
         return res.status(400).json({ error: 'concept_equipment_id cannot be set on a project_based study' });
       }
-      if (buy_list_line_id != null && loop.study_mode === 'concept_expected_project') {
+      if (buy_list_line_id != null && node.study_mode === 'concept_expected_project') {
         return res.status(400).json({ error: 'buy_list_line_id cannot be set on a concept study' });
       }
-
-      // Verify FK ownership
       if (buy_list_line_id != null) {
-        const blCheck = await client.query(`
+        const blCheck = await pool.query(`
           SELECT l.id FROM project_buy_list_lines l
           JOIN project_buy_list_headers h ON h.id = l.buy_list_header_id
           WHERE l.id=$1 AND h.project_id=$2
-        `, [buy_list_line_id, loop.project_id]);
+        `, [buy_list_line_id, node.loop_project_id]);
         if (blCheck.rowCount === 0) return res.status(400).json({ error: 'buy_list_line_id does not belong to this study project' });
       }
       if (concept_equipment_id != null) {
-        const ceCheck = await client.query('SELECT id FROM hazop_concept_equipment WHERE id=$1 AND study_id=$2', [concept_equipment_id, loop.study_id]);
+        const ceCheck = await pool.query('SELECT id FROM hazop_concept_equipment WHERE id=$1 AND study_id=$2', [concept_equipment_id, node.study_id]);
         if (ceCheck.rowCount === 0) return res.status(400).json({ error: 'concept_equipment_id does not belong to this study' });
       }
 
-      await client.query('BEGIN');
-
-      // sequence_no: always MAX+1, server-side — client value ignored
-      const seqRes = await client.query(
-        'SELECT COALESCE(MAX(sequence_no),0)+1 AS next_seq FROM hazop_process_steps WHERE loop_id=$1',
-        [loopId]
+      const seqRes = await pool.query(
+        'SELECT COALESCE(MAX(sequence_no),0)+1 AS next_seq FROM hazop_process_steps WHERE node_id=$1',
+        [nodeId]
       );
       const sequenceNo = seqRes.rows[0].next_seq;
 
-      // Collect warnings
       const warnings: string[] = [];
       const virtualCategories = ['Drain', 'Vent', 'Next Loop', 'Product Outlet', 'Waste Outlet'];
       if (sequenceNo === 1 && !['Tank','Vessel','Separator','Utility System'].includes(equipment_category) && connection_type !== 'Loop transition') {
         warnings.push('V1: First step should start with Tank, Vessel, Separator, Utility System, or Loop transition connection');
       }
-      const terminalDestinations = ['product_outlet','waste_outlet','drain','vent'];
-      if (!terminalDestinations.includes(outlet_destination) && !outlet_destination) {
-        warnings.push('V2: Non-terminal step should have outlet_destination set');
-      }
       if (!virtualCategories.includes(equipment_category) && (!equipment_tag || !equipment_tag.trim())) {
         warnings.push('V3: equipment_tag is missing for a taggable step');
       }
 
-      // Insert step
-      const stepResult = await client.query(`
+      const result = await pool.query(`
         INSERT INTO hazop_process_steps
-          (loop_id, project_id, sequence_no, equipment_category, equipment_tag, equipment_role,
+          (node_id, loop_id, project_id, sequence_no,
+           equipment_category, equipment_tag, equipment_role,
            connection_type, outlet_type, outlet_destination, outlet_destination_ref,
            operating_pressure, operating_temperature, fluid, remarks,
            buy_list_line_id, concept_equipment_id,
            sort_order, created_at, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$3,NOW(),NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$4,NOW(),NOW())
         RETURNING *
       `, [
-        loopId, loop.project_id, sequenceNo,
+        nodeId, node.loop_id, node.loop_project_id, sequenceNo,
         equipment_category, equipment_tag?.trim() ?? null, equipment_role?.trim() ?? null,
-        connection_type, outlet_type?.trim() ?? null, outlet_destination, outlet_destination_ref?.trim() ?? null,
+        connection_type, outlet_type?.trim() ?? null, outlet_destination, refVal,
         operating_pressure ?? null, operating_temperature ?? null,
         fluid?.trim() ?? null, remarks?.trim() ?? null,
         buy_list_line_id ?? null, concept_equipment_id ?? null,
       ]);
-      const step = stepResult.rows[0];
 
-      // Auto-create node
-      const nodeRef = buildNodeReference(loop.loop_number, sequenceNo, step.equipment_tag, step.equipment_category);
-      const nodeDesc = buildNodeDescription(step.equipment_role, step.remarks);
-      const nodeResult = await client.query(`
-        INSERT INTO hazop_nodes (study_id, loop_id, step_id, node_reference, node_description, deviation_count, action_count)
-        VALUES ($1,$2,$3,$4,$5,0,0) RETURNING *
-      `, [loop.study_id, loopId, step.id, nodeRef, nodeDesc]);
-
-      await client.query('COMMIT');
-      res.status(201).json({ ...step, node: nodeResult.rows[0], warnings });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      sendError(res, err);
-    } finally { client.release(); }
+      res.status(201).json({ ...result.rows[0], warnings });
+    } catch (err) { sendError(res, err); }
   });
 
   // ── Patch step ──────────────────────────────────────────────────────────────
@@ -589,6 +693,18 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         return res.status(400).json({ error: `Invalid outlet_destination` });
       }
 
+      // V11/V12 — outlet_destination_ref validation (evaluate against effective values)
+      const effectiveOutletDest = body.outlet_destination ?? existing.outlet_destination;
+      const effectiveOutletRef = 'outlet_destination_ref' in body
+        ? (body.outlet_destination_ref?.trim() || null)
+        : existing.outlet_destination_ref;
+      if (REF_REQUIRED_DESTINATIONS.has(effectiveOutletDest) && !effectiveOutletRef) {
+        return res.status(400).json({ error: `V11: outlet_destination_ref is required when outlet_destination is '${effectiveOutletDest}'` });
+      }
+      if (effectiveOutletRef && !REF_FORMAT.test(effectiveOutletRef)) {
+        return res.status(400).json({ error: 'V12: outlet_destination_ref must match format {L}.{N}.{S} (e.g. 1.2.3)' });
+      }
+
       // Mutual exclusivity
       const newBl = body.buy_list_line_id ?? existing.buy_list_line_id;
       const newCe = body.concept_equipment_id ?? existing.concept_equipment_id;
@@ -622,34 +738,20 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       updates.push(`updated_at=NOW()`);
       values.push(stepId);
 
-      await client.query('BEGIN');
       const stepUpdate = await client.query(
         `UPDATE hazop_process_steps SET ${updates.join(',')} WHERE id=$${idx} RETURNING *`,
         values
       );
-      const updated = stepUpdate.rows[0];
-
-      // Update node reference if tag or role changed
-      const newTag = updated.equipment_tag;
-      const newCat = updated.equipment_category;
-      const newRole = updated.equipment_role;
-      const newRemarks = updated.remarks;
-      const newNodeRef = buildNodeReference(existing.loop_number, existing.sequence_no, newTag, newCat);
-      const newNodeDesc = buildNodeDescription(newRole, newRemarks);
-      await client.query(
-        'UPDATE hazop_nodes SET node_reference=$1, node_description=$2 WHERE step_id=$3',
-        [newNodeRef, newNodeDesc, stepId]
-      );
 
       await client.query('COMMIT');
-      res.json(updated);
+      res.json(stepUpdate.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
       sendError(res, err);
     } finally { client.release(); }
   });
 
-  // ── Delete step (cascade: node via FK) ─────────────────────────────────────
+  // ── Delete step (node NOT deleted — steps are independent of node lifecycle) ─
   app.delete('/api/hazop/steps/:stepId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const stepId = parseInt(req.params.stepId);
@@ -658,14 +760,14 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       const stepRes = await pool.query(`
         SELECT s.id, st.status AS study_status
         FROM hazop_process_steps s
-        JOIN hazop_process_loops l ON l.id = s.loop_id
+        JOIN hazop_nodes n ON n.id = s.node_id
+        JOIN hazop_process_loops l ON l.id = n.loop_id
         JOIN hazop_studies st ON st.id = l.study_id
         WHERE s.id = $1
       `, [stepId]);
       if (stepRes.rowCount === 0) return sendNotFound(res, 'Process Step');
       if (stepRes.rows[0].study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status to delete steps' });
 
-      // Node deleted automatically via ON DELETE CASCADE
       await pool.query('DELETE FROM hazop_process_steps WHERE id=$1', [stepId]);
       res.status(204).send();
     } catch (err) { sendError(res, err); }
@@ -683,12 +785,11 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       const result = await pool.query(`
         SELECT n.*,
           l.loop_number, l.loop_name,
-          s.sequence_no, s.equipment_category, s.equipment_tag, s.equipment_role
+          (SELECT COUNT(*) FROM hazop_process_steps s WHERE s.node_id = n.id) AS step_count
         FROM hazop_nodes n
-        JOIN hazop_process_steps s ON s.id = n.step_id
         JOIN hazop_process_loops l ON l.id = n.loop_id
         WHERE n.study_id = $1
-        ORDER BY l.sort_order, l.loop_number, s.sequence_no
+        ORDER BY l.sort_order, l.loop_number, n.node_number
       `, [studyId]);
 
       res.json(result.rows);

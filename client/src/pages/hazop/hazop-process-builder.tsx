@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ShieldAlert, Plus, Trash2, Loader2, Edit2, ArrowLeft, AlertTriangle, GitBranch, List } from "lucide-react";
+import { ShieldAlert, Plus, Trash2, Loader2, Edit2, ArrowLeft, GitBranch, List, ChevronRight, Layers } from "lucide-react";
 
 // ── Controlled vocabulary ──────────────────────────────────────────────────────
 
@@ -27,18 +27,21 @@ const CONNECTION_TYPES = [
 ];
 
 const OUTLET_DESTINATIONS = [
-  { value: "next_step", label: "Next Step" },
-  { value: "prev_step", label: "Previous Step" },
-  { value: "start_of_loop", label: "Start of Loop" },
-  { value: "specific_step", label: "Specific Step" },
-  { value: "next_loop", label: "Next Loop" },
-  { value: "recycle", label: "Recycle" },
-  { value: "bypass", label: "Bypass" },
-  { value: "drain", label: "Drain" },
-  { value: "vent", label: "Vent" },
+  { value: "next_step",      label: "Next Step" },
+  { value: "prev_step",      label: "Previous Step" },
+  { value: "start_of_loop",  label: "Start of Loop" },
+  { value: "next_node",      label: "Next Node" },
+  { value: "next_loop",      label: "Next Loop" },
+  { value: "specific_step",  label: "Specific Step" },
+  { value: "recycle",        label: "Recycle" },
+  { value: "bypass",         label: "Bypass" },
+  { value: "drain",          label: "Drain" },
+  { value: "vent",           label: "Vent" },
   { value: "product_outlet", label: "Product Outlet" },
-  { value: "waste_outlet", label: "Waste Outlet" },
+  { value: "waste_outlet",   label: "Waste Outlet" },
 ];
+
+const REF_REQUIRED = new Set(["specific_step", "recycle", "bypass"]);
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -63,6 +66,20 @@ interface Loop {
   operating_temp_min: number | null;
   operating_temp_max: number | null;
   status: string;
+  node_count: string;
+  step_count: string;
+}
+
+interface Node {
+  id: number;
+  node_number: number;
+  node_name: string;
+  node_reference: string;
+  node_description: string | null;
+  design_intent: string | null;
+  p_and_id_ref: string | null;
+  deviation_count: number;
+  action_count: number;
   step_count: string;
 }
 
@@ -82,10 +99,6 @@ interface Step {
   remarks: string | null;
   buy_list_line_id: number | null;
   concept_equipment_id: number | null;
-  node_id: number | null;
-  node_reference: string | null;
-  deviation_count: number;
-  action_count: number;
   concept_equipment_tag: string | null;
   buy_list_tag: string | null;
 }
@@ -94,42 +107,24 @@ interface EquipmentPoolItem {
   id: number;
   concept_tag?: string;
   tag_no?: string;
-  equipment_category?: string;
   equipment_role?: string;
   service_description?: string;
 }
 
-interface ConceptEquipment {
-  id: number;
-  concept_tag: string;
-  equipment_category: string;
-  equipment_role: string | null;
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function outletLabel(value: string) {
+  return OUTLET_DESTINATIONS.find(o => o.value === value)?.label ?? value;
 }
 
-// ── Loop status badge ──────────────────────────────────────────────────────────
-
 function LoopStatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    draft: "bg-gray-100 text-gray-600",
-    hazop_generated: "bg-green-100 text-green-700",
-  };
-  return (
-    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${map[status] ?? "bg-gray-100 text-gray-600"}`}>
-      {status === "hazop_generated" ? "Generated" : "Draft"}
-    </span>
-  );
+  const cls = status === "hazop_generated" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600";
+  return <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${cls}`}>{status === "hazop_generated" ? "Generated" : "Draft"}</span>;
 }
 
 // ── Loop form dialog ───────────────────────────────────────────────────────────
 
-interface LoopFormProps {
-  open: boolean;
-  onClose: () => void;
-  studyId: number;
-  editing?: Loop | null;
-}
-
-function LoopFormDialog({ open, onClose, studyId, editing }: LoopFormProps) {
+function LoopFormDialog({ open, onClose, studyId, editing }: { open: boolean; onClose: () => void; studyId: number; editing?: Loop | null }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [name, setName] = useState(editing?.loop_name ?? "");
@@ -143,9 +138,8 @@ function LoopFormDialog({ open, onClose, studyId, editing }: LoopFormProps) {
 
   const mutation = useMutation({
     mutationFn: (body: Record<string, any>) =>
-      editing
-        ? apiRequest("PATCH", `/api/hazop/loops/${editing.id}`, body)
-        : apiRequest("POST", `/api/hazop/studies/${studyId}/loops`, body),
+      editing ? apiRequest("PATCH", `/api/hazop/loops/${editing.id}`, body)
+               : apiRequest("POST", `/api/hazop/studies/${studyId}/loops`, body),
     onSuccess: () => {
       toast({ title: editing ? "Loop updated" : "Loop created" });
       queryClient.invalidateQueries({ queryKey: ["/api/hazop/studies", studyId, "loops"] });
@@ -167,55 +161,32 @@ function LoopFormDialog({ open, onClose, studyId, editing }: LoopFormProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Edit Loop" : "Add Process Loop"}</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? "Edit Loop" : "Add Process Loop"}</DialogTitle></DialogHeader>
         <div className="space-y-3 py-2">
           <div>
             <Label>Loop Name <span className="text-red-500">*</span></Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Feed Pump Loop" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>P&ID Reference</Label>
-              <Input value={pandid} onChange={e => setPandid(e.target.value)} placeholder="e.g. P&ID-001-A" />
-            </div>
-            <div>
-              <Label>Line Number</Label>
-              <Input value={lineNo} onChange={e => setLineNo(e.target.value)} placeholder='e.g. 6"-P-101-CS' />
-            </div>
+            <div><Label>P&ID Reference</Label><Input value={pandid} onChange={e => setPandid(e.target.value)} placeholder="e.g. P&ID-001-A" /></div>
+            <div><Label>Line Number</Label><Input value={lineNo} onChange={e => setLineNo(e.target.value)} placeholder='e.g. 6"-P-101-CS' /></div>
           </div>
-          <div>
-            <Label>Fluid</Label>
-            <Input value={fluid} onChange={e => setFluid(e.target.value)} placeholder="e.g. Used Engine Oil" />
+          <div><Label>Fluid</Label><Input value={fluid} onChange={e => setFluid(e.target.value)} placeholder="e.g. Used Engine Oil" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Pressure Min (barg)</Label><Input type="number" value={pMin} onChange={e => setPMin(e.target.value)} /></div>
+            <div><Label>Pressure Max (barg)</Label><Input type="number" value={pMax} onChange={e => setPMax(e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Pressure Min (barg)</Label>
-              <Input type="number" value={pMin} onChange={e => setPMin(e.target.value)} />
-            </div>
-            <div>
-              <Label>Pressure Max (barg)</Label>
-              <Input type="number" value={pMax} onChange={e => setPMax(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Temp Min (°C)</Label>
-              <Input type="number" value={tMin} onChange={e => setTMin(e.target.value)} />
-            </div>
-            <div>
-              <Label>Temp Max (°C)</Label>
-              <Input type="number" value={tMax} onChange={e => setTMax(e.target.value)} />
-            </div>
+            <div><Label>Temp Min (°C)</Label><Input type="number" value={tMin} onChange={e => setTMin(e.target.value)} /></div>
+            <div><Label>Temp Max (°C)</Label><Input type="number" value={tMax} onChange={e => setTMax(e.target.value)} /></div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={mutation.isPending}>
-            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             {editing ? "Save Changes" : "Create Loop"}
           </Button>
         </DialogFooter>
@@ -224,16 +195,67 @@ function LoopFormDialog({ open, onClose, studyId, editing }: LoopFormProps) {
   );
 }
 
-// ── Concept Equipment mini-form ────────────────────────────────────────────────
+// ── Node form dialog ───────────────────────────────────────────────────────────
 
-interface ConceptEquipmentFormProps {
-  open: boolean;
-  onClose: () => void;
-  studyId: number;
-  defaultCategory?: string;
+function NodeFormDialog({ open, onClose, loopId, studyId, editing }: { open: boolean; onClose: () => void; loopId: number; studyId: number; editing?: Node | null }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(editing?.node_name ?? "");
+  const [desc, setDesc] = useState(editing?.node_description ?? "");
+  const [intent, setIntent] = useState(editing?.design_intent ?? "");
+  const [pandid, setPandid] = useState(editing?.p_and_id_ref ?? "");
+
+  const mutation = useMutation({
+    mutationFn: (body: Record<string, any>) =>
+      editing ? apiRequest("PATCH", `/api/hazop/nodes/${editing.id}`, body)
+               : apiRequest("POST", `/api/hazop/loops/${loopId}/nodes`, body),
+    onSuccess: () => {
+      toast({ title: editing ? "Node updated" : "Node created" });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/loops", loopId, "nodes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/studies", studyId, "nodes"] });
+      onClose();
+    },
+    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+
+  function handleSubmit() {
+    if (!name.trim()) { toast({ title: "Node name is required", variant: "destructive" }); return; }
+    mutation.mutate({
+      node_name: name.trim(),
+      node_description: desc || null,
+      design_intent: intent || null,
+      p_and_id_ref: pandid || null,
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>{editing ? "Edit Node" : "Add Process Node"}</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <Label>Node Name <span className="text-red-500">*</span></Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Feed Pump Suction" />
+          </div>
+          <div><Label>P&ID Reference</Label><Input value={pandid} onChange={e => setPandid(e.target.value)} placeholder="e.g. P&ID-001-A" /></div>
+          <div><Label>Design Intent</Label><Textarea value={intent} onChange={e => setIntent(e.target.value)} rows={2} placeholder="Describe the intended function of this node…" /></div>
+          <div><Label>Description</Label><Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Short label (optional)" /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            {editing ? "Save Changes" : "Create Node"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-function ConceptEquipmentFormDialog({ open, onClose, studyId, defaultCategory }: ConceptEquipmentFormProps) {
+// ── Concept equipment mini-form ────────────────────────────────────────────────
+
+function ConceptEquipmentFormDialog({ open, onClose, studyId, defaultCategory }: { open: boolean; onClose: () => void; studyId: number; defaultCategory?: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [category, setCategory] = useState(defaultCategory ?? "");
@@ -241,8 +263,7 @@ function ConceptEquipmentFormDialog({ open, onClose, studyId, defaultCategory }:
   const [role, setRole] = useState("");
 
   const mutation = useMutation({
-    mutationFn: (body: Record<string, any>) =>
-      apiRequest("POST", `/api/hazop/studies/${studyId}/concept-equipment`, body),
+    mutationFn: (body: Record<string, any>) => apiRequest("POST", `/api/hazop/studies/${studyId}/concept-equipment`, body),
     onSuccess: () => {
       toast({ title: "Concept equipment added" });
       queryClient.invalidateQueries({ queryKey: ["/api/hazop/studies", studyId, "equipment-pool"] });
@@ -254,11 +275,9 @@ function ConceptEquipmentFormDialog({ open, onClose, studyId, defaultCategory }:
   });
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Add Concept Equipment</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Add Concept Equipment</DialogTitle></DialogHeader>
         <div className="space-y-3 py-2">
           <div>
             <Label>Category <span className="text-red-500">*</span></Label>
@@ -267,19 +286,13 @@ function ConceptEquipmentFormDialog({ open, onClose, studyId, defaultCategory }:
               <SelectContent>{EQUIPMENT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Concept Tag <span className="text-red-500">*</span></Label>
-            <Input value={tag} onChange={e => setTag(e.target.value)} placeholder="e.g. P-101" />
-          </div>
-          <div>
-            <Label>Equipment Role</Label>
-            <Input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. Feed Pump" />
-          </div>
+          <div><Label>Concept Tag <span className="text-red-500">*</span></Label><Input value={tag} onChange={e => setTag(e.target.value)} placeholder="e.g. P-101" /></div>
+          <div><Label>Equipment Role</Label><Input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. Feed Pump" /></div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={() => mutation.mutate({ equipment_category: category, concept_tag: tag, equipment_role: role || null })} disabled={mutation.isPending}>
-            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Add
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}Add
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -289,16 +302,9 @@ function ConceptEquipmentFormDialog({ open, onClose, studyId, defaultCategory }:
 
 // ── Step form dialog ───────────────────────────────────────────────────────────
 
-interface StepFormProps {
-  open: boolean;
-  onClose: () => void;
-  loopId: number;
-  studyId: number;
-  studyMode: string;
-  editing?: Step | null;
-}
-
-function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: StepFormProps) {
+function StepFormDialog({ open, onClose, nodeId, studyId, studyMode, editing }: {
+  open: boolean; onClose: () => void; nodeId: number; studyId: number; studyMode: string; editing?: Step | null;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [category, setCategory] = useState(editing?.equipment_category ?? "");
@@ -317,26 +323,26 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
   const [showAddConcept, setShowAddConcept] = useState(false);
 
   const isConceptMode = studyMode === "concept_expected_project";
+  const needsRef = REF_REQUIRED.has(outletDest);
 
   const { data: poolData } = useQuery<{ mode: string; items: EquipmentPoolItem[] }>({
     queryKey: ["/api/hazop/studies", studyId, "equipment-pool", category],
     queryFn: () => fetch(`/api/hazop/studies/${studyId}/equipment-pool${category ? `?category=${encodeURIComponent(category)}` : ""}`).then(r => r.json()),
     enabled: open,
   });
-
   const poolItems = poolData?.items ?? [];
 
   const mutation = useMutation({
     mutationFn: (body: Record<string, any>) =>
-      editing
-        ? apiRequest("PATCH", `/api/hazop/steps/${editing.id}`, body)
-        : apiRequest("POST", `/api/hazop/loops/${loopId}/steps`, body),
+      editing ? apiRequest("PATCH", `/api/hazop/steps/${editing.id}`, body)
+               : apiRequest("POST", `/api/hazop/nodes/${nodeId}/steps`, body),
     onSuccess: (data: any) => {
       if (data?.warnings?.length) {
-        data.warnings.forEach((w: string) => toast({ title: "Warning", description: w, variant: "destructive" }));
+        data.warnings.forEach((w: string) => toast({ title: "Warning", description: w }));
       }
       toast({ title: editing ? "Step updated" : "Step added" });
-      queryClient.invalidateQueries({ queryKey: ["/api/hazop/loops", loopId, "steps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/nodes", nodeId, "steps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/loops"] });
       onClose();
     },
     onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
@@ -346,7 +352,9 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
     if (!category) { toast({ title: "Equipment category is required", variant: "destructive" }); return; }
     if (!connType) { toast({ title: "Connection type is required", variant: "destructive" }); return; }
     if (!outletDest) { toast({ title: "Outlet destination is required", variant: "destructive" }); return; }
-
+    if (needsRef && !outletRef.trim()) {
+      toast({ title: "Outlet reference required", description: `Format: {L}.{N}.{S} (e.g. 1.2.3)`, variant: "destructive" }); return;
+    }
     const body: Record<string, any> = {
       equipment_category: category,
       equipment_tag: tag || null,
@@ -354,7 +362,7 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
       connection_type: connType,
       outlet_type: outletType || null,
       outlet_destination: outletDest,
-      outlet_destination_ref: outletRef || null,
+      outlet_destination_ref: outletRef.trim() || null,
       operating_pressure: pressure ? parseFloat(pressure) : null,
       operating_temperature: temperature ? parseFloat(temperature) : null,
       fluid: fluid || null,
@@ -362,13 +370,12 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
     };
     if (isConceptMode && ceId) body.concept_equipment_id = parseInt(ceId);
     if (!isConceptMode && blId) body.buy_list_line_id = parseInt(blId);
-
     mutation.mutate(body);
   }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? `Edit Step (Seq ${editing.sequence_no})` : "Add Process Step"}</DialogTitle>
@@ -408,12 +415,10 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" size="sm" onClick={() => setShowAddConcept(true)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowAddConcept(true)}><Plus className="h-4 w-4" /></Button>
                 </div>
                 {poolItems.length === 0 && category && (
-                  <p className="text-xs text-amber-600 mt-1">No concept equipment found for "{category}". Click + to add one.</p>
+                  <p className="text-xs text-amber-600 mt-1">No concept equipment for "{category}". Click + to add one.</p>
                 )}
               </div>
             ) : (
@@ -436,14 +441,8 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Equipment Tag</Label>
-                <Input value={tag} onChange={e => setTag(e.target.value)} placeholder="e.g. P-101" />
-              </div>
-              <div>
-                <Label>Equipment Role</Label>
-                <Input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. Feed Pump" />
-              </div>
+              <div><Label>Equipment Tag</Label><Input value={tag} onChange={e => setTag(e.target.value)} placeholder="e.g. P-101" /></div>
+              <div><Label>Equipment Role</Label><Input value={role} onChange={e => setRole(e.target.value)} placeholder="e.g. Feed Pump" /></div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -451,47 +450,40 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
                 <Label>Outlet Destination <span className="text-red-500">*</span></Label>
                 <Select value={outletDest} onValueChange={setOutletDest}>
                   <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                  <SelectContent>
-                    {OUTLET_DESTINATIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{OUTLET_DESTINATIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Outlet Ref / Target Step</Label>
-                <Input value={outletRef} onChange={e => setOutletRef(e.target.value)} placeholder="e.g. 3" />
+                <Label>
+                  Outlet Ref {needsRef && <span className="text-red-500">*</span>}
+                  {needsRef && <span className="ml-1 text-xs text-gray-400 font-normal">format: L.N.S e.g. 1.2.3</span>}
+                </Label>
+                <Input
+                  value={outletRef}
+                  onChange={e => setOutletRef(e.target.value)}
+                  placeholder={needsRef ? "e.g. 1.2.3" : "—"}
+                  className={needsRef && !outletRef.trim() ? "border-amber-400" : ""}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Fluid</Label>
-                <Input value={fluid} onChange={e => setFluid(e.target.value)} placeholder="e.g. UEO" />
-              </div>
-              <div>
-                <Label>Pressure (barg)</Label>
-                <Input type="number" value={pressure} onChange={e => setPressure(e.target.value)} />
-              </div>
-              <div>
-                <Label>Temperature (°C)</Label>
-                <Input type="number" value={temperature} onChange={e => setTemperature(e.target.value)} />
-              </div>
+              <div><Label>Fluid</Label><Input value={fluid} onChange={e => setFluid(e.target.value)} placeholder="e.g. UEO" /></div>
+              <div><Label>Pressure (barg)</Label><Input type="number" value={pressure} onChange={e => setPressure(e.target.value)} /></div>
+              <div><Label>Temperature (°C)</Label><Input type="number" value={temperature} onChange={e => setTemperature(e.target.value)} /></div>
             </div>
 
-            <div>
-              <Label>Remarks</Label>
-              <Textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} placeholder="Optional notes…" />
-            </div>
+            <div><Label>Remarks</Label><Textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} placeholder="Optional notes…" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={mutation.isPending}>
-              {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               {editing ? "Save Changes" : "Add Step"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <ConceptEquipmentFormDialog
         open={showAddConcept}
         onClose={() => setShowAddConcept(false)}
@@ -512,9 +504,16 @@ export default function HazopProcessBuilderPage() {
   const queryClient = useQueryClient();
 
   const [selectedLoopId, setSelectedLoopId] = useState<number | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+
   const [loopFormOpen, setLoopFormOpen] = useState(false);
   const [editingLoop, setEditingLoop] = useState<Loop | null>(null);
   const [deleteLoopTarget, setDeleteLoopTarget] = useState<Loop | null>(null);
+
+  const [nodeFormOpen, setNodeFormOpen] = useState(false);
+  const [editingNode, setEditingNode] = useState<Node | null>(null);
+  const [deleteNodeTarget, setDeleteNodeTarget] = useState<Node | null>(null);
+
   const [stepFormOpen, setStepFormOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<Step | null>(null);
   const [deleteStepTarget, setDeleteStepTarget] = useState<Step | null>(null);
@@ -530,10 +529,16 @@ export default function HazopProcessBuilderPage() {
     enabled: !isNaN(studyId),
   });
 
-  const { data: steps = [], isLoading: stepsLoading } = useQuery<Step[]>({
-    queryKey: ["/api/hazop/loops", selectedLoopId, "steps"],
-    queryFn: () => fetch(`/api/hazop/loops/${selectedLoopId}/steps`).then(r => r.json()),
+  const { data: nodes = [], isLoading: nodesLoading } = useQuery<Node[]>({
+    queryKey: ["/api/hazop/loops", selectedLoopId, "nodes"],
+    queryFn: () => fetch(`/api/hazop/loops/${selectedLoopId}/nodes`).then(r => r.json()),
     enabled: selectedLoopId !== null,
+  });
+
+  const { data: steps = [], isLoading: stepsLoading } = useQuery<Step[]>({
+    queryKey: ["/api/hazop/nodes", selectedNodeId, "steps"],
+    queryFn: () => fetch(`/api/hazop/nodes/${selectedNodeId}/steps`).then(r => r.json()),
+    enabled: selectedNodeId !== null,
   });
 
   const deleteLoopMutation = useMutation({
@@ -543,6 +548,19 @@ export default function HazopProcessBuilderPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/hazop/studies", studyId, "loops"] });
       setDeleteLoopTarget(null);
       setSelectedLoopId(null);
+      setSelectedNodeId(null);
+    },
+    onError: (err: any) => toast({ title: "Delete failed", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteNodeMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/hazop/nodes/${id}`),
+    onSuccess: () => {
+      toast({ title: "Node deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/loops", selectedLoopId, "nodes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/studies", studyId, "nodes"] });
+      setDeleteNodeTarget(null);
+      setSelectedNodeId(null);
     },
     onError: (err: any) => toast({ title: "Delete failed", description: err.message, variant: "destructive" }),
   });
@@ -551,20 +569,20 @@ export default function HazopProcessBuilderPage() {
     mutationFn: (id: number) => apiRequest("DELETE", `/api/hazop/steps/${id}`),
     onSuccess: () => {
       toast({ title: "Step deleted" });
-      queryClient.invalidateQueries({ queryKey: ["/api/hazop/loops", selectedLoopId, "steps"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/hazop/studies", studyId, "nodes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/nodes", selectedNodeId, "steps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hazop/loops", selectedLoopId, "nodes"] });
       setDeleteStepTarget(null);
     },
     onError: (err: any) => toast({ title: "Delete failed", description: err.message, variant: "destructive" }),
   });
 
   const selectedLoop = loops.find(l => l.id === selectedLoopId) ?? null;
+  const selectedNode = nodes.find(n => n.id === selectedNodeId) ?? null;
   const isDraft = study?.status === "draft";
 
   if (studyLoading) {
     return <Layout><div className="flex justify-center items-center h-64"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div></Layout>;
   }
-
   if (!study) {
     return <Layout><div className="p-8 text-center text-gray-500">Study not found.</div></Layout>;
   }
@@ -573,7 +591,7 @@ export default function HazopProcessBuilderPage() {
     <Layout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="px-6 py-4 border-b bg-white flex items-center justify-between">
+        <div className="px-6 py-4 border-b bg-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate("/hazop/dashboard")} className="gap-1 text-gray-500">
               <ArrowLeft className="h-4 w-4" /> Back
@@ -603,148 +621,200 @@ export default function HazopProcessBuilderPage() {
           </div>
         </div>
 
-        {/* Body: split panel */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left: Loop list */}
-          <div className="w-64 border-r bg-gray-50 flex flex-col">
-            <div className="px-3 py-2 border-b bg-white">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Process Loops</p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {loopsLoading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gray-300" /></div>}
-              {!loopsLoading && loops.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                  <p className="text-xs">No loops yet.</p>
-                  {isDraft && <p className="text-xs mt-1">Use "Add Loop" to begin.</p>}
-                </div>
-              )}
-              {loops.map(loop => (
-                <div
-                  key={loop.id}
-                  className={`rounded-md p-2 cursor-pointer border transition-colors ${selectedLoopId === loop.id ? "bg-white border-blue-200 shadow-sm" : "border-transparent hover:bg-white hover:border-gray-200"}`}
-                  onClick={() => setSelectedLoopId(loop.id)}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-medium text-gray-800 truncate">#{loop.loop_number} {loop.loop_name}</span>
-                    <LoopStatusBadge status={loop.status} />
-                  </div>
-                  <div className="text-xs text-gray-400 mt-0.5">{loop.step_count} step{parseInt(loop.step_count) !== 1 ? "s" : ""}</div>
-                  {isDraft && (
-                    <div className="flex gap-1 mt-1">
-                      <button className="text-gray-400 hover:text-blue-600 p-0.5 rounded" onClick={e => { e.stopPropagation(); setEditingLoop(loop); setLoopFormOpen(true); }}>
-                        <Edit2 className="h-3 w-3" />
-                      </button>
-                      <button className="text-gray-400 hover:text-red-600 p-0.5 rounded" onClick={e => { e.stopPropagation(); setDeleteLoopTarget(loop); }}>
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Breadcrumb */}
+        <div className="px-6 py-2 border-b bg-gray-50 flex items-center gap-1.5 text-xs text-gray-500 shrink-0">
+          <span className="font-medium text-gray-700">Loops</span>
+          {selectedLoop && <><ChevronRight className="h-3 w-3" /><span className="font-medium text-gray-700">Loop {selectedLoop.loop_number} — {selectedLoop.loop_name}</span></>}
+          {selectedNode && <><ChevronRight className="h-3 w-3" /><span className="font-medium text-gray-700">Node {selectedNode.node_reference} — {selectedNode.node_name}</span></>}
+        </div>
 
-          {/* Right: Step table */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {!selectedLoop ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <GitBranch className="h-10 w-10 mb-3 opacity-20" />
-                <p>Select a loop to view steps</p>
-                {isDraft && loops.length === 0 && <p className="text-sm mt-1">Start by adding a process loop.</p>}
-              </div>
-            ) : (
-              <>
-                {/* Loop header */}
-                <div className="px-5 py-3 border-b bg-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-sm font-semibold text-gray-900">Loop #{selectedLoop.loop_number} — {selectedLoop.loop_name}</h2>
-                      <div className="flex gap-4 mt-0.5 text-xs text-gray-500">
-                        {selectedLoop.fluid && <span>Fluid: <strong>{selectedLoop.fluid}</strong></span>}
-                        {selectedLoop.p_and_id_ref && <span>P&ID: <strong>{selectedLoop.p_and_id_ref}</strong></span>}
-                        {selectedLoop.line_number && <span>Line: <strong>{selectedLoop.line_number}</strong></span>}
-                        {(selectedLoop.operating_pressure_min != null || selectedLoop.operating_pressure_max != null) && (
-                          <span>P: <strong>{selectedLoop.operating_pressure_min ?? "—"} – {selectedLoop.operating_pressure_max ?? "—"} barg</strong></span>
+        {/* Three-panel body */}
+        <div className="flex flex-1 overflow-hidden">
+
+          {/* ── Panel 1: Loops ── */}
+          <div className="w-64 border-r flex flex-col bg-white shrink-0">
+            <div className="px-3 py-2.5 border-b bg-gray-50 flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Loops</span>
+              <span className="text-xs text-gray-400">{loops.length}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {loopsLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gray-300" /></div>
+              ) : loops.length === 0 ? (
+                <div className="py-10 text-center px-3">
+                  <GitBranch className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400">No loops yet.</p>
+                  {isDraft && <Button variant="outline" size="sm" className="mt-3 text-xs gap-1" onClick={() => { setEditingLoop(null); setLoopFormOpen(true); }}><Plus className="h-3 w-3" /> Add Loop</Button>}
+                </div>
+              ) : (
+                <div className="py-1">
+                  {loops.map(loop => (
+                    <div
+                      key={loop.id}
+                      onClick={() => { setSelectedLoopId(loop.id); setSelectedNodeId(null); }}
+                      className={`px-3 py-2.5 cursor-pointer border-b last:border-0 transition-colors ${selectedLoopId === loop.id ? "bg-red-50 border-l-2 border-l-red-500" : "hover:bg-gray-50 border-l-2 border-l-transparent"}`}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-gray-800 truncate">#{loop.loop_number} {loop.loop_name}</div>
+                          {loop.fluid && <div className="text-xs text-gray-400 truncate">{loop.fluid}</div>}
+                          <div className="flex gap-2 mt-1">
+                            <span className="text-xs text-gray-400">{loop.node_count ?? 0} nodes</span>
+                            <LoopStatusBadge status={loop.status} />
+                          </div>
+                        </div>
+                        {isDraft && (
+                          <div className="flex gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingLoop(loop); setLoopFormOpen(true); }}><Edit2 className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-600" onClick={() => setDeleteLoopTarget(loop)}><Trash2 className="h-3 w-3" /></Button>
+                          </div>
                         )}
                       </div>
                     </div>
-                    {isDraft && (
-                      <Button size="sm" onClick={() => { setEditingStep(null); setStepFormOpen(true); }} className="gap-1">
-                        <Plus className="h-4 w-4" /> Add Step
-                      </Button>
-                    )}
-                  </div>
+                  ))}
                 </div>
+              )}
+            </div>
+          </div>
 
-                {/* Steps */}
-                <div className="flex-1 overflow-auto">
-                  {stepsLoading ? (
-                    <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-gray-300" /></div>
-                  ) : steps.length === 0 ? (
-                    <div className="text-center py-16 text-gray-400">
-                      <p>No steps in this loop yet.</p>
-                      {isDraft && <p className="text-sm mt-1">Add at least 2 steps before running HAZOP generation.</p>}
+          {/* ── Panel 2: Nodes ── */}
+          <div className="w-72 border-r flex flex-col bg-white shrink-0">
+            <div className="px-3 py-2.5 border-b bg-gray-50 flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Nodes</span>
+              {selectedLoop && isDraft && (
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingNode(null); setNodeFormOpen(true); }}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {!selectedLoop ? (
+                <div className="py-10 text-center px-3 text-xs text-gray-400">
+                  <Layers className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+                  Select a loop to view nodes.
+                </div>
+              ) : nodesLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gray-300" /></div>
+              ) : nodes.length === 0 ? (
+                <div className="py-10 text-center px-3">
+                  <Layers className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400">No nodes in this loop.</p>
+                  {isDraft && <Button variant="outline" size="sm" className="mt-3 text-xs gap-1" onClick={() => { setEditingNode(null); setNodeFormOpen(true); }}><Plus className="h-3 w-3" /> Add Node</Button>}
+                </div>
+              ) : (
+                <div className="py-1">
+                  {nodes.map(node => (
+                    <div
+                      key={node.id}
+                      onClick={() => setSelectedNodeId(node.id)}
+                      className={`px-3 py-2.5 cursor-pointer border-b last:border-0 transition-colors ${selectedNodeId === node.id ? "bg-blue-50 border-l-2 border-l-blue-500" : "hover:bg-gray-50 border-l-2 border-l-transparent"}`}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs text-gray-500 shrink-0">{node.node_reference}</span>
+                            <span className="text-xs font-semibold text-gray-800 truncate">{node.node_name}</span>
+                          </div>
+                          {node.p_and_id_ref && <div className="text-xs text-gray-400 truncate">{node.p_and_id_ref}</div>}
+                          <div className="text-xs text-gray-400 mt-0.5">{node.step_count ?? 0} steps</div>
+                        </div>
+                        {isDraft && (
+                          <div className="flex gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingNode(node); setNodeFormOpen(true); }}><Edit2 className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-600" onClick={() => setDeleteNodeTarget(node)}><Trash2 className="h-3 w-3" /></Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 border-b text-left">
-                          <th className="px-3 py-2 font-medium text-gray-600 w-12">Seq</th>
-                          <th className="px-3 py-2 font-medium text-gray-600">Category</th>
-                          <th className="px-3 py-2 font-medium text-gray-600">Tag</th>
-                          <th className="px-3 py-2 font-medium text-gray-600">Role</th>
-                          <th className="px-3 py-2 font-medium text-gray-600">Connection</th>
-                          <th className="px-3 py-2 font-medium text-gray-600">Outlet To</th>
-                          <th className="px-3 py-2 font-medium text-gray-600">Node Ref</th>
-                          {isDraft && <th className="px-3 py-2 font-medium text-gray-600 text-right">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {steps.map(s => (
-                          <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-3 py-2 font-mono text-xs text-gray-500">{s.sequence_no}</td>
-                            <td className="px-3 py-2 text-gray-800">{s.equipment_category}</td>
-                            <td className="px-3 py-2 font-mono text-xs text-gray-700">
-                              {s.equipment_tag ?? <span className="text-amber-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />No tag</span>}
-                            </td>
-                            <td className="px-3 py-2 text-gray-600 text-xs">{s.equipment_role ?? "—"}</td>
-                            <td className="px-3 py-2 text-gray-500 text-xs">{s.connection_type}</td>
-                            <td className="px-3 py-2 text-gray-500 text-xs">
-                              {OUTLET_DESTINATIONS.find(o => o.value === s.outlet_destination)?.label ?? s.outlet_destination}
-                              {s.outlet_destination_ref && <span className="text-gray-400"> → {s.outlet_destination_ref}</span>}
-                            </td>
-                            <td className="px-3 py-2 text-xs text-gray-600 font-mono">{s.node_reference ?? "—"}</td>
-                            {isDraft && (
-                              <td className="px-3 py-2 text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button variant="ghost" size="sm" onClick={() => { setEditingStep(s); setStepFormOpen(true); }}>
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteStepTarget(s)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {steps.length > 0 && steps.length < 2 && (
-                    <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center gap-2">
-                      <AlertTriangle className="h-3 w-3" />
-                      Minimum 2 steps required before HAZOP generation (Phase 3).
-                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Panel 3: Steps ── */}
+          <div className="flex-1 flex flex-col bg-white overflow-hidden">
+            <div className="px-4 py-2.5 border-b bg-gray-50 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Steps</span>
+                {selectedNode && (
+                  <span className="text-xs text-gray-400">— Node {selectedNode.node_reference}: {selectedNode.node_name}</span>
+                )}
+              </div>
+              {selectedNode && isDraft && (
+                <Button size="sm" className="gap-1 h-7 text-xs" onClick={() => { setEditingStep(null); setStepFormOpen(true); }}>
+                  <Plus className="h-3 w-3" /> Add Step
+                </Button>
+              )}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {!selectedNode ? (
+                <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 p-8">
+                  <ShieldAlert className="h-10 w-10 opacity-20 mb-3" />
+                  <p className="font-medium text-sm">Select a node to view steps.</p>
+                  <p className="text-xs mt-1">Loops → Nodes → Steps</p>
+                </div>
+              ) : stepsLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gray-300" /></div>
+              ) : steps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 p-8">
+                  <ShieldAlert className="h-10 w-10 opacity-20 mb-3" />
+                  <p className="font-medium text-sm">No steps in this node.</p>
+                  {isDraft && (
+                    <Button variant="outline" size="sm" className="mt-4 gap-1" onClick={() => { setEditingStep(null); setStepFormOpen(true); }}>
+                      <Plus className="h-4 w-4" /> Add First Step
+                    </Button>
                   )}
                 </div>
-              </>
-            )}
+              ) : (
+                <div className="p-4 space-y-2">
+                  {steps.map(step => (
+                    <div key={step.id} className="border rounded-lg p-3 bg-white hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">#{step.sequence_no}</span>
+                            <span className="text-sm font-semibold text-gray-800">{step.equipment_category}</span>
+                            {step.equipment_tag && (
+                              <span className="font-mono text-xs text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{step.equipment_tag}</span>
+                            )}
+                            {step.equipment_role && <span className="text-xs text-gray-500">{step.equipment_role}</span>}
+                          </div>
+                          <div className="mt-1 flex items-center gap-3 flex-wrap text-xs text-gray-500">
+                            <span>{step.connection_type}</span>
+                            <span className="text-gray-300">|</span>
+                            <span className="font-medium text-gray-700">{outletLabel(step.outlet_destination)}</span>
+                            {step.outlet_destination_ref && (
+                              <span className="font-mono text-gray-500">→ {step.outlet_destination_ref}</span>
+                            )}
+                            {step.fluid && <><span className="text-gray-300">|</span><span>{step.fluid}</span></>}
+                            {step.operating_pressure != null && <span>{step.operating_pressure} barg</span>}
+                            {step.operating_temperature != null && <span>{step.operating_temperature} °C</span>}
+                          </div>
+                          {step.remarks && <div className="mt-1 text-xs text-gray-400 italic">{step.remarks}</div>}
+                          {(step.concept_equipment_tag || step.buy_list_tag) && (
+                            <div className="mt-1 text-xs text-purple-600">
+                              {step.concept_equipment_tag ? `Concept: ${step.concept_equipment_tag}` : `Tag: ${step.buy_list_tag}`}
+                            </div>
+                          )}
+                        </div>
+                        {isDraft && (
+                          <div className="flex gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingStep(step); setStepFormOpen(true); }}><Edit2 className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => setDeleteStepTarget(step)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Dialogs */}
+      {/* ── Dialogs ── */}
       <LoopFormDialog
         open={loopFormOpen}
         onClose={() => { setLoopFormOpen(false); setEditingLoop(null); }}
@@ -752,46 +822,76 @@ export default function HazopProcessBuilderPage() {
         editing={editingLoop}
       />
 
-      {study && (
+      {selectedLoopId !== null && (
+        <NodeFormDialog
+          open={nodeFormOpen}
+          onClose={() => { setNodeFormOpen(false); setEditingNode(null); }}
+          loopId={selectedLoopId}
+          studyId={studyId}
+          editing={editingNode}
+        />
+      )}
+
+      {selectedNodeId !== null && study && (
         <StepFormDialog
           open={stepFormOpen}
           onClose={() => { setStepFormOpen(false); setEditingStep(null); }}
-          loopId={selectedLoopId!}
+          nodeId={selectedNodeId}
           studyId={studyId}
           studyMode={study.study_mode}
           editing={editingStep}
         />
       )}
 
-      <AlertDialog open={!!deleteLoopTarget} onOpenChange={(v) => { if (!v) setDeleteLoopTarget(null); }}>
+      {/* Delete Loop */}
+      <AlertDialog open={!!deleteLoopTarget} onOpenChange={v => { if (!v) setDeleteLoopTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Loop?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete Loop #{deleteLoopTarget?.loop_number} — <strong>{deleteLoopTarget?.loop_name}</strong> and all its steps and nodes. This cannot be undone.
+              This will permanently delete loop "{deleteLoopTarget?.loop_name}" and all its nodes and steps. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteLoopTarget && deleteLoopMutation.mutate(deleteLoopTarget.id)}>
-              {deleteLoopMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {deleteLoopMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!deleteStepTarget} onOpenChange={(v) => { if (!v) setDeleteStepTarget(null); }}>
+      {/* Delete Node */}
+      <AlertDialog open={!!deleteNodeTarget} onOpenChange={v => { if (!v) setDeleteNodeTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Node?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete node "{deleteNodeTarget?.node_name}" and all its steps. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteNodeTarget && deleteNodeMutation.mutate(deleteNodeTarget.id)}>
+              {deleteNodeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Step */}
+      <AlertDialog open={!!deleteStepTarget} onOpenChange={v => { if (!v) setDeleteStepTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Step?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete Step {deleteStepTarget?.sequence_no} (<strong>{deleteStepTarget?.equipment_category}</strong>) and its node. Remaining steps keep their sequence numbers unchanged.
+              Delete step #{deleteStepTarget?.sequence_no} ({deleteStepTarget?.equipment_category})? The node will not be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteStepTarget && deleteStepMutation.mutate(deleteStepTarget.id)}>
-              {deleteStepMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {deleteStepMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
