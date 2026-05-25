@@ -906,6 +906,10 @@ export default function EpcBuyListControlPage() {
     if (!lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
+    const isTaggableForValidation = !!currentSubgroupCode && isTaggable && !isRawMaterials;
+    if (isTaggableForValidation && !lf.installedOn) {
+      toast({ title: "Installed On is required", description: "Select the skid this item is installed on so the tag number is assigned to the correct range.", variant: "destructive" }); return;
+    }
     const body = {
       buyGroupId: Number(lf.buyGroupId), buySubgroupId: Number(lf.buySubgroupId),
       uomId: Number(lf.uomId), genericRequirement: lf.genericRequirement.trim(),
@@ -2456,18 +2460,25 @@ export default function EpcBuyListControlPage() {
                   ))}
                 </div>
               </div>
-              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5">
-                <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wide">Installed On</Label>
+              <div className={`rounded-md border p-3 space-y-1.5 ${isTaggable && !isRawMaterials ? 'border-blue-400 bg-blue-50' : 'border-blue-200 bg-blue-50'}`}>
+                <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wide">
+                  Installed On {isTaggable && !isRawMaterials && <span className="text-red-500">*</span>}
+                </Label>
                 <Select
                   value={lf.installedOn || "_none"}
                   onValueChange={v => setLf(f => ({ ...f, installedOn: v === "_none" ? "" : v }))}
                 >
-                  <SelectTrigger className="bg-white border-blue-200"><SelectValue placeholder="None / Not specified" /></SelectTrigger>
+                  <SelectTrigger className={`bg-white ${isTaggable && !isRawMaterials && !lf.installedOn ? 'border-red-300' : 'border-blue-200'}`}>
+                    <SelectValue placeholder="None / Not specified" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">None / Not specified</SelectItem>
+                    {!(isTaggable && !isRawMaterials) && <SelectItem value="_none">None / Not specified</SelectItem>}
                     {SKID_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {isTaggable && !isRawMaterials && !lf.installedOn && (
+                  <p className="text-[11px] text-red-600">Required — determines tag number range (101=Skid-1, 201=Skid-2 …)</p>
+                )}
               </div>
               <div className="rounded-md border border-violet-200 bg-violet-50 p-3 space-y-1.5">
                 <Label className="text-violet-800 font-semibold text-xs uppercase tracking-wide">
