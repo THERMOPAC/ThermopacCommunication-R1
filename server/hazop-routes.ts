@@ -2410,4 +2410,1092 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
   // ════════════════════════════════════════════════════════════════════════════
   // PHASE 4A END
   // ════════════════════════════════════════════════════════════════════════════
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 4B START — Engineering Safety Artefacts
+  // Advisory lock key: study_id * 10000 + 4001  (shared with Phase 4A)
+  // Governed by: docs/hazop-phase4-execution-plan-v1.3.md
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Shared helper: allocate next BL-{nnn} baseline revision ────────────────
+  async function nextBaselineRevision(client: any, studyId: number): Promise<string> {
+    await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+    const r = await client.query(`
+      SELECT COALESCE(MAX(CAST(SUBSTRING(baseline_revision FROM '\\d+$') AS INT)), 0) + 1 AS nxt
+      FROM (
+        SELECT baseline_revision FROM hazop_ce_matrices      WHERE study_id = $1 AND baseline_revision IS NOT NULL
+        UNION ALL
+        SELECT baseline_revision FROM hazop_safety_functions WHERE study_id = $1 AND baseline_revision IS NOT NULL
+        UNION ALL
+        SELECT baseline_revision FROM hazop_interlocks        WHERE study_id = $1 AND baseline_revision IS NOT NULL
+        UNION ALL
+        SELECT baseline_revision FROM hazop_alarm_trips       WHERE study_id = $1 AND baseline_revision IS NOT NULL
+        UNION ALL
+        SELECT baseline_revision FROM hazop_scenarios         WHERE study_id = $1 AND baseline_revision IS NOT NULL
+      ) t
+    `, [studyId]);
+    return `BL-${String(r.rows[0].nxt).padStart(3, '0')}`;
+  }
+
+  // ── Scenario consequence description from event group ─────────────────────
+  function buildScenarioConsequenceDescription(eg: any): string {
+    const trans: Record<string,string> = {
+      vacuum_break: 'vacuum break and atmospheric air ingress',
+      film_breakdown: 'film formation failure and dry running',
+      thermal_cracking: 'thermal decomposition of product',
+      foaming: 'foam carry-over to condenser and vacuum pump',
+      entrainment: 'liquid entrainment into vapour stream',
+      flashing: 'uncontrolled flash vaporisation',
+      devolatilization: 'excess devolatilisation and product loss',
+      condensation: 'incomplete condensation and vapour breakthrough',
+    };
+    const transDesc = eg.process_transition_type ? ` resulting in ${trans[eg.process_transition_type] ?? eg.process_transition_type}` : '';
+    return `${eg.group_name}${transDesc}. Operating regime: ${eg.operating_regime ?? 'unknown'}, Phase: ${eg.phase_state ?? 'unknown'}.`;
+  }
+
+  function inferResidualRisk(severity: string, ipl_count: number): string {
+    if (severity === 'catastrophic' && ipl_count < 2) return 'intolerable';
+    if (severity === 'catastrophic') return 'unacceptable';
+    if (severity === 'critical' && ipl_count < 2) return 'unacceptable';
+    if (severity === 'critical') return 'tolerable';
+    if (severity === 'major') return 'tolerable';
+    return 'negligible';
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4B-01: SCENARIOS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/hazop/studies/:studyId/scenarios
+  app.get('/api/hazop/studies/:studyId/scenarios', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const { consequence_severity, operating_mode, residual_risk } = req.query as any;
+      let q = `SELECT s.*, eg.group_number AS eg_number, eg.group_name AS eg_name,
+                 eg.event_type, eg.process_transition_type, eg.operating_regime, eg.common_cause_group
+               FROM hazop_scenarios s
+               LEFT JOIN hazop_event_groups eg ON eg.id = s.initiating_event_group_id
+               WHERE s.study_id = $1`;
+      const params: any[] = [studyId];
+      if (consequence_severity) { params.push(consequence_severity); q += ` AND s.consequence_severity = $${params.length}`; }
+      if (operating_mode)       { params.push(operating_mode);       q += ` AND s.operating_mode = $${params.length}`; }
+      if (residual_risk)        { params.push(residual_risk);        q += ` AND s.residual_risk = $${params.length}`; }
+      q += ' ORDER BY s.scenario_number';
+      const r = await pool.query(q, params);
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // GET /api/hazop/scenarios/:id
+  app.get('/api/hazop/scenarios/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query(`
+        SELECT s.*, eg.group_number AS eg_number, eg.group_name AS eg_name,
+               eg.event_type, eg.process_transition_type, eg.operating_regime, eg.common_cause_group,
+               eg.consequence_severity AS eg_severity, eg.operating_mode AS eg_mode
+        FROM hazop_scenarios s
+        LEFT JOIN hazop_event_groups eg ON eg.id = s.initiating_event_group_id
+        WHERE s.id = $1`, [req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Scenario');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // POST /api/hazop/studies/:studyId/scenarios
+  app.post('/api/hazop/studies/:studyId/scenarios', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const { title, initiating_event_group_id, consequence_description, consequence_severity,
+              operating_mode, human_dependency_level, residual_risk, notes } = req.body;
+      if (!title || !consequence_description || !consequence_severity)
+        return res.status(400).json({ message: 'title, consequence_description, consequence_severity required' });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+        const nxt = await client.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(scenario_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_scenarios WHERE study_id=$1`, [studyId]);
+        const num = `SC-${String(nxt.rows[0].n).padStart(3,'0')}`;
+        const r = await client.query(`
+          INSERT INTO hazop_scenarios (study_id, scenario_number, title, initiating_event_group_id,
+            consequence_description, consequence_severity, operating_mode, human_dependency_level,
+            residual_risk, notes, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+          [studyId, num, title, initiating_event_group_id ?? null, consequence_description,
+           consequence_severity, operating_mode ?? null, human_dependency_level ?? null,
+           residual_risk ?? null, notes ?? null, (req.user as any).id]);
+        await client.query('COMMIT');
+        res.status(201).json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // PATCH /api/hazop/scenarios/:id
+  app.patch('/api/hazop/scenarios/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const { title, initiating_event_group_id, consequence_description, consequence_severity,
+              operating_mode, human_dependency_level, residual_risk, notes } = req.body;
+      const fields: string[] = []; const vals: any[] = [];
+      const add = (col: string, v: any) => { if (v !== undefined) { vals.push(v); fields.push(`${col}=$${vals.length}`); } };
+      add('title', title); add('initiating_event_group_id', initiating_event_group_id);
+      add('consequence_description', consequence_description); add('consequence_severity', consequence_severity);
+      add('operating_mode', operating_mode); add('human_dependency_level', human_dependency_level);
+      add('residual_risk', residual_risk); add('notes', notes);
+      if (!fields.length) return res.status(400).json({ message: 'Nothing to update' });
+      vals.push(req.params.id);
+      const r = await pool.query(`UPDATE hazop_scenarios SET ${fields.join(',')} WHERE id=$${vals.length} RETURNING *`, vals);
+      if (!r.rows[0]) return sendNotFound(res, 'Scenario');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // DELETE /api/hazop/scenarios/:id
+  app.delete('/api/hazop/scenarios/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query('SELECT baseline_revision FROM hazop_scenarios WHERE id=$1', [req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Scenario');
+      if (r.rows[0].baseline_revision)
+        return res.status(409).json({ message: 'Cannot delete a baselined safety record' });
+      await pool.query('DELETE FROM hazop_scenarios WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // POST /api/hazop/scenarios/:id/set-baseline
+  app.post('/api/hazop/scenarios/:id/set-baseline', ensureAuthenticated, async (req, res) => {
+    try {
+      const sc = await pool.query('SELECT * FROM hazop_scenarios WHERE id=$1', [req.params.id]);
+      if (!sc.rows[0]) return sendNotFound(res, 'Scenario');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const bl = await nextBaselineRevision(client, sc.rows[0].study_id);
+        const r = await client.query(
+          'UPDATE hazop_scenarios SET baseline_revision=$1 WHERE id=$2 RETURNING *', [bl, req.params.id]);
+        await client.query('COMMIT');
+        res.json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // POST /api/hazop/studies/:studyId/scenarios/generate-from-event-groups  (idempotent)
+  app.post('/api/hazop/studies/:studyId/scenarios/generate-from-event-groups', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const egs = await pool.query(`
+        SELECT eg.*, COUNT(rg.id) AS ipl_count
+        FROM hazop_event_groups eg
+        LEFT JOIN hazop_response_groups rg ON rg.study_id = eg.study_id
+          AND rg.is_independent_protection_layer = true
+          AND rg.operating_mode = eg.operating_mode
+        WHERE eg.study_id = $1
+        GROUP BY eg.id ORDER BY eg.group_number`, [studyId]);
+      const client = await pool.connect();
+      let created = 0; let skipped = 0;
+      try {
+        await client.query('BEGIN');
+        for (const eg of egs.rows) {
+          const exists = await client.query(
+            'SELECT id FROM hazop_scenarios WHERE study_id=$1 AND initiating_event_group_id=$2', [studyId, eg.id]);
+          if (exists.rows.length) { skipped++; continue; }
+          await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+          const nxt = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(scenario_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_scenarios WHERE study_id=$1`, [studyId]);
+          const num = `SC-${String(nxt.rows[0].n).padStart(3,'0')}`;
+          const severity = eg.consequence_severity ?? 'major';
+          const ipl_count = parseInt(eg.ipl_count ?? '0');
+          const residual = inferResidualRisk(severity, ipl_count);
+          await client.query(`
+            INSERT INTO hazop_scenarios (study_id, scenario_number, title, initiating_event_group_id,
+              consequence_description, consequence_severity, operating_mode, residual_risk, created_by)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [studyId, num, eg.group_name, eg.id,
+             buildScenarioConsequenceDescription(eg),
+             severity, eg.operating_mode ?? 'normal', residual, (req.user as any).id]);
+          created++;
+        }
+        await client.query('COMMIT');
+        res.status(201).json({ created, skipped, total_event_groups: egs.rows.length });
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4B-02: C&E MATRICES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get('/api/hazop/studies/:studyId/ce-matrices', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query(`
+        SELECT m.*, n.node_reference, n.node_name,
+               (SELECT COUNT(*) FROM hazop_ce_rows WHERE matrix_id=m.id) AS row_count,
+               (SELECT COUNT(*) FROM hazop_ce_columns WHERE matrix_id=m.id) AS col_count
+        FROM hazop_ce_matrices m
+        LEFT JOIN hazop_nodes n ON n.id = m.node_id
+        WHERE m.study_id=$1 ORDER BY m.matrix_number`, [req.params.studyId]);
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/studies/:studyId/ce-matrices', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const { node_id, title, scope_description } = req.body;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+        const nxt = await client.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(matrix_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_ce_matrices WHERE study_id=$1`, [studyId]);
+        const studyShort = study.study_number?.replace(/[^0-9]/g,'').slice(-4) ?? String(studyId);
+        const num = `CEM-${studyShort}-${String(nxt.rows[0].n).padStart(3,'0')}`;
+        const r = await client.query(`
+          INSERT INTO hazop_ce_matrices (study_id, node_id, matrix_number, title, scope_description, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+          [studyId, node_id ?? null, num, title ?? null, scope_description ?? null, (req.user as any).id]);
+        await client.query('COMMIT');
+        res.status(201).json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.get('/api/hazop/ce-matrices/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const [mat, rows, cols, cells] = await Promise.all([
+        pool.query(`SELECT m.*, n.node_reference, n.node_name FROM hazop_ce_matrices m
+                    LEFT JOIN hazop_nodes n ON n.id=m.node_id WHERE m.id=$1`, [req.params.id]),
+        pool.query('SELECT * FROM hazop_ce_rows WHERE matrix_id=$1 ORDER BY row_number', [req.params.id]),
+        pool.query('SELECT * FROM hazop_ce_columns WHERE matrix_id=$1 ORDER BY col_number', [req.params.id]),
+        pool.query('SELECT * FROM hazop_ce_cells WHERE v4b_matrix_id=$1', [req.params.id]),
+      ]);
+      if (!mat.rows[0]) return sendNotFound(res, 'C&E Matrix');
+      res.json({ ...mat.rows[0], rows: rows.rows, columns: cols.rows, cells: cells.rows });
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.patch('/api/hazop/ce-matrices/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const { title, scope_description, status } = req.body;
+      const r = await pool.query(
+        `UPDATE hazop_ce_matrices SET title=$1, scope_description=$2, status=COALESCE($3,status) WHERE id=$4 RETURNING *`,
+        [title ?? null, scope_description ?? null, status ?? null, req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'C&E Matrix');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/ce-matrices/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query('SELECT baseline_revision FROM hazop_ce_matrices WHERE id=$1', [req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'C&E Matrix');
+      if (r.rows[0].baseline_revision) return res.status(409).json({ message: 'Cannot delete a baselined safety record' });
+      await pool.query('DELETE FROM hazop_ce_matrices WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/ce-matrices/:id/set-baseline', ensureAuthenticated, async (req, res) => {
+    try {
+      const m = await pool.query('SELECT * FROM hazop_ce_matrices WHERE id=$1', [req.params.id]);
+      if (!m.rows[0]) return sendNotFound(res, 'C&E Matrix');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const bl = await nextBaselineRevision(client, m.rows[0].study_id);
+        const r = await client.query(
+          `UPDATE hazop_ce_matrices SET baseline_revision=$1, status='approved' WHERE id=$2 RETURNING *`, [bl, req.params.id]);
+        await client.query('COMMIT');
+        res.json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Rows CRUD
+  app.post('/api/hazop/ce-matrices/:id/rows', ensureAuthenticated, async (req, res) => {
+    try {
+      const { description, event_type, tag_ref, source_deviation_id, source_cause_id, event_group_id } = req.body;
+      if (!description) return res.status(400).json({ message: 'description required' });
+      const nxt = await pool.query(`SELECT COALESCE(MAX(row_number),0)+1 AS n FROM hazop_ce_rows WHERE matrix_id=$1`, [req.params.id]);
+      const r = await pool.query(`INSERT INTO hazop_ce_rows (matrix_id, row_number, description, event_type, tag_ref, source_deviation_id, source_cause_id, event_group_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [req.params.id, nxt.rows[0].n, description, event_type??null, tag_ref??null,
+         source_deviation_id??null, source_cause_id??null, event_group_id??null]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/ce-rows/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM hazop_ce_rows WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Columns CRUD
+  app.post('/api/hazop/ce-matrices/:id/columns', ensureAuthenticated, async (req, res) => {
+    try {
+      const { description, col_type, protection_layer, tag_ref, source_safeguard_id, response_group_id } = req.body;
+      if (!description) return res.status(400).json({ message: 'description required' });
+      const nxt = await pool.query(`SELECT COALESCE(MAX(col_number),0)+1 AS n FROM hazop_ce_columns WHERE matrix_id=$1`, [req.params.id]);
+      const r = await pool.query(`INSERT INTO hazop_ce_columns (matrix_id, col_number, description, col_type, protection_layer, tag_ref, source_safeguard_id, response_group_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [req.params.id, nxt.rows[0].n, description, col_type??'interlock', protection_layer??null,
+         tag_ref??null, source_safeguard_id??null, response_group_id??null]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/ce-columns/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM hazop_ce_columns WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Cell toggle
+  app.post('/api/hazop/ce-matrices/:id/cells', ensureAuthenticated, async (req, res) => {
+    try {
+      const { row_id, col_id, triggered, notes } = req.body;
+      if (!row_id || !col_id) return res.status(400).json({ message: 'row_id and col_id required' });
+      const r = await pool.query(`
+        INSERT INTO hazop_ce_cells (v4b_matrix_id, row_id, col_id, triggered, notes, matrix_id, cause_id, effect_id)
+        VALUES ($1,$2,$3,$4,$5,$1,$2,$3)
+        ON CONFLICT (cause_id, effect_id) DO UPDATE SET triggered=EXCLUDED.triggered, notes=EXCLUDED.notes
+        RETURNING *`, [req.params.id, row_id, col_id, triggered ?? true, notes ?? null]);
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Populate matrix from event/response groups
+  app.post('/api/hazop/studies/:studyId/ce-matrices/populate-from-groups', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const { node_id } = req.body;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+        const nxt = await client.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(matrix_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_ce_matrices WHERE study_id=$1`, [studyId]);
+        const studyShort = study.study_number?.replace(/[^0-9]/g,'').slice(-4) ?? String(studyId);
+        const num = `CEM-${studyShort}-${String(nxt.rows[0].n).padStart(3,'0')}`;
+        const mat = await client.query(
+          `INSERT INTO hazop_ce_matrices (study_id, node_id, matrix_number, title, scope_description, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+          [studyId, node_id ?? null, num, 'Auto-generated C&E Matrix', 'Generated from event groups and response groups', (req.user as any).id]);
+        const matId = mat.rows[0].id;
+
+        // Rows from event groups
+        const egs = await client.query('SELECT * FROM hazop_event_groups WHERE study_id=$1 ORDER BY group_number', [studyId]);
+        let rowNum = 1;
+        for (const eg of egs.rows) {
+          await client.query(
+            `INSERT INTO hazop_ce_rows (matrix_id, row_number, description, event_type, event_group_id)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [matId, rowNum, eg.group_name, eg.event_type, eg.id]);
+          rowNum++;
+        }
+
+        // Columns from response groups (IPLs)
+        const rgs = await client.query(
+          `SELECT * FROM hazop_response_groups WHERE study_id=$1 AND is_independent_protection_layer=true ORDER BY group_number`, [studyId]);
+        let colNum = 1;
+        for (const rg of rgs.rows) {
+          await client.query(
+            `INSERT INTO hazop_ce_columns (matrix_id, col_number, description, col_type, protection_layer, response_group_id)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [matId, colNum, rg.group_name, rg.protection_layer === 'SIS' ? 'sis' : 'interlock',
+             rg.protection_layer, rg.id]);
+          colNum++;
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ matrix_id: matId, matrix_number: num, row_count: egs.rows.length, col_count: rgs.rows.length });
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4B-03: SAFETY FUNCTIONS (extends existing table with v1.3 fields)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get('/api/hazop/studies/:studyId/safety-functions', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query(`SELECT * FROM hazop_safety_functions WHERE study_id=$1 ORDER BY sif_number`, [req.params.studyId]);
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/studies/:studyId/safety-functions', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const { description, process_demand, safety_action, sil_required, response_time_sec,
+              initiating_tag, final_element, protection_layer, consequence_severity,
+              effectiveness_rating, is_independent_protection_layer, response_group_id,
+              source_deviation_id, source_safeguard_id, notes } = req.body;
+      if (!description) return res.status(400).json({ message: 'description required' });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+        const nxt = await client.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(sif_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_safety_functions WHERE study_id=$1`, [studyId]);
+        const num = `SIF-${String(nxt.rows[0].n).padStart(3,'0')}`;
+        const r = await client.query(`
+          INSERT INTO hazop_safety_functions
+            (study_id, sif_number, sif_description, description, initiating_cause, process_demand,
+             safety_action, initiator_tag, initiating_tag, final_element_tag, final_element,
+             protection_layer, consequence_severity, effectiveness_rating,
+             is_independent_protection_layer, response_group_id, source_deviation_id,
+             source_safeguard_id, notes, status, created_at, updated_at)
+          VALUES ($1,$2,$3,$3,$4,$4,$5,$6,$6,$7,$7,$8,$9,$10,$11,$12,$13,$14,$15,'draft',NOW(),NOW())
+          RETURNING *`,
+          [studyId, num, description, process_demand??null, safety_action??null,
+           initiating_tag??null, final_element??null, protection_layer??'SIS',
+           consequence_severity??null, effectiveness_rating??null,
+           is_independent_protection_layer ?? true,
+           response_group_id??null, source_deviation_id??null,
+           source_safeguard_id??null, notes??null]);
+        await client.query('COMMIT');
+        res.status(201).json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.patch('/api/hazop/safety-functions/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const { description, consequence_severity, effectiveness_rating, is_independent_protection_layer,
+              protection_layer, safety_action, response_time_sec, initiating_tag, final_element,
+              process_demand, sil_required, response_group_id, notes, status } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_safety_functions SET
+          description=COALESCE($1,description), sif_description=COALESCE($1,sif_description),
+          consequence_severity=COALESCE($2,consequence_severity),
+          effectiveness_rating=COALESCE($3,effectiveness_rating),
+          is_independent_protection_layer=COALESCE($4,is_independent_protection_layer),
+          protection_layer=COALESCE($5,protection_layer),
+          safety_action=COALESCE($6,safety_action),
+          response_time_sec=COALESCE($7,response_time_sec),
+          initiating_tag=COALESCE($8,initiating_tag), initiator_tag=COALESCE($8,initiator_tag),
+          final_element=COALESCE($9,final_element), final_element_tag=COALESCE($9,final_element_tag),
+          process_demand=COALESCE($10,process_demand), initiating_cause=COALESCE($10,initiating_cause),
+          response_group_id=COALESCE($11,response_group_id),
+          notes=COALESCE($12,notes), status=COALESCE($13,status), updated_at=NOW()
+        WHERE id=$14 RETURNING *`,
+        [description, consequence_severity, effectiveness_rating, is_independent_protection_layer,
+         protection_layer, safety_action, response_time_sec, initiating_tag, final_element,
+         process_demand, response_group_id, notes, status, req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Safety Function');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/safety-functions/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query('SELECT baseline_revision FROM hazop_safety_functions WHERE id=$1', [req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Safety Function');
+      if (r.rows[0].baseline_revision) return res.status(409).json({ message: 'Cannot delete a baselined safety record' });
+      await pool.query('DELETE FROM hazop_safety_functions WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/safety-functions/:id/set-baseline', ensureAuthenticated, async (req, res) => {
+    try {
+      const sf = await pool.query('SELECT * FROM hazop_safety_functions WHERE id=$1', [req.params.id]);
+      if (!sf.rows[0]) return sendNotFound(res, 'Safety Function');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const bl = await nextBaselineRevision(client, sf.rows[0].study_id);
+        const r = await client.query(
+          `UPDATE hazop_safety_functions SET baseline_revision=$1, status='approved', updated_at=NOW() WHERE id=$2 RETURNING *`,
+          [bl, req.params.id]);
+        await client.query('COMMIT');
+        res.json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Auto-extract safety functions from response groups (SIS IPLs)
+  app.post('/api/hazop/studies/:studyId/safety-functions/extract', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const sisRgs = await pool.query(`
+        SELECT rg.*, a.action_description, a.tag_ref AS act_tag, a.confidence_score
+        FROM hazop_response_groups rg
+        LEFT JOIN hazop_response_group_actions a ON a.response_group_id = rg.id AND a.sequence_no = 1
+        WHERE rg.study_id=$1 AND rg.protection_layer='SIS' AND rg.is_independent_protection_layer=true
+        ORDER BY rg.group_number`, [studyId]);
+      const client = await pool.connect();
+      let created = 0; let skipped = 0;
+      try {
+        await client.query('BEGIN');
+        for (const rg of sisRgs.rows) {
+          const ex = await client.query(
+            'SELECT id FROM hazop_safety_functions WHERE study_id=$1 AND response_group_id=$2', [studyId, rg.id]);
+          if (ex.rows.length) { skipped++; continue; }
+          await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+          const nxt = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(sif_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_safety_functions WHERE study_id=$1`, [studyId]);
+          const num = `SIF-${String(nxt.rows[0].n).padStart(3,'0')}`;
+          await client.query(`
+            INSERT INTO hazop_safety_functions
+              (study_id, sif_number, sif_description, description, initiating_cause, process_demand,
+               safety_action, initiating_tag, initiator_tag, final_element_tag, final_element,
+               protection_layer, consequence_severity, effectiveness_rating,
+               is_independent_protection_layer, response_group_id, status, created_at, updated_at)
+            VALUES ($1,$2,$3,$3,$4,$4,$5,$6,$6,$7,$7,$8,$9,$10,$11,$12,'draft',NOW(),NOW())`,
+            [studyId, num, rg.group_name,
+             `Demand on SIS from: ${rg.group_name}`, rg.action_description ?? 'Trip action',
+             rg.act_tag ?? null, rg.act_tag ?? null,
+             'SIS', null, rg.effectiveness_rating ?? 'medium',
+             true, rg.id]);
+          created++;
+        }
+        await client.query('COMMIT');
+        res.status(201).json({ created, skipped });
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4B-04: INTERLOCKS + INTERLOCK ACTIONS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get('/api/hazop/studies/:studyId/interlocks', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query(`
+        SELECT il.*, eg.group_number AS eg_number, eg.group_name AS eg_name,
+               rg.group_number AS rg_number, rg.group_name AS rg_name,
+               (SELECT json_agg(a ORDER BY a.sequence_no) FROM hazop_interlock_actions a WHERE a.interlock_id=il.id) AS actions
+        FROM hazop_interlocks il
+        LEFT JOIN hazop_event_groups eg ON eg.id = il.event_group_id
+        LEFT JOIN hazop_response_groups rg ON rg.id = il.response_group_id
+        WHERE il.study_id=$1 ORDER BY il.interlock_number`, [req.params.studyId]);
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/studies/:studyId/interlocks', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const { description, interlock_type, protection_layer, logic_type, criticality_class,
+              consequence_severity, effectiveness_rating, is_independent_protection_layer,
+              initiating_condition, initiating_tag, final_element_tag, set_point, reset_type,
+              bypass_provision, sil_level, event_group_id, response_group_id,
+              source_deviation_id, source_safeguard_id, notes } = req.body;
+      if (!description) return res.status(400).json({ message: 'description required' });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+        const intType = interlock_type ?? 'process';
+        const prefix = intType === 'SIS' ? 'SIS' : 'IL';
+        const nxt = await client.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(interlock_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_interlocks WHERE study_id=$1 AND interlock_number LIKE '${prefix}-%'`, [studyId]);
+        const num = `${prefix}-${String(nxt.rows[0].n).padStart(3,'0')}`;
+        const r = await client.query(`
+          INSERT INTO hazop_interlocks
+            (study_id, interlock_number, interlock_type, protection_layer, logic_type,
+             criticality_class, consequence_severity, effectiveness_rating,
+             is_independent_protection_layer, description, initiating_condition, initiating_tag,
+             final_element_tag, set_point, reset_type, bypass_provision, sil_level,
+             event_group_id, response_group_id, source_deviation_id, source_safeguard_id, notes, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+          RETURNING *`,
+          [studyId, num, intType, protection_layer??'BPCS', logic_type??'parallel',
+           criticality_class??null, consequence_severity??null, effectiveness_rating??null,
+           is_independent_protection_layer??false, description, initiating_condition??null,
+           initiating_tag??null, final_element_tag??null, set_point??null, reset_type??null,
+           bypass_provision??false, sil_level??null, event_group_id??null, response_group_id??null,
+           source_deviation_id??null, source_safeguard_id??null, notes??null, (req.user as any).id]);
+        await client.query('COMMIT');
+        res.status(201).json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.patch('/api/hazop/interlocks/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const { description, interlock_type, protection_layer, logic_type, criticality_class,
+              consequence_severity, effectiveness_rating, is_independent_protection_layer,
+              initiating_condition, initiating_tag, final_element_tag, set_point, reset_type,
+              bypass_provision, sil_level, status, notes } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_interlocks SET
+          description=COALESCE($1,description), interlock_type=COALESCE($2,interlock_type),
+          protection_layer=COALESCE($3,protection_layer), logic_type=COALESCE($4,logic_type),
+          criticality_class=COALESCE($5,criticality_class),
+          consequence_severity=COALESCE($6,consequence_severity),
+          effectiveness_rating=COALESCE($7,effectiveness_rating),
+          is_independent_protection_layer=COALESCE($8,is_independent_protection_layer),
+          initiating_condition=COALESCE($9,initiating_condition),
+          initiating_tag=COALESCE($10,initiating_tag), final_element_tag=COALESCE($11,final_element_tag),
+          set_point=COALESCE($12,set_point), reset_type=COALESCE($13,reset_type),
+          bypass_provision=COALESCE($14,bypass_provision), sil_level=COALESCE($15,sil_level),
+          status=COALESCE($16,status), notes=COALESCE($17,notes)
+        WHERE id=$18 RETURNING *`,
+        [description, interlock_type, protection_layer, logic_type, criticality_class,
+         consequence_severity, effectiveness_rating, is_independent_protection_layer,
+         initiating_condition, initiating_tag, final_element_tag, set_point, reset_type,
+         bypass_provision, sil_level, status, notes, req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Interlock');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/interlocks/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query('SELECT baseline_revision FROM hazop_interlocks WHERE id=$1', [req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Interlock');
+      if (r.rows[0].baseline_revision) return res.status(409).json({ message: 'Cannot delete a baselined safety record' });
+      await pool.query('DELETE FROM hazop_interlocks WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/interlocks/:id/set-baseline', ensureAuthenticated, async (req, res) => {
+    try {
+      const il = await pool.query('SELECT * FROM hazop_interlocks WHERE id=$1', [req.params.id]);
+      if (!il.rows[0]) return sendNotFound(res, 'Interlock');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const bl = await nextBaselineRevision(client, il.rows[0].study_id);
+        const r = await client.query(
+          `UPDATE hazop_interlocks SET baseline_revision=$1, status='approved' WHERE id=$2 RETURNING *`,
+          [bl, req.params.id]);
+        await client.query('COMMIT');
+        res.json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Interlock actions
+  app.post('/api/hazop/interlocks/:id/actions', ensureAuthenticated, async (req, res) => {
+    try {
+      const { action_description, action_type, fail_state, tag_ref, confidence_score, source_safeguard_id } = req.body;
+      if (!action_description) return res.status(400).json({ message: 'action_description required' });
+      const nxt = await pool.query(`SELECT COALESCE(MAX(sequence_no),0)+1 AS n FROM hazop_interlock_actions WHERE interlock_id=$1`, [req.params.id]);
+      const r = await pool.query(`
+        INSERT INTO hazop_interlock_actions (interlock_id, sequence_no, action_description, action_type, fail_state, tag_ref, confidence_score, source_safeguard_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [req.params.id, nxt.rows[0].n, action_description, action_type??null, fail_state??null,
+         tag_ref??null, confidence_score??null, source_safeguard_id??null]);
+      res.status(201).json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.patch('/api/hazop/interlock-actions/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const { action_description, action_type, fail_state, tag_ref, confidence_score } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_interlock_actions SET
+          action_description=COALESCE($1,action_description), action_type=COALESCE($2,action_type),
+          fail_state=COALESCE($3,fail_state), tag_ref=COALESCE($4,tag_ref),
+          confidence_score=COALESCE($5,confidence_score)
+        WHERE id=$6 RETURNING *`,
+        [action_description, action_type, fail_state, tag_ref, confidence_score, req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Interlock Action');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/interlock-actions/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM hazop_interlock_actions WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Extract interlocks from SIS response groups + interlock actions from actions
+  app.post('/api/hazop/studies/:studyId/interlocks/extract', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const rgs = await pool.query(`
+        SELECT rg.*, eg.consequence_severity AS eg_severity
+        FROM hazop_response_groups rg
+        LEFT JOIN hazop_event_groups eg ON eg.study_id=rg.study_id
+          AND rg.operating_mode = eg.operating_mode
+        WHERE rg.study_id=$1 AND rg.protection_layer IN ('SIS','BPCS') AND rg.is_independent_protection_layer=true
+        GROUP BY rg.id, eg.consequence_severity ORDER BY rg.group_number`, [studyId]);
+      const client = await pool.connect();
+      let created = 0; let skipped = 0;
+      try {
+        await client.query('BEGIN');
+        for (const rg of rgs.rows) {
+          const ex = await client.query('SELECT id FROM hazop_interlocks WHERE study_id=$1 AND response_group_id=$2', [studyId, rg.id]);
+          if (ex.rows.length) { skipped++; continue; }
+          await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+          const intType = rg.protection_layer === 'SIS' ? 'SIS' : 'process';
+          const prefix = intType === 'SIS' ? 'SIS' : 'IL';
+          const nxt = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(interlock_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_interlocks WHERE study_id=$1 AND interlock_number LIKE '${prefix}-%'`, [studyId]);
+          const num = `${prefix}-${String(nxt.rows[0].n).padStart(3,'0')}`;
+          const il = await client.query(`
+            INSERT INTO hazop_interlocks (study_id, interlock_number, interlock_type, protection_layer, logic_type,
+              criticality_class, consequence_severity, effectiveness_rating, is_independent_protection_layer,
+              description, response_group_id, status, created_by)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'identified',$12) RETURNING id`,
+            [studyId, num, intType, rg.protection_layer, rg.logic_type ?? 'parallel',
+             rg.criticality_class, rg.eg_severity ?? null, rg.effectiveness_rating,
+             rg.is_independent_protection_layer, rg.group_name, rg.id, (req.user as any).id]);
+          // Extract actions from response group actions
+          const acts = await client.query(
+            'SELECT * FROM hazop_response_group_actions WHERE response_group_id=$1 ORDER BY sequence_no', [rg.id]);
+          let seqNo = 1;
+          for (const a of acts.rows) {
+            const failState = rg.protection_layer === 'SIS' ? 'deenergize_to_trip' :
+                              (a.action_type === 'close' ? 'fail_closed' :
+                               a.action_type === 'open'  ? 'fail_open' : null);
+            await client.query(`
+              INSERT INTO hazop_interlock_actions (interlock_id, sequence_no, action_description, action_type, fail_state, tag_ref, confidence_score, source_safeguard_id)
+              VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [il.rows[0].id, seqNo, a.action_description, a.action_type, failState,
+               a.tag_ref, a.confidence_score, a.source_safeguard_id]);
+            seqNo++;
+          }
+          created++;
+        }
+        await client.query('COMMIT');
+        res.status(201).json({ created, skipped });
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4B-05: ALARM / TRIP REGISTER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get('/api/hazop/studies/:studyId/alarm-trips', ensureAuthenticated, async (req, res) => {
+    try {
+      const { alarm_type, protection_layer, rationalization_status, priority } = req.query as any;
+      let q = `SELECT at.*, eg.group_number AS eg_number, eg.group_name AS eg_name,
+                 il.interlock_number
+               FROM hazop_alarm_trips at
+               LEFT JOIN hazop_event_groups eg ON eg.id = at.event_group_id
+               LEFT JOIN hazop_interlocks il ON il.id = at.interlock_id
+               WHERE at.study_id=$1`;
+      const params: any[] = [req.params.studyId];
+      if (alarm_type)              { params.push(alarm_type);              q += ` AND at.alarm_type=$${params.length}`; }
+      if (protection_layer)        { params.push(protection_layer);        q += ` AND at.protection_layer=$${params.length}`; }
+      if (rationalization_status)  { params.push(rationalization_status);  q += ` AND at.rationalization_status=$${params.length}`; }
+      if (priority)                { params.push(priority);                q += ` AND at.priority=$${params.length}`; }
+      q += ' ORDER BY at.alarm_number';
+      const r = await pool.query(q, params);
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/studies/:studyId/alarm-trips', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const { description, alarm_type, protection_layer, criticality_class, effectiveness_rating,
+              human_dependency_level, tag_ref, process_parameter, set_point, alarm_action, trip_action,
+              response_time_sec, operator_action_required, priority, source_deviation_id,
+              source_safeguard_id, interlock_id, event_group_id, notes } = req.body;
+      if (!description || !alarm_type) return res.status(400).json({ message: 'description and alarm_type required' });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+        const aType = alarm_type.toUpperCase();
+        const prefix = aType === 'ALARM' || aType === 'alarm' ? 'ALM' : 'TRIP';
+        const pattern = prefix === 'ALM' ? 'ALM-%' : 'TRIP-%';
+        const nxt = await client.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(alarm_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_alarm_trips WHERE study_id=$1 AND alarm_number LIKE '${pattern}'`, [studyId]);
+        const num = prefix === 'ALM'
+          ? `ALM-${String(nxt.rows[0].n).padStart(4,'0')}`
+          : `TRIP-${String(nxt.rows[0].n).padStart(4,'0')}`;
+        const r = await client.query(`
+          INSERT INTO hazop_alarm_trips (study_id, alarm_number, alarm_type, protection_layer,
+            criticality_class, effectiveness_rating, human_dependency_level, tag_ref, description,
+            process_parameter, set_point, alarm_action, trip_action, response_time_sec,
+            operator_action_required, priority, source_deviation_id, source_safeguard_id,
+            interlock_id, event_group_id, notes, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+          RETURNING *`,
+          [studyId, num, alarm_type, protection_layer??'BPCS', criticality_class??null,
+           effectiveness_rating??null, human_dependency_level??null, tag_ref??null,
+           description, process_parameter??null, set_point??null, alarm_action??null,
+           trip_action??null, response_time_sec??null, operator_action_required??true,
+           priority??'medium', source_deviation_id??null, source_safeguard_id??null,
+           interlock_id??null, event_group_id??null, notes??null, (req.user as any).id]);
+        await client.query('COMMIT');
+        res.status(201).json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.patch('/api/hazop/alarm-trips/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const { description, alarm_type, protection_layer, criticality_class, effectiveness_rating,
+              human_dependency_level, tag_ref, process_parameter, set_point, alarm_action, trip_action,
+              response_time_sec, operator_action_required, priority, rationalization_status, notes } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_alarm_trips SET
+          description=COALESCE($1,description), alarm_type=COALESCE($2,alarm_type),
+          protection_layer=COALESCE($3,protection_layer), criticality_class=COALESCE($4,criticality_class),
+          effectiveness_rating=COALESCE($5,effectiveness_rating),
+          human_dependency_level=COALESCE($6,human_dependency_level),
+          tag_ref=COALESCE($7,tag_ref), process_parameter=COALESCE($8,process_parameter),
+          set_point=COALESCE($9,set_point), alarm_action=COALESCE($10,alarm_action),
+          trip_action=COALESCE($11,trip_action), response_time_sec=COALESCE($12,response_time_sec),
+          operator_action_required=COALESCE($13,operator_action_required),
+          priority=COALESCE($14,priority), rationalization_status=COALESCE($15,rationalization_status),
+          notes=COALESCE($16,notes)
+        WHERE id=$17 RETURNING *`,
+        [description, alarm_type, protection_layer, criticality_class, effectiveness_rating,
+         human_dependency_level, tag_ref, process_parameter, set_point, alarm_action, trip_action,
+         response_time_sec, operator_action_required, priority, rationalization_status, notes, req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Alarm/Trip');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/alarm-trips/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query('SELECT baseline_revision FROM hazop_alarm_trips WHERE id=$1', [req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Alarm/Trip');
+      if (r.rows[0].baseline_revision) return res.status(409).json({ message: 'Cannot delete a baselined safety record' });
+      await pool.query('DELETE FROM hazop_alarm_trips WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/alarm-trips/:id/set-baseline', ensureAuthenticated, async (req, res) => {
+    try {
+      const at = await pool.query('SELECT * FROM hazop_alarm_trips WHERE id=$1', [req.params.id]);
+      if (!at.rows[0]) return sendNotFound(res, 'Alarm/Trip');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const bl = await nextBaselineRevision(client, at.rows[0].study_id);
+        const r = await client.query(
+          `UPDATE hazop_alarm_trips SET baseline_revision=$1, rationalization_status='rationalized' WHERE id=$2 RETURNING *`,
+          [bl, req.params.id]);
+        await client.query('COMMIT');
+        res.json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // Auto-extract alarm/trip records from alarm/trip response groups
+  app.post('/api/hazop/studies/:studyId/alarm-trips/extract', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const alarmRgs = await pool.query(`
+        SELECT rg.*, a.action_description, a.tag_ref AS act_tag, a.action_type
+        FROM hazop_response_groups rg
+        LEFT JOIN hazop_response_group_actions a ON a.response_group_id=rg.id AND a.sequence_no=1
+        WHERE rg.study_id=$1 AND rg.protection_layer='BPCS'
+        ORDER BY rg.group_number`, [studyId]);
+      const client = await pool.connect();
+      let created = 0; let skipped = 0;
+      try {
+        await client.query('BEGIN');
+        for (const rg of alarmRgs.rows) {
+          const ex = await client.query(
+            `SELECT id FROM hazop_alarm_trips WHERE study_id=$1 AND (tag_ref=$2 OR description=$3)`,
+            [studyId, rg.act_tag, rg.group_name]);
+          if (ex.rows.length) { skipped++; continue; }
+          await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+          const isAlarm = rg.action_type === 'alarm';
+          const prefix = isAlarm ? 'ALM' : 'TRIP';
+          const pattern = isAlarm ? 'ALM-%' : 'TRIP-%';
+          const nxt = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(alarm_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_alarm_trips WHERE study_id=$1 AND alarm_number LIKE '${pattern}'`, [studyId]);
+          const num = isAlarm
+            ? `ALM-${String(nxt.rows[0].n).padStart(4,'0')}`
+            : `TRIP-${String(nxt.rows[0].n).padStart(4,'0')}`;
+          await client.query(`
+            INSERT INTO hazop_alarm_trips (study_id, alarm_number, alarm_type, protection_layer,
+              criticality_class, effectiveness_rating, human_dependency_level, tag_ref, description,
+              operator_action_required, priority, event_group_id, created_by)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+            [studyId, num, isAlarm ? 'alarm' : 'trip', 'BPCS',
+             rg.criticality_class, rg.effectiveness_rating, rg.human_dependency_level,
+             rg.act_tag ?? null, rg.group_name,
+             !isAlarm, isAlarm ? 'medium' : 'high', null, (req.user as any).id]);
+          created++;
+        }
+        await client.query('COMMIT');
+        res.status(201).json({ created, skipped });
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4B-06: SAFETY CRITICAL ELEMENTS (SCE)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get('/api/hazop/studies/:studyId/safety-critical-elements', ensureAuthenticated, async (req, res) => {
+    try {
+      const r = await pool.query(`
+        SELECT sce.*, sf.sif_number, sf.description AS sif_desc,
+               il.interlock_number
+        FROM hazop_safety_critical_elements sce
+        LEFT JOIN hazop_safety_functions sf ON sf.id = sce.linked_sif_id
+        LEFT JOIN hazop_interlocks il ON il.id = sce.linked_interlock_id
+        WHERE sce.study_id=$1 ORDER BY sce.sce_number`, [req.params.studyId]);
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.post('/api/hazop/studies/:studyId/safety-critical-elements', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      const { tag_ref, description, equipment_type, protection_layer, fail_state,
+              linked_sif_id, linked_interlock_id, proof_test_required,
+              inspection_interval_days, notes } = req.body;
+      if (!tag_ref || !description) return res.status(400).json({ message: 'tag_ref and description required' });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+        const nxt = await client.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(sce_number FROM '\\d+$') AS INT)),0)+1 AS n FROM hazop_safety_critical_elements WHERE study_id=$1`, [studyId]);
+        const num = `SCE-${String(nxt.rows[0].n).padStart(3,'0')}`;
+        const r = await client.query(`
+          INSERT INTO hazop_safety_critical_elements
+            (study_id, sce_number, tag_ref, description, equipment_type, protection_layer, fail_state,
+             linked_sif_id, linked_interlock_id, proof_test_required, inspection_interval_days, notes, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+          [studyId, num, tag_ref, description, equipment_type??null, protection_layer??null, fail_state??null,
+           linked_sif_id??null, linked_interlock_id??null, proof_test_required??true,
+           inspection_interval_days??null, notes??null, (req.user as any).id]);
+        await client.query('COMMIT');
+        res.status(201).json(r.rows[0]);
+      } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.patch('/api/hazop/safety-critical-elements/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      const { tag_ref, description, equipment_type, protection_layer, fail_state,
+              linked_sif_id, linked_interlock_id, proof_test_required, inspection_interval_days, notes } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_safety_critical_elements SET
+          tag_ref=COALESCE($1,tag_ref), description=COALESCE($2,description),
+          equipment_type=COALESCE($3,equipment_type), protection_layer=COALESCE($4,protection_layer),
+          fail_state=COALESCE($5,fail_state), linked_sif_id=COALESCE($6,linked_sif_id),
+          linked_interlock_id=COALESCE($7,linked_interlock_id),
+          proof_test_required=COALESCE($8,proof_test_required),
+          inspection_interval_days=COALESCE($9,inspection_interval_days),
+          notes=COALESCE($10,notes)
+        WHERE id=$11 RETURNING *`,
+        [tag_ref, description, equipment_type, protection_layer, fail_state,
+         linked_sif_id, linked_interlock_id, proof_test_required, inspection_interval_days, notes, req.params.id]);
+      if (!r.rows[0]) return sendNotFound(res, 'SCE');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  app.delete('/api/hazop/safety-critical-elements/:id', ensureAuthenticated, async (req, res) => {
+    try {
+      await pool.query('DELETE FROM hazop_safety_critical_elements WHERE id=$1', [req.params.id]);
+      res.json({ message: 'Deleted' });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 4B-07: PHASE 4 SUMMARY (v1.3 additions)
+  // Replaces the Phase 4A-only summary above
+  // ══════════════════════════════════════════════════════════════════════════
+
+  app.get('/api/hazop/studies/:studyId/phase4-summary-v2', ensureAuthenticated, async (req, res) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const [egCount, egmCount, rgCount, rgaCount, confDist,
+             scCount, scBaselined, scSeverity, scMode,
+             ilCount, ilFailState, atCount, sceCount,
+             effDist, hdCritical, failStateNotSet,
+             plBreakdown, severityBreakdown] = await Promise.all([
+        pool.query('SELECT COUNT(*) FROM hazop_event_groups WHERE study_id=$1', [studyId]),
+        pool.query(`SELECT COUNT(*) FROM hazop_event_group_members m JOIN hazop_event_groups eg ON eg.id=m.group_id WHERE eg.study_id=$1`, [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_response_groups WHERE study_id=$1', [studyId]),
+        pool.query(`SELECT COUNT(*) FROM hazop_response_group_actions a JOIN hazop_response_groups rg ON rg.id=a.response_group_id WHERE rg.study_id=$1`, [studyId]),
+        pool.query(`SELECT
+            SUM(CASE WHEN a.confidence_score < 50 THEN 1 ELSE 0 END) AS low,
+            SUM(CASE WHEN a.confidence_score BETWEEN 50 AND 74 THEN 1 ELSE 0 END) AS medium,
+            SUM(CASE WHEN a.confidence_score BETWEEN 75 AND 89 THEN 1 ELSE 0 END) AS high,
+            SUM(CASE WHEN a.confidence_score >= 90 THEN 1 ELSE 0 END) AS verified,
+            SUM(CASE WHEN a.confidence_score IS NULL THEN 1 ELSE 0 END) AS manual
+          FROM hazop_response_group_actions a JOIN hazop_response_groups rg ON rg.id=a.response_group_id WHERE rg.study_id=$1`, [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_scenarios WHERE study_id=$1', [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_scenarios WHERE study_id=$1 AND baseline_revision IS NOT NULL', [studyId]),
+        pool.query(`SELECT consequence_severity, COUNT(*) FROM hazop_scenarios WHERE study_id=$1 AND consequence_severity IS NOT NULL GROUP BY consequence_severity`, [studyId]),
+        pool.query(`SELECT operating_mode, COUNT(*) FROM hazop_scenarios WHERE study_id=$1 AND operating_mode IS NOT NULL GROUP BY operating_mode`, [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_interlocks WHERE study_id=$1', [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_interlocks WHERE study_id=$1 AND baseline_revision IS NOT NULL', [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_alarm_trips WHERE study_id=$1', [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_safety_critical_elements WHERE study_id=$1', [studyId]),
+        pool.query(`SELECT
+            SUM(CASE WHEN effectiveness_rating='low' THEN 1 ELSE 0 END) AS low,
+            SUM(CASE WHEN effectiveness_rating='medium' THEN 1 ELSE 0 END) AS medium,
+            SUM(CASE WHEN effectiveness_rating='high' THEN 1 ELSE 0 END) AS high,
+            SUM(CASE WHEN effectiveness_rating='verified' THEN 1 ELSE 0 END) AS verified
+          FROM hazop_response_groups WHERE study_id=$1`, [studyId]),
+        pool.query(`SELECT COUNT(*) FROM hazop_response_groups WHERE study_id=$1 AND human_dependency_level='critical'`, [studyId]),
+        pool.query(`SELECT COUNT(*) FROM hazop_interlock_actions a
+          JOIN hazop_interlocks il ON il.id=a.interlock_id WHERE il.study_id=$1 AND a.fail_state IS NULL`, [studyId]),
+        pool.query(`SELECT protection_layer, COUNT(*) FROM hazop_response_groups WHERE study_id=$1 GROUP BY protection_layer`, [studyId]),
+        pool.query(`SELECT consequence_severity, COUNT(*) FROM hazop_event_groups WHERE study_id=$1 AND consequence_severity IS NOT NULL GROUP BY consequence_severity`, [studyId]),
+      ]);
+
+      const scTotal = parseInt(scCount.rows[0].count);
+      const scBaselinedCount = parseInt(scBaselined.rows[0].count);
+
+      res.json({
+        event_group_count: parseInt(egCount.rows[0].count),
+        member_count: parseInt(egmCount.rows[0].count),
+        response_group_count: parseInt(rgCount.rows[0].count),
+        response_group_action_count: parseInt(rgaCount.rows[0].count),
+        protection_layer_breakdown: Object.fromEntries(plBreakdown.rows.map(r => [r.protection_layer, parseInt(r.count)])),
+        severity_breakdown: Object.fromEntries(severityBreakdown.rows.map(r => [r.consequence_severity, parseInt(r.count)])),
+        confidence_distribution: confDist.rows[0],
+        scenario_count: scTotal,
+        scenarios_with_baseline: scTotal > 0 ? Math.round(scBaselinedCount / scTotal * 100) : 0,
+        scenarios_by_severity: Object.fromEntries(scSeverity.rows.map(r => [r.consequence_severity, parseInt(r.count)])),
+        scenarios_by_operating_mode: Object.fromEntries(scMode.rows.map(r => [r.operating_mode, parseInt(r.count)])),
+        interlock_count: parseInt(ilCount.rows[0].count),
+        interlocks_with_baseline: parseInt(ilFailState.rows[0].count),
+        alarm_trip_count: parseInt(atCount.rows[0].count),
+        sce_count: parseInt(sceCount.rows[0].count),
+        effectiveness_distribution: effDist.rows[0],
+        human_dependency_critical_count: parseInt(hdCritical.rows[0].count),
+        fail_state_not_set_count: parseInt(failStateNotSet.rows[0].count),
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 4B END
+  // ════════════════════════════════════════════════════════════════════════════
 }

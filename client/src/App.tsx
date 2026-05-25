@@ -338,6 +338,7 @@ function Router() {
       <ProtectedRoute path="/hazop/studies/:id/actions" component={() => <Hazop.HazopActionsPage />} />
       <ProtectedRoute path="/hazop/studies/:id/event-groups" component={() => <Hazop.HazopEventGroupsPage />} />
       <ProtectedRoute path="/hazop/studies/:id/response-groups" component={() => <Hazop.HazopResponseGroupsPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/scenarios" component={() => <Hazop.HazopScenariosPage />} />
 
       <Route component={NotFound} />
     </Switch>

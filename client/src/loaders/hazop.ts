@@ -7,3 +7,4 @@ export const HazopWorksheetPage = lazyWithRetry(() => import("@/pages/hazop/hazo
 export const HazopActionsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-actions"));
 export const HazopEventGroupsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-event-groups"));
 export const HazopResponseGroupsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-response-groups"));
+export const HazopScenariosPage = lazyWithRetry(() => import("@/pages/hazop/hazop-scenarios"));

@@ -511,6 +511,7 @@ function Layout({ children }: LayoutProps) {
           { icon: ClipboardCheck, label: "Actions Register", href: `/hazop/studies/${hazopStudyId}/actions` },
           { icon: Target, label: "Event Groups", href: `/hazop/studies/${hazopStudyId}/event-groups` },
           { icon: ActivitySquare, label: "Response Groups", href: `/hazop/studies/${hazopStudyId}/response-groups` },
+          { icon: BookOpen, label: "Scenarios", href: `/hazop/studies/${hazopStudyId}/scenarios` },
         ] : []),
       ]
     }] : []),

@@ -16054,3 +16054,187 @@ export const hazopResponseGroupActions = pgTable('hazop_response_group_actions',
   uqRgSeq: uniqueIndex('uq_hazop_rga_rg_seq').on(table.responseGroupId, table.sequenceNo),
 }));
 export type HazopResponseGroupAction = typeof hazopResponseGroupActions.$inferSelect;
+
+// ─── HAZOP Module — Phase 4B Engineering Safety Artefacts ─────────────────────
+// All tables are additive. Governed by: docs/hazop-phase4-execution-plan-v1.3.md
+
+// 25. hazop_ce_matrices  (v1.3 — separate from legacy hazop_ce_matrix)
+export const hazopCeMatrices = pgTable('hazop_ce_matrices', {
+  id:               serial('id').primaryKey(),
+  studyId:          integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  nodeId:           integer('node_id').references(() => hazopNodes.id, { onDelete: 'set null' }),
+  matrixNumber:     text('matrix_number').notNull(),
+  title:            text('title'),
+  scopeDescription: text('scope_description'),
+  baselineRevision: text('baseline_revision'),
+  status:           text('status').notNull().default('draft'),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  createdBy:        integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqStudyMatNum: uniqueIndex('uq_hazop_cem_study_num').on(table.studyId, table.matrixNumber),
+}));
+export type HazopCeMatrix_v13 = typeof hazopCeMatrices.$inferSelect;
+
+// 26. hazop_ce_rows
+export const hazopCeRows = pgTable('hazop_ce_rows', {
+  id:               serial('id').primaryKey(),
+  matrixId:         integer('matrix_id').notNull().references(() => hazopCeMatrices.id, { onDelete: 'cascade' }),
+  rowNumber:        integer('row_number').notNull(),
+  description:      text('description').notNull(),
+  eventType:        text('event_type'),
+  tagRef:           text('tag_ref'),
+  sourceDeviationId: integer('source_deviation_id').references(() => hazopDeviations.id, { onDelete: 'set null' }),
+  sourceCauseId:    integer('source_cause_id').references(() => hazopCauses.id, { onDelete: 'set null' }),
+  eventGroupId:     integer('event_group_id').references(() => hazopEventGroups.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqMatRow: uniqueIndex('uq_hazop_cer_mat_row').on(table.matrixId, table.rowNumber),
+}));
+export type HazopCeRow = typeof hazopCeRows.$inferSelect;
+
+// 27. hazop_ce_columns
+export const hazopCeColumns = pgTable('hazop_ce_columns', {
+  id:               serial('id').primaryKey(),
+  matrixId:         integer('matrix_id').notNull().references(() => hazopCeMatrices.id, { onDelete: 'cascade' }),
+  colNumber:        integer('col_number').notNull(),
+  description:      text('description').notNull(),
+  colType:          text('col_type').notNull().default('interlock'),
+  protectionLayer:  text('protection_layer'),
+  tagRef:           text('tag_ref'),
+  sourceSafeguardId: integer('source_safeguard_id').references(() => hazopSafeguards.id, { onDelete: 'set null' }),
+  sourceActionId:   integer('source_action_id').references(() => hazopActions.id, { onDelete: 'set null' }),
+  responseGroupId:  integer('response_group_id').references(() => hazopResponseGroups.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqMatCol: uniqueIndex('uq_hazop_cec_mat_col').on(table.matrixId, table.colNumber),
+}));
+export type HazopCeColumn = typeof hazopCeColumns.$inferSelect;
+
+// 28. hazop_interlocks
+export const hazopInterlocks = pgTable('hazop_interlocks', {
+  id:                             serial('id').primaryKey(),
+  studyId:                        integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  interlockNumber:                text('interlock_number').notNull(),
+  interlockType:                  text('interlock_type').notNull(),
+  eventType:                      text('event_type'),
+  protectionLayer:                text('protection_layer'),
+  logicType:                      text('logic_type'),
+  criticalityClass:               text('criticality_class'),
+  consequenceSeverity:            text('consequence_severity'),
+  effectivenessRating:            text('effectiveness_rating'),
+  isIndependentProtectionLayer:   boolean('is_independent_protection_layer').notNull().default(false),
+  baselineRevision:               text('baseline_revision'),
+  description:                    text('description').notNull(),
+  initiatingCondition:            text('initiating_condition'),
+  initiatingTag:                  text('initiating_tag'),
+  finalElementTag:                text('final_element_tag'),
+  setPoint:                       text('set_point'),
+  resetType:                      text('reset_type'),
+  bypassProvision:                boolean('bypass_provision').notNull().default(false),
+  silLevel:                       integer('sil_level'),
+  status:                         text('status').notNull().default('identified'),
+  sourceDeviationId:              integer('source_deviation_id').references(() => hazopDeviations.id, { onDelete: 'set null' }),
+  sourceSafeguardId:              integer('source_safeguard_id').references(() => hazopSafeguards.id, { onDelete: 'set null' }),
+  eventGroupId:                   integer('event_group_id').references(() => hazopEventGroups.id, { onDelete: 'set null' }),
+  responseGroupId:                integer('response_group_id').references(() => hazopResponseGroups.id, { onDelete: 'set null' }),
+  ceRowId:                        integer('ce_row_id').references(() => hazopCeRows.id, { onDelete: 'set null' }),
+  ceColumnId:                     integer('ce_column_id').references(() => hazopCeColumns.id, { onDelete: 'set null' }),
+  notes:                          text('notes'),
+  createdAt:                      timestamp('created_at').notNull().defaultNow(),
+  createdBy:                      integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqStudyIlNum: uniqueIndex('uq_hazop_il_study_num').on(table.studyId, table.interlockNumber),
+}));
+export type HazopInterlock = typeof hazopInterlocks.$inferSelect;
+
+// 29. hazop_interlock_actions
+export const hazopInterlockActions = pgTable('hazop_interlock_actions', {
+  id:                 serial('id').primaryKey(),
+  interlockId:        integer('interlock_id').notNull().references(() => hazopInterlocks.id, { onDelete: 'cascade' }),
+  sequenceNo:         integer('sequence_no').notNull(),
+  actionDescription:  text('action_description').notNull(),
+  actionType:         text('action_type'),
+  failState:          text('fail_state'),
+  tagRef:             text('tag_ref'),
+  confidenceScore:    integer('confidence_score'),
+  sourceSafeguardId:  integer('source_safeguard_id').references(() => hazopSafeguards.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqIlSeq: uniqueIndex('uq_hazop_ila_il_seq').on(table.interlockId, table.sequenceNo),
+}));
+export type HazopInterlockAction = typeof hazopInterlockActions.$inferSelect;
+
+// 30. hazop_alarm_trips
+export const hazopAlarmTrips = pgTable('hazop_alarm_trips', {
+  id:                      serial('id').primaryKey(),
+  studyId:                 integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  alarmNumber:             text('alarm_number').notNull(),
+  alarmType:               text('alarm_type').notNull(),
+  eventType:               text('event_type'),
+  protectionLayer:         text('protection_layer'),
+  criticalityClass:        text('criticality_class'),
+  effectivenessRating:     text('effectiveness_rating'),
+  humanDependencyLevel:    text('human_dependency_level'),
+  tagRef:                  text('tag_ref'),
+  description:             text('description').notNull(),
+  processParameter:        text('process_parameter'),
+  setPoint:                text('set_point'),
+  alarmAction:             text('alarm_action'),
+  tripAction:              text('trip_action'),
+  responseTimeSec:         integer('response_time_sec'),
+  operatorActionRequired:  boolean('operator_action_required').notNull().default(true),
+  confidenceScore:         integer('confidence_score'),
+  baselineRevision:        text('baseline_revision'),
+  priority:                text('priority').notNull().default('medium'),
+  rationalizationStatus:   text('rationalization_status').notNull().default('pending'),
+  sourceDeviationId:       integer('source_deviation_id').references(() => hazopDeviations.id, { onDelete: 'set null' }),
+  sourceSafeguardId:       integer('source_safeguard_id').references(() => hazopSafeguards.id, { onDelete: 'set null' }),
+  interlockId:             integer('interlock_id').references(() => hazopInterlocks.id, { onDelete: 'set null' }),
+  eventGroupId:            integer('event_group_id').references(() => hazopEventGroups.id, { onDelete: 'set null' }),
+  notes:                   text('notes'),
+  createdAt:               timestamp('created_at').notNull().defaultNow(),
+  createdBy:               integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqStudyAlmNum: uniqueIndex('uq_hazop_at_study_num').on(table.studyId, table.alarmNumber),
+}));
+export type HazopAlarmTrip = typeof hazopAlarmTrips.$inferSelect;
+
+// 31. hazop_safety_critical_elements
+export const hazopSafetyCriticalElements = pgTable('hazop_safety_critical_elements', {
+  id:                     serial('id').primaryKey(),
+  studyId:                integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  sceNumber:              text('sce_number').notNull(),
+  tagRef:                 text('tag_ref').notNull(),
+  description:            text('description').notNull(),
+  equipmentType:          text('equipment_type'),
+  protectionLayer:        text('protection_layer'),
+  failState:              text('fail_state'),
+  linkedSifId:            integer('linked_sif_id').references(() => hazopSafetyFunctions.id, { onDelete: 'set null' }),
+  linkedInterlockId:      integer('linked_interlock_id').references(() => hazopInterlocks.id, { onDelete: 'set null' }),
+  proofTestRequired:      boolean('proof_test_required').notNull().default(true),
+  inspectionIntervalDays: integer('inspection_interval_days'),
+  notes:                  text('notes'),
+  createdAt:              timestamp('created_at').notNull().defaultNow(),
+  createdBy:              integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqStudySceNum: uniqueIndex('uq_hazop_sce_study_num').on(table.studyId, table.sceNumber),
+}));
+export type HazopSafetyCriticalElement = typeof hazopSafetyCriticalElements.$inferSelect;
+
+// 32. hazop_scenarios
+export const hazopScenarios = pgTable('hazop_scenarios', {
+  id:                      serial('id').primaryKey(),
+  studyId:                 integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  scenarioNumber:          text('scenario_number').notNull(),
+  title:                   text('title').notNull(),
+  initiatingEventGroupId:  integer('initiating_event_group_id').references(() => hazopEventGroups.id, { onDelete: 'set null' }),
+  consequenceDescription:  text('consequence_description').notNull(),
+  consequenceSeverity:     text('consequence_severity').notNull(),
+  operatingMode:           text('operating_mode'),
+  humanDependencyLevel:    text('human_dependency_level'),
+  residualRisk:            text('residual_risk'),
+  baselineRevision:        text('baseline_revision'),
+  notes:                   text('notes'),
+  createdAt:               timestamp('created_at').notNull().defaultNow(),
+  createdBy:               integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqStudyScNum: uniqueIndex('uq_hazop_sc_study_num').on(table.studyId, table.scenarioNumber),
+}));
+export type HazopScenario = typeof hazopScenarios.$inferSelect;
