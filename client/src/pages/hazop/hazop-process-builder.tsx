@@ -395,12 +395,12 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
               <div>
                 <Label>Concept Equipment</Label>
                 <div className="flex gap-2">
-                  <Select value={ceId} onValueChange={setCeId}>
+                  <Select value={ceId || "__none__"} onValueChange={v => setCeId(v === "__none__" ? "" : v)}>
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder={poolItems.length === 0 ? "No equipment for this category" : "Select concept equipment…"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">— None —</SelectItem>
+                      <SelectItem value="__none__">— None —</SelectItem>
                       {poolItems.map(e => (
                         <SelectItem key={e.id} value={String(e.id)}>
                           {e.concept_tag} {e.equipment_role ? `— ${e.equipment_role}` : ""}
@@ -419,12 +419,12 @@ function StepFormDialog({ open, onClose, loopId, studyId, studyMode, editing }: 
             ) : (
               <div>
                 <Label>BUY List Equipment Tag</Label>
-                <Select value={blId} onValueChange={setBlId}>
+                <Select value={blId || "__none__"} onValueChange={v => setBlId(v === "__none__" ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder={poolItems.length === 0 ? "No tagged items in BUY list" : "Select tag…"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— None —</SelectItem>
+                    <SelectItem value="__none__">— None —</SelectItem>
                     {poolItems.map(e => (
                       <SelectItem key={e.id} value={String(e.id)}>
                         {e.tag_no} {e.service_description ? `— ${e.service_description}` : ""}
