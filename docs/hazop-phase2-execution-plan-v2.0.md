@@ -2,7 +2,7 @@
 # Process Definition & Node Builder — Revised Architecture
 
 **Status:** PLAN — AWAITING APPROVAL
-**Date:** 2026-05-25
+**Date:** 2026-05-25 (clarifications added 2026-05-25)
 **Supersedes:** `docs/hazop-phase2-execution-plan-v1.0.md`
 **Parent Plan:** `docs/hazop-module-execution-plan-v2.0.md`
 **Phase 1 Summary:** `docs/hazop-phase1-implementation-summary.md`
@@ -33,10 +33,10 @@ Study → Loop → Node → Step(s) → Deviation
 
 | Term | Definition |
 |---|---|
-| Loop | Major process section (e.g. Dehydration Loop, TWFE Distillation Loop) |
-| Node | HAZOP analysis boundary — user-defined section within a Loop (e.g. Feed Transfer Node, Heater Section Node). This is the worksheet boundary. |
-| Step | Individual equipment or process element inside a Node (e.g. Pump, Filter, Heat Exchanger, Vessel) |
-| Deviation | HAZOP analysis record attached to a Node. Guide words applied at Node level, not Step level. |
+| Loop | Major process section (e.g. Dehydration Loop, TWFE Distillation Loop). Defined at study level. |
+| Node | Simultaneously a **process section boundary** (P&ID-defined) and an **operational analysis boundary** (HAZOP worksheet unit). User-defined within a Loop. See §14 for the full dual-role definition. |
+| Step | Individual equipment or process element inside a Node (e.g. Pump, Filter, Heat Exchanger, Vessel). Steps carry `sequence_no` scoped locally within their Node — not globally within the Loop. |
+| Deviation | HAZOP analysis record attached to a Node. Guide words applied at Node level. Deviation context includes all equipment categories present in the Node's Steps (aggregated — see §15). |
 
 **Consequence:** All Phase 2 v1.0 implementation (routes, UI, schema) that implements
 the 1:1 Step→Node pattern must be revised before Phase 3 begins. Phase 3 cannot
@@ -453,7 +453,10 @@ Node 2.2: Dehydration Vessel Node
 
 ## 5. Step Validation Rules
 
-Unchanged from v1.0 except `sequence_no` uniqueness scope changes from `(loop_id)` to `(node_id)`.
+Changes from v1.0:
+- `sequence_no` uniqueness scope: `(loop_id)` → `(node_id)`.
+- V11 upgraded from Warning to Hard block (ref format now precisely defined — see §6.4).
+- V12 added: `outlet_destination_ref` format check.
 
 | # | Rule | Type |
 |---|---|---|
@@ -467,7 +470,8 @@ Unchanged from v1.0 except `sequence_no` uniqueness scope changes from `(loop_id
 | V8 | `concept_equipment_id` not belonging to study | Hard block — 400 |
 | V9 | `(node_id, sequence_no)` duplicate | Hard block — 409 |
 | V10 | Loop/node/step mutation when study `status` ≠ `draft` | Hard block — 409 |
-| V11 | `outlet_destination_ref` absent when `outlet_destination` ∈ `{specific_step, bypass, recycle}` | Warning |
+| V11 | `outlet_destination_ref` absent when `outlet_destination` ∈ `{specific_step, bypass, recycle}` | Hard block — 400 |
+| V12 | `outlet_destination_ref` present but does not match `^\d+\.\d+\.\d+$` | Hard block — 400 |
 
 ---
 
@@ -482,15 +486,46 @@ Unchanged from v1.0 except `sequence_no` uniqueness scope changes from `(loop_id
 | No resequence API | Never exists for nodes. |
 | Gap tolerance | Gaps in `node_number` are allowed after deletions. |
 
-### 6.2 Step Sequence (`sequence_no`)
+---
+
+### 6.2 Step Sequence (`sequence_no`) — scoped locally within Node
+
+**`sequence_no` is local to `node_id`. It is NOT global within the Loop.**
+
+Each Node maintains its own independent step numbering starting at 1.
+Two steps in different nodes may share the same `sequence_no` and this is
+correct behaviour — they are in different scopes.
+
+**Explicit example:**
+
+```
+Loop 2: Dehydration Loop
+ │
+ ├── Node 2.1: Feed Preheating Node
+ │    ├── Step sequence_no=1   (Heat Exchanger — HX-201)
+ │    └── Step sequence_no=2   (Control Valve — CV-201)
+ │
+ └── Node 2.2: Dehydration Vessel Node
+      ├── Step sequence_no=1   (Vessel — V-201)   ← same sequence_no as Node 2.1 Step 1: correct
+      └── Step sequence_no=2   (Vent — overhead)  ← same sequence_no as Node 2.1 Step 2: correct
+```
+
+The UNIQUE constraint is `(node_id, sequence_no)` — not `(loop_id, sequence_no)`.
+
+**Step addressing:** A step is globally addressed as
+`{loop_number}.{node_number}.{sequence_no}` — e.g. `2.2.1` for
+Loop 2, Node 2.2, Step 1. This three-part address is the canonical
+cross-node reference format (see §6.4).
 
 | Rule | Specification |
 |---|---|
 | `sequence_no` immutability | Set on step creation; never changed. Prohibited on PATCH. |
-| `sequence_no` scope | Unique within `(node_id)` — not `(loop_id)` as in v1.0. |
+| `sequence_no` scope | Unique within `(node_id)` only. Same value may exist in a different node within the same loop. |
 | `sequence_no` assignment | `MAX(sequence_no) + 1` for this `node_id`, server-side only. |
 | No resequence API | Never exists. |
 | Delete behaviour | Deleting a step does not renumber remaining steps. |
+
+---
 
 ### 6.3 Referential Stability Rationale
 
@@ -499,6 +534,53 @@ Any renumbering of nodes or steps would break the audit trail between
 nodes, deviations, causes, safeguards, and actions.
 `node_number` and `sequence_no` stability is a non-negotiable precondition
 for downstream referential integrity.
+
+---
+
+### 6.4 Outlet Destination Reference Format
+
+When a step's process flow exits to a specific destination that cannot be
+resolved automatically, `outlet_destination_ref` carries a deterministic
+address string using the format:
+
+```
+{loop_number}.{node_number}.{sequence_no}
+```
+
+**Examples:**
+
+| Ref value | Meaning |
+|---|---|
+| `2.1.2` | Loop 2, Node 2.1, Step sequence 2 |
+| `5.3.1` | Loop 5, Node 5.3, Step sequence 1 |
+| `1.2.1` | Loop 1, Node 1.2, Step sequence 1 |
+
+**Which outlet_destination values require a ref:**
+
+| outlet_destination | ref required? | ref format | Resolution |
+|---|---|---|---|
+| `next_step` | No | — | Auto: next `sequence_no` within same node |
+| `prev_step` | No | — | Auto: previous `sequence_no` within same node |
+| `next_node` | No | — | Auto: first step of `node_number+1` in same loop |
+| `next_loop` | No | — | Auto: first node/step of `loop_number+1` |
+| `start_of_loop` | No | — | Auto: first step of first node of same loop |
+| `specific_step` | **Yes** | `{L}.{N}.{S}` | Cross-node or cross-loop target step |
+| `recycle` | **Yes** | `{L}.{N}.{S}` | Return target step |
+| `bypass` | **Yes** | `{L}.{N}.{S}` | Bypass target step |
+| `drain` | No | — | Terminal — no downstream |
+| `vent` | No | — | Terminal — no downstream |
+| `product_outlet` | No | — | Terminal — no downstream |
+| `waste_outlet` | No | — | Terminal — no downstream |
+
+**Server-side enforcement:**
+- `outlet_destination_ref` REQUIRED (hard block — 400) when
+  `outlet_destination` ∈ `{specific_step, recycle, bypass}`.
+- `outlet_destination_ref` must match the format `^\d+\.\d+\.\d+$`
+  (integer dot integer dot integer). Server validates format on INSERT and PATCH.
+- Referential integrity (i.e., that the target step actually exists) is
+  **not** validated at write time — it is validated at Phase 3 generation time.
+- `outlet_destination_ref` is silently ignored when `outlet_destination`
+  does not require it.
 
 ---
 
@@ -604,27 +686,52 @@ Deviation and action counts shown as badges (grey = 0, blue = >0).
 
 ## 9. Controlled Vocabulary
 
-Unchanged from v1.0. All enforced server-side. Free text rejected for controlled fields.
+All enforced server-side. Free text rejected for controlled fields.
 
-### Equipment Categories (18 exact values)
+Changes from v1.0: `next_node` added to Outlet Destinations (now 12 values).
+
+### Equipment Categories (18 exact values — unchanged)
 ```
 Tank | Pump | Heat Exchanger | Heater | Vessel | Column | Separator
 Filter | Control Valve | Isolation Valve | Check Valve | Instrument
 Utility System | Drain | Vent | Product Outlet | Waste Outlet | Next Loop
 ```
 
-### Connection Types (9 exact values)
+### Connection Types (9 exact values — unchanged)
 ```
 Pipe (flanged) | Pipe (screwed) | Pipe (welded) | Flexible hose
 Instrumentation line | Electrical signal | Mechanical link | Virtual (logic only)
 Loop transition
 ```
 
-### Outlet Destinations (11 exact machine values)
+### Outlet Destinations (12 exact machine values — `next_node` added)
+
 ```
-next_step | prev_step | start_of_loop | specific_step | next_loop
-recycle | bypass | drain | vent | product_outlet | waste_outlet
+next_step | prev_step | start_of_loop | next_node | next_loop
+specific_step | recycle | bypass
+drain | vent | product_outlet | waste_outlet
 ```
+
+**`next_node`** — NEW in v2.0. Routes the step's outlet to the first step of the
+next node (`node_number + 1`) within the same loop. No `outlet_destination_ref`
+needed. If no next node exists, the server issues warning V2 at step save time.
+
+**Outlet Destination reference requirement summary (from §6.4):**
+
+| Value | Requires `outlet_destination_ref` | Auto-resolved target |
+|---|---|---|
+| `next_step` | No | sequence_no+1 within same node |
+| `prev_step` | No | sequence_no-1 within same node |
+| `start_of_loop` | No | first step of first node in loop |
+| `next_node` | No | first step of node_number+1 in same loop |
+| `next_loop` | No | first node/step of loop_number+1 |
+| `specific_step` | **Yes** — format `{L}.{N}.{S}` | explicit cross-node target |
+| `recycle` | **Yes** — format `{L}.{N}.{S}` | return target step |
+| `bypass` | **Yes** — format `{L}.{N}.{S}` | bypass target step |
+| `drain` | No | Terminal |
+| `vent` | No | Terminal |
+| `product_outlet` | No | Terminal |
+| `waste_outlet` | No | Terminal |
 
 ---
 
@@ -668,7 +775,7 @@ Unchanged from v1.0 §9.
 
 ## 12. Zero-Trust Audit Checklist (Phase 2 v2.0)
 
-All 21 checks must pass before Phase 3 begins.
+All 27 checks must pass before Phase 3 begins.
 
 | # | Check |
 |---|---|
@@ -686,13 +793,19 @@ All 21 checks must pass before Phase 3 begins.
 | ZTA-12 | `DELETE /api/hazop/nodes/:nodeId` does NOT delete the loop |
 | ZTA-13 | `DELETE /api/hazop/steps/:stepId` does NOT delete the node |
 | ZTA-14 | `POST /api/hazop/nodes/:nodeId/steps` creates step with `node_id` set |
-| ZTA-15 | `sequence_no` on step = `MAX(sequence_no)+1` within `node_id` scope |
-| ZTA-16 | `PATCH /api/hazop/steps/:stepId` with `sequence_no` → silently ignored |
-| ZTA-17 | `PATCH /api/hazop/steps/:stepId` with `node_id` → silently ignored |
-| ZTA-18 | `POST /api/hazop/loops/:loopId/steps` route does NOT exist (removed) |
-| ZTA-19 | `GET /api/hazop/loops/:loopId/steps` route does NOT exist (removed) |
-| ZTA-20 | No generation route (`POST .../generate`) present anywhere |
-| ZTA-21 | No `/resequence` route present anywhere |
+| ZTA-15 | `sequence_no` on step = `MAX(sequence_no)+1` within `node_id` scope — NOT loop scope |
+| ZTA-16 | Two steps in different nodes of the same loop CAN share the same `sequence_no` — no constraint violation |
+| ZTA-17 | `PATCH /api/hazop/steps/:stepId` with `sequence_no` → silently ignored |
+| ZTA-18 | `PATCH /api/hazop/steps/:stepId` with `node_id` → silently ignored |
+| ZTA-19 | `POST /api/hazop/loops/:loopId/steps` route does NOT exist (removed) |
+| ZTA-20 | `GET /api/hazop/loops/:loopId/steps` route does NOT exist (removed) |
+| ZTA-21 | `outlet_destination = 'next_node'` accepted without error |
+| ZTA-22 | `outlet_destination = 'specific_step'` without `outlet_destination_ref` → 400 |
+| ZTA-23 | `outlet_destination = 'specific_step'` with `outlet_destination_ref = 'abc'` (non-numeric) → 400 |
+| ZTA-24 | `outlet_destination = 'specific_step'` with `outlet_destination_ref = '2.1.2'` → 201 accepted |
+| ZTA-25 | `outlet_destination = 'next_node'` with `outlet_destination_ref` present → ref silently ignored |
+| ZTA-26 | No generation route (`POST .../generate`) present anywhere |
+| ZTA-27 | No `/resequence` route present anywhere |
 
 ---
 
@@ -711,3 +824,146 @@ Phase 3 will generate deviations at the **Node level** by applying guide words a
 parameters from the deviation library to each node. Steps within the node inform
 the generation context (equipment categories present, connections) but are not
 individual deviation targets.
+
+---
+
+## 14. Node Dual Role Definition (Binding)
+
+A Node in THERMOPAC HAZOP simultaneously and inseparably serves two roles.
+Both roles are carried by the same object. They are not in conflict.
+
+### Role 1 — Process Section Boundary
+
+The Node defines a physical section of the process, corresponding to a
+boundary drawn on a P&ID. The boundary is documented by the Node's
+`p_and_id_ref` field. All equipment items (Steps) within the Node are
+within that P&ID boundary.
+
+**Properties deriving from this role:**
+- `p_and_id_ref`: which P&ID drawing defines this boundary
+- `node_name`: the section name as it would appear on a P&ID study boundary mark
+  (e.g. "Feed Pump Section", "Dehydration Vessel Node")
+- Steps within the node = equipment within the P&ID boundary
+- `node_reference` (`{loop}.{node}`) = the study node identifier used in
+  the HAZOP report's node index
+
+### Role 2 — Operational Analysis Boundary
+
+The Node is the unit of HAZOP analysis. Guide words (No, More, Less, Reverse,
+Other than, Part of, As well as, Early, Late) are applied to the Node as a whole.
+The Node is the level at which a HAZOP worksheet is produced.
+
+**Properties deriving from this role:**
+- `design_intent`: what the node is intended to do under normal operation
+  (e.g. "To preheat the oil feed from 40°C to 120°C before the dehydration vessel")
+- `deviation_count`: total deviations generated against this node (Phase 3)
+- `action_count`: open HAZOP actions arising from this node (Phase 3)
+- `generated_at`: when the HAZOP worksheet was last generated for this node
+
+### Why not separate them?
+
+Separating P&ID section from analysis boundary would require two linked objects,
+creating synchronisation risk and adding complexity for no practical benefit.
+In standard HAZOP practice (IEC 61882), the node IS the P&ID section AND the
+analysis boundary. THERMOPAC follows this standard definition.
+
+**Decision:** Node = both roles. Single object. This is binding for all phases.
+
+---
+
+## 15. Phase 3 Deviation Generation Pre-Design (Binding Constraint)
+
+This section is a Phase 2 document but makes binding decisions that constrain
+Phase 3 design. Phase 3 specification must not contradict anything stated here.
+
+### 15.1 Unit of Generation
+
+Deviations are generated **per Node**, not per Step.
+
+One HAZOP worksheet = one Node.
+One worksheet contains N deviations (one per guide word × parameter combination).
+
+Steps within the Node are not individual targets for guide word application.
+They contribute **context** (equipment types present, process parameters).
+
+### 15.2 Equipment Aggregation Approach
+
+Phase 3 must use **full node-level equipment aggregation**, not dominant
+category alone.
+
+**Algorithm:**
+1. Collect all distinct `equipment_category` values from the Node's Steps.
+   Example: Node 2.2 has Steps with categories `{Vessel, Vent}`.
+   Node 1.1 has Steps with categories `{Tank, Pump}`.
+
+2. Query `hazop_deviation_library` for all entries where
+   `applicable_equipment_category` ∈ collected set.
+
+3. Take the **UNION** of all (guideword, parameter) pairs from those library entries.
+
+4. Generate one `hazop_deviations` row per unique (guideword, parameter) pair.
+
+5. The deviation description is written at node level —
+   e.g. "No Flow — Dehydration Vessel Node", not "No Flow — V-201".
+
+**Example:**
+
+```
+Node 2.2: Dehydration Vessel Node
+Equipment categories present: Vessel, Vent
+
+Library entries for Vessel:   No Flow | More Flow | High Temperature | High Pressure | High Level | Low Level
+Library entries for Vent:     No Flow | High Pressure | Blocked | Reverse Flow
+
+Union:  No Flow | More Flow | High Temperature | High Pressure | High Level | Low Level | Blocked | Reverse Flow
+
+→ 8 deviations generated for Node 2.2
+```
+
+### 15.3 Dominant Equipment (Context Only)
+
+A "dominant" equipment category may be used in Phase 3 for:
+- Deviation description phrasing (e.g. "No Flow to Vessel V-201" vs "No Flow to Pump P-101")
+- Ordering of generated deviations within the worksheet
+
+Dominance hierarchy (highest to lowest):
+```
+Vessel > Tank > Column > Separator > Pump > Heat Exchanger > Heater >
+Filter > Control Valve > Isolation Valve > Check Valve > Instrument >
+Utility System > Drain > Vent > Product Outlet > Waste Outlet > Next Loop
+```
+
+The dominant category is the highest-ranked category present in the Node's Steps.
+This is used for phrasing only — it does NOT reduce the set of guide words applied.
+
+### 15.4 Phase 2 Implication
+
+No Phase 2 schema changes are needed to support this algorithm.
+The Phase 3 generation engine will read `hazop_process_steps.equipment_category`
+(filtered by `node_id`) to build the aggregated category set.
+The `equipment_category` field on each step is the sole Phase 3 input from Phase 2.
+
+---
+
+## 16. Process Topology Diagram — Deferred (Decision Record)
+
+The user asked whether a future process topology diagram will use:
+- Loop → Node → Step hierarchy
+- OR a flat loop-level step graph
+
+**Decision:** The topology diagram, when implemented, will use the
+**Loop → Node → Step hierarchy**.
+
+Rationale:
+- The Node is the primary process unit (§14). Nodes are what appear as
+  labelled blocks on a P&ID study boundary overlay.
+- A flat step graph would be too granular for process overview and would
+  not match the HAZOP report structure.
+- The intended visual: Loops as swimlanes, Nodes as blocks within swimlanes,
+  Steps as sub-items inside each Node block, directed connections between
+  Nodes (not between individual Steps, unless `outlet_destination = specific_step`).
+
+**Deferred to:** A future phase (not Phase 2, 3, 4, or 5 as currently scoped).
+The Process Builder UI (Phase 2) does not include a topology diagram view.
+The Phase 3 worksheet view does not include a topology diagram.
+A dedicated "Process Flow View" feature may be scoped as Phase 7 or standalone.
