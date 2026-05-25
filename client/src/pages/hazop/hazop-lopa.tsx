@@ -193,6 +193,11 @@ export default function HazopLopaPage() {
                           {lopa.baseline_revision}
                         </span>
                       )}
+                      {lopa.is_countersigned && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold flex items-center gap-0.5">
+                          <ShieldCheck className="h-2.5 w-2.5" /> Signed
+                        </span>
+                      )}
                     </div>
                   </div>
 

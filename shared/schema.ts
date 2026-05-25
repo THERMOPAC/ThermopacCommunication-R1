@@ -16396,3 +16396,24 @@ export const hazopMocRecords = pgTable('hazop_moc_records', {
   uqStudyMocNum: uniqueIndex('uq_hazop_moc_study_num').on(table.studyId, table.mocNumber),
 }));
 export type HazopMocRecord = typeof hazopMocRecords.$inferSelect;
+
+// ── hazop_baseline_approvals (Phase 5D) ─────────────────────────────────────
+export const hazopBaselineApprovals = pgTable('hazop_baseline_approvals', {
+  id:                 serial('id').primaryKey(),
+  studyId:            integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  artefactType:       text('artefact_type').notNull(),
+  artefactId:         integer('artefact_id').notNull(),
+  baselineRevision:   text('baseline_revision').notNull(),
+  baselinedBy:        integer('baselined_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  countersignedBy:    integer('countersigned_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  countersignedAt:    timestamp('countersigned_at', { withTimezone: true }).notNull().defaultNow(),
+  countersignerRole:  text('countersigner_role').notNull(),
+  approvalDiscipline: text('approval_discipline').notNull(),
+  approvalToken:      text('approval_token').notNull().unique(),
+  notes:              text('notes'),
+  createdAt:          timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uqArtefactRevision: uniqueIndex('uq_hazop_ba_artefact_rev').on(table.artefactType, table.artefactId, table.baselineRevision),
+}));
+export const insertHazopBaselineApprovalSchema = createInsertSchema(hazopBaselineApprovals).omit({ id: true, createdAt: true });
+export type HazopBaselineApproval = typeof hazopBaselineApprovals.$inferSelect;

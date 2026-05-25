@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
   FileText, ArrowLeft, Play, Loader2, Eye, Download,
-  AlertTriangle, CheckCircle2, ShieldCheck, Info, XCircle,
+  AlertTriangle, CheckCircle2, ShieldCheck, Info, XCircle, BadgeCheck,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ export default function HazopSrsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  {['SRS No.', 'SIF', 'SIL Req.', 'PFD Required', 'LOPA Link', 'Status', 'Baseline', 'Actions'].map(h => (
+                  {['SRS No.', 'SIF', 'SIL Req.', 'PFD Required', 'LOPA Link', 'Status', 'Baseline', 'Countersigned', 'Actions'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -207,6 +207,11 @@ export default function HazopSrsPage() {
                     <td className="px-4 py-3">
                       {rec.baseline_revision
                         ? <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{rec.baseline_revision}</span>
+                        : <span className="text-xs text-gray-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {rec.is_countersigned
+                        ? <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1 w-fit"><BadgeCheck className="h-3 w-3" /> Signed</span>
                         : <span className="text-xs text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-3">

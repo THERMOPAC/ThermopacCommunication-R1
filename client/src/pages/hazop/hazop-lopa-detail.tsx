@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { fmtDateTime } from "@/lib/date-format";
 import {
   ArrowLeft, BarChart3, Loader2, RefreshCw, Lock, Plus,
   Trash2, Edit2, ShieldCheck, AlertTriangle, CheckCircle2,
-  XCircle, FlaskConical, TrendingDown, Info, ShieldX,
+  XCircle, FlaskConical, TrendingDown, Info, ShieldX, BadgeCheck, Award,
 } from "lucide-react";
 
 // ── Vocabulary ────────────────────────────────────────────────────────────────
@@ -452,8 +454,12 @@ export default function HazopLopaDetailPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [showEditLopa, setShowEditLopa] = useState(false);
   const [showAddIpl, setShowAddIpl] = useState(false);
+  const [showCountersign, setShowCountersign] = useState(false);
+  const [csDiscipline, setCsDiscipline] = useState('');
+  const [csNotes, setCsNotes] = useState('');
 
   const { data: lopa, isLoading } = useQuery<any>({
     queryKey: ['/api/hazop/lopa', lopaId],
@@ -507,6 +513,26 @@ export default function HazopLopaDetailPage() {
     onError: () => toast({ title: 'Mark reviewed failed', variant: 'destructive' }),
   });
 
+  const countersignMut = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/hazop/lopa/${lopaId}/countersign`, {
+      approval_discipline: csDiscipline,
+      notes: csNotes || undefined,
+    }),
+    onSuccess: async (res) => {
+      const d = await res.json();
+      toast({ title: 'Countersigned', description: `Approval recorded for ${d.approval?.baseline_revision}` });
+      setShowCountersign(false);
+      setCsDiscipline('');
+      setCsNotes('');
+      qc.invalidateQueries({ queryKey: ['/api/hazop/lopa', lopaId] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'lopa'] });
+    },
+    onError: async (err: any) => {
+      const body = await err?.response?.json?.().catch(() => null);
+      toast({ title: 'Countersign failed', description: body?.message ?? 'Unknown error', variant: 'destructive' });
+    },
+  });
+
   if (isLoading) return (
     <Layout><div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-indigo-400" /></div></Layout>
   );
@@ -520,6 +546,8 @@ export default function HazopLopaDetailPage() {
   const warnings: string[] = lopa.warnings ?? [];
   const hasWarnings = warnings.length > 0;
   const isBaselined = !!lopa.baseline_revision;
+  const isCountersigned = !!lopa.baseline_approval?.id;
+  const canCountersign = ['Superuser', 'General Manager', 'Senior Manager'].includes(user?.role ?? '');
 
   return (
     <Layout>
@@ -571,6 +599,18 @@ export default function HazopLopaDetailPage() {
               {baselineMut.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Lock className="h-3 w-3 mr-1" />}
               {isBaselined ? `Baselined: ${lopa.baseline_revision}` : 'Set Baseline'}
             </Button>
+            {isBaselined && !isCountersigned && canCountersign && (
+              <Button size="sm"
+                onClick={() => setShowCountersign(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <BadgeCheck className="h-3 w-3 mr-1" /> Countersign
+              </Button>
+            )}
+            {isCountersigned && (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-full font-semibold">
+                <BadgeCheck className="h-3.5 w-3.5" /> Countersigned
+              </span>
+            )}
           </div>
         </div>
 
@@ -579,6 +619,38 @@ export default function HazopLopaDetailPage() {
           <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-800">
             <Lock className="h-4 w-4 text-blue-600 shrink-0" />
             Baselined at <strong>{lopa.baseline_revision}</strong> — locked for editing. Raise a MOC to make changes.
+          </div>
+        )}
+
+        {/* Countersigned approval block */}
+        {lopa.baseline_approval && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+              <Award className="h-4 w-4 text-emerald-600" />
+              Countersigned Baseline Approval
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Revision',      value: lopa.baseline_approval.baseline_revision },
+                { label: 'Discipline',    value: lopa.baseline_approval.approval_discipline },
+                { label: 'Countersigner', value: lopa.baseline_approval.countersigned_by_name ?? '—' },
+                { label: 'Role',          value: lopa.baseline_approval.countersigner_role },
+              ].map(f => (
+                <div key={f.label} className="bg-white rounded-lg border border-emerald-100 px-3 py-2">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">{f.label}</p>
+                  <p className="text-xs font-semibold text-gray-800 capitalize">{f.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 text-[11px] text-emerald-700">
+              <span>Signed: <strong>{fmtDateTime(lopa.baseline_approval.countersigned_at)}</strong></span>
+              <span className="font-mono text-[10px] text-gray-400">
+                HMAC: {lopa.baseline_approval.approval_token?.slice(0, 16)}…
+              </span>
+            </div>
+            {lopa.baseline_approval.notes && (
+              <p className="text-xs text-gray-600 italic">Note: {lopa.baseline_approval.notes}</p>
+            )}
           </div>
         )}
 
@@ -786,6 +858,61 @@ export default function HazopLopaDetailPage() {
 
       {showEditLopa && <EditLopaDialog lopa={lopa} studyId={studyId} onClose={() => setShowEditLopa(false)} />}
       {showAddIpl && <AddIplDialog studyId={studyId} scenarioId={lopa.scenario_id} lopaId={lopaId} onClose={() => setShowAddIpl(false)} />}
+
+      {/* Countersign Dialog */}
+      <Dialog open={showCountersign} onOpenChange={setShowCountersign}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BadgeCheck className="h-5 w-5 text-emerald-600" />
+              Countersign Baseline Approval
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800 space-y-1">
+              <p className="font-semibold">LOPA: {lopa.lopa_number}</p>
+              <p>Baseline: <strong>{lopa.baseline_revision}</strong></p>
+              <p>Baselined by: {lopa.approved_by ?? 'Unknown'}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Approval Discipline <span className="text-red-500">*</span></Label>
+              <Select value={csDiscipline} onValueChange={setCsDiscipline}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select discipline…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="process">Process</SelectItem>
+                  <SelectItem value="instrumentation">Instrumentation</SelectItem>
+                  <SelectItem value="safety">Safety</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes (optional)</Label>
+              <Textarea
+                value={csNotes}
+                onChange={e => setCsNotes(e.target.value)}
+                placeholder="Any remarks for the approval record…"
+                rows={3}
+                className="text-sm"
+              />
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Your name, role, and a cryptographic HMAC will be recorded with this approval. Self-countersigning is not permitted.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCountersign(false)}>Cancel</Button>
+            <Button
+              onClick={() => countersignMut.mutate()}
+              disabled={countersignMut.isPending || !csDiscipline}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {countersignMut.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BadgeCheck className="h-3 w-3 mr-1" />}
+              Confirm Countersign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

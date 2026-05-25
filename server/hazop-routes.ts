@@ -11,6 +11,7 @@ import { Express, Request, Response } from 'express';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { sendError, sendNotFound, sendBusinessError } from './utils/error-response';
+import { generateApprovalToken, verifyApprovalToken } from './utils/hazop-hmac';
 
 const ALLOWED_STUDY_MODES = ['project_based', 'concept_expected_project'] as const;
 
@@ -3688,7 +3689,8 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
                sc.consequence_severity, sc.residual_risk,
                sc.operating_mode,
                (SELECT COUNT(*) FROM hazop_scenario_ipl_stack s WHERE s.scenario_id=lr.scenario_id) AS ipl_count,
-               (SELECT COUNT(*) FROM hazop_scenario_ipl_stack s WHERE s.scenario_id=lr.scenario_id AND s.credit_applied=true) AS credited_count
+               (SELECT COUNT(*) FROM hazop_scenario_ipl_stack s WHERE s.scenario_id=lr.scenario_id AND s.credit_applied=true) AS credited_count,
+               EXISTS(SELECT 1 FROM hazop_baseline_approvals hba WHERE hba.artefact_type='lopa' AND hba.artefact_id=lr.id AND hba.baseline_revision=lr.baseline_revision) AS is_countersigned
         FROM hazop_lopa_records lr
         JOIN hazop_scenarios sc ON sc.id=lr.scenario_id
         WHERE lr.study_id=$1
@@ -3766,7 +3768,20 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         LEFT JOIN hazop_interlocks il ON il.id=s.interlock_id
         WHERE s.scenario_id=$1
         ORDER BY s.stack_position`, [lopa.scenario_id]);
-      res.json({ ...lopa, ipl_stack: stack.rows });
+      let baselineApproval = null;
+      if (lopa.baseline_revision) {
+        const ba = await pool.query(`
+          SELECT hba.*,
+                 u_bl.username AS baselined_by_name,
+                 u_cs.username AS countersigned_by_name
+          FROM hazop_baseline_approvals hba
+          LEFT JOIN users u_bl ON u_bl.id = hba.baselined_by
+          LEFT JOIN users u_cs ON u_cs.id = hba.countersigned_by
+          WHERE hba.artefact_type='lopa' AND hba.artefact_id=$1 AND hba.baseline_revision=$2`,
+          [id, lopa.baseline_revision]);
+        baselineApproval = ba.rows[0] ?? null;
+      }
+      res.json({ ...lopa, ipl_stack: stack.rows, baseline_approval: baselineApproval });
     } catch (err) { sendError(res, err); }
   });
 
@@ -3836,9 +3851,10 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       if (!r.rows[0]) return sendNotFound(res, 'LOPA record');
       await client.query(`SELECT pg_advisory_xact_lock($1)`, [r.rows[0].study_id * 10000 + 5001]);
       const bl = await nextLopaBaseline(r.rows[0].study_id);
+      const userId = (req as any).user?.id;
       const updated = await client.query(
-        `UPDATE hazop_lopa_records SET baseline_revision=$1, lopa_status='approved' WHERE id=$2 RETURNING *`,
-        [bl, id]);
+        `UPDATE hazop_lopa_records SET baseline_revision=$1, lopa_status='approved', approved_by=$3, approved_at=NOW() WHERE id=$2 RETURNING *`,
+        [bl, id, userId]);
       await client.query('COMMIT');
       res.json(updated.rows[0]);
     } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
@@ -4365,7 +4381,8 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
                u_app.username AS approved_by_name,
                u_cr.username  AS created_by_name,
                CASE WHEN lr.required_sil IS NOT NULL AND lr.required_sil <> sr.sil_required
-                    THEN true ELSE false END AS sil_mismatch
+                    THEN true ELSE false END AS sil_mismatch,
+               EXISTS(SELECT 1 FROM hazop_baseline_approvals hba WHERE hba.artefact_type='srs' AND hba.artefact_id=sr.id AND hba.baseline_revision=sr.baseline_revision) AS is_countersigned
         FROM hazop_srs_records sr
         JOIN hazop_safety_functions sf ON sf.id = sr.safety_function_id
         LEFT JOIN hazop_lopa_records lr ON lr.id = sr.lopa_id
@@ -4475,7 +4492,21 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         LEFT JOIN users u_cr  ON u_cr.id  = sr.created_by
         WHERE sr.id = $1`, [id]);
       if (!r.rows[0]) return sendNotFound(res, 'SRS record');
-      res.json(r.rows[0]);
+      const srs = r.rows[0];
+      let baselineApproval = null;
+      if (srs.baseline_revision) {
+        const ba = await pool.query(`
+          SELECT hba.*,
+                 u_bl.username AS baselined_by_name,
+                 u_cs.username AS countersigned_by_name
+          FROM hazop_baseline_approvals hba
+          LEFT JOIN users u_bl ON u_bl.id = hba.baselined_by
+          LEFT JOIN users u_cs ON u_cs.id = hba.countersigned_by
+          WHERE hba.artefact_type='srs' AND hba.artefact_id=$1 AND hba.baseline_revision=$2`,
+          [id, srs.baseline_revision]);
+        baselineApproval = ba.rows[0] ?? null;
+      }
+      res.json({ ...srs, baseline_approval: baselineApproval });
     } catch (err) { sendError(res, err); }
   });
 
@@ -5314,6 +5345,237 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
   });
 
   // ════════════════════════════════════════════════════════════════════════════
-  // PHASE 5A END / PHASE 5B END / PHASE 5C END
+  // PHASE 5D — Countersigned Baseline Approval Routes
+  // ════════════════════════════════════════════════════════════════════════════
+
+  const COUNTERSIGN_ROLES = ['Superuser', 'General Manager', 'Senior Manager'] as const;
+  const VALID_DISCIPLINES  = ['process', 'instrumentation', 'safety'] as const;
+
+  // ── POST /api/hazop/lopa/:id/countersign ─────────────────────────────────
+  app.post('/api/hazop/lopa/:id/countersign', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id              = parseInt(req.params.id);
+      const userId          = (req as any).user?.id as number;
+      const userRole        = (req as any).user?.role as string;
+      const { approval_discipline, notes } = req.body as { approval_discipline?: string; notes?: string };
+
+      // Gate 1 — discipline validation
+      if (!approval_discipline || !VALID_DISCIPLINES.includes(approval_discipline as any)) {
+        return sendBusinessError(res, 'approval_discipline must be one of: process, instrumentation, safety', 422);
+      }
+
+      // Gate 2 — artefact exists
+      const lr = await pool.query(
+        `SELECT lr.*, u.username AS approver_name FROM hazop_lopa_records lr
+         LEFT JOIN users u ON u.id = lr.approved_by
+         WHERE lr.id = $1`, [id]);
+      if (!lr.rows[0]) return sendNotFound(res, 'LOPA record');
+      const lopa = lr.rows[0];
+
+      // Gate 3 — must be baselined
+      if (!lopa.baseline_revision) {
+        return sendBusinessError(res, 'LOPA must be baselined before countersigning', 422);
+      }
+
+      // Gate 4 — approved_by must be set
+      if (!lopa.approved_by) {
+        return sendBusinessError(res, 'LOPA has no baselined_by user recorded — re-baseline to fix', 422);
+      }
+
+      // Gate 5 — self-countersign block
+      if (userId === lopa.approved_by) {
+        return sendBusinessError(res, 'Countersigner cannot be the same person who set the baseline', 422);
+      }
+
+      // Gate 6 — role check
+      if (!COUNTERSIGN_ROLES.includes(userRole as any)) {
+        return res.status(403).json({ message: 'Only Superuser, General Manager, or Senior Manager may countersign' });
+      }
+
+      // Gate 7 — already countersigned for this revision
+      const existing = await pool.query(
+        `SELECT id FROM hazop_baseline_approvals
+         WHERE artefact_type='lopa' AND artefact_id=$1 AND baseline_revision=$2`,
+        [id, lopa.baseline_revision]);
+      if (existing.rows[0]) {
+        return res.status(409).json({ message: `LOPA ${lopa.lopa_number} already has a countersigned approval for ${lopa.baseline_revision}` });
+      }
+
+      // Fetch study_id
+      const baselinedAtIso = lopa.approved_at ? new Date(lopa.approved_at).toISOString() : new Date().toISOString();
+      const token = generateApprovalToken({
+        artefact_type:      'lopa',
+        artefact_id:        id,
+        baseline_revision:  lopa.baseline_revision,
+        baselined_by:       lopa.approved_by,
+        baselined_at_iso:   baselinedAtIso,
+        countersigned_by:   userId,
+        approval_discipline,
+      });
+
+      const ins = await pool.query(`
+        INSERT INTO hazop_baseline_approvals
+          (study_id, artefact_type, artefact_id, baseline_revision,
+           baselined_by, countersigned_by, countersigned_at, countersigner_role,
+           approval_discipline, approval_token, notes, created_at)
+        VALUES ($1,'lopa',$2,$3,$4,$5,NOW(),$6,$7,$8,$9,NOW())
+        RETURNING *`,
+        [lopa.study_id, id, lopa.baseline_revision, lopa.approved_by,
+         userId, userRole, approval_discipline, token, notes ?? null]);
+
+      res.status(201).json({ approval: ins.rows[0] });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/srs/:id/countersign ──────────────────────────────────
+  app.post('/api/hazop/srs/:id/countersign', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id              = parseInt(req.params.id);
+      const userId          = (req as any).user?.id as number;
+      const userRole        = (req as any).user?.role as string;
+      const { approval_discipline, notes } = req.body as { approval_discipline?: string; notes?: string };
+
+      // Gate 1 — discipline validation
+      if (!approval_discipline || !VALID_DISCIPLINES.includes(approval_discipline as any)) {
+        return sendBusinessError(res, 'approval_discipline must be one of: process, instrumentation, safety', 422);
+      }
+
+      // Gate 2 — artefact exists
+      const sr = await pool.query(
+        `SELECT sr.*, sf.sif_number FROM hazop_srs_records sr
+         LEFT JOIN hazop_safety_functions sf ON sf.id = sr.safety_function_id
+         WHERE sr.id = $1`, [id]);
+      if (!sr.rows[0]) return sendNotFound(res, 'SRS record');
+      const srs = sr.rows[0];
+
+      // Gate 3 — must be baselined
+      if (!srs.baseline_revision) {
+        return sendBusinessError(res, 'SRS must be baselined before countersigning', 422);
+      }
+
+      // Gate 4 — approved_by must be set
+      if (!srs.approved_by) {
+        return sendBusinessError(res, 'SRS has no approved_by user recorded — re-baseline to fix', 422);
+      }
+
+      // Gate 5 — self-countersign block
+      if (userId === srs.approved_by) {
+        return sendBusinessError(res, 'Countersigner cannot be the same person who set the baseline', 422);
+      }
+
+      // Gate 6 — role check
+      if (!COUNTERSIGN_ROLES.includes(userRole as any)) {
+        return res.status(403).json({ message: 'Only Superuser, General Manager, or Senior Manager may countersign' });
+      }
+
+      // Gate 7 — already countersigned for this revision
+      const existing = await pool.query(
+        `SELECT id FROM hazop_baseline_approvals
+         WHERE artefact_type='srs' AND artefact_id=$1 AND baseline_revision=$2`,
+        [id, srs.baseline_revision]);
+      if (existing.rows[0]) {
+        return res.status(409).json({ message: `SRS ${srs.srs_number} already has a countersigned approval for ${srs.baseline_revision}` });
+      }
+
+      const baselinedAtIso = srs.approved_at ? new Date(srs.approved_at).toISOString() : new Date().toISOString();
+      const token = generateApprovalToken({
+        artefact_type:      'srs',
+        artefact_id:        id,
+        baseline_revision:  srs.baseline_revision,
+        baselined_by:       srs.approved_by,
+        baselined_at_iso:   baselinedAtIso,
+        countersigned_by:   userId,
+        approval_discipline,
+      });
+
+      const ins = await pool.query(`
+        INSERT INTO hazop_baseline_approvals
+          (study_id, artefact_type, artefact_id, baseline_revision,
+           baselined_by, countersigned_by, countersigned_at, countersigner_role,
+           approval_discipline, approval_token, notes, created_at)
+        VALUES ($1,'srs',$2,$3,$4,$5,NOW(),$6,$7,$8,$9,NOW())
+        RETURNING *`,
+        [srs.study_id, id, srs.baseline_revision, srs.approved_by,
+         userId, userRole, approval_discipline, token, notes ?? null]);
+
+      res.status(201).json({ approval: ins.rows[0] });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── GET /api/hazop/studies/:studyId/baseline-approvals ───────────────────
+  app.get('/api/hazop/studies/:studyId/baseline-approvals', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const rows = await pool.query(`
+        SELECT hba.*,
+               u_bl.username AS baselined_by_name,
+               u_cs.username AS countersigned_by_name
+        FROM hazop_baseline_approvals hba
+        LEFT JOIN users u_bl ON u_bl.id = hba.baselined_by
+        LEFT JOIN users u_cs ON u_cs.id = hba.countersigned_by
+        WHERE hba.study_id = $1
+        ORDER BY hba.countersigned_at DESC`, [studyId]);
+      res.json(rows.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/baseline-approvals/:approvalId/verify ────────────────
+  app.post('/api/hazop/baseline-approvals/:approvalId/verify', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const approvalId = parseInt(req.params.approvalId);
+      const row = await pool.query(
+        `SELECT hba.*,
+                u_bl.username AS baselined_by_name,
+                u_cs.username AS countersigned_by_name
+         FROM hazop_baseline_approvals hba
+         LEFT JOIN users u_bl ON u_bl.id = hba.baselined_by
+         LEFT JOIN users u_cs ON u_cs.id = hba.countersigned_by
+         WHERE hba.id = $1`, [approvalId]);
+      if (!row.rows[0]) return sendNotFound(res, 'Approval record');
+      const a = row.rows[0];
+
+      const baselinedAtIso = a.countersigned_at
+        ? new Date(a.countersigned_at).toISOString()
+        : '';
+
+      const recomputed = generateApprovalToken({
+        artefact_type:      a.artefact_type,
+        artefact_id:        a.artefact_id,
+        baseline_revision:  a.baseline_revision,
+        baselined_by:       a.baselined_by,
+        baselined_at_iso:   baselinedAtIso,
+        countersigned_by:   a.countersigned_by,
+        approval_discipline: a.approval_discipline,
+      });
+
+      const valid = verifyApprovalToken({
+        artefact_type:      a.artefact_type,
+        artefact_id:        a.artefact_id,
+        baseline_revision:  a.baseline_revision,
+        baselined_by:       a.baselined_by,
+        baselined_at_iso:   baselinedAtIso,
+        countersigned_by:   a.countersigned_by,
+        approval_discipline: a.approval_discipline,
+      }, a.approval_token);
+
+      res.json({
+        approval_id:        a.id,
+        artefact_type:      a.artefact_type,
+        artefact_id:        a.artefact_id,
+        baseline_revision:  a.baseline_revision,
+        baselined_by_name:  a.baselined_by_name,
+        countersigned_by_name: a.countersigned_by_name,
+        countersigned_at:   a.countersigned_at,
+        approval_discipline: a.approval_discipline,
+        countersigner_role: a.countersigner_role,
+        hmac_valid:         valid,
+        stored_token_prefix: a.approval_token.slice(0, 12) + '…',
+        recomputed_prefix:  recomputed.slice(0, 12) + '…',
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 5A END / PHASE 5B END / PHASE 5C END / PHASE 5D END
   // ════════════════════════════════════════════════════════════════════════════
 }
