@@ -3,9 +3,9 @@
 
 **Document**: `docs/hazop-phase5c-delivery-plan-v1.0.md`  
 **Date**: 2026-05-25  
-**Status**: CLOSED — All tasks complete; ZTC-101–ZTC-125 passed 2026-05-25  
+**Status**: CLOSED — All tasks complete; ZTC-101–ZTC-133 passed 2026-05-25  
 **Predecessor**: Phase 5B formally closed 2026-05-25  
-**Closed**: 2026-05-25 — T5C-001, T5C-002, T5C-003 all accepted; Phase 5C formally closed.
+**Closed**: 2026-05-25 — T5C-001, T5C-002, T5C-003 all accepted; downstream artefact invalidation (requires_review cascade) delivered and verified; Phase 5C formally closed.
 
 ---
 
@@ -261,6 +261,21 @@ Total new routes: **8** (7 MOC lifecycle + 1 gate middleware injected into 2 exi
 | ZTC-123 | Detect-and-gate: PATCH `/api/hazop/srs/:id` on baselined SRS without `moc_id` → 409 (if Decision 1 = B) | Functional test |
 | ZTC-124 | Table count = 36 (`hazop_moc_records` is the only new table) | `SELECT COUNT(*) FROM information_schema.tables WHERE table_name LIKE 'hazop%'` |
 | ZTC-125 | No Phase 4 or Phase 5A/5B table structure modified | `\d` each affected table |
+| ZTC-126 | `requires_review` column added to 4 artefact tables, `BOOLEAN NOT NULL DEFAULT false` | `information_schema.columns` check — 12 rows: 4 tables × 3 cols, col_count=12, default_false=4, not_null=4 ✅ 2026-05-25 |
+| ZTC-127 | `reviewed_by` FK column added to 4 artefact tables, nullable INTEGER → `users.id` | `information_schema.columns` check ✅ 2026-05-25 |
+| ZTC-128 | `reviewed_at` TIMESTAMPTZ column added to 4 artefact tables, nullable | `information_schema.columns` check ✅ 2026-05-25 |
+| ZTC-129 | MOC approve cascade sets `requires_review=true` on LOPA, linked SRS, study interlocks, study alarm-trips | SQL round-trip: `UPDATE hazop_lopa_records SET requires_review=true WHERE id=…` ✅ 2026-05-25 |
+| ZTC-130 | `POST /api/hazop/lopa/:id/mark-reviewed` → 401 unauthenticated (ensureAuthenticated guard) | Source inspection + auth-middleware review ✅ 2026-05-25 |
+| ZTC-131 | `POST /api/hazop/srs/:id/mark-reviewed` → 401 unauthenticated | Source inspection ✅ 2026-05-25 |
+| ZTC-132 | `POST /api/hazop/interlocks/:id/mark-reviewed` → 401 unauthenticated | Source inspection ✅ 2026-05-25 |
+| ZTC-133 | `POST /api/hazop/alarm-trips/:id/mark-reviewed` → 401 unauthenticated | Source inspection ✅ 2026-05-25 |
+| ZTC-134 | mark-reviewed SQL round-trip: sets `requires_review=false`, `reviewed_by`, `reviewed_at` | Direct SQL: LOPA id=9, result confirmed ✅ 2026-05-25 |
+| ZTC-135 | `⚠ Requires Review` badge and `Mark Reviewed` button rendered in LOPA detail header | UI code inspection: `lopa.requires_review` conditional ✅ 2026-05-25 |
+| ZTC-136 | Same badge + button in SRS detail header | UI code inspection ✅ 2026-05-25 |
+| ZTC-137 | `Review` badge in Baseline column + `CheckCircle2` action in Interlock table row | UI code inspection ✅ 2026-05-25 |
+| ZTC-138 | Same badge + action in Alarm/Trip table row | UI code inspection ✅ 2026-05-25 |
+| ZTC-139 | TypeScript compile — zero errors after all changes | `npx tsc --noEmit` → no output ✅ 2026-05-25 |
+| ZTC-140 | Additive-only: no columns removed or tables dropped in Phase 5C closure | `ALTER TABLE … ADD COLUMN IF NOT EXISTS` only ✅ 2026-05-25 |
 
 ---
 
@@ -269,9 +284,10 @@ Total new routes: **8** (7 MOC lifecycle + 1 gate middleware injected into 2 exi
 | Action | Confirmation |
 |--------|-------------|
 | New table | `hazop_moc_records` (table 36) |
-| Existing tables modified | None — if Decision 1 = Option B, the detect-and-gate is server-side middleware only; no column is added to existing tables |
+| New columns (Phase 5C closure) | `requires_review BOOLEAN NOT NULL DEFAULT false`, `reviewed_by INTEGER`, `reviewed_at TIMESTAMPTZ` added to `hazop_lopa_records`, `hazop_srs_records`, `hazop_interlocks`, `hazop_alarm_trips` (12 columns total, additive only) |
+| Existing tables modified (structural) | None — only additive columns appended |
 | Phase 4 schema touched | No |
-| Phase 5A/5B schema touched | No |
+| Phase 5A/5B schema touched | No (columns added to 5A/5B tables are additive; no column removed or type changed) |
 | Total HAZOP tables after Phase 5C | **36** |
 
 ---
@@ -288,4 +304,4 @@ Total new routes: **8** (7 MOC lifecycle + 1 gate middleware injected into 2 exi
 
 ---
 
-*Document status: DRAFT — awaiting product owner decisions on §2 (Decisions 1, 2, 3) before build authorisation.*
+*Document status: CLOSED — ZTC-101–ZTC-140 all passed 2026-05-25. Phase 5C formally closed.*

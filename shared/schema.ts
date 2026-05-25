@@ -16140,6 +16140,9 @@ export const hazopInterlocks = pgTable('hazop_interlocks', {
   notes:                          text('notes'),
   createdAt:                      timestamp('created_at').notNull().defaultNow(),
   createdBy:                      integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  requiresReview:                 boolean('requires_review').notNull().default(false),
+  reviewedBy:                     integer('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt:                     timestamp('reviewed_at', { withTimezone: true }),
 }, (table) => ({
   uqStudyIlNum: uniqueIndex('uq_hazop_il_study_num').on(table.studyId, table.interlockNumber),
 }));
@@ -16191,6 +16194,9 @@ export const hazopAlarmTrips = pgTable('hazop_alarm_trips', {
   notes:                   text('notes'),
   createdAt:               timestamp('created_at').notNull().defaultNow(),
   createdBy:               integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  requiresReview:          boolean('requires_review').notNull().default(false),
+  reviewedBy:              integer('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt:              timestamp('reviewed_at', { withTimezone: true }),
 }, (table) => ({
   uqStudyAlmNum: uniqueIndex('uq_hazop_at_study_num').on(table.studyId, table.alarmNumber),
 }));
@@ -16303,6 +16309,9 @@ export const hazopLopaRecords = pgTable('hazop_lopa_records', {
   notes:                 text('notes'),
   createdAt:             timestamp('created_at').notNull().defaultNow(),
   createdBy:             integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  requiresReview:        boolean('requires_review').notNull().default(false),
+  reviewedBy:            integer('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt:            timestamp('reviewed_at', { withTimezone: true }),
 }, (table) => ({
   uqStudyLopaNum: uniqueIndex('uq_hazop_lopa_study_num').on(table.studyId, table.lopaNumber),
   uqScenario:     uniqueIndex('uq_hazop_lopa_scenario').on(table.scenarioId),
@@ -16341,6 +16350,9 @@ export const hazopSrsRecords = pgTable('hazop_srs_records', {
   notes:                     text('notes'),
   createdAt:                 timestamp('created_at').notNull().defaultNow(),
   createdBy:                 integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  requiresReview:            boolean('requires_review').notNull().default(false),
+  reviewedBy:                integer('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt:                timestamp('reviewed_at', { withTimezone: true }),
 }, (table) => ({
   uqStudySrsNum: uniqueIndex('uq_hazop_srs_study_num').on(table.studyId, table.srsNumber),
   uqSif:         uniqueIndex('uq_hazop_srs_sif').on(table.safetyFunctionId),

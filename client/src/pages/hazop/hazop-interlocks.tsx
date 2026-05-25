@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Trash2, Edit2, ArrowLeft, Loader2, RefreshCw, ShieldCheck, Lock, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Edit2, ArrowLeft, Loader2, RefreshCw, ShieldCheck, Lock, AlertTriangle, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
 
 const PROTECTION_LAYERS = ['BPCS','SIS','Mechanical','Procedural','Operator','Relief'] as const;
 const IL_TYPES = ['process','safety','SIS'] as const;
@@ -72,6 +72,7 @@ export default function HazopInterlocksPage() {
   const updateMut = useMutation({ mutationFn:({id,body}:{id:number;body:any})=>apiRequest('PATCH',`/api/hazop/interlocks/${id}`,body).then(r=>r.json()), onSuccess:()=>{inv();setShowDialog(false);toast({title:'Updated'});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
   const deleteMut = useMutation({ mutationFn:(iid:number)=>apiRequest('DELETE',`/api/hazop/interlocks/${iid}`), onSuccess:()=>{inv();toast({title:'Deleted'});}, onError:(e:any)=>toast({title:e.message?.includes('baselined')?'Locked':'Error',description:e.message,variant:'destructive'}) });
   const baselineMut = useMutation({ mutationFn:(iid:number)=>apiRequest('POST',`/api/hazop/interlocks/${iid}/set-baseline`).then(r=>r.json()), onSuccess:(d:any)=>{inv();toast({title:`Baseline: ${d.baseline_revision}`});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
+  const reviewMut   = useMutation({ mutationFn:(iid:number)=>apiRequest('POST',`/api/hazop/interlocks/${iid}/mark-reviewed`).then(r=>r.json()), onSuccess:()=>{inv();toast({title:'Marked as reviewed'});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
   const extractMut = useMutation({ mutationFn:()=>apiRequest('POST',`/api/hazop/studies/${studyId}/interlocks/extract`).then(r=>r.json()), onSuccess:(d:any)=>{inv();toast({title:`Extracted ${d.created} interlocks (${d.skipped} skipped)`});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
 
   function openCreate() { setEditing(null); setForm(EMPTY); setShowDialog(true); }
@@ -157,11 +158,13 @@ export default function HazopInterlocksPage() {
                     <td className="px-3 py-2 text-xs font-semibold text-amber-600">{il.criticality_class}</td>
                     <td className="px-3 py-2"><SevBadge s={il.consequence_severity}/></td>
                     <td className="px-3 py-2 text-center">{il.is_independent_protection_layer?<span className="text-xs text-emerald-600 font-bold">✓</span>:<span className="text-xs text-slate-300">—</span>}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 space-y-1">
                       {il.baseline_revision && <span className="inline-flex items-center gap-1 text-xs font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded"><Lock className="h-3 w-3"/>{il.baseline_revision}</span>}
+                      {il.requires_review && <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-semibold"><AlertTriangle className="h-3 w-3"/>Review</span>}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {il.requires_review && <Button variant="ghost" size="icon" title="Mark as reviewed" onClick={()=>reviewMut.mutate(il.id)} disabled={reviewMut.isPending}><CheckCircle2 className="h-3.5 w-3.5 text-amber-600"/></Button>}
                         {!il.baseline_revision && <Button variant="ghost" size="icon" title="Set baseline" onClick={()=>baselineMut.mutate(il.id)} disabled={baselineMut.isPending}><ShieldCheck className="h-3.5 w-3.5 text-emerald-600"/></Button>}
                         <Button variant="ghost" size="icon" onClick={()=>openEdit(il)}><Edit2 className="h-3.5 w-3.5 text-slate-500"/></Button>
                         <Button variant="ghost" size="icon" onClick={()=>deleteMut.mutate(il.id)} disabled={!!il.baseline_revision}><Trash2 className={`h-3.5 w-3.5 ${il.baseline_revision?'text-slate-300':'text-red-400'}`}/></Button>

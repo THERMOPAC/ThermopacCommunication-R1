@@ -392,6 +392,16 @@ export default function HazopSrsDetailPage() {
     },
   });
 
+  const reviewMut = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/hazop/srs/${srsId}/mark-reviewed`),
+    onSuccess: () => {
+      toast({ title: 'SRS marked as reviewed' });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'srs'] });
+    },
+    onError: () => toast({ title: 'Mark reviewed failed', variant: 'destructive' }),
+  });
+
   const handleExportPdf = async () => {
     setExporting(true);
     try {
@@ -453,7 +463,20 @@ export default function HazopSrsDetailPage() {
               <p className="text-xs text-gray-500 mt-0.5">{srs.sif_number} — {srs.sif_description}</p>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            {srs.requires_review && (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 border border-amber-300 px-2.5 py-1 rounded-full font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5" />⚠ Requires Review
+              </span>
+            )}
+            {srs.requires_review && (
+              <Button size="sm" variant="outline"
+                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                onClick={() => reviewMut.mutate()} disabled={reviewMut.isPending}>
+                {reviewMut.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                Mark Reviewed
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={handleExportPdf} disabled={exporting}>
               {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
               Export PDF

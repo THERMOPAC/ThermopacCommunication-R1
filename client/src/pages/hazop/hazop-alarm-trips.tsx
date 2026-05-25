@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Trash2, Edit2, ArrowLeft, Loader2, RefreshCw, Bell, ShieldCheck, Lock, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Edit2, ArrowLeft, Loader2, RefreshCw, Bell, ShieldCheck, Lock, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const ALARM_TYPES = ['alarm','trip','shutdown'] as const;
 const PROTECTION_LAYERS = ['BPCS','SIS','Mechanical','Procedural','Operator','Relief'] as const;
@@ -78,6 +78,7 @@ export default function HazopAlarmTripsPage() {
   const updateMut = useMutation({ mutationFn:({id,body}:{id:number;body:any})=>apiRequest('PATCH',`/api/hazop/alarm-trips/${id}`,body).then(r=>r.json()), onSuccess:()=>{inv();setShowDialog(false);toast({title:'Updated'});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
   const deleteMut = useMutation({ mutationFn:(aid:number)=>apiRequest('DELETE',`/api/hazop/alarm-trips/${aid}`), onSuccess:()=>{inv();toast({title:'Deleted'});}, onError:(e:any)=>toast({title:e.message?.includes('baselined')?'Locked':'Error',description:e.message,variant:'destructive'}) });
   const baselineMut = useMutation({ mutationFn:(aid:number)=>apiRequest('POST',`/api/hazop/alarm-trips/${aid}/set-baseline`).then(r=>r.json()), onSuccess:(d:any)=>{inv();toast({title:`Baseline: ${d.baseline_revision}`});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
+  const reviewMut   = useMutation({ mutationFn:(aid:number)=>apiRequest('POST',`/api/hazop/alarm-trips/${aid}/mark-reviewed`).then(r=>r.json()), onSuccess:()=>{inv();toast({title:'Marked as reviewed'});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
   const extractMut = useMutation({ mutationFn:()=>apiRequest('POST',`/api/hazop/studies/${studyId}/alarm-trips/extract`).then(r=>r.json()), onSuccess:(d:any)=>{inv();toast({title:`Extracted ${d.created} alarm/trips (${d.skipped} skipped)`});}, onError:(e:any)=>toast({title:'Error',description:e.message,variant:'destructive'}) });
 
   function openCreate() { setEditing(null); setForm(EMPTY); setShowDialog(true); }
@@ -164,11 +165,13 @@ export default function HazopAlarmTripsPage() {
                     <td className="px-3 py-2"><PriorityBadge p={a.priority}/></td>
                     <td className="px-3 py-2"><EffBadge r={a.effectiveness_rating}/></td>
                     <td className="px-3 py-2"><HdBadge h={a.human_dependency_level}/></td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 space-y-1">
                       {a.baseline_revision && <span className="inline-flex items-center gap-1 text-xs font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded"><Lock className="h-3 w-3"/>{a.baseline_revision}</span>}
+                      {a.requires_review && <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-semibold"><AlertTriangle className="h-3 w-3"/>Review</span>}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {a.requires_review && <Button variant="ghost" size="icon" title="Mark as reviewed" onClick={()=>reviewMut.mutate(a.id)} disabled={reviewMut.isPending}><CheckCircle2 className="h-3.5 w-3.5 text-amber-600"/></Button>}
                         {!a.baseline_revision && <Button variant="ghost" size="icon" title="Set baseline" onClick={()=>baselineMut.mutate(a.id)} disabled={baselineMut.isPending}><ShieldCheck className="h-3.5 w-3.5 text-emerald-600"/></Button>}
                         <Button variant="ghost" size="icon" onClick={()=>openEdit(a)}><Edit2 className="h-3.5 w-3.5 text-slate-500"/></Button>
                         <Button variant="ghost" size="icon" onClick={()=>deleteMut.mutate(a.id)} disabled={!!a.baseline_revision}><Trash2 className={`h-3.5 w-3.5 ${a.baseline_revision?'text-slate-300':'text-red-400'}`}/></Button>

@@ -5141,6 +5141,38 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
           approved_by = $1,
           approved_at = NOW()
         WHERE id=$2 RETURNING *`, [userId, id]);
+
+      // ── Cascade requires_review to downstream artefacts ────────────────────
+      const approved = r.rows[0];
+      if (approved.lopa_id) {
+        const lopaQ = await pool.query(
+          'SELECT study_id FROM hazop_lopa_records WHERE id=$1', [approved.lopa_id]);
+        const sid = lopaQ.rows[0]?.study_id;
+        await pool.query(
+          'UPDATE hazop_lopa_records SET requires_review=true WHERE id=$1', [approved.lopa_id]);
+        await pool.query(
+          'UPDATE hazop_srs_records SET requires_review=true WHERE lopa_id=$1', [approved.lopa_id]);
+        if (sid) {
+          await pool.query(
+            'UPDATE hazop_interlocks SET requires_review=true WHERE study_id=$1', [sid]);
+          await pool.query(
+            'UPDATE hazop_alarm_trips SET requires_review=true WHERE study_id=$1', [sid]);
+        }
+      }
+      if (approved.srs_id) {
+        const srsQ = await pool.query(
+          'SELECT study_id FROM hazop_srs_records WHERE id=$1', [approved.srs_id]);
+        const sid = srsQ.rows[0]?.study_id;
+        await pool.query(
+          'UPDATE hazop_srs_records SET requires_review=true WHERE id=$1', [approved.srs_id]);
+        if (sid) {
+          await pool.query(
+            'UPDATE hazop_interlocks SET requires_review=true WHERE study_id=$1', [sid]);
+          await pool.query(
+            'UPDATE hazop_alarm_trips SET requires_review=true WHERE study_id=$1', [sid]);
+        }
+      }
+
       res.json(r.rows[0]);
     } catch (err) { sendError(res, err); }
   });
@@ -5213,6 +5245,70 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
           moc_status     = 'closed',
           baseline_after = $1
         WHERE id=$2 RETURNING *`, [baselineAfter, id]);
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/lopa/:id/mark-reviewed ────────────────────────────────
+  app.post('/api/hazop/lopa/:id/mark-reviewed', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user?.id;
+      const r = await pool.query(
+        `UPDATE hazop_lopa_records
+         SET requires_review=false, reviewed_by=$1, reviewed_at=NOW()
+         WHERE id=$2
+         RETURNING id, requires_review, reviewed_by, reviewed_at`,
+        [userId, id]);
+      if (!r.rows[0]) return sendNotFound(res, 'LOPA record');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/srs/:id/mark-reviewed ─────────────────────────────────
+  app.post('/api/hazop/srs/:id/mark-reviewed', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user?.id;
+      const r = await pool.query(
+        `UPDATE hazop_srs_records
+         SET requires_review=false, reviewed_by=$1, reviewed_at=NOW()
+         WHERE id=$2
+         RETURNING id, requires_review, reviewed_by, reviewed_at`,
+        [userId, id]);
+      if (!r.rows[0]) return sendNotFound(res, 'SRS record');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/interlocks/:id/mark-reviewed ──────────────────────────
+  app.post('/api/hazop/interlocks/:id/mark-reviewed', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user?.id;
+      const r = await pool.query(
+        `UPDATE hazop_interlocks
+         SET requires_review=false, reviewed_by=$1, reviewed_at=NOW()
+         WHERE id=$2
+         RETURNING id, requires_review, reviewed_by, reviewed_at`,
+        [userId, id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Interlock record');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/alarm-trips/:id/mark-reviewed ─────────────────────────
+  app.post('/api/hazop/alarm-trips/:id/mark-reviewed', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user?.id;
+      const r = await pool.query(
+        `UPDATE hazop_alarm_trips
+         SET requires_review=false, reviewed_by=$1, reviewed_at=NOW()
+         WHERE id=$2
+         RETURNING id, requires_review, reviewed_by, reviewed_at`,
+        [userId, id]);
+      if (!r.rows[0]) return sendNotFound(res, 'Alarm/Trip record');
       res.json(r.rows[0]);
     } catch (err) { sendError(res, err); }
   });
