@@ -3,7 +3,7 @@
 
 **Document**: `docs/hazop-phase5d-delivery-plan-v1.0.md`  
 **Date**: 2026-05-25  
-**Status**: DRAFT — awaiting product owner review and approval before implementation begins  
+**Status**: SUPERSEDED — replaced by `docs/hazop-phase5d-delivery-plan-v1.1.md` (2026-05-25)  
 **Predecessor**: Phase 5C formally closed 2026-05-25  
 **IEC 61511 reference**: §12 (Functional Safety Management) — independent verification of SIL determinations before SIS detailed design  
 
