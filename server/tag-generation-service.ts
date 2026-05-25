@@ -12,7 +12,9 @@
  *  • Every manual tag change is written to tag_no_audit_log
  *  • installedOn scopes the sequence range per skid:
  *      Skid-1 → 101–199, Skid-2 → 201–299, Skid-3 → 301–399,
- *      Skid-4 → 401–499, null/'' → 101–199 (backward compat)
+ *      Skid-4 → 401–499, Skid-5 → 501–599, Skid-6 → 601–699,
+ *      Skid-7 → 701–799, Skid-8 → 801–899, Skid-9 → 901–999,
+ *      Skid-10 → 1001–1099, null/'' → 101–199 (backward compat)
  */
 
 import type { Pool, PoolClient } from 'pg';
@@ -51,10 +53,16 @@ export const TAG_PREFIXES: Record<string, string | null> = {
 
 /** installedOn value → base sequence number (tags occupy [base+1 … base+99]) */
 const SKID_BASE: Record<string, number> = {
-  'Skid-1': 100,
-  'Skid-2': 200,
-  'Skid-3': 300,
-  'Skid-4': 400,
+  'Skid-1':  100,
+  'Skid-2':  200,
+  'Skid-3':  300,
+  'Skid-4':  400,
+  'Skid-5':  500,
+  'Skid-6':  600,
+  'Skid-7':  700,
+  'Skid-8':  800,
+  'Skid-9':  900,
+  'Skid-10': 1000,
 };
 
 /** Return the base number for the given installedOn value (default 100). */
