@@ -4723,6 +4723,192 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
     } catch (err) { sendError(res, err); }
   });
 
+  // ── GET /api/hazop/srs/:id/lopa-candidates ───────────────────────────────
+  // Returns all LOPA records for the study, ranked by match score against the SIF.
+  // Scoring: SIF in scenario IPL stack (+3) · SIL match (+2) · consequence match (+1)
+  app.get('/api/hazop/srs/:id/lopa-candidates', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      // 1. Fetch SRS + SIF attributes
+      const srsRow = await pool.query(`
+        SELECT sr.study_id, sr.lopa_id AS current_lopa_id,
+               sif.id AS sif_id, sif.sil_target,
+               sif.response_group_id, sif.consequence_severity, sif.ce_column_id
+        FROM hazop_srs_records sr
+        JOIN hazop_safety_functions sif ON sif.id = sr.safety_function_id
+        WHERE sr.id = $1`, [id]);
+      if (!srsRow.rows[0]) return sendNotFound(res, 'SRS record');
+
+      const { study_id, current_lopa_id, sif_id, sil_target,
+              response_group_id, consequence_severity } = srsRow.rows[0];
+
+      // 2. Scenarios where this SIF appears in the IPL stack
+      const iplScen = await pool.query(
+        `SELECT DISTINCT scenario_id FROM hazop_scenario_ipl_stack WHERE safety_function_id = $1`, [sif_id]);
+      const iplScenIds: number[] = iplScen.rows.map((r: any) => r.scenario_id);
+
+      // 3. Scenarios linked via shared response group (via response group id on scenarios through LOPA/interlocks)
+      const rgScen = response_group_id ? await pool.query(
+        `SELECT DISTINCT lr.scenario_id
+         FROM hazop_lopa_records lr
+         JOIN hazop_scenarios sc ON sc.id = lr.scenario_id
+         JOIN hazop_interlocks il ON il.response_group_id = $1 AND il.study_id = $2
+         WHERE lr.study_id = $2`, [response_group_id, study_id]) : { rows: [] };
+      const rgScenIds: number[] = (rgScen.rows as any[]).map(r => r.scenario_id);
+
+      const allLinkedScenIds = [...new Set([...iplScenIds, ...rgScenIds])];
+
+      // 4. Fetch and score all LOPAs in the study
+      const lopas = await pool.query(`
+        SELECT lr.id, lr.lopa_number, lr.scenario_id, lr.required_sil,
+               lr.lopa_outcome, lr.lopa_status, lr.consequence_category,
+               sc.scenario_number, sc.title AS scenario_title,
+               sc.consequence_severity AS scenario_consequence
+        FROM hazop_lopa_records lr
+        JOIN hazop_scenarios sc ON sc.id = lr.scenario_id
+        WHERE lr.study_id = $1
+        ORDER BY lr.lopa_number`, [study_id]);
+
+      const scored = lopas.rows.map((lr: any) => {
+        const reasons: string[] = [];
+        let score = 0;
+
+        // IPL stack match — strongest signal
+        if (iplScenIds.includes(lr.scenario_id)) {
+          score += 3;
+          reasons.push('SIF appears in this scenario\'s IPL stack');
+        }
+        // Response group match via linked scenario
+        if (rgScenIds.includes(lr.scenario_id) && !iplScenIds.includes(lr.scenario_id)) {
+          score += 2;
+          reasons.push('Shared response group with this scenario');
+        }
+        // SIL match
+        if (sil_target && lr.required_sil != null && String(lr.required_sil) === String(sil_target)) {
+          score += 2;
+          reasons.push(`SIL target matches (SIL ${lr.required_sil})`);
+        }
+        // Consequence severity match
+        if (consequence_severity &&
+            (lr.consequence_category === consequence_severity ||
+             lr.scenario_consequence === consequence_severity)) {
+          score += 1;
+          reasons.push(`Consequence severity matches (${consequence_severity})`);
+        }
+
+        return {
+          ...lr,
+          match_score: score,
+          match_reasons: reasons,
+          is_current: lr.id === current_lopa_id,
+          is_suggested: score >= 2,
+        };
+      });
+
+      // Sort: suggested first (score desc), then alphabetically
+      scored.sort((a: any, b: any) =>
+        b.match_score - a.match_score || a.lopa_number.localeCompare(b.lopa_number));
+
+      res.json({
+        candidates: scored,
+        sif_scenario_ids: iplScenIds,
+        current_lopa_id,
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── GET /api/hazop/srs/:id/traceability ──────────────────────────────────
+  // Full lifecycle chain: Scenario → LOPA → SIF → Interlock
+  app.get('/api/hazop/srs/:id/traceability', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const r = await pool.query(`
+        SELECT
+          -- SRS
+          sr.srs_number, sr.srs_status, sr.baseline_revision,
+          -- SIF
+          sif.sif_number, sif.sif_description, sif.sil_target AS sif_sil_target,
+          sif.response_group_id, sif.protection_layer AS sif_protection_layer,
+          sif.consequence_severity AS sif_consequence_severity,
+          -- LOPA (linked)
+          lr.lopa_number, lr.lopa_outcome, lr.required_sil AS lopa_required_sil,
+          lr.lopa_status AS lopa_status_val, lr.scenario_id AS lopa_scenario_id,
+          -- Scenario from LOPA
+          sc_lopa.scenario_number AS lopa_scenario_number,
+          sc_lopa.title           AS lopa_scenario_title,
+          sc_lopa.consequence_severity AS lopa_scenario_consequence,
+          -- Event group from LOPA scenario
+          eg.group_number AS event_group_number,
+          eg.group_name   AS event_group_name,
+          -- Response group from SIF
+          rg.group_number  AS response_group_number,
+          rg.group_name    AS response_group_name,
+          rg.protection_layer AS response_group_layer,
+          -- Best scenario from IPL stack (if no LOPA linked)
+          sc_ipl.scenario_number AS ipl_scenario_number,
+          sc_ipl.title           AS ipl_scenario_title,
+          -- Interlock sharing this response group
+          il.interlock_number, il.description AS interlock_description,
+          il.sil_level AS interlock_sil, il.interlock_type,
+          il.criticality_class AS interlock_criticality
+        FROM hazop_srs_records sr
+        JOIN hazop_safety_functions sif ON sif.id = sr.safety_function_id
+        LEFT JOIN hazop_lopa_records lr ON lr.id = sr.lopa_id
+        LEFT JOIN hazop_scenarios sc_lopa ON sc_lopa.id = lr.scenario_id
+        LEFT JOIN hazop_event_groups eg ON eg.id = sc_lopa.initiating_event_group_id
+        LEFT JOIN hazop_response_groups rg ON rg.id = sif.response_group_id
+        LEFT JOIN LATERAL (
+          SELECT sc2.scenario_number, sc2.title
+          FROM hazop_scenario_ipl_stack ipl2
+          JOIN hazop_scenarios sc2 ON sc2.id = ipl2.scenario_id
+          WHERE ipl2.safety_function_id = sif.id
+          ORDER BY sc2.scenario_number
+          LIMIT 1
+        ) sc_ipl ON true
+        LEFT JOIN LATERAL (
+          SELECT il2.interlock_number, il2.description, il2.sil_level,
+                 il2.interlock_type, il2.criticality_class
+          FROM hazop_interlocks il2
+          WHERE il2.response_group_id = sif.response_group_id
+            AND il2.study_id = sr.study_id
+          ORDER BY il2.interlock_number
+          LIMIT 1
+        ) il ON true
+        WHERE sr.id = $1`, [id]);
+
+      if (!r.rows[0]) return sendNotFound(res, 'SRS record');
+
+      const row = r.rows[0];
+
+      // Determine best scenario to show (prefer LOPA-linked; fall back to IPL stack)
+      const scenario = row.lopa_scenario_number
+        ? { number: row.lopa_scenario_number, title: row.lopa_scenario_title, source: 'lopa' }
+        : row.ipl_scenario_number
+          ? { number: row.ipl_scenario_number, title: row.ipl_scenario_title, source: 'ipl_stack' }
+          : null;
+
+      res.json({
+        srs:      { number: row.srs_number, status: row.srs_status, baseline: row.baseline_revision },
+        sif:      { number: row.sif_number, description: row.sif_description, sil_target: row.sif_sil_target,
+                    protection_layer: row.sif_protection_layer, consequence_severity: row.sif_consequence_severity },
+        lopa:     row.lopa_number ? { number: row.lopa_number, outcome: row.lopa_outcome,
+                    required_sil: row.lopa_required_sil, status: row.lopa_status_val } : null,
+        scenario,
+        event_group: row.event_group_number
+          ? { number: row.event_group_number, name: row.event_group_name } : null,
+        response_group: row.response_group_number
+          ? { number: row.response_group_number, name: row.response_group_name,
+              layer: row.response_group_layer } : null,
+        interlock: row.interlock_number
+          ? { number: row.interlock_number, description: row.interlock_description,
+              sil: row.interlock_sil, type: row.interlock_type,
+              criticality: row.interlock_criticality } : null,
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
   // ════════════════════════════════════════════════════════════════════════════
   // PHASE 5A END / PHASE 5B END
   // ════════════════════════════════════════════════════════════════════════════

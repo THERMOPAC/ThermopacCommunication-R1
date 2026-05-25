@@ -11,7 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
   ArrowLeft, FileText, Loader2, Save, Lock, Download,
-  AlertTriangle, CheckCircle2, ShieldCheck, Info, Eye,
+  AlertTriangle, CheckCircle2, ShieldCheck, Info, GitBranch,
+  Zap, BarChart3, Activity, Star,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -37,7 +38,12 @@ const STATUS_CLS: Record<string, string> = {
   superseded: 'bg-amber-100 text-amber-700',
 };
 
-// ── Form field helpers ────────────────────────────────────────────────────────
+const OUTCOME_CLS: Record<string, string> = {
+  tolerable:            'text-green-700',
+  gap_exists:           'text-orange-600',
+  requires_sif:         'text-red-600',
+  requires_sif_upgrade: 'text-red-800 font-bold',
+};
 
 function FieldRow({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
@@ -46,6 +52,214 @@ function FieldRow({ label, children, required }: { label: string; children: Reac
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
+    </div>
+  );
+}
+
+// ── Traceability Strip ────────────────────────────────────────────────────────
+
+function TraceabilityStrip({ trace }: { trace: any }) {
+  if (!trace) return null;
+
+  const nodes = [
+    trace.scenario && {
+      icon: <Zap className="h-3.5 w-3.5 text-amber-500" />,
+      label: 'Scenario',
+      value: trace.scenario.number,
+      sub:   trace.scenario.title,
+      tip:   trace.scenario.source === 'ipl_stack' ? 'via IPL stack' : 'via linked LOPA',
+      cls:   'border-amber-200 bg-amber-50',
+    },
+    trace.event_group && {
+      icon: <Activity className="h-3.5 w-3.5 text-purple-500" />,
+      label: 'Event Group',
+      value: `EG-${trace.event_group.number}`,
+      sub:   trace.event_group.name,
+      cls:   'border-purple-200 bg-purple-50',
+    },
+    {
+      icon: <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />,
+      label: 'SIF',
+      value: trace.sif.number,
+      sub:   trace.sif.description ?? trace.sif.protection_layer,
+      badge: trace.sif.sil_target ? `SIL ${trace.sif.sil_target}` : undefined,
+      cls:   'border-indigo-200 bg-indigo-50',
+    },
+    trace.lopa && {
+      icon: <BarChart3 className="h-3.5 w-3.5 text-blue-500" />,
+      label: 'LOPA',
+      value: trace.lopa.number,
+      sub:   trace.lopa.outcome?.replace(/_/g, ' '),
+      badge: trace.lopa.required_sil ? `SIL ${trace.lopa.required_sil}` : undefined,
+      cls:   'border-blue-200 bg-blue-50',
+    },
+    trace.interlock && {
+      icon: <GitBranch className="h-3.5 w-3.5 text-rose-500" />,
+      label: 'Interlock',
+      value: trace.interlock.number,
+      sub:   trace.interlock.type ?? trace.interlock.description,
+      badge: trace.interlock.sil ? `SIL ${trace.interlock.sil}` : undefined,
+      cls:   'border-rose-200 bg-rose-50',
+    },
+  ].filter(Boolean);
+
+  if (nodes.length === 0) return null;
+
+  return (
+    <div className="bg-white border rounded-xl p-4 space-y-2">
+      <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <GitBranch className="h-3.5 w-3.5" />
+        Lifecycle Traceability Chain
+      </div>
+      <div className="flex flex-wrap items-stretch gap-0">
+        {nodes.map((node: any, i: number) => (
+          <div key={node.label} className="flex items-stretch">
+            <div className={`border rounded-lg px-3 py-2 min-w-[120px] space-y-0.5 ${node.cls}`}>
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 uppercase">
+                {node.icon} {node.label}
+              </div>
+              <div className="font-bold text-gray-900 text-xs">{node.value}</div>
+              {node.sub && (
+                <div className="text-[10px] text-gray-500 line-clamp-1">{node.sub}</div>
+              )}
+              {node.badge && (
+                <span className="inline-block text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-white border border-gray-300 text-gray-700">
+                  {node.badge}
+                </span>
+              )}
+              {node.tip && (
+                <div className="text-[9px] text-gray-400 italic">{node.tip}</div>
+              )}
+            </div>
+            {i < nodes.length - 1 && (
+              <div className="flex items-center px-1 text-gray-300 text-xs font-bold select-none">→</div>
+            )}
+          </div>
+        ))}
+      </div>
+      {trace.response_group && (
+        <div className="text-[10px] text-gray-400 pt-0.5">
+          Response Group: <span className="font-semibold text-gray-600">RG-{trace.response_group.number} {trace.response_group.name}</span>
+          {trace.response_group.layer && <span className="ml-2 text-gray-400">({trace.response_group.layer})</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── LOPA Candidate Suggestion Panel ──────────────────────────────────────────
+
+function LopaCandidatePanel({ candidates, currentLopaId, onSelect, disabled }: {
+  candidates: any[];
+  currentLopaId: number | null;
+  onSelect: (id: number | null) => void;
+  disabled: boolean;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const suggested = candidates.filter((c: any) => c.is_suggested && !c.is_current);
+  const others    = candidates.filter((c: any) => !c.is_suggested && !c.is_current);
+  const current   = candidates.find((c: any) => c.is_current);
+
+  if (candidates.length === 0) return null;
+
+  const visibleSuggested = suggested.slice(0, 3);
+
+  return (
+    <div className="space-y-2">
+      {/* Suggested candidates */}
+      {suggested.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-700 uppercase tracking-wide">
+            <Star className="h-3 w-3" /> Auto-suggested LOPA candidates
+          </div>
+          {visibleSuggested.map((c: any) => (
+            <button
+              key={c.id}
+              disabled={disabled}
+              onClick={() => onSelect(c.id === currentLopaId ? null : c.id)}
+              className={`w-full text-left border rounded-lg px-3 py-2 text-xs transition-colors
+                ${c.id === currentLopaId
+                  ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300'
+                  : 'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50'}
+                ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-gray-800">{c.lopa_number}</span>
+                <div className="flex items-center gap-1.5">
+                  {/* Score dots */}
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= c.match_score ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                    ))}
+                  </div>
+                  {c.required_sil && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold">
+                      SIL {c.required_sil}
+                    </span>
+                  )}
+                  {c.lopa_outcome && (
+                    <span className={`text-[9px] ${OUTCOME_CLS[c.lopa_outcome] ?? 'text-gray-500'}`}>
+                      {c.lopa_outcome.replace(/_/g, ' ')}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-gray-500 mt-0.5">{c.scenario_number} — {c.scenario_title}</div>
+              {c.match_reasons?.length > 0 && (
+                <div className="text-[10px] text-blue-600 mt-0.5 flex flex-wrap gap-1">
+                  {c.match_reasons.map((r: string) => (
+                    <span key={r} className="bg-blue-100 px-1.5 py-0.5 rounded">{r}</span>
+                  ))}
+                </div>
+              )}
+            </button>
+          ))}
+          {suggested.length > 3 && !showAll && (
+            <button onClick={() => setShowAll(true)}
+              className="text-[10px] text-blue-600 underline hover:text-blue-800">
+              + {suggested.length - 3} more suggestions
+            </button>
+          )}
+          {showAll && suggested.slice(3).map((c: any) => (
+            <button key={c.id} disabled={disabled}
+              onClick={() => onSelect(c.id)}
+              className="w-full text-left border rounded-lg px-3 py-2 text-xs border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50 cursor-pointer">
+              <div className="font-bold text-gray-800">{c.lopa_number} — {c.scenario_number}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Manual override dropdown */}
+      <div>
+        <div className="text-[10px] text-gray-500 mb-1">Or manually select any LOPA:</div>
+        <Select
+          value={currentLopaId ? String(currentLopaId) : '__none__'}
+          onValueChange={(v) => onSelect(v === '__none__' ? null : parseInt(v))}
+          disabled={disabled}>
+          <SelectTrigger className="h-8 text-sm">
+            <SelectValue placeholder="Not linked" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Not linked</SelectItem>
+            {candidates.map((c: any) => (
+              <SelectItem key={c.id} value={String(c.id)}>
+                {c.lopa_number} — {c.scenario_number}
+                {c.is_suggested ? ' ★' : ''}
+                {c.lopa_outcome ? ` (${c.lopa_outcome.replace(/_/g, ' ')})` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* None option */}
+      {currentLopaId && (
+        <button disabled={disabled} onClick={() => onSelect(null)}
+          className="text-[10px] text-gray-400 underline hover:text-red-500">
+          Clear LOPA link
+        </button>
+      )}
     </div>
   );
 }
@@ -65,20 +279,27 @@ export default function HazopSrsDetailPage() {
     queryFn: () => fetch(`/api/hazop/srs/${srsId}`, { credentials: 'include' }).then(r => r.json()),
   });
 
-  // Fetch available LOPA records for this study
-  const { data: lopas = [] } = useQuery<any[]>({
-    queryKey: ['/api/hazop/studies', studyId, 'lopa'],
-    queryFn: () => fetch(`/api/hazop/studies/${studyId}/lopa`, { credentials: 'include' }).then(r => r.json()),
-    enabled: !!studyId,
+  const { data: traceData } = useQuery<any>({
+    queryKey: ['/api/hazop/srs', srsId, 'traceability'],
+    queryFn: () => fetch(`/api/hazop/srs/${srsId}/traceability`, { credentials: 'include' }).then(r => r.json()),
+    enabled: !!srsId,
   });
 
-  // Local form state (initialized when srs loads)
+  const { data: candidatesData } = useQuery<any>({
+    queryKey: ['/api/hazop/srs', srsId, 'lopa-candidates'],
+    queryFn: () => fetch(`/api/hazop/srs/${srsId}/lopa-candidates`, { credentials: 'include' }).then(r => r.json()),
+    enabled: !!srsId,
+  });
+
+  const candidates: any[] = candidatesData?.candidates ?? [];
+
+  // Local form state
   const [form, setForm] = useState<Record<string, any>>({});
   const [formInit, setFormInit] = useState(false);
 
   if (srs && !formInit) {
     setForm({
-      lopa_id:                    srs.lopa_id ?? '',
+      lopa_id:                    srs.lopa_id ?? null,
       sil_required:               srs.sil_required ?? 2,
       sil_proposed:               srs.sil_proposed ?? '',
       pfd_required:               srs.pfd_required ?? '',
@@ -111,7 +332,6 @@ export default function HazopSrsDetailPage() {
   const saveMut = useMutation({
     mutationFn: () => {
       const body: any = { ...form };
-      // Coerce numeric / nullable fields
       if (body.lopa_id === '' || body.lopa_id === 0) body.lopa_id = null;
       ['sil_required', 'sil_proposed', 'process_safety_time_sec',
        'response_time_required_sec', 'proof_test_interval_days',
@@ -137,6 +357,8 @@ export default function HazopSrsDetailPage() {
       }
       setIsDirty(false);
       qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId, 'traceability'] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId, 'lopa-candidates'] });
       qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'srs'] });
       qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'srs-summary'] });
     },
@@ -152,6 +374,7 @@ export default function HazopSrsDetailPage() {
       const d = await res.json();
       toast({ title: 'SRS baselined', description: `Frozen at ${d.baseline_revision}` });
       qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId, 'traceability'] });
       qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'srs'] });
     },
     onError: async (err: any) => {
@@ -194,11 +417,10 @@ export default function HazopSrsDetailPage() {
 
   const isApproved = srs.srs_status === 'approved';
   const hasSilMismatch = srs.sil_mismatch;
-  const linkedLopa = lopas.find((l: any) => l.id === srs.lopa_id);
 
   return (
     <Layout>
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="p-6 max-w-5xl mx-auto space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -213,13 +435,17 @@ export default function HazopSrsDetailPage() {
                 <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${STATUS_CLS[srs.srs_status]}`}>
                   {srs.srs_status}
                 </span>
+                {srs.baseline_revision && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">
+                    {srs.baseline_revision}
+                  </span>
+                )}
               </h1>
               <p className="text-xs text-gray-500 mt-0.5">{srs.sif_number} — {srs.sif_description}</p>
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button size="sm" variant="outline"
-              onClick={handleExportPdf} disabled={exporting}>
+            <Button size="sm" variant="outline" onClick={handleExportPdf} disabled={exporting}>
               {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
               Export PDF
             </Button>
@@ -238,6 +464,9 @@ export default function HazopSrsDetailPage() {
           </div>
         </div>
 
+        {/* ── Traceability Strip ── */}
+        <TraceabilityStrip trace={traceData} />
+
         {/* Locked banner */}
         {isApproved && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-sm text-emerald-800">
@@ -254,50 +483,59 @@ export default function HazopSrsDetailPage() {
             <div>
               <p className="font-semibold">SIL Mismatch</p>
               <p className="text-xs mt-0.5">
-                This SRS requires SIL {srs.sil_required}, but the linked LOPA ({srs.lopa_number}) requires SIL {srs.lopa_required_sil}.
+                SRS requires SIL {srs.sil_required}, but linked LOPA ({srs.lopa_number}) requires SIL {srs.lopa_required_sil}.
                 Resolve before approval. Baseline is blocked while mismatch exists.
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Section 1: Identification ── */}
+        {/* ── Section 1: Identification + LOPA Link ── */}
         <div className="bg-white border rounded-xl p-5 space-y-4">
           <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-            <Info className="h-4 w-4 text-blue-500" /> 1 — Identification
+            <Info className="h-4 w-4 text-blue-500" /> 1 — Identification &amp; LOPA Link
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FieldRow label="Linked LOPA">
-              <Select
-                value={form.lopa_id ? String(form.lopa_id) : '__none__'}
-                onValueChange={(v) => f('lopa_id')(v === '__none__' ? null : parseInt(v))}
-                disabled={isApproved}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Select LOPA (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Not linked</SelectItem>
-                  {lopas.map((l: any) => (
-                    <SelectItem key={l.id} value={String(l.id)}>
-                      {l.lopa_number} — {l.scenario_number ?? ''} ({l.lopa_outcome ?? 'not calculated'})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FieldRow>
-            <FieldRow label="Status">
-              <Select value={form.srs_status} onValueChange={f('srs_status')} disabled={isApproved}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {['draft','in_review','superseded'].map(v => (
-                    <SelectItem key={v} value={v}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FieldRow>
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+            {/* LOPA candidate panel — left column */}
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-600">Linked LOPA</Label>
+              {candidates.length > 0 ? (
+                <LopaCandidatePanel
+                  candidates={candidates}
+                  currentLopaId={form.lopa_id ?? null}
+                  onSelect={(id) => { f('lopa_id')(id); }}
+                  disabled={isApproved}
+                />
+              ) : (
+                <Select
+                  value={form.lopa_id ? String(form.lopa_id) : '__none__'}
+                  onValueChange={(v) => f('lopa_id')(v === '__none__' ? null : parseInt(v))}
+                  disabled={isApproved}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Not linked" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not linked</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {/* Status + notes — right column */}
+            <div className="space-y-4">
+              <FieldRow label="Status">
+                <Select value={form.srs_status} onValueChange={f('srs_status')} disabled={isApproved}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['draft','in_review','superseded'].map(v => (
+                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldRow>
               <FieldRow label="Notes">
-                <Textarea rows={2} value={form.notes} onChange={e => f('notes')(e.target.value)} disabled={isApproved} />
+                <Textarea rows={3} value={form.notes} onChange={e => f('notes')(e.target.value)} disabled={isApproved} />
               </FieldRow>
             </div>
           </div>
@@ -309,7 +547,6 @@ export default function HazopSrsDetailPage() {
             <ShieldCheck className="h-4 w-4 text-indigo-500" /> 2 — SIL Determination
           </h2>
 
-          {/* LOPA context strip */}
           {srs.lopa_number && (
             <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2 text-xs text-indigo-800 flex flex-wrap gap-4">
               <span><strong>Linked LOPA:</strong> {srs.lopa_number}</span>
@@ -337,9 +574,7 @@ export default function HazopSrsDetailPage() {
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Not set</SelectItem>
-                  {[1,2,3,4].map(v => (
-                    <SelectItem key={v} value={String(v)}>SIL {v}</SelectItem>
-                  ))}
+                  {[1,2,3,4].map(v => <SelectItem key={v} value={String(v)}>SIL {v}</SelectItem>)}
                 </SelectContent>
               </Select>
             </FieldRow>
@@ -351,8 +586,8 @@ export default function HazopSrsDetailPage() {
               <Input type="number" step="any" min="0" max="1" className="h-8 text-sm font-mono"
                 value={form.pfd_target} onChange={e => f('pfd_target')(e.target.value)} disabled={isApproved} />
               {form.pfd_target && form.pfd_required &&
-               parseFloat(form.pfd_target) > parseFloat(form.pfd_required) && (
-                <p className="text-[10px] text-red-600 mt-0.5">pfd_target must be ≤ pfd_required</p>
+               parseFloat(String(form.pfd_target)) > parseFloat(String(form.pfd_required)) && (
+                <p className="text-[10px] text-red-600 mt-0.5">Must be ≤ pfd_required</p>
               )}
             </FieldRow>
           </div>
@@ -406,7 +641,7 @@ export default function HazopSrsDetailPage() {
                 <Input type="number" min="0" className="h-8 text-sm" value={form.response_time_required_sec}
                   onChange={e => f('response_time_required_sec')(e.target.value)} disabled={isApproved} />
                 {form.response_time_required_sec && form.process_safety_time_sec &&
-                 parseInt(form.response_time_required_sec) > parseInt(form.process_safety_time_sec) && (
+                 parseInt(String(form.response_time_required_sec)) > parseInt(String(form.process_safety_time_sec)) && (
                   <p className="text-[10px] text-red-600 mt-0.5">Must be ≤ process safety time</p>
                 )}
               </FieldRow>
@@ -460,7 +695,7 @@ export default function HazopSrsDetailPage() {
           </div>
         </div>
 
-        {/* IEC 61511 reference */}
+        {/* Constraint note */}
         <div className="bg-gray-50 border rounded-lg p-3 text-[11px] text-gray-500 flex items-start gap-2">
           <Info className="h-4 w-4 shrink-0 mt-0.5 text-gray-400" />
           <span>
