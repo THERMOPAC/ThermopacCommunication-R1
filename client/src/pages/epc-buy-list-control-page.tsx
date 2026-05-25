@@ -1636,6 +1636,7 @@ export default function EpcBuyListControlPage() {
                                     <TableHead className="text-xs">Requirement</TableHead>
                                     <TableHead className="text-xs">Model</TableHead>
                                     <TableHead className="text-xs">Tag No</TableHead>
+                                    <TableHead className="text-xs">Installed On</TableHead>
                                     <TableHead className="text-xs">Equip. Ref</TableHead>
                                     <TableHead className="text-xs">Service Desc</TableHead>
                                     <TableHead className="text-xs text-center">Qty</TableHead>
@@ -1681,6 +1682,12 @@ export default function EpcBuyListControlPage() {
                                             {line.buy_group_code === 'raw_materials'
                                               ? <span className="text-muted-foreground">—</span>
                                               : (line.tag_no || <span className="text-amber-600 italic">missing</span>)
+                                            }
+                                          </TableCell>
+                                          <TableCell className="text-xs">
+                                            {line.installed_on
+                                              ? <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-100 text-sky-800">{line.installed_on}</span>
+                                              : <span className="text-muted-foreground">—</span>
                                             }
                                           </TableCell>
                                           <TableCell className="text-xs truncate max-w-32">
