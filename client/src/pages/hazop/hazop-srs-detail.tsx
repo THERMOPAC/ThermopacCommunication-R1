@@ -1,0 +1,475 @@
+import { useState } from "react";
+import { useParams, useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Layout from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  ArrowLeft, FileText, Loader2, Save, Lock, Download,
+  AlertTriangle, CheckCircle2, ShieldCheck, Info, Eye,
+} from "lucide-react";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function fmtSci(v: string | number | null): string {
+  if (v == null || v === '') return '—';
+  const n = parseFloat(String(v));
+  if (isNaN(n)) return '—';
+  return n.toExponential(3);
+}
+
+const SIL_CLS: Record<number, string> = {
+  1: 'bg-green-100 text-green-800 border-green-200',
+  2: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  3: 'bg-red-100 text-red-700 border-red-200',
+  4: 'bg-red-200 text-red-900 border-red-400 font-bold',
+};
+
+const STATUS_CLS: Record<string, string> = {
+  draft:      'bg-gray-100 text-gray-600',
+  in_review:  'bg-blue-100 text-blue-700',
+  approved:   'bg-emerald-100 text-emerald-700',
+  superseded: 'bg-amber-100 text-amber-700',
+};
+
+// ── Form field helpers ────────────────────────────────────────────────────────
+
+function FieldRow({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-gray-600">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function HazopSrsDetailPage() {
+  const { id: studyId, srsId } = useParams<{ id: string; srsId: string }>();
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [isDirty, setIsDirty] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const { data: srs, isLoading } = useQuery<any>({
+    queryKey: ['/api/hazop/srs', srsId],
+    queryFn: () => fetch(`/api/hazop/srs/${srsId}`, { credentials: 'include' }).then(r => r.json()),
+  });
+
+  // Fetch available LOPA records for this study
+  const { data: lopas = [] } = useQuery<any[]>({
+    queryKey: ['/api/hazop/studies', studyId, 'lopa'],
+    queryFn: () => fetch(`/api/hazop/studies/${studyId}/lopa`, { credentials: 'include' }).then(r => r.json()),
+    enabled: !!studyId,
+  });
+
+  // Local form state (initialized when srs loads)
+  const [form, setForm] = useState<Record<string, any>>({});
+  const [formInit, setFormInit] = useState(false);
+
+  if (srs && !formInit) {
+    setForm({
+      lopa_id:                    srs.lopa_id ?? '',
+      sil_required:               srs.sil_required ?? 2,
+      sil_proposed:               srs.sil_proposed ?? '',
+      pfd_required:               srs.pfd_required ?? '',
+      pfd_target:                 srs.pfd_target ?? '',
+      process_demand_description: srs.process_demand_description ?? '',
+      safe_state_description:     srs.safe_state_description ?? '',
+      process_input_tag:          srs.process_input_tag ?? '',
+      final_element_tag:          srs.final_element_tag ?? '',
+      final_element_action:       srs.final_element_action ?? '',
+      fail_state:                 srs.fail_state ?? '',
+      process_safety_time_sec:    srs.process_safety_time_sec ?? '',
+      response_time_required_sec: srs.response_time_required_sec ?? '',
+      manual_reset_required:      srs.manual_reset_required ?? true,
+      proof_test_interval_days:   srs.proof_test_interval_days ?? '',
+      proof_test_coverage:        srs.proof_test_coverage ?? '',
+      proof_test_procedure_ref:   srs.proof_test_procedure_ref ?? '',
+      architecture_type:          srs.architecture_type ?? '',
+      hardware_fault_tolerance:   srs.hardware_fault_tolerance ?? 0,
+      srs_status:                 srs.srs_status ?? 'draft',
+      notes:                      srs.notes ?? '',
+    });
+    setFormInit(true);
+  }
+
+  const f = (k: string) => (v: any) => {
+    setForm((p: any) => ({ ...p, [k]: v }));
+    setIsDirty(true);
+  };
+
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const body: any = { ...form };
+      // Coerce numeric / nullable fields
+      if (body.lopa_id === '' || body.lopa_id === 0) body.lopa_id = null;
+      ['sil_required', 'sil_proposed', 'process_safety_time_sec',
+       'response_time_required_sec', 'proof_test_interval_days',
+       'hardware_fault_tolerance'].forEach(k => {
+        if (body[k] !== '' && body[k] != null) body[k] = parseInt(body[k]);
+        else if (body[k] === '') body[k] = null;
+      });
+      ['pfd_required', 'pfd_target', 'proof_test_coverage'].forEach(k => {
+        if (body[k] !== '' && body[k] != null) body[k] = parseFloat(body[k]);
+        else if (body[k] === '') body[k] = null;
+      });
+      ['fail_state', 'architecture_type', 'sil_proposed', 'srs_status'].forEach(k => {
+        if (body[k] === '') body[k] = null;
+      });
+      return apiRequest('PATCH', `/api/hazop/srs/${srsId}`, body);
+    },
+    onSuccess: async (res) => {
+      const d = await res.json();
+      if (d.warnings?.length) {
+        toast({ title: 'Saved with warnings', description: d.warnings[0] });
+      } else {
+        toast({ title: 'SRS saved' });
+      }
+      setIsDirty(false);
+      qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'srs'] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'srs-summary'] });
+    },
+    onError: async (err: any) => {
+      const body = await err?.response?.json?.().catch(() => null);
+      toast({ title: 'Save failed', description: body?.message ?? 'Unknown error', variant: 'destructive' });
+    },
+  });
+
+  const baselineMut = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/hazop/srs/${srsId}/set-baseline`),
+    onSuccess: async (res) => {
+      const d = await res.json();
+      toast({ title: 'SRS baselined', description: `Frozen at ${d.baseline_revision}` });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/srs', srsId] });
+      qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'srs'] });
+    },
+    onError: async (err: any) => {
+      const body = await err?.response?.json?.().catch(() => null);
+      toast({ title: 'Baseline failed', description: body?.message ?? 'Unknown error', variant: 'destructive' });
+    },
+  });
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/hazop/srs/${srsId}/export-pdf`, { credentials: 'include' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'PDF export failed', description: err.message, variant: 'destructive' });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${srs?.srs_number ?? 'SRS'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'PDF downloaded' });
+    } catch {
+      toast({ title: 'PDF export failed', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  if (isLoading || !srs) return (
+    <Layout>
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+      </div>
+    </Layout>
+  );
+
+  const isApproved = srs.srs_status === 'approved';
+  const hasSilMismatch = srs.sil_mismatch;
+  const linkedLopa = lopas.find((l: any) => l.id === srs.lopa_id);
+
+  return (
+    <Layout>
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+
+        {/* Header */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/hazop/studies/${studyId}/srs`)}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> SRS Register
+            </Button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                {srs.srs_number}
+                <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${STATUS_CLS[srs.srs_status]}`}>
+                  {srs.srs_status}
+                </span>
+              </h1>
+              <p className="text-xs text-gray-500 mt-0.5">{srs.sif_number} — {srs.sif_description}</p>
+            </div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" variant="outline"
+              onClick={handleExportPdf} disabled={exporting}>
+              {exporting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+              Export PDF
+            </Button>
+            <Button size="sm" variant="outline"
+              onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !isDirty || isApproved}>
+              {saveMut.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+              Save
+            </Button>
+            <Button size="sm"
+              onClick={() => baselineMut.mutate()}
+              disabled={baselineMut.isPending || isApproved || hasSilMismatch}
+              className="bg-blue-600 hover:bg-blue-700 text-white">
+              {baselineMut.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Lock className="h-3 w-3 mr-1" />}
+              {isApproved ? `Approved: ${srs.baseline_revision}` : 'Set Baseline / Approve'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Locked banner */}
+        {isApproved && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-sm text-emerald-800">
+            <Lock className="h-4 w-4 shrink-0" />
+            Approved and baselined at <strong className="ml-1">{srs.baseline_revision}</strong>
+            <span className="ml-2 text-emerald-600">by {srs.approved_by_name} — locked for editing</span>
+          </div>
+        )}
+
+        {/* SIL mismatch warning */}
+        {hasSilMismatch && (
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+            <div>
+              <p className="font-semibold">SIL Mismatch</p>
+              <p className="text-xs mt-0.5">
+                This SRS requires SIL {srs.sil_required}, but the linked LOPA ({srs.lopa_number}) requires SIL {srs.lopa_required_sil}.
+                Resolve before approval. Baseline is blocked while mismatch exists.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Section 1: Identification ── */}
+        <div className="bg-white border rounded-xl p-5 space-y-4">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+            <Info className="h-4 w-4 text-blue-500" /> 1 — Identification
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FieldRow label="Linked LOPA">
+              <Select
+                value={form.lopa_id ? String(form.lopa_id) : '__none__'}
+                onValueChange={(v) => f('lopa_id')(v === '__none__' ? null : parseInt(v))}
+                disabled={isApproved}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select LOPA (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not linked</SelectItem>
+                  {lopas.map((l: any) => (
+                    <SelectItem key={l.id} value={String(l.id)}>
+                      {l.lopa_number} — {l.scenario_number ?? ''} ({l.lopa_outcome ?? 'not calculated'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldRow>
+            <FieldRow label="Status">
+              <Select value={form.srs_status} onValueChange={f('srs_status')} disabled={isApproved}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['draft','in_review','superseded'].map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldRow>
+            <div className="col-span-2">
+              <FieldRow label="Notes">
+                <Textarea rows={2} value={form.notes} onChange={e => f('notes')(e.target.value)} disabled={isApproved} />
+              </FieldRow>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section 2: SIL Determination ── */}
+        <div className="bg-white border rounded-xl p-5 space-y-4">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+            <ShieldCheck className="h-4 w-4 text-indigo-500" /> 2 — SIL Determination
+          </h2>
+
+          {/* LOPA context strip */}
+          {srs.lopa_number && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-2 text-xs text-indigo-800 flex flex-wrap gap-4">
+              <span><strong>Linked LOPA:</strong> {srs.lopa_number}</span>
+              <span><strong>LOPA Outcome:</strong> {srs.lopa_outcome?.replace(/_/g, ' ') ?? '—'}</span>
+              <span><strong>LOPA Required SIL:</strong> {srs.lopa_required_sil ?? '—'}</span>
+              <span><strong>Required PFD:</strong> {fmtSci(srs.required_additional_pfd)}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <FieldRow label="SIL Required" required>
+              <Select value={String(form.sil_required)} onValueChange={v => f('sil_required')(parseInt(v))} disabled={isApproved}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4].map(v => (
+                    <SelectItem key={v} value={String(v)}>
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${SIL_CLS[v]}`}>SIL {v}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldRow>
+            <FieldRow label="SIL Proposed">
+              <Select value={form.sil_proposed ? String(form.sil_proposed) : '__none__'} onValueChange={v => f('sil_proposed')(v === '__none__' ? null : parseInt(v))} disabled={isApproved}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not set</SelectItem>
+                  {[1,2,3,4].map(v => (
+                    <SelectItem key={v} value={String(v)}>SIL {v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldRow>
+            <FieldRow label="PFD Required" required>
+              <Input type="number" step="any" min="0" max="1" className="h-8 text-sm font-mono"
+                value={form.pfd_required} onChange={e => f('pfd_required')(e.target.value)} disabled={isApproved} />
+            </FieldRow>
+            <FieldRow label="PFD Target">
+              <Input type="number" step="any" min="0" max="1" className="h-8 text-sm font-mono"
+                value={form.pfd_target} onChange={e => f('pfd_target')(e.target.value)} disabled={isApproved} />
+              {form.pfd_target && form.pfd_required &&
+               parseFloat(form.pfd_target) > parseFloat(form.pfd_required) && (
+                <p className="text-[10px] text-red-600 mt-0.5">pfd_target must be ≤ pfd_required</p>
+              )}
+            </FieldRow>
+          </div>
+        </div>
+
+        {/* ── Section 3: Functional Requirements ── */}
+        <div className="bg-white border rounded-xl p-5 space-y-4">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+            <CheckCircle2 className="h-4 w-4 text-green-500" /> 3 — Functional Requirements
+          </h2>
+          <div className="space-y-3">
+            <FieldRow label="Process Demand Description" required>
+              <Textarea rows={2} value={form.process_demand_description}
+                onChange={e => f('process_demand_description')(e.target.value)} disabled={isApproved} />
+            </FieldRow>
+            <FieldRow label="Safe State Description" required>
+              <Textarea rows={2} value={form.safe_state_description}
+                onChange={e => f('safe_state_description')(e.target.value)} disabled={isApproved} />
+            </FieldRow>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FieldRow label="Process Input Tag">
+                <Input className="h-8 text-sm" value={form.process_input_tag}
+                  onChange={e => f('process_input_tag')(e.target.value)} disabled={isApproved} />
+              </FieldRow>
+              <FieldRow label="Final Element Tag">
+                <Input className="h-8 text-sm" value={form.final_element_tag}
+                  onChange={e => f('final_element_tag')(e.target.value)} disabled={isApproved} />
+              </FieldRow>
+              <FieldRow label="Final Element Action">
+                <Input className="h-8 text-sm" value={form.final_element_action}
+                  onChange={e => f('final_element_action')(e.target.value)} disabled={isApproved} />
+              </FieldRow>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FieldRow label="Fail State">
+                <Select value={form.fail_state || '__none__'} onValueChange={v => f('fail_state')(v === '__none__' ? null : v)} disabled={isApproved}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Not set" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not set</SelectItem>
+                    {['fail_open','fail_closed','fail_last','deenergize_to_trip','energize_to_trip'].map(v => (
+                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldRow>
+              <FieldRow label="Process Safety Time (s)">
+                <Input type="number" min="0" className="h-8 text-sm" value={form.process_safety_time_sec}
+                  onChange={e => f('process_safety_time_sec')(e.target.value)} disabled={isApproved} />
+              </FieldRow>
+              <FieldRow label="Response Time Required (s)">
+                <Input type="number" min="0" className="h-8 text-sm" value={form.response_time_required_sec}
+                  onChange={e => f('response_time_required_sec')(e.target.value)} disabled={isApproved} />
+                {form.response_time_required_sec && form.process_safety_time_sec &&
+                 parseInt(form.response_time_required_sec) > parseInt(form.process_safety_time_sec) && (
+                  <p className="text-[10px] text-red-600 mt-0.5">Must be ≤ process safety time</p>
+                )}
+              </FieldRow>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="manual_reset" checked={!!form.manual_reset_required}
+                onChange={e => f('manual_reset_required')(e.target.checked)} disabled={isApproved}
+                className="rounded" />
+              <Label htmlFor="manual_reset" className="text-xs cursor-pointer">Manual Reset Required after SIF activation</Label>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section 4: Proof Test & Architecture ── */}
+        <div className="bg-white border rounded-xl p-5 space-y-4">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+            <FileText className="h-4 w-4 text-gray-500" /> 4 — Proof Test &amp; Architecture
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FieldRow label="Proof Test Interval (days)">
+              <Input type="number" min="0" className="h-8 text-sm" value={form.proof_test_interval_days}
+                onChange={e => f('proof_test_interval_days')(e.target.value)} disabled={isApproved} />
+            </FieldRow>
+            <FieldRow label="Diagnostic Coverage (%)">
+              <Input type="number" min="0" max="100" step="0.1" className="h-8 text-sm" value={form.proof_test_coverage}
+                onChange={e => f('proof_test_coverage')(e.target.value)} disabled={isApproved} />
+            </FieldRow>
+            <FieldRow label="Procedure Reference">
+              <Input className="h-8 text-sm" placeholder="e.g. TEST-SIS-001-Rev3" value={form.proof_test_procedure_ref}
+                onChange={e => f('proof_test_procedure_ref')(e.target.value)} disabled={isApproved} />
+            </FieldRow>
+            <FieldRow label="Architecture Type">
+              <Select value={form.architecture_type || '__none__'} onValueChange={v => f('architecture_type')(v === '__none__' ? null : v)} disabled={isApproved}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Not set" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not set</SelectItem>
+                  {['1oo1','1oo2','2oo3','2oo2','1oo1D'].map(v => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FieldRow>
+            <FieldRow label="Hardware Fault Tolerance (HFT)">
+              <Select value={String(form.hardware_fault_tolerance ?? 0)} onValueChange={v => f('hardware_fault_tolerance')(parseInt(v))} disabled={isApproved}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[0,1,2].map(v => <SelectItem key={v} value={String(v)}>HFT = {v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FieldRow>
+          </div>
+        </div>
+
+        {/* IEC 61511 reference */}
+        <div className="bg-gray-50 border rounded-lg p-3 text-[11px] text-gray-500 flex items-start gap-2">
+          <Info className="h-4 w-4 shrink-0 mt-0.5 text-gray-400" />
+          <span>
+            <strong>Constraints enforced:</strong> pfd_target ≤ pfd_required · response_time ≤ process_safety_time · self-approval blocked · approved SRS is locked.
+            Baseline button is disabled while a SIL mismatch with the linked LOPA exists.
+          </span>
+        </div>
+
+      </div>
+    </Layout>
+  );
+}

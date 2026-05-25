@@ -15,3 +15,5 @@ export const HazopAlarmTripsPage = lazyWithRetry(() => import("@/pages/hazop/haz
 export const HazopSafetyCriticalElementsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-safety-critical-elements"));
 export const HazopLopaPage = lazyWithRetry(() => import("@/pages/hazop/hazop-lopa"));
 export const HazopLopaDetailPage = lazyWithRetry(() => import("@/pages/hazop/hazop-lopa-detail"));
+export const HazopSrsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-srs"));
+export const HazopSrsDetailPage = lazyWithRetry(() => import("@/pages/hazop/hazop-srs-detail"));

@@ -4123,6 +4123,607 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
   });
 
   // ════════════════════════════════════════════════════════════════════════════
-  // PHASE 5A END
+  // PHASE 5B — Safety Requirements Specification (SRS)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // PFD default from SIL level
+  function pfdFromSil(sil: number): number {
+    if (sil >= 4) return 0.0001;
+    if (sil === 3) return 0.001;
+    if (sil === 2) return 0.01;
+    return 0.1; // SIL 1
+  }
+
+  // Generate HTML for SRS PDF
+  function buildSrsHtml(srs: any, sif: any, lopa: any | null, study: any): string {
+    const fmtDate = (v: string | null) => v ? new Date(v).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    const fmtNum = (v: string | number | null, dec = 6) => v != null ? parseFloat(String(v)).toFixed(dec) : '—';
+    const fmtSci = (v: string | number | null) => {
+      if (v == null) return '—';
+      const n = parseFloat(String(v));
+      if (isNaN(n)) return '—';
+      return n.toExponential(3);
+    };
+    const silBg = (s: number) => ['', '#d1fae5', '#fef9c3', '#fee2e2', '#991b1b'][s] ?? '#f3f4f6';
+    const silColor = (s: number) => s >= 4 ? '#fff' : '#111';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #111; background: #fff; }
+  .page { padding: 14mm 12mm 12mm 12mm; max-width: 210mm; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e3a5f; padding-bottom: 6pt; margin-bottom: 10pt; }
+  .header-left h1 { font-size: 15pt; color: #1e3a5f; font-weight: 700; }
+  .header-left p { font-size: 8pt; color: #555; margin-top: 2pt; }
+  .header-right { text-align: right; font-size: 8pt; color: #555; }
+  .badge { display: inline-block; padding: 2pt 8pt; border-radius: 4pt; font-weight: 700; font-size: 9pt; }
+  .section { margin-bottom: 10pt; }
+  .section-title { font-size: 9pt; font-weight: 700; color: #1e3a5f; text-transform: uppercase; letter-spacing: 0.5pt; border-bottom: 1px solid #c7d2e0; padding-bottom: 2pt; margin-bottom: 6pt; }
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th { background: #f0f4f8; color: #1e3a5f; font-weight: 600; padding: 4pt 6pt; text-align: left; border: 1px solid #d1d5db; }
+  td { padding: 4pt 6pt; border: 1px solid #d1d5db; vertical-align: top; }
+  .label { color: #555; font-size: 8.5pt; width: 38%; }
+  .value { font-weight: 500; }
+  .warn { background: #fffbeb; color: #92400e; padding: 4pt 8pt; border-radius: 4pt; font-size: 8.5pt; border: 1px solid #fde68a; margin-bottom: 6pt; }
+  .footer { border-top: 1px solid #d1d5db; margin-top: 14pt; padding-top: 6pt; font-size: 7.5pt; color: #888; display: flex; justify-content: space-between; }
+  .page-break { page-break-before: always; padding-top: 14mm; }
+  .status-chip { display: inline-block; padding: 1pt 6pt; border-radius: 3pt; font-size: 8pt; font-weight: 600; }
+  .status-draft { background: #f3f4f6; color: #374151; }
+  .status-in_review { background: #dbeafe; color: #1e40af; }
+  .status-approved { background: #d1fae5; color: #065f46; }
+  .status-superseded { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- PAGE 1 -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Safety Requirements Specification</h1>
+      <p>IEC 61511 SRS Document — THERMOPAC QMS</p>
+    </div>
+    <div class="header-right">
+      <div><strong>${srs.srs_number}</strong></div>
+      <div style="margin-top:3pt">
+        <span class="status-chip status-${srs.srs_status}">${srs.srs_status.toUpperCase()}</span>
+      </div>
+      ${srs.baseline_revision ? `<div style="margin-top:3pt;color:#065f46;font-weight:600">${srs.baseline_revision}</div>` : ''}
+      <div style="margin-top:4pt">Generated: ${fmtDate(new Date().toISOString())}</div>
+    </div>
+  </div>
+
+  <!-- Study & SIF identification -->
+  <div class="section">
+    <div class="section-title">1 — Identification</div>
+    <table>
+      <tr><td class="label">Study</td><td class="value">${study.study_number ?? ''} — ${study.title ?? ''}</td>
+          <td class="label">SIF Number</td><td class="value">${sif.sif_number}</td></tr>
+      <tr><td class="label">SIF Description</td><td class="value" colspan="3">${sif.sif_description ?? '—'}</td></tr>
+      <tr><td class="label">Linked LOPA</td><td class="value">${lopa ? `${lopa.lopa_number} — ${lopa.lopa_outcome ?? 'not calculated'}` : 'Not linked'}</td>
+          <td class="label">SRS Status</td><td class="value">${srs.srs_status}</td></tr>
+      ${srs.approved_by_name ? `<tr><td class="label">Approved By</td><td class="value">${srs.approved_by_name}</td>
+          <td class="label">Approved At</td><td class="value">${fmtDate(srs.approved_at)}</td></tr>` : ''}
+    </table>
+  </div>
+
+  <!-- SIL Determination -->
+  <div class="section">
+    <div class="section-title">2 — SIL Determination</div>
+    ${lopa && lopa.required_sil && lopa.required_sil !== srs.sil_required ? `<div class="warn">⚠ SIL mismatch: SRS requires SIL ${srs.sil_required}, but linked LOPA ${lopa.lopa_number} requires SIL ${lopa.required_sil}. Review and resolve before approval.</div>` : ''}
+    <table>
+      <tr>
+        <td class="label">SIL Required</td>
+        <td><span class="badge" style="background:${silBg(srs.sil_required)};color:${silColor(srs.sil_required)}">SIL ${srs.sil_required}</span></td>
+        <td class="label">SIL Proposed</td>
+        <td>${srs.sil_proposed ? `<span class="badge" style="background:${silBg(srs.sil_proposed)};color:${silColor(srs.sil_proposed)}">SIL ${srs.sil_proposed}</span>` : '—'}</td>
+      </tr>
+      <tr>
+        <td class="label">PFD Required</td><td class="value" style="font-family:monospace">${fmtSci(srs.pfd_required)}</td>
+        <td class="label">PFD Target</td><td class="value" style="font-family:monospace">${fmtSci(srs.pfd_target)}</td>
+      </tr>
+      ${lopa ? `<tr>
+        <td class="label">LOPA MEF</td><td class="value" style="font-family:monospace">${fmtSci(lopa.achieved_mef_per_year)}</td>
+        <td class="label">LOPA Risk Gap</td><td class="value">× ${lopa.risk_gap_ratio ? parseFloat(lopa.risk_gap_ratio).toFixed(3) : '—'}</td>
+      </tr>` : ''}
+    </table>
+  </div>
+
+  <!-- Functional Requirements -->
+  <div class="section">
+    <div class="section-title">3 — Functional Requirements</div>
+    <table>
+      <tr><td class="label">Process Demand</td><td class="value" colspan="3">${srs.process_demand_description}</td></tr>
+      <tr><td class="label">Safe State</td><td class="value" colspan="3">${srs.safe_state_description}</td></tr>
+      <tr>
+        <td class="label">Process Input Tag</td><td class="value">${srs.process_input_tag ?? '—'}</td>
+        <td class="label">Final Element Tag</td><td class="value">${srs.final_element_tag ?? '—'}</td>
+      </tr>
+      <tr>
+        <td class="label">Final Element Action</td><td class="value">${srs.final_element_action ?? '—'}</td>
+        <td class="label">Fail State</td><td class="value">${srs.fail_state ?? '—'}</td>
+      </tr>
+      <tr>
+        <td class="label">Process Safety Time</td><td class="value">${srs.process_safety_time_sec != null ? srs.process_safety_time_sec + ' s' : '—'}</td>
+        <td class="label">Response Time Required</td><td class="value">${srs.response_time_required_sec != null ? srs.response_time_required_sec + ' s' : '—'}</td>
+      </tr>
+      <tr>
+        <td class="label">Manual Reset Required</td><td class="value" colspan="3">${srs.manual_reset_required ? 'Yes' : 'No'}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div class="page-break">
+    <div class="header">
+      <div class="header-left">
+        <h1>Safety Requirements Specification</h1>
+        <p>${srs.srs_number} — ${sif.sif_number} — Page 2 of 2</p>
+      </div>
+      <div class="header-right">
+        <div>${srs.baseline_revision ?? 'DRAFT'}</div>
+        <div style="margin-top:4pt">Generated: ${fmtDate(new Date().toISOString())}</div>
+      </div>
+    </div>
+
+    <!-- Proof Test -->
+    <div class="section">
+      <div class="section-title">4 — Proof Test Requirements</div>
+      <table>
+        <tr>
+          <td class="label">Proof Test Interval</td><td class="value">${srs.proof_test_interval_days != null ? srs.proof_test_interval_days + ' days' : '—'}</td>
+          <td class="label">Diagnostic Coverage</td><td class="value">${srs.proof_test_coverage != null ? parseFloat(srs.proof_test_coverage).toFixed(1) + '%' : '—'}</td>
+        </tr>
+        <tr>
+          <td class="label">Procedure Reference</td><td class="value" colspan="3">${srs.proof_test_procedure_ref ?? '—'}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Architecture -->
+    <div class="section">
+      <div class="section-title">5 — Architecture &amp; Hardware</div>
+      <table>
+        <tr>
+          <td class="label">Architecture Type</td><td class="value">${srs.architecture_type ?? '—'}</td>
+          <td class="label">Hardware Fault Tolerance</td><td class="value">HFT = ${srs.hardware_fault_tolerance ?? 0}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Notes -->
+    ${srs.notes ? `<div class="section">
+      <div class="section-title">6 — Notes</div>
+      <table><tr><td>${srs.notes}</td></tr></table>
+    </div>` : ''}
+
+    <!-- Signature block -->
+    <div class="section" style="margin-top:20pt">
+      <div class="section-title">7 — Approval Record</div>
+      <table>
+        <tr><th>Role</th><th>Name</th><th>Signature</th><th>Date</th></tr>
+        <tr>
+          <td>Prepared by</td>
+          <td>${srs.created_by_name ?? '—'}</td>
+          <td style="height:20pt"></td>
+          <td>${fmtDate(srs.created_at)}</td>
+        </tr>
+        <tr>
+          <td>Approved by</td>
+          <td>${srs.approved_by_name ?? '—'}</td>
+          <td style="height:20pt"></td>
+          <td>${fmtDate(srs.approved_at)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="footer">
+      <span>IEC 61511 SRS — THERMOPAC QMS — Confidential</span>
+      <span>${srs.srs_number} | ${study.study_number ?? 'Study'} | Rev: ${srs.baseline_revision ?? 'DRAFT'}</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>`;
+  }
+
+  // ── GET /api/hazop/studies/:studyId/srs ───────────────────────────────────
+  app.get('/api/hazop/studies/:studyId/srs', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const rows = await pool.query(`
+        SELECT sr.*,
+               sf.sif_number, sf.sif_description, sf.sil_target AS sif_sil_target,
+               sf.protection_layer AS sif_protection_layer,
+               lr.lopa_number, lr.required_sil AS lopa_required_sil,
+               lr.lopa_outcome, lr.lopa_status AS lopa_status_val,
+               lr.achieved_mef_per_year,
+               u_app.username AS approved_by_name,
+               u_cr.username  AS created_by_name,
+               CASE WHEN lr.required_sil IS NOT NULL AND lr.required_sil <> sr.sil_required
+                    THEN true ELSE false END AS sil_mismatch
+        FROM hazop_srs_records sr
+        JOIN hazop_safety_functions sf ON sf.id = sr.safety_function_id
+        LEFT JOIN hazop_lopa_records lr ON lr.id = sr.lopa_id
+        LEFT JOIN users u_app ON u_app.id = sr.approved_by
+        LEFT JOIN users u_cr  ON u_cr.id  = sr.created_by
+        WHERE sr.study_id = $1
+        ORDER BY sr.srs_number`, [studyId]);
+      res.json(rows.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/studies/:studyId/srs/extract ──────────────────────────
+  app.post('/api/hazop/studies/:studyId/srs/extract', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const studyId = parseInt(req.params.studyId);
+      const userId  = (req as any).user?.id;
+
+      // Fetch all SIFs in study without an existing SRS
+      const sifs = await client.query(`
+        SELECT sf.id, sf.sif_number, sf.sif_description, sf.sil_target,
+               sf.process_demand, sf.safety_action, sf.initiator_tag,
+               sf.final_element_tag, sf.final_element_action, sf.response_time_sec,
+               sf.protection_layer, sf.effectiveness_rating, sf.consequence_severity
+        FROM hazop_safety_functions sf
+        WHERE sf.study_id = $1
+          AND NOT EXISTS (
+            SELECT 1 FROM hazop_srs_records sr WHERE sr.safety_function_id = sf.id
+          )
+        ORDER BY sf.sif_number`, [studyId]);
+
+      // Next SRS number sequence
+      const lastNum = await client.query(
+        `SELECT srs_number FROM hazop_srs_records WHERE study_id=$1 ORDER BY srs_number DESC LIMIT 1`, [studyId]);
+      let seq = lastNum.rows[0]
+        ? parseInt((lastNum.rows[0].srs_number as string).replace('SRS-', '')) + 1
+        : 1;
+
+      const created: any[] = [];
+
+      for (const sif of sifs.rows) {
+        const silRaw = sif.sil_target ? parseInt(sif.sil_target) : 2;
+        const silRequired = (silRaw >= 1 && silRaw <= 4) ? silRaw : 2;
+        const pfdRequired = pfdFromSil(silRequired);
+        const srsNum = `SRS-${String(seq).padStart(3, '0')}`;
+        seq++;
+
+        const r = await client.query(`
+          INSERT INTO hazop_srs_records
+            (study_id, safety_function_id, srs_number,
+             sil_required, sil_proposed, pfd_required, pfd_target,
+             process_demand_description, safe_state_description,
+             process_input_tag, final_element_tag, final_element_action,
+             response_time_required_sec,
+             srs_status, created_by)
+          VALUES ($1,$2,$3,$4,$4,$5,$5,$6,$7,$8,$9,$10,$11,'draft',$12)
+          RETURNING *`,
+          [studyId, sif.id, srsNum,
+           silRequired, pfdRequired,
+           sif.process_demand ?? `SIF demand: ${sif.sif_number}`,
+           sif.safety_action  ?? `Activate ${sif.sif_number}`,
+           sif.initiator_tag, sif.final_element_tag, sif.final_element_action,
+           sif.response_time_sec,
+           userId]);
+        created.push(r.rows[0]);
+      }
+
+      const skippedCount = await client.query(
+        `SELECT COUNT(*) AS n FROM hazop_safety_functions sf
+         WHERE sf.study_id=$1 AND EXISTS (
+           SELECT 1 FROM hazop_srs_records sr WHERE sr.safety_function_id=sf.id
+         )`, [studyId]);
+
+      await client.query('COMMIT');
+      res.status(201).json({
+        created: created.length,
+        skipped: parseInt(skippedCount.rows[0].n),
+        message: `${created.length} SRS record(s) created, ${skippedCount.rows[0].n} SIF(s) already had an SRS`,
+        records: created,
+      });
+    } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
+    finally { client.release(); }
+  });
+
+  // ── GET /api/hazop/srs/:id ────────────────────────────────────────────────
+  app.get('/api/hazop/srs/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const r = await pool.query(`
+        SELECT sr.*,
+               sf.sif_number, sf.sif_description, sf.sil_target AS sif_sil_target,
+               sf.protection_layer AS sif_protection_layer,
+               sf.consequence_severity AS sif_consequence_severity,
+               lr.lopa_number, lr.required_sil AS lopa_required_sil,
+               lr.lopa_outcome, lr.achieved_mef_per_year,
+               lr.risk_gap_ratio, lr.required_additional_pfd,
+               lr.lopa_status AS lopa_status_val,
+               u_app.username AS approved_by_name,
+               u_cr.username  AS created_by_name,
+               CASE WHEN lr.required_sil IS NOT NULL AND lr.required_sil <> sr.sil_required
+                    THEN true ELSE false END AS sil_mismatch
+        FROM hazop_srs_records sr
+        JOIN hazop_safety_functions sf ON sf.id = sr.safety_function_id
+        LEFT JOIN hazop_lopa_records lr ON lr.id = sr.lopa_id
+        LEFT JOIN users u_app ON u_app.id = sr.approved_by
+        LEFT JOIN users u_cr  ON u_cr.id  = sr.created_by
+        WHERE sr.id = $1`, [id]);
+      if (!r.rows[0]) return sendNotFound(res, 'SRS record');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── PATCH /api/hazop/srs/:id ──────────────────────────────────────────────
+  app.patch('/api/hazop/srs/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      // Fetch current record
+      const cur = await pool.query('SELECT * FROM hazop_srs_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'SRS record');
+      const current = cur.rows[0];
+
+      // 409 if approved
+      if (current.srs_status === 'approved') {
+        return sendBusinessError(res, 'Approved SRS cannot be modified. Raise an MOC to make changes.', 409);
+      }
+
+      const {
+        lopa_id, sil_required, sil_proposed, pfd_required, pfd_target,
+        process_demand_description, safe_state_description,
+        process_input_tag, final_element_tag, final_element_action, fail_state,
+        process_safety_time_sec, response_time_required_sec, manual_reset_required,
+        proof_test_interval_days, proof_test_coverage, proof_test_procedure_ref,
+        architecture_type, hardware_fault_tolerance,
+        srs_status, notes,
+      } = req.body;
+
+      // Validation: pfd_target ≤ pfd_required
+      const effectivePfdRequired = pfd_required ?? current.pfd_required;
+      const effectivePfdTarget   = pfd_target   ?? current.pfd_target;
+      if (effectivePfdTarget != null && effectivePfdRequired != null &&
+          parseFloat(effectivePfdTarget) > parseFloat(effectivePfdRequired)) {
+        return sendBusinessError(res,
+          `pfd_target (${effectivePfdTarget}) must be ≤ pfd_required (${effectivePfdRequired})`, 422);
+      }
+
+      // Validation: response_time ≤ process_safety_time
+      const effRespTime    = response_time_required_sec ?? current.response_time_required_sec;
+      const effProcSfTime  = process_safety_time_sec    ?? current.process_safety_time_sec;
+      if (effRespTime != null && effProcSfTime != null && effRespTime > effProcSfTime) {
+        return sendBusinessError(res,
+          `response_time_required_sec (${effRespTime}s) must be ≤ process_safety_time_sec (${effProcSfTime}s)`, 422);
+      }
+
+      const updated = await pool.query(`
+        UPDATE hazop_srs_records SET
+          lopa_id                    = COALESCE($1,  lopa_id),
+          sil_required               = COALESCE($2,  sil_required),
+          sil_proposed               = COALESCE($3,  sil_proposed),
+          pfd_required               = COALESCE($4,  pfd_required),
+          pfd_target                 = COALESCE($5,  pfd_target),
+          process_demand_description = COALESCE($6,  process_demand_description),
+          safe_state_description     = COALESCE($7,  safe_state_description),
+          process_input_tag          = COALESCE($8,  process_input_tag),
+          final_element_tag          = COALESCE($9,  final_element_tag),
+          final_element_action       = COALESCE($10, final_element_action),
+          fail_state                 = COALESCE($11, fail_state),
+          process_safety_time_sec    = COALESCE($12, process_safety_time_sec),
+          response_time_required_sec = COALESCE($13, response_time_required_sec),
+          manual_reset_required      = COALESCE($14, manual_reset_required),
+          proof_test_interval_days   = COALESCE($15, proof_test_interval_days),
+          proof_test_coverage        = COALESCE($16, proof_test_coverage),
+          proof_test_procedure_ref   = COALESCE($17, proof_test_procedure_ref),
+          architecture_type          = COALESCE($18, architecture_type),
+          hardware_fault_tolerance   = COALESCE($19, hardware_fault_tolerance),
+          srs_status                 = COALESCE($20, srs_status),
+          notes                      = COALESCE($21, notes)
+        WHERE id=$22 RETURNING *`,
+        [lopa_id, sil_required, sil_proposed, pfd_required, pfd_target,
+         process_demand_description, safe_state_description,
+         process_input_tag, final_element_tag, final_element_action, fail_state,
+         process_safety_time_sec, response_time_required_sec, manual_reset_required,
+         proof_test_interval_days, proof_test_coverage, proof_test_procedure_ref,
+         architecture_type, hardware_fault_tolerance,
+         srs_status, notes, id]);
+
+      // SIL mismatch warning
+      const warnings: string[] = [];
+      if (lopa_id || current.lopa_id) {
+        const linkedLopaId = lopa_id ?? current.lopa_id;
+        const lopaRow = await pool.query('SELECT required_sil, lopa_number FROM hazop_lopa_records WHERE id=$1', [linkedLopaId]);
+        if (lopaRow.rows[0]?.required_sil != null) {
+          const lopaSil  = lopaRow.rows[0].required_sil;
+          const srsSil   = sil_required ?? updated.rows[0].sil_required;
+          if (lopaSil !== srsSil) {
+            warnings.push(`SIL mismatch: SRS requires SIL ${srsSil}, but linked LOPA ${lopaRow.rows[0].lopa_number} requires SIL ${lopaSil}. Review and resolve before approval.`);
+          }
+        }
+      }
+
+      res.json({ ...updated.rows[0], warnings });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── DELETE /api/hazop/srs/:id ─────────────────────────────────────────────
+  app.delete('/api/hazop/srs/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const cur = await pool.query('SELECT srs_status, baseline_revision FROM hazop_srs_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'SRS record');
+      if (cur.rows[0].srs_status === 'approved' || cur.rows[0].baseline_revision) {
+        return sendBusinessError(res, 'Approved or baselined SRS cannot be deleted.', 409);
+      }
+      await pool.query('DELETE FROM hazop_srs_records WHERE id=$1', [id]);
+      res.json({ ok: true });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/srs/:id/set-baseline ──────────────────────────────────
+  app.post('/api/hazop/srs/:id/set-baseline', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id     = parseInt(req.params.id);
+      const userId = (req as any).user?.id;
+      const role   = (req as any).user?.role;
+
+      // Role gate: Superuser, General Manager, Senior Manager only
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(role)) {
+        return sendBusinessError(res, 'Only Superuser, General Manager, or Senior Manager may approve an SRS baseline.', 403);
+      }
+
+      const cur = await pool.query('SELECT * FROM hazop_srs_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'SRS record');
+      const srs = cur.rows[0];
+
+      // Self-approval check
+      if (srs.created_by && srs.created_by === userId) {
+        return sendBusinessError(res, 'Self-approval is not permitted. The approver must differ from the preparer.', 422);
+      }
+
+      // Must not already be approved (unless Superuser re-baselining)
+      if (srs.srs_status === 'approved' && role !== 'Superuser') {
+        return sendBusinessError(res, 'SRS is already approved. Only Superuser may re-baseline.', 409);
+      }
+
+      // Generate next baseline revision for this study
+      const lastBl = await pool.query(
+        `SELECT baseline_revision FROM hazop_srs_records
+         WHERE study_id=$1 AND baseline_revision IS NOT NULL
+         ORDER BY baseline_revision DESC LIMIT 1`, [srs.study_id]);
+      let nextSeq = 1;
+      if (lastBl.rows[0]?.baseline_revision) {
+        const m = (lastBl.rows[0].baseline_revision as string).match(/BL-(\d+)/);
+        if (m) nextSeq = parseInt(m[1]) + 1;
+      }
+      const baselineRevision = `BL-${String(nextSeq).padStart(3, '0')}`;
+
+      const updated = await pool.query(`
+        UPDATE hazop_srs_records SET
+          srs_status        = 'approved',
+          baseline_revision = $1,
+          approved_by       = $2,
+          approved_at       = NOW()
+        WHERE id = $3 RETURNING *`,
+        [baselineRevision, userId, id]);
+
+      res.json(updated.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── GET /api/hazop/srs/:id/export-pdf ────────────────────────────────────
+  app.get('/api/hazop/srs/:id/export-pdf', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      // Fetch SRS with all joined data
+      const r = await pool.query(`
+        SELECT sr.*,
+               sf.sif_number, sf.sif_description,
+               lr.lopa_number, lr.required_sil AS lopa_required_sil,
+               lr.lopa_outcome, lr.achieved_mef_per_year, lr.risk_gap_ratio,
+               lr.required_additional_pfd,
+               st.study_number, st.title AS study_title,
+               u_app.username AS approved_by_name,
+               u_cr.username  AS created_by_name
+        FROM hazop_srs_records sr
+        JOIN hazop_safety_functions sf ON sf.id = sr.safety_function_id
+        JOIN hazop_studies st ON st.id = sr.study_id
+        LEFT JOIN hazop_lopa_records lr ON lr.id = sr.lopa_id
+        LEFT JOIN users u_app ON u_app.id = sr.approved_by
+        LEFT JOIN users u_cr  ON u_cr.id  = sr.created_by
+        WHERE sr.id = $1`, [id]);
+      if (!r.rows[0]) return sendNotFound(res, 'SRS record');
+
+      const srs  = r.rows[0];
+      const sif  = { sif_number: srs.sif_number, sif_description: srs.sif_description };
+      const lopa = srs.lopa_number ? {
+        lopa_number: srs.lopa_number, required_sil: srs.lopa_required_sil,
+        lopa_outcome: srs.lopa_outcome, achieved_mef_per_year: srs.achieved_mef_per_year,
+        risk_gap_ratio: srs.risk_gap_ratio, required_additional_pfd: srs.required_additional_pfd,
+      } : null;
+      const study = { study_number: srs.study_number, title: srs.study_title };
+
+      // Required field check
+      const missing: string[] = [];
+      if (!srs.process_demand_description) missing.push('process_demand_description');
+      if (!srs.safe_state_description)     missing.push('safe_state_description');
+      if (!srs.sil_required)               missing.push('sil_required');
+      if (!srs.pfd_required)               missing.push('pfd_required');
+      if (missing.length > 0) {
+        return sendBusinessError(res,
+          `Cannot generate PDF — missing required fields: ${missing.join(', ')}`, 422);
+      }
+
+      // Build HTML and render via puppeteer
+      const html = buildSrsHtml(srs, sif, lopa, study);
+
+      const puppeteer = await import('puppeteer-core');
+      // Reuse chromium path helper approach from dds-pdf-service
+      const chromiumPaths = ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome-stable', '/usr/bin/google-chrome'];
+      const fs = await import('fs');
+      const executablePath = chromiumPaths.find(p => fs.existsSync(p)) ?? '/usr/bin/chromium-browser';
+
+      const browser = await puppeteer.default.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        executablePath,
+        headless: true,
+      });
+
+      let pdfBuffer: Buffer;
+      try {
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle0' });
+        const rawPdf = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: { top: '0', right: '0', bottom: '0', left: '0' },
+        });
+        pdfBuffer = Buffer.from(rawPdf);
+      } finally {
+        await browser.close();
+      }
+
+      const filename = `${srs.srs_number}-${srs.sif_number}-${srs.baseline_revision ?? 'DRAFT'}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.end(pdfBuffer);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── GET /api/hazop/studies/:studyId/srs-summary ───────────────────────────
+  app.get('/api/hazop/studies/:studyId/srs-summary', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const [total, approved, mismatch, sifCount] = await Promise.all([
+        pool.query('SELECT COUNT(*) AS n FROM hazop_srs_records WHERE study_id=$1', [studyId]),
+        pool.query(`SELECT COUNT(*) AS n FROM hazop_srs_records WHERE study_id=$1 AND srs_status='approved'`, [studyId]),
+        pool.query(`
+          SELECT COUNT(*) AS n FROM hazop_srs_records sr
+          JOIN hazop_lopa_records lr ON lr.id=sr.lopa_id
+          WHERE sr.study_id=$1 AND lr.required_sil IS NOT NULL AND lr.required_sil <> sr.sil_required`, [studyId]),
+        pool.query('SELECT COUNT(*) AS n FROM hazop_safety_functions WHERE study_id=$1', [studyId]),
+      ]);
+      res.json({
+        srs_count:          parseInt(total.rows[0].n),
+        srs_approved_count: parseInt(approved.rows[0].n),
+        sil_mismatch_count: parseInt(mismatch.rows[0].n),
+        sif_count:          parseInt(sifCount.rows[0].n),
+        srs_coverage_pct:   parseInt(sifCount.rows[0].n) > 0
+          ? Math.round(parseInt(total.rows[0].n) / parseInt(sifCount.rows[0].n) * 100)
+          : 0,
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 5A END / PHASE 5B END
   // ════════════════════════════════════════════════════════════════════════════
 }

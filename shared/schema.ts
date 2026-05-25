@@ -16308,3 +16308,41 @@ export const hazopLopaRecords = pgTable('hazop_lopa_records', {
   uqScenario:     uniqueIndex('uq_hazop_lopa_scenario').on(table.scenarioId),
 }));
 export type HazopLopaRecord = typeof hazopLopaRecords.$inferSelect;
+
+// 35. hazop_srs_records
+export const hazopSrsRecords = pgTable('hazop_srs_records', {
+  id:                        serial('id').primaryKey(),
+  studyId:                   integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  safetyFunctionId:          integer('safety_function_id').notNull().references(() => hazopSafetyFunctions.id, { onDelete: 'cascade' }),
+  lopaId:                    integer('lopa_id').references(() => hazopLopaRecords.id, { onDelete: 'set null' }),
+  srsNumber:                 text('srs_number').notNull(),
+  silRequired:               integer('sil_required').notNull(),
+  silProposed:               integer('sil_proposed'),
+  pfdRequired:               numeric('pfd_required', { precision: 10, scale: 6 }).notNull(),
+  pfdTarget:                 numeric('pfd_target', { precision: 10, scale: 6 }),
+  processDemandDescription:  text('process_demand_description').notNull(),
+  safeStateDescription:      text('safe_state_description').notNull(),
+  processInputTag:           text('process_input_tag'),
+  finalElementTag:           text('final_element_tag'),
+  finalElementAction:        text('final_element_action'),
+  failState:                 text('fail_state'),
+  processSafetyTimeSec:      integer('process_safety_time_sec'),
+  responseTimeRequiredSec:   integer('response_time_required_sec'),
+  manualResetRequired:       boolean('manual_reset_required').default(true),
+  proofTestIntervalDays:     integer('proof_test_interval_days'),
+  proofTestCoverage:         numeric('proof_test_coverage', { precision: 5, scale: 2 }),
+  proofTestProcedureRef:     text('proof_test_procedure_ref'),
+  architectureType:          text('architecture_type'),
+  hardwareFaultTolerance:    integer('hardware_fault_tolerance').default(0),
+  srsStatus:                 text('srs_status').notNull().default('draft'),
+  baselineRevision:          text('baseline_revision'),
+  approvedBy:                integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt:                timestamp('approved_at'),
+  notes:                     text('notes'),
+  createdAt:                 timestamp('created_at').notNull().defaultNow(),
+  createdBy:                 integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqStudySrsNum: uniqueIndex('uq_hazop_srs_study_num').on(table.studyId, table.srsNumber),
+  uqSif:         uniqueIndex('uq_hazop_srs_sif').on(table.safetyFunctionId),
+}));
+export type HazopSrsRecord = typeof hazopSrsRecords.$inferSelect;
