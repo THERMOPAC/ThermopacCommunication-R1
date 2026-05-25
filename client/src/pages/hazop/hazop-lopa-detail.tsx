@@ -107,15 +107,28 @@ function EditLopaDialog({ lopa, studyId, onClose }: { lopa: any; studyId: string
     notes:                 lopa.notes ?? '',
   });
 
+  const [mocId, setMocId] = useState<string>('');
+
   const mut = useMutation({
-    mutationFn: () => apiRequest('PATCH', `/api/hazop/lopa/${lopa.id}`, form),
+    mutationFn: () => apiRequest('PATCH', `/api/hazop/lopa/${lopa.id}${mocId ? `?moc_id=${mocId}` : ''}`, form),
     onSuccess: () => {
       toast({ title: 'LOPA updated' });
       qc.invalidateQueries({ queryKey: ['/api/hazop/lopa', String(lopa.id)] });
       qc.invalidateQueries({ queryKey: ['/api/hazop/studies', studyId, 'lopa'] });
       onClose();
     },
-    onError: () => toast({ title: 'Update failed', variant: 'destructive' }),
+    onError: async (err: any) => {
+      const body = await err?.response?.json?.().catch(() => null);
+      if (body?.moc_required) {
+        toast({
+          title: 'MOC required',
+          description: 'This LOPA record is baselined. Raise an approved MOC in the MOC Register and enter its ID below.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Update failed', description: body?.message ?? 'Unknown error', variant: 'destructive' });
+      }
+    },
   });
 
   const f = (k: string) => (v: string) => setForm(p => ({ ...p, [k]: v }));
@@ -171,6 +184,21 @@ function EditLopaDialog({ lopa, studyId, onClose }: { lopa: any; studyId: string
             <Label className="text-xs">Notes</Label>
             <Textarea rows={2} value={form.notes} onChange={e => f('notes')(e.target.value)} />
           </div>
+          {lopa.baseline_revision && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+              <p className="text-xs text-amber-800 font-medium">⚠ This LOPA is baselined ({lopa.baseline_revision}). An approved MOC is required to save changes.</p>
+              <div className="space-y-1">
+                <Label className="text-xs text-amber-700">Approved MOC ID</Label>
+                <Input
+                  type="number"
+                  placeholder="Enter numeric MOC ID…"
+                  value={mocId}
+                  onChange={e => setMocId(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>

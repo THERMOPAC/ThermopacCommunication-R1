@@ -52,6 +52,7 @@ import {
   DollarSign,
   Palette,
   FileText,
+  FilePen,
   Plane,
   Gavel,
   Database,
@@ -522,6 +523,7 @@ function Layout({ children }: LayoutProps) {
           { icon: Cpu, label: "SCE Registry", href: `/hazop/studies/${hazopStudyId}/safety-critical-elements` },
           { icon: BarChart3, label: "LOPA", href: `/hazop/studies/${hazopStudyId}/lopa` },
           { icon: FileText, label: "SRS Register", href: `/hazop/studies/${hazopStudyId}/srs` },
+          { icon: FilePen, label: "MOC Register", href: `/hazop/studies/${hazopStudyId}/moc` },
         ] : []),
       ]
     }] : []),

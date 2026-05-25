@@ -3774,6 +3774,26 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
   app.patch('/api/hazop/lopa/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+
+      // MOC gate: baselined records require a linked approved MOC
+      const lopaCur = await pool.query('SELECT baseline_revision FROM hazop_lopa_records WHERE id=$1', [id]);
+      if (!lopaCur.rows[0]) return sendNotFound(res, 'LOPA record');
+      if (lopaCur.rows[0].baseline_revision) {
+        const mocId = req.query.moc_id ? parseInt(req.query.moc_id as string) : null;
+        if (!mocId) {
+          return res.status(409).json({
+            error: 'This LOPA record is baselined. Raise an approved MOC and link it before making changes.',
+            moc_required: true, artefact_type: 'lopa', artefact_id: id,
+          });
+        }
+        const mocR = await pool.query(
+          `SELECT id FROM hazop_moc_records WHERE id=$1 AND lopa_id=$2 AND moc_status='approved'`,
+          [mocId, id]);
+        if (!mocR.rows[0]) {
+          return sendBusinessError(res, 'MOC not found, not approved, or not linked to this LOPA record.', 422);
+        }
+      }
+
       const { ie_frequency_per_year, ie_frequency_basis, rttf_per_year, rttf_basis,
               consequence_category, lopa_status, notes, title } = req.body;
       const r = await pool.query(`
@@ -4469,9 +4489,21 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       if (!cur.rows[0]) return sendNotFound(res, 'SRS record');
       const current = cur.rows[0];
 
-      // 409 if approved
-      if (current.srs_status === 'approved') {
-        return sendBusinessError(res, 'Approved SRS cannot be modified. Raise an MOC to make changes.', 409);
+      // MOC gate: baselined / approved records require a linked approved MOC
+      if (current.baseline_revision || current.srs_status === 'approved') {
+        const mocId = req.query.moc_id ? parseInt(req.query.moc_id as string) : null;
+        if (!mocId) {
+          return res.status(409).json({
+            error: 'This SRS record is baselined or approved. Raise an approved MOC and link it before making changes.',
+            moc_required: true, artefact_type: 'srs', artefact_id: id,
+          });
+        }
+        const mocR = await pool.query(
+          `SELECT id FROM hazop_moc_records WHERE id=$1 AND srs_id=$2 AND moc_status='approved'`,
+          [mocId, id]);
+        if (!mocR.rows[0]) {
+          return sendBusinessError(res, 'MOC not found, not approved, or not linked to this SRS record.', 422);
+        }
       }
 
       const {
@@ -4910,6 +4942,282 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
   });
 
   // ════════════════════════════════════════════════════════════════════════════
-  // PHASE 5A END / PHASE 5B END
+  // PHASE 5C — MOC REGISTER
+  // ════════════════════════════════════════════════════════════════════════════
+
+  async function nextMocNumber(studyId: number): Promise<string> {
+    const r = await pool.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(moc_number FROM 5) AS INTEGER)),0)+1 AS n
+       FROM hazop_moc_records WHERE study_id=$1`, [studyId]);
+    return `MOC-${String(r.rows[0].n).padStart(3, '0')}`;
+  }
+
+  // ── GET /api/hazop/studies/:studyId/moc ────────────────────────────────────
+  app.get('/api/hazop/studies/:studyId/moc', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const { status } = req.query;
+      const whereExtra = status ? `AND m.moc_status=$2` : '';
+      const params: any[] = status ? [studyId, status] : [studyId];
+      const r = await pool.query(`
+        SELECT m.*,
+          u_req.full_name AS requested_by_name,
+          u_app.full_name AS approved_by_name,
+          u_rej.full_name AS rejected_by_name,
+          lr.lopa_number,
+          sr.srs_number
+        FROM hazop_moc_records m
+        LEFT JOIN users u_req ON u_req.id = m.requested_by
+        LEFT JOIN users u_app ON u_app.id = m.approved_by
+        LEFT JOIN users u_rej ON u_rej.id = m.rejected_by
+        LEFT JOIN hazop_lopa_records lr ON lr.id = m.lopa_id
+        LEFT JOIN hazop_srs_records  sr ON sr.id = m.srs_id
+        WHERE m.study_id=$1 ${whereExtra}
+        ORDER BY m.id DESC`, params);
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/studies/:studyId/moc ───────────────────────────────────
+  app.post('/api/hazop/studies/:studyId/moc', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const studyId = parseInt(req.params.studyId);
+      const userId  = (req as any).user?.id;
+      const {
+        lopa_id, srs_id,
+        change_type, change_reason, change_description, safety_impact_assessment, notes,
+      } = req.body;
+
+      // Phase 5C scope: lopa_id or srs_id only (exactly one)
+      const artefactCount = [lopa_id, srs_id].filter(v => v != null).length;
+      if (artefactCount === 0) {
+        return sendBusinessError(res, 'MOC must reference a LOPA record or an SRS record.', 422);
+      }
+      if (artefactCount > 1) {
+        return sendBusinessError(res, 'MOC must reference exactly one artefact.', 422);
+      }
+      if (!change_type || !change_reason?.trim() || !change_description?.trim()) {
+        return sendBusinessError(res, 'change_type, change_reason, and change_description are required.', 422);
+      }
+
+      // Validate artefact exists and is baselined
+      let baselineBefore: string | null = null;
+      if (lopa_id) {
+        const a = await client.query(
+          'SELECT baseline_revision FROM hazop_lopa_records WHERE id=$1 AND study_id=$2',
+          [lopa_id, studyId]);
+        if (!a.rows[0]) return sendBusinessError(res, 'LOPA record not found in this study.', 404);
+        if (!a.rows[0].baseline_revision) {
+          return sendBusinessError(res, 'MOC can only be raised against a baselined LOPA record.', 400);
+        }
+        baselineBefore = a.rows[0].baseline_revision;
+      }
+      if (srs_id) {
+        const a = await client.query(
+          'SELECT baseline_revision FROM hazop_srs_records WHERE id=$1 AND study_id=$2',
+          [srs_id, studyId]);
+        if (!a.rows[0]) return sendBusinessError(res, 'SRS record not found in this study.', 404);
+        if (!a.rows[0].baseline_revision) {
+          return sendBusinessError(res, 'MOC can only be raised against a baselined SRS record.', 400);
+        }
+        baselineBefore = a.rows[0].baseline_revision;
+      }
+
+      await client.query(`SELECT pg_advisory_xact_lock($1)`, [studyId * 10000 + 5300]);
+      const mocNumber = await nextMocNumber(studyId);
+
+      const r = await client.query(`
+        INSERT INTO hazop_moc_records
+          (study_id, moc_number, lopa_id, srs_id,
+           change_type, change_reason, change_description, safety_impact_assessment,
+           baseline_before, notes, requested_by, requested_at, moc_status)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),'open')
+        RETURNING *`,
+        [studyId, mocNumber,
+         lopa_id ?? null, srs_id ?? null,
+         change_type, change_reason, change_description,
+         safety_impact_assessment ?? null, baselineBefore,
+         notes ?? null, userId]);
+
+      await client.query('COMMIT');
+      res.status(201).json(r.rows[0]);
+    } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
+    finally { client.release(); }
+  });
+
+  // ── GET /api/hazop/moc/:id ─────────────────────────────────────────────────
+  app.get('/api/hazop/moc/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const r = await pool.query(`
+        SELECT m.*,
+          u_req.full_name AS requested_by_name,
+          u_app.full_name AS approved_by_name,
+          u_rej.full_name AS rejected_by_name,
+          lr.lopa_number, lr.lopa_status, lr.baseline_revision AS lopa_current_baseline,
+          lr.lopa_outcome, lr.required_sil AS lopa_required_sil,
+          sr.srs_number, sr.srs_status, sr.baseline_revision AS srs_current_baseline,
+          sr.sil_required AS srs_sil_required
+        FROM hazop_moc_records m
+        LEFT JOIN users u_req ON u_req.id = m.requested_by
+        LEFT JOIN users u_app ON u_app.id = m.approved_by
+        LEFT JOIN users u_rej ON u_rej.id = m.rejected_by
+        LEFT JOIN hazop_lopa_records lr ON lr.id = m.lopa_id
+        LEFT JOIN hazop_srs_records  sr ON sr.id = m.srs_id
+        WHERE m.id=$1`, [id]);
+      if (!r.rows[0]) return sendNotFound(res, 'MOC record');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── PATCH /api/hazop/moc/:id ───────────────────────────────────────────────
+  app.patch('/api/hazop/moc/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const cur = await pool.query('SELECT moc_status FROM hazop_moc_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'MOC record');
+      if (cur.rows[0].moc_status !== 'open') {
+        return sendBusinessError(res, 'Only open MOC records may be edited.', 409);
+      }
+      const { change_type, change_reason, change_description, safety_impact_assessment, notes } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_moc_records SET
+          change_type              = COALESCE($1, change_type),
+          change_reason            = COALESCE($2, change_reason),
+          change_description       = COALESCE($3, change_description),
+          safety_impact_assessment = COALESCE($4, safety_impact_assessment),
+          notes                    = COALESCE($5, notes)
+        WHERE id=$6 RETURNING *`,
+        [change_type, change_reason, change_description, safety_impact_assessment, notes, id]);
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── DELETE /api/hazop/moc/:id ──────────────────────────────────────────────
+  app.delete('/api/hazop/moc/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const cur = await pool.query('SELECT moc_status FROM hazop_moc_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'MOC record');
+      if (cur.rows[0].moc_status !== 'open') {
+        return sendBusinessError(res, 'Only open MOC records may be deleted.', 409);
+      }
+      await pool.query('DELETE FROM hazop_moc_records WHERE id=$1', [id]);
+      res.json({ ok: true });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/moc/:id/approve ───────────────────────────────────────
+  app.post('/api/hazop/moc/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id     = parseInt(req.params.id);
+      const userId = (req as any).user?.id;
+      const role   = (req as any).user?.role;
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(role)) {
+        return sendBusinessError(res, 'Only Superuser, General Manager, or Senior Manager may approve an MOC.', 403);
+      }
+
+      const cur = await pool.query('SELECT * FROM hazop_moc_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'MOC record');
+      const moc = cur.rows[0];
+
+      if (moc.moc_status !== 'open') {
+        return sendBusinessError(res, 'Only open MOC records may be approved.', 409);
+      }
+      if (moc.requested_by && moc.requested_by === userId) {
+        return sendBusinessError(res, 'Self-approval is not permitted. The approver must differ from the requestor.', 422);
+      }
+      if (!moc.safety_impact_assessment?.trim()) {
+        return sendBusinessError(res, 'Safety impact assessment must be completed before MOC approval.', 422);
+      }
+
+      const r = await pool.query(`
+        UPDATE hazop_moc_records SET
+          moc_status  = 'approved',
+          approved_by = $1,
+          approved_at = NOW()
+        WHERE id=$2 RETURNING *`, [userId, id]);
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/moc/:id/reject ────────────────────────────────────────
+  app.post('/api/hazop/moc/:id/reject', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id     = parseInt(req.params.id);
+      const userId = (req as any).user?.id;
+      const role   = (req as any).user?.role;
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(role)) {
+        return sendBusinessError(res, 'Only Superuser, General Manager, or Senior Manager may reject an MOC.', 403);
+      }
+
+      const { rejection_reason } = req.body;
+      if (!rejection_reason?.trim()) {
+        return sendBusinessError(res, 'rejection_reason is required when rejecting an MOC.', 422);
+      }
+
+      const cur = await pool.query(
+        'SELECT moc_status, requested_by FROM hazop_moc_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'MOC record');
+      if (cur.rows[0].moc_status !== 'open') {
+        return sendBusinessError(res, 'Only open MOC records may be rejected.', 409);
+      }
+      if (cur.rows[0].requested_by && cur.rows[0].requested_by === userId) {
+        return sendBusinessError(res, 'Self-rejection is not permitted.', 422);
+      }
+
+      const r = await pool.query(`
+        UPDATE hazop_moc_records SET
+          moc_status       = 'rejected',
+          rejected_by      = $1,
+          rejected_at      = NOW(),
+          rejection_reason = $2
+        WHERE id=$3 RETURNING *`, [userId, rejection_reason, id]);
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/moc/:id/close ─────────────────────────────────────────
+  app.post('/api/hazop/moc/:id/close', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const cur = await pool.query('SELECT * FROM hazop_moc_records WHERE id=$1', [id]);
+      if (!cur.rows[0]) return sendNotFound(res, 'MOC record');
+      const moc = cur.rows[0];
+
+      if (moc.moc_status !== 'approved') {
+        return sendBusinessError(res, 'Only approved MOC records may be closed.', 409);
+      }
+
+      // Capture baseline_after from linked artefact's current baseline_revision
+      let baselineAfter: string | null = null;
+      if (moc.lopa_id) {
+        const a = await pool.query(
+          'SELECT baseline_revision FROM hazop_lopa_records WHERE id=$1', [moc.lopa_id]);
+        baselineAfter = a.rows[0]?.baseline_revision ?? null;
+      }
+      if (moc.srs_id) {
+        const a = await pool.query(
+          'SELECT baseline_revision FROM hazop_srs_records WHERE id=$1', [moc.srs_id]);
+        baselineAfter = a.rows[0]?.baseline_revision ?? null;
+      }
+
+      const r = await pool.query(`
+        UPDATE hazop_moc_records SET
+          moc_status     = 'closed',
+          baseline_after = $1
+        WHERE id=$2 RETURNING *`, [baselineAfter, id]);
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 5A END / PHASE 5B END / PHASE 5C END
   // ════════════════════════════════════════════════════════════════════════════
 }

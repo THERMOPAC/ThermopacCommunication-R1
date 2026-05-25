@@ -16346,3 +16346,41 @@ export const hazopSrsRecords = pgTable('hazop_srs_records', {
   uqSif:         uniqueIndex('uq_hazop_srs_sif').on(table.safetyFunctionId),
 }));
 export type HazopSrsRecord = typeof hazopSrsRecords.$inferSelect;
+
+// ── hazop_moc_records (Phase 5C) ─────────────────────────────────────────────
+export const hazopMocRecords = pgTable('hazop_moc_records', {
+  id:                     serial('id').primaryKey(),
+  studyId:                integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  mocNumber:              text('moc_number').notNull(),
+
+  scenarioId:             integer('scenario_id').references(() => hazopScenarios.id, { onDelete: 'set null' }),
+  safetyFunctionId:       integer('safety_function_id').references(() => hazopSafetyFunctions.id, { onDelete: 'set null' }),
+  interlockId:            integer('interlock_id').references(() => hazopInterlocks.id, { onDelete: 'set null' }),
+  alarmTripId:            integer('alarm_trip_id').references(() => hazopAlarmTrips.id, { onDelete: 'set null' }),
+  sceId:                  integer('sce_id').references(() => hazopSafetyCriticalElements.id, { onDelete: 'set null' }),
+  lopaId:                 integer('lopa_id').references(() => hazopLopaRecords.id, { onDelete: 'set null' }),
+  srsId:                  integer('srs_id').references(() => hazopSrsRecords.id, { onDelete: 'set null' }),
+
+  changeType:             text('change_type').notNull(),
+  changeReason:           text('change_reason').notNull(),
+  changeDescription:      text('change_description').notNull(),
+  safetyImpactAssessment: text('safety_impact_assessment'),
+
+  baselineBefore:         text('baseline_before'),
+  baselineAfter:          text('baseline_after'),
+
+  requestedBy:            integer('requested_by').references(() => users.id, { onDelete: 'set null' }),
+  requestedAt:            timestamp('requested_at').defaultNow(),
+  approvedBy:             integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt:             timestamp('approved_at'),
+  rejectedBy:             integer('rejected_by').references(() => users.id, { onDelete: 'set null' }),
+  rejectedAt:             timestamp('rejected_at'),
+  rejectionReason:        text('rejection_reason'),
+  mocStatus:              text('moc_status').notNull().default('open'),
+
+  notes:                  text('notes'),
+  createdAt:              timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  uqStudyMocNum: uniqueIndex('uq_hazop_moc_study_num').on(table.studyId, table.mocNumber),
+}));
+export type HazopMocRecord = typeof hazopMocRecords.$inferSelect;

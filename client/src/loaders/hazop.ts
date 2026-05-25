@@ -17,3 +17,5 @@ export const HazopLopaPage = lazyWithRetry(() => import("@/pages/hazop/hazop-lop
 export const HazopLopaDetailPage = lazyWithRetry(() => import("@/pages/hazop/hazop-lopa-detail"));
 export const HazopSrsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-srs"));
 export const HazopSrsDetailPage = lazyWithRetry(() => import("@/pages/hazop/hazop-srs-detail"));
+export const HazopMocPage = lazyWithRetry(() => import("@/pages/hazop/hazop-moc"));
+export const HazopMocDetailPage = lazyWithRetry(() => import("@/pages/hazop/hazop-moc-detail"));

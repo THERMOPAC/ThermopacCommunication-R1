@@ -273,6 +273,7 @@ export default function HazopSrsDetailPage() {
   const qc = useQueryClient();
   const [isDirty, setIsDirty] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [mocId, setMocId] = useState<string>('');
 
   const { data: srs, isLoading } = useQuery<any>({
     queryKey: ['/api/hazop/srs', srsId],
@@ -346,7 +347,7 @@ export default function HazopSrsDetailPage() {
       ['fail_state', 'architecture_type', 'sil_proposed', 'srs_status'].forEach(k => {
         if (body[k] === '') body[k] = null;
       });
-      return apiRequest('PATCH', `/api/hazop/srs/${srsId}`, body);
+      return apiRequest('PATCH', `/api/hazop/srs/${srsId}${mocId ? `?moc_id=${mocId}` : ''}`, body);
     },
     onSuccess: async (res) => {
       const d = await res.json();
@@ -364,7 +365,15 @@ export default function HazopSrsDetailPage() {
     },
     onError: async (err: any) => {
       const body = await err?.response?.json?.().catch(() => null);
-      toast({ title: 'Save failed', description: body?.message ?? 'Unknown error', variant: 'destructive' });
+      if (body?.moc_required) {
+        toast({
+          title: 'MOC required',
+          description: 'This SRS record is baselined or approved. Raise an approved MOC in the MOC Register, then enter its numeric ID in the MOC field before saving.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Save failed', description: body?.message ?? 'Unknown error', variant: 'destructive' });
+      }
     },
   });
 

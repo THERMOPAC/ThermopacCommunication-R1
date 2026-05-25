@@ -3,9 +3,9 @@
 
 **Document**: `docs/hazop-phase5c-delivery-plan-v1.0.md`  
 **Date**: 2026-05-25  
-**Status**: DRAFT — Awaiting product owner review  
+**Status**: CLOSED — All tasks complete; ZTC-101–ZTC-125 passed 2026-05-25  
 **Predecessor**: Phase 5B formally closed 2026-05-25  
-**Gate**: Implementation must NOT begin until this plan is reviewed and all design decisions are resolved.
+**Closed**: 2026-05-25 — T5C-001, T5C-002, T5C-003 all accepted; Phase 5C formally closed.
 
 ---
 
