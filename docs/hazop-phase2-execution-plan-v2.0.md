@@ -967,3 +967,123 @@ Rationale:
 The Process Builder UI (Phase 2) does not include a topology diagram view.
 The Phase 3 worksheet view does not include a topology diagram.
 A dedicated "Process Flow View" feature may be scoped as Phase 7 or standalone.
+
+---
+
+## 17. Intra-Node Process Flow Rules (Binding)
+
+### 17.1 Intra-Node Flow is Valid and Supported
+
+Flow between Steps inside the same Node is a first-class part of the process
+model. It is not incidental — it is the intended way to represent an ordered
+equipment sequence within a HAZOP analysis boundary.
+
+**Example:**
+
+```
+Node 2.2 — Dehydration Vessel Node
+ ├── Step 1 (seq=1): Vessel — V-201
+ │    outlet_destination = next_step         ← connects to Step 2 inside this node
+ └── Step 2 (seq=2): Vent — Overhead Vapor Outlet
+      outlet_destination = next_loop         ← exits the node and the loop
+```
+
+Step 1 using `outlet_destination = 'next_step'` to connect to Step 2 inside
+the same Node is **valid, supported, and the normal pattern** for equipment
+sequences within a node.
+
+---
+
+### 17.2 Scope of `next_step` and `prev_step`
+
+`next_step` and `prev_step` operate **only within the same Node**.
+
+They resolve to:
+- `next_step` → the step with `sequence_no = current_sequence_no + 1`
+  within the same `node_id`
+- `prev_step` → the step with `sequence_no = current_sequence_no - 1`
+  within the same `node_id`
+
+They do NOT cross node boundaries. To cross to another node, use `next_node`,
+`next_loop`, or `specific_step` with an explicit `{L}.{N}.{S}` reference.
+
+**Boundary behaviour:**
+- `next_step` on the last step of a node: the server issues warning V2
+  (non-terminal destination not set) at step save time. The user should
+  change the destination to `next_node`, `next_loop`, or a terminal value.
+- `prev_step` on the first step of a node (seq=1): server issues warning V2.
+
+---
+
+### 17.3 Intra-Node Steps Form a Local Ordered Process Chain
+
+Steps within a Node form a **local, ordered, directed process chain**.
+The ordering is defined by `sequence_no` (ascending). The flow direction
+is defined by each step's `outlet_destination`.
+
+**Properties of this chain:**
+- Ordered: steps are traversed from `sequence_no = 1` upward
+- Directed: each step explicitly declares where its outlet goes
+- Local: the chain is bounded by the node — external routing uses
+  `next_node`, `next_loop`, or `specific_step`
+- Non-branching in Phase 2: bypass and recycle branches are recorded via
+  `outlet_destination_ref` but the model does not validate the full graph topology
+
+**The Node boundary is the HAZOP analysis boundary.** The intra-node
+step chain is the process description inside that boundary.
+
+---
+
+### 17.4 Phase 3 — Intra-Node Sequencing as Generation Context
+
+Phase 3 generation uses intra-node step sequencing as **contextual information**.
+Deviations remain Node-level only (one worksheet per Node). Step ordering and
+outlet relationships do not create separate deviation entries.
+
+**What Phase 3 uses from intra-node structure:**
+
+| Context signal | How Phase 3 may use it |
+|---|---|
+| Step `equipment_category` set | Builds aggregated equipment set for guide word selection (§15.2) |
+| Step `sequence_no` ordering | Identifies "entry" equipment (seq=1) vs "exit" equipment (last seq) |
+| Step `outlet_destination` on last step | Confirms how the node connects to the next node — used in "No Flow" cause phrasing |
+| Step `equipment_tag` values | Populates cause/safeguard descriptions with real tag numbers |
+| `outlet_destination = recycle` or `bypass` with ref | Signals potential flow reversal or alternative path — informs reverse flow and other-than deviations |
+
+**What Phase 3 does NOT do with intra-node structure:**
+- Does not generate a separate deviation per step
+- Does not produce a separate worksheet per step
+- Does not require every step to have an explicit `outlet_destination` to generate
+
+---
+
+### 17.5 Topology Rendering — Intra-Node vs Inter-Node Flow
+
+From §16, the process topology diagram (deferred) uses the Loop → Node → Step
+hierarchy. The flow rendering rules for that future view are:
+
+| Level | What is rendered |
+|---|---|
+| Inter-node | Directed connection between Nodes (primary visual) |
+| Intra-node | Steps shown as an ordered list or sub-flow inside the Node block |
+| Cross-loop | Directed connection from exit Node of Loop N to entry Node of Loop N+1 |
+| Specific-step | Directed connection from exit step to target step, crossing node boundaries if needed |
+
+**Summary:** The topology view shows **flow between Nodes as the primary
+directed graph**. Intra-node step sequences are shown as subordinate detail
+within a Node block — not as separate graph nodes in the primary topology.
+
+---
+
+### 17.6 Summary Table — Intra-Node Flow Rules
+
+| Rule | Specification |
+|---|---|
+| Intra-node flow validity | Fully valid and the expected pattern for multi-step nodes |
+| `next_step` / `prev_step` scope | Within same `node_id` only — never crosses node boundary |
+| `next_step` on last step | Allowed; server issues warning V2 at save time |
+| Step ordering | Defined by `sequence_no` ascending within the node |
+| Step chain bounded by | Node boundary — exit via `next_node`, `next_loop`, or `specific_step` |
+| Phase 3 deviation target | Node (never individual Step) |
+| Phase 3 use of step order | Contextual only — entry/exit equipment identification, tag phrasing |
+| Topology rendering | Nodes as primary graph nodes; intra-node steps as subordinate detail |
