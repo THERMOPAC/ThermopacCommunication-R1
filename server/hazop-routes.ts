@@ -1500,4 +1500,914 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       res.json(result.rows);
     } catch (err) { sendError(res, err); }
   });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 4A START — Safety Logic Modeling Layer
+  // Governed by: docs/hazop-phase4-execution-plan-v1.3.md
+  // Advisory lock key: study_id * 10000 + 4001
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Vocabularies (frozen per §12.3) ─────────────────────────────────────────
+  const P4A_EVENT_TYPES = new Set([
+    'process_deviation','equipment_failure','utility_failure','vacuum_failure',
+    'phase_transition','thermal_runaway','overpressure','operator_error',
+    'instrument_failure','power_failure',
+  ]);
+  const P4A_TRANSITION_TYPES = new Set([
+    'evaporation','condensation','flashing','devolatilization','film_formation',
+    'film_breakdown','foaming','entrainment','thermal_cracking','vacuum_break',
+  ]);
+  const P4A_SEVERITY = new Set(['minor','serious','major','critical','catastrophic']);
+  const P4A_MODES = new Set(['startup','normal','shutdown','cleaning','maintenance','upset','emergency']);
+  const P4A_PROTECTION_LAYERS = new Set(['BPCS','SIS','Mechanical','Procedural','Operator','Relief']);
+  const P4A_LOGIC_TYPES = new Set(['parallel','sequential','latched','permissive','voting','manual_reset']);
+  const P4A_CRITICALITY = new Set(['instant','fast','medium','slow','operator_managed']);
+  const P4A_EFFECTIVENESS = new Set(['low','medium','high','verified']);
+  const P4A_HUMAN_DEP = new Set(['none','low','medium','high','critical']);
+  const P4A_CCF_GROUPS = new Set([
+    'vacuum_system','thermal_oil','power','instrument_air',
+    'cooling_water','utilities','control_system','shared_equipment',
+  ]);
+  const P4A_ACTION_TYPES = new Set([
+    'stop','open','close','alarm','start','cooldown','isolate','de_energise','vent','other',
+  ]);
+
+  // ── Number generator (advisory-locked) ──────────────────────────────────────
+  async function nextP4AGroupNumber(client: any, studyId: number, prefix: string): Promise<string> {
+    await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+    const r = await client.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(group_number FROM '\\d+$') AS INT)),0)+1 AS nxt
+       FROM hazop_event_groups WHERE study_id=$1 AND group_number LIKE $2`,
+      [studyId, `${prefix}-%`]
+    );
+    return `${prefix}-${String(r.rows[0].nxt).padStart(3, '0')}`;
+  }
+  async function nextRgNumber(client: any, studyId: number): Promise<string> {
+    await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+    const r = await client.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(group_number FROM '\\d+$') AS INT)),0)+1 AS nxt
+       FROM hazop_response_groups WHERE study_id=$1`,
+      [studyId]
+    );
+    return `RG-${String(r.rows[0].nxt).padStart(3, '0')}`;
+  }
+
+  // ── resolveStudyForP4 ────────────────────────────────────────────────────────
+  async function resolveStudyForP4(studyId: number) {
+    const r = await pool.query('SELECT id, status FROM hazop_studies WHERE id=$1', [studyId]);
+    return r.rowCount === 0 ? null : r.rows[0];
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // EVENT GROUPS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  // ── List event groups ────────────────────────────────────────────────────────
+  app.get('/api/hazop/studies/:studyId/event-groups', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const { event_type, process_transition_type, consequence_severity, operating_mode, common_cause_group } = req.query;
+      const conditions: string[] = ['eg.study_id = $1'];
+      const params: any[] = [studyId];
+      let idx = 2;
+      if (event_type) { conditions.push(`eg.event_type = $${idx++}`); params.push(event_type); }
+      if (process_transition_type) { conditions.push(`eg.process_transition_type = $${idx++}`); params.push(process_transition_type); }
+      if (consequence_severity) { conditions.push(`eg.consequence_severity = $${idx++}`); params.push(consequence_severity); }
+      if (operating_mode) { conditions.push(`eg.operating_mode = $${idx++}`); params.push(operating_mode); }
+      if (common_cause_group) { conditions.push(`eg.common_cause_group = $${idx++}`); params.push(common_cause_group); }
+
+      const result = await pool.query(`
+        SELECT eg.*,
+          TRIM(u.first_name || ' ' || u.last_name) AS created_by_name,
+          (SELECT COUNT(*) FROM hazop_event_group_members m WHERE m.group_id = eg.id) AS member_count
+        FROM hazop_event_groups eg
+        LEFT JOIN users u ON u.id = eg.created_by
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY eg.group_number
+      `, params);
+      res.json(result.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Get single event group with members ─────────────────────────────────────
+  app.get('/api/hazop/event-groups/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+      const eg = await pool.query('SELECT * FROM hazop_event_groups WHERE id=$1', [id]);
+      if (eg.rowCount === 0) return sendNotFound(res, 'Event Group');
+
+      const members = await pool.query(`
+        SELECT m.id, m.deviation_id,
+               d.deviation_number, d.guideword, d.parameter, d.deviation_description,
+               n.node_reference, n.node_name
+        FROM hazop_event_group_members m
+        JOIN hazop_deviations d ON d.id = m.deviation_id
+        JOIN hazop_nodes n ON n.id = d.node_id
+        WHERE m.group_id = $1
+        ORDER BY d.deviation_number
+      `, [id]);
+
+      res.json({ ...eg.rows[0], members: members.rows });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Create event group ───────────────────────────────────────────────────────
+  app.post('/api/hazop/studies/:studyId/event-groups', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const {
+        group_name, event_type, process_transition_type, consequence_severity,
+        operating_mode, common_cause_group, description, operating_regime,
+        phase_state, process_function,
+      } = req.body;
+
+      if (!group_name?.trim()) return res.status(400).json({ error: 'group_name is required' });
+      if (!event_type || !P4A_EVENT_TYPES.has(event_type)) return res.status(400).json({ error: 'Invalid event_type' });
+      if (process_transition_type && !P4A_TRANSITION_TYPES.has(process_transition_type)) return res.status(400).json({ error: 'Invalid process_transition_type' });
+      if (consequence_severity && !P4A_SEVERITY.has(consequence_severity)) return res.status(400).json({ error: 'Invalid consequence_severity' });
+      if (operating_mode && !P4A_MODES.has(operating_mode)) return res.status(400).json({ error: 'Invalid operating_mode' });
+      if (common_cause_group && !P4A_CCF_GROUPS.has(common_cause_group)) return res.status(400).json({ error: 'Invalid common_cause_group' });
+
+      const userId = (req.user as any).id;
+      await client.query('BEGIN');
+      const groupNumber = await nextP4AGroupNumber(client, studyId, 'EG');
+      const result = await client.query(`
+        INSERT INTO hazop_event_groups
+          (study_id, group_number, group_name, event_type, process_transition_type,
+           consequence_severity, operating_mode, common_cause_group, description,
+           operating_regime, phase_state, process_function, source, created_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'manual',$13)
+        RETURNING *
+      `, [
+        studyId, groupNumber, group_name.trim(), event_type,
+        process_transition_type ?? null, consequence_severity ?? null,
+        operating_mode ?? null, common_cause_group ?? null,
+        description?.trim() ?? null, operating_regime ?? null,
+        phase_state ?? null, process_function?.trim() ?? null, userId,
+      ]);
+      await client.query('COMMIT');
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      sendError(res, err);
+    } finally { client.release(); }
+  });
+
+  // ── Update event group ───────────────────────────────────────────────────────
+  app.patch('/api/hazop/event-groups/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+      const eg = await pool.query('SELECT eg.id, s.status FROM hazop_event_groups eg JOIN hazop_studies s ON s.id = eg.study_id WHERE eg.id=$1', [id]);
+      if (eg.rowCount === 0) return sendNotFound(res, 'Event Group');
+
+      const allowed = ['group_name','event_type','process_transition_type','consequence_severity',
+        'operating_mode','common_cause_group','description','operating_regime','phase_state','process_function'];
+      const updates: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+      for (const key of allowed) {
+        const snakeKey = key;
+        if (req.body[snakeKey] !== undefined) {
+          updates.push(`${snakeKey} = $${idx++}`);
+          params.push(req.body[snakeKey] === '' ? null : req.body[snakeKey]);
+        }
+      }
+      if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+      params.push(id);
+      const result = await pool.query(
+        `UPDATE hazop_event_groups SET ${updates.join(', ')} WHERE id=$${idx} RETURNING *`,
+        params
+      );
+      res.json(result.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Delete event group ───────────────────────────────────────────────────────
+  app.delete('/api/hazop/event-groups/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const eg = await pool.query('SELECT id FROM hazop_event_groups WHERE id=$1', [id]);
+      if (eg.rowCount === 0) return sendNotFound(res, 'Event Group');
+      await pool.query('DELETE FROM hazop_event_groups WHERE id=$1', [id]);
+      res.status(204).send();
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Add deviation member to group ────────────────────────────────────────────
+  app.post('/api/hazop/event-groups/:id/members', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      if (isNaN(groupId)) return res.status(400).json({ error: 'Invalid group id' });
+      const { deviation_id } = req.body;
+      if (!deviation_id) return res.status(400).json({ error: 'deviation_id is required' });
+
+      const eg = await pool.query('SELECT id FROM hazop_event_groups WHERE id=$1', [groupId]);
+      if (eg.rowCount === 0) return sendNotFound(res, 'Event Group');
+      const dev = await pool.query('SELECT id FROM hazop_deviations WHERE id=$1', [deviation_id]);
+      if (dev.rowCount === 0) return sendNotFound(res, 'Deviation');
+
+      try {
+        const result = await pool.query(
+          'INSERT INTO hazop_event_group_members (group_id, deviation_id) VALUES ($1,$2) RETURNING *',
+          [groupId, deviation_id]
+        );
+        res.status(201).json(result.rows[0]);
+      } catch (e: any) {
+        if (e.code === '23505') return res.status(409).json({ error: 'Deviation already in this group' });
+        throw e;
+      }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Remove deviation member from group ───────────────────────────────────────
+  app.delete('/api/hazop/event-group-members/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const r = await pool.query('SELECT id FROM hazop_event_group_members WHERE id=$1', [id]);
+      if (r.rowCount === 0) return sendNotFound(res, 'Event Group Member');
+      await pool.query('DELETE FROM hazop_event_group_members WHERE id=$1', [id]);
+      res.status(204).send();
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Auto-extract event groups (regime-aware, 13-step pipeline steps 1–6) ─────
+  app.post('/api/hazop/studies/:studyId/event-groups/extract', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+
+      // Fetch all deviations with their node context
+      const devs = await client.query(`
+        SELECT d.id AS deviation_id, d.guideword, d.parameter, d.deviation_description,
+               d.deviation_number,
+               n.operating_regime, n.phase_state, n.process_function,
+               n.node_reference, n.node_name, n.id AS node_id
+        FROM hazop_deviations d
+        JOIN hazop_nodes n ON n.id = d.node_id
+        WHERE d.study_id = $1 AND d.is_credible = true
+        ORDER BY n.node_reference, d.deviation_number
+      `, [studyId]);
+
+      const userId = (req.user as any).id;
+      let created = 0;
+      let linked = 0;
+      const skipped: number[] = [];
+
+      // Group deviations by (event_type, process_transition_type, operating_regime, phase_state)
+      // to create manageable event groups
+      const buckets = new Map<string, { devIds: number[]; eventType: string; transitionType: string | null;
+        regime: string | null; phaseState: string | null; processFunction: string | null;
+        severity: string; mode: string; ccfGroup: string | null }>();
+
+      for (const d of devs.rows) {
+        // Step 1: Event type classification
+        const eventType = classifyEventType(d);
+        // Step 2: Process transition inference
+        const transitionType = inferTransitionType(d, eventType);
+        // Step 3: CCF group auto-assignment
+        const ccfGroup = inferCcfGroup(d, eventType);
+        // Step 4: Operating mode inference
+        const mode = inferOperatingMode(d);
+        // Step 5: Consequence severity inference
+        const severity = inferSeverity(d, eventType, transitionType);
+
+        const key = `${eventType}|${transitionType ?? ''}|${d.operating_regime}|${d.phase_state}`;
+        if (!buckets.has(key)) {
+          buckets.set(key, {
+            devIds: [], eventType, transitionType, regime: d.operating_regime,
+            phaseState: d.phase_state, processFunction: d.process_function,
+            severity, mode, ccfGroup,
+          });
+        }
+        buckets.get(key)!.devIds.push(d.deviation_id);
+      }
+
+      // Step 6: Create event groups and members (idempotent — skip existing members)
+      for (const [, bucket] of buckets) {
+        if (bucket.devIds.length === 0) continue;
+
+        const groupNumber = await nextP4AGroupNumber(client, studyId, 'EG');
+        const label = buildGroupLabel(bucket.eventType, bucket.transitionType, bucket.regime, bucket.phaseState);
+
+        const egRes = await client.query(`
+          INSERT INTO hazop_event_groups
+            (study_id, group_number, group_name, event_type, process_transition_type,
+             consequence_severity, operating_mode, common_cause_group, operating_regime,
+             phase_state, process_function, source, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'auto_extracted',$12)
+          ON CONFLICT (study_id, group_number) DO NOTHING
+          RETURNING id
+        `, [
+          studyId, groupNumber, label, bucket.eventType, bucket.transitionType,
+          bucket.severity, bucket.mode, bucket.ccfGroup,
+          bucket.regime, bucket.phaseState, bucket.processFunction, userId,
+        ]);
+
+        const groupId = egRes.rows[0]?.id;
+        if (!groupId) continue;
+        created++;
+
+        for (const devId of bucket.devIds) {
+          try {
+            await client.query(
+              'INSERT INTO hazop_event_group_members (group_id, deviation_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+              [groupId, devId]
+            );
+            linked++;
+          } catch { skipped.push(devId); }
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ created_groups: created, linked_members: linked, skipped_count: skipped.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      sendError(res, err);
+    } finally { client.release(); }
+  });
+
+  // ── Event type classification (Step 1) ──────────────────────────────────────
+  function classifyEventType(d: { guideword: string; parameter: string; operating_regime: string; phase_state: string; process_function: string | null; deviation_description: string }): string {
+    const gw = d.guideword?.toLowerCase() ?? '';
+    const param = d.parameter?.toLowerCase() ?? '';
+    const regime = d.operating_regime ?? '';
+    const phase = d.phase_state ?? '';
+    const fn = (d.process_function ?? '').toLowerCase();
+    const desc = (d.deviation_description ?? '').toLowerCase();
+
+    if (regime === 'vacuum' && (param === 'pressure' || desc.includes('vacuum'))) return 'vacuum_failure';
+    if (fn.includes('twfe') && gw === 'no' && param === 'flow') return 'vacuum_failure';
+    if (fn.includes('twfe') && param === 'temperature' && gw === 'more') return 'thermal_runaway';
+    if (phase === 'vapor' && param === 'temperature' && gw === 'more') return 'thermal_runaway';
+    if (phase === 'vapor' && param === 'pressure' && gw === 'more') return 'overpressure';
+    if (fn.includes('flash') && param === 'pressure' && gw === 'more') return 'overpressure';
+    if (phase === 'two_phase' && (param === 'composition' || param === 'level')) return 'phase_transition';
+    if (param === 'utility' || desc.includes('utility')) return 'utility_failure';
+    if (param === 'power' || desc.includes('power failure')) return 'power_failure';
+    if (desc.includes('instrument') || param === 'instrument') return 'instrument_failure';
+    if (desc.includes('operator') || desc.includes('human error')) return 'operator_error';
+    if (gw === 'more' && param === 'pressure') return 'overpressure';
+    if (desc.includes('equipment failure') || desc.includes('mechanical failure')) return 'equipment_failure';
+    return 'process_deviation';
+  }
+
+  // ── Process transition inference (Step 2) ───────────────────────────────────
+  function inferTransitionType(d: { guideword: string; parameter: string; operating_regime: string; phase_state: string; process_function: string | null }, eventType: string): string | null {
+    const regime = d.operating_regime ?? '';
+    const phase = d.phase_state ?? '';
+    const fn = (d.process_function ?? '').toLowerCase();
+    const gw = d.guideword?.toLowerCase() ?? '';
+    const param = d.parameter?.toLowerCase() ?? '';
+
+    if (eventType === 'vacuum_failure') {
+      if (phase === 'two_phase') return 'entrainment';
+      return 'vacuum_break';
+    }
+    if (eventType === 'thermal_runaway') return 'thermal_cracking';
+    if (eventType === 'overpressure') {
+      if (fn.includes('flash') || fn.includes('degas')) return 'flashing';
+      return 'devolatilization';
+    }
+    if (eventType === 'phase_transition') {
+      if (param === 'level') return 'foaming';
+      return 'entrainment';
+    }
+    if (eventType === 'utility_failure' && (fn.includes('cool') || param === 'temperature')) return 'condensation';
+    if (fn.includes('twfe') && gw === 'more' && param === 'temperature') {
+      return regime === 'vacuum' ? 'film_breakdown' : 'film_formation';
+    }
+    if (phase === 'vapor') return 'devolatilization';
+    if (phase === 'liquid') return 'evaporation';
+    return null;
+  }
+
+  // ── CCF group auto-assignment (Step 3) ──────────────────────────────────────
+  function inferCcfGroup(d: { process_function: string | null; deviation_description: string }, eventType: string): string | null {
+    const fn = (d.process_function ?? '').toLowerCase();
+    const desc = (d.deviation_description ?? '').toLowerCase();
+    if (eventType === 'power_failure') return 'power';
+    if (eventType === 'vacuum_failure' || fn.includes('vacuum')) return 'vacuum_system';
+    if (eventType === 'utility_failure' && (fn.includes('cool') || desc.includes('cooling'))) return 'cooling_water';
+    if (eventType === 'instrument_failure' && desc.includes('instrument air')) return 'instrument_air';
+    if (eventType === 'utility_failure') return 'utilities';
+    if (desc.includes('dcs') || desc.includes('plc') || desc.includes('control system')) return 'control_system';
+    if (fn.includes('thermal oil') || fn.includes('heater')) return 'thermal_oil';
+    return null;
+  }
+
+  // ── Operating mode inference (Step 4) ───────────────────────────────────────
+  function inferOperatingMode(d: { deviation_description: string; process_function: string | null }): string {
+    const text = ((d.deviation_description ?? '') + ' ' + (d.process_function ?? '')).toLowerCase();
+    if (text.includes('startup') || text.includes('commission')) return 'startup';
+    if (text.includes('cleaning') || text.includes('cip')) return 'cleaning';
+    if (text.includes('maintenance') || text.includes('isolation')) return 'maintenance';
+    if (text.includes('shutdown') || text.includes('depressure') || text.includes('drain')) return 'shutdown';
+    return 'normal';
+  }
+
+  // ── Consequence severity inference (Step 5) ──────────────────────────────────
+  function inferSeverity(d: { operating_regime: string; phase_state: string }, eventType: string, transitionType: string | null): string {
+    if (eventType === 'vacuum_failure' && transitionType === 'vacuum_break') return 'catastrophic';
+    if (eventType === 'thermal_runaway') return 'catastrophic';
+    if (eventType === 'power_failure' && transitionType === 'vacuum_break') return 'catastrophic';
+    if (eventType === 'overpressure') return 'critical';
+    if (eventType === 'equipment_failure' && transitionType === 'film_breakdown') return 'critical';
+    if (eventType === 'phase_transition') return 'major';
+    if (eventType === 'utility_failure') return 'serious';
+    if (eventType === 'instrument_failure') return 'serious';
+    if (eventType === 'operator_error') return 'serious';
+    return 'minor';
+  }
+
+  // ── Build group name label ───────────────────────────────────────────────────
+  function buildGroupLabel(eventType: string, transitionType: string | null, regime: string | null, phase: string | null): string {
+    const typeLabel: Record<string, string> = {
+      vacuum_failure: 'Vacuum Failure', thermal_runaway: 'Thermal Runaway',
+      overpressure: 'Overpressure', phase_transition: 'Phase Transition',
+      power_failure: 'Power Failure', utility_failure: 'Utility Failure',
+      equipment_failure: 'Equipment Failure', instrument_failure: 'Instrument Failure',
+      operator_error: 'Operator Error', process_deviation: 'Process Deviation',
+    };
+    const transLabel: Record<string, string> = {
+      vacuum_break: 'Vacuum Break', film_breakdown: 'Film Breakdown',
+      thermal_cracking: 'Thermal Cracking', foaming: 'Foaming',
+      entrainment: 'Entrainment', flashing: 'Flashing',
+      devolatilization: 'Devolatilization', film_formation: 'Film Formation',
+      condensation: 'Condensation', evaporation: 'Evaporation',
+    };
+    let label = typeLabel[eventType] ?? eventType;
+    if (transitionType && transLabel[transitionType]) label += ` — ${transLabel[transitionType]}`;
+    if (regime === 'vacuum') label += ' (Vacuum)';
+    else if (phase === 'two_phase') label += ' (2-Phase)';
+    else if (phase === 'vapor') label += ' (Vapor)';
+    return label;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // RESPONSE GROUPS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  // ── List response groups ─────────────────────────────────────────────────────
+  app.get('/api/hazop/studies/:studyId/response-groups', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const conditions: string[] = ['rg.study_id = $1'];
+      const params: any[] = [studyId];
+      let idx = 2;
+      const filterFields = ['protection_layer','logic_type','criticality_class','effectiveness_rating','human_dependency_level','operating_mode'];
+      for (const f of filterFields) {
+        if (req.query[f]) { conditions.push(`rg.${f} = $${idx++}`); params.push(req.query[f]); }
+      }
+
+      const result = await pool.query(`
+        SELECT rg.*,
+          TRIM(u.first_name || ' ' || u.last_name) AS created_by_name,
+          (SELECT COUNT(*) FROM hazop_response_group_actions a WHERE a.response_group_id = rg.id) AS action_count
+        FROM hazop_response_groups rg
+        LEFT JOIN users u ON u.id = rg.created_by
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY rg.group_number
+      `, params);
+      res.json(result.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Get single response group with actions ───────────────────────────────────
+  app.get('/api/hazop/response-groups/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const rg = await pool.query('SELECT * FROM hazop_response_groups WHERE id=$1', [id]);
+      if (rg.rowCount === 0) return sendNotFound(res, 'Response Group');
+      const actions = await pool.query(
+        'SELECT * FROM hazop_response_group_actions WHERE response_group_id=$1 ORDER BY sequence_no',
+        [id]
+      );
+      res.json({ ...rg.rows[0], actions: actions.rows });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Create response group ────────────────────────────────────────────────────
+  app.post('/api/hazop/studies/:studyId/response-groups', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const {
+        group_name, protection_layer, logic_type, criticality_class,
+        effectiveness_rating, human_dependency_level, operating_mode,
+        is_independent_protection_layer, common_cause_group, description,
+      } = req.body;
+
+      if (!group_name?.trim()) return res.status(400).json({ error: 'group_name is required' });
+      if (!protection_layer || !P4A_PROTECTION_LAYERS.has(protection_layer)) return res.status(400).json({ error: 'Invalid protection_layer' });
+      if (logic_type && !P4A_LOGIC_TYPES.has(logic_type)) return res.status(400).json({ error: 'Invalid logic_type' });
+      if (criticality_class && !P4A_CRITICALITY.has(criticality_class)) return res.status(400).json({ error: 'Invalid criticality_class' });
+      if (effectiveness_rating && !P4A_EFFECTIVENESS.has(effectiveness_rating)) return res.status(400).json({ error: 'Invalid effectiveness_rating' });
+      if (human_dependency_level && !P4A_HUMAN_DEP.has(human_dependency_level)) return res.status(400).json({ error: 'Invalid human_dependency_level' });
+      if (operating_mode && !P4A_MODES.has(operating_mode)) return res.status(400).json({ error: 'Invalid operating_mode' });
+      if (common_cause_group && !P4A_CCF_GROUPS.has(common_cause_group)) return res.status(400).json({ error: 'Invalid common_cause_group' });
+
+      const userId = (req.user as any).id;
+      await client.query('BEGIN');
+      const groupNumber = await nextRgNumber(client, studyId);
+
+      const result = await client.query(`
+        INSERT INTO hazop_response_groups
+          (study_id, group_number, group_name, protection_layer, logic_type, criticality_class,
+           effectiveness_rating, human_dependency_level, operating_mode,
+           is_independent_protection_layer, common_cause_group, description, source, created_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'manual',$13)
+        RETURNING *
+      `, [
+        studyId, groupNumber, group_name.trim(), protection_layer,
+        logic_type ?? null, criticality_class ?? null, effectiveness_rating ?? null,
+        human_dependency_level ?? null, operating_mode ?? null,
+        is_independent_protection_layer === true || is_independent_protection_layer === 'true',
+        common_cause_group ?? null, description?.trim() ?? null, userId,
+      ]);
+      await client.query('COMMIT');
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      sendError(res, err);
+    } finally { client.release(); }
+  });
+
+  // ── Update response group ────────────────────────────────────────────────────
+  app.patch('/api/hazop/response-groups/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const rg = await pool.query('SELECT id FROM hazop_response_groups WHERE id=$1', [id]);
+      if (rg.rowCount === 0) return sendNotFound(res, 'Response Group');
+
+      const allowed = ['group_name','protection_layer','logic_type','criticality_class',
+        'effectiveness_rating','human_dependency_level','operating_mode',
+        'is_independent_protection_layer','common_cause_group','description'];
+      const updates: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+      for (const key of allowed) {
+        if (req.body[key] !== undefined) {
+          updates.push(`${key} = $${idx++}`);
+          params.push(req.body[key] === '' ? null : req.body[key]);
+        }
+      }
+      if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+      params.push(id);
+      const result = await pool.query(
+        `UPDATE hazop_response_groups SET ${updates.join(', ')} WHERE id=$${idx} RETURNING *`,
+        params
+      );
+      res.json(result.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Delete response group ────────────────────────────────────────────────────
+  app.delete('/api/hazop/response-groups/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const rg = await pool.query('SELECT id FROM hazop_response_groups WHERE id=$1', [id]);
+      if (rg.rowCount === 0) return sendNotFound(res, 'Response Group');
+      await pool.query('DELETE FROM hazop_response_groups WHERE id=$1', [id]);
+      res.status(204).send();
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Add action to response group ─────────────────────────────────────────────
+  app.post('/api/hazop/response-groups/:id/actions', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const groupId = parseInt(req.params.id);
+      if (isNaN(groupId)) return res.status(400).json({ error: 'Invalid group id' });
+      const rg = await pool.query('SELECT id FROM hazop_response_groups WHERE id=$1', [groupId]);
+      if (rg.rowCount === 0) return sendNotFound(res, 'Response Group');
+
+      const { action_description, action_type, tag_ref, source_safeguard_id, source_action_id } = req.body;
+      if (!action_description?.trim()) return res.status(400).json({ error: 'action_description is required' });
+      if (action_type && !P4A_ACTION_TYPES.has(action_type)) return res.status(400).json({ error: 'Invalid action_type' });
+
+      const seqRes = await pool.query(
+        'SELECT COALESCE(MAX(sequence_no),0)+1 AS next_seq FROM hazop_response_group_actions WHERE response_group_id=$1',
+        [groupId]
+      );
+      const seqNo = seqRes.rows[0].next_seq;
+
+      const result = await pool.query(`
+        INSERT INTO hazop_response_group_actions
+          (response_group_id, sequence_no, action_description, action_type, tag_ref,
+           source_safeguard_id, source_action_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7)
+        RETURNING *
+      `, [groupId, seqNo, action_description.trim(), action_type ?? null,
+          tag_ref?.trim() ?? null, source_safeguard_id ?? null, source_action_id ?? null]);
+      res.status(201).json(result.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Update response group action ─────────────────────────────────────────────
+  app.patch('/api/hazop/response-group-actions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const a = await pool.query('SELECT id FROM hazop_response_group_actions WHERE id=$1', [id]);
+      if (a.rowCount === 0) return sendNotFound(res, 'Response Group Action');
+
+      // confidence_score is NOT accepted from client (engine-only)
+      const allowed = ['action_description','action_type','tag_ref','sequence_no','source_safeguard_id','source_action_id'];
+      const updates: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+      for (const key of allowed) {
+        if (req.body[key] !== undefined) {
+          updates.push(`${key} = $${idx++}`);
+          params.push(req.body[key] === '' ? null : req.body[key]);
+        }
+      }
+      if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+      params.push(id);
+      try {
+        const result = await pool.query(
+          `UPDATE hazop_response_group_actions SET ${updates.join(', ')} WHERE id=$${idx} RETURNING *`,
+          params
+        );
+        res.json(result.rows[0]);
+      } catch (e: any) {
+        if (e.code === '23505') return res.status(409).json({ error: 'Sequence number already in use for this group' });
+        throw e;
+      }
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Delete response group action ─────────────────────────────────────────────
+  app.delete('/api/hazop/response-group-actions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const a = await pool.query('SELECT id FROM hazop_response_group_actions WHERE id=$1', [id]);
+      if (a.rowCount === 0) return sendNotFound(res, 'Response Group Action');
+      await pool.query('DELETE FROM hazop_response_group_actions WHERE id=$1', [id]);
+      res.status(204).send();
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Auto-extract response groups from safeguards (Steps 7–12) ────────────────
+  app.post('/api/hazop/studies/:studyId/response-groups/extract', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock($1)', [studyId * 10000 + 4001]);
+
+      const userId = (req.user as any).id;
+
+      // Step 7: Fetch safeguards with node context
+      const safeguards = await client.query(`
+        SELECT s.id AS safeguard_id, s.safeguard_description, s.safeguard_type, s.tag_ref,
+               d.id AS deviation_id, d.guideword, d.parameter,
+               n.operating_regime, n.phase_state, n.process_function
+        FROM hazop_safeguards s
+        JOIN hazop_deviations d ON d.id = s.deviation_id
+        JOIN hazop_nodes n ON n.id = d.node_id
+        WHERE d.study_id = $1 AND s.deleted = false
+        ORDER BY s.safeguard_type, s.tag_ref, s.id
+      `, [studyId]);
+
+      // Step 7 (cont): Classify protection layer from safeguard_type
+      // Steps 8–11: Group by (protection_layer, tag_ref prefix, operating_mode context)
+      const rgBuckets = new Map<string, {
+        safeguardIds: number[]; protectionLayer: string; logicType: string;
+        criticalityClass: string; effectivenessRating: string; humanDepLevel: string;
+        name: string; operatingMode: string;
+      }>();
+
+      for (const s of safeguards.rows) {
+        const pl = classifyProtectionLayer(s.safeguard_type);
+        const mode = inferOperatingMode({ deviation_description: s.safeguard_description, process_function: s.process_function });
+        const key = `${pl}|${s.tag_ref ?? 'no-tag'}|${mode}`;
+        const name = buildRgName(pl, s.tag_ref, s.safeguard_description);
+
+        if (!rgBuckets.has(key)) {
+          rgBuckets.set(key, {
+            safeguardIds: [], protectionLayer: pl,
+            logicType: pl === 'SIS' ? 'latched' : 'parallel',
+            criticalityClass: deriveCriticality(pl, s),
+            effectivenessRating: deriveEffectiveness(pl, null),
+            humanDepLevel: deriveHumanDep(pl),
+            name, operatingMode: mode,
+          });
+        }
+        rgBuckets.get(key)!.safeguardIds.push(s.safeguard_id);
+      }
+
+      let createdGroups = 0;
+      let createdActions = 0;
+
+      for (const [, bucket] of rgBuckets) {
+        if (bucket.safeguardIds.length === 0) continue;
+
+        const groupNumber = await nextRgNumber(client, studyId);
+        const isIPL = bucket.protectionLayer === 'SIS' || bucket.protectionLayer === 'Mechanical' || bucket.protectionLayer === 'Relief';
+
+        const rgRes = await client.query(`
+          INSERT INTO hazop_response_groups
+            (study_id, group_number, group_name, protection_layer, logic_type, criticality_class,
+             effectiveness_rating, human_dependency_level, operating_mode,
+             is_independent_protection_layer, source, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'auto_extracted',$11)
+          ON CONFLICT (study_id, group_number) DO NOTHING
+          RETURNING id
+        `, [
+          studyId, groupNumber, bucket.name, bucket.protectionLayer, bucket.logicType,
+          bucket.criticalityClass, bucket.effectivenessRating, bucket.humanDepLevel,
+          bucket.operatingMode, isIPL, userId,
+        ]);
+
+        const rgId = rgRes.rows[0]?.id;
+        if (!rgId) continue;
+        createdGroups++;
+
+        // Step 12: Create actions from safeguards
+        let seqNo = 1;
+        for (const sfId of bucket.safeguardIds) {
+          const sfRow = safeguards.rows.find(r => r.safeguard_id === sfId);
+          if (!sfRow) continue;
+
+          const actionType = deriveActionType(sfRow.safeguard_type, sfRow.safeguard_description);
+          // Step 13: Confidence score
+          const confidenceScore = computeConfidenceScore(sfRow);
+
+          try {
+            await client.query(`
+              INSERT INTO hazop_response_group_actions
+                (response_group_id, sequence_no, action_description, action_type, tag_ref,
+                 confidence_score, source_safeguard_id)
+              VALUES ($1,$2,$3,$4,$5,$6,$7)
+              ON CONFLICT (response_group_id, sequence_no) DO NOTHING
+            `, [rgId, seqNo, sfRow.safeguard_description, actionType, sfRow.tag_ref ?? null, confidenceScore, sfId]);
+            seqNo++;
+            createdActions++;
+          } catch { /* skip duplicates */ }
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ created_groups: createdGroups, created_actions: createdActions });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      sendError(res, err);
+    } finally { client.release(); }
+  });
+
+  // ── Protection layer classification (Step 7) ─────────────────────────────────
+  function classifyProtectionLayer(safeguardType: string | null): string {
+    if (!safeguardType) return 'Operator';
+    const t = safeguardType.toLowerCase();
+    if (t === 'alarm') return 'BPCS';
+    if (t === 'trip' || t === 'shutdown' || t === 'sis') return 'SIS';
+    if (t === 'interlock') return 'BPCS';
+    if (t === 'relief_device' || t === 'relief') return 'Mechanical';
+    if (t === 'procedure' || t === 'procedural') return 'Procedural';
+    if (t === 'design' || t === 'mechanical') return 'Mechanical';
+    return 'Operator';
+  }
+
+  function deriveCriticality(pl: string, s: any): string {
+    if (pl === 'SIS') return 'instant';
+    if (pl === 'Mechanical' || pl === 'Relief') return 'instant';
+    if (pl === 'BPCS') return 'fast';
+    if (pl === 'Procedural') return 'medium';
+    return 'slow';
+  }
+
+  function deriveEffectiveness(pl: string, confidenceScore: number | null): string {
+    if (pl === 'Relief') return 'verified';
+    if (pl === 'Mechanical') return 'high';
+    if (pl === 'SIS') return confidenceScore !== null && confidenceScore >= 75 ? 'high' : 'medium';
+    if (pl === 'BPCS') return confidenceScore !== null && confidenceScore >= 75 ? 'medium' : 'low';
+    return 'low';
+  }
+
+  function deriveHumanDep(pl: string): string {
+    if (pl === 'SIS' || pl === 'Mechanical' || pl === 'Relief') return 'none';
+    if (pl === 'BPCS') return 'low';
+    return 'high';
+  }
+
+  function deriveActionType(safeguardType: string | null, description: string): string {
+    const t = (safeguardType ?? '').toLowerCase();
+    const d = (description ?? '').toLowerCase();
+    if (t === 'alarm') return 'alarm';
+    if (t === 'trip' || t === 'shutdown' || t === 'sis') return 'stop';
+    if (d.includes('open') || d.includes('n2') || d.includes('nitrogen')) return 'open';
+    if (d.includes('close') || d.includes('isolat')) return 'close';
+    if (d.includes('cool')) return 'cooldown';
+    if (d.includes('vent')) return 'vent';
+    if (d.includes('de-energ') || d.includes('deenerg') || d.includes('heater')) return 'de_energise';
+    return 'other';
+  }
+
+  function computeConfidenceScore(s: any): number {
+    let score = 0;
+    if (s.safeguard_id) score += 40;           // source_safeguard linked
+    if (s.safeguard_type) score += 20;         // protection layer unambiguous
+    if (s.tag_ref) score += 15;                // tag_ref populated
+    const actionType = deriveActionType(s.safeguard_type, s.safeguard_description);
+    if (actionType !== 'other') score += 10;   // action_type classified
+    if (s.safeguard_type) score += 10;         // safeguard_type was populated
+    // operating_regime exact match — +5 if vacuum regime clearly set
+    if (s.operating_regime && s.operating_regime !== 'atmospheric') score += 5;
+    return Math.min(score, 100);
+  }
+
+  function buildRgName(pl: string, tagRef: string | null, description: string): string {
+    if (tagRef) return `${pl} — ${tagRef}`;
+    const desc = (description ?? '').substring(0, 50).trim();
+    return `${pl} — ${desc || 'Protective Response'}`;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // PHASE 4A SUMMARY
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  app.get('/api/hazop/studies/:studyId/phase4-summary', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudyForP4(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const [egCount, egmCount, rgCount, rgaCount, confDist] = await Promise.all([
+        pool.query('SELECT COUNT(*) FROM hazop_event_groups WHERE study_id=$1', [studyId]),
+        pool.query(`SELECT COUNT(*) FROM hazop_event_group_members m
+                    JOIN hazop_event_groups eg ON eg.id = m.group_id WHERE eg.study_id=$1`, [studyId]),
+        pool.query('SELECT COUNT(*) FROM hazop_response_groups WHERE study_id=$1', [studyId]),
+        pool.query(`SELECT COUNT(*) FROM hazop_response_group_actions a
+                    JOIN hazop_response_groups rg ON rg.id = a.response_group_id WHERE rg.study_id=$1`, [studyId]),
+        pool.query(`SELECT
+            SUM(CASE WHEN a.confidence_score < 50 THEN 1 ELSE 0 END) AS low,
+            SUM(CASE WHEN a.confidence_score BETWEEN 50 AND 74 THEN 1 ELSE 0 END) AS medium,
+            SUM(CASE WHEN a.confidence_score BETWEEN 75 AND 89 THEN 1 ELSE 0 END) AS high,
+            SUM(CASE WHEN a.confidence_score >= 90 THEN 1 ELSE 0 END) AS verified,
+            SUM(CASE WHEN a.confidence_score IS NULL THEN 1 ELSE 0 END) AS manual
+          FROM hazop_response_group_actions a
+          JOIN hazop_response_groups rg ON rg.id = a.response_group_id WHERE rg.study_id=$1`, [studyId]),
+      ]);
+
+      const bpcsSis = await pool.query(`
+        SELECT protection_layer, COUNT(*) FROM hazop_response_groups WHERE study_id=$1 GROUP BY protection_layer
+      `, [studyId]);
+
+      const severityBreakdown = await pool.query(`
+        SELECT consequence_severity, COUNT(*) FROM hazop_event_groups WHERE study_id=$1 AND consequence_severity IS NOT NULL GROUP BY consequence_severity
+      `, [studyId]);
+
+      res.json({
+        event_group_count: parseInt(egCount.rows[0].count),
+        member_count: parseInt(egmCount.rows[0].count),
+        response_group_count: parseInt(rgCount.rows[0].count),
+        response_group_action_count: parseInt(rgaCount.rows[0].count),
+        protection_layer_breakdown: Object.fromEntries(bpcsSis.rows.map(r => [r.protection_layer, parseInt(r.count)])),
+        severity_breakdown: Object.fromEntries(severityBreakdown.rows.map(r => [r.consequence_severity, parseInt(r.count)])),
+        confidence_distribution: confDist.rows[0],
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 4A END
+  // ════════════════════════════════════════════════════════════════════════════
 }
