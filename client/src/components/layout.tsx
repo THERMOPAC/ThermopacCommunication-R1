@@ -238,6 +238,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any HAZOP page
   const isOnHazopPage = location.startsWith('/hazop');
 
+  // Extract study ID from URL when inside a specific HAZOP study
+  const hazopStudyIdMatch = location.match(/^\/hazop\/studies\/(\d+)/);
+  const hazopStudyId = hazopStudyIdMatch ? hazopStudyIdMatch[1] : null;
 
   
   // Auto-open menus based on current page
@@ -501,6 +504,14 @@ function Layout({ children }: LayoutProps) {
       toggle: () => setIsHazopMenuOpen(!isHazopMenuOpen),
       children: [
         { icon: ShieldAlert, label: "HAZOP Dashboard", href: "/hazop/dashboard" },
+        ...(hazopStudyId ? [
+          { icon: Layers, label: "Process Builder", href: `/hazop/studies/${hazopStudyId}/process-builder` },
+          { icon: Zap, label: "Nodes & Deviations", href: `/hazop/studies/${hazopStudyId}/nodes` },
+          { icon: FileText, label: "Worksheet", href: `/hazop/studies/${hazopStudyId}/worksheet` },
+          { icon: ClipboardCheck, label: "Actions Register", href: `/hazop/studies/${hazopStudyId}/actions` },
+          { icon: Target, label: "Event Groups", href: `/hazop/studies/${hazopStudyId}/event-groups` },
+          { icon: ActivitySquare, label: "Response Groups", href: `/hazop/studies/${hazopStudyId}/response-groups` },
+        ] : []),
       ]
     }] : []),
     ...((user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Senior Executive' || user?.role === 'Manager') ? [{
