@@ -450,3 +450,9 @@ id = "w5F6PZ3cgSuhZxCcUUnKk"
 uri = "file://docs/department-master-phase2-execution-plan.md"
 type = "text"
 title = "Department Master — Phase 2 Execution Plan v1.1"
+
+[[outputs]]
+id = "siqfojJ1WlEoax575N6xi"
+uri = "file://docs/hazop-phase4-execution-plan-v1.0.md"
+type = "text"
+title = "HAZOP Phase 4 Execution Plan v1.0"
