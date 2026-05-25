@@ -74,7 +74,10 @@ import {
   FolderTree,
   ActivitySquare,
   BookOpen,
-  BookMarked
+  BookMarked,
+  Grid3X3,
+  Cpu,
+  Bell
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -512,6 +515,11 @@ function Layout({ children }: LayoutProps) {
           { icon: Target, label: "Event Groups", href: `/hazop/studies/${hazopStudyId}/event-groups` },
           { icon: ActivitySquare, label: "Response Groups", href: `/hazop/studies/${hazopStudyId}/response-groups` },
           { icon: BookOpen, label: "Scenarios", href: `/hazop/studies/${hazopStudyId}/scenarios` },
+          { icon: Grid3X3, label: "C&E Matrix", href: `/hazop/studies/${hazopStudyId}/ce-matrix` },
+          { icon: ShieldCheck, label: "Safety Functions", href: `/hazop/studies/${hazopStudyId}/safety-functions` },
+          { icon: ShieldAlert, label: "Interlocks", href: `/hazop/studies/${hazopStudyId}/interlocks` },
+          { icon: Bell, label: "Alarms & Trips", href: `/hazop/studies/${hazopStudyId}/alarm-trips` },
+          { icon: Cpu, label: "SCE Registry", href: `/hazop/studies/${hazopStudyId}/safety-critical-elements` },
         ] : []),
       ]
     }] : []),

@@ -339,6 +339,11 @@ function Router() {
       <ProtectedRoute path="/hazop/studies/:id/event-groups" component={() => <Hazop.HazopEventGroupsPage />} />
       <ProtectedRoute path="/hazop/studies/:id/response-groups" component={() => <Hazop.HazopResponseGroupsPage />} />
       <ProtectedRoute path="/hazop/studies/:id/scenarios" component={() => <Hazop.HazopScenariosPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/ce-matrix" component={() => <Hazop.HazopCeMatrixPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/safety-functions" component={() => <Hazop.HazopSafetyFunctionsPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/interlocks" component={() => <Hazop.HazopInterlocksPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/alarm-trips" component={() => <Hazop.HazopAlarmTripsPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/safety-critical-elements" component={() => <Hazop.HazopSafetyCriticalElementsPage />} />
 
       <Route component={NotFound} />
     </Switch>

@@ -8,3 +8,8 @@ export const HazopActionsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-
 export const HazopEventGroupsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-event-groups"));
 export const HazopResponseGroupsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-response-groups"));
 export const HazopScenariosPage = lazyWithRetry(() => import("@/pages/hazop/hazop-scenarios"));
+export const HazopCeMatrixPage = lazyWithRetry(() => import("@/pages/hazop/hazop-ce-matrix"));
+export const HazopSafetyFunctionsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-safety-functions"));
+export const HazopInterlocksPage = lazyWithRetry(() => import("@/pages/hazop/hazop-interlocks"));
+export const HazopAlarmTripsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-alarm-trips"));
+export const HazopSafetyCriticalElementsPage = lazyWithRetry(() => import("@/pages/hazop/hazop-safety-critical-elements"));
