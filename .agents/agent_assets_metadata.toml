@@ -456,3 +456,9 @@ id = "siqfojJ1WlEoax575N6xi"
 uri = "file://docs/hazop-phase4-execution-plan-v1.0.md"
 type = "text"
 title = "HAZOP Phase 4 Execution Plan v1.0"
+
+[[outputs]]
+id = "w-bZWpD-hQNKjaqqRY8Sg"
+uri = "file://docs/hazop-phase4-execution-plan-v1.1.md"
+type = "text"
+title = "HAZOP Phase 4 Execution Plan v1.1 (Revised Architecture)"
