@@ -3498,4 +3498,477 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
   // ════════════════════════════════════════════════════════════════════════════
   // PHASE 4B END
   // ════════════════════════════════════════════════════════════════════════════
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 5A START — LOPA Core (IPL Stack + PFD Arithmetic)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Pure arithmetic engine ─────────────────────────────────────────────────
+
+  const IEF_DEFAULTS: Record<string, number> = {
+    equipment_failure: 0.1, vacuum_failure: 0.1, thermal_runaway: 0.01,
+    power_failure: 0.1,     utility_failure: 0.3, phase_transition: 0.3,
+    instrument_failure: 0.1, operator_error: 0.01, process_deviation: 0.3, overpressure: 0.01,
+  };
+
+  const RTTF_DEFAULTS: Record<string, number> = {
+    minor: 1e-2, serious: 1e-3, major: 1e-4, critical: 1e-5, catastrophic: 1e-6,
+  };
+
+  function getPfdDefault(protectionLayer: string, effectivenessRating: string | null): number {
+    const key = `${protectionLayer}:${effectivenessRating ?? 'medium'}`;
+    const pfdMap: Record<string, number> = {
+      'SIS:verified': 0.001,     'SIS:high': 0.01,    'SIS:medium': 0.1,    'SIS:low': 0.3,
+      'Mechanical:verified': 0.01,'Mechanical:high': 0.01,'Mechanical:medium': 0.01,'Mechanical:low': 0.01,
+      'Relief:verified': 0.01,   'Relief:high': 0.01, 'Relief:medium': 0.01,'Relief:low': 0.01,
+      'BPCS:verified': 0.1,      'BPCS:high': 0.1,    'BPCS:medium': 0.1,   'BPCS:low': 0.3,
+      'Procedural:verified': 0.1,'Procedural:high': 0.1,'Procedural:medium': 0.3,'Procedural:low': 1.0,
+      'Operator:verified': 0.1,  'Operator:high': 0.1,'Operator:medium': 0.3,'Operator:low': 1.0,
+      'Operator:critical': 1.0,  'Operator:none': 1.0,
+    };
+    return pfdMap[key] ?? 0.1;
+  }
+
+  function computeLopa(iefPerYear: number, rttfPerYear: number, creditedPfds: number[]) {
+    const pfdProduct = creditedPfds.length > 0 ? creditedPfds.reduce((acc, p) => acc * p, 1) : 1;
+    const achievedMef = iefPerYear * pfdProduct;
+    const riskGapRatio = achievedMef / rttfPerYear;
+    if (riskGapRatio <= 1.0) {
+      return { pfdProduct, achievedMef, riskGapRatio, lopaOutcome: 'tolerable', requiredAdditionalPfd: null as number | null, requiredSil: null as number | null };
+    }
+    const requiredAdditionalPfd = rttfPerYear / achievedMef;
+    const silRaw = -Math.log10(requiredAdditionalPfd);
+    const requiredSil = Math.min(4, Math.max(1, Math.ceil(silRaw)));
+    let lopaOutcome = 'gap_exists';
+    if (requiredAdditionalPfd <= 0.001) lopaOutcome = 'requires_sif_upgrade';
+    else if (requiredAdditionalPfd <= 0.01) lopaOutcome = 'requires_sif';
+    return { pfdProduct, achievedMef, riskGapRatio, lopaOutcome, requiredAdditionalPfd, requiredSil };
+  }
+
+  async function nextLopaNumber(studyId: number): Promise<string> {
+    const r = await pool.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(lopa_number FROM 6) AS INTEGER)),0)+1 AS n
+       FROM hazop_lopa_records WHERE study_id=$1`, [studyId]);
+    return `LOPA-${String(r.rows[0].n).padStart(3, '0')}`;
+  }
+
+  async function nextLopaBaseline(studyId: number): Promise<string> {
+    const r = await pool.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(baseline_revision FROM 4) AS INTEGER)),0)+1 AS n
+       FROM hazop_lopa_records WHERE study_id=$1 AND baseline_revision IS NOT NULL`, [studyId]);
+    return `BL-${String(r.rows[0].n).padStart(3, '0')}`;
+  }
+
+  // ── GET /api/hazop/studies/:studyId/lopa ───────────────────────────────────
+  app.get('/api/hazop/studies/:studyId/lopa', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const rows = await pool.query(`
+        SELECT lr.*,
+               sc.scenario_number, sc.title AS scenario_title,
+               sc.consequence_severity, sc.residual_risk,
+               sc.operating_mode,
+               (SELECT COUNT(*) FROM hazop_scenario_ipl_stack s WHERE s.scenario_id=lr.scenario_id) AS ipl_count,
+               (SELECT COUNT(*) FROM hazop_scenario_ipl_stack s WHERE s.scenario_id=lr.scenario_id AND s.credit_applied=true) AS credited_count
+        FROM hazop_lopa_records lr
+        JOIN hazop_scenarios sc ON sc.id=lr.scenario_id
+        WHERE lr.study_id=$1
+        ORDER BY lr.lopa_number`, [studyId]);
+      res.json(rows.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/studies/:studyId/lopa/generate ────────────────────────
+  app.post('/api/hazop/studies/:studyId/lopa/generate', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const studyId = parseInt(req.params.studyId);
+      const userId = (req as any).user?.id;
+
+      const scenarioRows = await client.query(`
+        SELECT sc.id, sc.scenario_number, sc.title, sc.consequence_severity,
+               eg.event_type
+        FROM hazop_scenarios sc
+        LEFT JOIN hazop_event_groups eg ON eg.id=sc.initiating_event_group_id
+        WHERE sc.study_id=$1
+          AND sc.id NOT IN (SELECT scenario_id FROM hazop_lopa_records WHERE study_id=$1)
+        ORDER BY sc.scenario_number`, [studyId]);
+
+      let created = 0;
+      for (const sc of scenarioRows.rows) {
+        const lopaNum = await nextLopaNumber(studyId);
+        const ief = IEF_DEFAULTS[sc.event_type ?? ''] ?? 0.1;
+        const rttf = RTTF_DEFAULTS[sc.consequence_severity ?? ''] ?? 1e-4;
+        await client.query(`
+          INSERT INTO hazop_lopa_records
+            (study_id, scenario_id, lopa_number, title, ie_frequency_per_year,
+             ie_frequency_basis, consequence_category, rttf_per_year, rttf_basis,
+             lopa_status, created_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10)`,
+          [studyId, sc.id, lopaNum,
+           `LOPA — ${sc.title}`,
+           ief, `Default from event_type: ${sc.event_type ?? 'unknown'}`,
+           sc.consequence_severity ?? 'major',
+           rttf, `Risk tolerance target — ${sc.consequence_severity ?? 'major'} consequence category`,
+           userId]);
+        created++;
+      }
+      await client.query('COMMIT');
+      res.status(201).json({ created, message: `${created} LOPA record(s) generated` });
+    } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
+    finally { client.release(); }
+  });
+
+  // ── GET /api/hazop/lopa/:id ────────────────────────────────────────────────
+  app.get('/api/hazop/lopa/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const r = await pool.query(`
+        SELECT lr.*,
+               sc.scenario_number, sc.title AS scenario_title,
+               sc.consequence_severity, sc.residual_risk,
+               sc.operating_mode, sc.baseline_revision AS scenario_baseline,
+               eg.event_type, eg.group_number AS eg_number
+        FROM hazop_lopa_records lr
+        JOIN hazop_scenarios sc ON sc.id=lr.scenario_id
+        LEFT JOIN hazop_event_groups eg ON eg.id=sc.initiating_event_group_id
+        WHERE lr.id=$1`, [id]);
+      if (!r.rows[0]) return sendNotFound(res, 'LOPA record');
+      const lopa = r.rows[0];
+      const stack = await pool.query(`
+        SELECT s.*,
+               rg.group_number AS rg_number,
+               sf.sif_number,
+               il.interlock_number
+        FROM hazop_scenario_ipl_stack s
+        LEFT JOIN hazop_response_groups rg ON rg.id=s.response_group_id
+        LEFT JOIN hazop_safety_functions sf ON sf.id=s.safety_function_id
+        LEFT JOIN hazop_interlocks il ON il.id=s.interlock_id
+        WHERE s.scenario_id=$1
+        ORDER BY s.stack_position`, [lopa.scenario_id]);
+      res.json({ ...lopa, ipl_stack: stack.rows });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── PATCH /api/hazop/lopa/:id ──────────────────────────────────────────────
+  app.patch('/api/hazop/lopa/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { ie_frequency_per_year, ie_frequency_basis, rttf_per_year, rttf_basis,
+              consequence_category, lopa_status, notes, title } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_lopa_records SET
+          ie_frequency_per_year = COALESCE($1, ie_frequency_per_year),
+          ie_frequency_basis    = COALESCE($2, ie_frequency_basis),
+          rttf_per_year         = COALESCE($3, rttf_per_year),
+          rttf_basis            = COALESCE($4, rttf_basis),
+          consequence_category  = COALESCE($5, consequence_category),
+          lopa_status           = COALESCE($6, lopa_status),
+          notes                 = COALESCE($7, notes),
+          title                 = COALESCE($8, title)
+        WHERE id=$9 RETURNING *`,
+        [ie_frequency_per_year, ie_frequency_basis, rttf_per_year, rttf_basis,
+         consequence_category, lopa_status, notes, title, id]);
+      if (!r.rows[0]) return sendNotFound(res, 'LOPA record');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── DELETE /api/hazop/lopa/:id ─────────────────────────────────────────────
+  app.delete('/api/hazop/lopa/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const r = await pool.query('SELECT baseline_revision FROM hazop_lopa_records WHERE id=$1', [id]);
+      if (!r.rows[0]) return sendNotFound(res, 'LOPA record');
+      if (r.rows[0].baseline_revision) return sendBusinessError(res, 'Cannot delete a baselined LOPA record', 409);
+      await pool.query('DELETE FROM hazop_lopa_records WHERE id=$1', [id]);
+      res.json({ ok: true });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/lopa/:id/set-baseline ─────────────────────────────────
+  app.post('/api/hazop/lopa/:id/set-baseline', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const id = parseInt(req.params.id);
+      const r = await client.query('SELECT study_id FROM hazop_lopa_records WHERE id=$1 FOR UPDATE', [id]);
+      if (!r.rows[0]) return sendNotFound(res, 'LOPA record');
+      await client.query(`SELECT pg_advisory_xact_lock($1)`, [r.rows[0].study_id * 10000 + 5001]);
+      const bl = await nextLopaBaseline(r.rows[0].study_id);
+      const updated = await client.query(
+        `UPDATE hazop_lopa_records SET baseline_revision=$1, lopa_status='approved' WHERE id=$2 RETURNING *`,
+        [bl, id]);
+      await client.query('COMMIT');
+      res.json(updated.rows[0]);
+    } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
+    finally { client.release(); }
+  });
+
+  // ── POST /api/hazop/lopa/:id/recalculate ──────────────────────────────────
+  app.post('/api/hazop/lopa/:id/recalculate', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const id = parseInt(req.params.id);
+      const lr = await client.query('SELECT * FROM hazop_lopa_records WHERE id=$1', [id]);
+      if (!lr.rows[0]) return sendNotFound(res, 'LOPA record');
+      const lopa = lr.rows[0];
+
+      const stack = await client.query(
+        `SELECT pfd_value, credit_applied FROM hazop_scenario_ipl_stack
+         WHERE scenario_id=$1 AND credit_applied=true AND pfd_value IS NOT NULL
+         ORDER BY stack_position`, [lopa.scenario_id]);
+
+      const creditedPfds = stack.rows.map((r: any) => parseFloat(r.pfd_value));
+      const result = computeLopa(
+        parseFloat(lopa.ie_frequency_per_year),
+        parseFloat(lopa.rttf_per_year),
+        creditedPfds
+      );
+
+      const updated = await client.query(`
+        UPDATE hazop_lopa_records SET
+          pfd_product             = $1,
+          achieved_mef_per_year   = $2,
+          risk_gap_ratio          = $3,
+          lopa_outcome            = $4,
+          required_additional_pfd = $5,
+          required_sil            = $6
+        WHERE id=$7 RETURNING *`,
+        [result.pfdProduct, result.achievedMef, result.riskGapRatio,
+         result.lopaOutcome, result.requiredAdditionalPfd, result.requiredSil, id]);
+
+      await client.query('COMMIT');
+      res.json({ ...updated.rows[0], credited_ipl_count: creditedPfds.length });
+    } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
+    finally { client.release(); }
+  });
+
+  // ── GET /api/hazop/studies/:studyId/ipl-stack/:scenarioId ─────────────────
+  app.get('/api/hazop/studies/:studyId/ipl-stack/:scenarioId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const scenarioId = parseInt(req.params.scenarioId);
+      const rows = await pool.query(`
+        SELECT s.*,
+               rg.group_number AS rg_number, rg.description AS rg_description,
+               sf.sif_number, sf.sif_description,
+               il.interlock_number, il.interlock_type
+        FROM hazop_scenario_ipl_stack s
+        LEFT JOIN hazop_response_groups rg ON rg.id=s.response_group_id
+        LEFT JOIN hazop_safety_functions sf ON sf.id=s.safety_function_id
+        LEFT JOIN hazop_interlocks il ON il.id=s.interlock_id
+        WHERE s.scenario_id=$1
+        ORDER BY s.stack_position`, [scenarioId]);
+      res.json(rows.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── POST /api/hazop/studies/:studyId/ipl-stack/:scenarioId/build ──────────
+  app.post('/api/hazop/studies/:studyId/ipl-stack/:scenarioId/build', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const studyId   = parseInt(req.params.studyId);
+      const scenarioId = parseInt(req.params.scenarioId);
+      const userId    = (req as any).user?.id;
+
+      // Verify scenario belongs to study
+      const scCheck = await client.query('SELECT id FROM hazop_scenarios WHERE id=$1 AND study_id=$2', [scenarioId, studyId]);
+      if (!scCheck.rows[0]) return sendNotFound(res, 'Scenario');
+
+      // Collect IPL-flagged response groups already in stack (to avoid duplicates)
+      const existing = await client.query(
+        'SELECT response_group_id FROM hazop_scenario_ipl_stack WHERE scenario_id=$1 AND response_group_id IS NOT NULL',
+        [scenarioId]);
+      const existingRgIds = new Set(existing.rows.map((r: any) => r.response_group_id));
+
+      // Get max stack_position
+      const posR = await client.query(
+        'SELECT COALESCE(MAX(stack_position),0) AS max_pos FROM hazop_scenario_ipl_stack WHERE scenario_id=$1', [scenarioId]);
+      let pos = parseInt(posR.rows[0].max_pos);
+
+      // Fetch IPL-flagged response groups for the study
+      const rgRows = await client.query(`
+        SELECT id, group_number, description, protection_layer, effectiveness_rating,
+               human_dependency_level, is_independent_protection_layer
+        FROM hazop_response_groups
+        WHERE study_id=$1 AND is_independent_protection_layer=true
+        ORDER BY group_number`, [studyId]);
+
+      // Fetch IPL-flagged SIFs (not already represented via response group)
+      const sfRows = await client.query(`
+        SELECT id, sif_number, sif_description, protection_layer, effectiveness_rating,
+               is_independent_protection_layer, response_group_id
+        FROM hazop_safety_functions
+        WHERE study_id=$1 AND is_independent_protection_layer=true
+        ORDER BY sif_number`, [studyId]);
+
+      let added = 0;
+
+      for (const rg of rgRows.rows) {
+        if (existingRgIds.has(rg.id)) continue;
+        pos++;
+        const pfd = getPfdDefault(rg.protection_layer, rg.effectiveness_rating);
+        await client.query(`
+          INSERT INTO hazop_scenario_ipl_stack
+            (study_id, scenario_id, response_group_id, ipl_type, ipl_label,
+             protection_layer, is_independent, effectiveness_rating, human_dependency_level,
+             pfd_value, pfd_source, credit_applied, stack_position, created_by)
+          VALUES ($1,$2,$3,'response_group',$4,$5,$6,$7,$8,$9,'default',true,$10,$11)`,
+          [studyId, scenarioId, rg.id,
+           `${rg.group_number}${rg.description ? ' — ' + rg.description : ''}`,
+           rg.protection_layer, rg.is_independent_protection_layer,
+           rg.effectiveness_rating, rg.human_dependency_level,
+           pfd, pos, userId]);
+        added++;
+      }
+
+      // Add SIFs whose response_group_id is not already in the stack via RG
+      const existingSfIds = new Set(existing.rows.map((r: any) => r.safety_function_id));
+      for (const sf of sfRows.rows) {
+        if (existingSfIds.has(sf.id)) continue;
+        // Skip if the RG was already added above
+        if (sf.response_group_id && existingRgIds.has(sf.response_group_id)) continue;
+        pos++;
+        const pfd = getPfdDefault(sf.protection_layer, sf.effectiveness_rating);
+        await client.query(`
+          INSERT INTO hazop_scenario_ipl_stack
+            (study_id, scenario_id, safety_function_id, ipl_type, ipl_label,
+             protection_layer, is_independent, effectiveness_rating,
+             pfd_value, pfd_source, credit_applied, stack_position, created_by)
+          VALUES ($1,$2,$3,'safety_function',$4,$5,true,$6,$7,'default',true,$8,$9)`,
+          [studyId, scenarioId, sf.id,
+           `${sf.sif_number}${sf.sif_description ? ' — ' + sf.sif_description : ''}`,
+           sf.protection_layer, sf.effectiveness_rating,
+           pfd, pos, userId]);
+        added++;
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json({ added, message: `${added} IPL(s) added to stack` });
+    } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
+    finally { client.release(); }
+  });
+
+  // ── POST /api/hazop/ipl-stack/items ───────────────────────────────────────
+  app.post('/api/hazop/ipl-stack/items', ensureAuthenticated, async (req: Request, res: Response) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const userId = (req as any).user?.id;
+      const { study_id, scenario_id, ipl_type, ipl_label, protection_layer,
+              is_independent, effectiveness_rating, human_dependency_level,
+              fail_state, pfd_value, pfd_source, pfd_basis, credit_applied, notes } = req.body;
+      if (!study_id || !scenario_id || !ipl_type || !ipl_label || !protection_layer)
+        return sendBusinessError(res, 'study_id, scenario_id, ipl_type, ipl_label, protection_layer required', 400);
+
+      const posR = await client.query(
+        'SELECT COALESCE(MAX(stack_position),0)+1 AS pos FROM hazop_scenario_ipl_stack WHERE scenario_id=$1', [scenario_id]);
+      const pos = posR.rows[0].pos;
+      const defaultPfd = pfd_value ?? getPfdDefault(protection_layer, effectiveness_rating ?? null);
+
+      const r = await client.query(`
+        INSERT INTO hazop_scenario_ipl_stack
+          (study_id, scenario_id, ipl_type, ipl_label, protection_layer,
+           is_independent, effectiveness_rating, human_dependency_level,
+           fail_state, pfd_value, pfd_source, pfd_basis,
+           credit_applied, stack_position, notes, created_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+        [study_id, scenario_id, ipl_type, ipl_label, protection_layer,
+         is_independent ?? false, effectiveness_rating, human_dependency_level,
+         fail_state, defaultPfd, pfd_source ?? 'default', pfd_basis,
+         credit_applied ?? true, pos, notes, userId]);
+      await client.query('COMMIT');
+      res.status(201).json(r.rows[0]);
+    } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
+    finally { client.release(); }
+  });
+
+  // ── PATCH /api/hazop/ipl-stack/items/:id ──────────────────────────────────
+  app.patch('/api/hazop/ipl-stack/items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { pfd_value, pfd_source, pfd_basis, credit_applied,
+              effectiveness_rating, notes, ipl_label, stack_position } = req.body;
+      const r = await pool.query(`
+        UPDATE hazop_scenario_ipl_stack SET
+          pfd_value           = COALESCE($1, pfd_value),
+          pfd_source          = COALESCE($2, pfd_source),
+          pfd_basis           = COALESCE($3, pfd_basis),
+          credit_applied      = COALESCE($4, credit_applied),
+          effectiveness_rating= COALESCE($5, effectiveness_rating),
+          notes               = COALESCE($6, notes),
+          ipl_label           = COALESCE($7, ipl_label),
+          stack_position      = COALESCE($8, stack_position)
+        WHERE id=$9 RETURNING *`,
+        [pfd_value, pfd_source, pfd_basis, credit_applied,
+         effectiveness_rating, notes, ipl_label, stack_position, id]);
+      if (!r.rows[0]) return sendNotFound(res, 'IPL stack item');
+      res.json(r.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── DELETE /api/hazop/ipl-stack/items/:id ─────────────────────────────────
+  app.delete('/api/hazop/ipl-stack/items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const r = await pool.query('DELETE FROM hazop_scenario_ipl_stack WHERE id=$1 RETURNING id', [id]);
+      if (!r.rows[0]) return sendNotFound(res, 'IPL stack item');
+      res.json({ ok: true });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── GET /api/hazop/studies/:studyId/phase5a-summary ───────────────────────
+  app.get('/api/hazop/studies/:studyId/phase5a-summary', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      const [lopaCount, lopaApproved, lopaGap, iplCount, iplCredited,
+             tolerable, requires_sif, uncalculated, scenarioCount] = await Promise.all([
+        pool.query('SELECT COUNT(*) AS count FROM hazop_lopa_records WHERE study_id=$1', [studyId]),
+        pool.query(`SELECT COUNT(*) AS count FROM hazop_lopa_records WHERE study_id=$1 AND lopa_status='approved'`, [studyId]),
+        pool.query(`SELECT COUNT(*) AS count FROM hazop_lopa_records WHERE study_id=$1 AND lopa_outcome IN ('requires_sif','requires_sif_upgrade','gap_exists')`, [studyId]),
+        pool.query('SELECT COUNT(*) AS count FROM hazop_scenario_ipl_stack WHERE study_id=$1', [studyId]),
+        pool.query('SELECT COUNT(*) AS count FROM hazop_scenario_ipl_stack WHERE study_id=$1 AND credit_applied=true', [studyId]),
+        pool.query(`SELECT COUNT(*) AS count FROM hazop_lopa_records WHERE study_id=$1 AND lopa_outcome='tolerable'`, [studyId]),
+        pool.query(`SELECT COUNT(*) AS count FROM hazop_lopa_records WHERE study_id=$1 AND lopa_outcome IN ('requires_sif','requires_sif_upgrade')`, [studyId]),
+        pool.query('SELECT COUNT(*) AS count FROM hazop_lopa_records WHERE study_id=$1 AND lopa_outcome IS NULL', [studyId]),
+        pool.query('SELECT COUNT(*) AS count FROM hazop_scenarios WHERE study_id=$1', [studyId]),
+      ]);
+      res.json({
+        lopa_count:             parseInt(lopaCount.rows[0].count),
+        lopa_approved_count:    parseInt(lopaApproved.rows[0].count),
+        lopa_gap_count:         parseInt(lopaGap.rows[0].count),
+        ipl_item_count:         parseInt(iplCount.rows[0].count),
+        ipl_credited_count:     parseInt(iplCredited.rows[0].count),
+        tolerable_count:        parseInt(tolerable.rows[0].count),
+        requires_sif_count:     parseInt(requires_sif.rows[0].count),
+        uncalculated_count:     parseInt(uncalculated.rows[0].count),
+        scenario_count:         parseInt(scenarioCount.rows[0].count),
+        lopa_coverage_pct: parseInt(scenarioCount.rows[0].count) > 0
+          ? Math.round(parseInt(lopaCount.rows[0].count) / parseInt(scenarioCount.rows[0].count) * 100)
+          : 0,
+      });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── GET /api/hazop/lopa/pfd-defaults (lookup table export) ────────────────
+  app.get('/api/hazop/lopa/pfd-defaults', ensureAuthenticated, (_req: Request, res: Response) => {
+    const layers = ['SIS','Mechanical','Relief','BPCS','Procedural','Operator'];
+    const ratings = ['verified','high','medium','low','critical','none'];
+    const result: Record<string, Record<string, number>> = {};
+    for (const l of layers) {
+      result[l] = {};
+      for (const r of ratings) {
+        const v = getPfdDefault(l, r);
+        result[l][r] = v;
+      }
+    }
+    res.json({ defaults: result, ief_defaults: IEF_DEFAULTS, rttf_defaults: RTTF_DEFAULTS });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 5A END
+  // ════════════════════════════════════════════════════════════════════════════
 }

@@ -16238,3 +16238,66 @@ export const hazopScenarios = pgTable('hazop_scenarios', {
   uqStudyScNum: uniqueIndex('uq_hazop_sc_study_num').on(table.studyId, table.scenarioNumber),
 }));
 export type HazopScenario = typeof hazopScenarios.$inferSelect;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PHASE 5A — LOPA Core
+// ══════════════════════════════════════════════════════════════════════════════
+
+// 33. hazop_scenario_ipl_stack
+export const hazopScenarioIplStack = pgTable('hazop_scenario_ipl_stack', {
+  id:                   serial('id').primaryKey(),
+  studyId:              integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  scenarioId:           integer('scenario_id').notNull().references(() => hazopScenarios.id, { onDelete: 'cascade' }),
+  responseGroupId:      integer('response_group_id').references(() => hazopResponseGroups.id, { onDelete: 'set null' }),
+  safetyFunctionId:     integer('safety_function_id').references(() => hazopSafetyFunctions.id, { onDelete: 'set null' }),
+  interlockId:          integer('interlock_id').references(() => hazopInterlocks.id, { onDelete: 'set null' }),
+  iplType:              text('ipl_type').notNull(),
+  iplLabel:             text('ipl_label').notNull(),
+  protectionLayer:      text('protection_layer').notNull(),
+  isIndependent:        boolean('is_independent').notNull().default(false),
+  effectivenessRating:  text('effectiveness_rating'),
+  humanDependencyLevel: text('human_dependency_level'),
+  failState:            text('fail_state'),
+  pfdValue:             numeric('pfd_value', { precision: 10, scale: 6 }),
+  pfdSource:            text('pfd_source'),
+  pfdBasis:             text('pfd_basis'),
+  creditApplied:        boolean('credit_applied').notNull().default(false),
+  stackPosition:        integer('stack_position').notNull(),
+  notes:                text('notes'),
+  createdAt:            timestamp('created_at').notNull().defaultNow(),
+  createdBy:            integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqScenarioPos: uniqueIndex('uq_hazop_ipl_scenario_pos').on(table.scenarioId, table.stackPosition),
+}));
+export type HazopScenarioIplStack = typeof hazopScenarioIplStack.$inferSelect;
+
+// 34. hazop_lopa_records
+export const hazopLopaRecords = pgTable('hazop_lopa_records', {
+  id:                    serial('id').primaryKey(),
+  studyId:               integer('study_id').notNull().references(() => hazopStudies.id, { onDelete: 'cascade' }),
+  scenarioId:            integer('scenario_id').notNull().references(() => hazopScenarios.id, { onDelete: 'cascade' }),
+  lopaNumber:            text('lopa_number').notNull(),
+  title:                 text('title'),
+  ieFrequencyPerYear:    numeric('ie_frequency_per_year', { precision: 15, scale: 9 }).notNull(),
+  ieFrequencyBasis:      text('ie_frequency_basis'),
+  consequenceCategory:   text('consequence_category').notNull(),
+  rttfPerYear:           numeric('rttf_per_year', { precision: 15, scale: 9 }).notNull(),
+  rttfBasis:             text('rttf_basis'),
+  achievedMefPerYear:    numeric('achieved_mef_per_year', { precision: 15, scale: 9 }),
+  pfdProduct:            numeric('pfd_product', { precision: 15, scale: 9 }),
+  riskGapRatio:          numeric('risk_gap_ratio', { precision: 15, scale: 6 }),
+  requiredAdditionalPfd: numeric('required_additional_pfd', { precision: 15, scale: 9 }),
+  requiredSil:           integer('required_sil'),
+  lopaOutcome:           text('lopa_outcome'),
+  lopaStatus:            text('lopa_status').notNull().default('draft'),
+  baselineRevision:      text('baseline_revision'),
+  approvedBy:            integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt:            timestamp('approved_at'),
+  notes:                 text('notes'),
+  createdAt:             timestamp('created_at').notNull().defaultNow(),
+  createdBy:             integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => ({
+  uqStudyLopaNum: uniqueIndex('uq_hazop_lopa_study_num').on(table.studyId, table.lopaNumber),
+  uqScenario:     uniqueIndex('uq_hazop_lopa_scenario').on(table.scenarioId),
+}));
+export type HazopLopaRecord = typeof hazopLopaRecords.$inferSelect;

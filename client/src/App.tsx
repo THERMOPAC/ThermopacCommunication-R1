@@ -344,6 +344,8 @@ function Router() {
       <ProtectedRoute path="/hazop/studies/:id/interlocks" component={() => <Hazop.HazopInterlocksPage />} />
       <ProtectedRoute path="/hazop/studies/:id/alarm-trips" component={() => <Hazop.HazopAlarmTripsPage />} />
       <ProtectedRoute path="/hazop/studies/:id/safety-critical-elements" component={() => <Hazop.HazopSafetyCriticalElementsPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/lopa/:lopaId" component={() => <Hazop.HazopLopaDetailPage />} />
+      <ProtectedRoute path="/hazop/studies/:id/lopa" component={() => <Hazop.HazopLopaPage />} />
 
       <Route component={NotFound} />
     </Switch>

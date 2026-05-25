@@ -520,6 +520,7 @@ function Layout({ children }: LayoutProps) {
           { icon: ShieldAlert, label: "Interlocks", href: `/hazop/studies/${hazopStudyId}/interlocks` },
           { icon: Bell, label: "Alarms & Trips", href: `/hazop/studies/${hazopStudyId}/alarm-trips` },
           { icon: Cpu, label: "SCE Registry", href: `/hazop/studies/${hazopStudyId}/safety-critical-elements` },
+          { icon: BarChart3, label: "LOPA", href: `/hazop/studies/${hazopStudyId}/lopa` },
         ] : []),
       ]
     }] : []),
