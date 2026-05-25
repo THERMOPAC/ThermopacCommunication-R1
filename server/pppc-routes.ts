@@ -624,13 +624,15 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                (buy_package_header_id, line_uid, line_number, buy_group_id, buy_subgroup_id, uom_id,
                 generic_requirement, default_quantity, default_specification, technical_attributes,
                 selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, notes, sort_order)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+                certificate_required, compliance_required, notes, sort_order,
+                installed_on, model)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
             [
               newId, l.line_uid, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
               l.generic_requirement, l.default_quantity, l.default_specification, l.technical_attributes,
               l.selection_required, l.datasheet_required, l.inspection_required,
               l.certificate_required, l.compliance_required, l.notes, l.sort_order,
+              l.installed_on ?? null, (l.model as string | null) ?? 'TBN',
             ],
           );
         }
@@ -711,13 +713,15 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
                (buy_package_header_id, line_uid, line_number, buy_group_id, buy_subgroup_id, uom_id,
                 generic_requirement, default_quantity, default_specification, technical_attributes,
                 selection_required, datasheet_required, inspection_required,
-                certificate_required, compliance_required, notes, sort_order)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+                certificate_required, compliance_required, notes, sort_order,
+                installed_on, model)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
             [
               newId, l.line_uid, l.line_number, l.buy_group_id, l.buy_subgroup_id, l.uom_id,
               l.generic_requirement, l.default_quantity, l.default_specification, l.technical_attributes,
               l.selection_required, l.datasheet_required, l.inspection_required,
               l.certificate_required, l.compliance_required, l.notes, l.sort_order,
+              l.installed_on ?? null, (l.model as string | null) ?? 'TBN',
             ],
           );
         }
