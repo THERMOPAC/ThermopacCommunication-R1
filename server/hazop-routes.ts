@@ -18,6 +18,9 @@ const EQUIPMENT_CATEGORIES = [
   'Tank', 'Pump', 'Heat Exchanger', 'Heater', 'Vessel', 'Column', 'Separator',
   'Filter', 'Control Valve', 'Isolation Valve', 'Check Valve', 'Instrument',
   'Utility System', 'Drain', 'Vent', 'Product Outlet', 'Waste Outlet', 'Next Loop',
+  // Phase 3B — TWFE equipment categories
+  'TWFE Evaporator', 'Vacuum Condenser', 'Degasoil Flash Vessel',
+  'Vacuum Ejector System', 'Residue Pump', 'Dehydration Column',
 ] as const;
 
 const CONNECTION_TYPES = [
@@ -465,14 +468,18 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         INSERT INTO hazop_nodes
           (study_id, loop_id, node_number, node_name, node_reference,
            node_description, design_intent, p_and_id_ref,
+           process_function, operating_regime, phase_state,
            deviation_count, action_count)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,0)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,0)
         RETURNING *
       `, [
         loop.study_id, loopId, nodeNumber, node_name.trim(), nodeReference,
         node_description?.trim() ?? null,
         design_intent?.trim() ?? null,
         p_and_id_ref?.trim() ?? null,
+        req.body.process_function?.trim() || 'General',
+        req.body.operating_regime?.trim() || 'atmospheric',
+        req.body.phase_state?.trim() || 'liquid',
       ]);
       res.status(201).json(result.rows[0]);
     } catch (err) { sendError(res, err); }
@@ -492,7 +499,8 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         return res.status(400).json({ error: 'node_name cannot be empty' });
       }
 
-      const allowed = ['node_name', 'node_description', 'design_intent', 'p_and_id_ref'];
+      const allowed = ['node_name', 'node_description', 'design_intent', 'p_and_id_ref',
+                       'process_function', 'operating_regime', 'phase_state'];
       const updates: string[] = [];
       const values: any[] = [];
       let idx = 1;
@@ -648,6 +656,12 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         buy_list_line_id ?? null, concept_equipment_id ?? null,
       ]);
 
+      // KI-2: flag node topology changed if deviations were already generated
+      await pool.query(
+        `UPDATE hazop_nodes SET topology_changed_after_review = true WHERE id = $1 AND generated_at IS NOT NULL`,
+        [nodeId]
+      );
+
       res.status(201).json({ ...result.rows[0], warnings });
     } catch (err) { sendError(res, err); }
   });
@@ -743,6 +757,12 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         values
       );
 
+      // KI-2: flag node topology changed if deviations were already generated
+      await client.query(
+        `UPDATE hazop_nodes SET topology_changed_after_review = true WHERE id = $1 AND generated_at IS NOT NULL`,
+        [existing.node_id]
+      );
+
       await client.query('COMMIT');
       res.json(stepUpdate.rows[0]);
     } catch (err) {
@@ -758,7 +778,7 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       if (isNaN(stepId)) return res.status(400).json({ error: 'Invalid stepId' });
 
       const stepRes = await pool.query(`
-        SELECT s.id, st.status AS study_status
+        SELECT s.id, s.node_id, st.status AS study_status
         FROM hazop_process_steps s
         JOIN hazop_nodes n ON n.id = s.node_id
         JOIN hazop_process_loops l ON l.id = n.loop_id
@@ -766,9 +786,15 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         WHERE s.id = $1
       `, [stepId]);
       if (stepRes.rowCount === 0) return sendNotFound(res, 'Process Step');
-      if (stepRes.rows[0].study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status to delete steps' });
+      const stepRow = stepRes.rows[0];
+      if (stepRow.study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status to delete steps' });
 
       await pool.query('DELETE FROM hazop_process_steps WHERE id=$1', [stepId]);
+      // KI-2: flag node topology changed if deviations were already generated
+      await pool.query(
+        `UPDATE hazop_nodes SET topology_changed_after_review = true WHERE id = $1 AND generated_at IS NOT NULL`,
+        [stepRow.node_id]
+      );
       res.status(204).send();
     } catch (err) { sendError(res, err); }
   });
@@ -966,6 +992,512 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
 
       await pool.query('DELETE FROM hazop_concept_equipment WHERE id=$1', [id]);
       res.status(204).send();
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 3B — Deviation Generation Engine
+  // ════════════════════════════════════════════════════════════════════════════
+
+  const GUIDEWORD_ORDER = ['No', 'More', 'Less', 'Reverse', 'Other Than', 'Part of', 'As well as', 'Early', 'Late'];
+  const TWFE_PRIORITY_CATEGORIES = [
+    'TWFE Evaporator', 'Vacuum Condenser', 'Degasoil Flash Vessel',
+    'Vacuum Ejector System', 'Residue Pump', 'Dehydration Column',
+  ];
+
+  function parseJsonArray(val: any): string[] {
+    if (Array.isArray(val)) return val as string[];
+    if (typeof val === 'string') { try { return JSON.parse(val); } catch { return []; } }
+    return [];
+  }
+
+  // ── Worksheet summary (all loops + nodes + generation status) ───────────────
+  app.get('/api/hazop/studies/:studyId/worksheet-summary', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudy(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const rows = await pool.query(`
+        SELECT l.id AS loop_id, l.loop_number, l.loop_name, l.sort_order,
+               n.id AS node_id, n.node_number, n.node_name, n.node_reference,
+               n.deviation_count, n.action_count, n.generated_at, n.generated_by,
+               n.process_function, n.operating_regime, n.phase_state,
+               n.topology_changed_after_review,
+               (SELECT COUNT(*) FROM hazop_process_steps s WHERE s.node_id = n.id) AS step_count
+        FROM hazop_process_loops l
+        LEFT JOIN hazop_nodes n ON n.loop_id = l.id
+        WHERE l.study_id = $1
+        ORDER BY l.sort_order, l.loop_number, n.node_number
+      `, [studyId]);
+
+      const loopMap = new Map<number, any>();
+      for (const row of rows.rows) {
+        if (!loopMap.has(row.loop_id)) {
+          loopMap.set(row.loop_id, {
+            loop_id: row.loop_id, loop_number: row.loop_number,
+            loop_name: row.loop_name, nodes: [],
+          });
+        }
+        if (row.node_id != null) {
+          loopMap.get(row.loop_id).nodes.push({
+            node_id: row.node_id, node_number: row.node_number,
+            node_name: row.node_name, node_reference: row.node_reference,
+            deviation_count: row.deviation_count, action_count: row.action_count,
+            generated_at: row.generated_at, generated_by: row.generated_by,
+            process_function: row.process_function, operating_regime: row.operating_regime,
+            phase_state: row.phase_state, step_count: row.step_count,
+            topology_changed_after_review: row.topology_changed_after_review,
+          });
+        }
+      }
+      res.json({ study_id: studyId, loops: [...loopMap.values()] });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Generate deviations for a single node ───────────────────────────────────
+  app.post('/api/hazop/nodes/:nodeId/generate', ensureAuthenticated, async (req: Request, res: Response) => {
+    const nodeId = parseInt(req.params.nodeId);
+    if (isNaN(nodeId)) return res.status(400).json({ error: 'Invalid nodeId' });
+    const userId = (req as any).user?.id ?? null;
+    const forceRegen = req.body?.force_regen === true;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const nodeRes = await client.query(`
+        SELECT n.*, l.loop_number, s.id AS study_id_check, s.status AS study_status
+        FROM hazop_nodes n
+        JOIN hazop_process_loops l ON l.id = n.loop_id
+        JOIN hazop_studies s ON s.id = n.study_id
+        WHERE n.id = $1
+      `, [nodeId]);
+      if (nodeRes.rowCount === 0) { await client.query('ROLLBACK'); return sendNotFound(res, 'Node'); }
+      const node = nodeRes.rows[0];
+      if (node.study_status !== 'draft') { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Study must be in draft status' }); }
+
+      await client.query(`SELECT pg_advisory_xact_lock($1::bigint)`, [node.study_id * 10000 + 3001]);
+
+      const stepsRes = await client.query(
+        `SELECT * FROM hazop_process_steps WHERE node_id = $1 ORDER BY sequence_no`, [nodeId]
+      );
+      if ((stepsRes.rowCount ?? 0) === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Node has no steps — add at least one step before generating' });
+      }
+      const steps = stepsRes.rows;
+      const categories = [...new Set(steps.map((s: any) => s.equipment_category as string))];
+
+      const libRes = await client.query(
+        `SELECT * FROM hazop_deviation_library WHERE equipment_category = ANY($1::text[]) AND applicable = true`,
+        [categories]
+      );
+      let allLibRows = [...libRes.rows];
+
+      if (node.operating_regime === 'vacuum') {
+        const vacRes = await client.query(
+          `SELECT * FROM hazop_deviation_library WHERE equipment_category = 'Vacuum Service' AND applicable = true`
+        );
+        allLibRows = [...allLibRows, ...vacRes.rows];
+      }
+      if (node.phase_state === 'two_phase' || node.phase_state === 'vapor') {
+        const phaseRes = await client.query(
+          `SELECT * FROM hazop_deviation_library WHERE equipment_category = 'Phase Transition' AND applicable = true`
+        );
+        allLibRows = [...allLibRows, ...phaseRes.rows];
+      }
+
+      let dominantCat: string | null = null;
+      for (const prio of TWFE_PRIORITY_CATEGORIES) {
+        if (categories.includes(prio)) { dominantCat = prio; break; }
+      }
+      if (!dominantCat && categories.length > 0) dominantCat = categories[0];
+
+      const pairMap = new Map<string, any>();
+      for (const row of allLibRows) {
+        const key = `${row.guideword}|${row.parameter}`;
+        if (!pairMap.has(key)) pairMap.set(key, row);
+        if (row.equipment_category === dominantCat) pairMap.set(key, row);
+      }
+
+      const pairs = [...pairMap.entries()].sort(([, a], [, b]) => {
+        const ia = GUIDEWORD_ORDER.indexOf(a.guideword);
+        const ib = GUIDEWORD_ORDER.indexOf(b.guideword);
+        if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+        return String(a.parameter).localeCompare(String(b.parameter));
+      });
+
+      let generated = 0;
+      let skipped = 0;
+
+      for (const [key, bestRow] of pairs) {
+        const [gw, param] = key.split('|');
+
+        const existRes = await client.query(
+          `SELECT id, reviewed FROM hazop_deviations WHERE node_id = $1 AND guideword = $2 AND parameter = $3`,
+          [nodeId, gw, param]
+        );
+        if ((existRes.rowCount ?? 0) > 0) {
+          const ex = existRes.rows[0];
+          if (ex.reviewed || !forceRegen) { skipped++; continue; }
+          await client.query(`UPDATE hazop_deviations SET deviation_description=$1 WHERE id=$2`,
+            [bestRow.deviation_description, ex.id]);
+          skipped++; continue;
+        }
+
+        const cntRes = await client.query(`SELECT COUNT(*) AS cnt FROM hazop_deviations WHERE node_id=$1`, [nodeId]);
+        const seqNo = parseInt(cntRes.rows[0].cnt) + 1;
+        const devNumber = `${node.node_reference}-D${String(seqNo).padStart(2, '0')}`;
+
+        const devRes = await client.query(`
+          INSERT INTO hazop_deviations
+            (node_id, study_id, deviation_number, guideword, parameter, deviation_description, is_credible, reviewed, created_at)
+          VALUES ($1,$2,$3,$4,$5,$6,true,false,NOW())
+          ON CONFLICT (node_id, guideword, parameter) DO NOTHING RETURNING id
+        `, [nodeId, node.study_id, devNumber, gw, param, bestRow.deviation_description]);
+
+        if ((devRes.rowCount ?? 0) === 0) { skipped++; continue; }
+        const devId = devRes.rows[0].id;
+
+        const causes = parseJsonArray(bestRow.typical_causes);
+        for (let i = 0; i < causes.length; i++)
+          await client.query(`INSERT INTO hazop_causes (deviation_id,cause_number,cause_description,source,deleted) VALUES($1,$2,$3,'library',false)`,
+            [devId, i + 1, causes[i]]);
+
+        const consequences = parseJsonArray(bestRow.typical_consequences);
+        for (let i = 0; i < consequences.length; i++)
+          await client.query(`INSERT INTO hazop_consequences (deviation_id,consequence_number,consequence_description,source,deleted) VALUES($1,$2,$3,'library',false)`,
+            [devId, i + 1, consequences[i]]);
+
+        const safeguards = parseJsonArray(bestRow.typical_safeguards);
+        for (let i = 0; i < safeguards.length; i++)
+          await client.query(`INSERT INTO hazop_safeguards (deviation_id,safeguard_number,safeguard_description,source,deleted) VALUES($1,$2,$3,'library',false)`,
+            [devId, i + 1, safeguards[i]]);
+
+        const actions = parseJsonArray(bestRow.typical_actions);
+        for (let i = 0; i < actions.length; i++)
+          await client.query(`INSERT INTO hazop_actions (deviation_id,action_number,action_description,source,status) VALUES($1,$2,$3,'library','open')`,
+            [devId, i + 1, actions[i]]);
+
+        generated++;
+      }
+
+      await client.query(`
+        UPDATE hazop_nodes SET
+          deviation_count = (SELECT COUNT(*) FROM hazop_deviations WHERE node_id=$1),
+          action_count = (SELECT COUNT(*) FROM hazop_actions a JOIN hazop_deviations d ON d.id=a.deviation_id WHERE d.node_id=$1 AND a.status='open'),
+          generated_at = NOW(), generated_by = $2, topology_changed_after_review = false
+        WHERE id = $1
+      `, [nodeId, userId]);
+
+      await client.query('COMMIT');
+      const stats = await pool.query(`SELECT deviation_count, action_count FROM hazop_nodes WHERE id=$1`, [nodeId]);
+      res.json({ success: true, node_id: nodeId, generated, skipped,
+        deviation_count: stats.rows[0]?.deviation_count ?? 0,
+        action_count: stats.rows[0]?.action_count ?? 0 });
+    } catch (err: any) {
+      await client.query('ROLLBACK'); sendError(res, err);
+    } finally { client.release(); }
+  });
+
+  // ── Bulk generate for entire study (skips nodes with no steps) ──────────────
+  app.post('/api/hazop/studies/:studyId/generate', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudy(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+      if (study.status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+
+      const nodesRes = await pool.query(
+        `SELECT n.id FROM hazop_nodes n
+         WHERE n.study_id = $1
+           AND EXISTS (SELECT 1 FROM hazop_process_steps s WHERE s.node_id = n.id)
+         ORDER BY n.id`, [studyId]
+      );
+      const nodeIds: number[] = nodesRes.rows.map((r: any) => r.id);
+      const forceRegen = req.body?.force_regen === true;
+
+      let totalGenerated = 0;
+      let totalSkipped = 0;
+      const nodeResults: any[] = [];
+
+      for (const nodeId of nodeIds) {
+        // Re-use the single-node generation logic via internal call
+        const mockReq = { params: { nodeId: String(nodeId) }, body: { force_regen: forceRegen }, user: (req as any).user } as any;
+        let nodeResult: any = null;
+        await new Promise<void>((resolve) => {
+          const mockRes = {
+            status: (code: number) => ({ json: (data: any) => { nodeResult = { node_id: nodeId, status: code, ...data }; resolve(); } }),
+            json: (data: any) => { nodeResult = { node_id: nodeId, status: 200, ...data }; resolve(); },
+          } as any;
+          // Call the generate endpoint logic directly via pool
+          (async () => {
+            const userId = (req as any).user?.id ?? null;
+            const client2 = await pool.connect();
+            try {
+              await client2.query('BEGIN');
+              const nodeRes = await client2.query(`SELECT n.*, s.status AS study_status FROM hazop_nodes n JOIN hazop_process_loops l ON l.id=n.loop_id JOIN hazop_studies s ON s.id=n.study_id WHERE n.id=$1`, [nodeId]);
+              const node = nodeRes.rows[0];
+              await client2.query(`SELECT pg_advisory_xact_lock($1::bigint)`, [studyId * 10000 + 3001]);
+              const stepsRes = await client2.query(`SELECT * FROM hazop_process_steps WHERE node_id=$1 ORDER BY sequence_no`, [nodeId]);
+              const steps = stepsRes.rows;
+              const categories = [...new Set(steps.map((s: any) => s.equipment_category as string))];
+              const libRes = await client2.query(`SELECT * FROM hazop_deviation_library WHERE equipment_category = ANY($1::text[]) AND applicable=true`, [categories]);
+              let allLibRows = [...libRes.rows];
+              if (node.operating_regime === 'vacuum') {
+                const vr = await client2.query(`SELECT * FROM hazop_deviation_library WHERE equipment_category='Vacuum Service' AND applicable=true`);
+                allLibRows = [...allLibRows, ...vr.rows];
+              }
+              if (node.phase_state === 'two_phase' || node.phase_state === 'vapor') {
+                const pr = await client2.query(`SELECT * FROM hazop_deviation_library WHERE equipment_category='Phase Transition' AND applicable=true`);
+                allLibRows = [...allLibRows, ...pr.rows];
+              }
+              let dominantCat: string | null = null;
+              for (const p of TWFE_PRIORITY_CATEGORIES) { if (categories.includes(p)) { dominantCat = p; break; } }
+              if (!dominantCat && categories.length > 0) dominantCat = categories[0];
+              const pairMap = new Map<string, any>();
+              for (const row of allLibRows) {
+                const key = `${row.guideword}|${row.parameter}`;
+                if (!pairMap.has(key)) pairMap.set(key, row);
+                if (row.equipment_category === dominantCat) pairMap.set(key, row);
+              }
+              const pairs = [...pairMap.entries()].sort(([, a], [, b]) => {
+                const ia = GUIDEWORD_ORDER.indexOf(a.guideword); const ib = GUIDEWORD_ORDER.indexOf(b.guideword);
+                if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+                return String(a.parameter).localeCompare(String(b.parameter));
+              });
+              let gen = 0; let sk = 0;
+              for (const [key, bestRow] of pairs) {
+                const [gw, param] = key.split('|');
+                const existRes = await client2.query(`SELECT id, reviewed FROM hazop_deviations WHERE node_id=$1 AND guideword=$2 AND parameter=$3`, [nodeId, gw, param]);
+                if ((existRes.rowCount ?? 0) > 0) { const ex = existRes.rows[0]; if (ex.reviewed || !forceRegen) { sk++; continue; } await client2.query(`UPDATE hazop_deviations SET deviation_description=$1 WHERE id=$2`, [bestRow.deviation_description, ex.id]); sk++; continue; }
+                const cntRes = await client2.query(`SELECT COUNT(*) AS cnt FROM hazop_deviations WHERE node_id=$1`, [nodeId]);
+                const seqNo = parseInt(cntRes.rows[0].cnt) + 1;
+                const devRes = await client2.query(`INSERT INTO hazop_deviations (node_id,study_id,deviation_number,guideword,parameter,deviation_description,is_credible,reviewed,created_at) VALUES($1,$2,$3,$4,$5,$6,true,false,NOW()) ON CONFLICT (node_id,guideword,parameter) DO NOTHING RETURNING id`,
+                  [nodeId, studyId, `${node.node_reference}-D${String(seqNo).padStart(2,'0')}`, gw, param, bestRow.deviation_description]);
+                if ((devRes.rowCount ?? 0) === 0) { sk++; continue; }
+                const devId = devRes.rows[0].id;
+                const causes = parseJsonArray(bestRow.typical_causes); for (let i=0;i<causes.length;i++) await client2.query(`INSERT INTO hazop_causes(deviation_id,cause_number,cause_description,source,deleted) VALUES($1,$2,$3,'library',false)`,[devId,i+1,causes[i]]);
+                const consequences = parseJsonArray(bestRow.typical_consequences); for (let i=0;i<consequences.length;i++) await client2.query(`INSERT INTO hazop_consequences(deviation_id,consequence_number,consequence_description,source,deleted) VALUES($1,$2,$3,'library',false)`,[devId,i+1,consequences[i]]);
+                const safeguards = parseJsonArray(bestRow.typical_safeguards); for (let i=0;i<safeguards.length;i++) await client2.query(`INSERT INTO hazop_safeguards(deviation_id,safeguard_number,safeguard_description,source,deleted) VALUES($1,$2,$3,'library',false)`,[devId,i+1,safeguards[i]]);
+                const actions = parseJsonArray(bestRow.typical_actions); for (let i=0;i<actions.length;i++) await client2.query(`INSERT INTO hazop_actions(deviation_id,action_number,action_description,source,status) VALUES($1,$2,$3,'library','open')`,[devId,i+1,actions[i]]);
+                gen++;
+              }
+              await client2.query(`UPDATE hazop_nodes SET deviation_count=(SELECT COUNT(*) FROM hazop_deviations WHERE node_id=$1), action_count=(SELECT COUNT(*) FROM hazop_actions a JOIN hazop_deviations d ON d.id=a.deviation_id WHERE d.node_id=$1 AND a.status='open'), generated_at=NOW(), generated_by=$2, topology_changed_after_review=false WHERE id=$1`, [nodeId, userId]);
+              await client2.query('COMMIT');
+              nodeResult = { node_id: nodeId, status: 200, generated: gen, skipped: sk };
+              resolve();
+            } catch (e: any) { await client2.query('ROLLBACK'); nodeResult = { node_id: nodeId, status: 500, error: e.message }; resolve(); }
+            finally { client2.release(); }
+          })();
+        });
+        nodeResults.push(nodeResult);
+        if (nodeResult?.generated) totalGenerated += nodeResult.generated;
+        if (nodeResult?.skipped) totalSkipped += nodeResult.skipped;
+      }
+
+      res.json({ success: true, study_id: studyId, nodes_processed: nodeIds.length, total_generated: totalGenerated, total_skipped: totalSkipped, node_results: nodeResults });
+    } catch (err: any) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 3B — Deviation CRUD
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── List deviations for a node (with nested causes/consequences/safeguards/actions) ──
+  app.get('/api/hazop/nodes/:nodeId/deviations', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const nodeId = parseInt(req.params.nodeId);
+      if (isNaN(nodeId)) return res.status(400).json({ error: 'Invalid nodeId' });
+      const nodeRes = await pool.query('SELECT id, study_id FROM hazop_nodes WHERE id=$1', [nodeId]);
+      if (nodeRes.rowCount === 0) return sendNotFound(res, 'Node');
+
+      const devsRes = await pool.query(`
+        SELECT d.*,
+          COALESCE((SELECT json_agg(json_build_object('id',c.id,'cause_number',c.cause_number,'cause_description',c.cause_description,'source',c.source) ORDER BY c.cause_number) FROM hazop_causes c WHERE c.deviation_id=d.id AND c.deleted=false), '[]') AS causes,
+          COALESCE((SELECT json_agg(json_build_object('id',cn.id,'consequence_number',cn.consequence_number,'consequence_description',cn.consequence_description,'source',cn.source) ORDER BY cn.consequence_number) FROM hazop_consequences cn WHERE cn.deviation_id=d.id AND cn.deleted=false), '[]') AS consequences,
+          COALESCE((SELECT json_agg(json_build_object('id',sg.id,'safeguard_number',sg.safeguard_number,'safeguard_description',sg.safeguard_description,'safeguard_type',sg.safeguard_type,'tag_ref',sg.tag_ref,'source',sg.source) ORDER BY sg.safeguard_number) FROM hazop_safeguards sg WHERE sg.deviation_id=d.id AND sg.deleted=false), '[]') AS safeguards,
+          COALESCE((SELECT json_agg(json_build_object('id',a.id,'action_number',a.action_number,'action_description',a.action_description,'action_type',a.action_type,'status',a.status,'assigned_to',a.assigned_to,'due_date',a.due_date,'source',a.source) ORDER BY a.action_number) FROM hazop_actions a WHERE a.deviation_id=d.id), '[]') AS actions
+        FROM hazop_deviations d
+        WHERE d.node_id = $1
+        ORDER BY d.deviation_number
+      `, [nodeId]);
+
+      res.json(devsRes.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Patch deviation ──────────────────────────────────────────────────────────
+  app.patch('/api/hazop/deviations/:deviationId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const devId = parseInt(req.params.deviationId);
+      if (isNaN(devId)) return res.status(400).json({ error: 'Invalid deviationId' });
+      const devRes = await pool.query(`SELECT d.*, s.status AS study_status FROM hazop_deviations d JOIN hazop_studies s ON s.id=d.study_id WHERE d.id=$1`, [devId]);
+      if (devRes.rowCount === 0) return sendNotFound(res, 'Deviation');
+      if (devRes.rows[0].study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+
+      const allowed = ['deviation_description', 'is_credible', 'reviewed', 'severity', 'likelihood', 'risk_ranking', 'comments'];
+      const updates: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+      for (const f of allowed) {
+        if (f in req.body) { updates.push(`${f}=$${idx}`); values.push(req.body[f]); idx++; }
+      }
+      if (updates.length === 0) return res.status(400).json({ error: 'No updatable fields provided' });
+      values.push(devId);
+      const result = await pool.query(`UPDATE hazop_deviations SET ${updates.join(',')} WHERE id=$${idx} RETURNING *`, values);
+      res.json(result.rows[0]);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ── Delete deviation (manual only) ───────────────────────────────────────────
+  app.delete('/api/hazop/deviations/:deviationId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const devId = parseInt(req.params.deviationId);
+      if (isNaN(devId)) return res.status(400).json({ error: 'Invalid deviationId' });
+      const devRes = await pool.query(`SELECT d.*, s.status AS study_status FROM hazop_deviations d JOIN hazop_studies s ON s.id=d.study_id WHERE d.id=$1`, [devId]);
+      if (devRes.rowCount === 0) return sendNotFound(res, 'Deviation');
+      const dev = devRes.rows[0];
+      if (dev.study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+      if (dev.reviewed) return res.status(409).json({ error: 'Reviewed deviations cannot be deleted' });
+
+      await pool.query('DELETE FROM hazop_deviations WHERE id=$1', [devId]);
+      await pool.query(`UPDATE hazop_nodes SET deviation_count=(SELECT COUNT(*) FROM hazop_deviations WHERE node_id=$1) WHERE id=$1`, [dev.node_id]);
+      res.status(204).send();
+    } catch (err) { sendError(res, err); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PHASE 3B — Cause / Consequence / Safeguard / Action CRUD
+  // ════════════════════════════════════════════════════════════════════════════
+
+  function makeChildCrud(
+    table: string, numberCol: string, descCol: string,
+    parentCol: string, parentTable: string
+  ) {
+    // POST — add child row
+    app.post(`/api/hazop/deviations/:deviationId/${table}`, ensureAuthenticated, async (req: Request, res: Response) => {
+      try {
+        const devId = parseInt(req.params.deviationId);
+        if (isNaN(devId)) return res.status(400).json({ error: 'Invalid deviationId' });
+        const devRes = await pool.query(`SELECT d.*, s.status AS study_status FROM hazop_deviations d JOIN hazop_studies s ON s.id=d.study_id WHERE d.id=$1`, [devId]);
+        if (devRes.rowCount === 0) return sendNotFound(res, 'Deviation');
+        if (devRes.rows[0].study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+
+        const desc = req.body[descCol];
+        if (!desc || typeof desc !== 'string' || !desc.trim()) return res.status(400).json({ error: `${descCol} is required` });
+
+        const seqRes = await pool.query(`SELECT COALESCE(MAX(${numberCol}),0)+1 AS next_num FROM ${parentTable} WHERE deviation_id=$1`, [devId]);
+        const seqNum = seqRes.rows[0].next_num;
+
+        const extraCols: string[] = [];
+        const extraVals: any[] = [];
+        if (table === 'safeguards') {
+          if (req.body.safeguard_type) { extraCols.push('safeguard_type'); extraVals.push(req.body.safeguard_type); }
+          if (req.body.tag_ref) { extraCols.push('tag_ref'); extraVals.push(req.body.tag_ref); }
+        }
+        if (table === 'actions') {
+          if (req.body.action_type) { extraCols.push('action_type'); extraVals.push(req.body.action_type); }
+          if (req.body.assigned_to) { extraCols.push('assigned_to'); extraVals.push(req.body.assigned_to); }
+          if (req.body.due_date) { extraCols.push('due_date'); extraVals.push(req.body.due_date); }
+        }
+
+        const hasDeleted = table !== 'actions';
+        const baseSQL = hasDeleted
+          ? `INSERT INTO ${parentTable} (deviation_id,${numberCol},${descCol},source,deleted${extraCols.length ? ',' + extraCols.join(',') : ''}) VALUES($1,$2,$3,'manual',false${extraVals.map((_,i)=>',$'+(4+i)).join('')}) RETURNING *`
+          : `INSERT INTO ${parentTable} (deviation_id,${numberCol},${descCol},source,status${extraCols.length ? ',' + extraCols.join(',') : ''}) VALUES($1,$2,$3,'manual','open'${extraVals.map((_,i)=>',$'+(4+i)).join('')}) RETURNING *`;
+
+        const result = await pool.query(baseSQL, [devId, seqNum, desc.trim(), ...extraVals]);
+        res.status(201).json(result.rows[0]);
+      } catch (err) { sendError(res, err); }
+    });
+
+    // PATCH — update child row
+    app.patch(`/api/hazop/${table}/:rowId`, ensureAuthenticated, async (req: Request, res: Response) => {
+      try {
+        const rowId = parseInt(req.params.rowId);
+        if (isNaN(rowId)) return res.status(400).json({ error: 'Invalid rowId' });
+        const rowRes = await pool.query(`SELECT r.*, s.status AS study_status FROM ${parentTable} r JOIN hazop_deviations d ON d.id=r.deviation_id JOIN hazop_studies s ON s.id=d.study_id WHERE r.id=$1`, [rowId]);
+        if (rowRes.rowCount === 0) return sendNotFound(res, table);
+        if (rowRes.rows[0].study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+
+        const allowedPatch: Record<string, string[]> = {
+          causes: ['cause_description'],
+          consequences: ['consequence_description'],
+          safeguards: ['safeguard_description', 'safeguard_type', 'tag_ref'],
+          actions: ['action_description', 'action_type', 'assigned_to', 'due_date', 'status', 'close_comments', 'closed_at'],
+        };
+        const fields = allowedPatch[table] ?? [descCol];
+        const updates: string[] = [];
+        const values: any[] = [];
+        let idx = 1;
+        for (const f of fields) {
+          if (f in req.body) { updates.push(`${f}=$${idx}`); values.push(req.body[f]); idx++; }
+        }
+        if (updates.length === 0) return res.status(400).json({ error: 'No updatable fields provided' });
+        if (table === 'actions' && req.body.status === 'closed' && !rowRes.rows[0].closed_at) {
+          updates.push(`closed_at=NOW()`);
+        }
+        values.push(rowId);
+        const result = await pool.query(`UPDATE ${parentTable} SET ${updates.join(',')} WHERE id=$${idx} RETURNING *`, values);
+        res.json(result.rows[0]);
+      } catch (err) { sendError(res, err); }
+    });
+
+    // DELETE — hard delete (manual) or soft delete (library)
+    app.delete(`/api/hazop/${table}/:rowId`, ensureAuthenticated, async (req: Request, res: Response) => {
+      try {
+        const rowId = parseInt(req.params.rowId);
+        if (isNaN(rowId)) return res.status(400).json({ error: 'Invalid rowId' });
+        const rowRes = await pool.query(`SELECT r.*, s.status AS study_status FROM ${parentTable} r JOIN hazop_deviations d ON d.id=r.deviation_id JOIN hazop_studies s ON s.id=d.study_id WHERE r.id=$1`, [rowId]);
+        if (rowRes.rowCount === 0) return sendNotFound(res, table);
+        if (rowRes.rows[0].study_status !== 'draft') return res.status(409).json({ error: 'Study must be in draft status' });
+
+        if (rowRes.rows[0].source === 'library' && table !== 'actions') {
+          await pool.query(`UPDATE ${parentTable} SET deleted=true WHERE id=$1`, [rowId]);
+        } else {
+          await pool.query(`DELETE FROM ${parentTable} WHERE id=$1`, [rowId]);
+        }
+        res.status(204).send();
+      } catch (err) { sendError(res, err); }
+    });
+  }
+
+  makeChildCrud('causes', 'cause_number', 'cause_description', 'deviation_id', 'hazop_causes');
+  makeChildCrud('consequences', 'consequence_number', 'consequence_description', 'deviation_id', 'hazop_consequences');
+  makeChildCrud('safeguards', 'safeguard_number', 'safeguard_description', 'deviation_id', 'hazop_safeguards');
+  makeChildCrud('actions', 'action_number', 'action_description', 'deviation_id', 'hazop_actions');
+
+  // ── Action register for a study ──────────────────────────────────────────────
+  app.get('/api/hazop/studies/:studyId/actions', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const studyId = parseInt(req.params.studyId);
+      if (isNaN(studyId)) return res.status(400).json({ error: 'Invalid studyId' });
+      const study = await resolveStudy(studyId);
+      if (!study) return sendNotFound(res, 'HAZOP Study');
+
+      const status = req.query.status as string | undefined;
+      const filterSQL = status ? `AND a.status = '${status.replace(/'/g, "''")}'` : '';
+
+      const result = await pool.query(`
+        SELECT a.id AS action_id, a.action_number, a.action_description, a.action_type,
+               a.status, a.assigned_to, a.due_date, a.close_comments, a.closed_at, a.source,
+               d.id AS deviation_id, d.deviation_number, d.guideword, d.parameter,
+               n.id AS node_id, n.node_reference, n.node_name,
+               l.loop_number, l.loop_name,
+               u.username AS assigned_to_name
+        FROM hazop_actions a
+        JOIN hazop_deviations d ON d.id = a.deviation_id
+        JOIN hazop_nodes n ON n.id = d.node_id
+        JOIN hazop_process_loops l ON l.id = n.loop_id
+        LEFT JOIN users u ON u.id = a.assigned_to
+        WHERE d.study_id = $1 ${filterSQL}
+        ORDER BY l.loop_number, n.node_number, d.deviation_number, a.action_number
+      `, [studyId]);
+
+      res.json(result.rows);
     } catch (err) { sendError(res, err); }
   });
 }

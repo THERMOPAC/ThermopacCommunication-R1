@@ -31,6 +31,69 @@ Phase 2 v2.0 is closed. The following are in place and verified:
 
 ---
 
+## 0.1 TWFE Binding Amendment (2026-05-25)
+
+**Status:** APPROVED — supersedes §1 scope and §4 generation algorithm where they conflict.
+
+Used oil re-refining with Thin Wiped Film Evaporation (TWFE) requires the generation
+engine and node model to go beyond equipment_category-only generation.
+
+The following requirements are binding for Phase 3B implementation:
+
+### 0.1.1 Process-Function-Centric Node Modelling
+
+`hazop_nodes` gains three new columns (already applied to DB):
+
+| Column | Type | Default | Values |
+|---|---|---|---|
+| `process_function` | varchar(50) | NULL | `Dehydration`, `Degasoil Flash`, `TWFE Evaporation`, `Vacuum Distillation`, `Condensation`, `Residue Discharge`, `General` |
+| `operating_regime` | varchar(20) | `atmospheric` | `atmospheric`, `vacuum`, `pressure` |
+| `phase_state` | varchar(20) | `liquid` | `liquid`, `two_phase`, `vapor` |
+| `topology_changed_after_review` | boolean | `false` | (per Phase 3A §9.4) |
+
+These fields are set by the user when defining a node and used by the generation engine.
+
+### 0.1.2 Thermodynamic and Vacuum Regime Awareness
+
+The generation engine applies **regime overlays** in addition to equipment-based generation:
+
+- If `node.operating_regime = 'vacuum'`: query the `Vacuum Service` virtual library category and add its deviations to the node's set.
+- If `node.phase_state IN ('two_phase', 'vapor')`: query the `Phase Transition` virtual library category and add its deviations.
+- Virtual categories are library rows with `equipment_category = 'Vacuum Service'` or `'Phase Transition'` — they do not appear in the step equipment vocabulary.
+
+### 0.1.3 TWFE Equipment Categories (6 new)
+
+Added to the step equipment vocabulary and fully covered in the deviation library:
+
+| New Category | Process Context |
+|---|---|
+| `TWFE Evaporator` | Thin Wiped Film Evaporator body |
+| `Vacuum Condenser` | Condenser operating under vacuum |
+| `Degasoil Flash Vessel` | Flash vessel for light ends removal |
+| `Vacuum Ejector System` | Steam ejector or vacuum pump system |
+| `Residue Pump` | Hot residue discharge pump |
+| `Dehydration Column` | Water removal column |
+
+### 0.1.4 Phase-Transition-Aware Deviation Generation
+
+The generation algorithm (§4) is updated to:
+1. Query equipment-category library entries (existing logic)
+2. If `operating_regime = 'vacuum'`: add Vacuum Service overlay entries
+3. If `phase_state = 'two_phase'` or `'vapor'`: add Phase Transition overlay entries
+4. Build UNION of all (guideword, parameter) pairs from all three sources
+5. Dominant equipment phrasing applies only to equipment-category entries
+
+### 0.1.5 Phase 3A Library Scope Extended
+
+`docs/hazop-phase3a-deviation-library-plan-v1.0.md` now covers:
+- 62 standard category entries (as specified)
+- 36 TWFE-specific entries: 6 TWFE equipment categories × avg 5 entries + 3 Vacuum Service + 3 Phase Transition
+
+Total library after Phase 3A+TWFE seed: **114 rows across 26 categories**
+(18 standard + 6 TWFE + 2 virtual = 26)
+
+---
+
 ## 1. Phase 3 Scope
 
 Phase 3 delivers the HAZOP generation engine, deviation CRUD, and the worksheet view.

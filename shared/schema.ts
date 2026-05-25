@@ -15764,10 +15764,15 @@ export const hazopNodes = pgTable('hazop_nodes', {
   nodeDescription: varchar('node_description', { length: 300 }),
   designIntent:    text('design_intent'),
   pAndIdRef:       varchar('p_and_id_ref', { length: 100 }),
-  deviationCount:  integer('deviation_count').notNull().default(0),
-  actionCount:     integer('action_count').notNull().default(0),
-  generatedAt:     timestamp('generated_at'),
-  generatedBy:     integer('generated_by').references(() => users.id),
+  deviationCount:              integer('deviation_count').notNull().default(0),
+  actionCount:                 integer('action_count').notNull().default(0),
+  generatedAt:                 timestamp('generated_at'),
+  generatedBy:                 integer('generated_by').references(() => users.id),
+  // Phase 3B — TWFE process-function and regime fields
+  processFunction:             varchar('process_function', { length: 50 }),
+  operatingRegime:             varchar('operating_regime', { length: 20 }).notNull().default('atmospheric'),
+  phaseState:                  varchar('phase_state', { length: 20 }).notNull().default('liquid'),
+  topologyChangedAfterReview:  boolean('topology_changed_after_review').notNull().default(false),
 }, (table) => ({
   uqLoopNode: uniqueIndex('uq_hazop_node_loop_num').on(table.loopId, table.nodeNumber),
 }));

@@ -19,7 +19,17 @@ const EQUIPMENT_CATEGORIES = [
   "Tank", "Pump", "Heat Exchanger", "Heater", "Vessel", "Column", "Separator",
   "Filter", "Control Valve", "Isolation Valve", "Check Valve", "Instrument",
   "Utility System", "Drain", "Vent", "Product Outlet", "Waste Outlet", "Next Loop",
+  // Phase 3B — TWFE equipment categories (step vocabulary only, no virtual regime categories)
+  "TWFE Evaporator", "Vacuum Condenser", "Degasoil Flash Vessel",
+  "Vacuum Ejector System", "Residue Pump", "Dehydration Column",
 ];
+
+const PROCESS_FUNCTIONS = [
+  "General", "Dehydration", "Degasoil Flash", "TWFE Evaporation",
+  "Vacuum Distillation", "Condensation", "Residue Discharge",
+];
+const OPERATING_REGIMES = ["atmospheric", "vacuum", "pressure"];
+const PHASE_STATES = ["liquid", "two_phase", "vapor"];
 
 const CONNECTION_TYPES = [
   "Pipe (flanged)", "Pipe (screwed)", "Pipe (welded)", "Flexible hose",
@@ -81,6 +91,12 @@ interface Node {
   deviation_count: number;
   action_count: number;
   step_count: string;
+  process_function: string | null;
+  operating_regime: string;
+  phase_state: string;
+  topology_changed_after_review: boolean;
+  generated_at: string | null;
+  generated_by: number | null;
 }
 
 interface Step {
@@ -204,6 +220,9 @@ function NodeFormDialog({ open, onClose, loopId, studyId, editing }: { open: boo
   const [desc, setDesc] = useState(editing?.node_description ?? "");
   const [intent, setIntent] = useState(editing?.design_intent ?? "");
   const [pandid, setPandid] = useState(editing?.p_and_id_ref ?? "");
+  const [processFunction, setProcessFunction] = useState(editing?.process_function ?? "General");
+  const [operatingRegime, setOperatingRegime] = useState(editing?.operating_regime ?? "atmospheric");
+  const [phaseState, setPhaseState] = useState(editing?.phase_state ?? "liquid");
 
   const mutation = useMutation({
     mutationFn: (body: Record<string, any>) =>
@@ -225,12 +244,15 @@ function NodeFormDialog({ open, onClose, loopId, studyId, editing }: { open: boo
       node_description: desc || null,
       design_intent: intent || null,
       p_and_id_ref: pandid || null,
+      process_function: processFunction || "General",
+      operating_regime: operatingRegime || "atmospheric",
+      phase_state: phaseState || "liquid",
     });
   }
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-xl">
         <DialogHeader><DialogTitle>{editing ? "Edit Node" : "Add Process Node"}</DialogTitle></DialogHeader>
         <div className="space-y-3 py-2">
           <div>
@@ -238,6 +260,37 @@ function NodeFormDialog({ open, onClose, loopId, studyId, editing }: { open: boo
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Feed Pump Suction" />
           </div>
           <div><Label>P&ID Reference</Label><Input value={pandid} onChange={e => setPandid(e.target.value)} placeholder="e.g. P&ID-001-A" /></div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">Process Function</Label>
+              <Select value={processFunction} onValueChange={setProcessFunction}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>{PROCESS_FUNCTIONS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Operating Regime</Label>
+              <Select value={operatingRegime} onValueChange={setOperatingRegime}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="atmospheric">Atmospheric</SelectItem>
+                  <SelectItem value="vacuum">Vacuum</SelectItem>
+                  <SelectItem value="pressure">Pressure</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Phase State</Label>
+              <Select value={phaseState} onValueChange={setPhaseState}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="liquid">Liquid</SelectItem>
+                  <SelectItem value="two_phase">Two Phase</SelectItem>
+                  <SelectItem value="vapor">Vapor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div><Label>Design Intent</Label><Textarea value={intent} onChange={e => setIntent(e.target.value)} rows={2} placeholder="Describe the intended function of this node…" /></div>
           <div><Label>Description</Label><Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Short label (optional)" /></div>
         </div>
@@ -612,6 +665,9 @@ export default function HazopProcessBuilderPage() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate(`/hazop/studies/${studyId}/nodes`)} className="gap-1">
               <List className="h-4 w-4" /> Node Register
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/hazop/studies/${studyId}/worksheet`)} className="gap-1">
+              <Layers className="h-4 w-4" /> Worksheet
             </Button>
             {isDraft && (
               <Button size="sm" onClick={() => { setEditingLoop(null); setLoopFormOpen(true); }} className="gap-1">
