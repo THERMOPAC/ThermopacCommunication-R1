@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -88,11 +88,12 @@ interface CreateStudyDialogProps {
   open: boolean;
   onClose: () => void;
   onSuccess: (mode: string) => void;
+  defaultMode?: "project_based" | "concept_expected_project";
 }
 
-function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps) {
+function CreateStudyDialog({ open, onClose, onSuccess, defaultMode = "project_based" }: CreateStudyDialogProps) {
   const { toast } = useToast();
-  const [studyMode, setStudyMode] = useState<"project_based" | "concept_expected_project">("project_based");
+  const [studyMode, setStudyMode] = useState<"project_based" | "concept_expected_project">(defaultMode);
   const [projectId, setProjectId] = useState<string>("");
   const [title, setTitle] = useState("");
   const [conceptTitle, setConceptTitle] = useState("");
@@ -102,6 +103,51 @@ function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps)
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
+
+  // Every time the dialog opens (or defaultMode changes while open), sync state
+  useEffect(() => {
+    if (!open) return;
+    setStudyMode(defaultMode);
+    setProjectId("");
+    setStudyDate("");
+    if (defaultMode === "concept_expected_project") {
+      setConceptTitle("Concept / Expected Project");
+      setTitle("HAZOP Concept Study");
+      setProcessDescription("Concept / Expected Project HAZOP");
+    } else {
+      setConceptTitle("");
+      setTitle("");
+      setProcessDescription("");
+    }
+  }, [open, defaultMode]);
+
+  // When study mode changes manually, reset auto-filled fields
+  function handleModeChange(v: string) {
+    const mode = v as "project_based" | "concept_expected_project";
+    setStudyMode(mode);
+    setProjectId("");
+    if (mode === "concept_expected_project") {
+      setConceptTitle("Concept / Expected Project");
+      setTitle("HAZOP Concept Study");
+      setProcessDescription("Concept / Expected Project HAZOP");
+    } else {
+      setConceptTitle("");
+      setTitle("");
+      setProcessDescription("");
+    }
+  }
+
+  // Auto-populate Study Title and Process Description when a project is selected
+  function handleProjectChange(id: string) {
+    setProjectId(id);
+    const project = projects.find(p => String(p.id) === id);
+    if (project) {
+      const displayName = getProjectDisplayName(project);
+      const offerSubject = project.offer_subject?.trim();
+      setTitle(offerSubject ? `HAZOP Study — ${offerSubject}` : `HAZOP Study — ${project.code}`);
+      setProcessDescription(displayName);
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, any>) =>
@@ -117,7 +163,7 @@ function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps)
   });
 
   function handleClose() {
-    setStudyMode("project_based");
+    setStudyMode(defaultMode);
     setProjectId("");
     setTitle("");
     setConceptTitle("");
@@ -162,12 +208,12 @@ function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps)
         <div className="space-y-4 pt-2">
           <div className="space-y-1.5">
             <Label>Study Mode</Label>
-            <Select value={studyMode} onValueChange={(v) => setStudyMode(v as any)}>
+            <Select value={studyMode} onValueChange={handleModeChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="project_based">Project-Based</SelectItem>
+                <SelectItem value="project_based">Project Studies</SelectItem>
                 <SelectItem value="concept_expected_project">Concept / Expected Project</SelectItem>
               </SelectContent>
             </Select>
@@ -176,7 +222,7 @@ function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps)
           {studyMode === "project_based" && (
             <div className="space-y-1.5">
               <Label>Project <span className="text-red-500">*</span></Label>
-              <Select value={projectId} onValueChange={setProjectId}>
+              <Select value={projectId} onValueChange={handleProjectChange}>
                 <SelectTrigger style={{ width: '650px' }}>
                   <SelectValue placeholder="Select a project…" />
                 </SelectTrigger>
@@ -578,6 +624,7 @@ export default function HazopDashboardPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onSuccess={handleStudyCreated}
+        defaultMode={activeTab === "concept" ? "concept_expected_project" : "project_based"}
       />
     </Layout>
   );
