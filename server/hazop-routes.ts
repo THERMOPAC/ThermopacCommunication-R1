@@ -3529,20 +3529,139 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
     return pfdMap[key] ?? 0.1;
   }
 
-  function computeLopa(iefPerYear: number, rttfPerYear: number, creditedPfds: number[]) {
-    const pfdProduct = creditedPfds.length > 0 ? creditedPfds.reduce((acc, p) => acc * p, 1) : 1;
+  // ── computeLopa v1.1 ── 2026-05-25 ───────────────────────────────────────────
+  // Eligibility: credit_applied=true AND is_independent=true AND pfd_value > 0
+  // CCF derating: per ccf_group, only the member with the lowest PFD is credited;
+  //   remaining members are counted in ccf_derated_count and excluded from product.
+  // Warnings: >3 credited IPLs; MEF < 1e-12/yr.
+  // arithmetic_version stored as '1.1' on every recalculate.
+
+  interface IplStackItemV11 {
+    id: number;
+    pfd_value: number | null;
+    credit_applied: boolean;
+    is_independent: boolean;
+    ccf_group: string | null;
+  }
+
+  interface ComputeLopaResultV11 {
+    pfdProduct: number;
+    achievedMef: number;
+    riskGapRatio: number;
+    lopaOutcome: string;
+    requiredAdditionalPfd: number | null;
+    requiredSil: number | null;
+    creditedIplCount: number;
+    excludedIplCount: number;
+    ccfDeratedCount: number;
+    warnings: string[];
+    arithmeticVersion: string;
+    creditableMap: Map<number, boolean>;
+  }
+
+  function computeLopaV11(
+    iefPerYear: number,
+    rttfPerYear: number,
+    stackItems: IplStackItemV11[]
+  ): ComputeLopaResultV11 {
+    // Step 1 — eligibility gate
+    const candidates: IplStackItemV11[] = [];
+    let excludedIplCount = 0;
+    for (const item of stackItems) {
+      if (!item.credit_applied) continue; // user did not request credit — not counted
+      if (!item.is_independent || item.pfd_value == null || item.pfd_value <= 0) {
+        excludedIplCount++;
+      } else {
+        candidates.push(item);
+      }
+    }
+
+    // Step 2 — CCF derating
+    const ccfBuckets = new Map<string, IplStackItemV11[]>();
+    const noCcfItems: IplStackItemV11[] = [];
+    for (const item of candidates) {
+      const grp = item.ccf_group?.trim() || null;
+      if (grp) {
+        if (!ccfBuckets.has(grp)) ccfBuckets.set(grp, []);
+        ccfBuckets.get(grp)!.push(item);
+      } else {
+        noCcfItems.push(item);
+      }
+    }
+
+    let ccfDeratedCount = 0;
+    const deratedIds = new Set<number>();
+    const creditedItems: IplStackItemV11[] = [...noCcfItems];
+
+    for (const [, items] of ccfBuckets) {
+      // Most conservative = lowest PFD credited; others derated
+      const sorted = [...items].sort((a, b) => a.pfd_value! - b.pfd_value!);
+      creditedItems.push(sorted[0]);
+      for (let i = 1; i < sorted.length; i++) {
+        deratedIds.add(sorted[i].id);
+        ccfDeratedCount++;
+      }
+    }
+
+    // Step 3 — per-item creditable map
+    const creditableMap = new Map<number, boolean>();
+    const creditedIdSet = new Set(creditedItems.map(i => i.id));
+    for (const item of stackItems) {
+      creditableMap.set(item.id, creditedIdSet.has(item.id));
+    }
+
+    // Step 4 — PFD product (no credited items → product = 1, i.e. no protection)
+    const pfdProduct = creditedItems.length > 0
+      ? creditedItems.reduce((acc, i) => acc * i.pfd_value!, 1)
+      : 1;
     const achievedMef = iefPerYear * pfdProduct;
     const riskGapRatio = achievedMef / rttfPerYear;
-    if (riskGapRatio <= 1.0) {
-      return { pfdProduct, achievedMef, riskGapRatio, lopaOutcome: 'tolerable', requiredAdditionalPfd: null as number | null, requiredSil: null as number | null };
+
+    // Step 5 — warnings
+    const warnings: string[] = [];
+    if (creditedItems.length > 3) {
+      warnings.push(
+        `Excessive IPL credit: ${creditedItems.length} IPLs credited. ` +
+        `Verify independence and CCF assumptions per IEC 61511.`
+      );
     }
-    const requiredAdditionalPfd = rttfPerYear / achievedMef;
-    const silRaw = -Math.log10(requiredAdditionalPfd);
-    const requiredSil = Math.min(4, Math.max(1, Math.ceil(silRaw)));
-    let lopaOutcome = 'gap_exists';
-    if (requiredAdditionalPfd <= 0.001) lopaOutcome = 'requires_sif_upgrade';
-    else if (requiredAdditionalPfd <= 0.01) lopaOutcome = 'requires_sif';
-    return { pfdProduct, achievedMef, riskGapRatio, lopaOutcome, requiredAdditionalPfd, requiredSil };
+    if (achievedMef < 1e-12) {
+      warnings.push(
+        `Achieved MEF (${achievedMef.toExponential(2)} per year) is unrealistically optimistic. ` +
+        `Review IPL independence and CCF assumptions.`
+      );
+    }
+
+    // Step 6 — outcome + SIL
+    let lopaOutcome: string;
+    let requiredAdditionalPfd: number | null = null;
+    let requiredSil: number | null = null;
+
+    if (riskGapRatio <= 1.0) {
+      lopaOutcome = 'tolerable';
+    } else {
+      requiredAdditionalPfd = rttfPerYear / achievedMef;
+      const silRaw = -Math.log10(requiredAdditionalPfd);
+      requiredSil = Math.min(4, Math.max(1, Math.ceil(silRaw)));
+      if (requiredAdditionalPfd <= 0.001) lopaOutcome = 'requires_sif_upgrade';
+      else if (requiredAdditionalPfd <= 0.01) lopaOutcome = 'requires_sif';
+      else lopaOutcome = 'gap_exists';
+    }
+
+    return {
+      pfdProduct,
+      achievedMef,
+      riskGapRatio,
+      lopaOutcome,
+      requiredAdditionalPfd,
+      requiredSil,
+      creditedIplCount: creditedItems.length,
+      excludedIplCount,
+      ccfDeratedCount,
+      warnings,
+      arithmeticVersion: '1.1',
+      creditableMap,
+    };
   }
 
   async function nextLopaNumber(studyId: number): Promise<string> {
@@ -3706,7 +3825,7 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
     finally { client.release(); }
   });
 
-  // ── POST /api/hazop/lopa/:id/recalculate ──────────────────────────────────
+  // ── POST /api/hazop/lopa/:id/recalculate (v1.1) ───────────────────────────
   app.post('/api/hazop/lopa/:id/recalculate', ensureAuthenticated, async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
@@ -3716,17 +3835,35 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
       if (!lr.rows[0]) return sendNotFound(res, 'LOPA record');
       const lopa = lr.rows[0];
 
-      const stack = await client.query(
-        `SELECT pfd_value, credit_applied FROM hazop_scenario_ipl_stack
-         WHERE scenario_id=$1 AND credit_applied=true AND pfd_value IS NOT NULL
-         ORDER BY stack_position`, [lopa.scenario_id]);
+      // Fetch full stack with independence flag + CCF group from source tables
+      const stack = await client.query(`
+        SELECT s.id, s.pfd_value, s.credit_applied, s.is_independent,
+               COALESCE(rg.common_cause_group, '') AS ccf_group
+        FROM hazop_scenario_ipl_stack s
+        LEFT JOIN hazop_response_groups rg ON rg.id = s.response_group_id
+        WHERE s.scenario_id = $1
+        ORDER BY s.stack_position`, [lopa.scenario_id]);
 
-      const creditedPfds = stack.rows.map((r: any) => parseFloat(r.pfd_value));
-      const result = computeLopa(
+      const stackItems: IplStackItemV11[] = stack.rows.map((r: any) => ({
+        id: r.id,
+        pfd_value: r.pfd_value != null ? parseFloat(r.pfd_value) : null,
+        credit_applied: r.credit_applied,
+        is_independent: r.is_independent,
+        ccf_group: r.ccf_group || null,
+      }));
+
+      const result = computeLopaV11(
         parseFloat(lopa.ie_frequency_per_year),
         parseFloat(lopa.rttf_per_year),
-        creditedPfds
+        stackItems
       );
+
+      // Persist creditable flag on each stack item
+      for (const [itemId, creditable] of result.creditableMap) {
+        await client.query(
+          'UPDATE hazop_scenario_ipl_stack SET creditable=$1 WHERE id=$2',
+          [creditable, itemId]);
+      }
 
       const updated = await client.query(`
         UPDATE hazop_lopa_records SET
@@ -3735,13 +3872,30 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
           risk_gap_ratio          = $3,
           lopa_outcome            = $4,
           required_additional_pfd = $5,
-          required_sil            = $6
-        WHERE id=$7 RETURNING *`,
+          required_sil            = $6,
+          credited_ipl_count      = $7,
+          excluded_ipl_count      = $8,
+          ccf_derated_count       = $9,
+          arithmetic_version      = $10,
+          warnings                = $11
+        WHERE id=$12 RETURNING *`,
         [result.pfdProduct, result.achievedMef, result.riskGapRatio,
-         result.lopaOutcome, result.requiredAdditionalPfd, result.requiredSil, id]);
+         result.lopaOutcome, result.requiredAdditionalPfd, result.requiredSil,
+         result.creditedIplCount, result.excludedIplCount, result.ccfDeratedCount,
+         result.arithmeticVersion,
+         result.warnings.length > 0 ? result.warnings : null,
+         id]);
 
       await client.query('COMMIT');
-      res.json({ ...updated.rows[0], credited_ipl_count: creditedPfds.length });
+      res.json({
+        ...updated.rows[0],
+        warnings: result.warnings,
+        lopa_outcome: result.lopaOutcome,
+        credited_ipl_count: result.creditedIplCount,
+        excluded_ipl_count: result.excludedIplCount,
+        ccf_derated_count: result.ccfDeratedCount,
+        arithmetic_version: result.arithmeticVersion,
+      });
     } catch (err) { await client.query('ROLLBACK'); sendError(res, err); }
     finally { client.release(); }
   });
@@ -3789,10 +3943,10 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
         'SELECT COALESCE(MAX(stack_position),0) AS max_pos FROM hazop_scenario_ipl_stack WHERE scenario_id=$1', [scenarioId]);
       let pos = parseInt(posR.rows[0].max_pos);
 
-      // Fetch IPL-flagged response groups for the study
+      // Fetch IPL-flagged response groups for the study (includes CCF group for traceability)
       const rgRows = await client.query(`
         SELECT id, group_number, description, protection_layer, effectiveness_rating,
-               human_dependency_level, is_independent_protection_layer
+               human_dependency_level, is_independent_protection_layer, common_cause_group
         FROM hazop_response_groups
         WHERE study_id=$1 AND is_independent_protection_layer=true
         ORDER BY group_number`, [studyId]);
@@ -3815,13 +3969,13 @@ export async function setupHazopRoutes(app: Express): Promise<void> {
           INSERT INTO hazop_scenario_ipl_stack
             (study_id, scenario_id, response_group_id, ipl_type, ipl_label,
              protection_layer, is_independent, effectiveness_rating, human_dependency_level,
-             pfd_value, pfd_source, credit_applied, stack_position, created_by)
-          VALUES ($1,$2,$3,'response_group',$4,$5,$6,$7,$8,$9,'default',true,$10,$11)`,
+             pfd_value, pfd_source, credit_applied, ccf_group, stack_position, created_by)
+          VALUES ($1,$2,$3,'response_group',$4,$5,$6,$7,$8,$9,'default',true,$10,$11,$12)`,
           [studyId, scenarioId, rg.id,
            `${rg.group_number}${rg.description ? ' — ' + rg.description : ''}`,
            rg.protection_layer, rg.is_independent_protection_layer,
            rg.effectiveness_rating, rg.human_dependency_level,
-           pfd, pos, userId]);
+           pfd, rg.common_cause_group || null, pos, userId]);
         added++;
       }
 
