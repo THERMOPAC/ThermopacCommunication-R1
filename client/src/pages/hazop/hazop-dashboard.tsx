@@ -33,7 +33,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ShieldAlert, Plus, Trash2, Loader2 } from "lucide-react";
+import { useLocation } from "wouter";
+import { ShieldAlert, Plus, Trash2, Loader2, GitBranch, List } from "lucide-react";
 import { fmtDate } from "@/lib/date-format";
 import { getProjectDisplayName } from "@/lib/project-utils";
 
@@ -245,6 +246,7 @@ function CreateStudyDialog({ open, onClose, onSuccess }: CreateStudyDialogProps)
 function ProjectStudiesTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<HazopStudy | null>(null);
 
@@ -335,16 +337,34 @@ function ProjectStudiesTab() {
                   <td className="px-4 py-3 text-gray-500">{s.study_date ? fmtDate(s.study_date) : "—"}</td>
                   <td className="px-4 py-3 text-gray-500">{s.created_by_name ?? "—"}</td>
                   <td className="px-4 py-3 text-right">
-                    {s.status === "draft" && (
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => setDeleteTarget(s)}
+                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1 text-xs"
+                        onClick={() => navigate(`/hazop/studies/${s.id}/process-builder`)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <GitBranch className="h-3.5 w-3.5" /> Process Builder
                       </Button>
-                    )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 gap-1 text-xs"
+                        onClick={() => navigate(`/hazop/studies/${s.id}/nodes`)}
+                      >
+                        <List className="h-3.5 w-3.5" /> Nodes
+                      </Button>
+                      {s.status === "draft" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => setDeleteTarget(s)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -381,6 +401,7 @@ function ProjectStudiesTab() {
 function ConceptStudiesTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [deleteTarget, setDeleteTarget] = useState<HazopStudy | null>(null);
 
   const { data: studies = [], isLoading } = useQuery<HazopStudy[]>({
@@ -444,16 +465,34 @@ function ConceptStudiesTab() {
                 <td className="px-4 py-3 text-gray-500">{s.study_date ? fmtDate(s.study_date) : "—"}</td>
                 <td className="px-4 py-3 text-gray-500">{s.created_by_name ?? "—"}</td>
                 <td className="px-4 py-3 text-right">
-                  {s.status === "draft" && (
+                  <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => setDeleteTarget(s)}
+                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1 text-xs"
+                      onClick={() => navigate(`/hazop/studies/${s.id}/process-builder`)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <GitBranch className="h-3.5 w-3.5" /> Process Builder
                     </Button>
-                  )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 gap-1 text-xs"
+                      onClick={() => navigate(`/hazop/studies/${s.id}/nodes`)}
+                    >
+                      <List className="h-3.5 w-3.5" /> Nodes
+                    </Button>
+                    {s.status === "draft" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setDeleteTarget(s)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

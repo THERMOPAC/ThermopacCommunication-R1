@@ -484,7 +484,27 @@ The following will **not** be touched in Phase 2:
 
 ---
 
-## 10. Controlled Vocabulary (enforced server-side)
+## 10. Sequence Governance
+
+### 10.1 Rules
+
+| Rule | Specification |
+|---|---|
+| `sequence_no` immutability | `sequence_no` is set on step creation and never changed. It is a prohibited field on `PATCH /api/hazop/steps/:stepId` (silently ignored). |
+| Sequence gaps | Gaps in `sequence_no` are allowed and expected. A loop may have steps numbered 1, 2, 5, 7 — this is valid. |
+| No drag-drop reordering | Phase 2 UI has no drag-drop reordering capability. |
+| No resequence API | No `POST .../resequence` or equivalent route exists in Phase 2 or any future phase. |
+| Delete behaviour | Deleting a step does not renumber remaining steps. Remaining `sequence_no` values are unchanged. |
+| New step numbering | `sequence_no` for a new step = `MAX(sequence_no) + 1` for the loop, computed server-side. Client suggestion accepted but server always computes the final value. |
+| Node stability | `hazop_nodes` identity is tied to `step_id` (UNIQUE constraint). Because `step_id` and `sequence_no` are stable, node references, future deviation references, and action item references remain stable across the study lifecycle. |
+
+### 10.2 Rationale (for audit record)
+
+Phase 3 HAZOP worksheet generation creates `hazop_deviations`, `hazop_causes`, `hazop_consequences`, `hazop_safeguards`, and `hazop_actions` all keyed to `hazop_nodes.id` which is keyed to `hazop_process_steps.id`. Any resequencing of steps would break the audit trail between nodes, deviations, and actions. Sequence stability is a non-negotiable precondition for downstream referential integrity.
+
+---
+
+## 11. Controlled Vocabulary (enforced server-side)
 
 ### Equipment Categories (exact stored values)
 ```
@@ -531,6 +551,10 @@ To be verified post-implementation before Phase 2 is declared COMPLETE:
 | ZTA-15 | No generation route (`POST .../generate`) present |
 | ZTA-16 | `/hazop/studies/:id/process-builder` page loads without error |
 | ZTA-17 | `/hazop/studies/:id/nodes` page loads without error |
+| ZTA-18 | `PATCH /api/hazop/steps/:stepId` with `sequence_no` in body → field silently ignored, value unchanged in DB |
+| ZTA-19 | `POST .../steps` → `sequence_no` always equals `MAX(sequence_no)+1` regardless of client-supplied value |
+| ZTA-20 | Delete step → remaining steps retain original `sequence_no` values (no renumbering) |
+| ZTA-21 | No `/resequence` route exists anywhere in `hazop-routes.ts` |
 
 ---
 
