@@ -3989,6 +3989,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     createReadStream(filePath).pipe(res);
   });
 
+  // ── Agent Jobs Monitor ────────────────────────────────────────────────────────
+  const { default: agentJobsMonitorRoutes } = await import('./agent-jobs-monitor-routes');
+  app.use('/api/admin/agent-jobs', agentJobsMonitorRoutes);
+  console.log('✅ Agent Jobs Monitor routes registered');
+
   // ── HAZOP — Phase 1: Study CRUD ───────────────────────────────────────────────
   const { setupHazopRoutes } = await import('./hazop-routes');
   await setupHazopRoutes(app);

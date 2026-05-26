@@ -47,6 +47,8 @@ import {
   Wifi,
   WifiOff,
   Hash,
+  Trash2,
+  ServerOff,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -883,6 +885,41 @@ function eventTypeBadge(eventType: string) {
   return <Badge variant="outline" className={`${info.className} text-[10px] px-1.5 py-0`}>{info.label}</Badge>;
 }
 
+// ── Agent Jobs Monitor types ──────────────────────────────────────────────────
+interface AgentJobRow {
+  agent: 'extraction' | 'structuring' | 'document';
+  agent_name: string;
+  id: number;
+  job_type: string | null;
+  reference: string | null;
+  status: string;
+  created_at: string;
+  claimed_at: string | null;
+  claimed_by: string | null;
+  retry_count: number;
+  error_message: string | null;
+  is_stuck: boolean;
+}
+
+function agentJobStatusBadge(status: string, isStuck: boolean) {
+  if (isStuck) return <Badge className="bg-orange-500 text-white text-xs">Stuck</Badge>;
+  switch (status) {
+    case 'pending':  return <Badge className="bg-yellow-500 text-white text-xs">Pending</Badge>;
+    case 'failed':   return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+    case 'claimed':  return <Badge className="bg-blue-500 text-white text-xs">Claimed</Badge>;
+    default:         return <Badge variant="outline" className="text-xs">{status}</Badge>;
+  }
+}
+
+function agentIcon(agent: string) {
+  switch (agent) {
+    case 'extraction':  return <ScanSearch className="h-3.5 w-3.5 text-blue-500" />;
+    case 'structuring': return <FolderTree className="h-3.5 w-3.5 text-purple-500" />;
+    case 'document':    return <FilePen className="h-3.5 w-3.5 text-teal-500" />;
+    default:            return <ServerOff className="h-3.5 w-3.5 text-muted-foreground" />;
+  }
+}
+
 export default function WorkerAgentsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -890,6 +927,7 @@ export default function WorkerAgentsPage() {
   const [eventFilter, setEventFilter] = useState("all");
   const [workerFilter, setWorkerFilter] = useState("all");
   const [expandedEventId, setExpandedEventId] = useState<number | null>(null);
+  const [confirmPurge, setConfirmPurge] = useState<AgentJobRow | null>(null);
   const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
 
   const isAdmin = user?.role === "Superuser";
@@ -918,6 +956,26 @@ export default function WorkerAgentsPage() {
   const { data: effectiveness } = useQuery<EffectivenessResponse>({
     queryKey: ["/api/l1-workers/effectiveness"],
     enabled: isAdmin,
+  });
+
+  const { data: agentJobsData, isLoading: agentJobsLoading, refetch: refetchAgentJobs } = useQuery<{ jobs: AgentJobRow[] }>({
+    queryKey: ["/api/admin/agent-jobs"],
+    refetchInterval: 30000,
+  });
+
+  const agentJobs = agentJobsData?.jobs ?? [];
+
+  const purgeJobMutation = useMutation({
+    mutationFn: async (job: AgentJobRow) =>
+      apiRequest("DELETE", `/api/admin/agent-jobs/${job.agent}/${job.id}`),
+    onSuccess: (_data, job) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-jobs"] });
+      toast({ title: "Job purged", description: `Job #${job.id} (${job.agent}) removed from queue.` });
+      setConfirmPurge(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "Purge failed", description: err?.message ?? "Unknown error", variant: "destructive" });
+    },
   });
 
   const invalidateAll = () => {
@@ -1128,7 +1186,7 @@ export default function WorkerAgentsPage() {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="activity" className="flex items-center gap-1.5">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Live Activity</span>
@@ -1153,6 +1211,15 @@ export default function WorkerAgentsPage() {
             <TabsTrigger value="effectiveness" className="flex items-center gap-1.5">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Effectiveness</span>
+            </TabsTrigger>
+            <TabsTrigger value="job-queue" className="flex items-center gap-1.5">
+              <ServerCrash className="h-4 w-4" />
+              <span className="hidden sm:inline">Job Queue</span>
+              {agentJobs.length > 0 && (
+                <Badge variant="destructive" className="ml-1 text-xs px-1.5 py-0">
+                  {agentJobs.length}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -1696,8 +1763,202 @@ export default function WorkerAgentsPage() {
             </Card>
           </TabsContent>
 
+          {/* Tab 6: Job Queue — Agent Jobs Monitor */}
+          <TabsContent value="job-queue" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <ServerCrash className="h-5 w-5 text-destructive" />
+                      Agent Jobs Monitor
+                    </CardTitle>
+                    <CardDescription>
+                      Pending, failed, and stuck jobs across all Local Windows Agents — auto-refreshes every 30 s
+                    </CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => refetchAgentJobs()}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {agentJobsLoading ? (
+                  <div className="py-10 text-center text-muted-foreground">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    Loading jobs…
+                  </div>
+                ) : agentJobs.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground space-y-2">
+                    <CheckCircle2 className="h-8 w-8 mx-auto text-green-500" />
+                    <p className="font-medium">All clear — no pending or failed jobs</p>
+                    <p className="text-xs">All three agents have an empty queue.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left py-2.5 px-4 font-medium text-muted-foreground">Agent</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Job ID</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Job Type</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Reference</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Status</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Created</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Claimed By</th>
+                          <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Retries</th>
+                          <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Error</th>
+                          {isAdmin && (
+                            <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Action</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agentJobs.map((job) => (
+                          <tr key={`${job.agent}-${job.id}`} className="border-b last:border-b-0 hover:bg-accent/30 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                {agentIcon(job.agent)}
+                                <span className="text-xs font-medium leading-tight">{job.agent_name}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="font-mono text-xs text-muted-foreground">#{job.id}</span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{job.job_type ?? '—'}</span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-xs max-w-[160px] truncate block" title={job.reference ?? ''}>
+                                {job.reference ?? '—'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              {agentJobStatusBadge(job.status, Boolean(job.is_stuck))}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {new Date(job.created_at).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-xs text-muted-foreground">{job.claimed_by ?? '—'}</span>
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              <span className={`text-xs font-medium ${job.retry_count > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                                {job.retry_count}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              {job.error_message ? (
+                                <span className="text-xs text-destructive max-w-[200px] truncate block" title={job.error_message}>
+                                  {job.error_message}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            {isAdmin && (
+                              <td className="py-3 px-3 text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs text-destructive hover:bg-destructive/10"
+                                  onClick={() => setConfirmPurge(job)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                  Purge
+                                </Button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Agent queue summary cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { agent: 'extraction',  label: 'Extraction Agent',   icon: <ScanSearch className="h-4 w-4 text-blue-500" /> },
+                { agent: 'structuring', label: 'Structuring Agent',  icon: <FolderTree className="h-4 w-4 text-purple-500" /> },
+                { agent: 'document',    label: 'Document Agent',     icon: <FilePen className="h-4 w-4 text-teal-500" /> },
+              ].map(({ agent, label, icon }) => {
+                const count = agentJobs.filter(j => j.agent === agent).length;
+                const failed = agentJobs.filter(j => j.agent === agent && j.status === 'failed').length;
+                const stuck = agentJobs.filter(j => j.agent === agent && j.is_stuck).length;
+                return (
+                  <Card key={agent}>
+                    <CardContent className="pt-4 pb-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        {icon}
+                        <span className="text-sm font-medium">{label}</span>
+                      </div>
+                      <div className="flex gap-3 text-xs">
+                        <span className={`font-semibold ${count === 0 ? 'text-green-600' : 'text-yellow-600'}`}>
+                          {count} pending/failed
+                        </span>
+                        {failed > 0 && <span className="text-destructive">{failed} failed</span>}
+                        {stuck > 0 && <span className="text-orange-600">{stuck} stuck</span>}
+                        {count === 0 && <span className="text-muted-foreground">Queue clear</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {!isAdmin && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-md p-3 bg-muted/30">
+                <Shield className="h-4 w-4 shrink-0" />
+                <span>Purge actions are restricted to Superuser. Contact your administrator to remove stuck or failed jobs.</span>
+              </div>
+            )}
+          </TabsContent>
+
         </Tabs>
       </div>
+
+      {/* Purge confirmation dialog */}
+      <Dialog open={!!confirmPurge} onOpenChange={(open) => { if (!open) setConfirmPurge(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Confirm Job Purge
+            </DialogTitle>
+          </DialogHeader>
+          {confirmPurge && (
+            <div className="space-y-3 text-sm">
+              <p>You are about to permanently delete this job from the queue. This cannot be undone.</p>
+              <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+                <div className="flex gap-2"><span className="font-medium w-24">Agent:</span><span>{confirmPurge.agent_name}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Job ID:</span><span className="font-mono">#{confirmPurge.id}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Job Type:</span><span className="font-mono">{confirmPurge.job_type ?? '—'}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Reference:</span><span>{confirmPurge.reference ?? '—'}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Status:</span>{agentJobStatusBadge(confirmPurge.status, Boolean(confirmPurge.is_stuck))}</div>
+              </div>
+              <p className="text-xs text-muted-foreground">This purge will be recorded in the audit log.</p>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmPurge(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmPurge && purgeJobMutation.mutate(confirmPurge)}
+              disabled={purgeJobMutation.isPending}
+            >
+              {purgeJobMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Purge Job
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Layout>
   );
 }
