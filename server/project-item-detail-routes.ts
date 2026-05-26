@@ -435,32 +435,6 @@ export function setupProjectItemDetailRoutes(app: Router) {
     }
   });
 
-  app.post('/api/project-items/:projectItemId/sap-sync', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const projectItemId = parseInt(req.params.projectItemId);
-      const piResult = await db.select().from(projectItems).where(eq(projectItems.id, projectItemId));
-      if (piResult.length === 0) return res.status(404).json({ message: 'Project item not found' });
-      const pi = piResult[0];
-
-      const result = await syncProjectItemToSap(pi);
-
-      if (result.error) {
-        return res.status(502).json({ message: result.error });
-      }
-
-      res.json({
-        message: `Item ${pi.itemCode} synced to SAP B1 successfully`,
-        sapResult: result.sapResult,
-        codeBars: pi.codeBars,
-        itemCode: pi.itemCode,
-        syncedAt: new Date().toISOString(),
-      });
-    } catch (error: any) {
-      console.error('SAP sync error:', error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
   // ── BOM Controls: single-item SAP sync (check → create if absent) ──────────
   app.post('/api/project-items/:projectItemId/sap-sync', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
