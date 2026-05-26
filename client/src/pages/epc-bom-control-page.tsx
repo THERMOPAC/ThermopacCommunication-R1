@@ -302,8 +302,7 @@ export default function EpcBomControlPage() {
   const sapSyncMutation = useMutation({
     mutationFn: async (projectItemId: number) => {
       setSyncingItemId(projectItemId);
-      const res = await apiRequest("POST", `/api/project-items/${projectItemId}/sap-sync`);
-      return res.json();
+      return await apiRequest("POST", `/api/project-items/${projectItemId}/sap-sync`);
     },
     onSuccess: (data) => {
       if (data.success) {
