@@ -639,6 +639,11 @@ router.post('/product-attributes', ensureAuthenticated, async (req: Request, res
       return res.status(400).json({ error: 'Code must be exactly 3 characters.' });
     }
 
+    // Label length
+    if (validated.label && validated.label.length > 27) {
+      return res.status(422).json({ error: 'Label cannot exceed 27 characters.' });
+    }
+
     // Tag: required, auto-uppercase, 2–3 letters
     if (!validated.tag) {
       return res.status(400).json({ error: 'Tag is required.' });
@@ -729,6 +734,11 @@ router.patch('/product-attributes/:id', ensureAuthenticated, async (req: Request
 
     // Strip immutable fields from body; always refresh updated_at
     const { code: _code, attributeType: _type, parentId: _pid, createdAt: _ca, ...allowedFields } = req.body;
+
+    // Label length
+    if (allowedFields.label !== undefined && String(allowedFields.label).length > 27) {
+      return res.status(422).json({ error: 'Label cannot exceed 27 characters.' });
+    }
 
     // Tag: auto-uppercase and validate format if provided
     if (allowedFields.tag !== undefined) {

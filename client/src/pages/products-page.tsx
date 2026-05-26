@@ -56,7 +56,7 @@ const attributeFormSchema = z.object({
   code: z.string()
     .length(3, "Code must be exactly 3 characters")
     .regex(/^[A-Z0-9]+$/, "Only uppercase letters (A–Z) and digits (0–9) — no spaces or special characters"),
-  label: z.string().min(1, "Label is required"),
+  label: z.string().min(1, "Label is required").max(27, "Label cannot exceed 27 characters."),
   tag: z.string()
     .min(2, "Tag must be 2–3 uppercase letters")
     .max(3, "Tag must be 2–3 uppercase letters")
