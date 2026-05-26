@@ -2241,6 +2241,8 @@ export const projectItems = pgTable('project_items', {
   sapSynced: boolean('sap_synced').default(false),
   sapSyncedAt: timestamp('sap_synced_at'),
   sapSyncError: text('sap_sync_error'),
+  sapSyncStatus: varchar('sap_sync_status', { length: 20 }).default('not_synced'),
+  sapItemCode: varchar('sap_item_code', { length: 50 }),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

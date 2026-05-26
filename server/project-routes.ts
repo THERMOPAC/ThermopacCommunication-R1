@@ -12160,7 +12160,8 @@ export function setupProjectRoutes(app: express.Express) {
         u3.username as reviewed_by_name, u4.username as approved_by_name, u5.username as released_by_name,
         prod.item_property_1_label AS product_p1_label,
         prod.item_property_2_label AS product_p2_label,
-        prod.item_property_3       AS product_p3
+        prod.item_property_3       AS product_p3,
+        pi.sap_sync_status, pi.sap_item_code, pi.sap_synced_at, pi.sap_sync_error
         FROM epc_bom_headers bh
         LEFT JOIN users u1 ON bh.created_by = u1.id
         LEFT JOIN users u2 ON bh.submitted_by = u2.id

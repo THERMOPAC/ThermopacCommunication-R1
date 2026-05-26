@@ -461,6 +461,102 @@ export function setupProjectItemDetailRoutes(app: Router) {
     }
   });
 
+  // ── BOM Controls: single-item SAP sync (check → create if absent) ──────────
+  app.post('/api/project-items/:projectItemId/sap-sync', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectItemId = parseInt(req.params.projectItemId);
+      const piResult = await db.select().from(projectItems).where(eq(projectItems.id, projectItemId));
+      if (piResult.length === 0) return res.status(404).json({ error: 'Project item not found' });
+      const pi = piResult[0];
+      if (!pi.itemCode) return res.status(400).json({ error: 'Project item has no item code' });
+
+      // Mark pending
+      await db.update(projectItems)
+        .set({ sapSyncStatus: 'sync_pending', updatedAt: new Date() } as any)
+        .where(eq(projectItems.id, projectItemId));
+
+      let finalStatus: string;
+      let sapItemCode: string | null = null;
+      let sapSyncError: string | null = null;
+      let sapSynced = false;
+      let sapSyncedAt: Date | null = null;
+
+      try {
+        // Step 1: Check if item exists in SAP
+        const checkResp = await sapSession.request({
+          method: 'GET',
+          path: `/b1s/v1/Items('${encodeURIComponent(pi.itemCode)}')`,
+          timeout: 30000,
+        });
+
+        if (checkResp.ok) {
+          // Already in SAP — mark synced, no create
+          finalStatus = 'synced';
+          sapItemCode = pi.itemCode;
+          sapSynced = true;
+          sapSyncedAt = new Date();
+          console.log(`[BOM SAP Sync] Item already exists in SAP: ${pi.itemCode}`);
+        } else if (checkResp.statusCode === 404) {
+          // Not in SAP — create
+          const uom = pi.uom || 'Nos';
+          const payload: Record<string, any> = {
+            ItemCode: pi.itemCode,
+            ItemName: (pi.description || pi.itemCode).substring(0, 100),
+            ItemsGroupCode: 104,
+            SalesUnit: uom,
+            PurchaseUnit: uom,
+            InventoryUOM: uom,
+            ItemType: 'itItems',
+          };
+          if (pi.codeBars && pi.codeBars.length === 16) payload.BarCode = pi.codeBars;
+
+          const createResp = await sapSession.request({
+            method: 'POST',
+            path: '/b1s/v1/Items',
+            body: payload,
+            timeout: 30000,
+          });
+
+          if (createResp.ok) {
+            finalStatus = 'synced';
+            sapItemCode = pi.itemCode;
+            sapSynced = true;
+            sapSyncedAt = new Date();
+            console.log(`[BOM SAP Sync] Item created in SAP: ${pi.itemCode}`);
+          } else {
+            finalStatus = 'sync_failed';
+            sapSyncError = `SAP create failed (${createResp.statusCode}): ${String(createResp.body || '').substring(0, 300)}`;
+            console.error(`[BOM SAP Sync] Create failed: ${sapSyncError}`);
+          }
+        } else {
+          finalStatus = 'sync_failed';
+          sapSyncError = `SAP check failed (${checkResp.statusCode}): ${String(checkResp.body || '').substring(0, 300)}`;
+          console.error(`[BOM SAP Sync] Check failed: ${sapSyncError}`);
+        }
+      } catch (connErr: any) {
+        finalStatus = 'sync_failed';
+        sapSyncError = `SAP connection failed: ${connErr.message}`;
+        console.error(`[BOM SAP Sync] Connection error:`, connErr);
+      }
+
+      await db.update(projectItems)
+        .set({
+          sapSyncStatus: finalStatus,
+          sapSynced,
+          sapSyncedAt,
+          sapSyncError,
+          sapItemCode,
+          updatedAt: new Date(),
+        } as any)
+        .where(eq(projectItems.id, projectItemId));
+
+      return res.json({ success: finalStatus === 'synced', sapSyncStatus: finalStatus, sapItemCode, sapSyncedAt, sapSyncError });
+    } catch (error: any) {
+      console.error('[BOM SAP Sync] Unexpected error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post('/api/projects/:projectId/sap-sync/retry-failed', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);

@@ -26,7 +26,7 @@ import {
   Loader2, Search, Filter, Layers, Plus, Edit, Send, CheckCircle2, ShieldCheck,
   XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, FileText, Eye, Lock, Trash2, History,
-  Zap, PackageCheck, Info, ChevronUp, SkipForward,
+  Zap, PackageCheck, Info, ChevronUp, SkipForward, Upload, CloudOff,
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
@@ -295,6 +295,28 @@ export default function EpcBomControlPage() {
     onError: (err: any) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
+  });
+
+  const [syncingItemId, setSyncingItemId] = useState<number | null>(null);
+
+  const sapSyncMutation = useMutation({
+    mutationFn: async (projectItemId: number) => {
+      setSyncingItemId(projectItemId);
+      const res = await apiRequest("POST", `/api/project-items/${projectItemId}/sap-sync`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "SAP Sync Successful", description: `Item synced to SAP B1.` });
+      } else {
+        toast({ title: "SAP Sync Failed", description: data.sapSyncError || "Unknown error", variant: "destructive" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedProjectId, "bom-headers"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "SAP Sync Error", description: err.message, variant: "destructive" });
+    },
+    onSettled: () => setSyncingItemId(null),
   });
 
   const explodeMutation = useMutation({
@@ -606,12 +628,13 @@ export default function EpcBomControlPage() {
                     <TableHead className="text-[10px]">Product Identity</TableHead>
                     <TableHead className="text-[10px] text-center">Lines</TableHead>
                     <TableHead className="text-[10px]">Status</TableHead>
+                    <TableHead className="text-[10px]">SAP Sync</TableHead>
                     <TableHead className="text-[10px]">Current</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center text-xs text-muted-foreground py-8">No BOM records found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-xs text-muted-foreground py-8">No BOM records found.</TableCell></TableRow>
                   ) : filtered.map((rec: any) => (
                     <React.Fragment key={rec.id}>
                       <TableRow className="cursor-pointer hover:bg-muted/50 text-[10px]" onClick={() => setExpandedRow(expandedRow === rec.id ? null : rec.id)}>
@@ -644,6 +667,78 @@ export default function EpcBomControlPage() {
                             {STATUS_LABELS[rec.status as StatusType] || rec.status}
                           </Badge>
                         </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="min-w-[130px]">
+                          {(() => {
+                            const status = rec.sap_sync_status || 'not_synced';
+                            const isSyncing = syncingItemId === rec.project_item_id;
+                            if (isSyncing) {
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <Loader2 className="h-3 w-3 animate-spin text-amber-600" />
+                                  <span className="text-[9px] text-amber-700">Syncing…</span>
+                                </div>
+                              );
+                            }
+                            if (status === 'synced') {
+                              return (
+                                <div className="space-y-0.5">
+                                  <Badge className="text-[8px] h-4 bg-emerald-100 text-emerald-800 flex items-center gap-0.5 w-fit">
+                                    <CheckCircle2 className="h-2.5 w-2.5" /> Synced
+                                  </Badge>
+                                  {rec.sap_item_code && <div className="font-mono text-[9px] text-muted-foreground truncate max-w-[120px]">{rec.sap_item_code}</div>}
+                                  {rec.sap_synced_at && <div className="text-[8px] text-muted-foreground">{fmtDateTime(rec.sap_synced_at)}</div>}
+                                </div>
+                              );
+                            }
+                            if (status === 'sync_failed') {
+                              return (
+                                <div className="space-y-0.5">
+                                  <Badge className="text-[8px] h-4 bg-red-100 text-red-700 flex items-center gap-0.5 w-fit">
+                                    <XCircle className="h-2.5 w-2.5" /> Sync Failed
+                                  </Badge>
+                                  {rec.sap_sync_error && (
+                                    <div className="text-[8px] text-red-600 max-w-[140px] line-clamp-2" title={rec.sap_sync_error}>
+                                      {rec.sap_sync_error.substring(0, 80)}
+                                    </div>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-5 px-1.5 text-[8px] border-red-300 text-red-700 hover:bg-red-50"
+                                    disabled={sapSyncMutation.isPending}
+                                    onClick={() => sapSyncMutation.mutate(rec.project_item_id)}
+                                  >
+                                    <RefreshCw className="h-2.5 w-2.5 mr-0.5" /> Retry Sync
+                                  </Button>
+                                </div>
+                              );
+                            }
+                            if (status === 'sync_pending') {
+                              return (
+                                <Badge className="text-[8px] h-4 bg-amber-100 text-amber-800 flex items-center gap-0.5 w-fit">
+                                  <Loader2 className="h-2.5 w-2.5 animate-spin" /> Sync Pending
+                                </Badge>
+                              );
+                            }
+                            // not_synced (default)
+                            return (
+                              <div className="space-y-0.5">
+                                <Badge className="text-[8px] h-4 bg-slate-100 text-slate-600 flex items-center gap-0.5 w-fit">
+                                  <CloudOff className="h-2.5 w-2.5" /> Not Synced
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-5 px-1.5 text-[8px] border-blue-300 text-blue-700 hover:bg-blue-50"
+                                  disabled={sapSyncMutation.isPending}
+                                  onClick={() => sapSyncMutation.mutate(rec.project_item_id)}
+                                >
+                                  <Upload className="h-2.5 w-2.5 mr-0.5" /> Sync to SAP
+                                </Button>
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell>
                           {rec.is_current ? (
                             <Badge className="text-[8px] h-4 bg-green-100 text-green-800">Active</Badge>
@@ -655,7 +750,7 @@ export default function EpcBomControlPage() {
 
                       {expandedRow === rec.id && (
                         <TableRow key={`${rec.id}-detail`}>
-                          <TableCell colSpan={9} className="p-2 bg-muted/30">
+                          <TableCell colSpan={10} className="p-2 bg-muted/30">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                               <Card className="shadow-sm">
                                 <CardHeader className="py-2 px-3">
