@@ -848,8 +848,8 @@ router.get('/products/:id', ensureAuthenticated, async (req: Request, res: Respo
 router.post('/products', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { itemFamily, itemFamilyLabel, itemProperty1, itemProperty1Label, itemProperty2, itemProperty2Label, itemProperty3, ...rest } = req.body;
-    if (typeof itemProperty3 === 'string' && itemProperty3.length > 21) {
-      return res.status(422).json({ error: 'Property 3 cannot exceed 21 characters. This keeps the generated Item Code within the 40-character governance target.' });
+    if (typeof itemProperty3 === 'string' && itemProperty3.length > 16) {
+      return res.status(422).json({ error: 'Property 3 cannot exceed 16 characters. This keeps the SAP Item Description within the 100-character limit.' });
     }
     const productCode = `${itemFamily}-${itemProperty1}-${itemProperty2}-${itemProperty3}`;
     const description = `${itemFamilyLabel} ${itemProperty1Label} ${itemProperty2Label} ${itemProperty3}`;
@@ -891,8 +891,8 @@ router.patch('/products/:id', ensureAuthenticated, async (req: Request, res: Res
       const prop1 = updateData.itemProperty1 || existing.itemProperty1;
       const prop2 = updateData.itemProperty2 || existing.itemProperty2;
       const prop3 = updateData.itemProperty3 || existing.itemProperty3;
-      if (typeof prop3 === 'string' && prop3.length > 21) {
-        return res.status(422).json({ error: 'Property 3 cannot exceed 21 characters. This keeps the generated Item Code within the 40-character governance target.' });
+      if (typeof prop3 === 'string' && prop3.length > 16) {
+        return res.status(422).json({ error: 'Property 3 cannot exceed 16 characters. This keeps the SAP Item Description within the 100-character limit.' });
       }
       updateData.productCode = `${family}-${prop1}-${prop2}-${prop3}`;
 

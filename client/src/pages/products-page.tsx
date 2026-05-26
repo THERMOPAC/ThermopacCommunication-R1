@@ -34,7 +34,7 @@ const productFormSchema = z.object({
   itemProperty1Label: z.string(),
   itemProperty2: z.string().min(1, "Property 2 is required"),
   itemProperty2Label: z.string(),
-  itemProperty3: z.string().min(1, "Property 3 is required").max(21, "Property 3 cannot exceed 21 characters. This keeps the generated Item Code within the 40-character governance target.").regex(/^\d+(\s?[A-Za-z0-9/ ]+)?$/, "Must start with digits, optionally followed by text (e.g. 5 TON, 1000, 2000 LPH, 1000000 KCAL/H)"),
+  itemProperty3: z.string().min(1, "Property 3 is required").max(16, "Property 3 cannot exceed 16 characters. This keeps the SAP Item Description within the 100-character limit.").regex(/^\d+(\s?[A-Za-z0-9/ ]+)?$/, "Must start with digits, optionally followed by text (e.g. 5 TON, 1000, 2000 LPH, 1000000 KCAL/H)"),
   description: z.string().optional(),
   unit: z.string().min(1, "Unit is required"),
   unitPrice: z.string().min(1, "Unit Price is required").regex(/^\d+(\.\d{1,2})?$/, "Enter a valid price (e.g. 100.00)"),
