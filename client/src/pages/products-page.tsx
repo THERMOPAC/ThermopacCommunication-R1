@@ -53,7 +53,9 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 
 const attributeFormSchema = z.object({
   attributeType: z.string().min(1),
-  code: z.string().length(3, "Code must be exactly 3 characters"),
+  code: z.string()
+    .length(3, "Code must be exactly 3 characters")
+    .regex(/^[A-Z0-9]+$/, "Only uppercase letters (A–Z) and digits (0–9) — no spaces or special characters"),
   label: z.string().min(1, "Label is required"),
   tag: z.string()
     .min(2, "Tag must be 2–3 uppercase letters")
