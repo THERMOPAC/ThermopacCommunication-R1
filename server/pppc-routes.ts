@@ -1254,19 +1254,45 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (!requireManager(req, res)) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid id');
-      const hdr = await pool.query(`SELECT status, submitted_by FROM project_buy_list_headers WHERE id=$1`, [id]);
+      const hdr = await pool.query(
+        `SELECT h.status, h.submitted_by, p.cost_lock_status
+         FROM project_buy_list_headers h
+         JOIN projects p ON p.id = h.project_id
+         WHERE h.id=$1`,
+        [id],
+      );
       if (hdr.rowCount === 0) return sendNotFound(res, 'Buy list', id);
       if (hdr.rows[0].status !== 'under_review') return sendBusinessError(res, 'Only under_review lists can be reviewed.');
       const userId = (req.user as any)?.id;
+      const role   = (req.user as any)?.role;
       const { recommendation, reviewNote } = req.body;
       const VALID_RECS = ['approve', 'reject', 'approve_with_comments'];
       if (!VALID_RECS.includes(recommendation)) return sendValidationError(res, 'Invalid recommendation value.');
+
+      // Record the review
       await pool.query(
         `UPDATE project_buy_list_headers SET reviewed_by=$1, reviewed_at=NOW(),
           review_note=$2, review_recommendation=$3, updated_at=NOW() WHERE id=$4`,
         [userId, reviewNote ?? null, recommendation, id],
       );
-      res.json({ success: true });
+
+      // Auto-release when recommendation is 'approve' AND requester has senior-manager rights
+      // AND project is not cost-locked. A non-senior reviewer's approval still requires a
+      // senior manager to click Release separately.
+      let autoReleased = false;
+      if (recommendation === 'approve' && canManage(role, 'Manager')) {
+        const costLocked = hdr.rows[0].cost_lock_status === 'locked';
+        if (!costLocked) {
+          await pool.query(
+            `UPDATE project_buy_list_headers SET status='released', released_by=$1, released_at=NOW(),
+              release_note=$2, updated_at=NOW() WHERE id=$3`,
+            [userId, reviewNote ?? null, id],
+          );
+          autoReleased = true;
+        }
+      }
+
+      res.json({ success: true, autoReleased });
     } catch (err) { sendError(res, err); }
   });
 

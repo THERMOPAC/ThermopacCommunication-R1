@@ -499,7 +499,16 @@ export default function EpcBuyListControlPage() {
   const doAction = useMutation({
     mutationFn: ({ listId, action, body }: { listId: number; action: string; body: any }) =>
       apiRequest("POST", `/api/buy-lists/${listId}/${action}`, body),
-    onSuccess: () => { toast({ title: "Action completed" }); invalidateLists(); setActionDialog(null); setActionNote(""); },
+    onSuccess: (data: any) => {
+      if (data?.autoReleased) {
+        toast({ title: "List approved and released", description: "Status updated to Released." });
+      } else {
+        toast({ title: "Action completed" });
+      }
+      invalidateLists();
+      setActionDialog(null);
+      setActionNote("");
+    },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -2038,6 +2047,16 @@ export default function EpcBuyListControlPage() {
                       <SelectItem value="reject">Reject</SelectItem>
                     </SelectContent>
                   </Select>
+                  {reviewRec === "approve" && canAction && (
+                    <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1.5">
+                      Confirming will approve <strong>and release</strong> this buy list in one step.
+                    </p>
+                  )}
+                  {reviewRec === "approve" && !canAction && (
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                      Your approval recommendation will be recorded. A Senior Manager must click Release to publish the list.
+                    </p>
+                  )}
                 </div>
               )}
               {ACTION_META[actionDialog.action]?.needsNote && (
@@ -2057,7 +2076,9 @@ export default function EpcBuyListControlPage() {
                 disabled={doAction.isPending || (["cancel", "supersede"].includes(actionDialog.action) && !actionNote.trim())}
               >
                 {doAction.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Confirm
+                {actionDialog.action === "review" && reviewRec === "approve" && canAction
+                  ? "Approve & Release"
+                  : "Confirm"}
               </Button>
             </DialogFooter>
           </DialogContent>
