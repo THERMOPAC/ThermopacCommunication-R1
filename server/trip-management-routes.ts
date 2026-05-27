@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from './db';
 import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, tripDocuments, users, schengenTravelLog, schengenCountries } from '@shared/schema';
 import { eq, and, or, desc, asc, sql, sum, count } from 'drizzle-orm';
+import { resolvePathTemplate, logUploadEvent } from './services/gcs-governance-service';
 import { z } from 'zod';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
@@ -59,27 +60,66 @@ const upload = multer({
   }
 });
 
-// Helper function to generate structured GCS path
-const generateGCSPath = (employeeData: any, destination: string, fromDate: string, documentType: string, fileName: string): string => {
-  // Get business year (4-digit year) from trip start date
-  const tripDate = new Date(fromDate);
-  const businessYear = tripDate.getFullYear().toString(); // e.g., "2025"
-  
-  // Use employee name or username
-  const employeeName = employeeData.firstName && employeeData.lastName 
-    ? `${employeeData.firstName}_${employeeData.lastName}`.replace(/\s+/g, '_')
-    : employeeData.username.replace(/\s+/g, '_');
-  
-  // Clean destination and document type for file path
-  const cleanDestination = destination.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const cleanDocumentType = documentType.replace(/[^a-zA-Z0-9_-]/g, '_');
-  
-  // Format date for path
-  const formattedDate = new Date(fromDate).toISOString().split('T')[0]; // YYYY-MM-DD
-  
-  // Generate path: Business_Trips/{BusinessYear}/{EmployeeName}/{Destination}/{FromDate}/{DocumentType}/filename
-  return `Business_Trips/${businessYear}/${employeeName}/${cleanDestination}/${formattedDate}/${cleanDocumentType}/${fileName}`;
-};
+// ── CompanyFY helper (April–March cycle, format YYZZ) ─────────────────────────
+function getCompanyFY(date: Date): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1; // 1-12
+  const fyStart = month >= 4 ? year : year - 1;
+  const fyEnd = fyStart + 1;
+  return `${String(fyStart).slice(-2)}${String(fyEnd).slice(-2)}`;
+}
+
+// ── DB-driven GCS path builder for trip documents ─────────────────────────────
+// Reads the active TRIP_DOCUMENT rule from gcs_governance_rules and resolves
+// the canonical path. Falls back to the legacy Business_Trips/... format if no
+// active DB rule is found (monitor-only, should never happen in production).
+async function buildTripGCSPath(params: {
+  employeeFirstName: string | null;
+  employeeLastName: string | null;
+  employeeUsername: string;
+  destination: string;
+  fromDate: string;
+  documentType: string;
+  fileName: string;
+}): Promise<string> {
+  const ruleRow = await db.execute(sql`
+    SELECT path_template FROM gcs_governance_rules
+    WHERE document_type = 'TRIP_DOCUMENT' AND active = true
+    LIMIT 1
+  `);
+  const template: string | null = (ruleRow.rows[0] as any)?.path_template ?? null;
+
+  const tripDate = new Date(params.fromDate);
+  const companyFY = getCompanyFY(tripDate);
+
+  const employeeName = (
+    params.employeeFirstName && params.employeeLastName
+      ? `${params.employeeFirstName}-${params.employeeLastName}`
+      : params.employeeUsername
+  ).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+  const destination = params.destination
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const docType = params.documentType.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+
+  if (template) {
+    return resolvePathTemplate(template, {
+      CompanyFY: companyFY,
+      EmployeeName: employeeName,
+      Destination: destination,
+      DocType: docType,
+      filename: params.fileName,
+    });
+  }
+
+  // Fallback (no active DB rule — should not occur in normal operation)
+  console.warn('[TripDocs] No active TRIP_DOCUMENT governance rule found — using legacy path');
+  return `Business_Trips/${tripDate.getFullYear()}/${employeeName}/${destination}/${docType}/${params.fileName}`;
+}
 
 // ===================== AUTO-LINKING HELPER FUNCTIONS =====================
 
@@ -1110,14 +1150,16 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
     const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `${timestamp}_${originalName}`;
 
-    // Generate structured GCS path
-    const gcsPath = generateGCSPath(
-      employee[0],
-      trip[0].destination,
-      trip[0].fromDate.toString(),
+    // Generate DB-driven canonical GCS path (TPEL/ADMIN/HR/{CompanyFY}/TRIPS/...)
+    const gcsPath = await buildTripGCSPath({
+      employeeFirstName: employee[0].firstName ?? null,
+      employeeLastName: employee[0].lastName ?? null,
+      employeeUsername: employee[0].username,
+      destination: trip[0].destination,
+      fromDate: trip[0].fromDate.toString(),
       documentType,
-      fileName
-    );
+      fileName,
+    });
 
     // Upload to Google Cloud Storage
     const gcsFile = bucket.file(gcsPath);
@@ -1139,6 +1181,17 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
     const [signedUrl] = await gcsFile.getSignedUrl({
       action: 'read',
       expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+    });
+
+    // Log to GCS governance monitor (non-blocking)
+    void logUploadEvent({
+      gcsPath,
+      moduleKey: 'hr_admin',
+      documentType: 'TRIP_DOCUMENT',
+      fileSizeBytes: file.size,
+      mimeType: file.mimetype,
+      uploadedBy: userId,
+      routeFile: 'trip-management-routes.ts',
     });
 
     // Save document record to database
