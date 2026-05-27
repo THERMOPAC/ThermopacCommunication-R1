@@ -14376,6 +14376,19 @@ export type GcsFileMigrationJob = typeof gcsFileMigrationJobs.$inferSelect;
 export const insertGcsFileMigrationJobSchema = createInsertSchema(gcsFileMigrationJobs).omit({ id: true, startedAt: true });
 export type InsertGcsFileMigrationJob = z.infer<typeof insertGcsFileMigrationJobSchema>;
 
+export const gcsFileMigrationItems = pgTable('gcs_file_migration_items', {
+  id:          serial('id').primaryKey(),
+  jobId:       integer('job_id').notNull(),
+  fileId:      integer('file_id').notNull(),
+  tableName:   varchar('table_name', { length: 100 }).notNull(),
+  beforePath:  text('before_path').notNull(),
+  afterPath:   text('after_path'),
+  status:      varchar('status', { length: 20 }).notNull().default('pending'),
+  error:       text('error'),
+  processedAt: timestamp('processed_at'),
+});
+export type GcsFileMigrationItem = typeof gcsFileMigrationItems.$inferSelect;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Local Windows Document Agent — node registry
 // ─────────────────────────────────────────────────────────────────────────────

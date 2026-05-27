@@ -1,27 +1,39 @@
 /**
- * GCS File Migration Service
- * Automatically migrates existing GCS objects to canonical DB-driven paths
- * when a governance rule is switched to 'db_driven' mode.
+ * GCS File Migration Service v2
  *
- * Design:
- *  - Handler registry: one entry per documentType that knows which DB table/column
- *    to read from, how to rebuild the canonical path, and how to update the record.
- *  - Runs fully async/background — never blocks the API response.
- *  - Tracks progress in gcs_file_migration_jobs table.
- *  - Old GCS objects are preserved (not deleted) for a manual cleanup phase.
- *  - Idempotent: files already at the canonical root are counted as "skipped".
+ * Migrates existing GCS objects to canonical DB-driven paths.
+ * Triggered when:
+ *   (a) governance mode switches hardcoded → db_driven   (triggerReason='auto_db_driven')
+ *   (b) path_template changes on a db_driven rule         (triggerReason='auto_template_change')
+ *   (c) admin presses "Migrate Now"                       (triggerReason='manual')
+ *
+ * Candidate detection:
+ *   Converts path_template to a regex.  Any existing record whose file_path
+ *   does NOT match the regex is a migration candidate — regardless of whether
+ *   the root prefix changed or only the internal folder structure changed.
+ *
+ * Copy-verify-delete (GCS):
+ *   1. Copy source → destination
+ *   2. Verify destination exists AND size matches source
+ *   3. Update DB record to new path
+ *   4. Delete source (best-effort; orphaned source is harmless)
+ *
+ * Per-file audit trail stored in gcs_file_migration_items (before_path, after_path, status).
+ *
+ * Idempotent: regex re-check at run-time means already-migrated files are skipped
+ * on every subsequent run without touching gcs_file_migration_items history.
  */
 
 import path from 'path';
 import { Storage } from '@google-cloud/storage';
 import { db } from '../db';
-import { gcsFileMigrationJobs } from '@shared/schema';
+import { gcsFileMigrationJobs, gcsFileMigrationItems } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { resolvePathTemplate } from './gcs-governance-service';
 
 const TAG = '[GCS-FileMigration]';
 
-// ── GCS bucket (lazily initialised, same pattern as trip/visa routes) ─────────
+// ── GCS bucket (lazily initialised) ──────────────────────────────────────────
 
 let _bucket: any = null;
 
@@ -37,6 +49,26 @@ function getBucket(): any | null {
   } catch {
     return null;
   }
+}
+
+// ── Template → Regex ──────────────────────────────────────────────────────────
+// Converts  "TPEL/ADMIN/HR/{CompanyFY}/TRIPS/{EmployeeName}/{Destination}/{DocType}/{filename}"
+// to        /^TPEL\/ADMIN\/HR\/[^/]+\/TRIPS\/[^/]+\/[^/]+\/[^/]+\/[^/]+$/
+//
+// Rules:
+//   • {Token}  → [^/]+  (one non-slash path segment)
+//   • All other characters are regex-escaped
+//
+// Exported so governance routes and tests can use it directly.
+
+export function templateToRegex(template: string): RegExp {
+  const parts = template.split(/(\{[^}]+\})/);
+  const regexStr = parts.map(part =>
+    /^\{[^}]+\}$/.test(part)
+      ? '[^/]+'
+      : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  ).join('');
+  return new RegExp(`^${regexStr}$`);
 }
 
 // ── CompanyFY helper (April–March, format YYZZ) ───────────────────────────────
@@ -58,62 +90,54 @@ function slugType(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
 }
 
-// ── Candidate record types ────────────────────────────────────────────────────
+// ── Per-item status values ────────────────────────────────────────────────────
+// pending → copying → verified → completed
+//                              → failed
+//          → skipped
 
-interface TripCandidate {
-  id: number;
-  filePath: string;
-  documentType: string;
-  destination: string;
-  fromDate: Date;
-  firstName: string | null;
-  lastName: string | null;
-  username: string;
+type ItemStatus = 'pending' | 'copying' | 'verified' | 'completed' | 'skipped' | 'failed';
+
+// ── Handler registry interface ────────────────────────────────────────────────
+
+interface MigrationHandler {
+  tableName:        string;
+  fetchAllRecords:  () => Promise<Array<{ id: number; filePath: string; [k: string]: any }>>;
+  buildNewPath:     (record: any, template: string) => string;
+  updateFilePath:   (id: number, newPath: string) => Promise<void>;
 }
 
-interface VisaCandidate {
-  id: number;
-  filePath: string;
-  visaType: string;
-  issueDate: Date;
-  firstName: string | null;
-  lastName: string | null;
-  username: string;
-}
+// ── Handlers ──────────────────────────────────────────────────────────────────
 
-// ── Handler registry ──────────────────────────────────────────────────────────
-
-const HANDLERS: Record<string, {
-  fetchCandidates: (rootPrefix: string) => Promise<Array<{ id: number; filePath: string; [k: string]: any }>>;
-  buildNewPath:    (record: any, template: string) => string;
-  updateFilePath:  (id: number, newPath: string) => Promise<void>;
-}> = {
+const HANDLERS: Record<string, MigrationHandler> = {
 
   TRIP_DOCUMENT: {
-    async fetchCandidates(rootPrefix) {
+    tableName: 'trip_documents',
+
+    async fetchAllRecords() {
       const rows = await db.execute(sql`
         SELECT
           td.id,
-          td.file_path  AS "filePath",
-          td.document_type AS "documentType",
+          td.file_path      AS "filePath",
+          td.document_type  AS "documentType",
           bt.destination,
-          bt.from_date  AS "fromDate",
-          u.first_name  AS "firstName",
-          u.last_name   AS "lastName",
+          bt.from_date      AS "fromDate",
+          u.first_name      AS "firstName",
+          u.last_name       AS "lastName",
           u.username
         FROM trip_documents  td
         JOIN business_trips  bt ON bt.id = td.trip_id
         JOIN users           u  ON u.id  = bt.employee_id
         WHERE td.is_active = true
-          AND td.file_path NOT LIKE ${rootPrefix + '/%'}
+          AND td.file_path IS NOT NULL
+          AND td.file_path <> ''
         ORDER BY td.id
       `);
-      return rows.rows as TripCandidate[];
+      return rows.rows as any[];
     },
 
-    buildNewPath(record: TripCandidate, template: string): string {
-      const tripDate = new Date(record.fromDate);
-      const companyFY = getCompanyFY(tripDate);
+    buildNewPath(record, template) {
+      const tripDate     = new Date(record.fromDate);
+      const companyFY    = getCompanyFY(tripDate);
       const employeeName = slugName(
         record.firstName && record.lastName
           ? `${record.firstName}-${record.lastName}`
@@ -122,7 +146,13 @@ const HANDLERS: Record<string, {
       const destination = slugName(record.destination);
       const docType     = slugType(record.documentType);
       const filename    = path.basename(record.filePath);
-      return resolvePathTemplate(template, { CompanyFY: companyFY, EmployeeName: employeeName, Destination: destination, DocType: docType, filename });
+      return resolvePathTemplate(template, {
+        CompanyFY: companyFY,
+        EmployeeName: employeeName,
+        Destination: destination,
+        DocType: docType,
+        filename,
+      });
     },
 
     async updateFilePath(id, newPath) {
@@ -131,29 +161,30 @@ const HANDLERS: Record<string, {
   },
 
   VISA_DOCUMENT: {
-    async fetchCandidates(rootPrefix) {
+    tableName: 'visa_records',
+
+    async fetchAllRecords() {
       const rows = await db.execute(sql`
         SELECT
           vr.id,
-          vr.file_path  AS "filePath",
-          vr.visa_type  AS "visaType",
-          vr.issue_date AS "issueDate",
-          u.first_name  AS "firstName",
-          u.last_name   AS "lastName",
+          vr.file_path   AS "filePath",
+          vr.visa_type   AS "visaType",
+          vr.issue_date  AS "issueDate",
+          u.first_name   AS "firstName",
+          u.last_name    AS "lastName",
           u.username
         FROM visa_records vr
         JOIN users        u ON u.id = vr.employee_id
         WHERE vr.file_path IS NOT NULL
           AND vr.file_path <> ''
-          AND vr.file_path NOT LIKE ${rootPrefix + '/%'}
         ORDER BY vr.id
       `);
-      return rows.rows as VisaCandidate[];
+      return rows.rows as any[];
     },
 
-    buildNewPath(record: VisaCandidate, template: string): string {
-      const issueDate = new Date(record.issueDate);
-      const companyFY = getCompanyFY(issueDate);
+    buildNewPath(record, template) {
+      const issueDate    = new Date(record.issueDate);
+      const companyFY    = getCompanyFY(issueDate);
       const employeeName = slugName(
         record.firstName && record.lastName
           ? `${record.firstName}-${record.lastName}`
@@ -161,7 +192,12 @@ const HANDLERS: Record<string, {
       );
       const category = slugName(record.visaType);
       const filename  = path.basename(record.filePath);
-      return resolvePathTemplate(template, { CompanyFY: companyFY, EmployeeName: employeeName, Category: category, filename });
+      return resolvePathTemplate(template, {
+        CompanyFY: companyFY,
+        EmployeeName: employeeName,
+        Category: category,
+        filename,
+      });
     },
 
     async updateFilePath(id, newPath) {
@@ -169,6 +205,42 @@ const HANDLERS: Record<string, {
     },
   },
 };
+
+// ── GCS copy → verify → DB update → delete (best-effort) ─────────────────────
+
+async function gcsCopyVerifyDelete(
+  bucket: any,
+  sourcePath: string,
+  destPath:   string
+): Promise<void> {
+  const sourceFile = bucket.file(sourcePath);
+  const destFile   = bucket.file(destPath);
+
+  // 1. Copy (GCS preserves metadata automatically)
+  await sourceFile.copy(destFile);
+
+  // 2. Verify destination exists
+  const [destExists] = await destFile.exists();
+  if (!destExists) {
+    throw new Error('Copy reported success but destination object not found in GCS');
+  }
+
+  // 3. Verify size matches
+  const [sourceMeta] = await sourceFile.getMetadata();
+  const [destMeta]   = await destFile.getMetadata();
+  if (String(sourceMeta.size) !== String(destMeta.size)) {
+    throw new Error(
+      `Size mismatch after copy — source: ${sourceMeta.size} bytes, dest: ${destMeta.size} bytes`
+    );
+  }
+
+  // 4. Delete source (best-effort — a failed delete is logged but never fails the migration)
+  try {
+    await sourceFile.delete();
+  } catch (delErr: any) {
+    console.warn(`${TAG} Source delete failed (orphaned object at ${sourcePath}): ${delErr.message}`);
+  }
+}
 
 // ── Job progress helpers ───────────────────────────────────────────────────────
 
@@ -185,107 +257,156 @@ async function updateJob(
     completedAt: Date;
   }>
 ) {
-  await db.update(gcsFileMigrationJobs).set(patch as any).where(eq(gcsFileMigrationJobs.id, jobId));
+  await db.update(gcsFileMigrationJobs)
+    .set(patch as any)
+    .where(eq(gcsFileMigrationJobs.id, jobId));
 }
 
-// ── Core migration runner (runs fully in the background) ─────────────────────
+async function upsertItem(
+  jobId: number,
+  fileId: number,
+  tableName: string,
+  beforePath: string,
+  status: ItemStatus,
+  afterPath?: string,
+  error?: string
+) {
+  await db.insert(gcsFileMigrationItems).values({
+    jobId,
+    fileId,
+    tableName,
+    beforePath,
+    afterPath:   afterPath   ?? null,
+    status,
+    error:       error       ?? null,
+    processedAt: new Date(),
+  });
+}
+
+// ── Core migration runner ──────────────────────────────────────────────────────
 
 async function runMigrationBackground(
-  jobId: number,
+  jobId:        number,
   documentType: string,
   pathTemplate: string,
-  rootPrefix: string
 ) {
   const handler = HANDLERS[documentType];
   if (!handler) {
-    await updateJob(jobId, { status: 'failed', completedAt: new Date(), errorLog: [{ fileId: 0, oldPath: '', error: `No handler registered for documentType=${documentType}` }] });
+    await updateJob(jobId, {
+      status:      'failed',
+      completedAt: new Date(),
+      errorLog:    [{ fileId: 0, oldPath: '', error: `No handler for documentType=${documentType}` }],
+    });
     return;
   }
 
   await updateJob(jobId, { status: 'running' });
 
-  const bucket = getBucket();
-  const errors: Array<{ fileId: number; oldPath: string; error: string }> = [];
+  const bucket   = getBucket();
+  const regex    = templateToRegex(pathTemplate);
+  const errors:  Array<{ fileId: number; oldPath: string; error: string }> = [];
 
-  let candidates: Array<{ id: number; filePath: string; [k: string]: any }> = [];
+  // ── 1. Fetch all records ───────────────────────────────────────────────────
+  let allRecords: Array<{ id: number; filePath: string; [k: string]: any }> = [];
   try {
-    candidates = await handler.fetchCandidates(rootPrefix);
+    allRecords = await handler.fetchAllRecords();
   } catch (err: any) {
-    console.error(`${TAG} fetchCandidates failed for ${documentType}:`, err.message);
-    await updateJob(jobId, { status: 'failed', completedAt: new Date(), errorLog: [{ fileId: 0, oldPath: '', error: `DB query failed: ${err.message}` }] });
+    console.error(`${TAG} fetchAllRecords failed for ${documentType}:`, err.message);
+    await updateJob(jobId, {
+      status:      'failed',
+      completedAt: new Date(),
+      errorLog:    [{ fileId: 0, oldPath: '', error: `DB query failed: ${err.message}` }],
+    });
     return;
   }
 
-  await updateJob(jobId, { totalFiles: candidates.length });
-  console.log(`${TAG} [job=${jobId}] ${documentType}: ${candidates.length} file(s) to migrate`);
+  // ── 2. Filter candidates via regex (not prefix) ───────────────────────────
+  const candidates = allRecords.filter(r => r.filePath && !regex.test(r.filePath));
+  const skippedByRegex = allRecords.length - candidates.length;
+
+  await updateJob(jobId, {
+    totalFiles:   candidates.length,
+    skippedFiles: skippedByRegex,
+  });
+
+  console.log(
+    `${TAG} [job=${jobId}] ${documentType}: ${allRecords.length} total, ` +
+    `${candidates.length} candidates, ${skippedByRegex} already compliant`
+  );
 
   let migrated = 0;
-  let skipped  = 0;
+  let skipped  = skippedByRegex;
   let failed   = 0;
 
+  // ── 3. Migrate each candidate ─────────────────────────────────────────────
   for (let i = 0; i < candidates.length; i++) {
-    const record = candidates[i];
-    const oldPath = record.filePath;
+    const record   = candidates[i];
+    const oldPath  = record.filePath;
 
-    // Safety: skip if path already looks canonical
-    if (oldPath.startsWith(rootPrefix + '/')) {
-      skipped++;
-      await updateJob(jobId, { processedFiles: i + 1, skippedFiles: skipped });
-      continue;
-    }
-
+    // Build canonical new path
     let newPath: string;
     try {
       newPath = handler.buildNewPath(record, pathTemplate);
     } catch (err: any) {
-      console.warn(`${TAG} [job=${jobId}] Path build failed for id=${record.id}:`, err.message);
+      console.warn(`${TAG} [job=${jobId}] Path build failed id=${record.id}: ${err.message}`);
       errors.push({ fileId: record.id, oldPath, error: `Path build: ${err.message}` });
       failed++;
+      await upsertItem(jobId, record.id, handler.tableName, oldPath, 'failed', undefined, `Path build: ${err.message}`);
       await updateJob(jobId, { processedFiles: i + 1, failedFiles: failed, errorLog: errors });
       continue;
     }
 
-    // Skip if old and new path are the same
+    // Skip if old path === new path (already correct, regex didn't catch it due to template mismatch)
     if (newPath === oldPath) {
       skipped++;
+      await upsertItem(jobId, record.id, handler.tableName, oldPath, 'skipped', oldPath);
       await updateJob(jobId, { processedFiles: i + 1, skippedFiles: skipped });
       continue;
     }
 
-    // GCS copy
+    // ── GCS: copy → verify → delete ──────────────────────────────────────
     if (bucket) {
+      await upsertItem(jobId, record.id, handler.tableName, oldPath, 'copying', newPath);
       try {
-        const sourceFile = bucket.file(oldPath);
-        await sourceFile.copy(bucket.file(newPath));
-        console.log(`${TAG} [job=${jobId}] Copied ${oldPath} → ${newPath}`);
+        await gcsCopyVerifyDelete(bucket, oldPath, newPath);
+        console.log(`${TAG} [job=${jobId}] GCS: ${oldPath} → ${newPath}`);
       } catch (err: any) {
-        console.warn(`${TAG} [job=${jobId}] GCS copy failed id=${record.id}: ${err.message}`);
-        errors.push({ fileId: record.id, oldPath, error: `GCS copy: ${err.message}` });
+        console.warn(`${TAG} [job=${jobId}] GCS error id=${record.id}: ${err.message}`);
+        errors.push({ fileId: record.id, oldPath, error: `GCS: ${err.message}` });
         failed++;
+        await upsertItem(jobId, record.id, handler.tableName, oldPath, 'failed', newPath, `GCS: ${err.message}`);
         await updateJob(jobId, { processedFiles: i + 1, failedFiles: failed, errorLog: errors });
         continue;
       }
     } else {
-      // GCS unavailable (dev environment) — still update DB path so monitor sees compliance
-      console.warn(`${TAG} [job=${jobId}] GCS unavailable — updating DB path only (no copy) for id=${record.id}`);
+      // Dev environment — no GCS credentials; update DB path only
+      console.warn(
+        `${TAG} [job=${jobId}] GCS unavailable (dev) — updating DB only for id=${record.id}`
+      );
     }
 
-    // Update DB record
+    // ── DB update ────────────────────────────────────────────────────────
     try {
       await handler.updateFilePath(record.id, newPath);
       migrated++;
+      await upsertItem(jobId, record.id, handler.tableName, oldPath, 'completed', newPath);
       await updateJob(jobId, { processedFiles: i + 1, migratedFiles: migrated });
     } catch (err: any) {
-      console.error(`${TAG} [job=${jobId}] DB update failed id=${record.id}:`, err.message);
+      console.error(`${TAG} [job=${jobId}] DB update failed id=${record.id}: ${err.message}`);
       errors.push({ fileId: record.id, oldPath, error: `DB update: ${err.message}` });
       failed++;
+      await upsertItem(jobId, record.id, handler.tableName, oldPath, 'failed', newPath, `DB update: ${err.message}`);
       await updateJob(jobId, { processedFiles: i + 1, failedFiles: failed, errorLog: errors });
     }
   }
 
-  const finalStatus = failed > 0 && migrated === 0 ? 'failed' : failed > 0 ? 'partial' : 'completed';
+  const finalStatus =
+    failed > 0 && migrated === 0 ? 'failed' :
+    failed > 0                   ? 'partial' :
+    'completed';
+
   await updateJob(jobId, {
-    status: finalStatus,
+    status:        finalStatus,
     processedFiles: candidates.length,
     migratedFiles:  migrated,
     skippedFiles:   skipped,
@@ -294,40 +415,44 @@ async function runMigrationBackground(
     completedAt:    new Date(),
   });
 
-  console.log(`${TAG} [job=${jobId}] Done. migrated=${migrated} skipped=${skipped} failed=${failed} status=${finalStatus}`);
+  console.log(
+    `${TAG} [job=${jobId}] Done. migrated=${migrated} skipped=${skipped} failed=${failed} status=${finalStatus}`
+  );
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function triggerFileMigration(params: {
-  ruleId: number;
-  documentType: string;
-  pathTemplate: string;
-  rootPrefix: string;
-  triggerReason: 'auto_db_driven' | 'manual';
-  triggeredBy?: number;
+  ruleId:        number;
+  documentType:  string;
+  pathTemplate:  string;
+  rootPrefix:    string;
+  triggerReason: 'auto_db_driven' | 'auto_template_change' | 'manual';
+  triggeredBy?:  number;
 }): Promise<{ jobId: number }> {
-  // Create job record
   const [job] = await db.insert(gcsFileMigrationJobs).values({
-    ruleId:        params.ruleId,
-    documentType:  params.documentType,
-    triggerReason: params.triggerReason,
-    triggeredBy:   params.triggeredBy ?? null,
-    status:        'pending',
-    totalFiles:    0,
+    ruleId:         params.ruleId,
+    documentType:   params.documentType,
+    triggerReason:  params.triggerReason,
+    triggeredBy:    params.triggeredBy ?? null,
+    status:         'pending',
+    totalFiles:     0,
     processedFiles: 0,
     migratedFiles:  0,
     skippedFiles:   0,
     failedFiles:    0,
   }).returning();
 
-  console.log(`${TAG} Queued migration job ${job.id} for ${params.documentType} (${params.triggerReason})`);
+  console.log(`${TAG} Queued job ${job.id} for ${params.documentType} (${params.triggerReason})`);
 
-  // Fire and forget — never awaited
   setImmediate(() => {
-    runMigrationBackground(job.id, params.documentType, params.pathTemplate, params.rootPrefix).catch(err => {
-      console.error(`${TAG} Unhandled error in migration job ${job.id}:`, err);
-      updateJob(job.id, { status: 'failed', completedAt: new Date(), errorLog: [{ fileId: 0, oldPath: '', error: String(err) }] }).catch(() => {});
+    runMigrationBackground(job.id, params.documentType, params.pathTemplate).catch(err => {
+      console.error(`${TAG} Unhandled error in job ${job.id}:`, err);
+      updateJob(job.id, {
+        status:      'failed',
+        completedAt: new Date(),
+        errorLog:    [{ fileId: 0, oldPath: '', error: String(err) }],
+      }).catch(() => {});
     });
   });
 

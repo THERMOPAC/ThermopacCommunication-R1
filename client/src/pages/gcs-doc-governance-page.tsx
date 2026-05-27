@@ -1296,7 +1296,11 @@ function FileMigrationPanel({ rule }: { rule: GcsGovernanceRule }) {
               {latest.status}
             </span>
             <span className="text-[10px] text-slate-500">
-              {latest.triggerReason === 'auto_db_driven' ? 'Auto (DB-Driven enabled)' : 'Manual'}
+              {latest.triggerReason === 'auto_db_driven'
+                ? 'Auto (DB-Driven enabled)'
+                : latest.triggerReason === 'auto_template_change'
+                ? 'Auto (Path template changed)'
+                : 'Manual'}
             </span>
             <span className="text-[10px] text-slate-400">{fmtDateTime(latest.startedAt)}</span>
           </div>

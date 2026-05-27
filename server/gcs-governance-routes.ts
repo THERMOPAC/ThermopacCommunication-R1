@@ -250,12 +250,43 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         }
       }
 
+      // Detect path_template change on a db_driven rule — capture BEFORE update
+      const pathTemplateChanging =
+        updates.pathTemplate !== undefined &&
+        updates.pathTemplate.trim() !== (current.pathTemplate ?? '');
+
       const [updated] = await db.update(gcsGovernanceRules)
         .set({ ...updates, updatedAt: new Date() })
         .where(eq(gcsGovernanceRules.id, id))
         .returning();
       if (!updated) return res.status(404).json({ error: 'Rule not found' });
-      res.json(updated);
+
+      // Auto-trigger migration when path_template changes on an active db_driven rule
+      let migrationJob: { jobId: number } | undefined;
+      if (
+        pathTemplateChanging &&
+        updated.governanceMode === 'db_driven' &&
+        hasMigrationHandler(updated.documentType)
+      ) {
+        try {
+          migrationJob = await triggerFileMigration({
+            ruleId:        updated.id,
+            documentType:  updated.documentType,
+            pathTemplate:  updated.pathTemplate!,
+            rootPrefix:    updated.rootPrefix ?? '',
+            triggerReason: 'auto_template_change',
+            triggeredBy:   (req as any).user?.id,
+          });
+          console.log(
+            `[GovernanceRoutes] Auto-migration job ${migrationJob.jobId} queued for rule ${id}` +
+            ` (${updated.documentType}) — path_template changed`
+          );
+        } catch (migErr: any) {
+          console.error(`[GovernanceRoutes] Failed to queue migration on template change for rule ${id}:`, migErr.message);
+        }
+      }
+
+      res.json({ ...updated, ...(migrationJob ? { migrationJobId: migrationJob.jobId } : {}) });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
