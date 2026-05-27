@@ -290,6 +290,7 @@ export default function EpcBuyListControlPage() {
   const [confirmRemoveSel, setConfirmRemoveSel] = useState<number | null>(null);
   const [confirmBulkApprove, setConfirmBulkApprove] = useState<{ headerId: number; lineIds: number[] } | null>(null);
   const [confirmBulkRaisePr, setConfirmBulkRaisePr] = useState<{ headerId: number; lineIds: number[] } | null>(null);
+  const [confirmRaiseAll, setConfirmRaiseAll] = useState<number | null>(null);
   const [confirmDirectApprove, setConfirmDirectApprove] = useState<{ headerId: number; lineIds: number[] } | null>(null);
 
   // Datasheet preview
@@ -1505,17 +1506,10 @@ export default function EpcBuyListControlPage() {
                           {["released", "locked"].includes(lst.status) && canWrite && (
                             <Button size="sm" variant="outline"
                               className="h-7 text-xs px-2 border-emerald-400 text-emerald-700 hover:bg-emerald-50"
-                              disabled={bulkRaisePr.isPending}
+                              disabled={raiseAllPr.isPending}
                               onClick={e => {
                                 e.stopPropagation();
-                                const eligible = (expandedId === lst.id ? expandedLines : [])
-                                  .filter((l: any) => !["canceled", "obsolete", "pr_raised"].includes(l.status))
-                                  .map((l: any) => l.id);
-                                if (eligible.length === 0) {
-                                  toast({ title: "All lines already raised", description: "No eligible lines remaining.", variant: "destructive" });
-                                  return;
-                                }
-                                setConfirmBulkRaisePr({ headerId: lst.id, lineIds: eligible });
+                                setConfirmRaiseAll(lst.id);
                               }}
                             >
                               <TrendingUp className="h-3.5 w-3.5 mr-1" />Raise PR for All
@@ -3058,6 +3052,27 @@ export default function EpcBuyListControlPage() {
               onClick={() => { if (confirmBulkApprove) { bulkApprove.mutate(confirmBulkApprove); setConfirmBulkApprove(null); } }}
             >
               Approve {confirmBulkApprove?.lineIds.length ?? 0} Line{(confirmBulkApprove?.lineIds.length ?? 0) !== 1 ? "s" : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Raise PR for All Confirm */}
+      <AlertDialog open={confirmRaiseAll !== null} onOpenChange={o => { if (!o) setConfirmRaiseAll(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Raise PR for All Eligible Lines</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will raise a Purchase Requisition for every eligible line in this buy list. Lines already raised, cancelled, or obsolete will be skipped automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => { if (confirmRaiseAll !== null) { raiseAllPr.mutate(confirmRaiseAll); setConfirmRaiseAll(null); } }}
+            >
+              Raise PR for All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
