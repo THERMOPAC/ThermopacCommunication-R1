@@ -112,8 +112,10 @@ export default function CompanyInformationPage() {
   const qc = useQueryClient();
   const isSuperuser = user?.role === 'Superuser';
   const isAccountsHead = user?.role === 'Accounts Head';
+  const isAdminManager = user?.role === 'Manager' && user?.department === 'Administration';
   const canWrite = isSuperuser;
   const canWriteLegal = isSuperuser || isAccountsHead;
+  const canUploadDocs = isSuperuser || isAdminManager;
 
   const { data, isLoading, error } = useQuery<{ company: CompanyPayload }>({
     queryKey: ['/api/company/active'],
@@ -177,7 +179,7 @@ export default function CompanyInformationPage() {
           <TabsContent value="banking"><BankingTab accounts={company.bankAccounts} companyId={company.id} canWrite={canWriteLegal} isSuperuser={isSuperuser} toast={toast} qc={qc} /></TabsContent>
           <TabsContent value="erp"><ErpConfigTab erpConfig={company.erpConfig} companyId={company.id} canWrite={canWrite} toast={toast} qc={qc} /></TabsContent>
           <TabsContent value="branding"><BrandingTab branding={company.branding} companyId={company.id} canWrite={canWrite} logoPath={company.logo_gcs_path} sigPath={company.signature_gcs_path} sealPath={company.seal_gcs_path} toast={toast} qc={qc} /></TabsContent>
-          <TabsContent value="documents"><DocumentsTab documents={company.documents} companyId={company.id} canWrite={canWrite} canWriteLegal={canWriteLegal} toast={toast} qc={qc} /></TabsContent>
+          <TabsContent value="documents"><DocumentsTab documents={company.documents} companyId={company.id} canWrite={canUploadDocs} canWriteLegal={canWriteLegal} toast={toast} qc={qc} /></TabsContent>
           {isSuperuser && <TabsContent value="audit"><AuditTab companyId={company.id} /></TabsContent>}
         </Tabs>
       </div>

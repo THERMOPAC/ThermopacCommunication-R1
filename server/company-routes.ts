@@ -82,7 +82,9 @@ function validateIso4217(code: string): boolean {
 // Role helpers
 function isSuperuser(req: any) { return req.user?.role === 'Superuser'; }
 function isAccountsHead(req: any) { return req.user?.role === 'Accounts Head'; }
+function isAdminManager(req: any) { return req.user?.role === 'Manager' && req.user?.department === 'Administration'; }
 function isSuperuserOrAccountsHead(req: any) { return isSuperuser(req) || isAccountsHead(req); }
+function canUploadCompanyDocs(req: any) { return isSuperuser(req) || isAdminManager(req); }
 
 function forbiddenErr(res: any, required: string[]) {
   return res.status(403).json({
@@ -561,7 +563,7 @@ router.post('/:id(\\d+)/branding/seal',      brandingUploadLimiter, brandingUplo
 
 // ── POST /api/company/:id/documents/:docType ──────────────────────────────────
 router.post('/:id(\\d+)/documents/:docType', uploadLimiter, docUpload.single('file'), async (req: any, res: any) => {
-  if (!isSuperuser(req)) return forbiddenErr(res, ['Superuser']);
+  if (!canUploadCompanyDocs(req)) return forbiddenErr(res, ['Superuser', 'Administration Manager']);
   const id = parseInt(req.params.id, 10);
   const { docType } = req.params;
   if (!(COMPANY_DOC_TYPES as readonly string[]).includes(docType)) {
