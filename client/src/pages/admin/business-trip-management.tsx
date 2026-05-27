@@ -3004,65 +3004,308 @@ const TripApprovalCard = ({
   );
 };
 
+// Mandatory document types for completeness tracking
+const MANDATORY_DOC_TYPES_DOCS = [
+  { type: 'passport',           label: 'Passport' },
+  { type: 'visa_documents',     label: 'Visa' },
+  { type: 'travel_booking',     label: 'Tickets' },
+  { type: 'hotel_confirmation', label: 'Hotel Booking' },
+  { type: 'insurance',          label: 'Insurance' },
+  { type: 'approval_letter',    label: 'Approval Letter' },
+];
+
+const DOCS_PAGE_SIZE = 10;
+
+// Desktop table row — fetches its own document counts
+const TripDocTableRow = ({
+  trip,
+  isSelected,
+  onSelect,
+  onUpload,
+  onDownloadAll,
+  onDelete,
+}: {
+  trip: any;
+  isSelected: boolean;
+  onSelect: (id: number) => void;
+  onUpload: (trip: any) => void;
+  onDownloadAll: (trip: any) => void;
+  onDelete: (trip: any) => void;
+}) => {
+  const { data: documents = [] } = useQuery({
+    queryKey: [`/api/trips/${trip.id}/documents`],
+    queryFn: () => apiRequest('GET', `/api/trips/${trip.id}/documents`),
+    staleTime: 30_000,
+  });
+  const uploadedTypes = new Set((documents as any[]).map((d: any) => d.documentType));
+  const missingCount = MANDATORY_DOC_TYPES_DOCS.filter(m => !uploadedTypes.has(m.type)).length;
+  const lastDoc = (documents as any[]).length > 0
+    ? (documents as any[]).reduce((a: any, b: any) =>
+        new Date(a.uploadedAt) > new Date(b.uploadedAt) ? a : b)
+    : null;
+
+  return (
+    <TableRow className={`hover:bg-muted/40 transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}>
+      <TableCell className="max-w-[200px]">
+        <button
+          className="text-left font-medium text-blue-600 dark:text-blue-400 hover:underline truncate block w-full text-sm"
+          onClick={() => onSelect(trip.id)}
+        >
+          {trip.tripTitle}
+        </button>
+        <div className="text-xs text-muted-foreground truncate">{trip.employeeName}</div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1.5 text-sm">
+          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span>{trip.destination}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-sm">{formatDate(trip.fromDate)}</TableCell>
+      <TableCell><StatusBadge status={trip.status} /></TableCell>
+      <TableCell className="text-center">
+        <span className="font-medium text-sm">{(documents as any[]).length}</span>
+      </TableCell>
+      <TableCell className="text-center">
+        {missingCount === 0 ? (
+          <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
+            <CheckCircle className="h-3.5 w-3.5" /> Complete
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-medium">
+            <AlertCircle className="h-3.5 w-3.5" /> {missingCount} missing
+          </span>
+        )}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {lastDoc ? formatDate(lastDoc.uploadedAt) : <span className="text-muted-foreground/40">—</span>}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-0.5">
+          <Button size="sm" variant="ghost" title="View Documents" onClick={() => onSelect(trip.id)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" title="Upload Document" onClick={() => onUpload(trip)}>
+            <Upload className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" title="Download All" onClick={() => onDownloadAll(trip)}>
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm" variant="ghost" title="Delete Trip"
+            className="text-destructive hover:text-destructive"
+            onClick={() => onDelete(trip)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+// Mobile card row — fetches its own document counts
+const TripDocMobileCard = ({
+  trip,
+  isSelected,
+  onSelect,
+  onUpload,
+  onDownloadAll,
+  onDelete,
+}: {
+  trip: any;
+  isSelected: boolean;
+  onSelect: (id: number) => void;
+  onUpload: (trip: any) => void;
+  onDownloadAll: (trip: any) => void;
+  onDelete: (trip: any) => void;
+}) => {
+  const { data: documents = [] } = useQuery({
+    queryKey: [`/api/trips/${trip.id}/documents`],
+    queryFn: () => apiRequest('GET', `/api/trips/${trip.id}/documents`),
+    staleTime: 30_000,
+  });
+  const uploadedTypes = new Set((documents as any[]).map((d: any) => d.documentType));
+  const missingCount = MANDATORY_DOC_TYPES_DOCS.filter(m => !uploadedTypes.has(m.type)).length;
+  const lastDoc = (documents as any[]).length > 0
+    ? (documents as any[]).reduce((a: any, b: any) =>
+        new Date(a.uploadedAt) > new Date(b.uploadedAt) ? a : b)
+    : null;
+
+  return (
+    <Card className={`${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : ''}`}>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <button
+              className="text-left font-medium text-blue-600 dark:text-blue-400 hover:underline text-sm truncate block w-full"
+              onClick={() => onSelect(trip.id)}
+            >
+              {trip.tripTitle}
+            </button>
+            <div className="text-xs text-muted-foreground">{trip.employeeName}</div>
+          </div>
+          <StatusBadge status={trip.status} />
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="truncate">{trip.destination}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3 shrink-0" />
+            <span>{formatDate(trip.fromDate)}</span>
+          </div>
+          <div>
+            <span className="font-medium text-foreground">{(documents as any[]).length}</span> docs total
+          </div>
+          <div>
+            {missingCount === 0 ? (
+              <span className="text-green-600 flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" /> Complete
+              </span>
+            ) : (
+              <span className="text-amber-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> {missingCount} missing
+              </span>
+            )}
+          </div>
+        </div>
+        {lastDoc && (
+          <div className="text-xs text-muted-foreground">Last updated: {formatDate(lastDoc.uploadedAt)}</div>
+        )}
+        <div className="flex items-center gap-2 pt-1 border-t">
+          <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => onSelect(trip.id)}>
+            <Eye className="h-3.5 w-3.5 mr-1" /> View
+          </Button>
+          <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => onUpload(trip)}>
+            <Upload className="h-3.5 w-3.5 mr-1" /> Upload
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Download All" onClick={() => onDownloadAll(trip)}>
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm" variant="outline"
+            className="h-8 w-8 p-0 text-destructive border-destructive/30 hover:bg-destructive/10"
+            title="Delete Trip"
+            onClick={() => onDelete(trip)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 // Trip Documents Tab Component
 const TripDocumentsTab = () => {
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [uploadTripId, setUploadTripId] = useState<number | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: trips = [], isLoading, error, refetch } = useQuery({
     queryKey: ['/api/trips/all'],
     queryFn: async () => {
-      console.log('TripDocumentsTab: Fetching trips...');
       try {
-        const result = await apiRequest('GET', '/api/trips/all');
-        console.log('TripDocumentsTab: API response:', result);
-        console.log('TripDocumentsTab: Result type:', typeof result);
-        console.log('TripDocumentsTab: Is array?', Array.isArray(result));
-        return result;
-      } catch (error) {
-        console.error('TripDocumentsTab: API error:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load trips. Please try again.",
-          variant: "destructive",
-        });
-        throw error;
+        return await apiRequest('GET', '/api/trips/all');
+      } catch (err) {
+        toast({ title: 'Error', description: 'Failed to load trips. Please try again.', variant: 'destructive' });
+        throw err;
       }
     },
-    staleTime: 0, // Always fetch fresh data
-    cacheTime: 0, // Don't cache data
+    staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
 
-  console.log('TripDocumentsTab: trips length:', trips?.length || 0);
-  console.log('TripDocumentsTab: isLoading:', isLoading);
-  console.log('TripDocumentsTab: error:', error);
-  console.log('TripDocumentsTab: Component rendered at:', new Date().toISOString());
+  const deleteTripMutation = useMutation({
+    mutationFn: (tripId: number) => apiRequest('DELETE', `/api/trips/${tripId}`),
+    onSuccess: () => {
+      toast({ title: 'Trip deleted successfully.' });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
+      setSelectedTripId(null);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message || 'Failed to delete trip.', variant: 'destructive' });
+    },
+  });
+
+  const handleDownloadAll = async (trip: any) => {
+    try {
+      const docs: any[] = await apiRequest('GET', `/api/trips/${trip.id}/documents`);
+      if (!docs.length) {
+        toast({ title: 'No documents', description: 'No documents uploaded for this trip.' });
+        return;
+      }
+      toast({ title: `Downloading ${docs.length} document(s)…` });
+      for (const doc of docs) {
+        const res: any = await apiRequest('GET', `/api/trip-documents/${doc.id}/download`);
+        window.open(res.downloadUrl, '_blank');
+      }
+    } catch (e: any) {
+      toast({ title: 'Download failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = (trip: any) => {
+    if (window.confirm(`Delete trip "${trip.tripTitle}"? This cannot be undone.`)) {
+      deleteTripMutation.mutate(trip.id);
+    }
+  };
+
+  const handleUpload = (trip: any) => {
+    setUploadTripId(trip.id);
+    setUploadDialogOpen(true);
+  };
+
+  const handleSelect = (tripId: number) => {
+    setSelectedTripId(prev => prev === tripId ? null : tripId);
+  };
+
+  // Filter + paginate
+  const filtered = (trips as any[]).filter(trip => {
+    const q = search.toLowerCase();
+    const matchSearch = !q
+      || trip.tripTitle?.toLowerCase().includes(q)
+      || trip.destination?.toLowerCase().includes(q)
+      || trip.employeeName?.toLowerCase().includes(q);
+    const matchStatus = statusFilter === 'all' || trip.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const uniqueStatuses = [...new Set((trips as any[]).map((t: any) => t.status).filter(Boolean))] as string[];
+  const totalPages = Math.max(1, Math.ceil(filtered.length / DOCS_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * DOCS_PAGE_SIZE, safePage * DOCS_PAGE_SIZE);
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading trips...</div>;
+    return <div className="text-center py-8 text-muted-foreground">Loading trips…</div>;
   }
 
-  if (!trips.length) {
+  if (!(trips as any[]).length) {
     return (
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Trip Documents</CardTitle>
             <Button onClick={() => refetch()} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              <RefreshCw className="h-4 w-4 mr-2" />Refresh
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="text-center py-8 text-gray-500">
-          <Paperclip className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+        <CardContent className="text-center py-8 text-muted-foreground">
+          <Paperclip className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
           <p>No trips found</p>
-          <p className="text-sm">Create a trip request first to upload documents</p>
+          <p className="text-sm">Create a trip request first to manage documents</p>
           {error && (
-            <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
-              Error: {error instanceof Error ? error.message : 'Unknown error'}
+            <div className="mt-4 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+              {error instanceof Error ? error.message : 'Unknown error'}
             </div>
           )}
         </CardContent>
@@ -3071,52 +3314,139 @@ const TripDocumentsTab = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Trip Selection */}
+    <div className="space-y-4">
+      {/* Search & Filter Bar */}
       <Card>
-        <CardHeader>
-          <CardTitle>Select Trip to Manage Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {trips.map((trip: any) => (
-              <div
-                key={trip.id}
-                className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                  selectedTripId === trip.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => setSelectedTripId(trip.id)}
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm truncate">{trip.tripTitle}</h4>
-                    <StatusBadge status={trip.status} />
-                  </div>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>{trip.destination}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{formatDate(trip.fromDate)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          {!selectedTripId && (
-            <div className="text-center mt-6 text-gray-500">
-              <p>Select a trip above to manage its documents</p>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search by trip name, destination or employee…"
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                className="pl-9"
+              />
             </div>
+            <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {uniqueStatuses.map(s => (
+                  <SelectItem key={s} value={s}>{s.replace(/_/g, ' ').toUpperCase()}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="icon" onClick={() => refetch()} title="Refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+          {filtered.length !== (trips as any[]).length && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Showing {filtered.length} of {(trips as any[]).length} trips
+            </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Selected Trip Documents */}
+      {/* Desktop Table */}
+      <Card className="hidden md:block overflow-hidden">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Trip Name</TableHead>
+                <TableHead>Destination</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-center">Total Docs</TableHead>
+                <TableHead className="text-center">Missing Mandatory</TableHead>
+                <TableHead>Last Updated</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginated.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                    No trips match your search.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginated.map((trip: any) => (
+                  <TripDocTableRow
+                    key={trip.id}
+                    trip={trip}
+                    isSelected={selectedTripId === trip.id}
+                    onSelect={handleSelect}
+                    onUpload={handleUpload}
+                    onDownloadAll={handleDownloadAll}
+                    onDelete={handleDelete}
+                  />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {paginated.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">No trips match your search.</div>
+        ) : (
+          paginated.map((trip: any) => (
+            <TripDocMobileCard
+              key={trip.id}
+              trip={trip}
+              isSelected={selectedTripId === trip.id}
+              onSelect={handleSelect}
+              onUpload={handleUpload}
+              onDownloadAll={handleDownloadAll}
+              onDelete={handleDelete}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            Page {safePage} of {totalPages} ({filtered.length} trips)
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Upload Dialog */}
+      {uploadTripId !== null && (
+        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Upload Trip Document</DialogTitle>
+            </DialogHeader>
+            <DocumentUploadForm
+              tripId={uploadTripId}
+              onSuccess={() => {
+                setUploadDialogOpen(false);
+                queryClient.invalidateQueries({ queryKey: [`/api/trips/${uploadTripId}/documents`] });
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Selected Trip Documents Panel */}
       {selectedTripId && (
         <TripDetailsWithDocuments tripId={selectedTripId} />
       )}
