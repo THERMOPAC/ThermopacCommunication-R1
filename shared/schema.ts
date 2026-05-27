@@ -14354,6 +14354,28 @@ export const gcsPathMigrationLog = pgTable('gcs_path_migration_log', {
 });
 export type GcsPathMigrationLog = typeof gcsPathMigrationLog.$inferSelect;
 
+// 8. File Migration Jobs — tracks automated GCS object-level migration runs
+//    triggered when a rule switches to DB-driven routing.
+export const gcsFileMigrationJobs = pgTable('gcs_file_migration_jobs', {
+  id:             serial('id').primaryKey(),
+  ruleId:         integer('rule_id').notNull().references(() => gcsGovernanceRules.id),
+  documentType:   varchar('document_type', { length: 80 }).notNull(),
+  triggerReason:  varchar('trigger_reason', { length: 40 }).notNull().default('manual'),
+  triggeredBy:    integer('triggered_by'),
+  status:         varchar('status', { length: 20 }).notNull().default('pending'),
+  totalFiles:     integer('total_files').notNull().default(0),
+  processedFiles: integer('processed_files').notNull().default(0),
+  migratedFiles:  integer('migrated_files').notNull().default(0),
+  skippedFiles:   integer('skipped_files').notNull().default(0),
+  failedFiles:    integer('failed_files').notNull().default(0),
+  errorLog:       jsonb('error_log').$type<Array<{fileId: number; oldPath: string; error: string}>>(),
+  startedAt:      timestamp('started_at').notNull().defaultNow(),
+  completedAt:    timestamp('completed_at'),
+});
+export type GcsFileMigrationJob = typeof gcsFileMigrationJobs.$inferSelect;
+export const insertGcsFileMigrationJobSchema = createInsertSchema(gcsFileMigrationJobs).omit({ id: true, startedAt: true });
+export type InsertGcsFileMigrationJob = z.infer<typeof insertGcsFileMigrationJobSchema>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Local Windows Document Agent — node registry
 // ─────────────────────────────────────────────────────────────────────────────

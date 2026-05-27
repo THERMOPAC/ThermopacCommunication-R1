@@ -14,11 +14,13 @@ import {
   gcsGovernanceRuleVersions,
   gcsGovernanceAuditLog,
   gcsPathMigrationLog,
+  gcsFileMigrationJobs,
   insertGcsGovernanceRuleSchema,
   insertGcsGovernanceTokenSchema,
   offers,
   customers,
 } from '@shared/schema';
+import { triggerFileMigration, hasMigrationHandler } from './services/gcs-file-migration-service';
 import { eq, desc, and, or, ilike, isNull, isNotNull, count, sql, ne } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import {
@@ -298,6 +300,13 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       if (!mode || !['hardcoded', 'db_driven'].includes(mode)) {
         return res.status(400).json({ error: 'mode must be "hardcoded" or "db_driven"' });
       }
+
+      // Fetch previous mode before updating
+      const prevRows = await db.execute(sql`
+        SELECT governance_mode, document_type, path_template, root_prefix FROM gcs_governance_rules WHERE id = ${id}
+      `).then((r: any) => r.rows);
+      const prevRule = prevRows[0] as any;
+
       const [updated] = await db.execute(sql`
         UPDATE gcs_governance_rules
         SET governance_mode = ${mode}, updated_at = NOW()
@@ -305,7 +314,68 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         RETURNING *
       `).then((r: any) => r.rows);
       if (!updated) return res.status(404).json({ error: 'Rule not found' });
-      res.json(updated);
+
+      // Auto-trigger file migration when switching hardcoded → db_driven
+      let migrationJob: { jobId: number } | null = null;
+      if (mode === 'db_driven' && prevRule?.governance_mode !== 'db_driven' && hasMigrationHandler(updated.document_type)) {
+        try {
+          migrationJob = await triggerFileMigration({
+            ruleId:        id,
+            documentType:  updated.document_type,
+            pathTemplate:  updated.path_template,
+            rootPrefix:    updated.root_prefix,
+            triggerReason: 'auto_db_driven',
+            triggeredBy:   (req as any).user?.id ?? undefined,
+          });
+          console.log(`[GovernanceRoutes] Auto-migration job ${migrationJob.jobId} queued for rule ${id} (${updated.document_type})`);
+        } catch (migErr: any) {
+          console.error(`[GovernanceRoutes] Auto-migration trigger failed for rule ${id}:`, migErr.message);
+        }
+      }
+
+      res.json({ ...updated, migrationJob });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── File Migration Jobs — list jobs for a rule ────────────────────────────
+  app.get('/api/gcs-governance/rules/:id/migration-jobs', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.id);
+      const jobs = await db.select().from(gcsFileMigrationJobs)
+        .where(eq(gcsFileMigrationJobs.ruleId, ruleId))
+        .orderBy(desc(gcsFileMigrationJobs.startedAt))
+        .limit(20);
+      res.json(jobs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── File Migration Jobs — manual trigger ─────────────────────────────────
+  app.post('/api/gcs-governance/rules/:id/migrate-files', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.id);
+      const ruleRows = await db.execute(sql`
+        SELECT document_type, path_template, root_prefix, governance_mode FROM gcs_governance_rules WHERE id = ${ruleId} AND active = true
+      `).then((r: any) => r.rows);
+      const rule = ruleRows[0] as any;
+      if (!rule) return res.status(404).json({ error: 'Rule not found or inactive' });
+      if (!hasMigrationHandler(rule.document_type)) {
+        return res.status(422).json({ error: `No migration handler available for documentType=${rule.document_type}` });
+      }
+      const job = await triggerFileMigration({
+        ruleId,
+        documentType:  rule.document_type,
+        pathTemplate:  rule.path_template,
+        rootPrefix:    rule.root_prefix,
+        triggerReason: 'manual',
+        triggeredBy:   (req as any).user?.id ?? undefined,
+      });
+      res.status(202).json(job);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

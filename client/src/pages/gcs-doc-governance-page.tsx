@@ -5,7 +5,7 @@ import {
   AlertTriangle, CheckCircle, HelpCircle, RefreshCw, Info,
   Edit2, X, ChevronDown, ChevronUp, FileText, Settings, Key, Activity,
   Ticket, Copy, Clock, Check, Zap, Lock, GitBranch, History,
-  ShieldCheck, AlertCircle, ArrowUpDown, Search,
+  ShieldCheck, AlertCircle, ArrowUpDown, Search, Play, Loader2,
 } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,23 @@ interface MigrationLogEntry {
   migratedBy: number | null;
   status: string;
   notes: string | null;
+}
+
+interface FileMigrationJob {
+  id: number;
+  ruleId: number;
+  documentType: string;
+  triggerReason: string;
+  triggeredBy: number | null;
+  status: string;
+  totalFiles: number;
+  processedFiles: number;
+  migratedFiles: number;
+  skippedFiles: number;
+  failedFiles: number;
+  errorLog: Array<{ fileId: number; oldPath: string; error: string }> | null;
+  startedAt: string;
+  completedAt: string | null;
 }
 
 interface GcsGovernanceToken {
@@ -1196,6 +1213,136 @@ function RuleVersionPanel({ rule, forceExpanded = false }: { rule: GcsGovernance
   );
 }
 
+// ─── File Migration Panel (shown on DB-Driven rules) ────────────────────────
+
+const JOB_STATUS_STYLE: Record<string, string> = {
+  pending:   'bg-slate-100 text-slate-600',
+  running:   'bg-blue-100 text-blue-700',
+  completed: 'bg-green-100 text-green-700',
+  partial:   'bg-amber-100 text-amber-700',
+  failed:    'bg-red-100 text-red-600',
+};
+
+function FileMigrationPanel({ rule }: { rule: GcsGovernanceRule }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const queryKey = [`/api/gcs-governance/rules/${rule.id}/migration-jobs`];
+
+  const { data: jobs = [], isLoading, refetch } = useQuery<FileMigrationJob[]>({
+    queryKey,
+    queryFn: () => apiRequest('GET', `/api/gcs-governance/rules/${rule.id}/migration-jobs`),
+    refetchInterval: (data: any) => {
+      const list = (data?.state?.data ?? []) as FileMigrationJob[];
+      const hasActive = list.some(j => j.status === 'pending' || j.status === 'running');
+      return hasActive ? 3000 : false;
+    },
+    enabled: rule.governanceMode === 'db_driven',
+  });
+
+  const triggerMutation = useMutation({
+    mutationFn: () => apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/migrate-files`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey });
+      toast({ title: 'Migration job queued', description: 'Files will migrate in the background.' });
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  if (rule.governanceMode !== 'db_driven') return null;
+
+  const latest = jobs[0] ?? null;
+  const isActive = latest?.status === 'pending' || latest?.status === 'running';
+
+  const pct = latest && latest.totalFiles > 0
+    ? Math.round((latest.processedFiles / latest.totalFiles) * 100)
+    : null;
+
+  return (
+    <div className="mt-2 border border-green-200 rounded-lg bg-green-50/60 p-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <Database className="w-3.5 h-3.5 text-green-700" />
+          <span className="text-[11px] font-semibold text-green-800">File Migration</span>
+          {isLoading && <Loader2 className="w-3 h-3 animate-spin text-green-600" />}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-5 w-5 p-0 text-green-700 hover:bg-green-100"
+            onClick={() => refetch()}
+            title="Refresh"
+          >
+            <RefreshCw className="w-3 h-3" />
+          </Button>
+          <Button
+            size="sm"
+            className="h-5 text-[10px] px-2 bg-green-700 hover:bg-green-800 gap-1"
+            disabled={triggerMutation.isPending || isActive}
+            onClick={() => triggerMutation.mutate()}
+          >
+            {triggerMutation.isPending || isActive
+              ? <><Loader2 className="w-2.5 h-2.5 animate-spin" /> Running…</>
+              : <><Play className="w-2.5 h-2.5" /> Migrate Now</>}
+          </Button>
+        </div>
+      </div>
+
+      {latest ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${JOB_STATUS_STYLE[latest.status] ?? 'bg-slate-100 text-slate-600'}`}>
+              {latest.status}
+            </span>
+            <span className="text-[10px] text-slate-500">
+              {latest.triggerReason === 'auto_db_driven' ? 'Auto (DB-Driven enabled)' : 'Manual'}
+            </span>
+            <span className="text-[10px] text-slate-400">{fmtDateTime(latest.startedAt)}</span>
+          </div>
+
+          {latest.totalFiles > 0 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] text-slate-500">
+                <span>{latest.processedFiles}/{latest.totalFiles} processed</span>
+                {pct !== null && <span>{pct}%</span>}
+              </div>
+              <div className="h-1.5 rounded-full bg-green-200 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${latest.status === 'failed' ? 'bg-red-500' : latest.status === 'partial' ? 'bg-amber-500' : 'bg-green-600'}`}
+                  style={{ width: `${pct ?? 0}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-1 text-[10px]">
+                <span className="text-green-700">✓ {latest.migratedFiles} migrated</span>
+                <span className="text-slate-500">→ {latest.skippedFiles} skipped</span>
+                <span className={latest.failedFiles > 0 ? 'text-red-600' : 'text-slate-400'}>✗ {latest.failedFiles} failed</span>
+              </div>
+            </div>
+          )}
+
+          {latest.totalFiles === 0 && latest.status === 'completed' && (
+            <p className="text-[10px] text-green-700">All files already at canonical path — nothing to migrate.</p>
+          )}
+
+          {latest.errorLog && latest.errorLog.length > 0 && (
+            <details className="text-[10px]">
+              <summary className="cursor-pointer text-red-600 font-medium">{latest.errorLog.length} error(s) — expand</summary>
+              <div className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                {latest.errorLog.map((e, i) => (
+                  <div key={i} className="font-mono text-red-500 truncate" title={e.error}>id={e.fileId}: {e.error}</div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      ) : (
+        <p className="text-[10px] text-green-700">No migration jobs yet. Click "Migrate Now" to move existing files to the canonical path.</p>
+      )}
+    </div>
+  );
+}
+
 // ─── Governance State Badge ─────────────────────────────────────────────────
 
 function GovernanceStateBadge({ mode }: { mode: string }) {
@@ -1526,6 +1673,7 @@ function GovernanceRulesTab() {
                     <div className="mt-1.5">
                       <EnableGovernanceButton rule={rule} />
                     </div>
+                    <FileMigrationPanel rule={rule} />
                     <GovernanceDetailsPanel rule={rule} />
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
