@@ -41,6 +41,7 @@ const salaryFormSchema = z.object({
   bonus: z.string().default('0'),
   kgpAllowance: z.string().default('0'),
   kpiPercent: z.string().default('0'),
+  kpiKgpApplicable: z.boolean().default(false),
   groupInsurance: z.string().default('300'),
   professionalTax: z.string().default('0'),
   workLocationId: z.number().optional(),
@@ -3620,6 +3621,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       bonus: (initialData.bonus || '0').toString(),
       kgpAllowance: (initialData.kgpAllowance || '0').toString(),
       kpiPercent: (initialData.kpiPercent || '0').toString(),
+      kpiKgpApplicable: parseFloat((initialData.kpiPercent || '0').toString()) > 0,
       groupInsurance: initialData.groupInsurance || '1500',
       workLocationId: initialData.workLocationId,
       remarks: initialData.remarks || '',
@@ -3635,6 +3637,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       bonus: '0',
       kgpAllowance: '0',
       kpiPercent: '0',
+      kpiKgpApplicable: false,
       groupInsurance: '1500',
       remarks: '',
     },
@@ -4095,24 +4098,67 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
               />
               
               {watchedValues.salaryType !== 'daily' && (
+                <FormField
+                  control={form.control}
+                  name="kpiKgpApplicable"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>KPI / KGP Applicable</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-6 mt-1">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              className="accent-blue-600 w-4 h-4"
+                              checked={!field.value}
+                              onChange={() => {
+                                field.onChange(false);
+                                form.setValue('kpiPercent', '0');
+                              }}
+                            />
+                            <span className="text-sm font-medium text-gray-700">Not Applicable</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              className="accent-blue-600 w-4 h-4"
+                              checked={!!field.value}
+                              onChange={() => {
+                                field.onChange(true);
+                                const cur = parseFloat(form.getValues('kpiPercent') || '0');
+                                if (cur === 0) form.setValue('kpiPercent', '100');
+                              }}
+                            />
+                            <span className="text-sm font-medium text-gray-700">Applicable</span>
+                          </label>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {watchedValues.salaryType !== 'daily' && watchedValues.kpiKgpApplicable && (
                 <>
                   <FormField
                     control={form.control}
                     name="kpiPercent"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>KPI % (for KGP Allowance = Basic × 15% × KPI%)</FormLabel>
+                        <FormLabel>Max KPI % (KGP = Basic × 15% × KPI%)</FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             type="number"
-                            min="0"
+                            min="1"
                             max="100"
                             step="1"
-                            placeholder="0"
+                            placeholder="100"
                             autoComplete="off"
                             {...field}
                           />
                         </FormControl>
+                        <p className="text-xs text-muted-foreground">Ceiling entitlement — official run scores down via DWAR composite KPI</p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -4124,6 +4170,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                       readOnly
                       className="bg-gray-50 cursor-not-allowed mt-1"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Basic × 15% × KPI%</p>
                   </div>
                 </>
               )}
