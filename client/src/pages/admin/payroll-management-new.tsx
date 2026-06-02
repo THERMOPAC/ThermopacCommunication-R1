@@ -1772,6 +1772,25 @@ function PayrollRunTab() {
   const { data: salaryConfigs = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/payroll/salary-setup'],
   });
+  const { data: sessionUser } = useQuery<any>({ queryKey: ['/api/user'] });
+
+  // Build the set of userIds the current user is allowed to run payroll for
+  // Superuser sees everyone; others see only themselves + direct/indirect reports
+  const visibleUserIds = useMemo(() => {
+    if (!sessionUser || sessionUser.role === 'Superuser') return null; // null = all
+    const allConfigs: any[] = salaryConfigs;
+    const allowed = new Set<number>();
+    // BFS: start with the current user, then expand to their reports
+    const queue = [sessionUser.id];
+    while (queue.length) {
+      const mgr = queue.shift()!;
+      allowed.add(mgr);
+      allConfigs
+        .filter((c: any) => c.reportingManagerId === mgr)
+        .forEach((c: any) => { if (!allowed.has(c.userId)) queue.push(c.userId); });
+    }
+    return allowed;
+  }, [sessionUser, salaryConfigs]);
 
   const now = new Date();
   const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
@@ -1934,7 +1953,10 @@ function PayrollRunTab() {
                     <SelectItem value="all">All Employees (full run)</SelectItem>
                     {(() => {
                       const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Senior Executive': 4, 'Employee': 5 };
-                      const sorted = [...salaryConfigs].sort((a: any, b: any) => {
+                      const visibleConfigs = visibleUserIds
+                        ? salaryConfigs.filter((c: any) => visibleUserIds.has(c.userId))
+                        : salaryConfigs;
+                      const sorted = [...visibleConfigs].sort((a: any, b: any) => {
                         const ra = roleOrder[a.role] ?? 5;
                         const rb = roleOrder[b.role] ?? 5;
                         if (ra !== rb) return ra - rb;
