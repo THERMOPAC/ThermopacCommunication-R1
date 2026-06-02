@@ -3748,25 +3748,52 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
 
   const handleSubmit = (values: SalaryFormValues) => {
     const isDaily = values.salaryType === 'daily';
+    // Allowances must always be stored at the FULL-MONTH rate (30 days).
+    // The display/preview may show pro-rated values for the current period,
+    // but what's saved to DB must be the standard monthly rates so payroll
+    // calculations are always correct regardless of when the config was saved.
+    const basic = parseFloat(values.basicSalary || '0');
+    const kpiPct = parseFloat(values.kpiPercent || '0');
+    const fullMonthKgp = isDaily ? 0 : basic * 0.15 * (kpiPct / 100);
+    const fullMonthBonus = basic * 0.0833;
+    const groupInsAmt = parseFloat(values.groupInsurance || '1500');
+    // Full-month gross (no pro-ration)
+    const fullHRA      = isDaily ? 0 : basic * 0.4;
+    const fullConv     = isDaily ? 0 : basic * 0.3;
+    const fullLTA      = isDaily ? 0 : basic * 0.2;
+    const fullSpecial  = isDaily ? 0 : basic * 0.3;
+    const fullSupp     = isDaily ? 0 : basic * 0.3;
+    const fullGross    = isDaily ? basic : basic + fullHRA + fullConv + fullLTA + fullSpecial + fullSupp + fullMonthKgp;
+    const pfBase       = Math.min(basic, 15000);
+    const empPF        = pfBase * 0.12;
+    const emplrPF      = pfBase * 0.12;
+    const empESIC      = fullGross <= 21000 ? fullGross * 0.0075 : 0;
+    const emplrESIC    = fullGross <= 21000 ? fullGross * 0.0325 : 0;
+    const gratuity     = (basic * 15 / 26) / 12;
+    const pt           = selectedUserRole === 'Superuser' ? 0 : 200;
+    const takeHome     = fullGross - empPF - empESIC - pt;
+    const ctcMonthly   = fullGross + emplrPF + emplrESIC + gratuity + groupInsAmt;
+    const ctcYearly    = (ctcMonthly * 12) + (fullMonthBonus * 12);
+
     const submissionValues = {
       ...values,
-      houseRentAllowance: isDaily ? null : calculations.houseRent.toFixed(2),
-      conveyance: isDaily ? null : calculations.conveyance.toFixed(2),
-      lta: isDaily ? null : calculations.lta.toFixed(2),
-      specialAllowance: isDaily ? null : calculations.special.toFixed(2),
-      supplementaryAllowance: isDaily ? null : calculations.supplementary.toFixed(2),
-      bonus: calculations.bonus.toFixed(2),
-      kgpAllowance: isDaily ? null : calculations.kgpAllowance.toFixed(2),
+      houseRentAllowance: isDaily ? null : fullHRA.toFixed(2),
+      conveyance: isDaily ? null : fullConv.toFixed(2),
+      lta: isDaily ? null : fullLTA.toFixed(2),
+      specialAllowance: isDaily ? null : fullSpecial.toFixed(2),
+      supplementaryAllowance: isDaily ? null : fullSupp.toFixed(2),
+      bonus: fullMonthBonus.toFixed(2),
+      kgpAllowance: isDaily ? null : fullMonthKgp.toFixed(2),
       kpiPercent: isDaily ? null : (values.kpiPercent || '0'),
-      employeePfContribution: calculations.employeePF.toFixed(2),
-      employerPfContribution: calculations.employerPF.toFixed(2),
-      employeeEsicContribution: calculations.employeeESIC.toFixed(2),
-      employerEsicContribution: calculations.employerESIC.toFixed(2),
-      gratuityCost: calculations.gratuity.toFixed(2),
-      professionalTax: calculations.professionalTax.toFixed(2),
-      takeHomeSalary: calculations.takeHome.toFixed(2),
-      ctcMonthly: calculations.ctcMonthly.toFixed(2),
-      ctcYearly: calculations.ctcYearly.toFixed(2),
+      employeePfContribution: empPF.toFixed(2),
+      employerPfContribution: emplrPF.toFixed(2),
+      employeeEsicContribution: empESIC.toFixed(2),
+      employerEsicContribution: emplrESIC.toFixed(2),
+      gratuityCost: gratuity.toFixed(2),
+      professionalTax: pt.toFixed(2),
+      takeHomeSalary: takeHome.toFixed(2),
+      ctcMonthly: ctcMonthly.toFixed(2),
+      ctcYearly: ctcYearly.toFixed(2),
     };
     onSubmit(submissionValues);
   };
