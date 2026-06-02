@@ -230,7 +230,7 @@ export function ManualSalaryTab() {
       return apiRequest('POST', '/api/payroll/payroll-periods/ensure', { year: y, month: m });
     },
     onSuccess: async (data: any) => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
+      await qc.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
       if (data?.period?.id) {
         setFormData(d => ({ ...d, periodId: data.period.id.toString() }));
       }
