@@ -81,10 +81,12 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   });
 
   // Group users by role for the task assignment dropdown
+  // Only show users at the same level or below in the hierarchy
+  const myRoleLevel = roleHierarchy[user?.role ?? ''] ?? 99;
   const groupedUsers = roles
     .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
     .reduce((acc, role) => {
-      const usersInRole = allUsers.filter(u => u.role === role);
+      const usersInRole = allUsers.filter(u => u.role === role && (roleHierarchy[u.role] ?? 99) >= myRoleLevel);
       if (usersInRole.length > 0) {
         // Sort alphabetically within each group
         usersInRole.sort((a, b) => {

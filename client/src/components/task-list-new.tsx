@@ -108,11 +108,12 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   const groupedUsers = useMemo(() => {
     // Return empty object if no users are loaded yet
     if (allUsers.length === 0) return {} as Record<string, User[]>;
-    
+    // Only show users at the same level or below in the hierarchy
+    const myRoleLevel = roleHierarchy[user?.role ?? ''] ?? 99;
     return Array.from(roles)
       .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
       .reduce((acc: Record<string, User[]>, role) => {
-        const usersInRole = allUsers.filter(u => u.role === role);
+        const usersInRole = allUsers.filter(u => u.role === role && (roleHierarchy[u.role] ?? 99) >= myRoleLevel);
         if (usersInRole.length > 0) {
           // Sort alphabetically within each group
           usersInRole.sort((a, b) => {
@@ -124,7 +125,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
         }
         return acc;
       }, {} as Record<string, User[]>);
-  }, [allUsers]); // Only recalculate when allUsers changes
+  }, [allUsers, user]); // Only recalculate when allUsers or current user changes
 
   // Wait for allUsers to be loaded before performing filtering that depends on it
   const isDataReady = allUsers.length > 0;
