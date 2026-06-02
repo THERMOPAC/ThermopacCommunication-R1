@@ -278,7 +278,10 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     const periodYear = new Date(endDate).getFullYear();
     let tdsAmount = 0;
     try {
-      const tdsResult = await computeMonthlyTds(userId, periodId, periodMonth, periodYear, coreResult.grossPay);
+      // Annual bonus is taxable even though it is not paid monthly.
+      // bonusAllowance = monthly equivalent; × 12 gives the full-year taxable bonus.
+      const trialAnnualBonus = coreResult.bonusAllowance * 12;
+      const tdsResult = await computeMonthlyTds(userId, periodId, periodMonth, periodYear, coreResult.grossPay, trialAnnualBonus);
       tdsAmount = tdsResult.tdsActualMonthly;
     } catch (_) {}
 

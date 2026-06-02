@@ -14,6 +14,7 @@ interface TaxComputationResult {
   grossSalaryMonthly: number;
   grossSalaryYtd: number;
   grossSalaryProjected: number;
+  annualBonusIncluded: number;
   standardDeduction: number;
   totalDeductions: number;
   taxableIncomeProjected: number;
@@ -69,7 +70,10 @@ export async function computeMonthlyTds(
   periodId: number,
   currentMonth: number,
   currentYear: number,
-  grossSalaryThisMonth: number
+  grossSalaryThisMonth: number,
+  // Annual taxable bonus (e.g. statutory bonus = monthly bonusAllowance × 12).
+  // Not paid monthly but fully taxable; included in projected annual income for TDS.
+  annualBonus: number = 0
 ): Promise<TaxComputationResult> {
   const financialYear = currentMonth >= 4
     ? `${currentYear}-${(currentYear + 1).toString().slice(2)}`
@@ -119,7 +123,9 @@ export async function computeMonthlyTds(
     ? parseFloat(declaration.previousEmployerTds || '0') : 0;
   const otherIncome = declaration
     ? parseFloat(declaration.otherIncome || '0') : 0;
-  const totalGrossProjected = grossSalaryProjected + previousEmployerIncome + otherIncome;
+  // Annual bonus is taxable even though it is not paid monthly.
+  // Added once (not per month) to the projected annual income as a lump-sum.
+  const totalGrossProjected = grossSalaryProjected + previousEmployerIncome + otherIncome + annualBonus;
 
   // New Regime: only standard deduction from FY config
   const standardDeduction = config.standardDeduction;
@@ -155,6 +161,7 @@ export async function computeMonthlyTds(
     grossSalaryMonthly: grossSalaryThisMonth,
     grossSalaryYtd,
     grossSalaryProjected,
+    annualBonusIncluded: annualBonus,
     standardDeduction,
     totalDeductions,
     taxableIncomeProjected,
@@ -253,7 +260,10 @@ export async function computeAndSaveTdsForPeriod(
   for (const record of records) {
     try {
       const grossSalary = parseFloat(record.grossPay);
-      const computation = await computeMonthlyTds(record.userId, periodId, month, year, grossSalary);
+      // Annual bonus = monthly bonusAllowance stored on the payroll record × 12.
+      // Bonus is not paid monthly but is fully taxable; included in projected annual income.
+      const annualBonus = parseFloat(record.bonus || '0') * 12;
+      const computation = await computeMonthlyTds(record.userId, periodId, month, year, grossSalary, annualBonus);
       await saveTdsRecord(record.userId, periodId, month, year, computation);
 
       const pf = parseFloat(record.employeePf || record.providentFund || '0');
