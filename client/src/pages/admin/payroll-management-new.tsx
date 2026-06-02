@@ -1952,7 +1952,7 @@ function PayrollRunTab() {
                   <SelectContent>
                     <SelectItem value="all">All Employees (full run)</SelectItem>
                     {(() => {
-                      const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Senior Executive': 4, 'Employee': 5 };
+                      const roleOrder: Record<string, number> = { 'Superuser': 0, 'General Manager': 1, 'Senior Manager': 2, 'Manager': 3, 'Senior Executive': 4, 'Employee': 5 };
                       const visibleConfigs = visibleUserIds
                         ? salaryConfigs.filter((c: any) => visibleUserIds.has(c.userId))
                         : salaryConfigs;
