@@ -145,7 +145,12 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       const expectedDates: string[] = [];
       const iter = new Date(sDate);
       while (iter <= eDate) {
-        if (!weeklyOffs.includes(iter.getDay())) expectedDates.push(iter.toISOString().slice(0, 10));
+        const dateStr = iter.toISOString().slice(0, 10);
+        // Exclude both weekly-off days AND company holidays from expected working dates.
+        // Without this, holidays with no attendance record are counted as missing → false LOP.
+        if (!weeklyOffs.includes(iter.getDay()) && !holidayDates.has(dateStr)) {
+          expectedDates.push(dateStr);
+        }
         iter.setDate(iter.getDate() + 1);
       }
       const attDateSet = new Set(attRecordsDb.map(r => String(r.date).slice(0, 10)));

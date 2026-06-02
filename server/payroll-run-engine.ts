@@ -350,8 +350,11 @@ async function stepAttendanceSnapshot(
         const expectedWorkingDates: string[] = [];
         const iter = new Date(sDate);
         while (iter <= eDate) {
-          if (!weeklyOffs.includes(iter.getDay())) {
-            expectedWorkingDates.push(iter.toISOString().slice(0, 10));
+          const dateStr = iter.toISOString().slice(0, 10);
+          // Exclude both weekly-off days AND company holidays.
+          // Without this, holidays with no attendance record are treated as missing → false LOP.
+          if (!weeklyOffs.includes(iter.getDay()) && !holidayDates.has(dateStr)) {
+            expectedWorkingDates.push(dateStr);
           }
           iter.setDate(iter.getDate() + 1);
         }
