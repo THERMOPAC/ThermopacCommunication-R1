@@ -207,6 +207,38 @@ export function ManualSalaryTab() {
     onError: (e: any) => toast({ title: 'Reversal Error', description: e.message, variant: 'destructive' }),
   });
 
+  const prevMonthLabel = useMemo(() => {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(d);
+  }, []);
+
+  const prevMonthExists = useMemo(() => {
+    const now = new Date();
+    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return periods.some((p: any) => {
+      const s = new Date(p.startDate);
+      return s.getFullYear() === lm.getFullYear() && s.getMonth() === lm.getMonth();
+    });
+  }, [periods]);
+
+  const createPeriodMutation = useMutation({
+    mutationFn: async () => {
+      const now = new Date();
+      const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const m = now.getMonth() === 0 ? 12 : now.getMonth();
+      return apiRequest('POST', '/api/payroll/payroll-periods/ensure', { year: y, month: m });
+    },
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
+      if (data?.period?.id) {
+        setFormData(d => ({ ...d, periodId: data.period.id.toString() }));
+      }
+      toast({ title: data?.created ? `${prevMonthLabel} period created` : `${prevMonthLabel} period already exists` });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
   const lastMonthPeriodId = useMemo(() => {
     if (!periods.length) return '';
     // Prefer the period matching last calendar month; fall back to the most recent available period
@@ -426,6 +458,20 @@ export function ManualSalaryTab() {
                     ))}
                 </SelectContent>
               </Select>
+              {!prevMonthExists && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-1.5 w-full text-xs"
+                  onClick={() => createPeriodMutation.mutate()}
+                  disabled={createPeriodMutation.isPending}
+                >
+                  {createPeriodMutation.isPending
+                    ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Creating…</>
+                    : <><Plus className="h-3 w-3 mr-1" /> Create {prevMonthLabel} Period</>}
+                </Button>
+              )}
             </div>
             <div>
               <Label>Worker *</Label>
