@@ -2079,7 +2079,23 @@ function PayrollRunTab() {
                         <div className="flex justify-between"><span className="text-gray-500">Supplementary (30%)</span><span className="font-medium">₹{parseFloat(singleUserResult.breakdown.supplementaryAllowance || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></div>
                       )}
                       {parseFloat(singleUserResult.breakdown.kgpAllowance || 0) > 0 && (
-                        <div className="flex justify-between"><span className="text-gray-500">KGP Allowance</span><span className="font-medium text-blue-700">₹{parseFloat(singleUserResult.breakdown.kgpAllowance || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></div>
+                        <div className="space-y-0.5">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">KGP Allowance</span>
+                            <span className="font-medium text-blue-700">₹{parseFloat(singleUserResult.breakdown.kgpAllowance || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                          </div>
+                          {singleUserResult.breakdown.compositeKpiPercent != null && (
+                            <div className="flex justify-between text-xs pl-3">
+                              <span className="text-gray-400">
+                                Composite KPI: {singleUserResult.breakdown.compositeKpiPercent.toFixed(2)}%
+                                {' '}({singleUserResult.breakdown.kpiDwarMatched}/{singleUserResult.breakdown.kpiPaidDays} DWARs)
+                              </span>
+                              {singleUserResult.breakdown.kgpCeiling != null && (
+                                <span className="text-gray-400">ceiling ₹{parseFloat(singleUserResult.breakdown.kgpCeiling || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                       {parseFloat(singleUserResult.breakdown.overtimePay || 0) > 0 && (
                         <div className="flex justify-between"><span className="text-gray-500">Overtime</span><span className="font-medium">₹{parseFloat(singleUserResult.breakdown.overtimePay || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></div>

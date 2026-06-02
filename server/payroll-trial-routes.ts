@@ -21,8 +21,9 @@ import {
   employeeAdvances,
   users,
   companyHolidays,
+  dailyWorkReports,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, max, sql, asc, between } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, max, sql, asc, between, inArray } from 'drizzle-orm';
 import { computeEmployeeSalaryNumbers, PAYROLL_CONSTANTS } from './payroll-salary-core';
 import { resolveStatutoryApplicability } from '@shared/statutory-rules';
 import type { EmployeeType } from '@shared/schema';
@@ -232,8 +233,88 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       paidDays = Math.min(PAYROLL_CONSTANTS.MONTHLY_DIVISOR - lopDays, PAYROLL_CONSTANTS.MONTHLY_DIVISOR);
     }
 
-    // ── Statutory resolution ─────────────────────────────────────────────────
+    // ── Composite KPI scoring for KGP (Phase 2 — mirrors stepKpiAdjustment) ──
+    // Applies to Manager and Employee roles with kgp_allowance > 0.
+    // Formula: composite = prod×0.70 + plan×0.15 + eff×0.10 + qual×0.05
+    // Missing DWAR day → 0 for all signals; stays in denominator (presentCount).
+    // Weekly-offs, holidays, absent days excluded via status filter on attRecordsDb.
+    const KPI_ELIGIBLE_ROLES_TRIAL = ['Manager', 'Employee'];
+    const kgpCeilingFromConfig = parseFloat(sal.kgpAllowance || '0');
     const basicSalary = parseFloat(sal.basicSalary || sal.baseSalary || '0');
+    let scoredKgpAllowance = kgpCeilingFromConfig;
+    let trialKpiSnapshot: Record<string, any> | null = null;
+
+    if (
+      KPI_ELIGIBLE_ROLES_TRIAL.includes(employee.role || '') &&
+      kgpCeilingFromConfig > 0 &&
+      salaryType === 'monthly'
+    ) {
+      const kpiPaidAttDays = attRecordsDb.filter(r =>
+        ['present', 'late', 'half_day', 'on_leave'].includes(r.status ?? '')
+      );
+      const kpiPresentCount = kpiPaidAttDays.length;
+
+      if (kpiPresentCount > 0) {
+        const validDwars = await db.select({
+          reportDate: dailyWorkReports.reportDate,
+          productivityScore: dailyWorkReports.productivityScore,
+          planFollowThroughScore: dailyWorkReports.planFollowThroughScore,
+          efficiencyRating: dailyWorkReports.efficiencyRating,
+          qualityScore: dailyWorkReports.qualityScore,
+        }).from(dailyWorkReports)
+          .where(and(
+            eq(dailyWorkReports.userId, userId),
+            gte(dailyWorkReports.reportDate, startDate),
+            lte(dailyWorkReports.reportDate, endDate),
+            inArray(dailyWorkReports.status, ['submitted', 'approved'])
+          ));
+
+        const dwarByDate = new Map<string, { prod: number; plan: number; eff: number; qual: number }>();
+        for (const dwar of validDwars) {
+          const ds = typeof dwar.reportDate === 'string'
+            ? dwar.reportDate
+            : new Date(dwar.reportDate as any).toISOString().split('T')[0];
+          dwarByDate.set(ds, {
+            prod: parseFloat(dwar.productivityScore?.toString() || '0') || 0,
+            plan: parseFloat(dwar.planFollowThroughScore?.toString() || '0') || 0,
+            eff:  parseFloat(dwar.efficiencyRating?.toString() || '0') || 0,
+            qual: parseFloat(dwar.qualityScore?.toString() || '0') || 0,
+          });
+        }
+
+        let totalComposite = 0;
+        let kpiDwarMatched = 0;
+        let kpiDwarMissing = 0;
+        for (const attDay of kpiPaidAttDays) {
+          const ds = typeof attDay.date === 'string'
+            ? attDay.date
+            : new Date(attDay.date as any).toISOString().split('T')[0];
+          const signals = dwarByDate.get(ds);
+          if (signals) {
+            totalComposite += (signals.prod * 0.70) + (signals.plan * 0.15) + (signals.eff * 0.10) + (signals.qual * 0.05);
+            kpiDwarMatched++;
+          } else {
+            kpiDwarMissing++;
+          }
+        }
+
+        const compositeKpiPct = totalComposite / kpiPresentCount; // 0–100
+        scoredKgpAllowance = basicSalary * 0.15 * (compositeKpiPct / 100);
+
+        trialKpiSnapshot = {
+          compositeKpiPercent: compositeKpiPct,
+          formula: 'productivity×70% + planFollowThrough×15% + efficiency×10% + quality×5%',
+          kpiSource: `composite_kpi_v2_${kpiPresentCount}_days_${kpiDwarMatched}_dwars_${kpiDwarMissing}_missing`,
+          paidAttendanceDays: kpiPresentCount,
+          dwarDaysMatched: kpiDwarMatched,
+          dwarDaysMissing: kpiDwarMissing,
+          kgpCeiling: kgpCeilingFromConfig,
+          scoredKgpAllowance,
+        };
+      }
+    }
+
+    // ── Statutory resolution ─────────────────────────────────────────────────
     const ratio = salaryType === 'monthly' ? Math.min(paidDays, PAYROLL_CONSTANTS.MONTHLY_DIVISOR) / PAYROLL_CONSTANTS.MONTHLY_DIVISOR : 1;
     const prelimGross = salaryType === 'daily'
       ? basicSalary * paidDays
@@ -243,7 +324,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         + parseFloat(sal.lta || '0') * ratio
         + parseFloat(sal.specialAllowance || '0') * ratio
         + parseFloat(sal.supplementaryAllowance || '0') * ratio
-        + parseFloat(sal.kgpAllowance || '0') * ratio;
+        + scoredKgpAllowance * ratio;
 
     const statutoryResult = resolveStatutoryApplicability({
       employeeType: (employee.employeeType as EmployeeType) || null,
@@ -299,7 +380,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       lta: parseFloat(sal.lta || '0'),
       specialAllowance: parseFloat(sal.specialAllowance || '0'),
       supplementaryAllowance: parseFloat(sal.supplementaryAllowance || '0'),
-      kgpAllowance: parseFloat(sal.kgpAllowance || '0'),
+      kgpAllowance: scoredKgpAllowance,
       configBonus: parseFloat(sal.bonus || '0'),
       groupInsurance: parseFloat(sal.groupInsurance || '1500'),
       workingHoursPerDay,
@@ -356,6 +437,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       tdsProjection: tdsAmount,
       loanBreakdown: coreResult.loanBreakdown,
       advanceBreakdown: coreResult.advanceBreakdown,
+      kpiAdjustment: trialKpiSnapshot,
     };
 
     const [newRecord] = await db.transaction(async (tx) => {
@@ -455,6 +537,10 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         specialAllowance: coreResult.specialAllowance,
         supplementaryAllowance: coreResult.supplementaryAllowance,
         kgpAllowance: coreResult.kgpAllowance,
+        kgpCeiling: trialKpiSnapshot?.kgpCeiling ?? null,
+        compositeKpiPercent: trialKpiSnapshot?.compositeKpiPercent ?? null,
+        kpiDwarMatched: trialKpiSnapshot?.dwarDaysMatched ?? null,
+        kpiPaidDays: trialKpiSnapshot?.paidAttendanceDays ?? null,
         bonusAllowance: coreResult.bonusAllowance,
         overtimePay: coreResult.overtimePay,
         employeePF: coreResult.employeePF,
