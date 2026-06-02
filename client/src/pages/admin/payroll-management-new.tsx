@@ -2042,6 +2042,11 @@ function PayrollRunTab() {
                   <div className="flex justify-between"><span className="text-gray-500">Leave Used</span><span className="font-medium text-amber-600">{((singleUserResult.attendance?.paidLeaveDays || 0) + (singleUserResult.attendance?.unpaidLeaveDays || 0)).toFixed(1)}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">LOP Days</span><span className="font-medium text-red-600">{singleUserResult.attendance?.lopDays ?? 'N/A'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Paid Days</span><span className="font-medium text-green-600">{singleUserResult.attendance?.paidDays ?? 'N/A'}</span></div>
+                  {singleUserResult.attendance?.lwpExemptApplied && (
+                    <div className="mt-1 pt-1 border-t">
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs font-medium">LWP Exempt — LOP waived by policy</Badge>
+                    </div>
+                  )}
                   <div className="flex justify-between"><span className="text-gray-500">Weekly Offs</span><span className="font-medium">{singleUserResult.attendance?.weeklyOffs ?? 'N/A'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Holidays</span><span className="font-medium">{singleUserResult.attendance?.holidays ?? 'N/A'}</span></div>
                 </div>

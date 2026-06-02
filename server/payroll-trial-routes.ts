@@ -26,6 +26,7 @@ import { computeEmployeeSalaryNumbers, PAYROLL_CONSTANTS } from './payroll-salar
 import { resolveStatutoryApplicability } from '@shared/statutory-rules';
 import type { EmployeeType } from '@shared/schema';
 import { computeMonthlyTds } from './tds-calculation-service';
+import { isLwpExempt } from './leave-service';
 
 const router = Router();
 router.use(ensureAuthenticated);
@@ -165,13 +166,23 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       else unpaidLeaveDays += days;
     }
 
+    let lwpExemptApplied = false;
     if (salaryType === 'daily') {
       paidDays += paidLeaveDays;
     } else {
       const covered = Math.min(paidLeaveDays, lopDays);
       lopDays = Math.max(0, lopDays - covered);
-      paidDays = Math.min(PAYROLL_CONSTANTS.MONTHLY_DIVISOR - lopDays, PAYROLL_CONSTANTS.MONTHLY_DIVISOR);
       paidLeaveDays = covered;
+
+      // LWP Exemption — mirrors official run engine exactly
+      // Superuser, GM, SM (and any explicit lwp_exempt grant) → zero out remaining LOP
+      const exempt = await isLwpExempt(userId);
+      if (exempt && lopDays > 0) {
+        lwpExemptApplied = true;
+        lopDays = 0;
+      }
+
+      paidDays = Math.min(PAYROLL_CONSTANTS.MONTHLY_DIVISOR - lopDays, PAYROLL_CONSTANTS.MONTHLY_DIVISOR);
     }
 
     // ── Statutory resolution ─────────────────────────────────────────────────
@@ -373,6 +384,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         paidDays: coreResult.paidDays,
         weeklyOffs: weekOffCount,
         holidays: holidayDates.size,
+        lwpExemptApplied,
       },
       deductions: {
         pf: coreResult.employeePF.toFixed(2),
