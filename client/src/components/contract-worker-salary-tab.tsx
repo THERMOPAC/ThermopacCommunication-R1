@@ -415,9 +415,11 @@ export function ManualSalaryTab() {
               <Select value={formData.periodId} onValueChange={v => setFormData(d => ({ ...d, periodId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
                 <SelectContent>
-                  {periods.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id.toString()}>{p.periodName}</SelectItem>
-                  ))}
+                  {periods
+                    .filter((p: any) => p.id.toString() === lastMonthPeriodId)
+                    .map((p: any) => (
+                      <SelectItem key={p.id} value={p.id.toString()}>{p.periodName}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
