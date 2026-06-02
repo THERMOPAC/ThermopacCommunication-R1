@@ -119,6 +119,28 @@ export function ManualSalaryTab() {
     },
   });
 
+  // Fetch entries for the form's selected period to exclude already-entered workers
+  const { data: formPeriodEntries = [] } = useQuery<any[]>({
+    queryKey: ['/api/manual-salary/list', formData.periodId],
+    queryFn: async () => {
+      if (!formData.periodId) return [];
+      const r = await fetch(`/api/manual-salary/list?periodId=${formData.periodId}`, { credentials: 'include' });
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!formData.periodId,
+  });
+
+  // userIds who already have an OT entry for the form's selected period (excluding the entry being edited)
+  const alreadyEnteredUserIds = useMemo(() => {
+    return new Set(
+      formPeriodEntries
+        .filter((e: any) => !editingEntry || e.id !== editingEntry.id)
+        .map((e: any) => e.userId)
+    );
+  }, [formPeriodEntries, editingEntry]);
+
   const [preview, setPreview] = useState<any>(null);
 
   const previewMutation = useMutation({
@@ -478,12 +500,14 @@ export function ManualSalaryTab() {
               <Select value={formData.userId} onValueChange={v => setFormData(d => ({ ...d, userId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select worker" /></SelectTrigger>
                 <SelectContent>
-                  {allUsers.filter((u: any) => u.isActive && u.otApplicable === 'yes').map((u: any) => (
-                    <SelectItem key={u.id} value={u.id.toString()}>
-                      {u.cardName || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username)}
-                      {u.employeeCode ? ` (${u.employeeCode})` : ''}
-                    </SelectItem>
-                  ))}
+                  {allUsers
+                    .filter((u: any) => u.isActive && u.otApplicable === 'yes' && !alreadyEnteredUserIds.has(u.id))
+                    .map((u: any) => (
+                      <SelectItem key={u.id} value={u.id.toString()}>
+                        {u.cardName || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username)}
+                        {u.employeeCode ? ` (${u.employeeCode})` : ''}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
