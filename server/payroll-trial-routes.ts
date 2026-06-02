@@ -238,17 +238,14 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     // Formula: composite = prod×0.70 + plan×0.15 + eff×0.10 + qual×0.05
     // Missing DWAR day → 0 for all signals; stays in denominator (presentCount).
     // Weekly-offs, holidays, absent days excluded via status filter on attRecordsDb.
-    const KPI_ELIGIBLE_ROLES_TRIAL = ['Manager', 'Employee'];
     const kgpCeilingFromConfig = parseFloat(sal.kgpAllowance || '0');
     const basicSalary = parseFloat(sal.basicSalary || sal.baseSalary || '0');
     let scoredKgpAllowance = kgpCeilingFromConfig;
     let trialKpiSnapshot: Record<string, any> | null = null;
 
-    if (
-      KPI_ELIGIBLE_ROLES_TRIAL.includes(employee.role || '') &&
-      kgpCeilingFromConfig > 0 &&
-      salaryType === 'monthly'
-    ) {
+    // KGP eligibility: any employee with kgp_allowance > 0 in salary config gets DWAR-scored.
+    // Role title is irrelevant — admin explicitly set the ceiling, so scoring always applies.
+    if (kgpCeilingFromConfig > 0 && salaryType === 'monthly') {
       const kpiPaidAttDays = attRecordsDb.filter(r =>
         ['present', 'late', 'half_day', 'on_leave'].includes(r.status ?? '')
       );
