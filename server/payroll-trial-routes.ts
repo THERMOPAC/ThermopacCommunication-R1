@@ -16,6 +16,7 @@ import {
   attendanceRecords,
   leaveRequests,
   leaveTypes,
+  leaveBalances,
   employeeLoans,
   employeeAdvances,
   users,
@@ -172,12 +173,53 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     }
 
     let lwpExemptApplied = false;
+    let balanceCoveredDays = 0;
     if (salaryType === 'daily') {
       paidDays += paidLeaveDays;
     } else {
       const covered = Math.min(paidLeaveDays, lopDays);
       lopDays = Math.max(0, lopDays - covered);
       paidLeaveDays = covered;
+
+      // ── Auto-cover remaining LOP from paid leave balance ─────────────────────
+      // If approved leave requests don't fully cover the LOP (e.g. employee was
+      // half-day absent without a formal leave application), but the employee
+      // still has paid leave balance available, auto-apply it here so the trial
+      // reflects their entitlement.  This mirrors the HR practice of
+      // retrospectively booking CL against short absences.
+      if (lopDays > 0) {
+        const periodYear = new Date(startDate).getFullYear();
+        const paidLeaveTypeIds = new Set(allLeaveTypes.filter(lt => lt.isPaid).map(lt => lt.id));
+        const balances = await db.select({
+          allocatedDays: leaveBalances.allocatedDays,
+          usedDays: leaveBalances.usedDays,
+          pendingDays: leaveBalances.pendingDays,
+          carryoverDays: leaveBalances.carryoverDays,
+          leaveTypeId: leaveBalances.leaveTypeId,
+        }).from(leaveBalances)
+          .where(and(
+            eq(leaveBalances.userId, userId),
+            eq(leaveBalances.year, periodYear),
+          ));
+
+        // Sum up remaining paid leave balance across all paid leave types
+        let availablePaidBalance = 0;
+        for (const bal of balances) {
+          if (!paidLeaveTypeIds.has(bal.leaveTypeId)) continue;
+          const remaining =
+            parseFloat(bal.allocatedDays) +
+            parseFloat(bal.carryoverDays as string || '0') -
+            parseFloat(bal.usedDays) -
+            parseFloat(bal.pendingDays);
+          if (remaining > 0) availablePaidBalance += remaining;
+        }
+
+        balanceCoveredDays = Math.min(availablePaidBalance, lopDays);
+        if (balanceCoveredDays > 0) {
+          lopDays = Math.max(0, lopDays - balanceCoveredDays);
+          paidLeaveDays += balanceCoveredDays;
+        }
+      }
 
       // LWP Exemption — mirrors official run engine exactly
       // Superuser, GM, SM (and any explicit lwp_exempt grant) → zero out remaining LOP
@@ -389,6 +431,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         paidLeaveDays,
         unpaidLeaveDays,
         lopDays,
+        balanceCoveredDays,
         paidDays: coreResult.paidDays,
         weeklyOffs: weekOffCount,
         holidays: holidayDates.size,
