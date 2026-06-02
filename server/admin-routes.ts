@@ -297,7 +297,11 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
 
     // Conditional re-auth checks based on sensitive fields in payload
     if (updateData.role !== undefined) {
-      if (!await checkReauth(req, res, 'user.change_role')) return;
+      // Only require re-auth if the role is actually changing, not just present in payload
+      const [existingUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+      if (existingUser && existingUser.role !== updateData.role) {
+        if (!await checkReauth(req, res, 'user.change_role')) return;
+      }
     } else if (
       updateData.bankAccountNumber !== undefined ||
       updateData.ifscCode !== undefined ||
