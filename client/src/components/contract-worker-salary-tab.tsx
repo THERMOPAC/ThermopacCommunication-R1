@@ -209,13 +209,17 @@ export function ManualSalaryTab() {
 
   const lastMonthPeriodId = useMemo(() => {
     if (!periods.length) return '';
+    // Prefer the period matching last calendar month; fall back to the most recent available period
     const now = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const match = periods.find((p: any) => {
       const start = new Date(p.startDate);
       return start.getFullYear() === lastMonth.getFullYear() && start.getMonth() === lastMonth.getMonth();
     });
-    return match ? match.id.toString() : '';
+    if (match) return match.id.toString();
+    // Fall back to most recent period by startDate
+    const sorted = [...periods].sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    return sorted[0].id.toString();
   }, [periods]);
 
   function resetForm() {
