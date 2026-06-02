@@ -976,6 +976,9 @@ async function stepKpiAdjustment(
         .select({
           reportDate: dailyWorkReports.reportDate,
           productivityScore: dailyWorkReports.productivityScore,
+          planFollowThroughScore: dailyWorkReports.planFollowThroughScore,
+          efficiencyRating: dailyWorkReports.efficiencyRating,
+          qualityScore: dailyWorkReports.qualityScore,
           tasksCompleted: dailyWorkReports.tasksCompleted,
           satisfactionRating: dailyWorkReports.satisfactionRating,
         })
@@ -1056,27 +1059,58 @@ async function stepKpiAdjustment(
           details: `No paid attendance days found for ${empName} in payroll period ${period.startDate} to ${period.endDate}. KGP set to ₹0.`,
         });
       } else {
-        const dwarByDate = new Map<string, number>();
+        // ── Composite KPI formula (Approved: Phase 2) ─────────────────────────
+        // Weights: Productivity 70%, Plan Follow-Through 15%, Efficiency 10%, Quality 5%
+        // Each paid attendance day is scored independently using all four DWAR signals.
+        // Missing DWAR day → all four signals = 0 for that day (penalty).
+        // Missing days remain in the denominator (presentCount) so the monthly
+        // average is correctly reduced. Weekly-offs, holidays, unpaid leave, and
+        // absent days are excluded from paidAttendanceDays and are never penalised.
+        // Null signal values in a submitted DWAR are treated as 0.
+
+        // Build per-date DWAR lookup: date → { prod, plan, eff, qual }
+        type DwarSignals = { prod: number; plan: number; eff: number; qual: number };
+        const dwarByDate = new Map<string, DwarSignals>();
         for (const dwar of validDwars) {
-          const dateStr = typeof dwar.reportDate === 'string' ? dwar.reportDate : new Date(dwar.reportDate).toISOString().split('T')[0];
-          dwarByDate.set(dateStr, parseFloat(dwar.productivityScore?.toString() || '0'));
+          const dateStr = typeof dwar.reportDate === 'string'
+            ? dwar.reportDate
+            : new Date(dwar.reportDate).toISOString().split('T')[0];
+          dwarByDate.set(dateStr, {
+            prod: parseFloat(dwar.productivityScore?.toString()       || '0') || 0,
+            plan: parseFloat(dwar.planFollowThroughScore?.toString()  || '0') || 0,
+            eff:  parseFloat(dwar.efficiencyRating?.toString()        || '0') || 0,
+            qual: parseFloat(dwar.qualityScore?.toString()            || '0') || 0,
+          });
         }
 
-        let totalKpiScore = 0;
+        // Accumulate composite score across all paid attendance days
+        let totalCompositeScore = 0;
         for (const attDay of paidAttendanceDays) {
-          const dateStr = typeof attDay.date === 'string' ? attDay.date : new Date(attDay.date).toISOString().split('T')[0];
-          const dayScore = dwarByDate.get(dateStr) ?? 0;
-          totalKpiScore += dayScore;
-          if (dwarByDate.has(dateStr)) {
+          const dateStr = typeof attDay.date === 'string'
+            ? attDay.date
+            : new Date(attDay.date).toISOString().split('T')[0];
+
+          const signals = dwarByDate.get(dateStr);
+          if (signals) {
+            // DWAR exists for this day — apply composite formula
+            const dayComposite =
+              (signals.prod * 0.70) +
+              (signals.plan * 0.15) +
+              (signals.eff  * 0.10) +
+              (signals.qual * 0.05);
+            totalCompositeScore += dayComposite;
             dwarDaysMatched++;
           } else {
+            // No DWAR for this paid day → all signals = 0 (DWAR penalty)
+            // totalCompositeScore += 0 (implicit)
             dwarDaysMissing++;
           }
         }
 
-        productivityScore = totalKpiScore / presentCount;
+        // Monthly composite KPI% = average composite score across ALL paid days
+        productivityScore = totalCompositeScore / presentCount;
         monthlyKpiPercent = productivityScore / 100;
-        kpiSource = `attendance_based_${presentCount}_days_${dwarDaysMatched}_dwars_${dwarDaysMissing}_missing`;
+        kpiSource = `composite_kpi_v2_${presentCount}_days_${dwarDaysMatched}_dwars_${dwarDaysMissing}_missing`;
 
         newKgpAllow = basicSalary * 0.15 * monthlyKpiPercent;
         kgpReduction = originalKgp - newKgpAllow;
@@ -1087,7 +1121,7 @@ async function stepKpiAdjustment(
             type: 'kpi_missing_dwar',
             severity: 'medium',
             title: `${dwarDaysMissing} paid day(s) without DWAR for ${empName} (ID: ${record.userId})`,
-            details: `${empName} was present ${presentCount} days but has submitted/approved DWARs for only ${dwarDaysMatched} days. ${dwarDaysMissing} day(s) counted as KPI=0 in average. Monthly KPI: ${productivityScore.toFixed(1)}%.`,
+            details: `${empName} was present ${presentCount} days but has submitted/approved DWARs for only ${dwarDaysMatched} days. ${dwarDaysMissing} day(s) counted as composite KPI=0. Composite KPI: ${productivityScore.toFixed(1)}% (Productivity 70% + Plan Follow-Through 15% + Efficiency 10% + Quality 5%).`,
           });
         }
 
@@ -1097,7 +1131,7 @@ async function stepKpiAdjustment(
             type: 'kpi_missing_dwar',
             severity: 'high',
             title: `No submitted/approved DWAR for ${empName} (ID: ${record.userId})`,
-            details: `No submitted or approved DWAR found for ${empName} in payroll period ${period.startDate} to ${period.endDate}. All ${presentCount} paid days counted as KPI=0. KGP set to ₹0.`,
+            details: `No submitted or approved DWAR found for ${empName} in payroll period ${period.startDate} to ${period.endDate}. All ${presentCount} paid days counted as composite KPI=0. KGP set to ₹0.`,
           });
         }
       }
@@ -1137,7 +1171,8 @@ async function stepKpiAdjustment(
           calculationSnapshot: {
             ...snap,
             kpiAdjustment: {
-              monthlyKpiPercent: productivityScore,
+              compositeKpiPercent: productivityScore,
+              formula: 'productivity*0.70 + planFollowThrough*0.15 + efficiency*0.10 + quality*0.05',
               kpiSource,
               paidAttendanceDays: presentCount,
               dwarDaysMatched,
@@ -1157,7 +1192,7 @@ async function stepKpiAdjustment(
           type: 'kpi_adjustment',
           severity: 'info',
           title: `KPI adjusted KGP for ${empName} (ID: ${record.userId})`,
-          details: `Monthly KPI ${productivityScore.toFixed(1)}% (${dwarDaysMatched} DWARs across ${presentCount} paid days, ${dwarDaysMissing} days at 0) reduced KGP from ₹${originalKgp.toFixed(2)} to ₹${newKgpAllow.toFixed(2)} (reduction: ₹${kgpReduction.toFixed(2)}). Base salary and paidDays unchanged.`,
+          details: `Composite KPI ${productivityScore.toFixed(1)}% [Productivity×70% + Plan Follow-Through×15% + Efficiency×10% + Quality×5%] across ${presentCount} paid days (${dwarDaysMatched} with DWAR, ${dwarDaysMissing} missing→0). KGP: ₹${originalKgp.toFixed(2)} → ₹${newKgpAllow.toFixed(2)} (reduction: ₹${kgpReduction.toFixed(2)}). Base salary and paidDays unchanged.`,
         });
       } else {
         await db.update(payrollRecords).set({
@@ -1168,7 +1203,8 @@ async function stepKpiAdjustment(
           calculationSnapshot: {
             ...snap,
             kpiAdjustment: {
-              monthlyKpiPercent: productivityScore,
+              compositeKpiPercent: productivityScore,
+              formula: 'productivity*0.70 + planFollowThrough*0.15 + efficiency*0.10 + quality*0.05',
               kpiSource,
               paidAttendanceDays: presentCount,
               dwarDaysMatched,
