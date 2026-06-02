@@ -1775,21 +1775,24 @@ function PayrollRunTab() {
   const { data: sessionUser } = useQuery<any>({ queryKey: ['/api/user'] });
 
   // Build the set of userIds the current user is allowed to run payroll for
-  // Superuser sees everyone; others see only themselves + direct/indirect reports
+  // Role hierarchy: Superuser(0) > General Manager(1) > Senior Manager(2) > Manager(3) > Senior Executive(4) > Employee(5)
+  // Each user sees themselves + everyone with a strictly lower hierarchy level (higher number)
   const visibleUserIds = useMemo(() => {
     if (!sessionUser || sessionUser.role === 'Superuser') return null; // null = all
-    const allConfigs: any[] = salaryConfigs;
-    const allowed = new Set<number>();
-    // BFS: start with the current user, then expand to their reports
-    const queue = [sessionUser.id];
-    while (queue.length) {
-      const mgr = queue.shift()!;
-      allowed.add(mgr);
-      allConfigs
-        .filter((c: any) => c.reportingManagerId === mgr)
-        .forEach((c: any) => { if (!allowed.has(c.userId)) queue.push(c.userId); });
-    }
-    return allowed;
+    const roleLevel: Record<string, number> = {
+      'Superuser': 0, 'General Manager': 1, 'Senior Manager': 2,
+      'Manager': 3, 'Senior Executive': 4, 'Employee': 5,
+    };
+    const myLevel = roleLevel[sessionUser.role] ?? 5;
+    return new Set<number>(
+      salaryConfigs
+        .filter((c: any) => {
+          if (c.userId === sessionUser.id) return true; // always include self
+          const theirLevel = roleLevel[c.role] ?? 5;
+          return theirLevel > myLevel; // only show roles strictly below current user
+        })
+        .map((c: any) => c.userId)
+    );
   }, [sessionUser, salaryConfigs]);
 
   const now = new Date();
