@@ -1834,16 +1834,16 @@ function PayrollRunTab() {
 
   const singleUserRunMutation = useMutation({
     mutationFn: async (data: { periodId: number; userId: number }) => {
-      return await apiRequest('POST', '/api/payroll/run/single-user', data);
+      return await apiRequest('POST', '/api/payroll/trial/run', data);
     },
     onSuccess: (data: any) => {
       setSingleUserResult(data);
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/verify'] });
-      toast({ title: 'Single User Payroll Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay || 0).toLocaleString('en-IN')}` });
+      toast({ title: `Trial Run #${data.trialRunNo} Complete`, description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay || 0).toLocaleString('en-IN')}` });
     },
     onError: (err: any) => {
-      toast({ title: 'Payroll Run Failed', description: err.message, variant: 'destructive' });
+      toast({ title: 'Trial Run Failed', description: err.message, variant: 'destructive' });
     },
   });
 
@@ -2009,12 +2009,12 @@ function PayrollRunTab() {
                 {singleUserRunMutation.isPending ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Running...</>
                 ) : (
-                  <><Play className="h-4 w-4 mr-2" /> Run Payroll for Selected Employee</>
+                  <><Play className="h-4 w-4 mr-2" /> Run Trial for Selected Employee</>
                 )}
               </Button>
               {singleUserResult && (
                 <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
-                  Net Pay: ₹{parseFloat(singleUserResult.netPay || 0).toLocaleString('en-IN')}
+                  Trial #{singleUserResult.trialRunNo} — Net Pay: ₹{parseFloat(singleUserResult.netPay || 0).toLocaleString('en-IN')}
                 </Badge>
               )}
             </div>
