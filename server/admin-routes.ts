@@ -5374,11 +5374,19 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
     const kgpPercent = kgpAllowance > 0 && ['Manager', 'Employee'].includes(empUser?.role || '') ? 15 : 0;
 
-    const kpiSnap = (record as any).calculationSnapshot as any;
-    const actualKpiPercent: number | null =
-      kpiSnap?.kpiAdjustment?.compositeKpiPercent != null
-        ? parseFloat(kpiSnap.kpiAdjustment.compositeKpiPercent)
-        : null;
+    // Fetch calculationSnapshot directly — JOIN queries can sometimes strip JSONB columns
+    const [snapRow] = await db
+      .select({ calculationSnapshot: payrollRecords.calculationSnapshot })
+      .from(payrollRecords)
+      .where(eq(payrollRecords.id, parseInt(payrollRecordId)))
+      .limit(1);
+    const directSnap = (snapRow?.calculationSnapshot || {}) as any;
+    const actualKpiPercent: number | null = (() => {
+      const v = directSnap?.kpiAdjustment?.compositeKpiPercent
+             ?? calcSnap?.kpiAdjustment?.compositeKpiPercent;
+      if (v != null) return parseFloat(String(v));
+      return null;
+    })();
 
     const snap = await db
       .select()
