@@ -3174,11 +3174,39 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
         periodId: payrollRecords.periodId,
         userId: payrollRecords.userId,
         baseSalary: payrollRecords.baseSalary,
+        hra: payrollRecords.hra,
+        conveyanceAllowance: payrollRecords.conveyanceAllowance,
+        ltaAllowance: payrollRecords.ltaAllowance,
+        specialAllowance: payrollRecords.specialAllowance,
+        supplementaryAllowance: payrollRecords.supplementaryAllowance,
+        kgpAllowance: payrollRecords.kgpAllowance,
+        bonus: payrollRecords.bonus,
+        overtimePay: payrollRecords.overtimePay,
+        otherAllowances: payrollRecords.otherAllowances,
+        reimbursements: payrollRecords.reimbursements,
         grossPay: payrollRecords.grossPay,
         netPay: payrollRecords.netPay,
         incomeTax: payrollRecords.incomeTax,
         professionalTax: payrollRecords.professionalTax,
         providentFund: payrollRecords.providentFund,
+        employeePf: payrollRecords.employeePf,
+        employerPf: payrollRecords.employerPf,
+        employeeEsic: payrollRecords.employeeEsic,
+        employerEsic: payrollRecords.employerEsic,
+        esic: payrollRecords.esic,
+        loanDeductions: payrollRecords.loanDeductions,
+        advanceDeductions: payrollRecords.advanceDeductions,
+        otherDeductions: payrollRecords.otherDeductions,
+        tdsAmount: payrollRecords.tdsAmount,
+        totalDeductions: payrollRecords.totalDeductions,
+        paidDays: payrollRecords.paidDays,
+        lopDays: payrollRecords.lopDays,
+        presentDays: payrollRecords.presentDays,
+        workingDays: payrollRecords.workingDays,
+        paidLeaveDays: payrollRecords.paidLeaveDays,
+        overtimeHours: payrollRecords.overtimeHours,
+        calculationSnapshot: payrollRecords.calculationSnapshot,
+        recordType: payrollRecords.recordType,
         status: payrollRecords.status,
         verifiedBy: payrollRecords.verifiedBy,
         verifiedAt: payrollRecords.verifiedAt,
@@ -3247,11 +3275,16 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           year = startDate.getFullYear();
         }
 
-        const totalDeductions = record.salarySource === 'manual_salary'
+        const computedTotalDed = record.salarySource === 'manual_salary'
           ? (parseFloat(record.grossPay || '0') - parseFloat(record.netPay || '0')).toFixed(2)
-          : (parseFloat(record.incomeTax || '0') + 
-             parseFloat(record.professionalTax || '0') + 
-             parseFloat(record.providentFund || '0')).toFixed(2);
+          : (parseFloat(record.employeePf || '0') +
+             parseFloat(record.employeeEsic || record.esic || '0') +
+             parseFloat(record.professionalTax || '0') +
+             parseFloat(record.incomeTax || '0') +
+             parseFloat(record.loanDeductions || '0') +
+             parseFloat(record.advanceDeductions || '0') +
+             parseFloat(record.otherDeductions || '0')).toFixed(2);
+        const totalDeductions = record.totalDeductions || computedTotalDed;
 
         return {
           id: record.id,
@@ -3279,6 +3312,7 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           employerPf: record.employerPf,
           employeeEsic: record.employeeEsic,
           employerEsic: record.employerEsic,
+          esic: record.esic,
           professionalTax: record.professionalTax,
           incomeTax: record.incomeTax,
           tdsAmount: record.tdsAmount,
@@ -3286,13 +3320,15 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           advanceDeductions: record.advanceDeductions,
           otherDeductions: record.otherDeductions,
           providentFund: record.providentFund,
-          esiDeduction: record.esiDeduction,
           gratuity: record.gratuity,
           workingDays: record.workingDays,
           paidDays: record.paidDays,
           lopDays: record.lopDays,
           presentDays: record.presentDays,
           paidLeaveDays: record.paidLeaveDays,
+          overtimeHours: record.overtimeHours,
+          calculationSnapshot: record.calculationSnapshot,
+          recordType: record.recordType,
           month: month,
           year: year,
           status: record.status || 'generated',
@@ -5234,14 +5270,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
   try {
     const { payrollRecordId } = req.params;
 
-    const releaseCheck = await verifyPayslipRelease(parseInt(payrollRecordId));
-    if (!releaseCheck.allowed) {
-      return res.status(403).json({
-        error: 'Payslip generation blocked',
-        reason: releaseCheck.reason,
-        verificationStatus: releaseCheck.verificationStatus,
-      });
-    }
+    // Verification check removed — slips can be downloaded at any workflow stage
 
     const payrollRecord = await db
       .select({
