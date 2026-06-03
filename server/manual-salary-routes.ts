@@ -963,12 +963,20 @@ router.post('/:id/reverse-sap', ensurePayrollAdmin, async (req: Request, res: Re
       return res.status(400).json({ error: 'No JE lines could be built for reversal. GL mappings may be missing.' });
     }
 
-    const postingDate = new Date().toISOString().split('T')[0];
     const originalJeRef = record.sapJeNumber || String(record.sapDocEntry);
+
+    // Use the same posting date as the original JE (last day of the period month).
+    // Never use today's date — the reversal must sit on the same accounting period as the original.
+    const postingDate = period?.startDate
+      ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
+      : (record.sapPostedAt ? new Date(record.sapPostedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
 
     const jePayload = {
       ReferenceDate: postingDate,
+      TaxDate: postingDate,
+      DueDate: postingDate,
       Memo: `REVERSAL - Manual Salary Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+      Reference: originalJeRef,        // Links reversal back to original JE number in SAP
       Reference2: employee.cardCode || '',
       Reference3: `REV-194C-${originalJeRef}`,
       U_Employee_Name: empName,

@@ -5050,8 +5050,13 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     const [period] = await db.select({ periodName: payrollPeriods.periodName, startDate: payrollPeriods.startDate })
       .from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
     const periodLabel = period?.periodName || 'Unknown Period';
-    const postingDate = new Date().toISOString().split('T')[0];
     const originalJeRef = record.sapJeNumber || String(record.sapDocEntry);
+
+    // Use the same posting date as the original JE (last day of the period month).
+    // Never use today's date — the reversal must sit on the same accounting period as the original.
+    const postingDate = period?.startDate
+      ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
+      : (record.sapPostedAt ? new Date(record.sapPostedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
 
     const { payload: origPayload, jeLines: origLines } = buildSalaryJePayload(record, employee, empName, periodLabel, postingDate, glMap);
 
@@ -5068,7 +5073,10 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
 
     const jePayload = {
       ReferenceDate: postingDate,
+      TaxDate: postingDate,
+      DueDate: postingDate,
       Memo: `REVERSAL - Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+      Reference: originalJeRef,        // Links reversal back to original JE number in SAP
       Reference2: employee.cardCode || '',
       Reference3: `REV-SAL-${originalJeRef}`,
       JournalEntryLines: reversalLines,
