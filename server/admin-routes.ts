@@ -3622,12 +3622,22 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     }
 
     const searchLower = search.toLowerCase();
+    // Strip hyphens/dashes for normalization — SAP Code field uses dashes (e.g. "50207350600-ARL")
+    // but users and FormatCode values omit them ("50207350600ARL"). Both forms must match.
+    const searchStripped = searchLower.replace(/-/g, '');
     const matched = allSapAccounts
       .filter((a: any) => {
         const code = (a.Code || '').toLowerCase();
+        const codeStripped = code.replace(/-/g, '');
         const formatCode = (a.FormatCode || '').toLowerCase();
-        const name = (a.AcctName || '').toLowerCase();
-        return code.includes(searchLower) || formatCode.includes(searchLower) || name.includes(searchLower);
+        const formatCodeStripped = formatCode.replace(/-/g, '');
+        // Handle both 'AcctName' (with $select) and 'Name' (some no-$select responses)
+        const name = (a.AcctName || a.Name || '').toLowerCase();
+        return code.includes(searchLower)
+          || codeStripped.includes(searchStripped)
+          || formatCode.includes(searchLower)
+          || formatCodeStripped.includes(searchStripped)
+          || name.includes(searchLower);
       })
       .slice(0, 100)
       .map((a: any) => ({
