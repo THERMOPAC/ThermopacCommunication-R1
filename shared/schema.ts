@@ -988,6 +988,7 @@ const userSchema = {
   fax: text('fax'),
   linkedVendor: text('linked_vendor'),
   epfNo: text('epf_no'),
+  dateOfBirth: date('date_of_birth'),
   esicNo: text('esic_no'),
   stdCode: text('std_code'),
   panNumber: text('pan_number'),
@@ -5389,6 +5390,7 @@ export const employeeSalaries = pgTable('employee_salaries', {
   employerEsicContribution: decimal('employer_esic_contribution', { precision: 10, scale: 2 }).default('0'),
   groupInsurance: decimal('group_insurance', { precision: 10, scale: 2 }).default('0'),
   professionalTax: decimal('professional_tax', { precision: 10, scale: 2 }).default('0'),
+  pfApplicable: boolean('pf_applicable').default(true),
   
   // Bank Details
   bankName: text('bank_name'),

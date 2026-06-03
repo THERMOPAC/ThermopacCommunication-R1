@@ -229,6 +229,7 @@ export class SalaryCalculationEngine {
         workLocationId: users.workLocationId,
         employeeType: users.employeeType,
         epfNo: users.epfNo,
+        dateOfBirth: users.dateOfBirth,
       })
       .from(users)
       .where(eq(users.id, userId));
@@ -745,12 +746,25 @@ export class SalaryCalculationEngine {
                          ltaAllowance + specialAllowance + supplementaryAllowance + 
                          kgpAllowance + overtimePay;
     
+    let employeeAge: number | undefined;
+    if (employee.dateOfBirth) {
+      const dob = new Date(employee.dateOfBirth);
+      const now = new Date();
+      employeeAge = now.getFullYear() - dob.getFullYear();
+      const monthDiff = now.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+        employeeAge--;
+      }
+    }
+
     const statutoryResult = resolveStatutoryApplicability({
       employeeType: (employee.employeeType as EmployeeType) || null,
       grossEarnings,
       hasEpfNumber: !!employee.epfNo,
       hasPfConfigured: true,
       role: employee.role,
+      pfApplicable: salaryConfig.pfApplicable !== false,
+      employeeAge,
     });
 
     if (statutoryResult.status === 'UNRESOLVED') {

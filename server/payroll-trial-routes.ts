@@ -323,12 +323,23 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         + parseFloat(sal.supplementaryAllowance || '0') * ratio
         + scoredKgpAllowance * ratio;
 
+    let empAgeForTrial: number | undefined;
+    if (employee.dateOfBirth) {
+      const dob = new Date(employee.dateOfBirth);
+      const refDate = new Date(endDate);
+      empAgeForTrial = refDate.getFullYear() - dob.getFullYear();
+      const md = refDate.getMonth() - dob.getMonth();
+      if (md < 0 || (md === 0 && refDate.getDate() < dob.getDate())) empAgeForTrial--;
+    }
+
     const statutoryResult = resolveStatutoryApplicability({
       employeeType: (employee.employeeType as EmployeeType) || null,
       grossEarnings: prelimGross,
       hasEpfNumber: !!employee.epfNo,
       hasPfConfigured: true,
       role: employee.role,
+      pfApplicable: sal.pfApplicable !== false,
+      employeeAge: empAgeForTrial,
     });
 
     // ── Working hours ─────────────────────────────────────────────────────────

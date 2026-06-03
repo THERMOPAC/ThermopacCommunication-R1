@@ -44,6 +44,8 @@ export interface ResolverContext {
   hasPfConfigured?: boolean;
   role?: string;
   tdsCategory?: 'salary' | 'consultant' | 'stipend' | 'daily_wage';
+  pfApplicable?: boolean | null;
+  employeeAge?: number;
 }
 
 export function resolveStatutoryApplicability(ctx: ResolverContext): StatutoryApplicability {
@@ -131,6 +133,12 @@ export function resolveStatutoryApplicability(ctx: ResolverContext): StatutoryAp
     }
   }
 
+  if (ctx.pfApplicable === false) {
+    isPFApplicable = false;
+    pfBasis = `Not applicable: PF Applicable flag set to No in salary configuration`;
+    warnings.push(`PF overridden to not applicable: pfApplicable flag is false in salary config`);
+  }
+
   let isPTApplicable: boolean;
   let ptBasis: string;
   if (rules.ptRule === 'YES') {
@@ -139,6 +147,12 @@ export function resolveStatutoryApplicability(ctx: ResolverContext): StatutoryAp
   } else {
     isPTApplicable = false;
     ptBasis = `Not applicable: ${ctx.employeeType} employee — PT excluded`;
+  }
+
+  if (ctx.employeeAge !== undefined && ctx.employeeAge >= 65) {
+    isPTApplicable = false;
+    ptBasis = `Exempt: employee age ${ctx.employeeAge} years ≥ 65 — PT exempt under Maharashtra PT Act`;
+    warnings.push(`PT overridden to exempt: employee age ${ctx.employeeAge} ≥ 65`);
   }
 
   let isTDSApplicable: boolean;

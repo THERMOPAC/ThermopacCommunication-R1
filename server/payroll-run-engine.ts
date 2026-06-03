@@ -225,7 +225,7 @@ async function getActiveEmployees(includeNonSystem: boolean = false): Promise<an
     conditions.push(sql`coalesce(${users.userType}, 'system_user') = 'system_user'`);
   }
   return db
-    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays, userType: users.userType, employeeType: users.employeeType, epfNo: users.epfNo, dutyTimeIn: users.dutyTimeIn, dutyTimeOut: users.dutyTimeOut, minimumDailyHours: users.minimumDailyHours })
+    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays, userType: users.userType, employeeType: users.employeeType, epfNo: users.epfNo, dateOfBirth: users.dateOfBirth, dutyTimeIn: users.dutyTimeIn, dutyTimeOut: users.dutyTimeOut, minimumDailyHours: users.minimumDailyHours })
     .from(users)
     .where(and(...conditions));
 }
@@ -749,12 +749,23 @@ async function stepSalaryCalculation(
       }
 
       // ── Step B: resolve statutory applicability ────────────────────────────
+      let empAge: number | undefined;
+      if (emp.dateOfBirth) {
+        const dob = new Date(emp.dateOfBirth);
+        const periodEnd = new Date(period.endDate);
+        empAge = periodEnd.getFullYear() - dob.getFullYear();
+        const md = periodEnd.getMonth() - dob.getMonth();
+        if (md < 0 || (md === 0 && periodEnd.getDate() < dob.getDate())) empAge--;
+      }
+
       const statutoryResult = resolveStatutoryApplicability({
         employeeType: (emp.employeeType as EmployeeType) || null,
         grossEarnings: prelimGross,
         hasEpfNumber: !!emp.epfNo,
         hasPfConfigured: true,
         role: emp.role,
+        pfApplicable: sal.pfApplicable !== false,
+        employeeAge: empAge,
       });
 
       if (statutoryResult.status === 'UNRESOLVED') {

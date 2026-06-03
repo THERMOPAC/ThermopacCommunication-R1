@@ -152,7 +152,8 @@ router.get('/users', ensureAuthenticated, async (req: Request, res: Response) =>
         otApplicable: users.otApplicable,
         loanCardCode: users.loanCardCode,
         loanCardName: users.loanCardName,
-        employeeType: users.employeeType
+        employeeType: users.employeeType,
+        dateOfBirth: users.dateOfBirth,
       })
       .from(users)
       .orderBy(asc(users.firstName));
@@ -474,7 +475,9 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
         overtimeHours: employeeSalaries.overtimeHours,
         otRate: employeeSalaries.otRate,
         isActive: employeeSalaries.isActive,
-        reportingManagerId: users.reportingManagerId
+        reportingManagerId: users.reportingManagerId,
+        pfApplicable: employeeSalaries.pfApplicable,
+        dateOfBirth: users.dateOfBirth,
       })
       .from(employeeSalaries)
       .leftJoin(users, eq(employeeSalaries.userId, users.id))

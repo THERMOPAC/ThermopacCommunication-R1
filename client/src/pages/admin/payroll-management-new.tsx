@@ -42,6 +42,7 @@ const salaryFormSchema = z.object({
   kgpAllowance: z.string().default('0'),
   kpiPercent: z.string().default('0'),
   kpiKgpApplicable: z.boolean().default(false),
+  pfApplicable: z.boolean().default(true),
   groupInsurance: z.string().default('300'),
   professionalTax: z.string().default('0'),
   workLocationId: z.number().optional(),
@@ -59,6 +60,7 @@ interface User {
   employeeCode?: string;
   role?: string;
   workLocationId?: number;
+  dateOfBirth?: string;
   // Duty schedule fields
   dutyTimeIn?: string;
   dutyTimeOut?: string;
@@ -86,6 +88,7 @@ interface SalaryConfig {
   otRate: string;
   bonus: string;
   kgpAllowance: string;
+  kpiPercent?: string;
   groupInsurance: string;
   professionalTax: string;
   workLocationId?: number;
@@ -93,6 +96,8 @@ interface SalaryConfig {
   salaryStartDate: string;
   createdAt: string;
   updatedAt: string;
+  pfApplicable?: boolean;
+  dateOfBirth?: string;
 }
 
 interface WorkLocation {
@@ -3867,6 +3872,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       kgpAllowance: (initialData.kgpAllowance || '0').toString(),
       kpiPercent: (initialData.kpiPercent || '0').toString(),
       kpiKgpApplicable: parseFloat((initialData.kpiPercent || '0').toString()) > 0,
+      pfApplicable: initialData.pfApplicable !== false,
       groupInsurance: initialData.groupInsurance || '1500',
       workLocationId: initialData.workLocationId,
       remarks: initialData.remarks || '',
@@ -3883,6 +3889,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       kgpAllowance: '0',
       kpiPercent: '0',
       kpiKgpApplicable: false,
+      pfApplicable: true,
       groupInsurance: '1500',
       remarks: '',
     },
@@ -4420,6 +4427,93 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 </>
               )}
             </div>
+
+            {/* ── Statutory Deduction Validation Panel ─────────────────────────── */}
+            {(() => {
+              const dob = selectedUser?.dateOfBirth || (initialData as any)?.dateOfBirth;
+              let age: number | undefined;
+              if (dob) {
+                const d = new Date(dob);
+                const now = new Date();
+                age = now.getFullYear() - d.getFullYear();
+                const md = now.getMonth() - d.getMonth();
+                if (md < 0 || (md === 0 && now.getDate() < d.getDate())) age--;
+              }
+              const ptExempt = age !== undefined && age >= 65;
+              return (
+                <div className="space-y-3 mt-2">
+                  {/* Professional Tax */}
+                  <div className={`p-3 rounded-lg border flex items-start gap-3 ${ptExempt ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-gray-800">Professional Tax (PT)</span>
+                        {ptExempt ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
+                            ✓ Exempt — Age ≥ 65
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-300">
+                            ₹200/month · ₹300 in Feb
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {ptExempt
+                          ? `Employee age ${age} yrs — automatically exempt under Maharashtra PT Act (Sec. 27A).`
+                          : age !== undefined
+                            ? `Employee age ${age} yrs — PT applicable. Employees aged 65+ are automatically exempt.`
+                            : 'Date of birth not set — add it in User Profile to enable age-based PT exemption check.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* PF Applicable toggle */}
+                  <FormField
+                    control={form.control}
+                    name="pfApplicable"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className={`p-3 rounded-lg border ${!field.value ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-sm font-medium text-gray-800">Provident Fund (PF) Applicable</span>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {field.value
+                                  ? 'Employee PF (12%) + Employer PF (12%) calculated on Basic, capped at ₹15,000.'
+                                  : 'PF not applicable — both Employee PF and Employer PF will be ₹0.'}
+                              </p>
+                            </div>
+                            <FormControl>
+                              <div className="flex gap-4 ml-4">
+                                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                  <input
+                                    type="radio"
+                                    className="accent-blue-600 w-4 h-4"
+                                    checked={!!field.value}
+                                    onChange={() => field.onChange(true)}
+                                  />
+                                  <span className="text-sm font-medium text-gray-700">Yes</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                  <input
+                                    type="radio"
+                                    className="accent-orange-500 w-4 h-4"
+                                    checked={!field.value}
+                                    onChange={() => field.onChange(false)}
+                                  />
+                                  <span className="text-sm font-medium text-gray-700">No</span>
+                                </label>
+                              </div>
+                            </FormControl>
+                          </div>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-1 gap-4">
               <FormField
