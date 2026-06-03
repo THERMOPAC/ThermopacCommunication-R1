@@ -870,6 +870,24 @@ async function stepSalaryCalculation(
           )
         );
 
+      // Block regeneration when an official SAP JE is posted and not yet reversed.
+      // The accounting entry is live in SAP — regenerating would create a mismatched DB record
+      // without a corresponding SAP correction. Force the user to reverse the JE first.
+      if (existingRecord.length > 0) {
+        const ex = existingRecord[0];
+        if (ex.sapPostingStatus === 'posted' && !ex.reversalSapDocEntry) {
+          skipped++;
+          exceptions.push({
+            userId: emp.id,
+            type: 'sap_je_posted',
+            severity: 'error',
+            title: `SAP JE posted — regeneration blocked for ${emp.username}`,
+            details: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before regenerating payroll.',
+          });
+          continue;
+        }
+      }
+
       const payrollData = {
         runNumber,
         recordType: 'official' as const,

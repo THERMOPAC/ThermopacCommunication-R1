@@ -9,7 +9,7 @@ import {
   glAccountMappings,
   tdsComplianceRegister,
 } from '@shared/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { postJeToSap, getGlCode } from './statutory-compliance-routes';
 import { checkModulePermission } from './utils/permission-utils';
@@ -181,6 +181,28 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
     if ((employee as any).userType !== 'non_system_user') {
       return res.status(400).json({ error: 'Manual salary processing is only allowed for Non-System Users. Please change the user type first.' });
+    }
+
+    // Block if a SAP-posted record already exists for this employee+period and has not been reversed.
+    const [existingPosted] = await db
+      .select({ id: payrollRecords.id, sapJeNumber: payrollRecords.sapJeNumber })
+      .from(payrollRecords)
+      .where(
+        and(
+          eq(payrollRecords.periodId, periodId),
+          eq(payrollRecords.userId, userId),
+          eq(payrollRecords.sapPostingStatus, 'posted'),
+          isNull(payrollRecords.reversalSapDocEntry),
+        )
+      )
+      .limit(1);
+
+    if (existingPosted) {
+      return res.status(409).json({
+        error: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before regenerating payroll.',
+        existingRecordId: existingPosted.id,
+        sapJeNumber: existingPosted.sapJeNumber,
+      });
     }
 
     const periodMonth = new Date(period.startDate).getMonth() + 1;
