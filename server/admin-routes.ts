@@ -4783,8 +4783,6 @@ function buildSalaryJePayload(
     Memo: `${memoPrefix}Salary JE - ${empName} - ${periodLabel}`,
     Reference2: employee.cardCode,
     Reference3: isTrial ? '92B-TRIAL' : '92B',
-    U_Employee_Name: empName,
-    U_PayrollRunType: isTrial ? 'TRIAL' : 'OFFICIAL',
     JournalEntryLines: jeLines,
   };
 
@@ -5060,7 +5058,6 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
       Memo: `REVERSAL - Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
       Reference2: employee.cardCode || '',
       Reference3: `REV-SAL-${originalJeRef}`,
-      U_Employee_Name: empName,
       JournalEntryLines: reversalLines,
     };
 
