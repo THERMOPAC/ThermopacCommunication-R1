@@ -46,6 +46,8 @@ import { ensureAuthenticated } from './auth-middleware';
 import { requireReauth, checkReauth } from './middleware/require-reauth';
 import { salaryCalculationEngine } from './salary-calculation-engine';
 import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
+import { buildSalarySlipData } from './salary-slip-builder';
+import * as nodemailer from 'nodemailer';
 import { applySalaryIncrement, autoApplyDueIncrements } from './salary-increment-service';
 import { verifyPayslipRelease } from './payroll-calculation-verifier';
 import { glAccountMappings } from '../shared/schema';
@@ -4814,7 +4816,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     const [employee] = await db.select({
       id: users.id, firstName: users.firstName, lastName: users.lastName,
       username: users.username, cardCode: users.cardCode, cardName: users.cardName, employeeCode: users.employeeCode,
-      loanCardCode: users.loanCardCode,
+      loanCardCode: users.loanCardCode, email: users.email,
     }).from(users).where(eq(users.id, record.userId));
     if (!employee) return res.status(400).json({ error: 'Employee not found' });
 
@@ -4975,6 +4977,11 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
           sapResponseLog: responseData as any,
           updatedAt: new Date(),
         }).where(eq(payrollRecords.id, recordId));
+
+        // Fire-and-forget salary slip email — does not block the API response
+        emailSalarySlipAfterPost(recordId, empName).catch(e =>
+          console.error('[SalarySlipEmail] Dispatch failed:', e?.message || e)
+        );
 
         return res.json({
           success: true,
@@ -5328,400 +5335,75 @@ router.post('/salary-calculation-preview', ensureAuthenticated, async (req: Requ
   }
 });
 
+// ─── Salary slip email helper ────────────────────────────────────────────────
+async function emailSalarySlipAfterPost(recordId: number, empName: string): Promise<void> {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.log('[SalarySlipEmail] Gmail not configured — skipping email dispatch');
+    return;
+  }
+  const built = await buildSalarySlipData(recordId);
+  if (!built) { console.warn('[SalarySlipEmail] No slip data for record', recordId); return; }
+  if (!built.employeeEmail) { console.warn(`[SalarySlipEmail] No email for ${empName} — skipping`); return; }
+
+  const pdfBuffer = await new SalarySlipGenerator().generateToBuffer(built.slipData);
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+  });
+
+  const periodLabel = `${built.slipData.period.month} ${built.slipData.period.year}`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a">
+      <div style="background:#1e3a5f;padding:24px 32px;border-radius:8px 8px 0 0">
+        <h1 style="margin:0;color:#ffffff;font-size:20px">THERMOPAC Process Engineering LLP</h1>
+        <p style="margin:6px 0 0;color:#a8c4e0;font-size:13px">Payroll Department</p>
+      </div>
+      <div style="background:#f8f9fa;padding:32px;border-radius:0 0 8px 8px;border:1px solid #e0e4ea">
+        <p style="margin:0 0 16px">Dear <strong>${built.employeeFullName}</strong>,</p>
+        <p style="margin:0 0 16px;line-height:1.6">
+          Your salary slip for <strong>${periodLabel}</strong> has been processed and the journal entry
+          has been posted to SAP. Please find your salary slip attached to this email.
+        </p>
+        <p style="margin:0 0 16px;line-height:1.6">
+          If you have any questions regarding your salary, please contact the HR/Payroll department.
+        </p>
+        <p style="margin:32px 0 0;font-size:12px;color:#888">
+          This is an automated email. Please do not reply directly to this message.<br>
+          THERMOPAC Process Engineering LLP · Mumbai, India
+        </p>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `"THERMOPAC Payroll" <${process.env.GMAIL_USER}>`,
+    to: built.employeeEmail,
+    subject: `Salary Slip — ${periodLabel} | ${built.employeeFullName}`,
+    html,
+    attachments: [{ filename: built.filename, content: pdfBuffer, contentType: 'application/pdf' }],
+  });
+  console.log(`[SalarySlipEmail] ✅ Sent to ${built.employeeEmail} for ${empName} (${periodLabel})`);
+}
+
 /**
  * Generate salary slip PDF
  */
 router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { payrollRecordId } = req.params;
-
-    // Verification check removed — slips can be downloaded at any workflow stage
-
-    const payrollRecord = await db
-      .select({
-        id: payrollRecords.id,
-        periodId: payrollRecords.periodId,
-        userId: payrollRecords.userId,
-        baseSalary: payrollRecords.baseSalary,
-        grossPay: payrollRecords.grossPay,
-        netPay: payrollRecords.netPay,
-        incomeTax: payrollRecords.incomeTax,
-        professionalTax: payrollRecords.professionalTax,
-        providentFund: payrollRecords.providentFund,
-        hra: payrollRecords.hra,
-        conveyanceAllowance: payrollRecords.conveyanceAllowance,
-        ltaAllowance: payrollRecords.ltaAllowance,
-        specialAllowance: payrollRecords.specialAllowance,
-        supplementaryAllowance: payrollRecords.supplementaryAllowance,
-        kgpAllowance: payrollRecords.kgpAllowance,
-        overtimePay: payrollRecords.overtimePay,
-        bonus: payrollRecords.bonus,
-        otherAllowances: payrollRecords.otherAllowances,
-        esic: payrollRecords.esic,
-        groupInsurance: payrollRecords.groupInsurance,
-        otherDeductions: payrollRecords.otherDeductions,
-        employeePf: payrollRecords.employeePf,
-        employeeEsic: payrollRecords.employeeEsic,
-        employerPf: payrollRecords.employerPf,
-        employerEsic: payrollRecords.employerEsic,
-        gratuity: payrollRecords.gratuity,
-        calculationSnapshot: payrollRecords.calculationSnapshot,
-        presentDays: payrollRecords.presentDays,
-        paidDays: payrollRecords.paidDays,
-        lopDays: payrollRecords.lopDays,
-        workingDays: payrollRecords.workingDays,
-        paidLeaveDays: payrollRecords.paidLeaveDays,
-        unpaidLeaveDays: payrollRecords.unpaidLeaveDays,
-        totalDeductions: payrollRecords.totalDeductions,
-        loanDeductions: payrollRecords.loanDeductions,
-        advanceDeductions: payrollRecords.advanceDeductions,
-        createdAt: payrollRecords.createdAt,
-        
-        // Employee details
-        employeeName: users.username,
-        employeeCode: users.employeeCode,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        jobTitle: users.jobTitle,
-        userRole: users.role,
-        department: users.department,
-        panNumber: users.panNumber,
-        dateOfJoining: users.dateOfJoining,
-        userSalaryType: users.salaryType,
-        weeklyOffDays: users.weeklyOffDays,
-        
-        // Period details
-        periodName: payrollPeriods.periodName,
-        startDate: payrollPeriods.startDate,
-        endDate: payrollPeriods.endDate
-      })
-      .from(payrollRecords)
-      .innerJoin(users, eq(payrollRecords.userId, users.id))
-      .innerJoin(payrollPeriods, eq(payrollRecords.periodId, payrollPeriods.id))
-      .where(eq(payrollRecords.id, parseInt(payrollRecordId)))
-      .limit(1);
-
-    if (!payrollRecord.length) {
-      return res.status(404).json({ error: 'Payroll record not found' });
-    }
-
-    const record = payrollRecord[0];
-
-    const workingDays = parseInt((record as any).workingDays?.toString() || '26');
-
-    const employeeFullName = record.firstName && record.lastName 
-      ? `${record.firstName} ${record.lastName}` 
-      : record.employeeName;
-
-    const calcSnap = (record as any).calculationSnapshot || {};
-    const deductions = calcSnap.deductions || {};
-    const salaryType = calcSnap.salaryType || (record as any).userSalaryType || 'monthly';
-    const salaryBasis = salaryType === 'daily' ? 'actual_days' : 30;
-
-    const employerPf = parseFloat((record as any).employerPf?.toString() || deductions.employerPF?.toString() || '0');
-    const employerEsic = parseFloat((record as any).employerEsic?.toString() || deductions.employerESIC?.toString() || '0');
-    const gratuity = parseFloat((record as any).gratuity?.toString() || deductions.gratuity?.toString() || '0');
-    const groupInsuranceVal = parseFloat(record.groupInsurance?.toString() || deductions.groupInsurance?.toString() || '0');
-    const bonus = parseFloat(record.bonus?.toString() || '0');
-    const kgpAllowance = parseFloat(record.kgpAllowance?.toString() || '0');
-
-    const basicComp = parseFloat(record.baseSalary?.toString() || '0');
-    const hraComp = parseFloat(record.hra?.toString() || '0');
-    const convComp = parseFloat(record.conveyanceAllowance?.toString() || '0');
-    const ltaComp = parseFloat(record.ltaAllowance?.toString() || '0');
-    const specComp = parseFloat(record.specialAllowance?.toString() || '0');
-    const suppComp = parseFloat(record.supplementaryAllowance?.toString() || '0');
-    const kgpComp = parseFloat(record.kgpAllowance?.toString() || '0');
-    const otComp = parseFloat(record.overtimePay?.toString() || '0');
-    const otherAllowComp = parseFloat(record.otherAllowances?.toString() || '0');
-    const grossPay = basicComp + hraComp + convComp + ltaComp + specComp + suppComp + kgpComp + otComp + otherAllowComp;
-
-    const ctcMonthly = grossPay + employerPf + employerEsic + gratuity + groupInsuranceVal + bonus;
-    const ctcYearly = ctcMonthly * 12;
-
-    const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
-    const kgpPercent = kgpAllowance > 0 && ['Manager', 'Employee'].includes(empUser?.role || '') ? 15 : 0;
-
-    // Fetch calculationSnapshot directly — JOIN queries can sometimes strip JSONB columns
-    const [snapRow] = await db
-      .select({ calculationSnapshot: payrollRecords.calculationSnapshot })
-      .from(payrollRecords)
-      .where(eq(payrollRecords.id, parseInt(payrollRecordId)))
-      .limit(1);
-    const directSnap = (snapRow?.calculationSnapshot || {}) as any;
-    const actualKpiPercent: number | null = (() => {
-      const v = directSnap?.kpiAdjustment?.compositeKpiPercent
-             ?? calcSnap?.kpiAdjustment?.compositeKpiPercent;
-      if (v != null) return parseFloat(String(v));
-      return null;
-    })();
-
-    const snap = await db
-      .select()
-      .from(payrollAttendanceSnapshot)
-      .where(
-        and(
-          eq(payrollAttendanceSnapshot.periodId, record.periodId),
-          eq(payrollAttendanceSnapshot.userId, record.userId)
-        )
-      )
-      .orderBy(desc(payrollAttendanceSnapshot.runNumber))
-      .limit(1);
-
-    const attSnap = snap[0];
-
-    // When no official attendance snapshot exists (trial runs), compute holiday and
-    // weekly-off counts directly so the slip shows accurate attendance figures.
-    let fallbackHolidayCount = 0;
-    if (!attSnap) {
-      const holidaysInPeriod = await db
-        .select({ date: companyHolidays.date })
-        .from(companyHolidays)
-        .where(and(
-          gte(companyHolidays.date, record.startDate as string),
-          lte(companyHolidays.date, record.endDate as string)
-        ));
-      fallbackHolidayCount = holidaysInPeriod.length;
-    }
-
-    const paidDays = attSnap
-      ? parseFloat(attSnap.paidDays?.toString() || '30')
-      : parseFloat((record as any).paidDays?.toString() || '30');
-    const presentDays = attSnap ? parseFloat(attSnap.presentDays?.toString() || '0') : parseFloat((record as any).presentDays?.toString() || paidDays.toString());
-    const lopDays = attSnap ? parseFloat(attSnap.lopDays?.toString() || '0') : parseFloat((record as any).lopDays?.toString() || '0');
-    const absentDays = attSnap ? parseFloat(attSnap.absentDays?.toString() || '0') : lopDays;
-    const holidays = attSnap ? (attSnap.holidays || 0) : fallbackHolidayCount;
-    const weeklyOffs = attSnap ? (attSnap.weeklyOffs || 0) : (() => {
-      // Formula: calendarDays − workingDays (from record) − companyHolidays
-      const sDate = new Date(record.startDate as string);
-      const eDate = new Date(record.endDate as string);
-      const calendarDays = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
-      const recordWorkingDays = parseInt((record as any).workingDays?.toString() || '0');
-      const result = Math.max(0, calendarDays - recordWorkingDays - fallbackHolidayCount);
-      return result;
-    })();
-
-    const employeePfVal = Math.round(parseFloat(record.providentFund?.toString() || '0'));
-    const ptVal = Math.round(parseFloat(record.professionalTax?.toString() || '0'));
-    const esicVal = Math.round(parseFloat(record.esic?.toString() || '0'));
-    const tdsVal = Math.round(parseFloat(record.incomeTax?.toString() || '0'));
-    const otherDeductionsVal = Math.round(parseFloat(record.otherDeductions?.toString() || '0'));
-    const loanDeductionVal = Math.round(parseFloat(record.loanDeductions?.toString() || '0'));
-    const advanceDeductionVal = Math.round(parseFloat(record.advanceDeductions?.toString() || '0'));
-    const actualTotalDeductions = employeePfVal + ptVal + esicVal + tdsVal + otherDeductionsVal + loanDeductionVal + advanceDeductionVal;
-    const actualNetPay = Math.round(grossPay) - actualTotalDeductions;
-
-    const salarySlipData = {
-      employee: {
-        name: employeeFullName,
-        employeeCode: record.employeeCode || 'N/A',
-        designation: (record as any).userRole || 'N/A',
-        department: record.department || 'N/A',
-        joiningDate: (record as any).dateOfJoining || 'N/A',
-        panNumber: (record as any).panNumber || 'N/A',
-      },
-      company: {
-        name: 'THERMOPAC',
-        address: 'L 4, 405 The Summit Business Bay, Vile Parle Western Express Highway Vile Parle Mumbai India 400 057'
-      },
-      period: {
-        month: (() => {
-          const pn = record.periodName || '';
-          const yr = new Date(record.startDate).getFullYear();
-          if (pn && pn.includes(yr.toString())) {
-            return pn.replace(` ${yr}`, '').replace(`${yr}`, '');
-          }
-          return pn || new Date(record.startDate).toLocaleDateString('en-US', { month: 'long' });
-        })(),
-        year: new Date(record.startDate).getFullYear(),
-        workingDays,
-        paidDays,
-        salaryBasis,
-        salaryType,
-        holidays,
-        weeklyOffs,
-        absentDays,
-        presentDays,
-        paidLeaveDays: attSnap ? parseFloat(attSnap.paidLeaveDays?.toString() || '0') : parseFloat((record as any).paidLeaveDays?.toString() || '0'),
-        unpaidLeaveDays: attSnap ? parseFloat(attSnap.unpaidLeaveDays?.toString() || '0') : parseFloat((record as any).unpaidLeaveDays?.toString() || '0'),
-        lopDays,
-      },
-      earnings: {
-        basicSalary: Math.round(parseFloat(record.baseSalary?.toString() || '0')),
-        hra: Math.round(parseFloat(record.hra?.toString() || '0')),
-        conveyanceAllowance: Math.round(parseFloat(record.conveyanceAllowance?.toString() || '0')),
-        ltaAllowance: Math.round(parseFloat(record.ltaAllowance?.toString() || '0')),
-        specialAllowance: Math.round(parseFloat(record.specialAllowance?.toString() || '0')),
-        supplementaryAllowance: Math.round(parseFloat(record.supplementaryAllowance?.toString() || '0')),
-        kgpAllowance: Math.round(kgpAllowance),
-        overtimePay: Math.round(parseFloat(record.overtimePay?.toString() || '0')),
-        bonus: Math.round(bonus),
-        otherAllowances: Math.round(parseFloat(record.otherAllowances?.toString() || '0'))
-      },
-      deductions: {
-        providentFund: employeePfVal,
-        professionalTax: ptVal,
-        incomeTax: tdsVal,
-        esic: esicVal,
-        groupInsurance: 0,
-        otherDeductions: otherDeductionsVal,
-        loanDeduction: Math.round(parseFloat(record.loanDeductions?.toString() || '0')),
-        advanceDeduction: Math.round(parseFloat(record.advanceDeductions?.toString() || '0')),
-      },
-      employerCosts: {
-        esicEmployer: Math.round(employerEsic),
-        groupInsurance: Math.round(groupInsuranceVal),
-        pfEmployer: Math.round(employerPf),
-        gratuity: Math.round(gratuity),
-      },
-      totals: {
-        grossEarnings: Math.round(grossPay),
-        totalDeductions: actualTotalDeductions,
-        netPay: actualNetPay,
-        ctcMonthly: Math.round(ctcMonthly),
-        ctcYearly: Math.round(ctcMonthly) * 12,
-      },
-      kgpPercent,
-      actualKpiPercent,
-      netPayInWords: numberToWords(Math.round(actualNetPay)),
-      leaveBalances: [] as { leaveType: string; opening: number; used: number; accrued: number; closing: number }[],
-    };
-
-    const periodYear = new Date(record.startDate as string).getFullYear();
-    const activeLeaveTypes = await db.select().from(leaveTypes).where(eq(leaveTypes.isActive, true));
-    const empLeaveBalances = await db.select().from(leaveBalances)
-      .where(and(eq(leaveBalances.userId, record.userId), eq(leaveBalances.year, periodYear)));
-    const balanceMap = new Map(empLeaveBalances.map(b => [b.leaveTypeId, b]));
-
-    // Monthly used: approved leaves whose start_date falls within the period
-    const monthlyLeaveReqs = await db
-      .select({ leaveTypeId: leaveRequests.leaveTypeId, totalDays: leaveRequests.totalDays })
-      .from(leaveRequests)
-      .where(and(
-        eq(leaveRequests.employeeId, record.userId),
-        eq(leaveRequests.status, 'approved'),
-        gte(leaveRequests.startDate, record.startDate as string),
-        lte(leaveRequests.startDate, record.endDate as string)
-      ));
-    const usedInMonthMap = new Map<number, number>();
-    for (const req of monthlyLeaveReqs) {
-      usedInMonthMap.set(req.leaveTypeId, (usedInMonthMap.get(req.leaveTypeId) || 0) + parseFloat(req.totalDays?.toString() || '0'));
-    }
-
-    // Monthly accrual: entries whose createdAt falls in [periodStart, periodEnd + 2 days]
-    // (+2 days captures the IST-midnight cron that fires at UTC ~18:30 on the last day of the month)
-    const periodEndExtended = new Date(record.endDate as string);
-    periodEndExtended.setDate(periodEndExtended.getDate() + 2);
-    const monthlyAccruals = await db
-      .select({ leaveTypeId: leaveAccrualLog.leaveTypeId, daysAccrued: leaveAccrualLog.daysAccrued })
-      .from(leaveAccrualLog)
-      .where(and(
-        eq(leaveAccrualLog.userId, record.userId),
-        gte(leaveAccrualLog.createdAt, new Date(record.startDate as string)),
-        lte(leaveAccrualLog.createdAt, periodEndExtended)
-      ));
-    const accruedInMonthMap = new Map<number, number>();
-    for (const acc of monthlyAccruals) {
-      accruedInMonthMap.set(acc.leaveTypeId, (accruedInMonthMap.get(acc.leaveTypeId) || 0) + parseFloat(acc.daysAccrued?.toString() || '0'));
-    }
-
-    for (const lt of activeLeaveTypes) {
-      if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
-      const bal = balanceMap.get(lt.id);
-      if (!bal) continue;
-      const allocated = parseFloat(bal.allocatedDays?.toString() || '0');
-      const carryover = parseFloat(bal.carryoverDays?.toString() || '0');
-      const usedYTD = parseFloat(bal.usedDays?.toString() || '0');
-      // currentClosing = live YTD position (allocated + carryover − all used so far)
-      const currentClosing = Math.max(0, allocated + carryover - usedYTD);
-      const usedInMonth = usedInMonthMap.get(lt.id) || 0;
-      const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;
-      // Opening = reverse from closing: add back this month's usage, subtract this month's accrual
-      const opening = currentClosing + usedInMonth - accruedInMonth;
-      if (opening === 0 && usedInMonth === 0 && accruedInMonth === 0) continue;
-      salarySlipData.leaveBalances!.push({
-        leaveType: lt.code,
-        opening: Math.max(0, opening),
-        used: usedInMonth,
-        accrued: accruedInMonth,
-        closing: currentClosing,
-      });
-    }
-
-    const absentRecords = await db
-      .select({ date: attendanceRecords.date, status: attendanceRecords.status })
-      .from(attendanceRecords)
-      .where(
-        and(
-          eq(attendanceRecords.userId, record.userId),
-          gte(attendanceRecords.date, record.startDate),
-          lte(attendanceRecords.date, record.endDate),
-          inArray(attendanceRecords.status, ['absent', 'half_day'])
-        )
-      )
-      .orderBy(attendanceRecords.date);
-    const explicitAbsentDates = absentRecords.map(r => r.date);
-
-    const allAttRecords = await db
-      .select({ date: attendanceRecords.date })
-      .from(attendanceRecords)
-      .where(
-        and(
-          eq(attendanceRecords.userId, record.userId),
-          gte(attendanceRecords.date, record.startDate),
-          lte(attendanceRecords.date, record.endDate)
-        )
-      );
-    const recordedDates = new Set(allAttRecords.map(r => r.date));
-
-    const holidayRecords = await db
-      .select({ date: companyHolidays.date })
-      .from(companyHolidays)
-      .where(
-        and(
-          gte(companyHolidays.date, record.startDate),
-          lte(companyHolidays.date, record.endDate)
-        )
-      );
-    const holidaySet = new Set(holidayRecords.map(r => r.date));
-
-    const empUser2 = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, record.userId)).limit(1);
-    const weeklyOffDays: number[] = empUser2[0]?.weeklyOffDays || [0];
-
-    const absentDateEntries: { date: string; type: string }[] = [];
-    for (const r of absentRecords) {
-      absentDateEntries.push({ date: r.date, type: r.status === 'half_day' ? 'Half Day' : 'LOP' });
-    }
-
-    const startStr = typeof record.startDate === 'string' ? record.startDate : new Date(record.startDate).toISOString().split('T')[0];
-    const endStr = typeof record.endDate === 'string' ? record.endDate : new Date(record.endDate).toISOString().split('T')[0];
-    const [sy, sm, sd] = startStr.split('-').map(Number);
-    const [ey, em, ed] = endStr.split('-').map(Number);
-    const pStart = new Date(sy, sm - 1, sd);
-    const pEnd = new Date(ey, em - 1, ed);
-    for (let dt = new Date(pStart); dt <= pEnd; dt.setDate(dt.getDate() + 1)) {
-      const yyyy = dt.getFullYear();
-      const mm = String(dt.getMonth() + 1).padStart(2, '0');
-      const dd = String(dt.getDate()).padStart(2, '0');
-      const dateStr = `${yyyy}-${mm}-${dd}`;
-      const dayOfWeek = dt.getDay();
-      if (weeklyOffDays.includes(dayOfWeek)) continue;
-      if (holidaySet.has(dateStr)) continue;
-      if (recordedDates.has(dateStr)) continue;
-      absentDateEntries.push({ date: dateStr, type: 'LOP' });
-    }
-
-    absentDateEntries.sort((a, b) => a.date.localeCompare(b.date));
-    salarySlipData.absentDates = absentDateEntries;
-
+    const recordId = parseInt(req.params.payrollRecordId);
+    const built = await buildSalarySlipData(recordId);
+    if (!built) return res.status(404).json({ error: 'Payroll record not found' });
     const generator = new SalarySlipGenerator();
-    await generator.generateSalarySlip(salarySlipData, res);
-
+    const fn = built.filename;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fn}"`);
+    const pdfBuffer = await generator.generateToBuffer(built.slipData);
+    res.end(pdfBuffer);
   } catch (error) {
     console.error('Error generating salary slip:', error);
     sendError(res, error);
   }
 });
+
 
 // ════════════════════════════════════════════════════════════════════════════
 // Trial Payroll — SAP JE Post, Reversal Confirm, Parity Verification

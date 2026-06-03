@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { Response } from 'express';
+import { PassThrough } from 'stream';
 import path from 'path';
 import fs from 'fs';
 import { getActiveCompany, ActiveCompanyContext } from './utils/company-context';
@@ -16,7 +17,7 @@ const SALARY_SLIP_COMPANY_FALLBACK = {
   address:     'THERMOPAC  |  L 4, 405 The Summit Business Bay, Vile Parle, Western Express Highway, Mumbai 400 057',
 };
 
-interface SalarySlipData {
+export interface SalarySlipData {
   employee: {
     name: string;
     employeeCode: string;
@@ -144,6 +145,29 @@ export class SalarySlipGenerator {
         this.doc.end();
         this.doc.on('end', () => resolve());
         this.doc.on('error', (e: any) => reject(e));
+      } catch (e) { reject(e); }
+    });
+  }
+
+  async generateToBuffer(data: SalarySlipData): Promise<Buffer> {
+    const FF_LIVE_PDF = process.env.FF_COMPANY_LIVE_PDF === 'true';
+    if (FF_LIVE_PDF) {
+      this.companyCtx = await getActiveCompany();
+    } else {
+      this.companyCtx = null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      const pt = new PassThrough();
+      pt.on('data', (chunk: Buffer) => chunks.push(chunk));
+      pt.on('end', () => resolve(Buffer.concat(chunks)));
+      pt.on('error', reject);
+      try {
+        this.doc.pipe(pt);
+        this.render(data);
+        this.doc.end();
+        this.doc.on('error', reject);
       } catch (e) { reject(e); }
     });
   }
