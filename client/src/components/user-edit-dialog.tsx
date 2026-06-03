@@ -63,6 +63,7 @@ const editUserSchema = z.object({
   loanCardCode: z.string().optional(),
   loanCardName: z.string().optional(),
   dateOfJoining: z.string().optional(),
+  dateOfBirth: z.string().optional(),
   reportingManagerId: z.string().min(1, "Reporting Manager is required"),
   workLocationId: z.string().optional(), // Keep as string to avoid conversion issues
   userType: z.enum(['system_user', 'non_system_user']).optional(),
@@ -108,6 +109,7 @@ interface User {
   loanCardCode?: string;
   loanCardName?: string;
   dateOfJoining?: string;
+  dateOfBirth?: string;
   reportingManagerId?: number;
   workLocationId?: number;
   userType?: string;
@@ -176,6 +178,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       loanCardCode: '',
       loanCardName: '',
       dateOfJoining: '',
+      dateOfBirth: '',
       reportingManagerId: '',
       workLocationId: 'none',
       userType: 'system_user',
@@ -243,6 +246,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         loanCardCode: (user as any).loanCardCode || '',
         loanCardName: (user as any).loanCardName || '',
         dateOfJoining: (user as any).dateOfJoining || '',
+        dateOfBirth: (user as any).dateOfBirth || '',
         reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
         userType: (user.userType as 'system_user' | 'non_system_user') || 'system_user',
@@ -294,6 +298,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         loanCardCode: data.loanCardCode?.trim() || null,
         loanCardName: data.loanCardName?.trim() || null,
         dateOfJoining: data.dateOfJoining?.trim() || null,
+        dateOfBirth: data.dateOfBirth?.trim() || null,
         userType: data.userType || 'system_user',
         employeeType: data.employeeType || 'PERMANENT',
         // Convert string IDs to numbers, handle empty strings and "none" values properly
@@ -692,19 +697,34 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="dateOfJoining"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date of Joining</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="dateOfJoining"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Joining</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}

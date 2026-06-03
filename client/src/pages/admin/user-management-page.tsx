@@ -94,6 +94,7 @@ const userFormSchema = z.object({
   loanCardName: z.string().optional(),
   panNumber: z.string().min(1, "PAN Number is required"),
   dateOfJoining: z.string().min(1, "Date of Joining is required"),
+  dateOfBirth: z.string().optional(),
   role: z.enum(roles),
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
   countryCode: z.string().default("+91"),
@@ -136,6 +137,7 @@ interface User {
   loanCardName?: string;
   panNumber?: string;
   dateOfJoining?: string;
+  dateOfBirth?: string;
   role: string;
   mobileNumber: string;
   countryCode: string;
@@ -333,6 +335,7 @@ export default function UserManagementPage() {
       loanCardName: "",
       panNumber: "",
       dateOfJoining: "",
+      dateOfBirth: "",
     },
   });
 
@@ -378,6 +381,7 @@ export default function UserManagementPage() {
       loanCardName: user.loanCardName || "",
       panNumber: user.panNumber || "",
       dateOfJoining: user.dateOfJoining || "",
+      dateOfBirth: (user as any).dateOfBirth || "",
       role: user.role as any,
       mobileNumber: user.mobileNumber,
       countryCode: user.countryCode,
@@ -680,6 +684,19 @@ export default function UserManagementPage() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Date of Joining *</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="dateOfBirth"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date of Birth</FormLabel>
                 <FormControl>
                   <Input type="date" {...field} />
                 </FormControl>
