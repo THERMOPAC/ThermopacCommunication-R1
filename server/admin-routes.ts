@@ -4701,8 +4701,11 @@ function buildSalaryJePayload(
     }
   }
 
-  // PT: use override (computed from period month rule: 200 for non-Feb, 300 for Feb) rather than stored record value
-  const ptValue = ptAmountOverride !== undefined ? ptAmountOverride : parseFloat(record.professionalTax || '0');
+  // PT: apply monthly/Feb override ONLY if the payroll engine determined PT is applicable for this employee
+  // (stored professionalTax > 0). If the engine stored 0 (exempt — age ≥65, non-applicable employee type, etc.)
+  // honour that zero and post no PT line. Never force a 200/300 override onto an exempt employee.
+  const storedPt = parseFloat(record.professionalTax || '0');
+  const ptValue = storedPt > 0 && ptAmountOverride !== undefined ? ptAmountOverride : storedPt;
   // TDS: always include in salary JE — standard Indian payroll accounting (withheld from employee, posted as govt liability)
   const tdsValue = parseFloat(record.tdsAmount || record.incomeTax || '0');
   const plainDeductions = [
