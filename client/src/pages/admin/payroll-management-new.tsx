@@ -594,6 +594,8 @@ function GeneratedSalariesView() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editRecord, setEditRecord] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [viewRecord, setViewRecord] = useState<any>(null);
 
   const { data: jePreviewData, isLoading: jePreviewLoading } = useQuery<any>({
     queryKey: ['/api/admin/payroll/records', editRecord?.id, 'je-preview'],
@@ -1154,6 +1156,15 @@ function GeneratedSalariesView() {
                   </td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1 justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setViewRecord(record); setShowViewDialog(true); }}
+                        className="text-indigo-600 hover:text-indigo-800 hover:border-indigo-300 h-7 px-2 text-xs"
+                      >
+                        <Eye className="h-3 w-3 mr-1" /> View
+                      </Button>
+
                       {!isManualSalary && (
                         <Button
                           variant="outline"
@@ -1417,6 +1428,170 @@ function GeneratedSalariesView() {
             </Button>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* ── View Salary Details Dialog ─────────────────────────────────────── */}
+    <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-indigo-600" />
+            Salary Details — {viewRecord?.employeeName}
+          </DialogTitle>
+          <DialogDescription>
+            Period {viewRecord?.month}/{viewRecord?.year}
+            {viewRecord?.employeeCode && <span className="ml-2 text-gray-400">({viewRecord.employeeCode})</span>}
+          </DialogDescription>
+        </DialogHeader>
+
+        {viewRecord && (() => {
+          const snap = viewRecord.calculationSnapshot || {};
+          const kpi = snap.kpiAdjustment || null;
+          const f = (v: any, dec = 2) => parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+          const r = (v: any) => `₹${f(v)}`;
+
+          const basic     = parseFloat(viewRecord.baseSalary || 0);
+          const hra       = parseFloat(viewRecord.hra || 0);
+          const conv      = parseFloat(viewRecord.conveyanceAllowance || 0);
+          const lta       = parseFloat(viewRecord.ltaAllowance || 0);
+          const special   = parseFloat(viewRecord.specialAllowance || 0);
+          const suppl     = parseFloat(viewRecord.supplementaryAllowance || 0);
+          const kgp       = parseFloat(viewRecord.kgpAllowance || 0);
+          const bonus     = parseFloat(viewRecord.bonus || 0);
+          const otPay     = parseFloat(viewRecord.overtimePay || 0);
+          const gross     = parseFloat(viewRecord.grossEarnings || viewRecord.grossPay || 0);
+          const pf        = parseFloat(viewRecord.employeePf || 0);
+          const esic      = parseFloat(viewRecord.esic || viewRecord.employeeEsic || 0);
+          const pt        = parseFloat(viewRecord.professionalTax || 0);
+          const tds       = parseFloat(viewRecord.incomeTax || viewRecord.tdsAmount || 0);
+          const loans     = parseFloat(viewRecord.loanDeductions || 0);
+          const advances  = parseFloat(viewRecord.advanceDeductions || 0);
+          const totalDed  = parseFloat(viewRecord.totalDeductions || 0);
+          const net       = parseFloat(viewRecord.netSalary || viewRecord.netPay || 0);
+
+          const recStatus = (viewRecord.status || 'generated') === 'draft' ? 'generated' : (viewRecord.status || 'generated');
+
+          return (
+            <div className="space-y-4 text-sm">
+              {/* Status row */}
+              <div className="flex flex-wrap gap-2">
+                <WorkflowStatusBadge record={viewRecord} />
+                <SapStatusBadge record={viewRecord} />
+                {viewRecord.verificationStatus === 'passed' && (
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
+                    <CheckCircle className="h-3 w-3 mr-1" /> Verified
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* ── Attendance ── */}
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                  <p className="text-xs font-semibold uppercase text-gray-500 mb-2">Attendance</p>
+                  {[
+                    ['Days in Month', viewRecord.workingDays != null ? (parseInt(viewRecord.workingDays) + (viewRecord.weeklyOffs || 0) + (viewRecord.holidays || 0)) : '—'],
+                    ['Working Days', viewRecord.workingDays ?? '—'],
+                    ['Present Days', viewRecord.presentDays != null ? parseFloat(viewRecord.presentDays) : '—'],
+                    ['Paid Days', viewRecord.paidDays != null ? parseFloat(viewRecord.paidDays) : '—'],
+                    ['LOP Days', viewRecord.lopDays != null ? parseFloat(viewRecord.lopDays) : '—'],
+                    ['Paid Leave', viewRecord.paidLeaveDays != null ? parseFloat(viewRecord.paidLeaveDays) : '—'],
+                    ['OT Hours', viewRecord.overtimeHours != null ? parseFloat(viewRecord.overtimeHours) : '—'],
+                  ].map(([label, val]) => val !== '—' ? (
+                    <div key={label as string} className="flex justify-between text-xs">
+                      <span className="text-gray-500">{label}</span>
+                      <span className="font-medium">{String(val)}</span>
+                    </div>
+                  ) : null)}
+                </div>
+
+                {/* ── Gross Pay Breakdown ── */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold uppercase text-blue-600 mb-2">Gross Pay Breakdown</p>
+                  {basic > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Basic (pro-rated)</span><span>{r(basic)}</span></div>}
+                  {hra > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">HRA (40%)</span><span>{r(hra)}</span></div>}
+                  {conv > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Conveyance (30%)</span><span>{r(conv)}</span></div>}
+                  {lta > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">LTA (20%)</span><span>{r(lta)}</span></div>}
+                  {special > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Special (30%)</span><span>{r(special)}</span></div>}
+                  {suppl > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Supplementary (30%)</span><span>{r(suppl)}</span></div>}
+                  {kgp > 0 && (
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500">KGP Allowance</span>
+                        <span className="font-medium text-blue-700">{r(kgp)}</span>
+                      </div>
+                      {kpi && (
+                        <div className="flex justify-between text-[10px] pl-3">
+                          <span className="text-gray-400">
+                            KPI {kpi.compositeKpiPercent?.toFixed(2)}%
+                            {' '}({kpi.dwarDaysMatched}/{kpi.paidAttendanceDays} DWARs)
+                          </span>
+                          <span className="text-gray-400">ceiling {r(kpi.kgpCeiling)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {bonus > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Bonus</span><span>{r(bonus)}</span></div>}
+                  {otPay > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Overtime</span><span>{r(otPay)}</span></div>}
+                  <div className="border-t pt-1.5 mt-1 flex justify-between text-xs font-semibold">
+                    <span>Gross Pay</span><span>{r(gross)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Deductions ── */}
+              <div className="bg-red-50/50 rounded-lg p-3 space-y-1.5">
+                <p className="text-xs font-semibold uppercase text-red-600 mb-2">Deductions</p>
+                <div className="grid grid-cols-2 gap-x-6">
+                  <div className="space-y-1.5">
+                    {pf > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">PF (Employee)</span><span className="text-red-700">−{r(pf)}</span></div>}
+                    {esic > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">ESIC</span><span className="text-red-700">−{r(esic)}</span></div>}
+                    {pt > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Professional Tax</span><span className="text-red-700">−{r(pt)}</span></div>}
+                  </div>
+                  <div className="space-y-1.5">
+                    {tds > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">TDS</span><span className="text-red-700">−{r(tds)}</span></div>}
+                    {loans > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Loan EMI</span><span className="text-red-700">−{r(loans)}</span></div>}
+                    {advances > 0 && <div className="flex justify-between text-xs"><span className="text-gray-500">Advance Recovery</span><span className="text-red-700">−{r(advances)}</span></div>}
+                  </div>
+                </div>
+                <div className="border-t pt-1.5 mt-1 flex justify-between text-xs font-semibold text-red-700">
+                  <span>Total Deductions</span><span>−{r(totalDed)}</span>
+                </div>
+              </div>
+
+              {/* ── Net Pay ── */}
+              <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                <span className="font-semibold text-gray-700">Net Pay</span>
+                <span className="text-xl font-bold text-green-700">₹{net.toLocaleString('en-IN')}</span>
+              </div>
+
+              {/* ── KPI Detail ── */}
+              {kpi && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
+                  <p className="text-xs font-semibold text-blue-700 uppercase">KPI Adjustment (Phase 2)</p>
+                  <p className="text-xs text-blue-600">{kpi.formula}</p>
+                  <div className="grid grid-cols-3 gap-2 mt-1 text-xs">
+                    <div className="text-center"><div className="font-semibold text-blue-800">{kpi.compositeKpiPercent?.toFixed(2)}%</div><div className="text-gray-500">Composite KPI</div></div>
+                    <div className="text-center"><div className="font-semibold text-blue-800">{kpi.dwarDaysMatched}/{kpi.paidAttendanceDays}</div><div className="text-gray-500">DWARs / Days</div></div>
+                    <div className="text-center"><div className="font-semibold text-blue-800">{r(kpi.kgpCeiling)}</div><div className="text-gray-500">Ceiling</div></div>
+                  </div>
+                  {kpi.dwarDaysMissing > 0 && (
+                    <p className="text-[10px] text-amber-600 mt-1">⚠ {kpi.dwarDaysMissing} paid day{kpi.dwarDaysMissing !== 1 ? 's' : ''} had no DWAR — scored as 0</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowViewDialog(false)}>Close</Button>
+          {viewRecord && !viewRecord.isManualSalary && (
+            <Button variant="outline" onClick={() => handleDownloadSalarySlip(viewRecord.id)} className="text-blue-600">
+              <Download className="h-4 w-4 mr-2" /> Download Slip
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
 
