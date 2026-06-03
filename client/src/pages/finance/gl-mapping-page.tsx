@@ -169,6 +169,7 @@ export default function GlMappingPage() {
   const [sapSearchResults, setSapSearchResults] = useState<any[]>([]);
   const [sapSearchLoading, setSapSearchLoading] = useState(false);
   const [sapSearchTarget, setSapSearchTarget] = useState<any>(null);
+  const [sapSearchTotalInSap, setSapSearchTotalInSap] = useState<number | null>(null);
   const [validationResults, setValidationResults] = useState<any>(null);
   const [showValidation, setShowValidation] = useState(false);
 
@@ -242,11 +243,14 @@ export default function GlMappingPage() {
   async function searchSapCoA(query: string) {
     if (query.length < 2) return;
     setSapSearchLoading(true);
+    setSapSearchTotalInSap(null);
     try {
       const data = await apiRequest('GET', `/api/admin/payroll/sap-coa-search?q=${encodeURIComponent(query)}`);
       setSapSearchResults(data.accounts || []);
+      setSapSearchTotalInSap(typeof data.totalInSap === 'number' ? data.totalInSap : null);
     } catch {
       setSapSearchResults([]);
+      setSapSearchTotalInSap(0);
     } finally {
       setSapSearchLoading(false);
     }
@@ -805,7 +809,22 @@ export default function GlMappingPage() {
             </div>
           )}
           {sapSearchResults.length === 0 && sapSearchQuery.length >= 2 && !sapSearchLoading && (
-            <p className="text-sm text-muted-foreground text-center py-4">No results found. Try a different search term.</p>
+            <div className="text-center py-4 space-y-1">
+              {sapSearchTotalInSap === 0 ? (
+                <>
+                  <p className="text-sm font-medium text-red-600">Could not fetch accounts from SAP.</p>
+                  <p className="text-xs text-muted-foreground">SAP session may not be ready yet — please try again in a few seconds, or check the VPN/SAP connection.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">No results found.</p>
+                  {sapSearchTotalInSap !== null && (
+                    <p className="text-xs text-muted-foreground">Searched across {sapSearchTotalInSap.toLocaleString()} accounts fetched from SAP.</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">Try a different search term, or search the exact SAP code (e.g. <code className="font-mono bg-muted px-1 rounded">50207350600ARL</code>).</p>
+                </>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>

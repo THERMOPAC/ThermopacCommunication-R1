@@ -3576,34 +3576,34 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     let allSapAccounts: any[] = [];
     let nextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
 
+    // Helper: SAP may return odata.nextLink as an absolute URL like
+    // "https://host:port/b1s/v1/ChartOfAccounts?$skip=20&$top=500".
+    // sapSession.request() needs a relative path.  Strip the origin prefix.
+    const toRelativePath = (raw: string | null): string | null => {
+      if (!raw) return null;
+      if (raw.startsWith('/')) return raw;
+      const idx = raw.indexOf('/b1s/v1/');
+      return idx >= 0 ? raw.substring(idx) : null;
+    };
+
     console.log(`[SAP CoA Search] Fetching all accounts from SAP (bulk fetch with pagination)...`);
     while (nextLink) {
       try {
-        const resp = await sapSession.request({
-          method: 'GET',
-          path: nextLink,
-        });
+        const resp = await sapSession.request({ method: 'GET', path: nextLink });
         if (resp.ok) {
           const data = JSON.parse(resp.body);
-          const batch = data.value || [];
+          const batch: any[] = data.value || [];
           allSapAccounts.push(...batch);
           console.log(`[SAP CoA Search] Fetched page, got ${batch.length} accounts (total so far: ${allSapAccounts.length})`);
-          nextLink = data['odata.nextLink'] || null;
+
+          // SAP B1 uses 'odata.nextLink' (OData v3) or '@odata.nextLink' (OData v4),
+          // either as an absolute URL or relative path.  Always normalise to relative.
+          const rawNext = data['odata.nextLink'] || data['@odata.nextLink'] || null;
+          nextLink = toRelativePath(rawNext);
+
+          // No nextLink provided by SAP but page was non-empty → try skip-based fallback
           if (!nextLink && batch.length > 0) {
-            const currentSkip = allSapAccounts.length;
-            const testResp = await sapSession.request({
-              method: 'GET',
-              path: `/b1s/v1/ChartOfAccounts?$skip=${currentSkip}&$top=500`,
-            });
-            if (testResp.ok) {
-              const testData = JSON.parse(testResp.body);
-              const testBatch = testData.value || [];
-              if (testBatch.length > 0) {
-                allSapAccounts.push(...testBatch);
-                console.log(`[SAP CoA Search] Manual skip=${currentSkip} found ${testBatch.length} more (total: ${allSapAccounts.length})`);
-                nextLink = testData['odata.nextLink'] || `/b1s/v1/ChartOfAccounts?$skip=${allSapAccounts.length}&$top=500`;
-              }
-            }
+            nextLink = `/b1s/v1/ChartOfAccounts?$skip=${allSapAccounts.length}&$top=500`;
           }
         } else {
           console.log(`[SAP CoA Search] Batch fetch failed: ${resp.statusCode} ${resp.body.substring(0, 200)}`);
@@ -3625,7 +3625,18 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     // Strip hyphens/dashes for normalization — SAP Code field uses dashes (e.g. "50207350600-ARL")
     // but users and FormatCode values omit them ("50207350600ARL"). Both forms must match.
     const searchStripped = searchLower.replace(/-/g, '');
-    const matched = allSapAccounts
+    const mapAcct = (a: any) => ({
+      acctCode: a.Code,
+      formatCode: a.FormatCode,
+      acctName: a.AcctName || a.Name,
+      active: a.ActiveAccount,
+      currency: a.AcctCurrency,
+      balance: a.Balance,
+      accountType: a.AccountType,
+      controlAccount: a.ControlAccount,
+    });
+
+    let matched = allSapAccounts
       .filter((a: any) => {
         const code = (a.Code || '').toLowerCase();
         const codeStripped = code.replace(/-/g, '');
@@ -3640,18 +3651,63 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
           || name.includes(searchLower);
       })
       .slice(0, 100)
-      .map((a: any) => ({
-        acctCode: a.Code,
-        formatCode: a.FormatCode,
-        acctName: a.AcctName,
-        active: a.ActiveAccount,
-        currency: a.AcctCurrency,
-        balance: a.Balance,
-        accountType: a.AccountType,
-        controlAccount: a.ControlAccount,   // 'tYES' = SAP blocks direct JE posting
-      }));
+      .map(mapAcct);
 
-    console.log(`[SAP CoA Search] Found ${matched.length} matching accounts for "${search}"`);
+    // -----------------------------------------------------------------------
+    // Fallback: if the bulk scan returned nothing, try direct SAP lookups.
+    // This handles accounts that may have been missed in the paginated fetch
+    // OR when allSapAccounts is 0 (SAP session not ready yet on first call).
+    // Only attempt when the search looks like an account code (no spaces, 5+
+    // alphanumeric chars, optionally with dashes).
+    // -----------------------------------------------------------------------
+    const isCodeSearch = matched.length === 0 && /^[A-Z0-9\-]{5,}$/i.test(search);
+    if (isCodeSearch) {
+      // Derive the hyphenated SAP Code form: digits+letters → digits-letters
+      // e.g. "50207350600ARL" → "50207350600-ARL"
+      const hyphenated = search.replace(/^(\d+)([A-Za-z]+)$/, '$1-$2');
+
+      const directAttempts = [
+        search,                              // as typed (may already have a dash)
+        ...(hyphenated !== search ? [hyphenated] : []),  // with dash inserted
+        search.replace(/-/g, ''),            // without any dashes
+      ];
+
+      console.log(`[SAP CoA Search] Bulk scan miss — trying direct lookups: ${JSON.stringify(directAttempts)}`);
+
+      for (const attempt of directAttempts) {
+        if (matched.length > 0) break;
+        try {
+          const r = await sapSession.request({ method: 'GET', path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(attempt)}')` });
+          console.log(`[SAP CoA Search] Direct lookup '${attempt}': ${r.statusCode}`);
+          if (r.ok) {
+            const a = JSON.parse(r.body);
+            matched.push(mapAcct(a));
+          }
+        } catch (e: any) {
+          console.log(`[SAP CoA Search] Direct lookup '${attempt}' error: ${e.message}`);
+        }
+      }
+
+      // Last resort: $filter by FormatCode (standard field, $filter is valid for it)
+      if (matched.length === 0) {
+        try {
+          const r = await sapSession.request({
+            method: 'GET',
+            path: `/b1s/v1/ChartOfAccounts?$select=Code,FormatCode,AcctName,ActiveAccount,AcctCurrency,Balance,AccountType,ControlAccount&$filter=FormatCode eq '${search}'`,
+          });
+          console.log(`[SAP CoA Search] FormatCode filter '${search}': ${r.statusCode}`);
+          if (r.ok) {
+            const data = JSON.parse(r.body);
+            const accts: any[] = data.value || [];
+            matched.push(...accts.map(mapAcct));
+          }
+        } catch (e: any) {
+          console.log(`[SAP CoA Search] FormatCode filter error: ${e.message}`);
+        }
+      }
+    }
+
+    console.log(`[SAP CoA Search] Found ${matched.length} matching accounts for "${search}" (${allSapAccounts.length} total in SAP)`);
     if (matched.length > 0) {
       console.log(`[SAP CoA Search] First match: Code=${matched[0].acctCode}, FormatCode=${matched[0].formatCode}, Name=${matched[0].acctName}`);
     }
