@@ -5428,13 +5428,13 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const holidays = attSnap ? (attSnap.holidays || 0) : fallbackHolidayCount;
     const weeklyOffs = attSnap ? (attSnap.weeklyOffs || 0) : (() => {
       // Formula: calendarDays − workingDays (from record) − companyHolidays
-      // workingDays already accounts for both weekly offs and holidays in the trial engine,
-      // so: weeklyOffs = calendarDays − workingDays − holidays
       const sDate = new Date(record.startDate as string);
       const eDate = new Date(record.endDate as string);
       const calendarDays = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
       const recordWorkingDays = parseInt((record as any).workingDays?.toString() || '0');
-      return Math.max(0, calendarDays - recordWorkingDays - fallbackHolidayCount);
+      const result = Math.max(0, calendarDays - recordWorkingDays - fallbackHolidayCount);
+      console.log(`[SlipDebug] weeklyOffs fallback: startDate=${record.startDate} endDate=${record.endDate} calDays=${calendarDays} workingDays=${recordWorkingDays} holidays=${fallbackHolidayCount} result=${result}`);
+      return result;
     })();
 
     const employeePfVal = Math.round(parseFloat(record.providentFund?.toString() || '0'));
