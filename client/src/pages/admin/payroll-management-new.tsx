@@ -1238,10 +1238,13 @@ function GeneratedSalariesView() {
                             </Button>
                           ) : (() => {
                             const vs = record.verificationStatus || 'pending';
-                            const sapBlocked = vs === 'failed' || vs === 'pending';
+                            // Hard-block only on 'failed' (known calculation errors).
+                            // 'pending' (automated check not yet run) does NOT block transfer
+                            // when the admin has already manually verified the record.
+                            const sapBlocked = vs === 'failed';
                             return sapBlocked ? (
-                              <Button variant="outline" size="sm" disabled className="text-gray-400 h-7 px-2 text-xs" title={vs === 'failed' ? 'Fix verification errors first' : 'Run verification first'}>
-                                <Shield className="h-3 w-3 mr-1" /> {vs === 'failed' ? 'Fix Errors' : 'Verify First'}
+                              <Button variant="outline" size="sm" disabled className="text-gray-400 h-7 px-2 text-xs" title="Fix verification errors before transferring to SAP">
+                                <Shield className="h-3 w-3 mr-1" /> Fix Errors
                               </Button>
                             ) : (
                               <Button
