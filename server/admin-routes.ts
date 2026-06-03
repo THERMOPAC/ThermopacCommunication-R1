@@ -5374,6 +5374,12 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
     const kgpPercent = kgpAllowance > 0 && ['Manager', 'Employee'].includes(empUser?.role || '') ? 15 : 0;
 
+    const kpiSnap = (record as any).calculationSnapshot as any;
+    const actualKpiPercent: number | null =
+      kpiSnap?.kpiAdjustment?.compositeKpiPercent != null
+        ? parseFloat(kpiSnap.kpiAdjustment.compositeKpiPercent)
+        : null;
+
     const snap = await db
       .select()
       .from(payrollAttendanceSnapshot)
@@ -5477,6 +5483,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         ctcYearly: Math.round(ctcMonthly) * 12,
       },
       kgpPercent,
+      actualKpiPercent,
       netPayInWords: numberToWords(Math.round(actualNetPay)),
       leaveBalances: [] as { leaveType: string; opening: number; used: number; closing: number }[],
     };

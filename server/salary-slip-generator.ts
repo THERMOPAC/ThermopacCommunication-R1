@@ -82,6 +82,7 @@ interface SalarySlipData {
     ctcYearly: number;
   };
   kgpPercent: number;
+  actualKpiPercent?: number | null;
   netPayInWords?: string;
   leaveBalances?: {
     leaveType: string;
@@ -428,7 +429,10 @@ export class SalarySlipGenerator {
       );
     }
     if (!isDaily && (d.kgpPercent > 0 || d.earnings.kgpAllowance > 0)) {
-      earnRows.push({ label: `KGP Allowance (${d.kgpPercent}%)`, value: d.earnings.kgpAllowance });
+      const kgpLabel = d.actualKpiPercent != null
+        ? `KGP Allowance (${d.kgpPercent}%) [Actual KPI: ${d.actualKpiPercent.toFixed(2)}%]`
+        : `KGP Allowance (${d.kgpPercent}%)`;
+      earnRows.push({ label: kgpLabel, value: d.earnings.kgpAllowance });
     }
     if (d.earnings.overtimePay > 0) {
       earnRows.push({ label: 'Overtime Pay', value: d.earnings.overtimePay });
