@@ -264,14 +264,14 @@ export class SalarySlipGenerator {
           { label: 'Salary Basis', value: 'Daily' },
           { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
           { label: 'Weekly Offs', value: (d.period.weeklyOffs || 0).toFixed(1) },
-          { label: 'Leave Used', value: totalLeaveUsed.toFixed(1) },
+          { label: 'Paid Leave Used for LOP Adjustment', value: totalLeaveUsed.toFixed(1) },
           { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
         ]
       : [
           { label: 'Salary Basis', value: '30 Days' },
           { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
           { label: 'Weekly Offs', value: (d.period.weeklyOffs || 0).toFixed(1) },
-          { label: 'Leave Used', value: totalLeaveUsed.toFixed(1) },
+          { label: 'Paid Leave Used for LOP Adjustment', value: totalLeaveUsed.toFixed(1) },
           { label: 'LOP Days', value: d.period.lopDays.toFixed(1) },
           { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
         ];
@@ -362,10 +362,10 @@ export class SalarySlipGenerator {
       y += lbHeaderH;
 
       const rows = [
-        { label: 'Opening',  getValue: (b: any) => b.opening.toFixed(2),  color: (_v: string) => '#1F2937' },
-        { label: 'Used',     getValue: (b: any) => b.used.toFixed(2),     color: (v: string) => parseFloat(v) > 0 ? '#DC2626' : '#1F2937' },
-        { label: 'Accrued',  getValue: (b: any) => b.accrued.toFixed(2),  color: (v: string) => parseFloat(v) > 0 ? '#16A34A' : '#1F2937' },
-        { label: 'Closing',  getValue: (b: any) => b.closing.toFixed(2),  color: (_v: string) => '#1F2937' },
+        { label: 'Opening',               getValue: (b: any) => b.opening.toFixed(2),  color: (_v: string) => '#1F2937' },
+        { label: 'Leave Deducted from Balance During Month', getValue: (b: any) => b.used.toFixed(2), color: (v: string) => parseFloat(v) > 0 ? '#DC2626' : '#1F2937' },
+        { label: 'Accrued',               getValue: (b: any) => b.accrued.toFixed(2),  color: (v: string) => parseFloat(v) > 0 ? '#16A34A' : '#1F2937' },
+        { label: 'Closing',               getValue: (b: any) => b.closing.toFixed(2),  color: (_v: string) => '#1F2937' },
       ];
 
       for (let r = 0; r < rows.length; r++) {
@@ -393,6 +393,22 @@ export class SalarySlipGenerator {
       this.t('No leave balances allocated for this period.', m + 8, y + 2);
       y += 14;
     }
+
+    // Leave Balance footnote — clarifies the two leave figures on the slip
+    const noteH = 16;
+    doc.save();
+    doc.rect(m, y, w, noteH).fillColor('#F9FAFB').fill();
+    doc.restore();
+    doc.font(FONT_REGULAR).fontSize(5).fillColor('#6B7280');
+    this.t(
+      '\u2139  Paid Leave Used for LOP Adjustment (Attendance Summary): approved paid leave applied solely to offset Loss of Pay deductions in this payroll period.',
+      m + 6, y + 2.5, { width: w - 12 }
+    );
+    this.t(
+      '\u2139  Leave Deducted from Balance During Month (Leave Balance): total approved leave days consumed from the employee\u2019s leave quota during this month, regardless of payroll impact.',
+      m + 6, y + 9, { width: w - 12 }
+    );
+    y += noteH;
 
     this.hLine(y, '#D1D5DB', 0.4);
     y += 5;
