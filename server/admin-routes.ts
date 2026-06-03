@@ -5404,30 +5404,38 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       .limit(1);
 
     const attSnap = snap[0];
+
+    // When no official attendance snapshot exists (trial runs), compute holiday and
+    // weekly-off counts directly so the slip shows accurate attendance figures.
+    let fallbackHolidayCount = 0;
+    if (!attSnap) {
+      const holidaysInPeriod = await db
+        .select({ date: companyHolidays.date })
+        .from(companyHolidays)
+        .where(and(
+          gte(companyHolidays.date, record.startDate as string),
+          lte(companyHolidays.date, record.endDate as string)
+        ));
+      fallbackHolidayCount = holidaysInPeriod.length;
+    }
+
     const paidDays = attSnap
       ? parseFloat(attSnap.paidDays?.toString() || '30')
       : parseFloat((record as any).paidDays?.toString() || '30');
     const presentDays = attSnap ? parseFloat(attSnap.presentDays?.toString() || '0') : parseFloat((record as any).presentDays?.toString() || paidDays.toString());
     const lopDays = attSnap ? parseFloat(attSnap.lopDays?.toString() || '0') : parseFloat((record as any).lopDays?.toString() || '0');
     const absentDays = attSnap ? parseFloat(attSnap.absentDays?.toString() || '0') : lopDays;
+    const holidays = attSnap ? (attSnap.holidays || 0) : fallbackHolidayCount;
     const weeklyOffs = attSnap ? (attSnap.weeklyOffs || 0) : (() => {
-      // Compute weekly offs from period dates + employee's weekly off days config
-      const offDays: number[] = Array.isArray((record as any).weeklyOffDays)
-        ? (record as any).weeklyOffDays
-        : (typeof (record as any).weeklyOffDays === 'string'
-            ? JSON.parse((record as any).weeklyOffDays || '[0]')
-            : [0]);
+      // Formula: calendarDays − workingDays (from record) − companyHolidays
+      // workingDays already accounts for both weekly offs and holidays in the trial engine,
+      // so: weeklyOffs = calendarDays − workingDays − holidays
       const sDate = new Date(record.startDate as string);
       const eDate = new Date(record.endDate as string);
-      let count = 0;
-      const cur = new Date(sDate);
-      while (cur <= eDate) {
-        if (offDays.includes(cur.getDay())) count++;
-        cur.setDate(cur.getDate() + 1);
-      }
-      return count;
+      const calendarDays = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
+      const recordWorkingDays = parseInt((record as any).workingDays?.toString() || '0');
+      return Math.max(0, calendarDays - recordWorkingDays - fallbackHolidayCount);
     })();
-    const holidays = attSnap ? (attSnap.holidays || 0) : 0;
 
     const employeePfVal = Math.round(parseFloat(record.providentFund?.toString() || '0'));
     const ptVal = Math.round(parseFloat(record.professionalTax?.toString() || '0'));
