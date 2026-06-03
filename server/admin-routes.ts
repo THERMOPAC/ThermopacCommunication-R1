@@ -5305,6 +5305,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         paidDays: payrollRecords.paidDays,
         lopDays: payrollRecords.lopDays,
         workingDays: payrollRecords.workingDays,
+        paidLeaveDays: payrollRecords.paidLeaveDays,
+        unpaidLeaveDays: payrollRecords.unpaidLeaveDays,
         totalDeductions: payrollRecords.totalDeductions,
         loanDeductions: payrollRecords.loanDeductions,
         advanceDeductions: payrollRecords.advanceDeductions,
@@ -5321,6 +5323,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         panNumber: users.panNumber,
         dateOfJoining: users.dateOfJoining,
         userSalaryType: users.salaryType,
+        weeklyOffDays: users.weeklyOffDays,
         
         // Period details
         periodName: payrollPeriods.periodName,
@@ -5407,7 +5410,23 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const presentDays = attSnap ? parseFloat(attSnap.presentDays?.toString() || '0') : parseFloat((record as any).presentDays?.toString() || paidDays.toString());
     const lopDays = attSnap ? parseFloat(attSnap.lopDays?.toString() || '0') : parseFloat((record as any).lopDays?.toString() || '0');
     const absentDays = attSnap ? parseFloat(attSnap.absentDays?.toString() || '0') : lopDays;
-    const weeklyOffs = attSnap ? (attSnap.weeklyOffs || 0) : 0;
+    const weeklyOffs = attSnap ? (attSnap.weeklyOffs || 0) : (() => {
+      // Compute weekly offs from period dates + employee's weekly off days config
+      const offDays: number[] = Array.isArray((record as any).weeklyOffDays)
+        ? (record as any).weeklyOffDays
+        : (typeof (record as any).weeklyOffDays === 'string'
+            ? JSON.parse((record as any).weeklyOffDays || '[0]')
+            : [0]);
+      const sDate = new Date(record.startDate as string);
+      const eDate = new Date(record.endDate as string);
+      let count = 0;
+      const cur = new Date(sDate);
+      while (cur <= eDate) {
+        if (offDays.includes(cur.getDay())) count++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      return count;
+    })();
     const holidays = attSnap ? (attSnap.holidays || 0) : 0;
 
     const employeePfVal = Math.round(parseFloat(record.providentFund?.toString() || '0'));
