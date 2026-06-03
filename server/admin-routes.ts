@@ -10,6 +10,7 @@ import {
   leaveTypes,
   leaveBalances,
   leaveRequests,
+  leaveAccrualLog,
   leaveApprovals,
   companyHolidays,
   leavePolicies,
@@ -5433,7 +5434,6 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       const calendarDays = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
       const recordWorkingDays = parseInt((record as any).workingDays?.toString() || '0');
       const result = Math.max(0, calendarDays - recordWorkingDays - fallbackHolidayCount);
-      console.log(`[SlipDebug] weeklyOffs fallback: startDate=${record.startDate} endDate=${record.endDate} calDays=${calendarDays} workingDays=${recordWorkingDays} holidays=${fallbackHolidayCount} result=${result}`);
       return result;
     })();
 
@@ -5520,15 +5520,46 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       kgpPercent,
       actualKpiPercent,
       netPayInWords: numberToWords(Math.round(actualNetPay)),
-      leaveBalances: [] as { leaveType: string; opening: number; used: number; closing: number }[],
+      leaveBalances: [] as { leaveType: string; opening: number; used: number; accrued: number; closing: number }[],
     };
 
-    const periodYear = new Date(record.startDate).getFullYear();
+    const periodYear = new Date(record.startDate as string).getFullYear();
     const activeLeaveTypes = await db.select().from(leaveTypes).where(eq(leaveTypes.isActive, true));
     const empLeaveBalances = await db.select().from(leaveBalances)
       .where(and(eq(leaveBalances.userId, record.userId), eq(leaveBalances.year, periodYear)));
-
     const balanceMap = new Map(empLeaveBalances.map(b => [b.leaveTypeId, b]));
+
+    // Monthly used: approved leaves whose start_date falls within the period
+    const monthlyLeaveReqs = await db
+      .select({ leaveTypeId: leaveRequests.leaveTypeId, totalDays: leaveRequests.totalDays })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, record.userId),
+        eq(leaveRequests.status, 'approved'),
+        gte(leaveRequests.startDate, record.startDate as string),
+        lte(leaveRequests.startDate, record.endDate as string)
+      ));
+    const usedInMonthMap = new Map<number, number>();
+    for (const req of monthlyLeaveReqs) {
+      usedInMonthMap.set(req.leaveTypeId, (usedInMonthMap.get(req.leaveTypeId) || 0) + parseFloat(req.totalDays?.toString() || '0'));
+    }
+
+    // Monthly accrual: entries whose createdAt falls in [periodStart, periodEnd + 2 days]
+    // (+2 days captures the IST-midnight cron that fires at UTC ~18:30 on the last day of the month)
+    const periodEndExtended = new Date(record.endDate as string);
+    periodEndExtended.setDate(periodEndExtended.getDate() + 2);
+    const monthlyAccruals = await db
+      .select({ leaveTypeId: leaveAccrualLog.leaveTypeId, daysAccrued: leaveAccrualLog.daysAccrued })
+      .from(leaveAccrualLog)
+      .where(and(
+        eq(leaveAccrualLog.userId, record.userId),
+        gte(leaveAccrualLog.createdAt, new Date(record.startDate as string)),
+        lte(leaveAccrualLog.createdAt, periodEndExtended)
+      ));
+    const accruedInMonthMap = new Map<number, number>();
+    for (const acc of monthlyAccruals) {
+      accruedInMonthMap.set(acc.leaveTypeId, (accruedInMonthMap.get(acc.leaveTypeId) || 0) + parseFloat(acc.daysAccrued?.toString() || '0'));
+    }
 
     for (const lt of activeLeaveTypes) {
       if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
@@ -5536,11 +5567,21 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       if (!bal) continue;
       const allocated = parseFloat(bal.allocatedDays?.toString() || '0');
       const carryover = parseFloat(bal.carryoverDays?.toString() || '0');
-      const opening = allocated + carryover;
-      const used = parseFloat(bal.usedDays?.toString() || '0');
-      const closing = Math.max(0, opening - used);
-      if (opening === 0 && used === 0) continue;
-      salarySlipData.leaveBalances!.push({ leaveType: lt.code, opening, used, closing });
+      const usedYTD = parseFloat(bal.usedDays?.toString() || '0');
+      // currentClosing = live YTD position (allocated + carryover − all used so far)
+      const currentClosing = Math.max(0, allocated + carryover - usedYTD);
+      const usedInMonth = usedInMonthMap.get(lt.id) || 0;
+      const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;
+      // Opening = reverse from closing: add back this month's usage, subtract this month's accrual
+      const opening = currentClosing + usedInMonth - accruedInMonth;
+      if (opening === 0 && usedInMonth === 0 && accruedInMonth === 0) continue;
+      salarySlipData.leaveBalances!.push({
+        leaveType: lt.code,
+        opening: Math.max(0, opening),
+        used: usedInMonth,
+        accrued: accruedInMonth,
+        closing: currentClosing,
+      });
     }
 
     const absentRecords = await db

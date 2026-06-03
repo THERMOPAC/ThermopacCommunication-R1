@@ -88,6 +88,7 @@ interface SalarySlipData {
     leaveType: string;
     opening: number;
     used: number;
+    accrued: number;
     closing: number;
   }[];
 }
@@ -361,9 +362,10 @@ export class SalarySlipGenerator {
       y += lbHeaderH;
 
       const rows = [
-        { label: 'Opening', getValue: (b: any) => b.opening.toFixed(1) },
-        { label: 'Used', getValue: (b: any) => b.used.toFixed(1) },
-        { label: 'Closing', getValue: (b: any) => b.closing.toFixed(1) },
+        { label: 'Opening',  getValue: (b: any) => b.opening.toFixed(2),  color: (_v: string) => '#1F2937' },
+        { label: 'Used',     getValue: (b: any) => b.used.toFixed(2),     color: (v: string) => parseFloat(v) > 0 ? '#DC2626' : '#1F2937' },
+        { label: 'Accrued',  getValue: (b: any) => b.accrued.toFixed(2),  color: (v: string) => parseFloat(v) > 0 ? '#16A34A' : '#1F2937' },
+        { label: 'Closing',  getValue: (b: any) => b.closing.toFixed(2),  color: (_v: string) => '#1F2937' },
       ];
 
       for (let r = 0; r < rows.length; r++) {
@@ -378,7 +380,7 @@ export class SalarySlipGenerator {
         for (let i = 0; i < leaveBals.length; i++) {
           const x = m + (i + 1) * lbColW;
           const val = rows[r].getValue(leaveBals[i]);
-          const color = rows[r].label === 'Used' && parseFloat(val) > 0 ? '#DC2626' : '#1F2937';
+          const color = rows[r].color(val);
           doc.font(FONT_BOLD).fontSize(6).fillColor(color);
           this.t(val, x + 2, y + 2, { width: lbColW - 4, align: 'center' });
           this.vLine(x, y, y + lbRowH, '#E5E7EB', 0.3);
