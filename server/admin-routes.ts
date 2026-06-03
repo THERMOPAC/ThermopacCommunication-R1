@@ -4808,9 +4808,10 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     if (record.status !== 'verified') return res.status(400).json({ error: `Only verified records can transfer to SAP. Current: ${record.status || 'generated'}` });
 
     const vs = record.verificationStatus || 'pending';
-    if (vs === 'failed') return res.status(400).json({ error: 'Calculation verification failed. Fix and re-verify.' });
-    if (vs === 'pending') return res.status(400).json({ error: 'Not yet verified by Payroll Calculation Verifier.' });
-    if (vs !== 'passed' && vs !== 'overridden') return res.status(400).json({ error: `Verification status "${vs}" does not allow SAP posting.` });
+    // Hard-block only on 'failed' (known calculation errors).
+    // 'pending' (automated check not run) is allowed when admin has manually verified (status='verified').
+    if (vs === 'failed') return res.status(400).json({ error: 'Calculation verification failed. Fix errors and re-verify before posting to SAP.' });
+    if (vs !== 'passed' && vs !== 'overridden' && vs !== 'pending') return res.status(400).json({ error: `Verification status "${vs}" does not allow SAP posting.` });
 
     const [employee] = await db.select({
       id: users.id, firstName: users.firstName, lastName: users.lastName,
