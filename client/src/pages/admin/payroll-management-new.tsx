@@ -897,26 +897,35 @@ function GeneratedSalariesView() {
     return raw === 'draft' ? 'generated' : raw;
   };
 
+  // A record is "verified" if the admin clicked Verify (status='verified')
+  // OR the automated calculation check passed (verificationStatus='passed').
+  const isVerifiedRecord = (r: any) =>
+    normalizeStatus(r.status) === 'verified' || r.verificationStatus === 'passed';
+
   const filteredRecords = statusFilter === 'all'
     ? searchFilteredRecords
     : statusFilter === 'verified'
-      ? searchFilteredRecords.filter((r: any) => r.verificationStatus === 'passed')
+      ? searchFilteredRecords.filter(isVerifiedRecord)
       : searchFilteredRecords.filter((r: any) => {
           const normalized = normalizeStatus(r.status);
           if (statusFilter === 'generated') {
-            return normalized === 'generated' && r.verificationStatus !== 'passed';
+            return normalized === 'generated' && !isVerifiedRecord(r);
           }
           return normalized === statusFilter;
         });
 
-  const verifiedCount = (generatedSalaries as any[]).filter((r: any) => r.verificationStatus === 'passed').length;
+  const verifiedCount = (generatedSalaries as any[]).filter(isVerifiedRecord).length;
   const statusCounts = (generatedSalaries as any[]).reduce((acc: any, r: any) => {
     const s = normalizeStatus(r.status);
     acc[s] = (acc[s] || 0) + 1;
     return acc;
   }, {});
+  // Reconcile: records with status='generated' but verificationStatus='passed' count as verified
+  const calcPassedOnly = (generatedSalaries as any[]).filter(
+    (r: any) => normalizeStatus(r.status) !== 'verified' && r.verificationStatus === 'passed'
+  ).length;
   statusCounts['verified'] = verifiedCount;
-  statusCounts['generated'] = (statusCounts['generated'] || 0) - verifiedCount;
+  statusCounts['generated'] = Math.max(0, (statusCounts['generated'] || 0) - calcPassedOnly);
 
   const handleViewIssues = (record: any) => {
     const details = record.verificationDetails;
