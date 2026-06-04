@@ -3575,6 +3575,159 @@ async function reverseLinkedDeductions(recordId: number, employeeId: number, act
   return reversals;
 }
 
+/**
+ * POST /api/admin/payroll/records/:id/apply-leave-cover
+ * Manually apply leave balance deduction for a payroll record that used paid leave
+ * to cover LOP but was processed via a legacy / manual path (no engine run).
+ *
+ * Creates an auditable payroll_leave_autocover row (run_number=0 sentinel) and
+ * decrements leaveBalances.usedDays. Idempotent — 409 if already applied.
+ * Reversible via the standard void flow (reverseLinkedDeductions).
+ */
+router.post('/payroll/records/:id/apply-leave-cover', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = Number(req.params.id);
+    const currentUser = req.user as any;
+    const actionById: number = currentUser.id;
+
+    const [record] = await db
+      .select({
+        id: payrollRecords.id,
+        userId: payrollRecords.userId,
+        periodId: payrollRecords.periodId,
+        paidLeaveDays: payrollRecords.paidLeaveDays,
+        recordType: payrollRecords.recordType,
+      })
+      .from(payrollRecords)
+      .where(eq(payrollRecords.id, recordId));
+
+    if (!record) return res.status(404).json({ error: 'Payroll record not found' });
+
+    const paidLeaveDays = parseFloat(record.paidLeaveDays?.toString() || '0');
+    if (paidLeaveDays <= 0) {
+      return res.status(400).json({ error: 'This payroll record has no paid leave days to apply (paid_leave_days = 0).' });
+    }
+
+    // Idempotency: check if already applied for this user/period (any run)
+    const existing = await db
+      .select({ id: payrollLeaveAutocover.id })
+      .from(payrollLeaveAutocover)
+      .where(and(
+        eq(payrollLeaveAutocover.userId, record.userId),
+        eq(payrollLeaveAutocover.periodId, record.periodId),
+        eq(payrollLeaveAutocover.status, 'applied')
+      ));
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        error: 'Leave cover already applied for this employee and pay period.',
+        existingRows: existing.length,
+      });
+    }
+
+    // Get the payroll period's year to find the correct leave balance row
+    const [period] = await db
+      .select({ startDate: payrollPeriods.startDate })
+      .from(payrollPeriods)
+      .where(eq(payrollPeriods.id, record.periodId));
+    if (!period) return res.status(404).json({ error: 'Payroll period not found' });
+    const periodYear = new Date(period.startDate).getFullYear();
+
+    // Fetch employee's leave balances for the year
+    const balances = await db
+      .select({
+        id: leaveBalances.id,
+        leaveTypeId: leaveBalances.leaveTypeId,
+        usedDays: leaveBalances.usedDays,
+        allocatedDays: leaveBalances.allocatedDays,
+        carryoverDays: leaveBalances.carryoverDays,
+      })
+      .from(leaveBalances)
+      .where(and(
+        eq(leaveBalances.userId, record.userId),
+        eq(leaveBalances.year, periodYear)
+      ));
+
+    const activeLeaveTypeList = await db
+      .select({ id: leaveTypes.id, code: leaveTypes.code, isPaid: leaveTypes.isPaid })
+      .from(leaveTypes)
+      .where(eq(leaveTypes.isActive, true));
+
+    const balanceMap = new Map(balances.map(b => [b.leaveTypeId, b]));
+
+    // Greedy deduction: CL → EL → SL priority
+    const eligibleCodes = ['CL', 'EL', 'SL'];
+    let remaining = paidLeaveDays;
+    const applied: { leaveTypeId: number; code: string; days: number }[] = [];
+
+    for (const code of eligibleCodes) {
+      if (remaining <= 0) break;
+      const lt = activeLeaveTypeList.find(l => l.code === code && l.isPaid);
+      if (!lt) continue;
+      const bal = balanceMap.get(lt.id);
+      if (!bal) continue;
+      const available = Math.max(0,
+        parseFloat(bal.allocatedDays?.toString() || '0') +
+        parseFloat(bal.carryoverDays?.toString() || '0') -
+        parseFloat(bal.usedDays?.toString() || '0')
+      );
+      if (available <= 0) continue;
+      const toDeduct = Math.min(remaining, available);
+      applied.push({ leaveTypeId: lt.id, code, days: toDeduct });
+      remaining -= toDeduct;
+    }
+
+    if (applied.length === 0) {
+      return res.status(400).json({ error: 'No eligible leave balance available to apply (CL, EL, SL all exhausted or zero).' });
+    }
+
+    const auditRows = [];
+    for (const entry of applied) {
+      const bal = balanceMap.get(entry.leaveTypeId)!;
+      const balanceBefore = Math.max(0,
+        parseFloat(bal.allocatedDays?.toString() || '0') +
+        parseFloat(bal.carryoverDays?.toString() || '0') -
+        parseFloat(bal.usedDays?.toString() || '0')
+      );
+
+      // Insert autocover row (run_number=0 = sentinel for manual corrections)
+      const [inserted] = await db.insert(payrollLeaveAutocover).values({
+        payrollRecordId: recordId,
+        periodId: record.periodId,
+        runNumber: 0,
+        userId: record.userId,
+        leaveTypeId: entry.leaveTypeId,
+        daysDeducted: entry.days.toFixed(2),
+        status: 'applied',
+        notes: `Manual leave cover applied by admin (userId=${actionById}). Record type: ${record.recordType}.`,
+      }).returning();
+
+      // Decrement leaveBalances.usedDays
+      await db.update(leaveBalances)
+        .set({ usedDays: (parseFloat(bal.usedDays?.toString() || '0') + entry.days).toFixed(2) })
+        .where(eq(leaveBalances.id, bal.id));
+
+      auditRows.push({
+        autocoverId: inserted.id,
+        leaveType: entry.code,
+        daysDeducted: entry.days,
+        balanceBefore,
+        balanceAfter: Math.max(0, balanceBefore - entry.days),
+      });
+    }
+
+    return res.json({
+      success: true,
+      payrollRecordId: recordId,
+      applied: auditRows,
+      remainingUnmatched: remaining > 0 ? remaining : 0,
+    });
+  } catch (error: any) {
+    console.error('[apply-leave-cover]', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const recordId = Number(req.params.id);

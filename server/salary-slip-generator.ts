@@ -428,11 +428,11 @@ export class SalarySlipGenerator {
     doc.restore();
     doc.font(FONT_REGULAR).fontSize(5).fillColor('#6B7280');
     this.t(
-      '\u2139  Paid Leave Used for LOP Adjustment (Attendance Summary): paid leave days applied to offset Loss of Pay, keeping net pay whole. Includes payroll auto-cover (balance consumed without a formal leave request — retroactive HR leave request required to confirm).',
+      '\u2139  Paid Leave Used for LOP Adjustment (Attendance Summary): paid leave days applied to offset Loss of Pay, keeping net pay whole. Includes payroll auto-cover where paid leave balance was consumed to avoid LOP.',
       m + 6, y + 2.5, { width: w - 12 }
     );
     this.t(
-      '\u2139  Leave Deducted from Balance During Month (Leave Balance): formal approved leave + payroll auto-cover days combined. Closing balance is projected after auto-cover; it will match the HR system once the retroactive leave request is approved.',
+      '\u2139  Leave Deducted from Balance During Month (Leave Balance): formal approved leave + payroll auto-cover days. Closing balance reflects actual balance after all deductions recorded in the leave ledger.',
       m + 6, y + 9, { width: w - 12 }
     );
     y += noteH;
