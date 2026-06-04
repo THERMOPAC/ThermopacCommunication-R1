@@ -580,6 +580,7 @@ function GeneratedSalariesView() {
   const [postingId, setPostingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [employeeSearch, setEmployeeSearch] = useState('');
+  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<number | 'all'>('all');
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
   const [reasonAction, setReasonAction] = useState<'hold' | 'reject'>('hold');
   const [reasonRecordId, setReasonRecordId] = useState<number | null>(null);
@@ -888,14 +889,18 @@ function GeneratedSalariesView() {
     );
   }
 
+  const periodFilteredSalaries = selectedPeriodFilter === 'all'
+    ? (generatedSalaries as any[])
+    : (generatedSalaries as any[]).filter((r: any) => r.periodId === selectedPeriodFilter);
+
   const searchFilteredRecords = employeeSearch.trim()
-    ? (generatedSalaries as any[]).filter((r: any) => {
+    ? periodFilteredSalaries.filter((r: any) => {
         const name = (r.employeeName || r.username || '').toLowerCase();
         const empCode = (r.employeeCode || '').toLowerCase();
         const term = employeeSearch.toLowerCase();
         return name.includes(term) || empCode.includes(term);
       })
-    : (generatedSalaries as any[]);
+    : periodFilteredSalaries;
 
   const normalizeStatus = (s: string | null | undefined) => {
     const raw = s || 'generated';
@@ -919,14 +924,14 @@ function GeneratedSalariesView() {
           return normalized === statusFilter;
         });
 
-  const verifiedCount = (generatedSalaries as any[]).filter(isVerifiedRecord).length;
-  const statusCounts = (generatedSalaries as any[]).reduce((acc: any, r: any) => {
+  const verifiedCount = periodFilteredSalaries.filter(isVerifiedRecord).length;
+  const statusCounts = periodFilteredSalaries.reduce((acc: any, r: any) => {
     const s = normalizeStatus(r.status);
     acc[s] = (acc[s] || 0) + 1;
     return acc;
   }, {});
   // Reconcile: records with status='generated' but verificationStatus='passed' count as verified
-  const calcPassedOnly = (generatedSalaries as any[]).filter(
+  const calcPassedOnly = periodFilteredSalaries.filter(
     (r: any) => normalizeStatus(r.status) !== 'verified' && r.verificationStatus === 'passed'
   ).length;
   statusCounts['verified'] = verifiedCount;
@@ -942,17 +947,49 @@ function GeneratedSalariesView() {
     setShowVerificationDrilldown(true);
   };
 
+  const availablePeriods = Object.values(periodGroups).sort((a, b) => {
+    const [am, ay] = a.label.split('/').map(Number);
+    const [bm, by] = b.label.split('/').map(Number);
+    return by !== ay ? by - ay : bm - am;
+  });
+
   return (
     <>
     <div className="flex flex-col gap-3 mb-4">
-      <div className="relative w-full max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-        <Input
-          placeholder="Search employee by name or code..."
-          value={employeeSearch}
-          onChange={(e) => setEmployeeSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">Period:</span>
+        </div>
+        <Select
+          value={selectedPeriodFilter === 'all' ? 'all' : String(selectedPeriodFilter)}
+          onValueChange={(v) => {
+            setSelectedPeriodFilter(v === 'all' ? 'all' : Number(v));
+            setStatusFilter('all');
+            setEmployeeSearch('');
+          }}
+        >
+          <SelectTrigger className="w-48 h-9">
+            <SelectValue placeholder="All Periods" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Periods</SelectItem>
+            {availablePeriods.map(p => (
+              <SelectItem key={p.periodId} value={String(p.periodId)}>
+                Period {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Search employee by name or code..."
+            value={employeeSearch}
+            onChange={(e) => setEmployeeSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
       <div className="flex items-center gap-2 mr-4">
@@ -960,7 +997,7 @@ function GeneratedSalariesView() {
         <span className="text-sm font-medium text-muted-foreground">Filter:</span>
       </div>
       {[
-        { key: 'all', label: 'All', count: (generatedSalaries as any[]).length, color: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
+        { key: 'all', label: 'All', count: periodFilteredSalaries.length, color: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
         { key: 'generated', label: 'Generated', count: statusCounts['generated'] || 0, color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200' },
         { key: 'verified', label: 'Verified', count: statusCounts['verified'] || 0, color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' },
         { key: 'transferred', label: 'Transferred', count: statusCounts['transferred'] || 0, color: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200' },
@@ -982,9 +1019,9 @@ function GeneratedSalariesView() {
       </div>
     </div>
 
-    {periodVerificationSummaries.length > 0 && (
+    {periodVerificationSummaries.filter(ps => selectedPeriodFilter === 'all' || ps.periodId === selectedPeriodFilter).length > 0 && (
       <div className="space-y-3 mb-4">
-        {periodVerificationSummaries.map(ps => (
+        {periodVerificationSummaries.filter(ps => selectedPeriodFilter === 'all' || ps.periodId === selectedPeriodFilter).map(ps => (
           <Card key={ps.periodId} className="border-l-4 border-l-blue-500">
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
