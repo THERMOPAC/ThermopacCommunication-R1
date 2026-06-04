@@ -15,6 +15,7 @@ import {
   leaveAccrualLog,
   attendanceRecords,
   companyHolidays,
+  payrollLeaveAutocover,
 } from '../shared/schema';
 import { eq, and, desc, gte, lte, inArray } from 'drizzle-orm';
 import { SalarySlipData } from './salary-slip-generator';
@@ -359,14 +360,27 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     );
   }
 
-  // Distribute payroll auto-cover days into the leave balance display.
-  // The payroll engine consumed paid-leave balance to avoid LOP but did NOT
-  // write to leaveBalances — that requires a retroactive HR leave request.
-  // To keep the slip internally consistent we show the auto-cover days in
-  // "Leave Deducted from Balance During Month" and project the closing balance.
-  // We attribute greedily to the first paid leave type(s) with sufficient
-  // opening balance (same order as the engine's own attribution).
-  let autoCoverRemaining = paidLeaveUsed;
+  // Fetch actual leave auto-cover deductions for this payroll record (official runs only).
+  // For official payroll, stepSalaryCalculation has already written leaveBalances — the DB
+  // is the source of truth. We add the auto-cover days to usedInMonth so opening/closing
+  // compute correctly: opening = closing + usedInMonth - accrued.
+  const autocoverEntries = await db
+    .select({
+      leaveTypeId: payrollLeaveAutocover.leaveTypeId,
+      daysDeducted: payrollLeaveAutocover.daysDeducted,
+    })
+    .from(payrollLeaveAutocover)
+    .where(and(
+      eq(payrollLeaveAutocover.payrollRecordId, recordId),
+      eq(payrollLeaveAutocover.status, 'applied')
+    ));
+
+  for (const entry of autocoverEntries) {
+    usedInMonthMap.set(
+      entry.leaveTypeId,
+      (usedInMonthMap.get(entry.leaveTypeId) || 0) + parseFloat(entry.daysDeducted?.toString() || '0')
+    );
+  }
 
   for (const lt of activeLeaveTypes) {
     if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
@@ -380,24 +394,13 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;
     const opening = currentClosing + usedInMonth - accruedInMonth;
 
-    // Attribute payroll auto-cover to this type if it is paid and has opening balance
-    let autoCoverForThisType = 0;
-    if (lt.isPaid && autoCoverRemaining > 0 && opening > 0) {
-      autoCoverForThisType = Math.min(autoCoverRemaining, opening);
-      autoCoverRemaining -= autoCoverForThisType;
-    }
-
-    const displayedUsed = usedInMonth + autoCoverForThisType;
-    // Project closing = opening + accrued - total displayed used
-    const displayedClosing = Math.max(0, opening + accruedInMonth - displayedUsed);
-
-    if (opening === 0 && displayedUsed === 0 && accruedInMonth === 0) continue;
+    if (opening === 0 && usedInMonth === 0 && accruedInMonth === 0) continue;
     salarySlipData.leaveBalances!.push({
       leaveType: lt.code,
       opening: Math.max(0, opening),
-      used: displayedUsed,
+      used: usedInMonth,
       accrued: accruedInMonth,
-      closing: displayedClosing,
+      closing: currentClosing,
     });
   }
 

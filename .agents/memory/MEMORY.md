@@ -1,2 +1,3 @@
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
 - [Payroll guard raw SQL pattern](payroll-guard-raw-sql.md) — Drizzle ORM isNull()+and() guards on payroll_records silently failed; raw db.execute(sql`...`) with Number() casts is required for critical blocking checks.
+- [Payroll leave auto-cover deduction](payroll-leave-autocover.md) — Official payroll actually deducts leave balance via payroll_leave_autocover table; trial does not; reversal restores it.

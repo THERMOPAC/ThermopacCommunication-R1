@@ -5925,10 +5925,37 @@ export const payrollAttendanceSnapshot = pgTable('payroll_attendance_snapshot', 
   lopOverrideNotes: text('lop_override_notes'),
   // LWP exemption applied flag
   lwpExemptApplied: boolean('lwp_exempt_applied').default(false),
+  // Days of leave balance auto-cover applied by engine (set in stepLeaveConsolidation,
+  // consumed as an actual DB deduction in stepSalaryCalculation for official runs)
+  balanceCoveredDays: decimal('balance_covered_days', { precision: 5, scale: 2 }).default('0'),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   uniquePerRunUser: uniqueIndex('payroll_att_snap_period_run_user').on(table.periodId, table.runNumber, table.userId),
 }));
+
+// Payroll Leave Auto-Cover Log — one row per official payroll run per (user × leave_type)
+// Created by stepSalaryCalculation when available paid-leave balance is applied to cover LOP.
+// Reversed automatically when the payroll record is voided or SAP-reversed.
+export const payrollLeaveAutocover = pgTable('payroll_leave_autocover', {
+  id: serial('id').primaryKey(),
+  payrollRecordId: integer('payroll_record_id').notNull().references(() => payrollRecords.id, { onDelete: 'cascade' }),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id),
+  runNumber: integer('run_number').notNull(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  leaveTypeId: integer('leave_type_id').notNull().references(() => leaveTypes.id),
+  daysDeducted: decimal('days_deducted', { precision: 5, scale: 2 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('applied'), // 'applied' | 'reversed'
+  appliedAt: timestamp('applied_at').notNull().defaultNow(),
+  reversedBy: integer('reversed_by').references(() => users.id),
+  reversedAt: timestamp('reversed_at'),
+  notes: text('notes'),
+}, (table) => ({
+  uniquePerRunUserType: uniqueIndex('payroll_autocover_run_user_type').on(table.periodId, table.runNumber, table.userId, table.leaveTypeId),
+}));
+
+export const insertPayrollLeaveAutocoverSchema = createInsertSchema(payrollLeaveAutocover)
+  .omit({ id: true, appliedAt: true });
+export type PayrollLeaveAutocover = typeof payrollLeaveAutocover.$inferSelect;
 
 // Payroll Salary Snapshot - frozen salary master for audit
 export const payrollSalarySnapshot = pgTable('payroll_salary_snapshot', {

@@ -22,6 +22,7 @@ import {
   employeeLoanRepayments,
   employeeAdvances,
   employeeAdvanceRecoveries,
+  payrollLeaveAutocover,
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sql, ne, isNull, or, between, inArray, not } from 'drizzle-orm';
 import { isLwpExempt } from './leave-service';
@@ -593,6 +594,7 @@ async function stepLeaveConsolidation(
               unpaidLeaveDays: unpaidLeaveDays.toString(),
               lopDays: '0',
               paidDays: newPaidDays.toString(),
+              balanceCoveredDays: balanceCoveredDaysRun.toString(),
               autoLeaveApplied: leaves.map(l => ({
                 leaveId: l.id,
                 leaveTypeId: l.leaveTypeId,
@@ -602,17 +604,51 @@ async function stepLeaveConsolidation(
             })
             .where(eq(payrollAttendanceSnapshot.id, snap.id));
         } else {
+          // Monthly employee: formal approved leave covers LOP first, then auto-cover from balance
           const coveredByPaidLeave = Math.min(paidLeaveDays, currentLopDays);
-          const newLopDays = Math.max(0, currentLopDays - coveredByPaidLeave);
+          let newLopDays = Math.max(0, currentLopDays - coveredByPaidLeave);
+
+          // Auto-cover remaining LOP with available paid leave balance
+          let balanceCoveredDaysRun = 0;
+          if (newLopDays > 0) {
+            const periodYear = new Date(period.startDate).getFullYear();
+            const balances = await db.select({
+              allocatedDays: leaveBalances.allocatedDays,
+              usedDays: leaveBalances.usedDays,
+              pendingDays: leaveBalances.pendingDays,
+              carryoverDays: leaveBalances.carryoverDays,
+              leaveTypeId: leaveBalances.leaveTypeId,
+            }).from(leaveBalances)
+              .where(and(
+                eq(leaveBalances.userId, emp.id),
+                eq(leaveBalances.year, periodYear),
+              ));
+
+            let availablePaidBalance = 0;
+            for (const bal of balances) {
+              if (!paidTypeIds.has(bal.leaveTypeId)) continue;
+              const remaining =
+                parseFloat(bal.allocatedDays) +
+                parseFloat(bal.carryoverDays as string || '0') -
+                parseFloat(bal.usedDays) -
+                parseFloat(bal.pendingDays);
+              if (remaining > 0) availablePaidBalance += remaining;
+            }
+            balanceCoveredDaysRun = Math.min(availablePaidBalance, newLopDays);
+            newLopDays = Math.max(0, newLopDays - balanceCoveredDaysRun);
+          }
+
+          const finalPaidLeaveDays = coveredByPaidLeave + balanceCoveredDaysRun;
           const newPaidDays = Math.min(MONTHLY_DIVISOR - newLopDays, MONTHLY_DIVISOR);
 
           await db
             .update(payrollAttendanceSnapshot)
             .set({
-              paidLeaveDays: coveredByPaidLeave.toString(),
+              paidLeaveDays: finalPaidLeaveDays.toString(),
               unpaidLeaveDays: unpaidLeaveDays.toString(),
               lopDays: newLopDays.toString(),
               paidDays: newPaidDays.toString(),
+              balanceCoveredDays: balanceCoveredDaysRun.toString(),
               autoLeaveApplied: leaves.map(l => ({
                 leaveId: l.id,
                 leaveTypeId: l.leaveTypeId,
@@ -1000,18 +1036,93 @@ async function stepSalaryCalculation(
         verificationOverrideAt: null as any,
       };
 
+      let upsertedRecordId: number;
       if (existingRecord.length > 0) {
         await db
           .update(payrollRecords)
           .set({ ...payrollData, ...verificationReset, updatedAt: new Date() })
           .where(eq(payrollRecords.id, existingRecord[0].id));
+        upsertedRecordId = existingRecord[0].id;
       } else {
-        await db.insert(payrollRecords).values({
+        const [inserted] = await db.insert(payrollRecords).values({
           periodId,
           userId: emp.id,
           ...payrollData,
           ...verificationReset,
-        });
+        }).returning({ id: payrollRecords.id });
+        upsertedRecordId = inserted.id;
+      }
+
+      // ── Official payroll auto-cover: deduct leave balance ──────────────────
+      // Read balanceCoveredDays set by stepLeaveConsolidation. If > 0, apply
+      // the actual DB deduction now that we have a payrollRecordId.
+      // Idempotent: skipped if payrollLeaveAutocover already exists for this record.
+      const balanceCoveredDaysForDeduction = parseFloat(
+        attSnap[0]?.balanceCoveredDays?.toString() || '0'
+      );
+
+      if (balanceCoveredDaysForDeduction > 0) {
+        const existingAutocover = await db
+          .select({ id: payrollLeaveAutocover.id })
+          .from(payrollLeaveAutocover)
+          .where(eq(payrollLeaveAutocover.payrollRecordId, upsertedRecordId))
+          .limit(1);
+
+        if (existingAutocover.length === 0) {
+          const periodYear = new Date(period.startDate).getFullYear();
+          const allLeaveTypesLocal = await db.select().from(leaveTypes);
+          const paidLeaveTypeIdsLocal = new Set(
+            allLeaveTypesLocal.filter(lt => lt.isPaid).map(lt => lt.id)
+          );
+          const balancesForDeduction = await db
+            .select({
+              id: leaveBalances.id,
+              leaveTypeId: leaveBalances.leaveTypeId,
+              usedDays: leaveBalances.usedDays,
+              allocatedDays: leaveBalances.allocatedDays,
+              carryoverDays: leaveBalances.carryoverDays,
+              pendingDays: leaveBalances.pendingDays,
+            })
+            .from(leaveBalances)
+            .where(and(
+              eq(leaveBalances.userId, emp.id),
+              eq(leaveBalances.year, periodYear)
+            ));
+
+          let remaining = balanceCoveredDaysForDeduction;
+          for (const bal of balancesForDeduction) {
+            if (!paidLeaveTypeIdsLocal.has(bal.leaveTypeId)) continue;
+            if (remaining <= 0) break;
+
+            const available =
+              parseFloat(bal.allocatedDays) +
+              parseFloat(bal.carryoverDays as string || '0') -
+              parseFloat(bal.usedDays) -
+              parseFloat(bal.pendingDays);
+            if (available <= 0) continue;
+
+            const toDeduct = Math.min(remaining, available);
+            const newUsedDays = parseFloat(bal.usedDays) + toDeduct;
+
+            await db
+              .update(leaveBalances)
+              .set({ usedDays: newUsedDays.toFixed(2) })
+              .where(eq(leaveBalances.id, bal.id));
+
+            await db.insert(payrollLeaveAutocover).values({
+              payrollRecordId: upsertedRecordId,
+              periodId,
+              runNumber,
+              userId: emp.id,
+              leaveTypeId: bal.leaveTypeId,
+              daysDeducted: toDeduct.toFixed(2),
+              status: 'applied',
+              notes: `Official payroll run: ${toDeduct.toFixed(2)} day(s) deducted from leave balance to cover LOP`,
+            });
+
+            remaining -= toDeduct;
+          }
+        }
       }
 
       processed++;

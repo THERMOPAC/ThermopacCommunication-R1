@@ -38,7 +38,8 @@ import {
   notifications,
   appraisalCycles,
   employeeAppraisals,
-  payrollSettings
+  payrollSettings,
+  payrollLeaveAutocover,
 } from '../shared/schema';
 import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, notInArray, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
@@ -3522,6 +3523,53 @@ async function reverseLinkedDeductions(recordId: number, employeeId: number, act
       }).where(eq(employeeAdvances.id, rec.advanceId));
       reversals.push({ type: 'advance', reference: parentAdv.advanceReference, amount: recAmount });
     }
+  }
+
+  // Reverse payroll leave auto-cover deductions
+  const autocoverEntries = await db
+    .select()
+    .from(payrollLeaveAutocover)
+    .where(and(
+      eq(payrollLeaveAutocover.payrollRecordId, recordId),
+      eq(payrollLeaveAutocover.status, 'applied')
+    ));
+
+  for (const entry of autocoverEntries) {
+    const [per] = await db
+      .select({ startDate: payrollPeriods.startDate })
+      .from(payrollPeriods)
+      .where(eq(payrollPeriods.id, entry.periodId))
+      .limit(1);
+    const periodYear = per ? new Date(per.startDate).getFullYear() : new Date().getFullYear();
+
+    const [bal] = await db
+      .select({ id: leaveBalances.id, usedDays: leaveBalances.usedDays })
+      .from(leaveBalances)
+      .where(and(
+        eq(leaveBalances.userId, entry.userId),
+        eq(leaveBalances.leaveTypeId, entry.leaveTypeId),
+        eq(leaveBalances.year, periodYear)
+      ))
+      .limit(1);
+
+    if (bal) {
+      const newUsedDays = Math.max(0, parseFloat(bal.usedDays) - parseFloat(entry.daysDeducted));
+      await db
+        .update(leaveBalances)
+        .set({ usedDays: newUsedDays.toFixed(2) })
+        .where(eq(leaveBalances.id, bal.id));
+    }
+
+    await db
+      .update(payrollLeaveAutocover)
+      .set({ status: 'reversed', reversedAt: new Date(), reversedBy: actionById || null })
+      .where(eq(payrollLeaveAutocover.id, entry.id));
+
+    reversals.push({
+      type: 'leave_autocover',
+      reference: `Leave auto-cover: ${entry.daysDeducted} day(s) restored`,
+      amount: parseFloat(entry.daysDeducted),
+    });
   }
 
   return reversals;
