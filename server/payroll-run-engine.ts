@@ -9,6 +9,7 @@ import {
   attendanceRecords,
   leaveRequests,
   leaveTypes,
+  leaveBalances,
   employeeSalaries,
   bonusRules,
   payrollSettings,
@@ -544,12 +545,51 @@ async function stepLeaveConsolidation(
         const currentLopDays = parseFloat(snap.lopDays || '0');
 
         if (salaryType === 'daily') {
-          const newPaidDays = currentPaidDays + paidLeaveDays;
+          // ── Auto-cover absent/missing working days with CL balance (daily) ──
+          // presentDays was stored in the snapshot as paidDays (first pass).
+          // Absent days = totalWorkingDays - presentDays - already-covered leave.
+          const dailyAbsentDays = Math.max(
+            0,
+            parseInt(snap.totalWorkingDays?.toString() || '0') - currentPaidDays - paidLeaveDays
+          );
+
+          let balanceCoveredDaysRun = 0;
+          if (dailyAbsentDays > 0) {
+            const periodYear = new Date(period.startDate).getFullYear();
+            const paidLeaveTypeIds = new Set(allLeaveTypes.filter(lt => lt.isPaid).map(lt => lt.id));
+            const balances = await db.select({
+              allocatedDays: leaveBalances.allocatedDays,
+              usedDays: leaveBalances.usedDays,
+              pendingDays: leaveBalances.pendingDays,
+              carryoverDays: leaveBalances.carryoverDays,
+              leaveTypeId: leaveBalances.leaveTypeId,
+            }).from(leaveBalances)
+              .where(and(
+                eq(leaveBalances.userId, emp.id),
+                eq(leaveBalances.year, periodYear),
+              ));
+
+            let availablePaidBalance = 0;
+            for (const bal of balances) {
+              if (!paidLeaveTypeIds.has(bal.leaveTypeId)) continue;
+              const remaining =
+                parseFloat(bal.allocatedDays) +
+                parseFloat(bal.carryoverDays as string || '0') -
+                parseFloat(bal.usedDays) -
+                parseFloat(bal.pendingDays);
+              if (remaining > 0) availablePaidBalance += remaining;
+            }
+
+            balanceCoveredDaysRun = Math.min(availablePaidBalance, dailyAbsentDays);
+          }
+
+          const newPaidDays = currentPaidDays + paidLeaveDays + balanceCoveredDaysRun;
+          const totalPaidLeaveForSnap = paidLeaveDays + balanceCoveredDaysRun;
 
           await db
             .update(payrollAttendanceSnapshot)
             .set({
-              paidLeaveDays: paidLeaveDays.toString(),
+              paidLeaveDays: totalPaidLeaveForSnap.toString(),
               unpaidLeaveDays: unpaidLeaveDays.toString(),
               lopDays: '0',
               paidDays: newPaidDays.toString(),

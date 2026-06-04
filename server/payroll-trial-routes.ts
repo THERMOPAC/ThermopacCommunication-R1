@@ -186,6 +186,61 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     let balanceCoveredDays = 0;
     if (salaryType === 'daily') {
       paidDays += paidLeaveDays;
+
+      // ── Auto-cover absent/missing working days with CL balance (daily employees) ──
+      // Daily-rate employees (especially non-system users who cannot submit leave
+      // requests) have absent working days simply subtracted from paid days.
+      // If paid leave balance is available, auto-apply it to cover those absent
+      // days — mirroring HR practice of retrospective CL booking against absences.
+      // Missing records (working days with no attendance entry) are also treated
+      // as absent, the same as explicit 'absent' status records.
+      const dailyExpectedDates: string[] = [];
+      const dailyIter = new Date(sDate);
+      while (dailyIter <= eDate) {
+        const dStr = dailyIter.toISOString().slice(0, 10);
+        if (!weeklyOffs.includes(dailyIter.getDay()) && !holidayDates.has(dStr)) {
+          dailyExpectedDates.push(dStr);
+        }
+        dailyIter.setDate(dailyIter.getDate() + 1);
+      }
+      const dailyAttDateSet = new Set(attRecordsDb.map(r => String(r.date).slice(0, 10)));
+      const dailyMissingCount = dailyExpectedDates.filter(d => !dailyAttDateSet.has(d)).length;
+      // Total absent = explicit absent records + days with no record at all,
+      // minus any already covered by approved leave requests (paidLeaveDays).
+      const dailyAbsentDays = Math.max(0, absentCount + dailyMissingCount - paidLeaveDays);
+
+      if (dailyAbsentDays > 0) {
+        const periodYear = new Date(startDate).getFullYear();
+        const paidLeaveTypeIds = new Set(allLeaveTypes.filter(lt => lt.isPaid).map(lt => lt.id));
+        const balances = await db.select({
+          allocatedDays: leaveBalances.allocatedDays,
+          usedDays: leaveBalances.usedDays,
+          pendingDays: leaveBalances.pendingDays,
+          carryoverDays: leaveBalances.carryoverDays,
+          leaveTypeId: leaveBalances.leaveTypeId,
+        }).from(leaveBalances)
+          .where(and(
+            eq(leaveBalances.userId, userId),
+            eq(leaveBalances.year, periodYear),
+          ));
+
+        let availablePaidBalance = 0;
+        for (const bal of balances) {
+          if (!paidLeaveTypeIds.has(bal.leaveTypeId)) continue;
+          const remaining =
+            parseFloat(bal.allocatedDays) +
+            parseFloat(bal.carryoverDays as string || '0') -
+            parseFloat(bal.usedDays) -
+            parseFloat(bal.pendingDays);
+          if (remaining > 0) availablePaidBalance += remaining;
+        }
+
+        balanceCoveredDays = Math.min(availablePaidBalance, dailyAbsentDays);
+        if (balanceCoveredDays > 0) {
+          paidDays += balanceCoveredDays;
+          paidLeaveDays += balanceCoveredDays;
+        }
+      }
     } else {
       const covered = Math.min(paidLeaveDays, lopDays);
       lopDays = Math.max(0, lopDays - covered);
