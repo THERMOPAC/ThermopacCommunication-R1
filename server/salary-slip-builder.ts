@@ -382,6 +382,40 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     );
   }
 
+  // PROJECTION FALLBACK: when no official autocover rows exist but the payroll record
+  // stores paid_leave_days > 0 (trial runs, legacy official records where stepSalaryCalculation
+  // never ran), project the deduction against the employee's eligible leave balances in
+  // priority order. This keeps opening/closing/used consistent on the slip even before the
+  // official deduction is written to leaveBalances.usedDays.
+  //
+  // Formula invariant: opening = closing + usedInMonth - accrued
+  // When autocover IS applied: usedDays in DB already includes the deduction, so
+  //   currentClosing = allocated - usedDays (already reduced) — no extra adjustment needed.
+  // When autocover is NOT yet applied (fallback): usedDays in DB is still pre-deduction,
+  //   so we must subtract projectedExtra from currentClosing to make the formula hold.
+  const projectionMap = new Map<number, number>(); // leaveTypeId → days projected
+  if (autocoverEntries.length === 0 && paidLeaveUsed > 0) {
+    let remaining = paidLeaveUsed;
+    const eligibleCodes = ['CL', 'EL', 'SL'];
+    for (const code of eligibleCodes) {
+      if (remaining <= 0) break;
+      const eligLt = activeLeaveTypes.find(l => l.code === code);
+      if (!eligLt) continue;
+      const eligBal = balanceMap.get(eligLt.id);
+      if (!eligBal) continue;
+      const available = Math.max(0,
+        parseFloat(eligBal.allocatedDays?.toString() || '0') +
+        parseFloat(eligBal.carryoverDays?.toString() || '0') -
+        parseFloat(eligBal.usedDays?.toString() || '0')
+      );
+      if (available <= 0) continue;
+      const toProject = Math.min(remaining, available);
+      projectionMap.set(eligLt.id, toProject);
+      usedInMonthMap.set(eligLt.id, (usedInMonthMap.get(eligLt.id) || 0) + toProject);
+      remaining -= toProject;
+    }
+  }
+
   for (const lt of activeLeaveTypes) {
     if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
     const bal = balanceMap.get(lt.id);
@@ -389,7 +423,8 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     const allocated = parseFloat(bal.allocatedDays?.toString() || '0');
     const carryover = parseFloat(bal.carryoverDays?.toString() || '0');
     const usedYTD = parseFloat(bal.usedDays?.toString() || '0');
-    const currentClosing = Math.max(0, allocated + carryover - usedYTD);
+    const projectedExtra = projectionMap.get(lt.id) || 0;
+    const currentClosing = Math.max(0, allocated + carryover - usedYTD - projectedExtra);
     const usedInMonth = usedInMonthMap.get(lt.id) || 0;
     const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;
     const opening = currentClosing + usedInMonth - accruedInMonth;
