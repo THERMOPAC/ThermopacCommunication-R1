@@ -23,7 +23,7 @@ import {
   companyHolidays,
   dailyWorkReports,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, max, sql, asc, between, inArray, isNull } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, max, sql, asc, between, inArray, isNull, or } from 'drizzle-orm';
 import { computeEmployeeSalaryNumbers, PAYROLL_CONSTANTS } from './payroll-salary-core';
 import { resolveStatutoryApplicability } from '@shared/statutory-rules';
 import type { EmployeeType } from '@shared/schema';
@@ -110,13 +110,20 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     // Block trial run if an official SAP JE is posted and not yet reversed.
     // Running a trial against a live, unreversed official JE is misleading — the accounting
     // period is already closed in SAP for this employee. Force reversal first.
+    //
+    // NOTE: old official records pre-date the recordType column and have recordType = NULL.
+    // Match both explicit 'official' rows AND legacy NULL rows (never trial rows, which are
+    // always explicitly set to 'trial').
     const [officialPosted] = await db
       .select({ id: payrollRecords.id, sapJeNumber: payrollRecords.sapJeNumber })
       .from(payrollRecords)
       .where(and(
         eq(payrollRecords.periodId, periodId),
         eq(payrollRecords.userId, userId),
-        eq(payrollRecords.recordType, 'official'),
+        or(
+          eq(payrollRecords.recordType, 'official'),
+          isNull(payrollRecords.recordType),
+        ),
         eq(payrollRecords.sapPostingStatus, 'posted'),
         isNull(payrollRecords.reversalSapDocEntry),
       ))

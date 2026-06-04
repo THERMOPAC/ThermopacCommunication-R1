@@ -22,7 +22,7 @@ import {
   employeeAdvances,
   employeeAdvanceRecoveries,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sql, ne, isNull, or, between, inArray } from 'drizzle-orm';
 import { isLwpExempt } from './leave-service';
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
@@ -873,19 +873,36 @@ async function stepSalaryCalculation(
       // Block regeneration when an official SAP JE is posted and not yet reversed.
       // The accounting entry is live in SAP — regenerating would create a mismatched DB record
       // without a corresponding SAP correction. Force the user to reverse the JE first.
-      if (existingRecord.length > 0) {
-        const ex = existingRecord[0];
-        if (ex.sapPostingStatus === 'posted' && !ex.reversalSapDocEntry) {
-          skipped++;
-          exceptions.push({
-            userId: emp.id,
-            type: 'sap_je_posted',
-            severity: 'error',
-            title: `SAP JE posted — regeneration blocked for ${emp.username}`,
-            details: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before regenerating payroll.',
-          });
-          continue;
-        }
+      //
+      // NOTE: old official records pre-date the recordType column and have recordType = NULL.
+      // Use a dedicated query with or(recordType='official', recordType IS NULL) so legacy rows
+      // are caught. The existingRecord query above is kept as-is (recordType='official' only)
+      // because it drives the upsert path for the current engine.
+      const [sapPostedBlock] = await db
+        .select({ id: payrollRecords.id, sapJeNumber: payrollRecords.sapJeNumber })
+        .from(payrollRecords)
+        .where(and(
+          eq(payrollRecords.periodId, periodId),
+          eq(payrollRecords.userId, emp.id),
+          or(
+            eq(payrollRecords.recordType, 'official'),
+            isNull(payrollRecords.recordType),
+          ),
+          eq(payrollRecords.sapPostingStatus, 'posted'),
+          isNull(payrollRecords.reversalSapDocEntry),
+        ))
+        .limit(1);
+
+      if (sapPostedBlock) {
+        skipped++;
+        exceptions.push({
+          userId: emp.id,
+          type: 'sap_je_posted',
+          severity: 'error',
+          title: `SAP JE posted — regeneration blocked for ${emp.username}`,
+          details: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before regenerating payroll.',
+        });
+        continue;
       }
 
       const payrollData = {
