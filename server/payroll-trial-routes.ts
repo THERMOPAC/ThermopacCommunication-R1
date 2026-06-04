@@ -91,41 +91,30 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       .limit(1);
     if (!sal) return res.status(400).json({ error: 'No active salary configuration for this employee' });
 
-    // ── Single unified SAP-posted guard ─────────────────────────────────────
+    // ── Single unified SAP-posted guard (raw SQL to guarantee exact match) ───
     // Block if ANY record for this employee+period has a live SAP JE (posted and not reversed).
-    // Do NOT filter by recordType or trialStatus — both fields are unreliable on legacy rows:
-    //   • trialStatus may remain 'generated' even after SAP posting (pre-sap_posted-field records)
-    //   • recordType may be NULL on old official records (pre-recordType column)
-    // The only authoritative field is sapPostingStatus = 'posted' AND reversalSapDocEntry IS NULL.
-    const guardRows = await db
-      .select({
-        id: payrollRecords.id,
-        sapJeNumber: payrollRecords.sapJeNumber,
-        trialRunNo: payrollRecords.trialRunNo,
-        recordType: payrollRecords.recordType,
-        sapPostingStatus: payrollRecords.sapPostingStatus,
-        reversalSapDocEntry: payrollRecords.reversalSapDocEntry,
-      })
-      .from(payrollRecords)
-      .where(and(
-        eq(payrollRecords.periodId, periodId),
-        eq(payrollRecords.userId, userId),
-        eq(payrollRecords.sapPostingStatus, 'posted'),
-        isNull(payrollRecords.reversalSapDocEntry),
-      ))
-      .limit(1);
+    // Uses raw SQL to bypass any possible Drizzle ORM type-coercion issues.
+    // The only authoritative field is sap_posting_status = 'posted' AND reversal_sap_doc_entry IS NULL.
+    const guardResult = await db.execute(sql`
+      SELECT id, sap_je_number, trial_run_no, sap_posting_status, reversal_sap_doc_entry
+      FROM payroll_records
+      WHERE period_id = ${Number(periodId)}
+        AND user_id = ${Number(userId)}
+        AND sap_posting_status = 'posted'
+        AND reversal_sap_doc_entry IS NULL
+      LIMIT 1
+    `);
 
-    console.log(`[TRIAL-GUARD] periodId=${periodId} userId=${userId} guardRows=${JSON.stringify(guardRows)}`);
+    console.log(`[TRIAL-GUARD] periodId=${periodId} userId=${userId} rows=${guardResult.rows.length} row0=${JSON.stringify(guardResult.rows[0] ?? null)}`);
 
-    const [anyActivePostedJe] = guardRows;
-
-    if (anyActivePostedJe) {
+    if (guardResult.rows.length > 0) {
+      const blocked = guardResult.rows[0] as any;
       return res.status(409).json({
         error: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before proceeding.',
         code: 'OFFICIAL_JE_UNREVERSED',
-        recordId: anyActivePostedJe.id,
-        sapJeNumber: anyActivePostedJe.sapJeNumber,
-        trialRunNo: anyActivePostedJe.trialRunNo,
+        recordId: blocked.id,
+        sapJeNumber: blocked.sap_je_number,
+        trialRunNo: blocked.trial_run_no,
       });
     }
 
