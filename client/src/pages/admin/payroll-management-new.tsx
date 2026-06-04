@@ -953,6 +953,11 @@ function GeneratedSalariesView() {
     return by !== ay ? by - ay : bm - am;
   });
 
+  const formatPeriodLabel = (label: string) => {
+    const [m, y] = label.split('/').map(Number);
+    return new Date(y, m - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  };
+
   return (
     <>
     <div className="flex flex-col gap-3 mb-4">
@@ -976,7 +981,7 @@ function GeneratedSalariesView() {
             <SelectItem value="all">All Periods</SelectItem>
             {availablePeriods.map(p => (
               <SelectItem key={p.periodId} value={String(p.periodId)}>
-                Period {p.label}
+                {formatPeriodLabel(p.label)}
               </SelectItem>
             ))}
           </SelectContent>
