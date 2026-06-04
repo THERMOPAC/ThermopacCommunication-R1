@@ -4112,8 +4112,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
           <TabsContent value="basic-info" className="space-y-5 pt-1">
 
             {/* ══ Employment Information ══════════════════════════════════════════ */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Employment Information</p>
+            <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Employment Information</p>
               {!initialData ? (
                 <>
                   <div className="grid grid-cols-1 gap-4 mb-4">
@@ -4229,8 +4229,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
             </div>
 
             {/* ══ Work Schedule ═══════════════════════════════════════════════════ */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Work Schedule</p>
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4">
+              <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-3">Work Schedule</p>
               {selectedUser && (
                 <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 mb-3">
                   <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Employee Duty Schedule</p>
@@ -4317,8 +4317,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
             </div>
 
             {/* ══ Payroll Settings ════════════════════════════════════════════════ */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Payroll Settings</p>
+            <div className="rounded-lg border border-orange-200 bg-orange-50/40 p-4">
+              <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-3">Payroll Settings</p>
               {watchedValues.salaryType !== 'daily' && (
                 <div className="grid grid-cols-2 gap-4 mb-3">
                   <FormField control={form.control} name="kpiKgpApplicable" render={({ field }) => (
@@ -4439,8 +4439,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
             </div>
 
             {/* ══ Compensation ════════════════════════════════════════════════════ */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Compensation</p>
+            <div className="rounded-lg border border-green-200 bg-green-50/40 p-4">
+              <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-3">Compensation</p>
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="bonus" render={({ field }) => (
                   <FormItem>
