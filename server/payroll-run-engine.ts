@@ -1142,6 +1142,16 @@ async function stepKpiAdjustment(
         kpiSource = 'non_system_user';
         newKgpAllow = originalKgp;
         kgpReduction = 0;
+      } else if (originalKgp === 0) {
+        // KGP not applicable in salary config (kpi_percent = 0 → kgp_allowance stored as 0).
+        // Skip DWAR scoring entirely — no KGP to score, and running the formula would
+        // produce a positive newKgpAllow against a zero baseline, causing a negative
+        // kgpReduction that incorrectly inflates gross pay.
+        monthlyKpiPercent = 1;
+        productivityScore = 100;
+        kpiSource = 'kgp_not_applicable';
+        newKgpAllow = 0;
+        kgpReduction = 0;
       } else if (!isKpiEligible) {
         monthlyKpiPercent = 1;
         productivityScore = 100;
