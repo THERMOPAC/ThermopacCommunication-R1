@@ -171,6 +171,14 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
 
   const attSnap = snap[0];
 
+  // Compute payroll auto-cover days early — needed for both the leave balance
+  // section and the absent-dates labelling below.
+  const paidLeaveUsed = parseFloat(
+    attSnap?.paidLeaveDays?.toString() ||
+    record.paidLeaveDays?.toString() ||
+    '0'
+  );
+
   let fallbackHolidayCount = 0;
   if (!attSnap) {
     const holidaysInPeriod = await db
@@ -351,6 +359,15 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     );
   }
 
+  // Distribute payroll auto-cover days into the leave balance display.
+  // The payroll engine consumed paid-leave balance to avoid LOP but did NOT
+  // write to leaveBalances — that requires a retroactive HR leave request.
+  // To keep the slip internally consistent we show the auto-cover days in
+  // "Leave Deducted from Balance During Month" and project the closing balance.
+  // We attribute greedily to the first paid leave type(s) with sufficient
+  // opening balance (same order as the engine's own attribution).
+  let autoCoverRemaining = paidLeaveUsed;
+
   for (const lt of activeLeaveTypes) {
     if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
     const bal = balanceMap.get(lt.id);
@@ -362,13 +379,25 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     const usedInMonth = usedInMonthMap.get(lt.id) || 0;
     const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;
     const opening = currentClosing + usedInMonth - accruedInMonth;
-    if (opening === 0 && usedInMonth === 0 && accruedInMonth === 0) continue;
+
+    // Attribute payroll auto-cover to this type if it is paid and has opening balance
+    let autoCoverForThisType = 0;
+    if (lt.isPaid && autoCoverRemaining > 0 && opening > 0) {
+      autoCoverForThisType = Math.min(autoCoverRemaining, opening);
+      autoCoverRemaining -= autoCoverForThisType;
+    }
+
+    const displayedUsed = usedInMonth + autoCoverForThisType;
+    // Project closing = opening + accrued - total displayed used
+    const displayedClosing = Math.max(0, opening + accruedInMonth - displayedUsed);
+
+    if (opening === 0 && displayedUsed === 0 && accruedInMonth === 0) continue;
     salarySlipData.leaveBalances!.push({
       leaveType: lt.code,
       opening: Math.max(0, opening),
-      used: usedInMonth,
+      used: displayedUsed,
       accrued: accruedInMonth,
-      closing: currentClosing,
+      closing: displayedClosing,
     });
   }
 
@@ -454,11 +483,6 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
   // chronological order.  The count of CL-covered dates = paidLeaveDays from
   // the attendance snapshot (which caps at the number of LOP-type entries in
   // the list because formally-approved on_leave days aren't queried above).
-  const paidLeaveUsed = parseFloat(
-    attSnap?.paidLeaveDays?.toString() ||
-    record.paidLeaveDays?.toString() ||
-    '0'
-  );
   if (paidLeaveUsed > 0) {
     let remaining = Math.round(paidLeaveUsed);
     for (const entry of absentDateEntries) {
