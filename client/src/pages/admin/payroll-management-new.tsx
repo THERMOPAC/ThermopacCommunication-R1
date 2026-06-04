@@ -4109,255 +4109,200 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
             {initialData && canAccessIncrement && <TabsTrigger value="increment" className="flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" />Increment</TabsTrigger>}
           </TabsList>
 
-          <TabsContent value="basic-info" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              {!initialData && (
-                <FormField
-                  control={form.control}
-                  name="userId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Employee *</FormLabel>
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+          <TabsContent value="basic-info" className="space-y-5 pt-1">
+
+            {/* ══ Employment Information ══════════════════════════════════════════ */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Employment Information</p>
+              {!initialData ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 mb-4">
+                    <FormField
+                      control={form.control}
+                      name="userId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Employee *</FormLabel>
+                          <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select employee" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Object.keys(groupedUsers).length > 0 ? (
+                                Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                                  <SelectGroup key={role}>
+                                    <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400 py-2">
+                                      {role === 'Superuser' ? 'Superusers' :
+                                       role === 'General Manager' ? 'General Managers' :
+                                       role === 'Senior Manager' ? 'Senior Managers' :
+                                       role === 'Manager' ? 'Managers' :
+                                       role === 'Employee' ? 'Employees' : `${role}s`}
+                                    </SelectLabel>
+                                    {roleUsers.map((user) => (
+                                      <SelectItem key={user.id} value={user.id.toString()}>
+                                        {user.firstName && user.lastName
+                                          ? `${user.firstName} ${user.lastName} (${user.username})`
+                                          : user.username}
+                                        {user.employeeCode && ` - ${user.employeeCode}`}
+                                        {(user as any).userType === 'non_system_user' && ' [Non-System]'}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                ))
+                              ) : (
+                                <SelectItem value="no-employees" disabled>No available employees</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField control={form.control} name="salaryType" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Salary Type *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select salary type" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="salaryStartDate" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Salary Start Date *</FormLabel>
+                        <FormControl><Input type="date" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="basicSalary" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{watchedValues.salaryType === 'daily' ? 'Daily Rate *' : 'Basic Salary *'}</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select employee" />
-                          </SelectTrigger>
+                          <Input key="basicSalary" placeholder={watchedValues.salaryType === 'daily' ? 'Enter daily rate' : 'Enter basic salary'} autoComplete="off" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField control={form.control} name="salaryType" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Salary Type *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select salary type" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {Object.keys(groupedUsers).length > 0 ? (
-                            Object.entries(groupedUsers).map(([role, roleUsers]) => (
-                              <SelectGroup key={role}>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400 py-2">
-                                  {role === 'Superuser' ? 'Superusers' :
-                                   role === 'General Manager' ? 'General Managers' :
-                                   role === 'Senior Manager' ? 'Senior Managers' :
-                                   role === 'Manager' ? 'Managers' :
-                                   role === 'Employee' ? 'Employees' : `${role}s`}
-                                </SelectLabel>
-                                {roleUsers.map((user) => (
-                                  <SelectItem key={user.id} value={user.id.toString()}>
-                                    {user.firstName && user.lastName 
-                                      ? `${user.firstName} ${user.lastName} (${user.username})`
-                                      : user.username
-                                    }
-                                    {user.employeeCode && ` - ${user.employeeCode}`}
-                                    {(user as any).userType === 'non_system_user' && ' [Non-System]'}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            ))
-                          ) : (
-                            <SelectItem value="no-employees" disabled>
-                              No available employees
-                            </SelectItem>
-                          )}
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="daily">Daily</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-              )}
-              
-              <FormField
-                control={form.control}
-                name="salaryStartDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salary Start Date *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="salaryType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salary Type *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                  )} />
+                  <FormField control={form.control} name="salaryStartDate" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Salary Start Date *</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="basicSalary" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{watchedValues.salaryType === 'daily' ? 'Daily Rate *' : 'Basic Salary *'}</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select salary type" />
-                        </SelectTrigger>
+                        <Input key="basicSalary" placeholder={watchedValues.salaryType === 'daily' ? 'Enter daily rate' : 'Enter basic salary'} autoComplete="off" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="basicSalary"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{watchedValues.salaryType === 'daily' ? 'Daily Rate *' : 'Basic Salary *'}</FormLabel>
-                    <FormControl>
-                      <Input 
-                        key="basicSalary"
-                        placeholder={watchedValues.salaryType === 'daily' ? 'Enter daily rate' : 'Enter basic salary'} 
-                        autoComplete="off"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="hourlyRate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hourly Rate (Auto)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        key="hourlyRate"
-                        placeholder="0.00" 
-                        autoComplete="off"
-                        readOnly
-                        className="bg-gray-50"
-                        {...field}
-                      />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground">
-                      {watchedValues.salaryType === 'daily' ? 'Daily Rate / Duty Hours (Out − In)' : 'Basic × 2.5 / 30 / Duty Hours (Out − In)'}
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              )}
             </div>
 
-            {/* ── Duty Schedule info panel ── */}
-            {selectedUser && (
-              <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Employee Duty Schedule</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Work Time Policy</span>
-                    <span className="font-medium">{dutyPolicy}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Weekly Off Days</span>
-                    <span className="font-medium">{dutyOffDays}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Duty Hours</span>
-                    <span className="font-medium">{dutyTimeRange}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Min. Hours (Present)</span>
-                    <span className="font-medium">{dutyMinPresent}h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Min. Hours (Half Day)</span>
-                    <span className="font-medium">{dutyMinHalfDay}h</span>
+            {/* ══ Work Schedule ═══════════════════════════════════════════════════ */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Work Schedule</p>
+              {selectedUser && (
+                <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 mb-3">
+                  <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Employee Duty Schedule</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Work Time Policy</span>
+                      <span className="font-medium">{dutyPolicy}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Weekly Off Days</span>
+                      <span className="font-medium">{dutyOffDays}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Duty Hours</span>
+                      <span className="font-medium">{dutyTimeRange}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Min. Hours (Present)</span>
+                      <span className="font-medium">{dutyMinPresent}h</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Min. Hours (Half Day)</span>
+                      <span className="font-medium">{dutyMinHalfDay}h</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* ── Mismatch warning ── */}
-            {workHoursMismatch && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
-                <span>
-                  Stored working hours ({storedWorkHours}h) differ from current duty schedule ({computedWorkHours % 1 === 0 ? computedWorkHours : computedWorkHours.toFixed(1)}h).
-                  Saving this form will update Working Hours/Day automatically.
-                </span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="paidDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Paid Days</FormLabel>
-                    <FormControl>
-                      <Input
-                        key="paidDays"
-                        placeholder="30"
-                        autoComplete="off"
-                        {...field}
-                      />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground">Overridden by attendance engine at payroll run time</p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="workingHoursPerDay"
-                render={({ field }) => (
+              )}
+              {workHoursMismatch && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 mb-3">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+                  <span>
+                    Stored working hours ({storedWorkHours}h) differ from current duty schedule ({computedWorkHours % 1 === 0 ? computedWorkHours : computedWorkHours.toFixed(1)}h).
+                    Saving this form will update Working Hours/Day automatically.
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="workingHoursPerDay" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Working Hours/Day</FormLabel>
                     <FormControl>
-                      <Input
-                        key="workingHoursPerDay"
-                        readOnly
-                        className="bg-gray-50 cursor-not-allowed"
-                        autoComplete="off"
-                        {...field}
-                      />
+                      <Input key="workingHoursPerDay" readOnly className="bg-gray-50 cursor-not-allowed" autoComplete="off" {...field} />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">Auto-synced from duty schedule — used for OT rate only</p>
                     <FormMessage />
                   </FormItem>
-                )}
-              />
-            </div>
-
-            {watchedValues.salaryType === 'daily' && (
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="overtimeHours"
-                  render={({ field }) => (
+                )} />
+                <FormField control={form.control} name="paidDays" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paid Days</FormLabel>
+                    <FormControl>
+                      <Input key="paidDays" placeholder="30" autoComplete="off" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Overridden by attendance engine at payroll run time</p>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              {watchedValues.salaryType === 'daily' && (
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <FormField control={form.control} name="overtimeHours" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Overtime Hours</FormLabel>
-                      <FormControl>
-                        <Input 
-                          key="overtimeHours"
-                          placeholder="0" 
-                          autoComplete="off"
-                          {...field}
-                        />
-                      </FormControl>
+                      <FormControl><Input key="overtimeHours" placeholder="0" autoComplete="off" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="otRate"
-                  render={({ field }) => (
+                  )} />
+                  <FormField control={form.control} name="otRate" render={({ field }) => (
                     <FormItem>
                       <FormLabel>OT Rate</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select OT rate" />
-                          </SelectTrigger>
-                        </FormControl>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select OT rate" /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="1.0">1.0x (Normal Rate)</SelectItem>
                           <SelectItem value="1.5">1.5x (Time and Half)</SelectItem>
@@ -4366,222 +4311,108 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                       </Select>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-              </div>
-            )}
+                  )} />
+                </div>
+              )}
+            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="bonus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bonus (Auto-calculated: 8.33% - Not Paid Monthly)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        key="bonus"
-                        value={calculations.bonus ? `₹${calculations.bonus.toFixed(2)}` : '₹0.00'}
-                        placeholder="₹0.00" 
-                        autoComplete="off"
-                        readOnly
-                        className="bg-gray-50 cursor-not-allowed"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+            {/* ══ Payroll Settings ════════════════════════════════════════════════ */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Payroll Settings</p>
               {watchedValues.salaryType !== 'daily' && (
-                <FormField
-                  control={form.control}
-                  name="kpiKgpApplicable"
-                  render={({ field }) => (
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <FormField control={form.control} name="kpiKgpApplicable" render={({ field }) => (
                     <FormItem>
                       <FormLabel>KPI / KGP Applicable</FormLabel>
                       <FormControl>
                         <div className="flex gap-6 mt-1">
                           <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                              type="radio"
-                              className="accent-blue-600 w-4 h-4"
-                              checked={!field.value}
-                              onChange={() => {
-                                field.onChange(false);
-                                form.setValue('kpiPercent', '0');
-                              }}
-                            />
+                            <input type="radio" className="accent-blue-600 w-4 h-4" checked={!field.value}
+                              onChange={() => { field.onChange(false); form.setValue('kpiPercent', '0'); }} />
                             <span className="text-sm font-medium text-gray-700">Not Applicable</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                              type="radio"
-                              className="accent-blue-600 w-4 h-4"
-                              checked={!!field.value}
-                              onChange={() => {
-                                field.onChange(true);
-                                const cur = parseFloat(form.getValues('kpiPercent') || '0');
-                                if (cur === 0) form.setValue('kpiPercent', '100');
-                              }}
-                            />
+                            <input type="radio" className="accent-blue-600 w-4 h-4" checked={!!field.value}
+                              onChange={() => { field.onChange(true); const cur = parseFloat(form.getValues('kpiPercent') || '0'); if (cur === 0) form.setValue('kpiPercent', '100'); }} />
                             <span className="text-sm font-medium text-gray-700">Applicable</span>
                           </label>
                         </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-              )}
-
-              {watchedValues.salaryType !== 'daily' && (
-                <FormField
-                  control={form.control}
-                  name="lwpExempt"
-                  render={({ field }) => (
+                  )} />
+                  <FormField control={form.control} name="lwpExempt" render={({ field }) => (
                     <FormItem>
                       <FormLabel>LWP Exempt</FormLabel>
                       <FormControl>
                         <div className="flex gap-6 mt-1">
                           <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                              type="radio"
-                              className="accent-blue-600 w-4 h-4"
-                              checked={!field.value}
-                              onChange={() => field.onChange(false)}
-                            />
+                            <input type="radio" className="accent-blue-600 w-4 h-4" checked={!field.value} onChange={() => field.onChange(false)} />
                             <span className="text-sm font-medium text-gray-700">No</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                              type="radio"
-                              className="accent-blue-600 w-4 h-4"
-                              checked={!!field.value}
-                              onChange={() => field.onChange(true)}
-                            />
+                            <input type="radio" className="accent-blue-600 w-4 h-4" checked={!!field.value} onChange={() => field.onChange(true)} />
                             <span className="text-sm font-medium text-gray-700">Yes</span>
                           </label>
                         </div>
                       </FormControl>
-                      <p className="text-xs text-muted-foreground mt-1">If Yes, employee receives full salary regardless of attendance or LOP.</p>
+                      <p className="text-xs text-muted-foreground mt-1">If Yes, full salary regardless of attendance or LOP.</p>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
+                  )} />
+                </div>
               )}
-
-              {watchedValues.salaryType !== 'daily' && watchedValues.kpiKgpApplicable && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="kpiPercent"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max KPI % (KGP = Basic × 15% × KPI%)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min="1"
-                            max="100"
-                            step="1"
-                            placeholder="100"
-                            autoComplete="off"
-                            {...field}
-                          />
-                        </FormControl>
-                        <p className="text-xs text-muted-foreground">Ceiling entitlement — official run scores down via DWAR composite KPI</p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div>
-                    <label className="text-sm font-medium">KGP Allowance (Auto-calculated)</label>
-                    <Input
-                      value={`₹${calculations.kgpAllowance ? calculations.kgpAllowance.toFixed(2) : '0.00'}`}
-                      readOnly
-                      className="bg-gray-50 cursor-not-allowed mt-1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Basic × 15% × KPI%</p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* ── Statutory Deduction Validation Panel ─────────────────────────── */}
-            {(() => {
-              const dob = selectedUser?.dateOfBirth || (initialData as any)?.dateOfBirth;
-              let age: number | undefined;
-              if (dob) {
-                const d = new Date(dob);
-                const now = new Date();
-                age = now.getFullYear() - d.getFullYear();
-                const md = now.getMonth() - d.getMonth();
-                if (md < 0 || (md === 0 && now.getDate() < d.getDate())) age--;
-              }
-              const ptExempt = age !== undefined && age >= 65;
-              return (
-                <div className="space-y-3 mt-2">
-                  {/* Professional Tax */}
-                  <div className={`p-3 rounded-lg border flex items-start gap-3 ${ptExempt ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
+              {/* PT + PF panels */}
+              {(() => {
+                const dob = selectedUser?.dateOfBirth || (initialData as any)?.dateOfBirth;
+                let age: number | undefined;
+                if (dob) {
+                  const d = new Date(dob);
+                  const now = new Date();
+                  age = now.getFullYear() - d.getFullYear();
+                  const md = now.getMonth() - d.getMonth();
+                  if (md < 0 || (md === 0 && now.getDate() < d.getDate())) age--;
+                }
+                const ptExempt = age !== undefined && age >= 65;
+                return (
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* PT panel */}
+                    <div className={`p-3 rounded-lg border ${ptExempt ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                      <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-medium text-gray-800">Professional Tax (PT)</span>
                         {ptExempt ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
-                            ✓ Exempt — Age ≥ 65
-                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">✓ Exempt — Age ≥ 65</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-300">
-                            ₹200/month · ₹300 in Feb
-                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-300">₹200/month · ₹300 in Feb</span>
                         )}
                       </div>
                       <p className="text-xs text-gray-500">
                         {ptExempt
-                          ? `Employee age ${age} yrs — automatically exempt under Maharashtra PT Act (Sec. 27A).`
+                          ? `Age ${age} yrs — exempt under Maharashtra PT Act (Sec. 27A).`
                           : age !== undefined
-                            ? `Employee age ${age} yrs — PT applicable. Employees aged 65+ are automatically exempt.`
-                            : 'Date of birth not set — add it in User Profile to enable age-based PT exemption check.'}
+                            ? `Age ${age} yrs — PT applicable. 65+ automatically exempt.`
+                            : 'Date of birth not set — add in User Profile to enable age-based PT exemption check.'}
                       </p>
                     </div>
-                  </div>
-
-                  {/* PF Applicable toggle */}
-                  <FormField
-                    control={form.control}
-                    name="pfApplicable"
-                    render={({ field }) => (
+                    {/* PF panel */}
+                    <FormField control={form.control} name="pfApplicable" render={({ field }) => (
                       <FormItem>
-                        <div className={`p-3 rounded-lg border ${!field.value ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
-                          <div className="flex items-center justify-between">
+                        <div className={`p-3 rounded-lg border h-full ${!field.value ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                          <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className="text-sm font-medium text-gray-800">Provident Fund (PF) Applicable</span>
+                              <span className="text-sm font-medium text-gray-800">Provident Fund (PF)</span>
                               <p className="text-xs text-gray-500 mt-0.5">
-                                {field.value
-                                  ? 'Employee PF (12%) + Employer PF (12%) calculated on Basic, capped at ₹15,000.'
-                                  : 'PF not applicable — both Employee PF and Employer PF will be ₹0.'}
+                                {field.value ? 'Employee PF (12%) + Employer PF (12%) on Basic, capped ₹15,000.' : 'Not applicable — Employee & Employer PF will be ₹0.'}
                               </p>
                             </div>
                             <FormControl>
-                              <div className="flex gap-4 ml-4">
+                              <div className="flex gap-3 shrink-0">
                                 <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                                  <input
-                                    type="radio"
-                                    className="accent-blue-600 w-4 h-4"
-                                    checked={!!field.value}
-                                    onChange={() => field.onChange(true)}
-                                  />
+                                  <input type="radio" className="accent-blue-600 w-4 h-4" checked={!!field.value} onChange={() => field.onChange(true)} />
                                   <span className="text-sm font-medium text-gray-700">Yes</span>
                                 </label>
                                 <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                                  <input
-                                    type="radio"
-                                    className="accent-orange-500 w-4 h-4"
-                                    checked={!field.value}
-                                    onChange={() => field.onChange(false)}
-                                  />
+                                  <input type="radio" className="accent-orange-500 w-4 h-4" checked={!field.value} onChange={() => field.onChange(false)} />
                                   <span className="text-sm font-medium text-gray-700">No</span>
                                 </label>
                               </div>
@@ -4590,32 +4421,70 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                         </div>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                </div>
-              );
-            })()}
-
-            <div className="grid grid-cols-1 gap-4">
-              <FormField
-                control={form.control}
-                name="groupInsurance"
-                render={({ field }) => (
-                  <FormItem>
+                    )} />
+                  </div>
+                );
+              })()}
+              <div className="mt-3">
+                <FormField control={form.control} name="groupInsurance" render={({ field }) => (
+                  <FormItem className="max-w-xs">
                     <FormLabel>Group Insurance Cost</FormLabel>
                     <FormControl>
-                      <Input 
-                        key="groupInsurance"
-                        placeholder="1500" 
-                        autoComplete="off"
-                        {...field}
-                      />
+                      <Input key="groupInsurance" placeholder="1500" autoComplete="off" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )}
-              />
+                )} />
+              </div>
             </div>
+
+            {/* ══ Compensation ════════════════════════════════════════════════════ */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Compensation</p>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="bonus" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bonus (Auto-calculated: 8.33% — Not Paid Monthly)</FormLabel>
+                    <FormControl>
+                      <Input key="bonus" value={calculations.bonus ? `₹${calculations.bonus.toFixed(2)}` : '₹0.00'} placeholder="₹0.00" autoComplete="off" readOnly className="bg-gray-50 cursor-not-allowed" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="hourlyRate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hourly Rate (Auto)</FormLabel>
+                    <FormControl>
+                      <Input key="hourlyRate" placeholder="0.00" autoComplete="off" readOnly className="bg-gray-50" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      {watchedValues.salaryType === 'daily' ? 'Daily Rate / Duty Hours (Out − In)' : 'Basic × 2.5 / 30 / Duty Hours (Out − In)'}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              {watchedValues.salaryType !== 'daily' && watchedValues.kpiKgpApplicable && (
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <FormField control={form.control} name="kpiPercent" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max KPI % (KGP = Basic × 15% × KPI%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" max="100" step="1" placeholder="100" autoComplete="off" {...field} />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">Ceiling entitlement — official run scores down via DWAR composite KPI</p>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div>
+                    <label className="text-sm font-medium">KGP Allowance (Auto-calculated)</label>
+                    <Input value={`₹${calculations.kgpAllowance ? calculations.kgpAllowance.toFixed(2) : '0.00'}`} readOnly className="bg-gray-50 cursor-not-allowed mt-1" />
+                    <p className="text-xs text-muted-foreground mt-1">Basic × 15% × KPI%</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </TabsContent>
 
           <TabsContent value="allowances" className="space-y-4">
