@@ -231,10 +231,10 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         }
       }
 
-      // LWP Exemption — mirrors official run engine exactly
-      // Superuser, GM, SM (and any explicit lwp_exempt grant) → zero out remaining LOP
-      const exempt = await isLwpExempt(userId);
-      if (exempt && lopDays > 0) {
+      // LWP Exemption — role-based (Superuser/GM/SM) OR salary config flag OR users.lwp_exempt grant
+      const roleExempt = await isLwpExempt(userId);
+      const salaryConfigExempt = sal.lwpExempt === true;
+      if ((roleExempt || salaryConfigExempt) && lopDays > 0) {
         lwpExemptApplied = true;
         lopDays = 0;
       }

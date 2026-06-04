@@ -42,6 +42,7 @@ const salaryFormSchema = z.object({
   kgpAllowance: z.string().default('0'),
   kpiPercent: z.string().default('0'),
   kpiKgpApplicable: z.boolean().default(false),
+  lwpExempt: z.boolean().default(false),
   pfApplicable: z.boolean().default(true),
   groupInsurance: z.string().default('300'),
   professionalTax: z.string().default('0'),
@@ -3914,6 +3915,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       kgpAllowance: (initialData.kgpAllowance || '0').toString(),
       kpiPercent: (initialData.kpiPercent || '0').toString(),
       kpiKgpApplicable: parseFloat((initialData.kpiPercent || '0').toString()) > 0,
+      lwpExempt: initialData.lwpExempt === true,
       pfApplicable: initialData.pfApplicable !== false,
       groupInsurance: initialData.groupInsurance || '1500',
       workLocationId: initialData.workLocationId,
@@ -3931,6 +3933,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       kgpAllowance: '0',
       kpiPercent: '0',
       kpiKgpApplicable: false,
+      lwpExempt: false,
       pfApplicable: true,
       groupInsurance: '1500',
       remarks: '',
@@ -4396,7 +4399,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                   control={form.control}
                   name="kpiKgpApplicable"
                   render={({ field }) => (
-                    <FormItem className="col-span-2">
+                    <FormItem>
                       <FormLabel>KPI / KGP Applicable</FormLabel>
                       <FormControl>
                         <div className="flex gap-6 mt-1">
@@ -4427,6 +4430,42 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                           </label>
                         </div>
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {watchedValues.salaryType !== 'daily' && (
+                <FormField
+                  control={form.control}
+                  name="lwpExempt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>LWP Exempt</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-6 mt-1">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              className="accent-blue-600 w-4 h-4"
+                              checked={!field.value}
+                              onChange={() => field.onChange(false)}
+                            />
+                            <span className="text-sm font-medium text-gray-700">No</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              className="accent-blue-600 w-4 h-4"
+                              checked={!!field.value}
+                              onChange={() => field.onChange(true)}
+                            />
+                            <span className="text-sm font-medium text-gray-700">Yes</span>
+                          </label>
+                        </div>
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground mt-1">If Yes, employee receives full salary regardless of attendance or LOP.</p>
                       <FormMessage />
                     </FormItem>
                   )}

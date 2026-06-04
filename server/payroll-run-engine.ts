@@ -384,8 +384,14 @@ async function stepAttendanceSnapshot(
         presentDays = presentFull + lateDays + (halfDays * 0.5);
         lopDays = absentCount + (halfDays * 0.5) + missingCount;
 
-        // LWP Exemption — zero out LOP for exempt senior roles (Superuser, GM, SM)
-        exempt = await isLwpExempt(emp.id);
+        // LWP Exemption — role-based (Superuser/GM/SM) OR salary config flag OR users.lwp_exempt grant
+        const salarySnap = await db.select({ lwpExempt: employeeSalaries.lwpExempt })
+          .from(employeeSalaries)
+          .where(and(eq(employeeSalaries.userId, emp.id), eq(employeeSalaries.isActive, true)))
+          .orderBy(desc(employeeSalaries.effectiveDate))
+          .limit(1);
+        const salaryConfigExempt = salarySnap[0]?.lwpExempt === true;
+        exempt = await isLwpExempt(emp.id) || salaryConfigExempt;
         if (exempt && lopDays > 0) {
           exceptions.push({
             userId: emp.id,

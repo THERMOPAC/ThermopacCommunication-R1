@@ -5391,6 +5391,7 @@ export const employeeSalaries = pgTable('employee_salaries', {
   groupInsurance: decimal('group_insurance', { precision: 10, scale: 2 }).default('0'),
   professionalTax: decimal('professional_tax', { precision: 10, scale: 2 }).default('0'),
   pfApplicable: boolean('pf_applicable').default(true),
+  lwpExempt: boolean('lwp_exempt').default(false),
   
   // Bank Details
   bankName: text('bank_name'),
