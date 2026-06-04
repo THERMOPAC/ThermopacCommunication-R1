@@ -990,6 +990,17 @@ router.get('/payroll/salary-setup/:id/increment-history', ensureAuthenticated, a
     const proposedByAlias = db.select({ id: users.id, name: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})` }).from(users).as('proposed_by_user');
     const approvedByAlias = db.select({ id: users.id, name: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})` }).from(users).as('approved_by_user');
 
+    // ?showVoided=true → include voided records (admin audit view)
+    // Default: exclude voided records from the history grid
+    const showVoided = req.query.showVoided === 'true';
+
+    const whereClause = showVoided
+      ? eq(salaryIncrementProposals.employeeSalaryId, salaryConfigId)
+      : and(
+          eq(salaryIncrementProposals.employeeSalaryId, salaryConfigId),
+          sql`${salaryIncrementProposals.status} != 'voided'`
+        );
+
     const history = await db
       .select({
         id: salaryIncrementProposals.id,
@@ -1012,7 +1023,7 @@ router.get('/payroll/salary-setup/:id/increment-history', ensureAuthenticated, a
         appliedByName: sql<string>`(SELECT concat(u.first_name, ' ', u.last_name) FROM users u WHERE u.id = ${salaryIncrementProposals.appliedBy})`,
       })
       .from(salaryIncrementProposals)
-      .where(eq(salaryIncrementProposals.employeeSalaryId, salaryConfigId))
+      .where(whereClause)
       .orderBy(desc(salaryIncrementProposals.proposedAt));
 
     res.json(history);

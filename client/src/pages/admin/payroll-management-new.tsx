@@ -3841,12 +3841,16 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
     (sessionUser?.department === 'Administration' && sessionUser?.role === 'Manager') ||
     sessionUser?.username === 'Vishal';
 
+  // Show Voided toggle — admin-only, off by default
+  const [showVoidedIncr, setShowVoidedIncr] = useState(false);
+
   // Fetch increment history (also triggers auto-apply on backend)
   const { data: incrHistory = [], isLoading: incrLoading, refetch: refetchHistory } = useQuery<any[]>({
-    queryKey: ['/api/admin/payroll/salary-setup', initialData?.id, 'increment-history'],
+    queryKey: ['/api/admin/payroll/salary-setup', initialData?.id, 'increment-history', showVoidedIncr],
     queryFn: async () => {
       if (!initialData?.id) return [];
-      const res = await fetch(`/api/admin/payroll/salary-setup/${initialData.id}/increment-history`);
+      const url = `/api/admin/payroll/salary-setup/${initialData.id}/increment-history${showVoidedIncr ? '?showVoided=true' : ''}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch increment history');
       return res.json();
     },
@@ -4888,7 +4892,21 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
 
               {/* History table */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-sm flex items-center gap-2"><History className="h-4 w-4" />Increment History</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm flex items-center gap-2"><History className="h-4 w-4" />Increment History</h3>
+                  {isSuperuser && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowVoidedIncr(v => !v)}
+                      className={`h-7 text-xs gap-1.5 ${showVoidedIncr ? 'text-gray-700 bg-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      {showVoidedIncr ? 'Hide Voided' : 'Show Voided'}
+                    </Button>
+                  )}
+                </div>
                 {incrLoading ? (
                   <div className="flex items-center justify-center p-6 text-gray-400"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…</div>
                 ) : incrHistory.length === 0 ? (
@@ -4944,6 +4962,17 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                                   <TooltipContent className="max-w-xs">
                                     <p className="font-medium">Reason:</p>
                                     <p>{row.rejectionReason}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {row.status === 'voided' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge className="bg-gray-100 text-gray-500 text-xs border border-gray-300 cursor-default line-through">Voided</Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="font-medium">Voided for audit purposes.</p>
+                                    <p className="text-xs">This record has no effect on the current salary.</p>
                                   </TooltipContent>
                                 </Tooltip>
                               )}
