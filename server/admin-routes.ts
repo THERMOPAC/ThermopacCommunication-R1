@@ -477,6 +477,7 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
         isActive: employeeSalaries.isActive,
         reportingManagerId: users.reportingManagerId,
         pfApplicable: employeeSalaries.pfApplicable,
+        lwpExempt: employeeSalaries.lwpExempt,
         dateOfBirth: users.dateOfBirth,
       })
       .from(employeeSalaries)

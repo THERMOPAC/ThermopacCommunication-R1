@@ -98,6 +98,7 @@ interface SalaryConfig {
   createdAt: string;
   updatedAt: string;
   pfApplicable?: boolean;
+  lwpExempt?: boolean;
   dateOfBirth?: string;
 }
 
