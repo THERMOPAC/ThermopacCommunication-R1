@@ -22,7 +22,7 @@ import {
   employeeAdvances,
   employeeAdvanceRecoveries,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, asc, sql, ne, isNull, or, between, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sql, ne, isNull, or, between, inArray, not } from 'drizzle-orm';
 import { isLwpExempt } from './leave-service';
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
@@ -896,6 +896,7 @@ async function stepSalaryCalculation(
           ),
           eq(payrollRecords.sapPostingStatus, 'posted'),
           isNull(payrollRecords.reversalSapDocEntry),
+          not(inArray(payrollRecords.salarySource, ['manual_ot_only', 'manual_salary'])),
         ))
         .limit(1);
 

@@ -92,9 +92,8 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     if (!sal) return res.status(400).json({ error: 'No active salary configuration for this employee' });
 
     // ── Single unified SAP-posted guard (raw SQL to guarantee exact match) ───
-    // Block if ANY record for this employee+period has a live SAP JE (posted and not reversed).
-    // Uses raw SQL to bypass any possible Drizzle ORM type-coercion issues.
-    // The only authoritative field is sap_posting_status = 'posted' AND reversal_sap_doc_entry IS NULL.
+    // Block if a payroll_engine record for this employee+period has a live SAP JE (posted and not reversed).
+    // Manual OT / manual salary entries from a different salary_source do NOT block the payroll engine trial run.
     const guardResult = await db.execute(sql`
       SELECT id, sap_je_number, trial_run_no, sap_posting_status, reversal_sap_doc_entry
       FROM payroll_records
@@ -102,6 +101,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         AND user_id = ${Number(userId)}
         AND sap_posting_status = 'posted'
         AND reversal_sap_doc_entry IS NULL
+        AND salary_source NOT IN ('manual_ot_only', 'manual_salary')
       LIMIT 1
     `);
 
