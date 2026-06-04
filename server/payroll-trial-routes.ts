@@ -91,50 +91,35 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       .limit(1);
     if (!sal) return res.status(400).json({ error: 'No active salary configuration for this employee' });
 
-    const existingPostedTrial = await db.select({ id: payrollRecords.id, trialRunNo: payrollRecords.trialRunNo })
+    // ── Single unified SAP-posted guard ─────────────────────────────────────
+    // Block if ANY record for this employee+period has a live SAP JE (posted and not reversed).
+    // Do NOT filter by recordType or trialStatus — both fields are unreliable on legacy rows:
+    //   • trialStatus may remain 'generated' even after SAP posting (pre-sap_posted-field records)
+    //   • recordType may be NULL on old official records (pre-recordType column)
+    // The only authoritative field is sapPostingStatus = 'posted' AND reversalSapDocEntry IS NULL.
+    const [anyActivePostedJe] = await db
+      .select({
+        id: payrollRecords.id,
+        sapJeNumber: payrollRecords.sapJeNumber,
+        trialRunNo: payrollRecords.trialRunNo,
+        recordType: payrollRecords.recordType,
+      })
       .from(payrollRecords)
       .where(and(
         eq(payrollRecords.periodId, periodId),
         eq(payrollRecords.userId, userId),
-        eq(payrollRecords.recordType, 'trial'),
-        eq(payrollRecords.trialStatus, 'sap_posted'),
-      ));
-    if (existingPostedTrial.length > 0) {
-      return res.status(409).json({
-        error: `Trial #${existingPostedTrial[0].trialRunNo} is posted in SAP. Reverse it before running another trial.`,
-        code: 'TRIAL_JE_UNREVERSED',
-        trialRunNo: existingPostedTrial[0].trialRunNo,
-      });
-    }
-
-    // Block trial run if an official SAP JE is posted and not yet reversed.
-    // Running a trial against a live, unreversed official JE is misleading — the accounting
-    // period is already closed in SAP for this employee. Force reversal first.
-    //
-    // NOTE: old official records pre-date the recordType column and have recordType = NULL.
-    // Match both explicit 'official' rows AND legacy NULL rows (never trial rows, which are
-    // always explicitly set to 'trial').
-    const [officialPosted] = await db
-      .select({ id: payrollRecords.id, sapJeNumber: payrollRecords.sapJeNumber })
-      .from(payrollRecords)
-      .where(and(
-        eq(payrollRecords.periodId, periodId),
-        eq(payrollRecords.userId, userId),
-        or(
-          eq(payrollRecords.recordType, 'official'),
-          isNull(payrollRecords.recordType),
-        ),
         eq(payrollRecords.sapPostingStatus, 'posted'),
         isNull(payrollRecords.reversalSapDocEntry),
       ))
       .limit(1);
 
-    if (officialPosted) {
+    if (anyActivePostedJe) {
       return res.status(409).json({
         error: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before proceeding.',
         code: 'OFFICIAL_JE_UNREVERSED',
-        officialRecordId: officialPosted.id,
-        sapJeNumber: officialPosted.sapJeNumber,
+        recordId: anyActivePostedJe.id,
+        sapJeNumber: anyActivePostedJe.sapJeNumber,
+        trialRunNo: anyActivePostedJe.trialRunNo,
       });
     }
 
