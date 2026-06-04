@@ -97,12 +97,14 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     //   • trialStatus may remain 'generated' even after SAP posting (pre-sap_posted-field records)
     //   • recordType may be NULL on old official records (pre-recordType column)
     // The only authoritative field is sapPostingStatus = 'posted' AND reversalSapDocEntry IS NULL.
-    const [anyActivePostedJe] = await db
+    const guardRows = await db
       .select({
         id: payrollRecords.id,
         sapJeNumber: payrollRecords.sapJeNumber,
         trialRunNo: payrollRecords.trialRunNo,
         recordType: payrollRecords.recordType,
+        sapPostingStatus: payrollRecords.sapPostingStatus,
+        reversalSapDocEntry: payrollRecords.reversalSapDocEntry,
       })
       .from(payrollRecords)
       .where(and(
@@ -112,6 +114,10 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         isNull(payrollRecords.reversalSapDocEntry),
       ))
       .limit(1);
+
+    console.log(`[TRIAL-GUARD] periodId=${periodId} userId=${userId} guardRows=${JSON.stringify(guardRows)}`);
+
+    const [anyActivePostedJe] = guardRows;
 
     if (anyActivePostedJe) {
       return res.status(409).json({
