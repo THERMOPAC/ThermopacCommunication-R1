@@ -1508,7 +1508,7 @@ function GeneratedSalariesView() {
 
         {viewRecord && (() => {
           const snap = viewRecord.calculationSnapshot || {};
-          const kpi = snap.kpiAdjustment || null;
+          const kpi = (snap.kpiAdjustment && snap.kpiAdjustment.kpiSource !== 'non_system_user') ? snap.kpiAdjustment : null;
           const f = (v: any, dec = 2) => parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec });
           const r = (v: any) => `₹${f(v)}`;
 

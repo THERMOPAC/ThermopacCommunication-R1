@@ -307,9 +307,10 @@ router.post('/trial/run', async (req: Request, res: Response) => {
     let scoredKgpAllowance = kgpCeilingFromConfig;
     let trialKpiSnapshot: Record<string, any> | null = null;
 
-    // KGP eligibility: any employee with kgp_allowance > 0 in salary config gets DWAR-scored.
-    // Role title is irrelevant — admin explicitly set the ceiling, so scoring always applies.
-    if (kgpCeilingFromConfig > 0 && salaryType === 'monthly') {
+    // KGP eligibility: system users with kgp_allowance > 0 get DWAR-scored KGP.
+    // Non-system users (userType !== 'system_user') receive 100% of the configured
+    // KGP allowance with no DWAR scoring and no KPI % displayed on the slip.
+    if (kgpCeilingFromConfig > 0 && salaryType === 'monthly' && employee.userType === 'system_user') {
       const kpiPaidAttDays = attRecordsDb.filter(r =>
         ['present', 'late', 'half_day', 'on_leave'].includes(r.status ?? '')
       );

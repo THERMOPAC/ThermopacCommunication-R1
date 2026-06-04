@@ -1116,9 +1116,10 @@ async function stepKpiAdjustment(
         ? satisfactionRatings.reduce((s, v) => s + v, 0) / satisfactionRatings.length
         : 0;
 
-      const [empUser] = await db.select({ role: users.role, firstName: users.firstName, lastName: users.lastName, employeeType: users.employeeType, epfNo: users.epfNo }).from(users).where(eq(users.id, record.userId)).limit(1);
+      const [empUser] = await db.select({ role: users.role, firstName: users.firstName, lastName: users.lastName, employeeType: users.employeeType, epfNo: users.epfNo, userType: users.userType }).from(users).where(eq(users.id, record.userId)).limit(1);
       const empRole = empUser?.role || '';
       const empName = `${empUser?.firstName || ''} ${empUser?.lastName || ''}`.trim();
+      const isNonSystemUser = empUser?.userType !== 'system_user';
       const kpiEligibleRoles = ['Manager', 'Employee'];
       const isKpiEligible = kpiEligibleRoles.includes(empRole);
 
@@ -1133,7 +1134,15 @@ async function stepKpiAdjustment(
       let dwarDaysMatched = 0;
       let dwarDaysMissing = 0;
 
-      if (!isKpiEligible) {
+      if (isNonSystemUser) {
+        // Non-system monthly employees: pay 100% of configured KGP.
+        // No DWAR scoring, no KPI reduction, no KPI % displayed on slip.
+        monthlyKpiPercent = 1;
+        productivityScore = 100;
+        kpiSource = 'non_system_user';
+        newKgpAllow = originalKgp;
+        kgpReduction = 0;
+      } else if (!isKpiEligible) {
         monthlyKpiPercent = 1;
         productivityScore = 100;
         kpiSource = 'not_eligible';
