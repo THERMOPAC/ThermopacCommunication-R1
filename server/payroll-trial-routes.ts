@@ -23,7 +23,7 @@ import {
   companyHolidays,
   dailyWorkReports,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, max, sql, asc, between, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, max, sql, asc, between, inArray, isNull } from 'drizzle-orm';
 import { computeEmployeeSalaryNumbers, PAYROLL_CONSTANTS } from './payroll-salary-core';
 import { resolveStatutoryApplicability } from '@shared/statutory-rules';
 import type { EmployeeType } from '@shared/schema';
@@ -104,6 +104,30 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         error: `Trial #${existingPostedTrial[0].trialRunNo} is posted in SAP. Reverse it before running another trial.`,
         code: 'TRIAL_JE_UNREVERSED',
         trialRunNo: existingPostedTrial[0].trialRunNo,
+      });
+    }
+
+    // Block trial run if an official SAP JE is posted and not yet reversed.
+    // Running a trial against a live, unreversed official JE is misleading — the accounting
+    // period is already closed in SAP for this employee. Force reversal first.
+    const [officialPosted] = await db
+      .select({ id: payrollRecords.id, sapJeNumber: payrollRecords.sapJeNumber })
+      .from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.userId, userId),
+        eq(payrollRecords.recordType, 'official'),
+        eq(payrollRecords.sapPostingStatus, 'posted'),
+        isNull(payrollRecords.reversalSapDocEntry),
+      ))
+      .limit(1);
+
+    if (officialPosted) {
+      return res.status(409).json({
+        error: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before proceeding.',
+        code: 'OFFICIAL_JE_UNREVERSED',
+        officialRecordId: officialPosted.id,
+        sapJeNumber: officialPosted.sapJeNumber,
       });
     }
 
