@@ -848,6 +848,23 @@ router.post('/payroll/salary-setup/:id/increment', ensureAuthenticated, async (r
       });
     }
 
+    // ── Duplicate-applied guard ───────────────────────────────────────────────
+    // Block if an APPLIED increment already exists for this employee on the same
+    // effective date. Prevents compounding increments on the same date.
+    const [appliedSameDate] = await db
+      .select({ id: salaryIncrementProposals.id })
+      .from(salaryIncrementProposals)
+      .where(and(
+        eq(salaryIncrementProposals.employeeId, salaryConfig.userId),
+        eq(salaryIncrementProposals.effectiveDate, effectiveDate),
+        eq(salaryIncrementProposals.status, 'applied'),
+      ));
+    if (appliedSameDate) {
+      return res.status(409).json({
+        error: `An applied increment (Proposal #${appliedSameDate.id}) already exists for this employee with effective date ${effectiveDate}. Only one applied increment per employee per effective date is permitted.`,
+      });
+    }
+
     const oldBasic = parseFloat(salaryConfig.basicSalary as string);
     const proposedBasic = parseFloat((oldBasic * (1 + pct / 100)).toFixed(2));
     const oldCtc = parseFloat(salaryConfig.ctcMonthly as string || '0');
@@ -1040,6 +1057,24 @@ router.post('/payroll/increment-proposals/:id/approve', ensureAuthenticated, req
     if (otherApproved) {
       return res.status(409).json({
         error: `Another approved proposal (ID ${otherApproved.id}) for this employee is already awaiting application. Resolve it first.`,
+      });
+    }
+
+    // ── Duplicate-applied guard (approve stage) ───────────────────────────────
+    // Reject approval if an APPLIED increment already exists for this employee
+    // on the same effective date (catches cascades the creation guard missed).
+    const [appliedSameDateOnApprove] = await db
+      .select({ id: salaryIncrementProposals.id })
+      .from(salaryIncrementProposals)
+      .where(and(
+        eq(salaryIncrementProposals.employeeId, proposal.employeeId),
+        eq(salaryIncrementProposals.effectiveDate, proposal.effectiveDate as string),
+        eq(salaryIncrementProposals.status, 'applied'),
+        ne(salaryIncrementProposals.id, proposalId),
+      ));
+    if (appliedSameDateOnApprove) {
+      return res.status(409).json({
+        error: `An applied increment (Proposal #${appliedSameDateOnApprove.id}) already exists for this employee with effective date ${proposal.effectiveDate}. Approving would create a duplicate — blocked.`,
       });
     }
 

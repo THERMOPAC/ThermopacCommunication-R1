@@ -126,6 +126,28 @@ export async function applySalaryIncrement(proposalId: number, appliedByUserId: 
     ctcYearly: salaryConfig.ctcYearly,
   };
 
+  // ── Last-line-of-defence duplicate guard ─────────────────────────────────
+  // Re-check after the atomic transition: if another proposal is already 'applied'
+  // for this employee + effective date, roll back and throw.
+  const [appliedDuplicate] = await db
+    .select({ id: salaryIncrementProposals.id })
+    .from(salaryIncrementProposals)
+    .where(and(
+      eq(salaryIncrementProposals.employeeId, proposal.employeeId),
+      eq(salaryIncrementProposals.effectiveDate, proposal.effectiveDate as string),
+      eq(salaryIncrementProposals.status, 'applied'),
+      ne(salaryIncrementProposals.id, proposalId),
+    ));
+  if (appliedDuplicate) {
+    await db.update(salaryIncrementProposals)
+      .set({ status: 'approved' })
+      .where(eq(salaryIncrementProposals.id, proposalId));
+    throw new Error(
+      `[IncrementService] Duplicate detected — Proposal #${appliedDuplicate.id} is already applied ` +
+      `for employee ${proposal.employeeId} on ${proposal.effectiveDate}. Rolled back to 'approved'.`
+    );
+  }
+
   // Proposal row is already transitioned to 'applied' by the atomic update above.
   // Now update the actual salary figures in employee_salaries.
   await db.update(employeeSalaries).set({
