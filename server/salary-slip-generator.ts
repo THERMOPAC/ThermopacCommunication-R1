@@ -346,7 +346,10 @@ export class SalarySlipGenerator {
         doc.font(FONT_REGULAR).fontSize(6).fillColor('#1F2937');
         this.t(formatted, m + 8, rowY + 2.5, { width: dateColW - 16 });
 
-        const typeColor = typeVal === 'LOP' ? '#DC2626' : '#B45309';
+        const typeColor =
+          typeVal === 'LOP' ? '#DC2626' :
+          typeVal === 'Half Day' ? '#B45309' :
+          '#047857'; // CL Applied or any other covered label → green
         doc.font(FONT_BOLD).fontSize(6).fillColor(typeColor);
         this.t(typeVal, m + dateColW, rowY + 2.5, { width: typeColW - 8 });
 

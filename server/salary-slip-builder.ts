@@ -448,6 +448,28 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     absentDateEntries.push({ date: dateStr, type: 'LOP' });
   }
   absentDateEntries.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Re-label CL-covered absent dates.
+  // Auto-cover applies greedily to the earliest absent/missing dates in
+  // chronological order.  The count of CL-covered dates = paidLeaveDays from
+  // the attendance snapshot (which caps at the number of LOP-type entries in
+  // the list because formally-approved on_leave days aren't queried above).
+  const paidLeaveUsed = parseFloat(
+    attSnap?.paidLeaveDays?.toString() ||
+    record.paidLeaveDays?.toString() ||
+    '0'
+  );
+  if (paidLeaveUsed > 0) {
+    let remaining = Math.round(paidLeaveUsed);
+    for (const entry of absentDateEntries) {
+      if (remaining <= 0) break;
+      if (entry.type === 'LOP') {
+        entry.type = 'CL Applied';
+        remaining--;
+      }
+    }
+  }
+
   salarySlipData.absentDates = absentDateEntries;
 
   const fn = `Salary_Slip_${employeeFullName.replace(/\s+/g, '_')}_${salarySlipData.period.month}_${salarySlipData.period.year}.pdf`;
