@@ -105,8 +105,6 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       LIMIT 1
     `);
 
-    console.log(`[TRIAL-GUARD] periodId=${periodId} userId=${userId} rows=${guardResult.rows.length} row0=${JSON.stringify(guardResult.rows[0] ?? null)}`);
-
     if (guardResult.rows.length > 0) {
       const blocked = guardResult.rows[0] as any;
       return res.status(409).json({
