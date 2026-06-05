@@ -17,7 +17,7 @@ import {
   companyHolidays,
   payrollLeaveAutocover,
 } from '../shared/schema';
-import { eq, and, desc, gte, lte, inArray } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, gt, inArray } from 'drizzle-orm';
 import { SalarySlipData } from './salary-slip-generator';
 import { numberToWords } from './salary-slip-generator';
 
@@ -309,18 +309,28 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     leaveBalances: [],
   };
 
-  // Leave balances
+  // ── Leave balances (snapshot as of period end date) ──────────────────────
+  // All calculations are frozen at record.endDate (e.g. 2026-05-31).
+  // Events after that date (future accruals, future leaves, future autocover)
+  // are explicitly excluded so a historical slip is never altered by later activity.
   const periodYear = new Date(record.startDate as string).getFullYear();
+  const periodMonthNum = new Date(record.startDate as string).getMonth() + 1;
+  const periodMonthStr = `${periodYear}-${String(periodMonthNum).padStart(2, '0')}`; // e.g. "2026-05"
+  const periodEndStr = record.endDate as string; // e.g. "2026-05-31"
+  const yearStartStr = `${periodYear}-01-01`;
+
   const activeLeaveTypes = await db
     .select()
     .from(leaveTypes)
     .where(eq(leaveTypes.isActive, true));
+
   const empLeaveBalances = await db
     .select()
     .from(leaveBalances)
     .where(and(eq(leaveBalances.userId, record.userId), eq(leaveBalances.year, periodYear)));
   const balanceMap = new Map(empLeaveBalances.map((b) => [b.leaveTypeId, b]));
 
+  // ── Used in month: leaves and autocover within the pay period ─────────────
   const monthlyLeaveReqs = await db
     .select({
       leaveTypeId: leaveRequests.leaveTypeId,
@@ -334,7 +344,7 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
         eq(leaveRequests.employeeId, record.userId),
         eq(leaveRequests.status, 'approved'),
         gte(leaveRequests.startDate, record.startDate as string),
-        lte(leaveRequests.startDate, record.endDate as string)
+        lte(leaveRequests.startDate, periodEndStr)
       )
     );
   const usedInMonthMap = new Map<number, number>();
@@ -361,31 +371,7 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     }
   }
 
-  const periodEndExtended = new Date(record.endDate as string);
-  periodEndExtended.setDate(periodEndExtended.getDate() + 2);
-  const monthlyAccruals = await db
-    .select({ leaveTypeId: leaveAccrualLog.leaveTypeId, daysAccrued: leaveAccrualLog.daysAccrued })
-    .from(leaveAccrualLog)
-    .where(
-      and(
-        eq(leaveAccrualLog.userId, record.userId),
-        gte(leaveAccrualLog.createdAt, new Date(record.startDate as string)),
-        lte(leaveAccrualLog.createdAt, periodEndExtended)
-      )
-    );
-  const accruedInMonthMap = new Map<number, number>();
-  for (const acc of monthlyAccruals) {
-    accruedInMonthMap.set(
-      acc.leaveTypeId,
-      (accruedInMonthMap.get(acc.leaveTypeId) || 0) + parseFloat(acc.daysAccrued?.toString() || '0')
-    );
-  }
-
-  // Fetch actual leave auto-cover deductions for this employee's pay period.
-  // Queried by (userId, periodId) — not by payrollRecordId — so that deductions
-  // applied via any payroll record (official engine run, manual correction) are always
-  // visible on every slip generated for the same period.
-  // leaveBalances.usedDays is the source of truth; autocover rows are the audit trail.
+  // Autocover entries for the current period (usedInMonth component)
   const autocoverEntries = await db
     .select({
       leaveTypeId: payrollLeaveAutocover.leaveTypeId,
@@ -397,7 +383,6 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
       eq(payrollLeaveAutocover.periodId, record.periodId),
       eq(payrollLeaveAutocover.status, 'applied')
     ));
-
   for (const entry of autocoverEntries) {
     usedInMonthMap.set(
       entry.leaveTypeId,
@@ -405,14 +390,102 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     );
   }
 
+  // ── Accrued in month: use accrual_month field, NOT created_at ─────────────
+  // accrual_month = 'YYYY-MM' is the authoritative month tag set at accrual time.
+  // Using created_at caused next-month accruals (run on the last day of the month)
+  // to bleed into the current period's slip.
+  const monthlyAccruals = await db
+    .select({ leaveTypeId: leaveAccrualLog.leaveTypeId, daysAccrued: leaveAccrualLog.daysAccrued })
+    .from(leaveAccrualLog)
+    .where(
+      and(
+        eq(leaveAccrualLog.userId, record.userId),
+        eq(leaveAccrualLog.accrualMonth, periodMonthStr)
+      )
+    );
+  const accruedInMonthMap = new Map<number, number>();
+  for (const acc of monthlyAccruals) {
+    accruedInMonthMap.set(
+      acc.leaveTypeId,
+      (accruedInMonthMap.get(acc.leaveTypeId) || 0) + parseFloat(acc.daysAccrued?.toString() || '0')
+    );
+  }
+
+  // ── Future accruals: strip credits for months AFTER this period ───────────
+  // leave_balances.allocated_days is a live running total. Accruals for future
+  // months may already be posted (e.g. June accrual posted on May 31). Subtract
+  // them to reconstruct allocated_days as it stood at period end.
+  const futureAccruals = await db
+    .select({ leaveTypeId: leaveAccrualLog.leaveTypeId, daysAccrued: leaveAccrualLog.daysAccrued })
+    .from(leaveAccrualLog)
+    .where(
+      and(
+        eq(leaveAccrualLog.userId, record.userId),
+        gt(leaveAccrualLog.accrualMonth, periodMonthStr)
+      )
+    );
+  const futureAccrualMap = new Map<number, number>();
+  for (const acc of futureAccruals) {
+    futureAccrualMap.set(
+      acc.leaveTypeId,
+      (futureAccrualMap.get(acc.leaveTypeId) || 0) + parseFloat(acc.daysAccrued?.toString() || '0')
+    );
+  }
+
+  // ── YTD used as of period end: recompute from raw transactions ────────────
+  // leave_balances.used_days is live and may include leaves approved after
+  // period end. Rebuild from leave_requests and autocover up to periodEndStr.
+  const ytdLeaveReqs = await db
+    .select({ leaveTypeId: leaveRequests.leaveTypeId, totalDays: leaveRequests.totalDays })
+    .from(leaveRequests)
+    .where(
+      and(
+        eq(leaveRequests.employeeId, record.userId),
+        eq(leaveRequests.status, 'approved'),
+        gte(leaveRequests.startDate, yearStartStr),
+        lte(leaveRequests.startDate, periodEndStr)
+      )
+    );
+  const ytdUsedMap = new Map<number, number>();
+  for (const req of ytdLeaveReqs) {
+    ytdUsedMap.set(
+      req.leaveTypeId,
+      (ytdUsedMap.get(req.leaveTypeId) || 0) + parseFloat(req.totalDays?.toString() || '0')
+    );
+  }
+  const ytdAutocover = await db
+    .select({ leaveTypeId: payrollLeaveAutocover.leaveTypeId, daysDeducted: payrollLeaveAutocover.daysDeducted })
+    .from(payrollLeaveAutocover)
+    .innerJoin(payrollPeriods, eq(payrollLeaveAutocover.periodId, payrollPeriods.id))
+    .where(
+      and(
+        eq(payrollLeaveAutocover.userId, record.userId),
+        eq(payrollLeaveAutocover.status, 'applied'),
+        lte(payrollPeriods.endDate, periodEndStr)
+      )
+    );
+  for (const entry of ytdAutocover) {
+    ytdUsedMap.set(
+      entry.leaveTypeId,
+      (ytdUsedMap.get(entry.leaveTypeId) || 0) + parseFloat(entry.daysDeducted?.toString() || '0')
+    );
+  }
+
+  // ── Per-leave-type slip row ───────────────────────────────────────────────
   for (const lt of activeLeaveTypes) {
     if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
     const bal = balanceMap.get(lt.id);
     if (!bal) continue;
+
     const allocated = parseFloat(bal.allocatedDays?.toString() || '0');
     const carryover = parseFloat(bal.carryoverDays?.toString() || '0');
-    const usedYTD = parseFloat(bal.usedDays?.toString() || '0');
-    const currentClosing = Math.max(0, allocated + carryover - usedYTD);
+    // Remove future-month accruals so allocated reflects state at period end
+    const futureAccrued = futureAccrualMap.get(lt.id) || 0;
+    const allocatedAsOfPeriod = Math.max(0, allocated - futureAccrued);
+    // Use transaction-derived YTD instead of live used_days
+    const usedYTD = ytdUsedMap.get(lt.id) || 0;
+    const currentClosing = Math.max(0, allocatedAsOfPeriod + carryover - usedYTD);
+
     const usedInMonth = usedInMonthMap.get(lt.id) || 0;
     const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;
     const opening = currentClosing + usedInMonth - accruedInMonth;
