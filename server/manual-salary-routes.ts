@@ -696,6 +696,11 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
     if (isOtOnly) {
       const otGl = getGlCode(allMappings, 'OVERTIME', 'expense');
       const payableGl = getGlCode(allMappings, 'NET_PAY', 'payroll_liability');
+      const debugOt = allMappings.filter(r => r.componentCode === 'OVERTIME' && r.postingContext === 'expense');
+      const debugNet = allMappings.filter(r => r.componentCode === 'NET_PAY' && r.postingContext === 'payroll_liability');
+      console.log('[OT-SAP-DEBUG] OVERTIME expense rows:', JSON.stringify(debugOt.map(r => ({ id: r.id, glAccountCode: r.glAccountCode, sapAcctCode: r.sapAcctCode, isActive: r.isActive }))));
+      console.log('[OT-SAP-DEBUG] NET_PAY payroll_liability rows:', JSON.stringify(debugNet.map(r => ({ id: r.id, glAccountCode: r.glAccountCode, sapAcctCode: r.sapAcctCode, isActive: r.isActive }))));
+      console.log('[OT-SAP-DEBUG] otGl result:', otGl, '| payableGl result:', payableGl);
       const missingOt: string[] = [];
       if (!otGl) missingOt.push('OVERTIME (expense)');
       if (!payableGl) missingOt.push('NET_PAY (payroll_liability)');
