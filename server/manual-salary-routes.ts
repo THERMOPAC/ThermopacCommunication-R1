@@ -184,25 +184,28 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
     }
 
     // Block if a SAP-posted record already exists for this employee+period and has not been reversed.
-    const [existingPosted] = await db
-      .select({ id: payrollRecords.id, sapJeNumber: payrollRecords.sapJeNumber })
-      .from(payrollRecords)
-      .where(
-        and(
-          eq(payrollRecords.periodId, periodId),
-          eq(payrollRecords.userId, userId),
-          eq(payrollRecords.sapPostingStatus, 'posted'),
-          isNull(payrollRecords.reversalSapDocEntry),
+    // OT-only entries are additive (separate SAP JE) and are always allowed regardless.
+    if (purpose !== 'ot_only') {
+      const [existingPosted] = await db
+        .select({ id: payrollRecords.id, sapJeNumber: payrollRecords.sapJeNumber })
+        .from(payrollRecords)
+        .where(
+          and(
+            eq(payrollRecords.periodId, periodId),
+            eq(payrollRecords.userId, userId),
+            eq(payrollRecords.sapPostingStatus, 'posted'),
+            isNull(payrollRecords.reversalSapDocEntry),
+          )
         )
-      )
-      .limit(1);
+        .limit(1);
 
-    if (existingPosted) {
-      return res.status(409).json({
-        error: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before regenerating payroll.',
-        existingRecordId: existingPosted.id,
-        sapJeNumber: existingPosted.sapJeNumber,
-      });
+      if (existingPosted) {
+        return res.status(409).json({
+          error: 'Official payroll already exists and SAP JE is posted for this employee and period. Reverse the SAP JE before regenerating payroll.',
+          existingRecordId: existingPosted.id,
+          sapJeNumber: existingPosted.sapJeNumber,
+        });
+      }
     }
 
     const periodMonth = new Date(period.startDate).getMonth() + 1;
