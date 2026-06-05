@@ -635,16 +635,19 @@ router.post('/trial/run', async (req: Request, res: Response) => {
           .set({ usedDays: newUsedDays.toFixed(2), lastUpdated: new Date() })
           .where(eq(leaveBalances.id, bal.id));
 
-        await db.insert(payrollLeaveAutocover).values({
-          payrollRecordId: newRecord.id,
-          periodId,
-          runNumber: 0,
-          userId,
-          leaveTypeId: bal.leaveTypeId,
-          daysDeducted: toDeduct.toFixed(2),
-          status: 'applied',
-          notes: `Trial run ${newRecord.trialRunNo}: ${toDeduct.toFixed(2)} day(s) deducted from leave balance to cover LOP`,
-        } as any);
+        // Use raw SQL: Drizzle ORM treats runNumber=0 as falsy and omits it, causing a NOT NULL
+        // violation. Raw SQL guarantees the literal integer is sent. Use negative trialRunNo
+        // (e.g. -1, -2…) as run_number so each trial gets a unique value and never collides
+        // with official runs (which use positive run numbers 1, 2, 3…).
+        const trialRunNumber = -(newRecord.trialRunNo ?? 1);
+        const autocoverNote = `Trial run ${newRecord.trialRunNo}: ${toDeduct.toFixed(2)} day(s) deducted from leave balance to cover LOP`;
+        await db.execute(sql`
+          INSERT INTO payroll_leave_autocover
+            (payroll_record_id, period_id, run_number, user_id, leave_type_id, days_deducted, status, notes)
+          VALUES
+            (${newRecord.id}, ${periodId}, ${trialRunNumber}, ${userId},
+             ${bal.leaveTypeId}, ${toDeduct.toFixed(2)}, 'applied', ${autocoverNote})
+        `);
 
         remaining -= toDeduct;
       }
