@@ -834,7 +834,15 @@ async function postJeToSap(userId: number, jePayload: any): Promise<{ success: b
 }
 
 function getGlCode(mappings: any[], code: string, context: string): string | null {
-  const m = mappings.find(r => r.componentCode === code && r.postingContext === context && r.glAccountCode && r.glAccountCode.trim() !== '' && r.isActive);
+  const m = mappings.find(r =>
+    r.componentCode === code &&
+    r.postingContext === context &&
+    r.isActive &&
+    (
+      (r.glAccountCode && r.glAccountCode.trim() !== '') ||
+      (r.sapAcctCode && r.sapAcctCode.trim() !== '')
+    )
+  );
   if (!m) return null;
   if (m.sapAcctCode && m.sapAcctCode.trim() !== '') return m.sapAcctCode;
   return m.glAccountCode;
