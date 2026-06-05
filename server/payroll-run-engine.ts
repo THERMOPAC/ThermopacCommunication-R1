@@ -1058,7 +1058,9 @@ async function stepSalaryCalculation(
       // ── Official payroll auto-cover: deduct leave balance ──────────────────
       // Read balanceCoveredDays set by stepLeaveConsolidation. If > 0, apply
       // the actual DB deduction now that we have a payrollRecordId.
-      // Idempotent: skipped if payrollLeaveAutocover already exists for this record.
+      // Idempotent: skipped if payrollLeaveAutocover already exists for this employee/period.
+      // Checks by (userId, periodId, status='applied') so that a trial run's prior deduction
+      // is correctly detected and not duplicated on official conversion.
       const balanceCoveredDaysForDeduction = parseFloat(
         attSnap[0]?.balanceCoveredDays?.toString() || '0'
       );
@@ -1067,7 +1069,11 @@ async function stepSalaryCalculation(
         const existingAutocover = await db
           .select({ id: payrollLeaveAutocover.id })
           .from(payrollLeaveAutocover)
-          .where(eq(payrollLeaveAutocover.payrollRecordId, upsertedRecordId))
+          .where(and(
+            eq(payrollLeaveAutocover.userId, emp.id),
+            eq(payrollLeaveAutocover.periodId, periodId),
+            eq(payrollLeaveAutocover.status, 'applied')
+          ))
           .limit(1);
 
         if (existingAutocover.length === 0) {

@@ -22,6 +22,7 @@ import {
   users,
   companyHolidays,
   dailyWorkReports,
+  payrollLeaveAutocover,
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, max, sql, asc, between, inArray, isNull, or } from 'drizzle-orm';
 import { computeEmployeeSalaryNumbers, PAYROLL_CONSTANTS } from './payroll-salary-core';
@@ -568,6 +569,87 @@ router.post('/trial/run', async (req: Request, res: Response) => {
       } as any).returning();
     });
 
+    // ── Trial auto-cover: write leave balance deductions ─────────────────────
+    // Mirrors the official run's deduction step so the leave ledger is accurate
+    // during the trial phase, not only after conversion to official.
+    // On re-run: reverse the previous trial's auto-cover first, then apply fresh.
+    if (balanceCoveredDays > 0) {
+      const existingCovers = await db
+        .select()
+        .from(payrollLeaveAutocover)
+        .where(and(
+          eq(payrollLeaveAutocover.userId, userId),
+          eq(payrollLeaveAutocover.periodId, periodId),
+          eq(payrollLeaveAutocover.status, 'applied')
+        ));
+
+      // Reverse previous deductions for this employee/period
+      for (const cover of existingCovers) {
+        const daysToRestore = parseFloat(cover.daysDeducted?.toString() || '0');
+        if (daysToRestore > 0) {
+          await db.execute(sql`
+            UPDATE leave_balances
+            SET used_days = GREATEST(0, used_days::numeric - ${daysToRestore}::numeric),
+                last_updated = NOW()
+            WHERE user_id = ${userId}
+              AND leave_type_id = ${cover.leaveTypeId}
+              AND year = ${periodYear}
+          `);
+        }
+        await db
+          .update(payrollLeaveAutocover)
+          .set({ status: 'reversed', reversedAt: new Date() })
+          .where(eq(payrollLeaveAutocover.id, cover.id));
+      }
+
+      // Apply fresh deductions: greedy across paid leave balances
+      const allLTs = await db.select().from(leaveTypes);
+      const paidLTIds = new Set(allLTs.filter(lt => lt.isPaid).map(lt => lt.id));
+      const balancesForDeduct = await db
+        .select({
+          id: leaveBalances.id,
+          leaveTypeId: leaveBalances.leaveTypeId,
+          usedDays: leaveBalances.usedDays,
+          allocatedDays: leaveBalances.allocatedDays,
+          carryoverDays: leaveBalances.carryoverDays,
+          pendingDays: leaveBalances.pendingDays,
+        })
+        .from(leaveBalances)
+        .where(and(eq(leaveBalances.userId, userId), eq(leaveBalances.year, periodYear)));
+
+      let remaining = balanceCoveredDays;
+      for (const bal of balancesForDeduct) {
+        if (!paidLTIds.has(bal.leaveTypeId)) continue;
+        if (remaining <= 0) break;
+        const available =
+          parseFloat(bal.allocatedDays) +
+          parseFloat((bal.carryoverDays as string) || '0') -
+          parseFloat(bal.usedDays) -
+          parseFloat(bal.pendingDays);
+        if (available <= 0) continue;
+        const toDeduct = Math.min(remaining, available);
+        const newUsedDays = parseFloat(bal.usedDays) + toDeduct;
+
+        await db
+          .update(leaveBalances)
+          .set({ usedDays: newUsedDays.toFixed(2), lastUpdated: new Date() })
+          .where(eq(leaveBalances.id, bal.id));
+
+        await db.insert(payrollLeaveAutocover).values({
+          payrollRecordId: newRecord.id,
+          periodId,
+          runNumber: 0,
+          userId,
+          leaveTypeId: bal.leaveTypeId,
+          daysDeducted: toDeduct.toFixed(2),
+          status: 'applied',
+          notes: `Trial run ${newRecord.trialRunNo}: ${toDeduct.toFixed(2)} day(s) deducted from leave balance to cover LOP`,
+        } as any);
+
+        remaining -= toDeduct;
+      }
+    }
+
     const empName = employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : employee.username;
 
     res.json({
@@ -732,6 +814,37 @@ router.post('/trial/:recordId/cancel', async (req: Request, res: Response) => {
     if (!record) return res.status(404).json({ error: 'Trial record not found' });
     if (record.trialStatus !== 'generated') {
       return res.status(409).json({ error: `Cannot cancel trial in status: ${record.trialStatus}. Only 'generated' trials may be cancelled.` });
+    }
+
+    // Reverse any auto-cover deductions applied by this trial
+    const trialCovers = await db
+      .select()
+      .from(payrollLeaveAutocover)
+      .where(and(
+        eq(payrollLeaveAutocover.payrollRecordId, recordId),
+        eq(payrollLeaveAutocover.status, 'applied')
+      ));
+
+    for (const cover of trialCovers) {
+      const daysToRestore = parseFloat(cover.daysDeducted?.toString() || '0');
+      if (daysToRestore > 0) {
+        const [period] = await db.select({ startDate: payrollPeriods.startDate })
+          .from(payrollPeriods)
+          .where(eq(payrollPeriods.id, cover.periodId));
+        const coverYear = period ? new Date(period.startDate).getFullYear() : new Date().getFullYear();
+        await db.execute(sql`
+          UPDATE leave_balances
+          SET used_days = GREATEST(0, used_days::numeric - ${daysToRestore}::numeric),
+              last_updated = NOW()
+          WHERE user_id = ${cover.userId}
+            AND leave_type_id = ${cover.leaveTypeId}
+            AND year = ${coverYear}
+        `);
+      }
+      await db
+        .update(payrollLeaveAutocover)
+        .set({ status: 'reversed', reversedAt: new Date() })
+        .where(eq(payrollLeaveAutocover.id, cover.id));
     }
 
     await db.update(payrollRecords)
