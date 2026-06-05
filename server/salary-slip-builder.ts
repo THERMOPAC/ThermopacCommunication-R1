@@ -322,7 +322,12 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
   const balanceMap = new Map(empLeaveBalances.map((b) => [b.leaveTypeId, b]));
 
   const monthlyLeaveReqs = await db
-    .select({ leaveTypeId: leaveRequests.leaveTypeId, totalDays: leaveRequests.totalDays })
+    .select({
+      leaveTypeId: leaveRequests.leaveTypeId,
+      totalDays: leaveRequests.totalDays,
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+    })
     .from(leaveRequests)
     .where(
       and(
@@ -338,6 +343,22 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
       req.leaveTypeId,
       (usedInMonthMap.get(req.leaveTypeId) || 0) + parseFloat(req.totalDays?.toString() || '0')
     );
+  }
+
+  // Build a date → leave type code map so on_leave attendance records can be
+  // labelled correctly in the ABSENT DATES section (e.g. "CL Applied").
+  const leaveTypeCodeMap = new Map(activeLeaveTypes.map((lt) => [lt.id, lt.code]));
+  const dateToLeaveTypeCode = new Map<string, string>();
+  for (const req of monthlyLeaveReqs) {
+    const s = typeof req.startDate === 'string' ? req.startDate : new Date(req.startDate as any).toISOString().split('T')[0];
+    const e = typeof req.endDate === 'string' ? req.endDate : new Date(req.endDate as any).toISOString().split('T')[0];
+    const [sy2, sm2, sd2] = s.split('-').map(Number);
+    const [ey2, em2, ed2] = e.split('-').map(Number);
+    const ltCode = leaveTypeCodeMap.get(req.leaveTypeId) || 'Leave';
+    for (let dt2 = new Date(sy2, sm2 - 1, sd2); dt2 <= new Date(ey2, em2 - 1, ed2); dt2.setDate(dt2.getDate() + 1)) {
+      const dKey = `${dt2.getFullYear()}-${String(dt2.getMonth() + 1).padStart(2, '0')}-${String(dt2.getDate()).padStart(2, '0')}`;
+      dateToLeaveTypeCode.set(dKey, ltCode);
+    }
   }
 
   const periodEndExtended = new Date(record.endDate as string);
@@ -415,7 +436,7 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
         eq(attendanceRecords.userId, record.userId),
         gte(attendanceRecords.date, record.startDate as string),
         lte(attendanceRecords.date, record.endDate as string),
-        inArray(attendanceRecords.status, ['absent', 'half_day'])
+        inArray(attendanceRecords.status, ['absent', 'half_day', 'on_leave'])
       )
     )
     .orderBy(attendanceRecords.date);
@@ -452,10 +473,18 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
 
   const absentDateEntries: { date: string; type: string }[] = [];
   for (const r of absentRecords) {
-    absentDateEntries.push({
-      date: r.date,
-      type: r.status === 'half_day' ? 'Half Day' : 'LOP',
-    });
+    let type: string;
+    if (r.status === 'half_day') {
+      type = 'Half Day';
+    } else if (r.status === 'on_leave') {
+      // Formally approved leave — label as "<Code> Applied" (e.g. "CL Applied")
+      // using the leave request date map built above.
+      const ltCode = dateToLeaveTypeCode.get(r.date) || 'Leave';
+      type = ltCode === 'Leave' ? 'Leave' : `${ltCode} Applied`;
+    } else {
+      type = 'LOP';
+    }
+    absentDateEntries.push({ date: r.date, type });
   }
 
   const startStr =
@@ -483,11 +512,10 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
   }
   absentDateEntries.sort((a, b) => a.date.localeCompare(b.date));
 
-  // Re-label CL-covered absent dates.
-  // Auto-cover applies greedily to the earliest absent/missing dates in
-  // chronological order.  The count of CL-covered dates = paidLeaveDays from
-  // the attendance snapshot (which caps at the number of LOP-type entries in
-  // the list because formally-approved on_leave days aren't queried above).
+  // Re-label payroll auto-cover dates.
+  // Auto-cover (paidLeaveDays from the snapshot) applies greedily to the
+  // earliest LOP-type entries in chronological order.  Formally-approved
+  // on_leave entries are already labelled above and are intentionally skipped.
   if (paidLeaveUsed > 0) {
     let remaining = Math.round(paidLeaveUsed);
     for (const entry of absentDateEntries) {
