@@ -288,6 +288,7 @@ export class SalarySlipGenerator {
           { label: 'Salary Basis', value: 'Daily' },
           { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
           { label: 'Weekly Offs', value: (d.period.weeklyOffs || 0).toFixed(1) },
+          { label: 'Paid Company Holidays', value: (d.period.holidays || 0).toFixed(1) },
           { label: 'Paid Leave Used for LOP Adjustment', value: totalLeaveUsed.toFixed(1) },
           { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
         ]

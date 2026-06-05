@@ -584,7 +584,9 @@ async function stepLeaveConsolidation(
             balanceCoveredDaysRun = Math.min(availablePaidBalance, dailyAbsentDays);
           }
 
-          const newPaidDays = currentPaidDays + paidLeaveDays + balanceCoveredDaysRun;
+          // Company holidays are paid for daily-rate employees
+          const companyHolidayCount = parseInt(snap.companyHolidays?.toString() || '0');
+          const newPaidDays = currentPaidDays + paidLeaveDays + balanceCoveredDaysRun + companyHolidayCount;
           const totalPaidLeaveForSnap = paidLeaveDays + balanceCoveredDaysRun;
 
           await db

@@ -241,6 +241,8 @@ router.post('/trial/run', async (req: Request, res: Response) => {
           paidLeaveDays += balanceCoveredDays;
         }
       }
+      // Company holidays are paid for daily-rate employees
+      paidDays += holidayDates.size;
     } else {
       const covered = Math.min(paidLeaveDays, lopDays);
       lopDays = Math.max(0, lopDays - covered);
