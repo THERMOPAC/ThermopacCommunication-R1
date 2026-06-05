@@ -440,6 +440,7 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
       )
     )
     .orderBy(attendanceRecords.date);
+  console.log(`[BUILDER] userId=${record.userId} absentRecords(${absentRecords.length}):`, JSON.stringify(absentRecords));
 
   const allAttRecords = await db
     .select({ date: attendanceRecords.date })
