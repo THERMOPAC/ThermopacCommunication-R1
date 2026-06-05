@@ -396,13 +396,19 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
     const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;
     const opening = currentClosing + usedInMonth - accruedInMonth;
 
+    // Closing must be internally consistent with opening/accrued/used shown on the slip.
+    // Do not use raw currentClosing — if allocated_days diverges from the accrual log
+    // (e.g. accrual wrote the log but failed to update leave_balances), closing would
+    // contradict the other figures on the slip.
+    const computedClosing = Math.max(0, Math.max(0, opening) + accruedInMonth - usedInMonth);
+
     if (opening === 0 && usedInMonth === 0 && accruedInMonth === 0) continue;
     salarySlipData.leaveBalances!.push({
       leaveType: lt.code,
       opening: Math.max(0, opening),
       used: usedInMonth,
       accrued: accruedInMonth,
-      closing: currentClosing,
+      closing: computedClosing,
     });
   }
 
