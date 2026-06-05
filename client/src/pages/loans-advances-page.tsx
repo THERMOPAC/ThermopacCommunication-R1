@@ -351,8 +351,10 @@ export default function LoansAdvancesPage() {
     setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'lump_sum', recoveryAmount: '', recoveryMonths: '', advanceDate: getToday(), startRecoveryDate: getFirstOfNextMonth(), reason: '', approvedRequestReference: '' });
   }
 
-  const filteredLoans = employeeFilter === 'all' ? loans : loans.filter((l: any) => String(l.employeeId) === employeeFilter);
-  const filteredAdvances = employeeFilter === 'all' ? advances : advances.filter((a: any) => String(a.employeeId) === employeeFilter);
+  const filteredLoans = (employeeFilter === 'all' ? loans : loans.filter((l: any) => String(l.employeeId) === employeeFilter))
+    .slice().sort((a: any, b: any) => new Date(b.disbursementDate || b.createdAt).getTime() - new Date(a.disbursementDate || a.createdAt).getTime());
+  const filteredAdvances = (employeeFilter === 'all' ? advances : advances.filter((a: any) => String(a.employeeId) === employeeFilter))
+    .slice().sort((a: any, b: any) => new Date(b.advanceDate || b.createdAt).getTime() - new Date(a.advanceDate || a.createdAt).getTime());
 
   const totalLoanOutstanding = filteredLoans.filter((l: any) => l.status === 'active').reduce((s: number, l: any) => s + parseFloat(l.outstandingBalance || '0'), 0);
   const totalAdvanceOutstanding = filteredAdvances.filter((a: any) => a.status === 'active').reduce((s: number, a: any) => s + parseFloat(a.outstandingBalance || '0'), 0);
@@ -489,6 +491,8 @@ export default function LoansAdvancesPage() {
                       <TableHead>Reference</TableHead>
                       <TableHead>Employee</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Disbursement Date</TableHead>
+                      <TableHead>Recovery Start</TableHead>
                       <TableHead>Principal</TableHead>
                       <TableHead>EMI</TableHead>
                       <TableHead>Repaid</TableHead>
@@ -505,6 +509,8 @@ export default function LoansAdvancesPage() {
                         <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
                         <TableCell>{loan.employeeName}</TableCell>
                         <TableCell className="capitalize">{loan.loanType}</TableCell>
+                        <TableCell className="text-sm">{loan.disbursementDate ? fmtDate(loan.disbursementDate) : '—'}</TableCell>
+                        <TableCell className="text-sm">{loan.startDeductionDate ? fmtDate(loan.startDeductionDate) : '—'}</TableCell>
                         <TableCell>{formatCurrency(loan.principalAmount)}</TableCell>
                         <TableCell>{formatCurrency(loan.emiAmount)}</TableCell>
                         <TableCell>{formatCurrency(loan.totalRepaid)}</TableCell>
@@ -605,6 +611,8 @@ export default function LoansAdvancesPage() {
                       <TableHead>Employee</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Recovery Type</TableHead>
+                      <TableHead>Advance Date</TableHead>
+                      <TableHead>Recovery Start</TableHead>
                       <TableHead>Recovery/Month</TableHead>
                       <TableHead>Recovered</TableHead>
                       <TableHead>Outstanding</TableHead>
@@ -620,6 +628,8 @@ export default function LoansAdvancesPage() {
                         <TableCell>{adv.employeeName}</TableCell>
                         <TableCell>{formatCurrency(adv.amount)}</TableCell>
                         <TableCell className="capitalize">{adv.recoveryType?.replace('_', ' ')}</TableCell>
+                        <TableCell className="text-sm">{adv.advanceDate ? fmtDate(adv.advanceDate) : '—'}</TableCell>
+                        <TableCell className="text-sm">{adv.startRecoveryDate ? fmtDate(adv.startRecoveryDate) : '—'}</TableCell>
                         <TableCell>{adv.recoveryType === 'installment' ? formatCurrency(adv.recoveryAmount || 0) : 'Full'}</TableCell>
                         <TableCell>{formatCurrency(adv.totalRecovered)}</TableCell>
                         <TableCell className="font-semibold">{formatCurrency(adv.outstandingBalance)}</TableCell>
