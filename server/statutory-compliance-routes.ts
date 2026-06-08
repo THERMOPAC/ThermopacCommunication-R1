@@ -478,18 +478,24 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
     return res.status(409).json({ error: 'A challan already exists for this module and period' });
   }
 
-  // C7: official records only — trial records must not appear in statutory TDS challans
-  const records = await db.select().from(payrollRecords)
-    .where(and(
-      eq(payrollRecords.periodId, payrollPeriodId),
-      eq(payrollRecords.recordType as any, 'official'),
-      inArray(payrollRecords.status as any, [
-        'generated', 'processed', 'approved', 'paid', 'locked', 'verified', 'transferred',
-      ])
-    ));
+  // C7 (revised): challan-eligible = transferred + SAP-confirmed (sap_je_number IS NOT NULL AND sap_posting_status = 'posted')
+  // record_type filter removed — trial records transferred to SAP are statutory-eligible
+  const eligibleResult = await db.execute(sql`
+    SELECT id, user_id, gross_pay,
+           tds_amount, income_tax,
+           employee_pf, provident_fund, employer_pf,
+           employee_esic, esi_deduction, employer_esic,
+           professional_tax
+    FROM payroll_records
+    WHERE period_id = ${payrollPeriodId}
+      AND status = 'transferred'
+      AND sap_je_number IS NOT NULL
+      AND sap_posting_status = 'posted'
+  `);
+  const records = eligibleResult.rows as any[];
 
   if (records.length === 0) {
-    return res.status(400).json({ error: 'No official payroll records found for this period' });
+    return res.status(400).json({ error: 'No SAP-confirmed transferred payroll records found for this period' });
   }
 
   const startDate = new Date(period.startDate);
@@ -502,30 +508,31 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
 
   for (const rec of records) {
     let empAmt = 0, emprAmt = 0;
-    const gross = parseFloat(rec.grossPay?.toString() || '0');
+    // raw SQL rows use snake_case keys
+    const gross = parseFloat(rec.gross_pay?.toString() || '0');
 
     switch (moduleType) {
       case 'TDS':
-        empAmt = parseFloat(rec.tdsAmount?.toString() || rec.incomeTax?.toString() || '0');
+        empAmt = parseFloat(rec.tds_amount?.toString() || rec.income_tax?.toString() || '0');
         break;
       case 'PF':
-        empAmt = parseFloat(rec.employeePf?.toString() || rec.providentFund?.toString() || '0');
-        emprAmt = parseFloat(rec.employerPf?.toString() || '0');
+        empAmt = parseFloat(rec.employee_pf?.toString() || rec.provident_fund?.toString() || '0');
+        emprAmt = parseFloat(rec.employer_pf?.toString() || '0');
         break;
       case 'ESIC':
-        empAmt = parseFloat(rec.employeeEsic?.toString() || rec.esiDeduction?.toString() || '0');
-        emprAmt = parseFloat(rec.employerEsic?.toString() || '0');
+        empAmt = parseFloat(rec.employee_esic?.toString() || rec.esi_deduction?.toString() || '0');
+        emprAmt = parseFloat(rec.employer_esic?.toString() || '0');
         break;
       case 'PT':
-        empAmt = parseFloat(rec.professionalTax?.toString() || '0');
+        empAmt = parseFloat(rec.professional_tax?.toString() || '0');
         break;
     }
 
-    if ((empAmt > 0 || emprAmt > 0) && rec.userId) {
+    if ((empAmt > 0 || emprAmt > 0) && rec.user_id) {
       totalEmp += empAmt;
       totalEmpr += emprAmt;
       detailRows.push({
-        employeeId: rec.userId,
+        employeeId: rec.user_id,
         payrollRecordId: rec.id,
         employeeContribution: empAmt.toFixed(2),
         employerContribution: emprAmt.toFixed(2),
@@ -535,6 +542,11 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
   }
 
   const totalAmount = totalEmp + totalEmpr;
+
+  // Block ₹0 challan generation
+  if (totalAmount === 0) {
+    return res.status(400).json({ error: 'Total statutory amount is ₹0 for this period. Challan not generated.' });
+  }
   const ref = `${moduleType}-${year}-${month.toString().padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
 
   const [challan] = await db.insert(statutoryChallans).values({
