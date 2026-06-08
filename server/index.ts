@@ -360,3 +360,15 @@ process.on('SIGINT',  () => _gracefulShutdown('SIGINT'));
 process.on('unhandledRejection', (reason: any) => {
   console.error('[CRITICAL] Unhandled Promise Rejection — server continues:', reason);
 });
+
+process.on('uncaughtException', (err: any) => {
+  // Neon serverless DB WebSocket drops (terminating connection / admin command)
+  // must NOT crash the server — log and continue.
+  const msg = err?.message || String(err);
+  if (msg.includes('terminating connection') || msg.includes('Unhandled error')) {
+    console.warn('[DB] Neon connection drop — ignored, server continues:', msg);
+    return;
+  }
+  console.error('[CRITICAL] Uncaught Exception — server exiting:', err);
+  process.exit(1);
+});
