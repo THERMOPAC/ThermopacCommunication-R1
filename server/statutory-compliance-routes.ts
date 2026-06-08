@@ -746,7 +746,25 @@ router.get('/payroll-periods/finalized', async (_req: Request, res: Response) =>
           )
     ORDER BY start_date DESC
   `);
-  res.json(result.rows);
+  // Raw SQL returns snake_case; map to camelCase to match client expectations.
+  const periods = (result.rows as any[]).map(r => ({
+    id: r.id,
+    periodName: r.period_name,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    payDate: r.pay_date,
+    status: r.status,
+    totalEmployees: r.total_employees,
+    totalGrossPay: r.total_gross_pay,
+    totalDeductions: r.total_deductions,
+    totalNetPay: r.total_net_pay,
+    createdAt: r.created_at,
+    processedAt: r.processed_at,
+    isLocked: r.is_locked,
+    currentRunNumber: r.current_run_number,
+    finalizedRunNumber: r.finalized_run_number,
+  }));
+  res.json(periods);
 });
 
 router.get('/reconciliation/:moduleType', async (req: Request, res: Response) => {
