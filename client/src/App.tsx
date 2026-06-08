@@ -146,8 +146,8 @@ function Router() {
       <ProtectedRoute path="/finance/gl-mapping" component={() => <Finance.GlMappingPage />} />
       <ProtectedRoute path="/finance/statutory/tds" component={() => <Finance.TdsCompliancePage />} />
       <ProtectedRoute path="/finance/statutory/pf" component={() => <Finance.PfCompliancePage />} />
-      <ProtectedRoute path="/finance/statutory/esic" component={() => <Layout><Finance.EsicCompliancePage /></Layout>} />
-      <ProtectedRoute path="/finance/statutory/pt" component={() => <Layout><Finance.PtCompliancePage /></Layout>} />
+      <ProtectedRoute path="/finance/statutory/esic" component={() => <Finance.EsicCompliancePage />} />
+      <ProtectedRoute path="/finance/statutory/pt" component={() => <Finance.PtCompliancePage />} />
       <ProtectedRoute path="/finance/company-income-tax" component={() => <Finance.CompanyIncomeTaxPage />} />
       
       {/* Administration Module Routes */}
