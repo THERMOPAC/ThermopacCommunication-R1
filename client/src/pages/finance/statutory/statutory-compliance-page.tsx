@@ -105,7 +105,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
     paymentDate: '', paymentMode: 'online', paymentReference: '', bankName: '',
     challanSerial: '', bsrCode: '', cinNumber: '', trrnNumber: '', grnNumber: '',
     esicEmployerCode: '', establishmentCode: '', ptrcNumber: '',
-    interest: '0', penalty: '0',
+    interest: '0', penalty: '0', taxYear: '',
   });
   const [filingForm, setFilingForm] = useState({
     filingPeriod: '', filingDate: '', acknowledgementNumber: '', remarks: '', formType: config.formType,
@@ -662,17 +662,29 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
             {moduleType === 'TDS' && (
               <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
                 <div className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Challan Reference Details (ITNS 281)</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm items-center">
                   <div className="text-muted-foreground">TAN</div>
-                  <div className="font-mono font-medium">{activeCompany?.legalTax?.tan || '—'}</div>
+                  <div className="font-mono font-medium">{activeCompany?.company?.legalTax?.tan || '—'}</div>
                   <div className="text-muted-foreground">Tax Year</div>
-                  <div className="font-medium">{selectedChallan?.financialYear || '—'}</div>
+                  <Select
+                    value={paymentForm.taxYear || selectedChallan?.financialYear || ''}
+                    onValueChange={v => setPaymentForm(f => ({ ...f, taxYear: v }))}
+                  >
+                    <SelectTrigger className="h-7 text-sm bg-white">
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['2022-23','2023-24','2024-25','2025-26','2026-27','2027-28'].map(y => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <div className="text-muted-foreground">Major Head</div>
                   <div className="font-medium">0021 — Income Tax (Other than Companies)</div>
                   <div className="text-muted-foreground">Minor Head</div>
                   <div className="font-medium">200 — TDS/TCS Payable by Taxpayer</div>
                   <div className="text-muted-foreground">Nature of Payment</div>
-                  <div className="font-medium">1002 — Employees other than Govt (Sec 192)</div>
+                  <div className="font-medium">Payment of Employees other than Government Employees - 392</div>
                 </div>
               </div>
             )}
