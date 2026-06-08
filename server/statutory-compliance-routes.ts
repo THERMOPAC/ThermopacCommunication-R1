@@ -34,6 +34,47 @@ function getEsicHalf(month: number): string {
   return 'H2';
 }
 
+// Nature codes per approved TDS taxonomy (Income Tax Act 2025)
+const NATURE_CODE_MAP: Record<string, string> = {
+  SALARY_TDS:         'SAL',
+  CONTRACTOR_TDS:     'CON',
+  PROFESSIONAL_TDS:   'PRO',
+  TECHNICAL_FEES_TDS: 'TEC',
+  RENT_TDS:           'RNT',
+  COMMISSION_TDS:     'COM',
+  INTEREST_TDS:       'INT',
+  PURCHASE_TDS:       'PUR',
+  NON_RESIDENT_TDS:   'NRE',
+  TCS:                'TCS',
+  // Salary-route module defaults
+  TDS:  'SAL',
+  PF:   'EPF',
+  ESIC: 'ESI',
+  PT:   'PT',
+};
+
+function fyShort(fy: string): string {
+  // "2026-27" → "2627"
+  const [start, end] = fy.split('-');
+  return start.slice(2) + end;
+}
+
+async function buildChallanRef(
+  moduleCode: string,
+  natCode: string,
+  fy: string,
+  month: number,
+): Promise<string> {
+  const prefix = `${moduleCode}-${fyShort(fy)}-${month.toString().padStart(2, '0')}-${natCode}`;
+  const result = await db.execute(sql`
+    SELECT COUNT(*) AS cnt FROM statutory_challans
+    WHERE challan_reference LIKE ${prefix + '-%'}
+  `);
+  const cnt = parseInt((result.rows as any[])[0]?.cnt ?? '0', 10);
+  const seq = (cnt + 1).toString().padStart(3, '0');
+  return `${prefix}-${seq}`;
+}
+
 router.get('/gl-mappings', async (_req: Request, res: Response) => {
   const mappings = await db.select().from(glAccountMappings).orderBy(asc(glAccountMappings.category), asc(glAccountMappings.componentCode));
   res.json(mappings);
@@ -547,7 +588,8 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
   if (totalAmount === 0) {
     return res.status(400).json({ error: 'Total statutory amount is ₹0 for this period. Challan not generated.' });
   }
-  const ref = `${moduleType}-${year}-${month.toString().padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+  const natCode = NATURE_CODE_MAP[moduleType] || moduleType;
+  const ref = await buildChallanRef(moduleType, natCode, fy, month);
 
   const [challan] = await db.insert(statutoryChallans).values({
     challanReference: ref,
@@ -2010,7 +2052,8 @@ router.post('/tds/generate-non-salary-challan', async (req: Request, res: Respon
     }
 
     const deducteeCount = new Set(entries.map(e => e.deducteePan || e.deducteeName)).size;
-    const ref = `TDS-${tdsSection}-${year}-${month.toString().padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+    const natCode = NATURE_CODE_MAP[tdsSection] || tdsSection;
+    const ref = await buildChallanRef('TDS', natCode, fy, month);
 
     const [challan] = await db.insert(statutoryChallans).values({
       challanReference: ref,
