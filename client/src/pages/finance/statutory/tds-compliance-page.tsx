@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
@@ -531,7 +531,16 @@ function ReconciliationTab() {
 
   const { data: periods = [] } = useQuery<any[]>({
     queryKey: ['/api/statutory/payroll-periods/finalized'],
+    queryFn: () =>
+      fetch('/api/statutory/payroll-periods/finalized', { credentials: 'include' })
+        .then(r => r.json()),
+    staleTime: 0,
   });
+
+  // Ensure fresh data on every mount (Vite HMR doesn't re-mount but changes key after focus).
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['/api/statutory/payroll-periods/finalized'] });
+  }, []);
 
   const queryParams = new URLSearchParams({ financialYear: filterFY });
   if (filterQuarter !== 'all') queryParams.set('quarter', filterQuarter);

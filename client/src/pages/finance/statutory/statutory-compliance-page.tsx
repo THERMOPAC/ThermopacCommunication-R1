@@ -118,22 +118,27 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
   }, []);
 
   const [filterFY, setFilterFY] = useState(currentFY);
+  // Bumped each time the Generate dialog opens to force a fresh network fetch.
+  const [periodsFetchKey, setPeriodsFetchKey] = useState(0);
 
   const { data: challans = [] } = useQuery<any[]>({
     queryKey: ['/api/statutory/challans', { moduleType, financialYear: filterFY }],
-    queryFn: () => fetch(`/api/statutory/challans?moduleType=${moduleType}&financialYear=${filterFY}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/statutory/challans?moduleType=${moduleType}&financialYear=${filterFY}`, { credentials: 'include' }).then(r => r.json()),
   });
 
-  const { data: periods = [] } = useQuery<any[]>({
-    queryKey: ['/api/statutory/payroll-periods/finalized'],
+  const { data: periods = [], isLoading: periodsLoading } = useQuery<any[]>({
+    queryKey: ['/api/statutory/payroll-periods/finalized', periodsFetchKey],
+    queryFn: () =>
+      fetch('/api/statutory/payroll-periods/finalized', { credentials: 'include' })
+        .then(r => r.json()),
     staleTime: 0,
   });
 
-  // Force a fresh fetch every time the Generate dialog opens so the dropdown
-  // always reflects the latest periods even after a Vite HMR reconnect.
+  // Bump the fetch key every time the Generate dialog opens to guarantee a
+  // fresh network request regardless of HMR / cache state.
   useEffect(() => {
     if (showGenerateDialog) {
-      queryClient.invalidateQueries({ queryKey: ['/api/statutory/payroll-periods/finalized'] });
+      setPeriodsFetchKey(k => k + 1);
     }
   }, [showGenerateDialog]);
 
@@ -603,15 +608,21 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
               <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
                 <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
                 <SelectContent>
-                  {periods
-                    .filter((p: any) => !challans.some((c: any) => c.payrollPeriodId === p.id))
-                    .map((p: any) => (
-                    <SelectItem key={p.id} value={p.id.toString()}>
-                      {p.periodName || `${new Date(p.startDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`} — {p.status}
-                    </SelectItem>
-                  ))}
-                  {periods.filter((p: any) => !challans.some((c: any) => c.payrollPeriodId === p.id)).length === 0 && (
-                    <SelectItem value="__none__" disabled>All finalized periods already have challans</SelectItem>
+                  {periodsLoading ? (
+                    <SelectItem value="__loading__" disabled>Loading periods…</SelectItem>
+                  ) : (
+                    <>
+                      {periods
+                        .filter((p: any) => !challans.some((c: any) => c.payrollPeriodId === p.id))
+                        .map((p: any) => (
+                          <SelectItem key={p.id} value={p.id.toString()}>
+                            {p.periodName} — {p.status}
+                          </SelectItem>
+                        ))}
+                      {periods.filter((p: any) => !challans.some((c: any) => c.payrollPeriodId === p.id)).length === 0 && (
+                        <SelectItem value="__none__" disabled>All finalized periods already have challans</SelectItem>
+                      )}
+                    </>
                   )}
                 </SelectContent>
               </Select>
