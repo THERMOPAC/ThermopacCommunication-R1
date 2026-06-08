@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -193,6 +194,8 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
 
   const [showSapPostDialog, setShowSapPostDialog] = useState(false);
   const [sapChallanTarget, setSapChallanTarget] = useState<{ id: number } | null>(null);
+  const [deleteConfirmChallan, setDeleteConfirmChallan] = useState<any>(null);
+  const [reverseConfirmChallan, setReverseConfirmChallan] = useState<any>(null);
 
   const postSapMutation = useMutation({
     mutationFn: ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) =>
@@ -473,11 +476,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                             <>
                               <Button size="sm" variant="outline" onClick={() => openPaymentDialog(c)}><CreditCard className="h-3 w-3 mr-1" />Pay</Button>
                               <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => {
-                                  if (confirm(`Delete challan ${c.challanReference}? This will remove the challan and its employee details.`)) {
-                                    deleteChallanMutation.mutate(c.id);
-                                  }
-                                }}>Delete</Button>
+                                onClick={() => setDeleteConfirmChallan(c)}>Delete</Button>
                             </>
                           )}
                           {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'not_posted' || c.sapPostingStatus === 'failed') && (
@@ -493,11 +492,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                           {c.sapPostingStatus === 'posted' && !c.reversalSapDocEntry && (
                             <Button size="sm" variant="outline" className="text-orange-600"
                               disabled={reverseSapMutation.isPending}
-                              onClick={() => {
-                                if (confirm(`Reverse SAP JE for challan ${c.challanReference}? This will post a mirror reversal entry using the original bank account (${c.sapBankAccountCode || 'stored'}).`)) {
-                                  reverseSapMutation.mutate(c.id);
-                                }
-                              }}><Undo2 className="h-3 w-3 mr-1" />Reverse</Button>
+                              onClick={() => setReverseConfirmChallan(c)}><Undo2 className="h-3 w-3 mr-1" />Reverse</Button>
                           )}
                           {c.sapPostingStatus === 'reversed' && (
                             <Badge variant="outline" className="text-xs text-gray-500">Reversed</Badge>
@@ -888,6 +883,44 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
         }}
         isPending={postSapMutation.isPending}
       />
+
+      <AlertDialog open={!!deleteConfirmChallan} onOpenChange={(open) => { if (!open) setDeleteConfirmChallan(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Challan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete challan <strong>{deleteConfirmChallan?.challanReference}</strong>?<br />
+              This will permanently remove the challan and all its employee details. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => { deleteChallanMutation.mutate(deleteConfirmChallan.id); setDeleteConfirmChallan(null); }}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!reverseConfirmChallan} onOpenChange={(open) => { if (!open) setReverseConfirmChallan(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reverse SAP Journal Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Reverse SAP JE for challan <strong>{reverseConfirmChallan?.challanReference}</strong>?<br />
+              This will post a mirror reversal entry in SAP B1 using the original bank account
+              {reverseConfirmChallan?.sapBankAccountCode ? ` (${reverseConfirmChallan.sapBankAccountCode})` : ''}.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-orange-600 hover:bg-orange-700" onClick={() => { reverseSapMutation.mutate(reverseConfirmChallan.id); setReverseConfirmChallan(null); }}>
+              Reverse
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
