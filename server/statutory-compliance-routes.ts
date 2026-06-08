@@ -731,18 +731,22 @@ router.put('/pt-state-config/:id', async (req: Request, res: Response) => {
 router.get('/payroll-periods/finalized', async (_req: Request, res: Response) => {
   // Include periods that are formally finalized (status in VALID_PAYROLL_STATUSES)
   // OR that have at least one official payroll record run (period stuck in 'draft'
-  // but payroll was executed — the real-world signal that the period is usable).
-  const periods = await db.select().from(payrollPeriods)
-    .where(
-      sql`${payrollPeriods.status} = ANY(ARRAY[${sql.raw(VALID_PAYROLL_STATUSES.map(s => `'${s}'`).join(','))}]::text[])
-          OR EXISTS (
+  // but payroll was executed — the real-world signal that the period is usable.
+  // Raw SQL used here to guarantee correlated subquery serialization.
+  const result = await db.execute(sql`
+    SELECT id, period_name, start_date, end_date, pay_date, status,
+           total_employees, total_gross_pay, total_deductions, total_net_pay,
+           created_at, processed_at, is_locked, current_run_number, finalized_run_number
+    FROM payroll_periods
+    WHERE status = ANY(ARRAY['processed','approved','paid','locked']::text[])
+       OR EXISTS (
             SELECT 1 FROM payroll_records pr
-            WHERE pr.period_id = ${payrollPeriods.id}
+            WHERE pr.period_id = payroll_periods.id
               AND pr.record_type = 'official'
-          )`
-    )
-    .orderBy(desc(payrollPeriods.startDate));
-  res.json(periods);
+          )
+    ORDER BY start_date DESC
+  `);
+  res.json(result.rows);
 });
 
 router.get('/reconciliation/:moduleType', async (req: Request, res: Response) => {

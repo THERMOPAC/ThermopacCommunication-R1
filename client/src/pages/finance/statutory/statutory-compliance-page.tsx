@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { fmtDate as fmtDateShared } from "@/lib/date-format";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
@@ -126,7 +126,16 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
 
   const { data: periods = [] } = useQuery<any[]>({
     queryKey: ['/api/statutory/payroll-periods/finalized'],
+    staleTime: 0,
   });
+
+  // Force a fresh fetch every time the Generate dialog opens so the dropdown
+  // always reflects the latest periods even after a Vite HMR reconnect.
+  useEffect(() => {
+    if (showGenerateDialog) {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/payroll-periods/finalized'] });
+    }
+  }, [showGenerateDialog]);
 
   const { data: filings = [] } = useQuery<any[]>({
     queryKey: ['/api/statutory/filing-status', { moduleType, financialYear: filterFY }],
