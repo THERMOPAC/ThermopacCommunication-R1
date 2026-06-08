@@ -127,6 +127,11 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
     queryFn: () => fetch(`/api/statutory/challans?moduleType=${moduleType}&financialYear=${filterFY}`, { credentials: 'include' }).then(r => r.json()),
   });
 
+  const { data: activeCompany } = useQuery<any>({
+    queryKey: ['/api/company/active'],
+    queryFn: () => fetch('/api/company/active', { credentials: 'include' }).then(r => r.json()),
+  });
+
   const { data: periods = [], isLoading: periodsLoading } = useQuery<any[]>({
     queryKey: ['/api/statutory/payroll-periods/finalized', periodsFetchKey],
     queryFn: () =>
@@ -654,6 +659,23 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Record Payment — {selectedChallan?.challanReference}</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            {moduleType === 'TDS' && (
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                <div className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Challan Reference Details (ITNS 281)</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <div className="text-muted-foreground">TAN</div>
+                  <div className="font-mono font-medium">{activeCompany?.legalTax?.tan || '—'}</div>
+                  <div className="text-muted-foreground">Tax Year</div>
+                  <div className="font-medium">{selectedChallan?.financialYear || '—'}</div>
+                  <div className="text-muted-foreground">Major Head</div>
+                  <div className="font-medium">0021 — Income Tax (Other than Companies)</div>
+                  <div className="text-muted-foreground">Minor Head</div>
+                  <div className="font-medium">200 — TDS/TCS Payable by Taxpayer</div>
+                  <div className="text-muted-foreground">Nature of Payment</div>
+                  <div className="font-medium">1002 — Employees other than Govt (Sec 192)</div>
+                </div>
+              </div>
+            )}
             <div className="p-3 bg-muted rounded-lg">
               <div className="text-sm text-muted-foreground">Payroll-Calculated Amount (read-only)</div>
               <div className="text-xl font-bold">{fmt(
