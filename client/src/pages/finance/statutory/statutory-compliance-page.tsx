@@ -489,7 +489,10 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                                 onClick={() => setDeleteConfirmChallan(c)}>Delete</Button>
                             </>
                           )}
-                          {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'not_posted' || c.sapPostingStatus === 'draft' || c.sapPostingStatus === 'failed') && (
+                          {c.status === 'paid' && moduleType === 'TDS' && (
+                            <Button size="sm" variant="outline" onClick={() => filingMutation.mutate({ id: c.id })}><FileText className="h-3 w-3 mr-1" />File</Button>
+                          )}
+                          {c.status === 'paid' && moduleType !== 'TDS' && (!c.sapPostingStatus || c.sapPostingStatus === 'not_posted' || c.sapPostingStatus === 'draft' || c.sapPostingStatus === 'failed') && (
                             <>
                               <Button size="sm" variant="outline" onClick={() => filingMutation.mutate({ id: c.id })}><FileText className="h-3 w-3 mr-1" />File</Button>
                               <Button size="sm" variant="outline" onClick={() => {
