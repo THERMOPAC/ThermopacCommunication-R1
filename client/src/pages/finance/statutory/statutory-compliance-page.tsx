@@ -472,7 +472,12 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                       {moduleType === 'PF' && <TableCell>{c.trrnNumber || '—'}</TableCell>}
                       <TableCell>{c.sapJeReference || c.sapJeNumber || '—'}</TableCell>
                       <TableCell>
-                        <Badge className={STATUS_COLORS[c.sapPostingStatus || c.status]}>{c.sapPostingStatus || c.status}</Badge>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge className={STATUS_COLORS[c.status]}>{c.status}</Badge>
+                          {c.sapPostingStatus && c.sapPostingStatus !== 'not_posted' && (
+                            <Badge className={`${STATUS_COLORS[c.sapPostingStatus] || 'bg-gray-100 text-gray-600'} text-xs`}>{c.sapPostingStatus}</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
@@ -484,7 +489,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                                 onClick={() => setDeleteConfirmChallan(c)}>Delete</Button>
                             </>
                           )}
-                          {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'not_posted' || c.sapPostingStatus === 'failed') && (
+                          {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'not_posted' || c.sapPostingStatus === 'draft' || c.sapPostingStatus === 'failed') && (
                             <>
                               <Button size="sm" variant="outline" onClick={() => filingMutation.mutate({ id: c.id })}><FileText className="h-3 w-3 mr-1" />File</Button>
                               <Button size="sm" variant="outline" onClick={() => {
