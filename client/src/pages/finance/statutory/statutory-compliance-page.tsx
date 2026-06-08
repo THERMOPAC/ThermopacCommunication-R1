@@ -474,7 +474,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
                           <Badge className={STATUS_COLORS[c.status]}>{c.status}</Badge>
-                          {c.sapPostingStatus && c.sapPostingStatus !== 'not_posted' && (
+                          {moduleType !== 'TDS' && c.sapPostingStatus && c.sapPostingStatus !== 'not_posted' && (
                             <Badge className={`${STATUS_COLORS[c.sapPostingStatus] || 'bg-gray-100 text-gray-600'} text-xs`}>{c.sapPostingStatus}</Badge>
                           )}
                         </div>
