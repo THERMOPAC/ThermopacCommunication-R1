@@ -453,8 +453,18 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
   const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, payrollPeriodId));
   if (!period) return res.status(404).json({ error: 'Payroll period not found' });
 
-  if (!VALID_PAYROLL_STATUSES.includes(period.status || '')) {
-    return res.status(400).json({ error: `Payroll period must be in one of these statuses: ${VALID_PAYROLL_STATUSES.join(', ')}. Current status: ${period.status}` });
+  // Allow formally-finalized periods OR any draft period that has at least one
+  // official payroll record (periods stay in 'draft' even after payroll is run).
+  const statusOk = VALID_PAYROLL_STATUSES.includes(period.status || '');
+  if (!statusOk) {
+    const officialCheck = await db.execute(sql`
+      SELECT 1 FROM payroll_records
+      WHERE period_id = ${payrollPeriodId} AND record_type = 'official'
+      LIMIT 1
+    `);
+    if ((officialCheck.rows as any[]).length === 0) {
+      return res.status(400).json({ error: `Payroll period must be in one of these statuses: ${VALID_PAYROLL_STATUSES.join(', ')}. Current status: ${period.status}` });
+    }
   }
 
   const stateCondition = moduleType === 'PT' && state ? state : null;
