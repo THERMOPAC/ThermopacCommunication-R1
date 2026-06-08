@@ -729,8 +729,18 @@ router.put('/pt-state-config/:id', async (req: Request, res: Response) => {
 });
 
 router.get('/payroll-periods/finalized', async (_req: Request, res: Response) => {
+  // Include periods that are formally finalized (status in VALID_PAYROLL_STATUSES)
+  // OR that have at least one official payroll record run (period stuck in 'draft'
+  // but payroll was executed — the real-world signal that the period is usable).
   const periods = await db.select().from(payrollPeriods)
-    .where(inArray(payrollPeriods.status, VALID_PAYROLL_STATUSES))
+    .where(
+      sql`${payrollPeriods.status} = ANY(ARRAY[${sql.raw(VALID_PAYROLL_STATUSES.map(s => `'${s}'`).join(','))}]::text[])
+          OR EXISTS (
+            SELECT 1 FROM payroll_records pr
+            WHERE pr.period_id = ${payrollPeriods.id}
+              AND pr.record_type = 'official'
+          )`
+    )
     .orderBy(desc(payrollPeriods.startDate));
   res.json(periods);
 });
