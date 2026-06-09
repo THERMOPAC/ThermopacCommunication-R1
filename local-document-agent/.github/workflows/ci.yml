@@ -95,6 +95,38 @@ jobs:
           if ($missing) { Write-Error "Missing package files: $($missing -join ', ')"; exit 1 }
           Write-Output "Package structure OK."
 
+      - name: Validate config.json.example has no placeholder values
+        shell: pwsh
+        run: |
+          $cfg = Get-Content config.json.example -Raw
+          Write-Output "=== config.json.example contents ==="
+          Write-Output $cfg
+          Write-Output "=== Checking for placeholders ==="
+          $placeholders = @(
+            'YOUR-ERP',
+            'CHANGE_ME',
+            'your-erp',
+            'changeme'
+          )
+          $found = @()
+          foreach ($p in $placeholders) {
+            if ($cfg -match [regex]::Escape($p)) { $found += $p }
+          }
+          if ($found.Count -gt 0) {
+            Write-Error "config.json.example still contains placeholder values: $($found -join ', '). Push the updated file from the Full Package before rebuilding."
+            exit 1
+          }
+          $parsed = $cfg | ConvertFrom-Json
+          Write-Output "agentCode:       $($parsed.agentCode)"
+          Write-Output "erpBaseUrl:      $($parsed.erpBaseUrl)"
+          Write-Output "allowedRootPath: $($parsed.allowedRootPath)"
+          Write-Output "apiKey length:   $($parsed.apiKey.Length) chars"
+          if ($parsed.apiKey.Length -lt 16) {
+            Write-Error "apiKey is too short (< 16 chars)"
+            exit 1
+          }
+          Write-Output "config.json.example validation PASSED."
+
       # ── Version ───────────────────────────────────────────────────────────────
       - name: Get version from package.json
         id: get-version
