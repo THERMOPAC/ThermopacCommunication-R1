@@ -5,23 +5,36 @@ on:
     branches: [main, master]
   pull_request:
 
+env:
+  # pkg caches the Node.js runtime binary it downloads for each target.
+  # Persisting this avoids a ~80 MB re-download on every run.
+  PKG_CACHE_PATH: ${{ github.workspace }}/.pkg-cache
+
 jobs:
   ci:
-    name: Install · Validate
+    name: Install · Build · Package · Installer
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 24
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
 
+      # ── Dependencies ──────────────────────────────────────────────────────────
       - name: Install dependencies
-        run: npm install
+        timeout-minutes: 5
+        run: npm install --no-fund --no-audit
 
+      # ── TypeScript compile ────────────────────────────────────────────────────
+      - name: Compile TypeScript
+        timeout-minutes: 5
+        run: npm run build
+
+      # ── Validate dist output ──────────────────────────────────────────────────
       - name: Validate dist/ output
         shell: pwsh
         run: |
@@ -58,6 +71,7 @@ jobs:
           if ($missing) { Write-Error "Missing package files: $($missing -join ', ')"; exit 1 }
           Write-Output "Package structure OK."
 
+      # ── Version ───────────────────────────────────────────────────────────────
       - name: Get version from package.json
         id: get-version
         shell: pwsh
@@ -69,6 +83,7 @@ jobs:
           echo "zip-name=$zip" >> $env:GITHUB_OUTPUT
           Write-Output "Packaging: $zip"
 
+      # ── ZIP package ───────────────────────────────────────────────────────────
       - name: Create installable Windows package ZIP
         shell: pwsh
         run: |
@@ -110,15 +125,40 @@ jobs:
           retention-days: 14
 
       # ── Standalone Windows installer (setup.exe) ─────────────────────────────
-      # Uses @yao-pkg/pkg to bundle Node.js 20 runtime into a single exe,
-      # then Inno Setup to wrap it into a one-click setup.exe.
-      # No Node.js installation required on the target machine.
+      # @yao-pkg/pkg bundles Node.js 20 runtime into ThermopacDocAgent.exe.
+      # Inno Setup wraps it into a one-click setup.exe.
+      # No Node.js required on the target machine.
+
+      - name: Cache pkg Node.js binary (node20-win-x64)
+        uses: actions/cache@v4
+        with:
+          path: .pkg-cache
+          key: pkg-node20-win-x64-${{ runner.os }}-v1
 
       - name: Bundle agent into standalone executable (pkg)
+        timeout-minutes: 15
         shell: pwsh
+        env:
+          PKG_CACHE_PATH: ${{ github.workspace }}/.pkg-cache
         run: |
-          npx --yes @yao-pkg/pkg@latest dist/index.js --target node20-win-x64 --output ThermopacDocAgent.exe
-          if (-not (Test-Path ThermopacDocAgent.exe)) { Write-Error "pkg build failed — ThermopacDocAgent.exe not found"; exit 1 }
+          Write-Output "=== pkg: bundling Node.js 20 + agent into single exe ==="
+          Write-Output "PKG_CACHE_PATH: $env:PKG_CACHE_PATH"
+          # Use locally installed pkg from node_modules — avoids re-downloading the package.
+          # @yao-pkg/pkg is in devDependencies and was installed by `npm install` above.
+          $pkgBin = ".\node_modules\.bin\pkg.cmd"
+          if (-not (Test-Path $pkgBin)) { $pkgBin = ".\node_modules\.bin\pkg" }
+          if (-not (Test-Path $pkgBin)) {
+            Write-Error "pkg binary not found in node_modules/.bin — was npm install successful?"
+            Get-ChildItem .\node_modules\.bin\ | Where-Object Name -like "pkg*"
+            exit 1
+          }
+          Write-Output "Using pkg at: $pkgBin"
+          & $pkgBin dist/index.js --target node20-win-x64 --output ThermopacDocAgent.exe
+          if ($LASTEXITCODE -ne 0) { Write-Error "pkg exited with code $LASTEXITCODE"; exit 1 }
+          if (-not (Test-Path ThermopacDocAgent.exe)) {
+            Write-Error "ThermopacDocAgent.exe not found after pkg"
+            exit 1
+          }
           $size = [math]::Round((Get-Item ThermopacDocAgent.exe).Length / 1MB, 1)
           Write-Output "Built ThermopacDocAgent.exe ($size MB)"
 
@@ -128,12 +168,23 @@ jobs:
           "${{ steps.get-version.outputs.version }}" | Out-File VERSION.txt -Encoding utf8 -NoNewline
 
       - name: Install Inno Setup 6
+        timeout-minutes: 5
         shell: pwsh
         run: |
+          Write-Output "=== Downloading Inno Setup 6 ==="
           $out = "$env:TEMP\innosetup.exe"
-          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile $out -UseBasicParsing
-          Start-Process -FilePath $out -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
-          Write-Output "Inno Setup 6 installed"
+          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" `
+            -OutFile $out -UseBasicParsing -TimeoutSec 120
+          Write-Output "Downloaded — running silent install..."
+          Start-Process -FilePath $out `
+            -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            Write-Error "ISCC.exe not found after install — installation may have failed"
+            exit 1
+          }
+          Write-Output "Inno Setup 6 installed: $iscc"
 
       - name: Patch version into setup.iss
         shell: pwsh
@@ -145,16 +196,18 @@ jobs:
           Write-Output "Version patched to: $version"
 
       - name: Build setup.exe (Inno Setup)
+        timeout-minutes: 10
         shell: pwsh
         run: |
+          Write-Output "=== ISCC: compiling setup.exe ==="
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
-          if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe not found after installation"; exit 1 }
+          if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe not found"; exit 1 }
           New-Item -ItemType Directory -Force -Path installer_output | Out-Null
           & $iscc thermopac-doc-agent.iss
           if ($LASTEXITCODE -ne 0) { Write-Error "Inno Setup build failed (exit $LASTEXITCODE)"; exit 1 }
           $exe = "installer_output\ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe"
-          if (-not (Test-Path $exe)) { Write-Error "setup.exe not found after build: $exe"; exit 1 }
+          if (-not (Test-Path $exe)) { Write-Error "setup.exe not found: $exe"; exit 1 }
           $size = [math]::Round((Get-Item $exe).Length / 1MB, 1)
           Write-Output "Built $exe ($size MB)"
 
