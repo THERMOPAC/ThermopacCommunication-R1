@@ -1,7 +1,7 @@
 {
   "agentCode": "THERMOPAC-DOC-AGENT-01",
-  "erpBaseUrl": "https://thermopac-communication-thermopacllp.replit.app",
-  "apiKey": "5WHCLvEm2jGvuVKcS1paMkHQ62tWFgZr",
+  "erpBaseUrl": "https://your-erp.replit.app",
+  "apiKey": "PASTE_API_KEY_FROM_ERP_DASHBOARD",
   "allowedRootPath": "\\\\SERVER\\d\\THERMOPAC",
   "pollIntervalSeconds": 20,
   "maxConcurrentJobs": 1,

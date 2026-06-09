@@ -529,13 +529,38 @@ function DocAgentRow() {
                             </div>
                             {node.lastError && <p className="text-xs text-red-500 mt-0.5">{node.lastError}</p>}
                           </div>
-                          <Badge className={`text-[10px] shrink-0 ${
-                            node.agentState === "IDLE"       ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200" :
-                            node.agentState === "PROCESSING" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200" :
-                            node.agentState === "CONNECTING" ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200" :
-                            node.agentState === "ERROR"      ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200" :
-                            "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                          }`}>{node.agentState || "OFFLINE"}</Badge>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isAdmin && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs border-purple-400 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                title="Generates a new API key and downloads config.json. Copy this file to the agent install directory."
+                                onClick={async () => {
+                                  try {
+                                    const r = await fetch(`/api/local-agent/admin/agents/${encodeURIComponent(node.agentCode)}/rotate-key`, { method: 'POST' });
+                                    if (!r.ok) { const e = await r.json().catch(() => ({})); toast({ title: e.error || 'Failed to generate config', variant: 'destructive' }); return; }
+                                    const blob = await r.blob();
+                                    const url  = URL.createObjectURL(blob);
+                                    const a    = document.createElement('a');
+                                    a.href = url; a.download = 'config.json'; a.click();
+                                    URL.revokeObjectURL(url);
+                                    toast({ title: `config.json downloaded for ${node.agentCode}`, description: 'New API key generated. Copy this file to C:\\ThermopacDocAgent\\config.json on the agent machine.' });
+                                    refetchStatus();
+                                  } catch { toast({ title: 'Download failed', variant: 'destructive' }); }
+                                }}
+                              >
+                                <Download className="h-3 w-3 mr-1" /> config.json
+                              </Button>
+                            )}
+                            <Badge className={`text-[10px] ${
+                              node.agentState === "IDLE"       ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200" :
+                              node.agentState === "PROCESSING" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200" :
+                              node.agentState === "CONNECTING" ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200" :
+                              node.agentState === "ERROR"      ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200" :
+                              "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                            }`}>{node.agentState || "OFFLINE"}</Badge>
+                          </div>
                         </div>
                       );
                     })}

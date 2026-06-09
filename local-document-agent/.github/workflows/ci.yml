@@ -22,30 +22,6 @@ jobs:
         with:
           node-version: '20'
 
-      # ── AUTHORITATIVE CONFIG — written here, never read from repo ─────────────
-      # This step generates config.json.example with the correct production values.
-      # Whatever file exists in the repo is overwritten. This guarantees the
-      # installer always bundles the right credentials regardless of repo state.
-      - name: Write authoritative config.json.example
-        shell: pwsh
-        run: |
-          $cfg = [ordered]@{
-            agentCode           = "THERMOPAC-DOC-AGENT-01"
-            erpBaseUrl          = "https://thermopac-communication-thermopacllp.replit.app"
-            apiKey              = "5WHCLvEm2jGvuVKcS1paMkHQ62tWFgZr"
-            allowedRootPath     = "\\\\SERVER\\d\\THERMOPAC"
-            pollIntervalSeconds = 20
-            maxConcurrentJobs   = 1
-            logDir              = "C:\\ThermopacDocAgent\\logs"
-            tempDir             = "C:\\ThermopacDocAgent\\temp"
-          }
-          $cfg | ConvertTo-Json -Depth 5 | Set-Content config.json.example -Encoding utf8
-          Write-Output "=== config.json.example written ==="
-          Get-Content config.json.example
-          $sha = (Get-FileHash config.json.example -Algorithm SHA256).Hash.ToLower()
-          Write-Output ""
-          Write-Output "SHA256: $sha"
-
       # ── Diagnostics ───────────────────────────────────────────────────────────
       - name: Diagnose working directory and file layout
         shell: pwsh
@@ -109,52 +85,23 @@ jobs:
           if ($pkg.main -ne 'dist/index.js') { Write-Error "main must be dist/index.js, got: $($pkg.main)"; exit 1 }
           Write-Output "package.json OK — $($pkg.name) v$($pkg.version)"
 
-      - name: Validate package structure (config + docs)
+      - name: Validate package structure (config template + docs)
         shell: pwsh
         run: |
+          # config.json.example is a template — placeholder values are expected here.
+          # Real credentials are never stored in the repo or this workflow.
+          # Actual config.json is generated per-agent from the ERP dashboard.
           $required = @('config.json.example','README.md','SETUP.md')
           $missing = $required | Where-Object { -not (Test-Path $_) }
           if ($missing) { Write-Error "Missing package files: $($missing -join ', ')"; exit 1 }
-          Write-Output "Package structure OK."
-
-      # ── Config audit — verify exact values before anything is packaged ────────
-      - name: Audit config.json.example values and SHA256
-        shell: pwsh
-        run: |
-          Write-Output "=== config.json.example full content ==="
-          Get-Content config.json.example
-          Write-Output ""
-          $sha = (Get-FileHash config.json.example -Algorithm SHA256).Hash.ToLower()
-          Write-Output "SHA256(config.json.example): $sha"
-          Write-Output ""
+          # Must be valid JSON and have the required keys
           $parsed = Get-Content config.json.example | ConvertFrom-Json
-          Write-Output "=== Parsed field audit ==="
-          Write-Output "  agentCode:       $($parsed.agentCode)"
-          Write-Output "  erpBaseUrl:      $($parsed.erpBaseUrl)"
-          Write-Output "  allowedRootPath: $($parsed.allowedRootPath)"
-          Write-Output "  apiKey length:   $($parsed.apiKey.Length) chars"
-          Write-Output "  apiKey prefix:   $($parsed.apiKey.Substring(0,4))…"
-          Write-Output ""
-          # Hard fail on any placeholder
-          $placeholders = @('YOUR-ERP','CHANGE_ME','your-erp','changeme')
-          $raw = Get-Content config.json.example -Raw
-          foreach ($p in $placeholders) {
-            if ($raw -match [regex]::Escape($p)) {
-              Write-Error "FATAL: config.json.example contains placeholder '$p' — aborting build."
-              exit 1
-            }
+          $requiredKeys = @('agentCode','erpBaseUrl','apiKey','allowedRootPath','pollIntervalSeconds')
+          foreach ($k in $requiredKeys) {
+            if ($null -eq $parsed.$k) { Write-Error "config.json.example missing key: $k"; exit 1 }
           }
-          # Verify expected values exactly
-          if ($parsed.erpBaseUrl -ne "https://thermopac-communication-thermopacllp.replit.app") {
-            Write-Error "FATAL: erpBaseUrl mismatch. Got: $($parsed.erpBaseUrl)"; exit 1
-          }
-          if ($parsed.agentCode -ne "THERMOPAC-DOC-AGENT-01") {
-            Write-Error "FATAL: agentCode mismatch. Got: $($parsed.agentCode)"; exit 1
-          }
-          if ($parsed.apiKey.Length -lt 16) {
-            Write-Error "FATAL: apiKey too short ($($parsed.apiKey.Length) chars)"; exit 1
-          }
-          Write-Output "Config audit PASSED — all values correct."
+          Write-Output "config.json.example is valid JSON with all required keys."
+          Write-Output "Package structure OK."
 
       # ── Version ───────────────────────────────────────────────────────────────
       - name: Get version from package.json
@@ -196,16 +143,14 @@ jobs:
         run: |
           $zip = "${{ steps.get-version.outputs.zip-name }}"
           Expand-Archive -Path $zip -DestinationPath zip-check\ -Force
-          $required = @('dist\index.js','package.json','config.json.example','install-service.bat','uninstall-service.bat','start-service.bat','stop-service.bat','README.md','SETUP.md','VERSION.txt')
+          $required = @('dist\index.js','package.json','config.json.example',
+                        'install-service.bat','uninstall-service.bat',
+                        'start-service.bat','stop-service.bat',
+                        'README.md','SETUP.md','VERSION.txt')
           foreach ($f in $required) {
             if (-not (Test-Path "zip-check\$f")) { Write-Error "ZIP missing: $f"; exit 1 }
           }
-          # Verify config inside ZIP has correct values too
-          $zipCfg = Get-Content "zip-check\config.json.example" | ConvertFrom-Json
-          if ($zipCfg.erpBaseUrl -ne "https://thermopac-communication-thermopacllp.replit.app") {
-            Write-Error "ZIP config.json.example has wrong erpBaseUrl: $($zipCfg.erpBaseUrl)"; exit 1
-          }
-          Write-Output "ZIP validation passed — all required files present, config values correct."
+          Write-Output "ZIP validation passed — all required files present."
 
       - name: Upload installable package artifact (ZIP)
         uses: actions/upload-artifact@v4
@@ -215,6 +160,9 @@ jobs:
           retention-days: 14
 
       # ── Standalone Windows installer (setup.exe) ─────────────────────────────
+      # config.json.example is installed as a template.
+      # After installation, replace config.json with the file downloaded
+      # from the ERP Worker Agents Dashboard (Registered Agents → Download config.json).
       - name: Cache pkg Node.js binary (node20-win-x64)
         uses: actions/cache@v4
         with:
@@ -246,40 +194,6 @@ jobs:
         shell: pwsh
         run: |
           "${{ steps.get-version.outputs.version }}" | Out-File VERSION.txt -Encoding utf8 -NoNewline
-
-      # ── Pre-installer SHA256 audit — every file Inno Setup will read ──────────
-      - name: SHA256 audit of all Inno Setup source files
-        shell: pwsh
-        run: |
-          Write-Output "=== SHA256 audit — files Inno Setup will package ==="
-          $files = @(
-            'ThermopacDocAgent.exe',
-            'config.json.example',
-            'README.md',
-            'SETUP.md',
-            'VERSION.txt',
-            'thermopac-doc-agent.iss'
-          )
-          foreach ($f in $files) {
-            if (Test-Path $f) {
-              $h = (Get-FileHash $f -Algorithm SHA256).Hash.ToLower()
-              $sz = [math]::Round((Get-Item $f).Length / 1KB, 1)
-              Write-Output "  $h  $f  ($sz KB)"
-            } else {
-              Write-Output "  MISSING: $f"
-            }
-          }
-          Write-Output ""
-          Write-Output "=== config.json.example full text at installer input ==="
-          Get-Content config.json.example
-          Write-Output ""
-          # Final hard check immediately before ISCC runs
-          $raw = Get-Content config.json.example -Raw
-          if ($raw -match 'YOUR-ERP' -or $raw -match 'CHANGE_ME') {
-            Write-Error "FATAL: placeholder values still in config.json.example — installer aborted."
-            exit 1
-          }
-          Write-Output "Pre-installer audit PASSED."
 
       - name: Install Inno Setup 6
         timeout-minutes: 5

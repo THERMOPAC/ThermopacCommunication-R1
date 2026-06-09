@@ -260,6 +260,50 @@ router.post('/local-agent/admin/register', requireSession, requireSuperuser, asy
   }
 });
 
+// ── POST /api/local-agent/admin/agents/:agentCode/rotate-key ── (Superuser) ──
+// Generates a new random API key, stores its bcrypt hash, and returns a
+// ready-to-use config.json as a file download. The plaintext key is shown
+// only once and never stored. Drop this file into the agent install dir.
+
+router.post('/local-agent/admin/agents/:agentCode/rotate-key', requireSession, requireSuperuser, async (req: Request, res: Response) => {
+  try {
+    const { agentCode } = req.params;
+    const [node] = await db.select().from(documentAgentNodes)
+      .where(eq(documentAgentNodes.agentCode, agentCode)).limit(1);
+    if (!node) return res.status(404).json({ error: 'Agent not found' });
+
+    // Generate a cryptographically random 32-char key
+    const crypto = await import('crypto');
+    const newApiKey = crypto.randomBytes(24).toString('base64url').slice(0, 32);
+    const newHash   = await bcrypt.hash(newApiKey, 12);
+
+    await db.update(documentAgentNodes)
+      .set({ apiKeyHash: newHash, updatedAt: new Date() })
+      .where(eq(documentAgentNodes.agentCode, agentCode));
+
+    // Build the config object with all real values
+    const config = {
+      agentCode:           node.agentCode,
+      erpBaseUrl:          `${req.protocol}://${req.get('host')}`,
+      apiKey:              newApiKey,
+      allowedRootPath:     node.allowedRootPath,
+      pollIntervalSeconds: 20,
+      maxConcurrentJobs:   1,
+      logDir:              'C:\\ThermopacDocAgent\\logs',
+      tempDir:             'C:\\ThermopacDocAgent\\temp',
+    };
+
+    const json = JSON.stringify(config, null, 2);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="config.json"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(json);
+  } catch (err) {
+    console.error('[local-agent] rotate-key error:', err);
+    res.status(500).json({ error: 'Key rotation failed' });
+  }
+});
+
 // ── GET /api/local-agent/package-info ── (session auth) ──────────────────────
 
 router.get('/local-agent/package-info', requireSession, (_req: Request, res: Response) => {
