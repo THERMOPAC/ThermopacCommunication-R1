@@ -47,38 +47,6 @@ jobs:
             Write-Output "  version: $($pkg.version)"
           }
 
-      # ── Ensure tsconfig.json is present ──────────────────────────────────────
-      # tsconfig.json is required by tsc. If it was not committed to this repo,
-      # create it from the canonical content so the build always works.
-      - name: Ensure tsconfig.json exists
-        shell: pwsh
-        run: |
-          if (Test-Path 'tsconfig.json') {
-            Write-Output "tsconfig.json already present — skipping creation."
-          } else {
-            Write-Output "tsconfig.json MISSING — creating from canonical content."
-            $tsconfig = @'
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "lib": ["ES2020"],
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
-}
-'@
-            $tsconfig | Out-File 'tsconfig.json' -Encoding utf8
-            Write-Output "tsconfig.json created."
-          }
-
       # ── Dependencies ──────────────────────────────────────────────────────────
       - name: Install dependencies
         timeout-minutes: 5
