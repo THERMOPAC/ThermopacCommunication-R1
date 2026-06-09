@@ -33,6 +33,59 @@ jobs:
         with:
           node-version: '20'
 
+      # ── Diagnostics — confirm working directory and required files ────────────
+      - name: Diagnose working directory and file layout
+        shell: pwsh
+        run: |
+          Write-Output "=== Working directory ==="
+          Get-Location
+          Write-Output ""
+          Write-Output "=== Files at root ==="
+          Get-ChildItem -Name | Sort-Object
+          Write-Output ""
+          Write-Output "=== Key file presence ==="
+          @('package.json','tsconfig.json','src') | ForEach-Object {
+            $exists = (Test-Path $_)
+            Write-Output "  $_ : $(if ($exists) { 'EXISTS' } else { 'MISSING' })"
+          }
+          if (Test-Path 'package.json') {
+            $pkg = Get-Content package.json | ConvertFrom-Json
+            Write-Output ""
+            Write-Output "=== package.json identity ==="
+            Write-Output "  name:    $($pkg.name)"
+            Write-Output "  version: $($pkg.version)"
+          }
+
+      # ── Ensure tsconfig.json is present ──────────────────────────────────────
+      - name: Ensure tsconfig.json exists
+        shell: pwsh
+        run: |
+          if (Test-Path 'tsconfig.json') {
+            Write-Output "tsconfig.json already present — skipping creation."
+          } else {
+            Write-Output "tsconfig.json MISSING — creating from canonical content."
+            $tsconfig = @'
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+'@
+            $tsconfig | Out-File 'tsconfig.json' -Encoding utf8
+            Write-Output "tsconfig.json created."
+          }
+
       # ── Dependencies ──────────────────────────────────────────────────────────
       - name: Install dependencies
         timeout-minutes: 5
@@ -40,6 +93,7 @@ jobs:
 
       # ── TypeScript compile ────────────────────────────────────────────────────
       - name: Compile TypeScript (strict)
+        id: build
         timeout-minutes: 5
         run: npm run build
 
