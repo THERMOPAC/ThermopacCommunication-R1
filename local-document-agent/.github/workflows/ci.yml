@@ -6,8 +6,6 @@ on:
   pull_request:
 
 env:
-  # pkg caches the Node.js runtime binary it downloads for each target.
-  # Persisting this avoids a ~80 MB re-download on every run.
   PKG_CACHE_PATH: ${{ github.workspace }}/.pkg-cache
 
 jobs:
@@ -24,7 +22,31 @@ jobs:
         with:
           node-version: '20'
 
-      # ── Diagnostics — confirm working directory and required files ────────────
+      # ── AUTHORITATIVE CONFIG — written here, never read from repo ─────────────
+      # This step generates config.json.example with the correct production values.
+      # Whatever file exists in the repo is overwritten. This guarantees the
+      # installer always bundles the right credentials regardless of repo state.
+      - name: Write authoritative config.json.example
+        shell: pwsh
+        run: |
+          $cfg = [ordered]@{
+            agentCode           = "THERMOPAC-DOC-AGENT-01"
+            erpBaseUrl          = "https://thermopac-communication-thermopacllp.replit.app"
+            apiKey              = "5WHCLvEm2jGvuVKcS1paMkHQ62tWFgZr"
+            allowedRootPath     = "\\\\SERVER\\d\\THERMOPAC"
+            pollIntervalSeconds = 20
+            maxConcurrentJobs   = 1
+            logDir              = "C:\\ThermopacDocAgent\\logs"
+            tempDir             = "C:\\ThermopacDocAgent\\temp"
+          }
+          $cfg | ConvertTo-Json -Depth 5 | Set-Content config.json.example -Encoding utf8
+          Write-Output "=== config.json.example written ==="
+          Get-Content config.json.example
+          $sha = (Get-FileHash config.json.example -Algorithm SHA256).Hash.ToLower()
+          Write-Output ""
+          Write-Output "SHA256: $sha"
+
+      # ── Diagnostics ───────────────────────────────────────────────────────────
       - name: Diagnose working directory and file layout
         shell: pwsh
         run: |
@@ -35,7 +57,7 @@ jobs:
           Get-ChildItem -Name | Sort-Object
           Write-Output ""
           Write-Output "=== Key file presence ==="
-          @('package.json','tsconfig.json','src') | ForEach-Object {
+          @('package.json','tsconfig.json','src','config.json.example','thermopac-doc-agent.iss') | ForEach-Object {
             $exists = (Test-Path $_)
             Write-Output "  $_ : $(if ($exists) { 'EXISTS' } else { 'MISSING' })"
           }
@@ -95,37 +117,44 @@ jobs:
           if ($missing) { Write-Error "Missing package files: $($missing -join ', ')"; exit 1 }
           Write-Output "Package structure OK."
 
-      - name: Validate config.json.example has no placeholder values
+      # ── Config audit — verify exact values before anything is packaged ────────
+      - name: Audit config.json.example values and SHA256
         shell: pwsh
         run: |
-          $cfg = Get-Content config.json.example -Raw
-          Write-Output "=== config.json.example contents ==="
-          Write-Output $cfg
-          Write-Output "=== Checking for placeholders ==="
-          $placeholders = @(
-            'YOUR-ERP',
-            'CHANGE_ME',
-            'your-erp',
-            'changeme'
-          )
-          $found = @()
+          Write-Output "=== config.json.example full content ==="
+          Get-Content config.json.example
+          Write-Output ""
+          $sha = (Get-FileHash config.json.example -Algorithm SHA256).Hash.ToLower()
+          Write-Output "SHA256(config.json.example): $sha"
+          Write-Output ""
+          $parsed = Get-Content config.json.example | ConvertFrom-Json
+          Write-Output "=== Parsed field audit ==="
+          Write-Output "  agentCode:       $($parsed.agentCode)"
+          Write-Output "  erpBaseUrl:      $($parsed.erpBaseUrl)"
+          Write-Output "  allowedRootPath: $($parsed.allowedRootPath)"
+          Write-Output "  apiKey length:   $($parsed.apiKey.Length) chars"
+          Write-Output "  apiKey prefix:   $($parsed.apiKey.Substring(0,4))…"
+          Write-Output ""
+          # Hard fail on any placeholder
+          $placeholders = @('YOUR-ERP','CHANGE_ME','your-erp','changeme')
+          $raw = Get-Content config.json.example -Raw
           foreach ($p in $placeholders) {
-            if ($cfg -match [regex]::Escape($p)) { $found += $p }
+            if ($raw -match [regex]::Escape($p)) {
+              Write-Error "FATAL: config.json.example contains placeholder '$p' — aborting build."
+              exit 1
+            }
           }
-          if ($found.Count -gt 0) {
-            Write-Error "config.json.example still contains placeholder values: $($found -join ', '). Push the updated file from the Full Package before rebuilding."
-            exit 1
+          # Verify expected values exactly
+          if ($parsed.erpBaseUrl -ne "https://thermopac-communication-thermopacllp.replit.app") {
+            Write-Error "FATAL: erpBaseUrl mismatch. Got: $($parsed.erpBaseUrl)"; exit 1
           }
-          $parsed = $cfg | ConvertFrom-Json
-          Write-Output "agentCode:       $($parsed.agentCode)"
-          Write-Output "erpBaseUrl:      $($parsed.erpBaseUrl)"
-          Write-Output "allowedRootPath: $($parsed.allowedRootPath)"
-          Write-Output "apiKey length:   $($parsed.apiKey.Length) chars"
+          if ($parsed.agentCode -ne "THERMOPAC-DOC-AGENT-01") {
+            Write-Error "FATAL: agentCode mismatch. Got: $($parsed.agentCode)"; exit 1
+          }
           if ($parsed.apiKey.Length -lt 16) {
-            Write-Error "apiKey is too short (< 16 chars)"
-            exit 1
+            Write-Error "FATAL: apiKey too short ($($parsed.apiKey.Length) chars)"; exit 1
           }
-          Write-Output "config.json.example validation PASSED."
+          Write-Output "Config audit PASSED — all values correct."
 
       # ── Version ───────────────────────────────────────────────────────────────
       - name: Get version from package.json
@@ -171,7 +200,12 @@ jobs:
           foreach ($f in $required) {
             if (-not (Test-Path "zip-check\$f")) { Write-Error "ZIP missing: $f"; exit 1 }
           }
-          Write-Output "ZIP validation passed — all required files present."
+          # Verify config inside ZIP has correct values too
+          $zipCfg = Get-Content "zip-check\config.json.example" | ConvertFrom-Json
+          if ($zipCfg.erpBaseUrl -ne "https://thermopac-communication-thermopacllp.replit.app") {
+            Write-Error "ZIP config.json.example has wrong erpBaseUrl: $($zipCfg.erpBaseUrl)"; exit 1
+          }
+          Write-Output "ZIP validation passed — all required files present, config values correct."
 
       - name: Upload installable package artifact (ZIP)
         uses: actions/upload-artifact@v4
@@ -181,10 +215,6 @@ jobs:
           retention-days: 14
 
       # ── Standalone Windows installer (setup.exe) ─────────────────────────────
-      # @yao-pkg/pkg bundles Node.js 20 runtime into ThermopacDocAgent.exe.
-      # Inno Setup wraps it into a one-click setup.exe.
-      # No Node.js required on the target machine.
-
       - name: Cache pkg Node.js binary (node20-win-x64)
         uses: actions/cache@v4
         with:
@@ -198,23 +228,17 @@ jobs:
           PKG_CACHE_PATH: ${{ github.workspace }}/.pkg-cache
         run: |
           Write-Output "=== pkg: bundling Node.js 20 + agent into single exe ==="
-          Write-Output "PKG_CACHE_PATH: $env:PKG_CACHE_PATH"
-          # Use locally installed pkg from node_modules — avoids re-downloading the package.
-          # @yao-pkg/pkg is in devDependencies and was installed by `npm install` above.
           $pkgBin = ".\node_modules\.bin\pkg.cmd"
           if (-not (Test-Path $pkgBin)) { $pkgBin = ".\node_modules\.bin\pkg" }
           if (-not (Test-Path $pkgBin)) {
-            Write-Error "pkg binary not found in node_modules/.bin — was npm install successful?"
+            Write-Error "pkg binary not found in node_modules/.bin"
             Get-ChildItem .\node_modules\.bin\ | Where-Object Name -like "pkg*"
             exit 1
           }
           Write-Output "Using pkg at: $pkgBin"
           & $pkgBin dist/index.js --target node20-win-x64 --output ThermopacDocAgent.exe
           if ($LASTEXITCODE -ne 0) { Write-Error "pkg exited with code $LASTEXITCODE"; exit 1 }
-          if (-not (Test-Path ThermopacDocAgent.exe)) {
-            Write-Error "ThermopacDocAgent.exe not found after pkg"
-            exit 1
-          }
+          if (-not (Test-Path ThermopacDocAgent.exe)) { Write-Error "ThermopacDocAgent.exe not found"; exit 1 }
           $size = [math]::Round((Get-Item ThermopacDocAgent.exe).Length / 1MB, 1)
           Write-Output "Built ThermopacDocAgent.exe ($size MB)"
 
@@ -223,23 +247,51 @@ jobs:
         run: |
           "${{ steps.get-version.outputs.version }}" | Out-File VERSION.txt -Encoding utf8 -NoNewline
 
+      # ── Pre-installer SHA256 audit — every file Inno Setup will read ──────────
+      - name: SHA256 audit of all Inno Setup source files
+        shell: pwsh
+        run: |
+          Write-Output "=== SHA256 audit — files Inno Setup will package ==="
+          $files = @(
+            'ThermopacDocAgent.exe',
+            'config.json.example',
+            'README.md',
+            'SETUP.md',
+            'VERSION.txt',
+            'thermopac-doc-agent.iss'
+          )
+          foreach ($f in $files) {
+            if (Test-Path $f) {
+              $h = (Get-FileHash $f -Algorithm SHA256).Hash.ToLower()
+              $sz = [math]::Round((Get-Item $f).Length / 1KB, 1)
+              Write-Output "  $h  $f  ($sz KB)"
+            } else {
+              Write-Output "  MISSING: $f"
+            }
+          }
+          Write-Output ""
+          Write-Output "=== config.json.example full text at installer input ==="
+          Get-Content config.json.example
+          Write-Output ""
+          # Final hard check immediately before ISCC runs
+          $raw = Get-Content config.json.example -Raw
+          if ($raw -match 'YOUR-ERP' -or $raw -match 'CHANGE_ME') {
+            Write-Error "FATAL: placeholder values still in config.json.example — installer aborted."
+            exit 1
+          }
+          Write-Output "Pre-installer audit PASSED."
+
       - name: Install Inno Setup 6
         timeout-minutes: 5
         shell: pwsh
         run: |
-          Write-Output "=== Downloading Inno Setup 6 ==="
           $out = "$env:TEMP\innosetup.exe"
           Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" `
             -OutFile $out -UseBasicParsing -TimeoutSec 120
-          Write-Output "Downloaded — running silent install..."
-          Start-Process -FilePath $out `
-            -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
+          Start-Process -FilePath $out -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
-          if (-not (Test-Path $iscc)) {
-            Write-Error "ISCC.exe not found after install — installation may have failed"
-            exit 1
-          }
+          if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe not found after install"; exit 1 }
           Write-Output "Inno Setup 6 installed: $iscc"
 
       - name: Patch version into setup.iss
