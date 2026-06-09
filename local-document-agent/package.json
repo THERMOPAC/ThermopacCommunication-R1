@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "build:exe": "pkg dist/index.js --target node20-win-x64 --output ThermopacDocAgent.exe",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "install-service": "node dist/index.js --install-service",
@@ -18,7 +19,12 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/node-fetch": "^2.6.11",
+    "@yao-pkg/pkg": "^5.12.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
+  },
+  "pkg": {
+    "targets": ["node20-win-x64"],
+    "ignore": ["node_modules/node-windows/**"]
   }
 }
