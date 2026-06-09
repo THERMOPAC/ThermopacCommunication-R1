@@ -127,15 +127,33 @@ jobs:
         run: |
           "${{ steps.get-version.outputs.version }}" | Out-File VERSION.txt -Encoding utf8 -NoNewline
 
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          $out = "$env:TEMP\innosetup.exe"
+          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile $out -UseBasicParsing
+          Start-Process -FilePath $out -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
+          Write-Output "Inno Setup 6 installed"
+
+      - name: Patch version into setup.iss
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get-version.outputs.version }}"
+          (Get-Content thermopac-doc-agent.iss) `
+            -replace '#define MyAppVersion\s+"[^"]+"', "#define MyAppVersion   `"$version`"" |
+            Set-Content thermopac-doc-agent.iss
+          Write-Output "Version patched to: $version"
+
       - name: Build setup.exe (Inno Setup)
         shell: pwsh
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { Write-Error "Inno Setup 6 not found at expected path"; exit 1 }
-          New-Item -ItemType Directory -Force -Path installer-output | Out-Null
+          if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe not found after installation"; exit 1 }
+          New-Item -ItemType Directory -Force -Path installer_output | Out-Null
           & $iscc thermopac-doc-agent.iss
           if ($LASTEXITCODE -ne 0) { Write-Error "Inno Setup build failed (exit $LASTEXITCODE)"; exit 1 }
-          $exe = "installer-output\ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe"
+          $exe = "installer_output\ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe"
           if (-not (Test-Path $exe)) { Write-Error "setup.exe not found after build: $exe"; exit 1 }
           $size = [math]::Round((Get-Item $exe).Length / 1MB, 1)
           Write-Output "Built $exe ($size MB)"
@@ -143,7 +161,7 @@ jobs:
       - name: Validate setup.exe is non-trivial
         shell: pwsh
         run: |
-          $exe = "installer-output\ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe"
+          $exe = "installer_output\ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe"
           $sizeMB = [math]::Round((Get-Item $exe).Length / 1MB, 1)
           Write-Output "setup.exe size: $sizeMB MB"
           if ((Get-Item $exe).Length -lt 10MB) {
@@ -152,9 +170,21 @@ jobs:
           }
           Write-Output "setup.exe validation passed."
 
+      - name: Compute SHA-256 checksum
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get-version.outputs.version }}"
+          $exe = "installer_output\ThermopacLocalDocumentAgentSetup-v$version.exe"
+          $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLower()
+          Write-Output "SHA-256: $hash"
+          "$hash  ThermopacLocalDocumentAgentSetup-v$version.exe" |
+            Out-File "installer_output\SHA256SUMS.txt" -Encoding utf8
+
       - name: Upload setup.exe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe
-          path: installer-output/ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe
+          name: ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}
+          path: |
+            installer_output/ThermopacLocalDocumentAgentSetup-v${{ steps.get-version.outputs.version }}.exe
+            installer_output/SHA256SUMS.txt
           retention-days: 14
