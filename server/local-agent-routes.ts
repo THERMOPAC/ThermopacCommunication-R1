@@ -367,6 +367,77 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
   }
 });
 
+// ── GET /api/local-agent/download-source-package ── (Superuser) ──────────────
+// Downloads everything Thermopac_Files_Folder needs for a proper source build:
+//   src/*.ts, tsconfig.json, package.json, .bat scripts, .iss, ci.yml, docs
+// User extracts this ZIP and pushes contents to Thermopac_Files_Folder on GitHub.
+
+router.get('/local-agent/download-source-package', requireSession, requireSuperuser, async (_req: Request, res: Response) => {
+  try {
+    const zipName = `thermopac-doc-agent-v${AGENT_VERSION}-source.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      console.error('[local-agent] source-package zip error:', err);
+      if (!res.headersSent) res.status(500).json({ error: 'Source package generation failed' });
+    });
+    archive.pipe(res);
+
+    // src/ — all TypeScript source files
+    const srcDir = path.join(AGENT_DIR, 'src');
+    if (fs.existsSync(srcDir)) {
+      archive.directory(srcDir, 'src');
+    }
+
+    // tsconfig.json — required by tsc at CI build time
+    const tsconfigFile = path.join(AGENT_DIR, 'tsconfig.json');
+    if (fs.existsSync(tsconfigFile)) {
+      archive.file(tsconfigFile, { name: 'tsconfig.json' });
+    }
+
+    // package.json
+    const pkgFile = path.join(AGENT_DIR, 'package.json');
+    if (fs.existsSync(pkgFile)) {
+      archive.file(pkgFile, { name: 'package.json' });
+    }
+
+    // Docs and config
+    for (const f of ['config.json.example', 'README.md', 'SETUP.md']) {
+      const fp = path.join(AGENT_DIR, f);
+      if (fs.existsSync(fp)) archive.file(fp, { name: f });
+    }
+
+    // Windows service batch scripts
+    for (const f of ['install-service.bat', 'uninstall-service.bat', 'start-service.bat', 'stop-service.bat']) {
+      const fp = path.join(AGENT_DIR, f);
+      if (fs.existsSync(fp)) archive.file(fp, { name: f });
+    }
+
+    // Inno Setup script
+    const issFile = path.join(AGENT_DIR, 'thermopac-doc-agent.iss');
+    if (fs.existsSync(issFile)) {
+      archive.file(issFile, { name: 'thermopac-doc-agent.iss' });
+    }
+
+    // GitHub Actions CI workflow
+    const ciYml = path.join(AGENT_DIR, '.github', 'workflows', 'ci.yml');
+    if (fs.existsSync(ciYml)) {
+      archive.file(ciYml, { name: '.github/workflows/ci.yml' });
+    }
+
+    // VERSION.txt
+    archive.append(AGENT_VERSION, { name: 'VERSION.txt' });
+
+    await archive.finalize();
+  } catch (err) {
+    console.error('[local-agent] download-source-package error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
+  }
+});
+
 // ── POST /api/local-agent/admin/enqueue ── (session auth, any role) ──────────
 
 const EnqueueSchema = z.object({
