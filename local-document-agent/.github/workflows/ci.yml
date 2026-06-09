@@ -58,9 +58,53 @@ jobs:
           if ($missing) { Write-Error "Missing package files: $($missing -join ', ')"; exit 1 }
           Write-Output "Package structure OK."
 
-      - name: Upload dist/ artifact
+      - name: Get version from package.json
+        id: get-version
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $ver = $pkg.version
+          $zip = "ThermopacLocalDocumentAgent-v$ver-windows.zip"
+          echo "version=$ver"  >> $env:GITHUB_OUTPUT
+          echo "zip-name=$zip" >> $env:GITHUB_OUTPUT
+          Write-Output "Packaging: $zip"
+
+      - name: Create installable Windows package ZIP
+        shell: pwsh
+        run: |
+          $zipName = "${{ steps.get-version.outputs.zip-name }}"
+          $staging = "staging-release"
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+
+          Copy-Item -Recurse dist           "$staging\dist"
+          Copy-Item package.json            "$staging\"
+          Copy-Item config.json.example     "$staging\"
+          Copy-Item README.md               "$staging\"
+          Copy-Item SETUP.md                "$staging\"
+          Copy-Item install-service.bat     "$staging\"
+          Copy-Item uninstall-service.bat   "$staging\"
+          Copy-Item start-service.bat       "$staging\"
+          Copy-Item stop-service.bat        "$staging\"
+          "${{ steps.get-version.outputs.version }}" | Out-File "$staging\VERSION.txt" -Encoding utf8
+
+          Compress-Archive -Path "$staging\*" -DestinationPath $zipName -CompressionLevel Optimal
+          $size = [math]::Round((Get-Item $zipName).Length / 1KB, 1)
+          Write-Output "Created $zipName ($size KB)"
+
+      - name: Validate ZIP contents
+        shell: pwsh
+        run: |
+          $zip = "${{ steps.get-version.outputs.zip-name }}"
+          Expand-Archive -Path $zip -DestinationPath zip-check\ -Force
+          $required = @('dist\index.js','package.json','config.json.example','install-service.bat','uninstall-service.bat','start-service.bat','stop-service.bat','README.md','SETUP.md','VERSION.txt')
+          foreach ($f in $required) {
+            if (-not (Test-Path "zip-check\$f")) { Write-Error "ZIP missing: $f"; exit 1 }
+          }
+          Write-Output "ZIP validation passed — all required files present."
+
+      - name: Upload installable package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: agent-dist-${{ github.sha }}
-          path: dist/
+          name: ${{ steps.get-version.outputs.zip-name }}
+          path: ${{ steps.get-version.outputs.zip-name }}
           retention-days: 14

@@ -353,9 +353,12 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
       if (fs.existsSync(fp)) archive.file(fp, { name: root + f });
     }
 
-    // GitHub Actions CI workflow (single file, bundled inside local-document-agent/.github/workflows/)
+    // GitHub Actions CI workflow (bundled so engineers can set up CI on their own fork)
     const ciYml = path.join(AGENT_DIR, '.github', 'workflows', 'ci.yml');
     if (fs.existsSync(ciYml)) archive.file(ciYml, { name: root + '.github/workflows/ci.yml' });
+
+    // VERSION.txt — plain-text version stamp for easy identification
+    archive.append(AGENT_VERSION, { name: root + 'VERSION.txt' });
 
     await archive.finalize();
   } catch (err) {
