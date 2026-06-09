@@ -92,17 +92,20 @@ Filename: "{sys}\sc.exe"; Parameters: "delete ""{#MyServiceName}"""; Flags: runh
 
 [Code]
 procedure CurPageChanged(CurPageID: Integer);
+var
+  NL: String;
 begin
   if CurPageID = wpFinished then begin
+    NL := Chr(13) + Chr(10);
     WizardForm.FinishedLabel.Caption :=
-      'THERMOPAC Local Document Agent has been installed and registered as a Windows service.' + #13#10 +
-      #13#10 +
-      'Before starting the service:' + #13#10 +
-      '  1. Edit ' + ExpandConstant('{app}') + '\config.json' + #13#10 +
-      '  2. Set:  erpBaseUrl, apiKey, allowedRootPath' + #13#10 +
-      #13#10 +
-      'Then start the service:' + #13#10 +
-      '  net start {#MyServiceName}' + #13#10 +
+      'THERMOPAC Local Document Agent has been installed and registered as a Windows service.' + NL +
+      NL +
+      'Before starting the service:' + NL +
+      '  1. Edit ' + ExpandConstant('{app}') + '\config.json' + NL +
+      '  2. Set:  erpBaseUrl, apiKey, allowedRootPath' + NL +
+      NL +
+      'Then start the service:' + NL +
+      '  net start {#MyServiceName}' + NL +
       '  — or open Services (services.msc)';
   end;
 end;
