@@ -324,9 +324,23 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
 
     // All compiled dist files
     const distDir = path.join(AGENT_DIR, 'dist');
-    const distFiles = fs.readdirSync(distDir).filter(f => f.endsWith('.js'));
-    for (const f of distFiles) {
-      archive.file(path.join(distDir, f), { name: root + 'dist/' + f });
+    if (fs.existsSync(distDir)) {
+      const distFiles = fs.readdirSync(distDir).filter(f => f.endsWith('.js'));
+      for (const f of distFiles) {
+        archive.file(path.join(distDir, f), { name: root + 'dist/' + f });
+      }
+    }
+
+    // TypeScript source files — required by GitHub CI (npm run build / tsc)
+    const srcDir = path.join(AGENT_DIR, 'src');
+    if (fs.existsSync(srcDir)) {
+      archive.directory(srcDir, root + 'src');
+    }
+
+    // tsconfig.json — required by tsc at CI build time
+    const tsconfigFile = path.join(AGENT_DIR, 'tsconfig.json');
+    if (fs.existsSync(tsconfigFile)) {
+      archive.file(tsconfigFile, { name: root + 'tsconfig.json' });
     }
 
     // Config and docs
@@ -353,7 +367,13 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
       if (fs.existsSync(fp)) archive.file(fp, { name: root + f });
     }
 
-    // GitHub Actions CI workflow (bundled so engineers can set up CI on their own fork)
+    // Inno Setup script — required by GitHub CI to build setup.exe
+    const issFile = path.join(AGENT_DIR, 'thermopac-doc-agent.iss');
+    if (fs.existsSync(issFile)) {
+      archive.file(issFile, { name: root + 'thermopac-doc-agent.iss' });
+    }
+
+    // GitHub Actions CI workflow
     const ciYml = path.join(AGENT_DIR, '.github', 'workflows', 'ci.yml');
     if (fs.existsSync(ciYml)) archive.file(ciYml, { name: root + '.github/workflows/ci.yml' });
 
