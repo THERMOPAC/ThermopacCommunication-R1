@@ -430,6 +430,13 @@ function DocAgentRow() {
                 <Download className="h-3 w-3 mr-1" /> Full Package
               </Button>
             )}
+            {isAdmin ? (
+              <a href="/api/local-agent/download-source-package" download onClick={e => e.stopPropagation()}>
+                <Button variant="outline" size="sm" className="h-7 text-xs border-purple-400 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950">
+                  <GitBranch className="h-3 w-3 mr-1" /> Source ZIP
+                </Button>
+              </a>
+            ) : null}
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setExpanded(e => !e)}>
               {expanded ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
               {expanded ? "Collapse" : "Details"}
