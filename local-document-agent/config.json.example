@@ -1,8 +1,8 @@
 {
   "agentCode": "THERMOPAC-DOC-AGENT-01",
-  "erpBaseUrl": "https://YOUR-ERP.replit.app",
-  "apiKey": "CHANGE_ME_MIN_16_CHARS",
-  "allowedRootPath": "\\\\Server\\d\\THERMOPAC",
+  "erpBaseUrl": "https://thermopac-communication-thermopacllp.replit.app",
+  "apiKey": "5WHCLvEm2jGvuVKcS1paMkHQ62tWFgZr",
+  "allowedRootPath": "\\\\SERVER\\d\\THERMOPAC",
   "pollIntervalSeconds": 20,
   "maxConcurrentJobs": 1,
   "logDir": "C:\\ThermopacDocAgent\\logs",
