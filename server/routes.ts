@@ -3893,6 +3893,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', localAgentRoutes);
   console.log('Local Windows Document Agent routes registered');
 
+  // ── Mirror Health Dashboard API ───────────────────────────────────────────────
+  const { default: mirrorHealthRoutes } = await import('./mirror-health-routes');
+  app.use('/api', mirrorHealthRoutes);
+  console.log('Mirror Health Dashboard routes registered');
+
   // ── EPC SolidWorks Extraction Agent API ─────────────────────────────────────
   const { default: epcSlddrwJobRoutes } = await import('./epc-slddrw-job-routes');
   app.use('/api', epcSlddrwJobRoutes);

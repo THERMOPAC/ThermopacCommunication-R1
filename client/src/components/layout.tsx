@@ -369,8 +369,9 @@ function Layout({ children }: LayoutProps) {
       isOpen: isDocumentControlMenuOpen,
       toggle: () => setIsDocumentControlMenuOpen(!isDocumentControlMenuOpen),
       children: [
-        { icon: FolderTree, label: "Doc Governance", href: "/document-control/doc-governance" },
-        { icon: FolderTree, label: "GCS Doc Governance", href: "/document-control/gcs-doc-governance" },
+        { icon: FolderTree,   label: "Doc Governance",       href: "/document-control/doc-governance" },
+        { icon: FolderTree,   label: "GCS Doc Governance",   href: "/document-control/gcs-doc-governance" },
+        { icon: ShieldCheck,  label: "Mirror Health",         href: "/document-control/mirror-health" },
       ]
     },
     {

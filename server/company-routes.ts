@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
+import { createHash } from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { uploadFileToGCS, initializeGCS } from './utils/gcs-operations';
@@ -599,6 +600,9 @@ router.post('/:id(\\d+)/documents/:docType', uploadLimiter, docUpload.single('fi
   const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
   if (!uploadResult.success) return res.status(500).json({ error: 'INTERNAL_ERROR', message: `GCS upload failed: ${uploadResult.message}` });
 
+  // Compute SHA-256 of file buffer for mirror job integrity check (Dual-Storage Policy)
+  const sha256 = createHash('sha256').update(req.file.buffer).digest('hex');
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -614,11 +618,27 @@ router.post('/:id(\\d+)/documents/:docType', uploadLimiter, docUpload.single('fi
        VALUES ($1,$2,$3,$4,$5,$6,$7,'uploaded',true,$8) RETURNING *`,
       [id, docType, nextRev, sanitizedName, gcsPath, req.file.mimetype, req.file.size, req.user?.id ?? null],
     );
+    const docId = r.rows[0].id as number;
+    // ── Dual-Storage Policy: enqueue SAVE_FILE mirror job (GCS → Windows) ──────
+    const jobInsert = await client.query(
+      `INSERT INTO document_agent_jobs
+         (job_type, status, relative_path, file_url, file_name, expected_sha256,
+          source_module, source_record_id, created_by)
+       VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'company_documents', $4, $5)
+       RETURNING id`,
+      [gcsPath, sanitizedName, sha256, docId, req.user?.id ?? null],
+    );
+    const jobId = jobInsert.rows[0].id as number;
+    await client.query(
+      `UPDATE company_documents SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+      [jobId, docId],
+    );
+    // ── end Dual-Storage ──────────────────────────────────────────────────────
     const isReplace = nextRev > 1;
     await auditLog(client, id, isReplace ? 'doc_replace' : 'doc_upload', 'company_documents', docType, null, gcsPath, req.user?.id??null, req);
     await client.query('COMMIT');
     console.log(`${TAG} Document ${docType} rev-${revLabel} uploaded for company ${id}: ${gcsPath}`);
-    res.status(201).json({ success: true, doc: r.rows[0] });
+    res.status(201).json({ success: true, doc: { ...r.rows[0], mirror_status: 'pending', mirror_job_id: jobId } });
   } catch (e: any) {
     await client.query('ROLLBACK');
     if (e.code === '23505') return res.status(409).json({ error: 'CONFLICT', message: 'Unique index violation — only one active revision allowed per document type.' });

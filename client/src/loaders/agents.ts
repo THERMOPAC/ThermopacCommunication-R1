@@ -7,3 +7,4 @@ export const WorkerAgentsPage = lazyWithRetry(() => import("@/pages/worker-agent
 export const EpcRisksDashboardPage = lazyWithRetry(() => import("@/pages/epc-risks-dashboard"));
 export const DocGovernancePage = lazyWithRetry(() => import("@/pages/doc-governance-page"));
 export const GcsDocGovernancePage = lazyWithRetry(() => import("@/pages/gcs-doc-governance-page"));
+export const MirrorHealthPage = lazyWithRetry(() => import("@/pages/mirror-health-page"));

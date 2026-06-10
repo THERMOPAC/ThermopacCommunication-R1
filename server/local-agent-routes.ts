@@ -131,7 +131,15 @@ router.post('/local-agent/jobs/claim', requireAgentAuth, async (req: Request, re
 
     if (!claimed) return res.json({ job: null });
 
-    res.json({ job: claimed });
+    // Dual-Storage Policy: for SAVE_FILE jobs, generate a fresh signed URL at claim time.
+    // The URL is returned in the response only — never stored in DB.
+    let responseJob: any = { ...claimed };
+    if (claimed.jobType === 'SAVE_FILE') {
+      const { generateFreshSignedUrl } = await import('./utils/mirror-job-service');
+      const freshUrl = await generateFreshSignedUrl(claimed.relativePath);
+      responseJob = { ...claimed, fileUrl: freshUrl };
+    }
+    res.json({ job: responseJob });
   } catch (err) {
     console.error('[local-agent] jobs/claim error:', err);
     res.status(500).json({ error: 'Claim failed' });
@@ -176,6 +184,16 @@ router.post('/local-agent/jobs/result', requireAgentAuth, async (req: Request, r
         lastError: failedReason || 'Job failed',
         updatedAt: new Date(),
       }).where(eq(documentAgentNodes.agentCode, node.agentCode));
+    }
+
+    // Dual-Storage Policy: propagate mirror result to source record
+    if (existing.sourceModule && existing.sourceRecordId) {
+      const mirrorStatus = success ? 'mirrored' : 'failed';
+      if (existing.sourceModule === 'company_documents') {
+        await db.execute(
+          sql`UPDATE company_documents SET mirror_status = ${mirrorStatus} WHERE id = ${existing.sourceRecordId}`
+        );
+      }
     }
 
     res.json({ ok: true, job: updated });

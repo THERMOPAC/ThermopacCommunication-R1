@@ -14515,6 +14515,8 @@ export const documentAgentJobs = pgTable('document_agent_jobs', {
   claimedAt:        timestamp('claimed_at'),
   completedAt:      timestamp('completed_at'),
   sourceRef:        varchar('source_ref', { length: 200 }),
+  sourceModule:     text('source_module'),
+  sourceRecordId:   integer('source_record_id'),
   createdBy:        integer('created_by'),
   createdAt:        timestamp('created_at').notNull().defaultNow(),
   updatedAt:        timestamp('updated_at').notNull().defaultNow(),
