@@ -376,7 +376,6 @@ function DocAgentRow() {
   });
   const { data: pkgInfo } = useQuery<any>({
     queryKey: ["/api/local-agent/package-info"],
-    enabled: expanded,
     staleTime: 60_000,
   });
 
@@ -451,19 +450,19 @@ function DocAgentRow() {
           </Badge>
         </td>
         <td className="py-3 px-3">
-          <span className="text-xs font-mono text-muted-foreground">v1.0.0</span>
+          <span className="text-xs font-mono text-muted-foreground">{pkgInfo?.version ? `v${pkgInfo.version}` : "v1.0.x"}</span>
         </td>
         <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
           <div className="flex flex-wrap items-center gap-1.5">
             {isAdmin ? (
               <a href="/api/local-agent/download-package" download onClick={e => e.stopPropagation()}>
                 <Button variant="default" size="sm" className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white">
-                  <Download className="h-3 w-3 mr-1" /> Full Package
+                  <Download className="h-3 w-3 mr-1" /> Full Package{pkgInfo?.version ? ` v${pkgInfo.version}` : ""}
                 </Button>
               </a>
             ) : (
               <Button variant="default" size="sm" className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white" disabled>
-                <Download className="h-3 w-3 mr-1" /> Full Package
+                <Download className="h-3 w-3 mr-1" /> Full Package{pkgInfo?.version ? ` v${pkgInfo.version}` : ""}
               </Button>
             )}
             {isAdmin ? (
