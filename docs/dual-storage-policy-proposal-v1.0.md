@@ -1,6 +1,6 @@
 # THERMOPAC Dual-Storage Policy — Proposal v1.0
 
-**Status**: Proposed — Pending Approval  
+**Status**: Approved  
 **Author**: THERMOPAC ERP  
 **Date**: 2026-06-10  
 
@@ -18,22 +18,22 @@ This creates a gap:
 
 ---
 
-## 2. Proposed Policy
+## 2. Approved Policy
 
-**Every document uploaded via the ERP must be written to two storage locations:**
+**Every GCS-governed document uploaded via the ERP must be written to two storage locations:**
 
 | Layer | Storage | Authority |
 |---|---|---|
-| Primary | Google Cloud Storage (GCS) | Source of truth for all ERP operations |
+| Primary | Google Cloud Storage (GCS) | Source of truth for all ERP operations, reads, and downloads |
 | Secondary | Windows file server via Local Document Agent | Mirror for local/desktop access |
 
-GCS is always written first. The Windows copy is dispatched as an async agent job immediately after GCS succeeds.
+GCS is always written first. The Windows mirror copy is dispatched as an async agent job immediately after GCS succeeds.
 
 ---
 
 ## 3. Path Symmetry
 
-The GCS relative path and the Windows relative path are **identical** for all document types. The agent prepends `allowedRootPath` from its own config.
+The GCS relative path and the Windows agent relative path are **identical** for all document types. The agent prepends `allowedRootPath` from its own `config.json` to form the full Windows path.
 
 **Example — Company GST Certificate:**
 
@@ -44,178 +44,202 @@ The GCS relative path and the Windows relative path are **identical** for all do
 | Agent relative | `TPEL/COMPANY/TPEL/GST_CERTIFICATE/rev-01/001-gst_certificate.pdf` |
 | Windows (full) | `\\SERVER\d\THERMOPAC\TPEL\COMPANY\TPEL\GST_CERTIFICATE\rev-01\001-gst_certificate.pdf` |
 
-**Rule**: GCS path = Agent relative path (same string). No translation needed.
+**Rule**: GCS relative path = agent `local_relative_path`. No translation required.
 
 ---
 
-## 4. Mechanism — How the Secondary Write Works
+## 4. Mechanism — Upload Flow
 
-The Local Windows Document Agent already supports a `SAVE_FILE` job type. The dual-storage flow uses this job type.
+The Local Windows Document Agent uses the existing `SAVE_FILE` job type. The dual-storage flow uses this job type.
 
-### Flow (per upload)
+### Step-by-step (per upload)
 
 ```
 Browser → ERP upload endpoint
     │
-    ├─ 1. Upload file buffer → GCS              (synchronous, primary)
+    ├─ 1. Upload file buffer → GCS                  (synchronous, primary)
     │       ↓ success
-    ├─ 2. Generate GCS signed URL (15 min TTL)  (for agent to download the file)
+    ├─ 2. Compute SHA-256 of uploaded buffer
     │
-    ├─ 3. INSERT document_agent_jobs row         (job_type = SAVE_FILE)
-    │       payload = {
-    │         gcs_signed_url: <url>,             ← agent downloads from here
-    │         local_relative_path: <gcs_path>,  ← same as GCS path
-    │         sha256: <hash of uploaded file>    ← for integrity check
-    │       }
+    ├─ 3. INSERT document_agent_jobs row             (job_type = SAVE_FILE)
+    │       Fields stored:
+    │         source_module        ← e.g. 'company_documents'
+    │         source_record_id     ← FK to source table row
+    │         gcs_path             ← full GCS relative path
+    │         local_relative_path  ← same as gcs_path
+    │         sha256               ← hash of uploaded file
+    │         status               ← 'pending'
+    │       No signed URL stored at this point.
     │
-    └─ 4. Return success to browser             (GCS write confirmed)
-
-Windows Agent (polling every 30s):
-    ├─ Claims SAVE_FILE job
-    ├─ Downloads file from signed URL
-    ├─ Verifies SHA-256 hash
-    ├─ Creates folder structure if missing
-    ├─ Writes file to full local path
-    └─ Reports result → job marked complete/failed
+    └─ 4. Return success to browser                 (GCS write confirmed)
 ```
 
-GCS write failure → upload aborted, no agent job created.  
-Agent job failure → GCS copy remains authoritative; job logged as failed; retry possible.
+### Agent claim flow (polling every 30s)
+
+```
+Windows Agent → POST /api/local-agent/jobs/claim
+    │
+    ├─ ERP finds next pending SAVE_FILE job
+    ├─ ERP generates a fresh GCS signed URL for gcs_path  ← generated on-demand
+    ├─ ERP returns job payload including the fresh signed URL
+    ├─ ERP marks job as 'claimed'
+    │
+    ├─ Agent downloads file from fresh signed URL
+    ├─ Agent creates folder structure if missing
+    ├─ Agent writes file to: allowedRootPath + local_relative_path
+    ├─ Agent verifies SHA-256 of written file matches job sha256
+    │
+    └─ Agent → POST /api/local-agent/jobs/result
+            ├─ success → job marked 'complete', completed_at set
+            └─ failure → job marked 'failed', error_message stored
+```
+
+**Key properties of this design:**
+- No signed URL is ever stored in the database — no expiry problem
+- If the agent is offline, jobs remain `pending` indefinitely until the agent reconnects
+- A fresh signed URL is generated at the moment the agent claims the job, guaranteeing it is always valid at download time
 
 ---
 
-## 5. Scope — Phase 1 (Proposed)
+## 5. Mirror Confirmation Standard
 
-Phase 1 covers **Company Information documents only**:
+A mirror copy is confirmed **only** when all four steps complete in sequence:
 
-| Document Type | GCS Path Pattern | Dual-Storage |
+1. Agent downloads file from fresh signed URL ✅
+2. Agent writes file to the full Windows path ✅
+3. Agent verifies SHA-256 of written file matches stored sha256 ✅
+4. Agent reports `complete` to ERP ✅
+
+If any step fails, the job is marked `failed`. The GCS copy remains the authoritative source. The document is still accessible from the ERP via signed URL download.
+
+---
+
+## 6. Scope — All GCS-Governed Document Modules
+
+This policy applies to every module that writes a document to GCS. Branding assets and ephemeral processing artefacts are excluded (see Section 10).
+
+| Module | Source Table | Example GCS Path |
 |---|---|---|
-| GST_CERTIFICATE | `TPEL/COMPANY/{code}/GST_CERTIFICATE/rev-{N}/001-gst_certificate.{ext}` | ✅ |
-| PAN_CARD | `TPEL/COMPANY/{code}/PAN_CARD/rev-{N}/001-pan_card.{ext}` | ✅ |
-| IEC_CERTIFICATE | `TPEL/COMPANY/{code}/IEC_CERTIFICATE/rev-{N}/001-iec_certificate.{ext}` | ✅ |
-| LUT_COPY | `TPEL/COMPANY/{code}/LUT_COPY/rev-{N}/001-lut_copy.{ext}` | ✅ |
-| MSME_CERTIFICATE | `TPEL/COMPANY/{code}/MSME_CERTIFICATE/rev-{N}/001-msme_certificate.{ext}` | ✅ |
-| CANCELLED_CHEQUE | `TPEL/COMPANY/{code}/CANCELLED_CHEQUE/rev-{N}/001-cancelled_cheque.{ext}` | ✅ |
-| INCORPORATION_CERTIFICATE | `TPEL/COMPANY/{code}/INCORPORATION_CERTIFICATE/rev-{N}/001-incorporation_certificate.{ext}` | ✅ |
-| FACTORY_LICENSE | `TPEL/COMPANY/{code}/FACTORY_LICENSE/rev-{N}/001-factory_license.{ext}` | ✅ |
-| PF_ESI_DOCUMENTS | `TPEL/COMPANY/{code}/PF_ESI_DOCUMENTS/rev-{N}/001-pf_esi_documents.{ext}` | ✅ |
+| Company Documents | `company_documents` | `TPEL/COMPANY/{code}/{docType}/rev-{N}/001-{label}.{ext}` |
+| Vendor Compliance | `vendor_compliance_docs` | `TPEL/VENDOR/{CardCode}/{docType}/rev-{N}/{filename}` |
+| Legal Management | `legal_documents` | `TPEL/LEGAL/{category}/{filename}` |
+| QMS Calibration Certificates | `qms_document_revisions` | `TPEL/QMS/Calibration/{InstrumentCode}/rev-{N}/{filename}` |
+| EPC PPPC Datasheets | `buy_list_line_selections` | `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/PROCUREMENT/DATASHEETS/...` |
+| EPC Final Offer | `offers` | `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/1_Sales/2_Final_Offer/...` |
+| Design Data Sheets (DDS PDF) | `design_data_sheets` | `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/...` |
+| PLC TBE Reports | `plc_evaluations` | `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/3_Purchase/TBE/...` |
 
-**Out of scope for Phase 1** (future phases):
-- EPC project documents (PPPC datasheets, final offers, DDS, DWG)
-- Vendor documents
-- HR / Employee documents
-- Branding assets (logo, signature)
+> Implementation order: modules are wired in by the implementation team based on priority. The policy applies to all; rollout is incremental.
 
 ---
 
-## 6. Database Changes
+## 7. Database — `document_agent_jobs` Table
 
-One new table: `document_agent_jobs`
+The `document_agent_jobs` table already exists (used by Agent Jobs Monitor). The implementation must extend it with dual-storage columns rather than create a new table.
+
+**Required columns** (add if not present):
 
 ```sql
-CREATE TABLE document_agent_jobs (
-  id              SERIAL PRIMARY KEY,
-  job_type        TEXT NOT NULL DEFAULT 'SAVE_FILE',
-  source_module   TEXT NOT NULL,          -- 'company_documents', 'epc_docs', etc.
-  source_record_id INTEGER NOT NULL,      -- FK to source table row
-  gcs_path        TEXT NOT NULL,
-  local_relative_path TEXT NOT NULL,
-  sha256          TEXT NOT NULL,
-  signed_url      TEXT,                   -- populated at job creation; expires
-  signed_url_expires_at TIMESTAMPTZ,
-  status          TEXT NOT NULL DEFAULT 'pending',   -- pending|claimed|complete|failed
-  claimed_at      TIMESTAMPTZ,
-  completed_at    TIMESTAMPTZ,
-  error_message   TEXT,
-  retry_count     INTEGER NOT NULL DEFAULT 0,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by      INTEGER
-);
+ALTER TABLE document_agent_jobs
+  ADD COLUMN IF NOT EXISTS source_module       TEXT,
+  ADD COLUMN IF NOT EXISTS source_record_id    INTEGER,
+  ADD COLUMN IF NOT EXISTS local_relative_path TEXT,
+  ADD COLUMN IF NOT EXISTS sha256              TEXT;
 ```
 
-> **Note**: The existing `document_agent_jobs` table used by the Agent Jobs Monitor may already exist. The implementation must check and extend it if needed rather than create a duplicate.
+**Full schema reference** (columns used by dual-storage jobs):
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | SERIAL PK | Job ID |
+| `job_type` | TEXT | Always `SAVE_FILE` for dual-storage jobs |
+| `source_module` | TEXT | Module that created the job (e.g. `company_documents`) |
+| `source_record_id` | INTEGER | FK to source table row |
+| `gcs_path` | TEXT | Full GCS relative path |
+| `local_relative_path` | TEXT | Same as `gcs_path` |
+| `sha256` | TEXT | SHA-256 hex of the uploaded file |
+| `status` | TEXT | `pending` → `claimed` → `complete` / `failed` |
+| `claimed_at` | TIMESTAMPTZ | When agent claimed the job |
+| `completed_at` | TIMESTAMPTZ | When agent reported result |
+| `error_message` | TEXT | Agent-reported error (on failure) |
+| `retry_count` | INTEGER | Number of times retried |
+| `created_at` | TIMESTAMPTZ | When job was created |
+| `created_by` | INTEGER | User ID of uploader |
+
+**What is NOT stored**: No signed URL, no signed URL expiry timestamp. The signed URL is generated fresh on every `jobs/claim` request and returned in the response only — never persisted.
 
 ---
 
-## 7. Agent Job Retry Policy
+## 8. Retry Policy
+
+| Who can retry | Condition |
+|---|---|
+| Original uploader | May retry their own failed jobs |
+| Superuser | May retry any failed job |
 
 | Scenario | Behaviour |
 |---|---|
-| Signed URL expired before agent claims job | ERP refreshes signed URL on next claim attempt |
-| Agent download fails (network) | Job marked failed; retry after 5 min; max 3 retries |
-| SHA-256 mismatch | Job marked failed; not retried automatically; requires manual re-upload |
-| Folder creation fails | Job marked failed; agent reports OS error detail |
-| Agent offline | Jobs remain pending until agent reconnects; no timeout expiry for pending jobs |
+| Agent offline | Job remains `pending` indefinitely; no expiry; no action needed |
+| Agent download fails (network error) | Job marked `failed`; uploader or Superuser can retry |
+| SHA-256 mismatch after write | Job marked `failed`; uploader or Superuser can retry |
+| Folder creation fails | Job marked `failed`; agent reports OS error detail; uploader or Superuser can retry |
+| GCS upload fails | Upload rejected; no agent job created |
+
+Retry creates a new `document_agent_jobs` row; it does not mutate the original failed row.
 
 ---
 
-## 8. UI — Agent Job Status Visibility
+## 9. UI — Mirror Status Indicator
 
-On the **Company Information → Documents** table, each row gets a secondary indicator:
+Every document row in every governed module's document table must show a mirror status indicator alongside the GCS status:
 
-| GCS Status | Agent Status | Indicator shown |
-|---|---|---|
-| uploaded | complete | ✅ Local copy confirmed |
-| uploaded | pending / claimed | ⏳ Local copy pending |
-| uploaded | failed | ⚠️ Local copy failed (with retry button) |
-| uploaded | no job created | — (legacy uploads pre-policy) |
+| Agent Job Status | Indicator |
+|---|---|
+| `complete` | ✅ Local copy confirmed |
+| `pending` or `claimed` | ⏳ Local copy pending |
+| `failed` | ⚠️ Local copy failed + Retry button |
+| No job row (legacy upload) | — (no indicator; pre-policy record) |
 
-The retry button re-dispatches a new `SAVE_FILE` agent job for that document.
-
----
-
-## 9. Failure Handling — GCS as Authoritative Source
-
-- GCS is always written first. If GCS fails, no agent job is created and the upload is rejected.
-- If the agent job fails, GCS remains the authoritative copy. The document is accessible via the ERP (signed URL download).
-- The agent job failure does NOT roll back the GCS write.
-- Failed agent jobs are visible in **Admin → Agent Jobs Monitor**.
+The Retry button is visible to the original uploader and Superuser. Retry dispatches a new `SAVE_FILE` job for that document.
 
 ---
 
 ## 10. Exclusions
 
-The following are explicitly excluded from this policy:
+The following are explicitly excluded from this policy and must never trigger a `SAVE_FILE` agent job:
 
 | Item | Reason |
 |---|---|
-| Branding assets (logo, seal, signature) | Internal ERP display only; not a governed document |
-| SolidWorks extraction job results | Ephemeral processing artefacts; GCS path under `epc-slddrw/` |
-| GCS-to-Windows sync of pre-existing historical files | Out of scope; handled by separate migration plan |
+| Branding assets (company logo, seal, signature) | Internal ERP display only; not a governed document |
+| SolidWorks extraction job results | Ephemeral processing artefacts under `epc-slddrw/`; 30-day TTL |
+| RFQ attachment snapshots (`plc_rfq_attachments`) | Reference copies of already-governed DATASHEET paths; no new GCS object created |
+| GCS-to-Windows sync of pre-existing historical files | Out of scope; handled by a separate migration plan |
 | Read operations (downloads, previews) | No change; GCS signed URL used for all reads |
-| Windows-to-GCS sync | Not in scope; ERP is the write authority |
+| Windows-to-GCS sync | Not in scope; ERP is the sole write authority |
 
 ---
 
-## 11. Open Questions (Require Decision Before Implementation)
+## 11. Failure Handling — GCS as Authoritative Source
 
-| # | Question | Default if not answered |
+- GCS write failure → upload rejected; no agent job created; browser receives error.
+- Agent job failure → GCS copy remains authoritative; document accessible via ERP signed URL download; job logged as failed.
+- Agent job failure does NOT roll back the GCS write.
+- All failed agent jobs are visible in **Admin → Agent Jobs Monitor**.
+- No email or push notification on agent job failure (can be added in a future phase if needed).
+
+---
+
+## 12. Approved Decisions
+
+| # | Decision | Value |
 |---|---|---|
-| Q1 | Does `document_agent_jobs` table already exist in DB? Must check schema before implementation. | Check required |
-| Q2 | Signed URL TTL for agent download: 15 min or longer? | 60 min proposed (agent polls every 30s; may queue behind other jobs) |
-| Q3 | Should the UI retry button be Superuser-only or available to any uploader? | Superuser-only proposed |
-| Q4 | Phase 2 scope: which module is next after Company documents? | EPC documents proposed |
-| Q5 | Should failed agent jobs trigger an email/notification to admin? | No notification in Phase 1 |
-
----
-
-## 12. Proposed Implementation Phases
-
-| Phase | Scope | Status |
-|---|---|---|
-| Phase 1 | Company Information documents — dual storage | 🟡 Proposed |
-| Phase 2 | EPC documents (PPPC datasheets, final offers) | ⏳ Future |
-| Phase 3 | Vendor documents | ⏳ Future |
-| Phase 4 | HR / Employee documents | ⏳ Future |
-
----
-
-## 13. Approval Required
-
-Before implementation begins:
-
-1. Confirm Phase 1 scope (Company documents only) ✅/❌  
-2. Confirm GCS = source of truth, Windows = mirror ✅/❌  
-3. Confirm signed URL TTL (proposed: 60 min) ✅/❌  
-4. Confirm retry button visibility (proposed: Superuser-only) ✅/❌  
-5. Confirm no notification on agent job failure in Phase 1 ✅/❌  
+| D1 | GCS authority | GCS is primary source of truth for all ERP operations |
+| D2 | Windows role | Mirror only; no ERP reads from Windows |
+| D3 | Signed URL storage | Never stored in DB; generated fresh on `jobs/claim` |
+| D4 | Job fields stored | `gcs_path`, `local_relative_path`, `sha256`, `source_module`, `source_record_id` |
+| D5 | Mirror confirmation | All 4 steps must complete (download → write → SHA256 verify → report) |
+| D6 | Agent offline behaviour | Jobs stay `pending` indefinitely; no expiry |
+| D7 | Retry access | Original uploader or Superuser |
+| D8 | Policy scope | All GCS-governed document modules |
+| D9 | Notifications | None in initial rollout |
+| D10 | `document_agent_jobs` table | Extends existing table; no new table created |
