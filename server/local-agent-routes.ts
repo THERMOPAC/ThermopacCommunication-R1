@@ -36,6 +36,7 @@ const ALLOWED_JOB_TYPES = [
   'VERIFY_FILE_EXISTS',
   'VERIFY_FOLDER_EXISTS',
   'HASH_VALIDATE',
+  'LIST_DIRECTORY',
 ] as const;
 
 // ── Agent authentication middleware ──────────────────────────────────────────
@@ -505,7 +506,7 @@ router.get('/local-agent/download-source-package', requireSession, requireSuperu
 // ── POST /api/local-agent/admin/enqueue ── (session auth, any role) ──────────
 
 const EnqueueSchema = z.object({
-  jobType:       z.enum(['CREATE_FOLDER','SAVE_FILE','SAVE_PDF','VERIFY_FILE_EXISTS','VERIFY_FOLDER_EXISTS','HASH_VALIDATE']),
+  jobType:       z.enum(['CREATE_FOLDER','SAVE_FILE','SAVE_PDF','VERIFY_FILE_EXISTS','VERIFY_FOLDER_EXISTS','HASH_VALIDATE','LIST_DIRECTORY']),
   relativePath:  z.string().min(1),
   fileUrl:       z.string().optional(),
   fileName:      z.string().optional(),

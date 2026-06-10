@@ -10,6 +10,8 @@
  */
 
 import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AgentConfig } from './config';
 import { AgentJob, submitResult } from './api-client';
 import { validateRelativePath, validateExtension } from './path-guard';
@@ -129,6 +131,36 @@ export async function runJob(
           failedReason:  exists ? undefined : 'Folder does not exist',
         });
         if (exists) health.recordSuccess();
+        break;
+      }
+
+      case 'LIST_DIRECTORY': {
+        if (!folderExists(fullPath)) {
+          await submitResult(config, {
+            jobId:         job.id,
+            success:       false,
+            resultPayload: { entries: [], total: 0, path: fullPath },
+            failedReason:  'Directory not found',
+          });
+          return;
+        }
+        const raw = fs.readdirSync(fullPath, { withFileTypes: true });
+        const entries = raw.slice(0, 100).map(entry => {
+          let size: number | null = null;
+          let lastModified: string | null = null;
+          try {
+            const st = fs.statSync(path.join(fullPath, entry.name));
+            size         = entry.isDirectory() ? null : st.size;
+            lastModified = st.mtime.toISOString();
+          } catch { /* ignore stat errors for individual entries */ }
+          return { name: entry.name, isDirectory: entry.isDirectory(), size, lastModified };
+        });
+        health.recordSuccess();
+        await submitResult(config, {
+          jobId:         job.id,
+          success:       true,
+          resultPayload: { entries, total: raw.length, path: fullPath, truncated: raw.length > 100 },
+        });
         break;
       }
 

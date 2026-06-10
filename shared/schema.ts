@@ -14499,7 +14499,7 @@ export type VendorComplianceDoc = typeof vendorComplianceDocs.$inferSelect;
 export const documentAgentJobs = pgTable('document_agent_jobs', {
   id:               serial('id').primaryKey(),
   jobType:          varchar('job_type', { length: 50 }).notNull(),
-  // CREATE_FOLDER | SAVE_FILE | SAVE_PDF | VERIFY_FILE_EXISTS | VERIFY_FOLDER_EXISTS | HASH_VALIDATE
+  // CREATE_FOLDER | SAVE_FILE | SAVE_PDF | VERIFY_FILE_EXISTS | VERIFY_FOLDER_EXISTS | HASH_VALIDATE | LIST_DIRECTORY
   status:           varchar('status', { length: 50 }).notNull().default('pending'),
   // pending | processing | completed | failed
   agentCode:        varchar('agent_code', { length: 100 }),

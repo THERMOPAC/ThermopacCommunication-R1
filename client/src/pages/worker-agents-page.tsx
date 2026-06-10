@@ -334,6 +334,22 @@ function StructuringAgentRow() {
   );
 }
 
+function computeRelativePath(fullPath: string, rootPath: string): string {
+  if (!rootPath) return fullPath;
+  const root = rootPath.replace(/[\\\/]+$/, "");
+  if (fullPath.toLowerCase().startsWith(root.toLowerCase())) {
+    const rel = fullPath.slice(root.length).replace(/^[\\\/]+/, "");
+    return rel || ".";
+  }
+  return fullPath;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
 function DocAgentRow() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -344,15 +360,17 @@ function DocAgentRow() {
   const [regApiKey, setRegApiKey] = useState("");
   const [regRootPath, setRegRootPath] = useState("\\\\Server\\d\\THERMOPAC");
   const [regMachine, setRegMachine] = useState("");
+  const [testPath, setTestPath] = useState("\\\\SERVER\\d\\THERMOPAC\\GM");
+  const [testJobId, setTestJobId] = useState<number | null>(null);
 
   const { data: docStatus, refetch: refetchStatus } = useQuery<any>({
     queryKey: ["/api/local-agent/status"],
     refetchInterval: expanded ? 20000 : false,
     enabled: expanded,
   });
-  const { data: docJobs = [] } = useQuery<any[]>({
+  const { data: docJobs = [], refetch: refetchJobs } = useQuery<any[]>({
     queryKey: ["/api/local-agent/jobs/recent"],
-    refetchInterval: expanded ? 20000 : false,
+    refetchInterval: expanded ? 5000 : false,
     enabled: expanded,
   });
   const { data: pkgInfo } = useQuery<any>({
@@ -372,6 +390,23 @@ function DocAgentRow() {
     },
     onError: (e: any) => toast({ title: e?.message || "Registration failed", variant: "destructive" }),
   });
+
+  const enqueueMutation = useMutation({
+    mutationFn: async (payload: { jobType: string; relativePath: string }) =>
+      apiRequest("POST", "/api/local-agent/admin/enqueue", payload),
+    onSuccess: (data: any) => {
+      setTestJobId(data.job.id);
+      refetchJobs();
+      toast({ title: `Test job #${data.job.id} enqueued`, description: "Agent will pick it up within 20 s" });
+    },
+    onError: (e: any) => toast({ title: e?.message || "Enqueue failed", variant: "destructive" }),
+  });
+
+  function enqueueTest(jobType: "VERIFY_FOLDER_EXISTS" | "LIST_DIRECTORY") {
+    const root = docStatus?.nodes?.[0]?.allowedRootPath || "";
+    const relativePath = computeRelativePath(testPath, root);
+    enqueueMutation.mutate({ jobType, relativePath });
+  }
 
   const pendingCount = docStatus?.counts?.pending || 0;
 
@@ -566,6 +601,142 @@ function DocAgentRow() {
                     })}
                   </div>
                 )}
+              </div>
+
+              {/* ── Read-Only Test ────────────────────────────────────────────── */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <ScanSearch className="h-3.5 w-3.5" /> Read-Only Test
+                </p>
+                <div className="border rounded-lg bg-background p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+                    <div className="flex-1 w-full">
+                      <Label className="text-xs mb-1 block text-muted-foreground">Path on Windows server</Label>
+                      <Input
+                        value={testPath}
+                        onChange={e => setTestPath(e.target.value)}
+                        className="font-mono text-xs h-8"
+                        placeholder="\\SERVER\d\THERMOPAC\GM"
+                      />
+                      {docStatus?.nodes?.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Root: <span className="font-mono">{docStatus.nodes[0].allowedRootPath}</span>
+                          {" → relative: "}
+                          <span className="font-mono font-medium">{computeRelativePath(testPath, docStatus.nodes[0].allowedRootPath)}</span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"
+                        disabled={enqueueMutation.isPending}
+                        onClick={() => enqueueTest("VERIFY_FOLDER_EXISTS")}
+                      >
+                        <FolderOpen className="h-3 w-3 mr-1" />
+                        Verify Folder
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-purple-400 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                        disabled={enqueueMutation.isPending}
+                        onClick={() => enqueueTest("LIST_DIRECTORY")}
+                      >
+                        <FolderTree className="h-3 w-3 mr-1" />
+                        List Directory
+                      </Button>
+                    </div>
+                  </div>
+
+                  {testJobId !== null && (() => {
+                    const job = docJobs.find((j: any) => j.id === testJobId);
+                    if (!job) return (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Waiting for agent to claim job #{testJobId}…
+                      </div>
+                    );
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs flex-wrap">
+                          <span className="text-muted-foreground">Job #{job.id}</span>
+                          <Badge className={`text-[10px] px-1.5 py-0 ${
+                            job.status === "completed"   ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200" :
+                            job.status === "failed"      ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200" :
+                            job.status === "processing"  ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200" :
+                            "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200"
+                          }`}>{job.status}</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{job.jobType}</Badge>
+                          {(job.status === "pending" || job.status === "processing") && (
+                            <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+
+                        {job.status === "failed" && (
+                          <p className="text-xs text-red-600 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded px-3 py-2">
+                            {job.failedReason || "Unknown error"}
+                          </p>
+                        )}
+
+                        {job.status === "completed" && job.jobType === "VERIFY_FOLDER_EXISTS" && (
+                          <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded px-3 py-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                            <span className="text-green-700 dark:text-green-300">
+                              Folder accessible — <span className="font-mono">{job.resultPayload?.fullPath || job.relativePath}</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {job.status === "completed" && job.jobType === "LIST_DIRECTORY" && job.resultPayload?.entries && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground mb-1.5">
+                              {job.resultPayload.total} item{job.resultPayload.total !== 1 ? "s" : ""} in{" "}
+                              <span className="font-mono">{job.resultPayload.path}</span>
+                              {job.resultPayload.truncated ? " — showing first 100" : ""}
+                            </p>
+                            <div className="border rounded overflow-hidden">
+                              <ScrollArea className="max-h-64">
+                                <table className="w-full text-xs">
+                                  <thead className="sticky top-0 bg-muted/90 backdrop-blur z-10">
+                                    <tr>
+                                      <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">Name</th>
+                                      <th className="text-left py-1.5 px-2 font-medium text-muted-foreground w-14">Type</th>
+                                      <th className="text-right py-1.5 px-2 font-medium text-muted-foreground w-20">Size</th>
+                                      <th className="text-left py-1.5 px-2 font-medium text-muted-foreground w-28">Modified</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {job.resultPayload.entries.map((entry: any, i: number) => (
+                                      <tr key={i} className="border-t hover:bg-muted/30">
+                                        <td className="py-1 px-2">
+                                          <div className="flex items-center gap-1.5">
+                                            {entry.isDirectory
+                                              ? <FolderOpen className="h-3 w-3 text-amber-500 shrink-0" />
+                                              : <FileCheck2 className="h-3 w-3 text-blue-400 shrink-0" />}
+                                            <span className="font-mono truncate max-w-[200px]" title={entry.name}>{entry.name}</span>
+                                          </div>
+                                        </td>
+                                        <td className="py-1 px-2 text-muted-foreground">{entry.isDirectory ? "Folder" : "File"}</td>
+                                        <td className="py-1 px-2 text-right text-muted-foreground font-mono">
+                                          {entry.size != null ? formatBytes(entry.size) : "—"}
+                                        </td>
+                                        <td className="py-1 px-2 text-muted-foreground">
+                                          {entry.lastModified ? format(new Date(entry.lastModified), "dd/MM/yy HH:mm") : "—"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </ScrollArea>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* Recent Activity */}
