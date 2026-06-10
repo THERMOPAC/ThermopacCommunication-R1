@@ -348,6 +348,43 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
   });
 });
 
+// ── GET /api/local-agent/download-dist-update ── (Superuser) ──────────────────
+// Lightweight update package — only dist/*.js files, prefixed with dist/.
+// User extracts this ZIP directly into their existing agent folder to update
+// the compiled modules without touching config.json or any other files.
+
+router.get('/local-agent/download-dist-update', requireSession, requireSuperuser, async (_req: Request, res: Response) => {
+  try {
+    const distDir = path.join(AGENT_DIR, 'dist');
+    if (!fs.existsSync(distDir)) {
+      return res.status(503).json({ error: 'Agent dist not built yet.' });
+    }
+
+    const zipName = `thermopac-doc-agent-v${AGENT_VERSION}-update.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      console.error('[local-agent] dist-update zip error:', err);
+      if (!res.headersSent) res.status(500).json({ error: 'Update package generation failed' });
+    });
+    archive.pipe(res);
+
+    const distFiles = fs.readdirSync(distDir).filter(f => f.endsWith('.js'));
+    for (const f of distFiles) {
+      archive.file(path.join(distDir, f), { name: 'dist/' + f });
+    }
+    archive.append(AGENT_VERSION, { name: 'VERSION.txt' });
+
+    await archive.finalize();
+  } catch (err) {
+    console.error('[local-agent] download-dist-update error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
+  }
+});
+
 // ── GET /api/local-agent/download-package ── (Superuser) ─────────────────────
 
 router.get('/local-agent/download-package', requireSession, requireSuperuser, async (_req: Request, res: Response) => {

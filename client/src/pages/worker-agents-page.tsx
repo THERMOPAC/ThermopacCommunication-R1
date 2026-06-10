@@ -466,6 +466,14 @@ function DocAgentRow() {
               </Button>
             )}
             {isAdmin ? (
+              <a href="/api/local-agent/download-dist-update" download onClick={e => e.stopPropagation()}
+                title="Only dist/*.js files — extract over existing folder, config.json untouched">
+                <Button variant="outline" size="sm" className="h-7 text-xs border-purple-400 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950">
+                  <RefreshCw className="h-3 w-3 mr-1" /> Update
+                </Button>
+              </a>
+            ) : null}
+            {isAdmin ? (
               <a href="/api/local-agent/download-source-package" download onClick={e => e.stopPropagation()}>
                 <Button variant="outline" size="sm" className="h-7 text-xs border-purple-400 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950">
                   <GitBranch className="h-3 w-3 mr-1" /> Source ZIP
