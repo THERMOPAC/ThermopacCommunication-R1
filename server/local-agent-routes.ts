@@ -284,7 +284,7 @@ router.post('/local-agent/admin/agents/:agentCode/rotate-key', requireSession, r
     // Build the config object with all real values
     const config = {
       agentCode:           node.agentCode,
-      erpBaseUrl:          `${req.protocol}://${req.get('host')}`,
+      erpBaseUrl:          'https://thermopac-communication-thermopacllp.replit.app',
       apiKey:              newApiKey,
       allowedRootPath:     node.allowedRootPath,
       pollIntervalSeconds: 20,
