@@ -131,7 +131,45 @@ If any step fails, the job is marked `failed`. The GCS copy remains the authorit
 
 ---
 
-## 6. Scope — All GCS-Governed Document Modules
+## 6. Document Immutability & Revision Control
+
+**Rule**: Existing documents must never be overwritten in either GCS or the Windows Server. Every replacement upload or regeneration creates a new revision at a new path.
+
+### 6.1 Revision Path Requirement
+
+Every GCS path and every corresponding Windows path must encode the revision, either as a **revision folder** or a **revision suffix** in the filename. Both storage locations must use the same revision encoding.
+
+| Revision mode | GCS path example | Windows path example |
+|---|---|---|
+| Folder | `TPEL/COMPANY/TPEL/GST_CERTIFICATE/rev-01/001-gst_certificate.pdf` | `...\GST_CERTIFICATE\rev-01\001-gst_certificate.pdf` |
+| Folder | `TPEL/COMPANY/TPEL/GST_CERTIFICATE/rev-02/001-gst_certificate.pdf` | `...\GST_CERTIFICATE\rev-02\001-gst_certificate.pdf` |
+| Suffix | `TPEL/EPC/.../DDS-001-rev-02.pdf` | `...\DDS-001-rev-02.pdf` |
+
+Each revision is a separate, immutable object in GCS and a separate, immutable file on Windows. Prior revisions are never deleted or overwritten.
+
+### 6.2 SAVE_FILE Immutability Guard
+
+The Windows agent must enforce immutability at write time:
+
+| Condition | Action |
+|---|---|
+| Target file does not exist | Write the file; report success |
+| Target file exists AND SHA-256 matches | Report failure: `FILE_ALREADY_EXISTS_IDENTICAL` — identical revision already mirrored; no overwrite |
+| Target file exists AND SHA-256 differs | Report failure: `FILE_ALREADY_EXISTS_CONFLICT` — path collision with different content; this is a governance violation; no overwrite |
+
+**The agent must never silently overwrite an existing file under any condition.**
+
+### 6.3 Latest Revision from Database Only
+
+The latest (active) revision of any document is determined exclusively from database metadata (`is_active = true`, `revision_number` column, or equivalent). It is never determined by inspecting or overwriting files on disk. GCS and Windows hold all revisions; the DB controls which one is current.
+
+### 6.4 Audit Trail
+
+Every revision must have a permanent audit record. The source table row (one row per revision) and the `document_agent_jobs` row together form the audit trail. Rows are never deleted. `is_active` flags are flipped but prior rows are preserved.
+
+---
+
+## 7. Scope — All GCS-Governed Document Modules
 
 This policy applies to every module that writes a document to GCS. Ephemeral processing artefacts are excluded (see Section 10).
 
@@ -283,3 +321,9 @@ No email or push notification on agent job failure in initial rollout.
 | D12 | System-generated doc — DB record timing | DB record created only after GCS upload succeeds; no orphan records |
 | D13 | Mirror failure effect on document validity | None — document remains valid; only mirror_status is affected |
 | D14 | GCS rollback on mirror failure | Never — GCS write is final and irrevocable from ERP side |
+| D15 | Document overwrite — GCS | Never — every replacement creates a new revision at a new path |
+| D16 | Document overwrite — Windows | Never — agent must refuse to overwrite an existing file |
+| D17 | SAVE_FILE collision — identical SHA-256 | Fail with `FILE_ALREADY_EXISTS_IDENTICAL`; no write |
+| D18 | SAVE_FILE collision — different SHA-256 | Fail with `FILE_ALREADY_EXISTS_CONFLICT`; governance violation; no write |
+| D19 | Latest revision authority | Database metadata only (`is_active`, `revision_number`); never determined by file inspection |
+| D20 | Audit trail | Source table rows and `document_agent_jobs` rows are permanent; never deleted; `is_active` flipped only |
