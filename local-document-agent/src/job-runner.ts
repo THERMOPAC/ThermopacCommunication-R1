@@ -22,6 +22,50 @@ import { info, warn, error } from './logger';
 
 const AGENT_VERSION = '1.0.0';
 
+function generateTestPdf(agentCode: string, nowIso: string): Buffer {
+  const pad = (n: number, d = 2) => String(n).padStart(d, '0');
+  const dt = nowIso.replace('T', ' ').substring(0, 19) + ' UTC';
+  const lines = [
+    'BT',
+    '/F1 14 Tf',
+    '50 780 Td',
+    '(THERMOPAC Local Windows Document Agent - File Access Test) Tj',
+    '/F1 11 Tf',
+    '0 -35 Td',
+    `(Agent: ${agentCode}) Tj`,
+    '0 -22 Td',
+    `(Date/Time: ${dt}) Tj`,
+    '0 -22 Td',
+    '(Result: PASS - Read/write access confirmed.) Tj',
+    '0 -22 Td',
+    '(This file was created by SAVE_TEST_FILE and may be deleted after verification.) Tj',
+    'ET',
+  ];
+  const streamBody = lines.join('\n');
+  const streamLen  = streamBody.length; // pure ASCII — byte length === char length
+
+  const o1 = '1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n';
+  const o2 = '2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n';
+  const o3 = '3 0 obj\n<</Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources <</Font <</F1 5 0 R>>>>>>\nendobj\n';
+  const o4 = `4 0 obj\n<</Length ${streamLen}>>\nstream\n${streamBody}\nendstream\nendobj\n`;
+  const o5 = '5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier>>\nendobj\n';
+
+  const hdr = '%PDF-1.4\n';
+  const objs = [o1, o2, o3, o4, o5];
+  let off = hdr.length;
+  const offs: number[] = [];
+  for (const o of objs) { offs.push(off); off += o.length; }
+  const xrefPos = off;
+
+  const p10 = (n: number) => String(n).padStart(10, '0');
+  const row  = (o: number, g: number, t: 'n' | 'f') =>
+    `${p10(o)} ${String(g).padStart(5, '0')} ${t} \n`; // 20 bytes per row
+  const xref    = `xref\n0 6\n${row(0, 65535, 'f')}${offs.map(o => row(o, 0, 'n')).join('')}`;
+  const trailer = `trailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n${xrefPos}\n%%EOF\n`;
+
+  return Buffer.from(hdr + objs.join('') + xref + trailer, 'latin1');
+}
+
 export async function runJob(
   config:  AgentConfig,
   job:     AgentJob,
@@ -131,6 +175,46 @@ export async function runJob(
           failedReason:  exists ? undefined : 'Folder does not exist',
         });
         if (exists) health.recordSuccess();
+        break;
+      }
+
+      case 'SAVE_TEST_FILE': {
+        if (!folderExists(fullPath)) {
+          await submitResult(config, {
+            jobId:        job.id,
+            success:      false,
+            failedReason: `Target folder not found: ${fullPath}`,
+          });
+          return;
+        }
+        const now   = new Date();
+        const pad2  = (n: number) => String(n).padStart(2, '0');
+        const ts    = `${now.getUTCFullYear()}${pad2(now.getUTCMonth() + 1)}${pad2(now.getUTCDate())}_${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}`;
+        const fileName = `THERMOPAC_AGENT_TEST_${ts}.pdf`;
+        const destPath = path.join(fullPath, fileName);
+        if (fs.existsSync(destPath)) {
+          await submitResult(config, {
+            jobId: job.id, success: false,
+            failedReason: `File already exists: ${destPath}`,
+          });
+          return;
+        }
+        const pdfBuf = generateTestPdf(config.agentCode, now.toISOString());
+        fs.writeFileSync(destPath, pdfBuf);
+        const { size } = fs.statSync(destPath);
+        health.recordSuccess();
+        await submitResult(config, {
+          jobId:           job.id,
+          success:         true,
+          resultLocalPath: destPath,
+          resultPayload: {
+            fileName,
+            filePath:   destPath,
+            fileSize:   size,
+            createdAt:  now.toISOString(),
+            pdfBase64:  pdfBuf.toString('base64'),
+          },
+        });
         break;
       }
 

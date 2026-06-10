@@ -37,6 +37,7 @@ const ALLOWED_JOB_TYPES = [
   'VERIFY_FOLDER_EXISTS',
   'HASH_VALIDATE',
   'LIST_DIRECTORY',
+  'SAVE_TEST_FILE',
 ] as const;
 
 // ── Agent authentication middleware ──────────────────────────────────────────
@@ -506,7 +507,7 @@ router.get('/local-agent/download-source-package', requireSession, requireSuperu
 // ── POST /api/local-agent/admin/enqueue ── (session auth, any role) ──────────
 
 const EnqueueSchema = z.object({
-  jobType:       z.enum(['CREATE_FOLDER','SAVE_FILE','SAVE_PDF','VERIFY_FILE_EXISTS','VERIFY_FOLDER_EXISTS','HASH_VALIDATE','LIST_DIRECTORY']),
+  jobType:       z.enum(['CREATE_FOLDER','SAVE_FILE','SAVE_PDF','VERIFY_FILE_EXISTS','VERIFY_FOLDER_EXISTS','HASH_VALIDATE','LIST_DIRECTORY','SAVE_TEST_FILE']),
   relativePath:  z.string().min(1),
   fileUrl:       z.string().optional(),
   fileName:      z.string().optional(),
@@ -530,6 +531,32 @@ router.post('/local-agent/admin/enqueue', requireSession, async (req: Request, r
   } catch (err) {
     console.error('[local-agent] enqueue error:', err);
     res.status(500).json({ error: 'Enqueue failed' });
+  }
+});
+
+// ── GET /api/local-agent/jobs/:id/test-file ── download PDF from SAVE_TEST_FILE result ──
+router.get('/local-agent/jobs/:id/test-file', requireSession, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid job ID' });
+
+    const [job] = await db.select().from(documentAgentJobs).where(eq(documentAgentJobs.id, id));
+    if (!job)                            return res.status(404).json({ error: 'Job not found' });
+    if (job.jobType !== 'SAVE_TEST_FILE') return res.status(400).json({ error: 'Not a SAVE_TEST_FILE job' });
+    if (job.status  !== 'completed')      return res.status(400).json({ error: 'Job not completed yet' });
+
+    const payload = job.resultPayload as any;
+    if (!payload?.pdfBase64) return res.status(404).json({ error: 'No file data in result payload' });
+
+    const buf      = Buffer.from(payload.pdfBase64, 'base64');
+    const fileName = (payload.fileName as string) || `THERMOPAC_TEST_${id}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', buf.length);
+    res.send(buf);
+  } catch (err) {
+    console.error('[local-agent] test-file download error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
   }
 });
 
