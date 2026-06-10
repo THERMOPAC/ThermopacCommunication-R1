@@ -2,7 +2,7 @@
  * file-service.ts
  *
  * Safe file operations:
- * 1. Download file to .tmp
+ * 1. Download file to .tmp using Node 20 native fetch
  * 2. Calculate SHA256
  * 3. Rename .tmp → final only after successful verify
  * 4. Auto-create parent folders
@@ -39,7 +39,6 @@ export async function downloadAndSave(
 
   try {
     info(`Downloading: ${fileUrl} → ${tempPath}`);
-    const { default: fetch } = await import('node-fetch') as any;
     const response = await fetch(fileUrl);
     if (!response.ok) {
       return { ok: false, localPath: '', sha256: '', error: `HTTP ${response.status} fetching file` };
