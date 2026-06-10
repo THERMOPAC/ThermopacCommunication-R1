@@ -3,7 +3,13 @@
  * Phase 3 — Path Resolver Service (baseline v1.0)
  *
  * ERP stores only relative paths. No UNC, no drive letters, no local filesystem writes.
- * The Local Windows Document Agent (future phase) will prepend the physical root.
+ * The Local Windows Document Agent resolves the full local path at runtime:
+ *   Full local path = allowedRootPath (from agent config.json) + resolved relative template
+ * Example:
+ *   allowedRootPath : \\SERVER\d\THERMOPAC
+ *   template        : {COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/3_PID
+ *   resolved        : \\SERVER\d\THERMOPAC\TPEL\IN\MH\BPCL\2526\042\2_Design\3_PID
+ * Note: {COMPANY} is a real token (resolves to e.g. "TPEL"). It is NOT the Windows root.
  */
 
 // ─── Allowed token set ────────────────────────────────────────────────────

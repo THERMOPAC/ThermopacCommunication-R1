@@ -44,8 +44,9 @@ Problems:
                          │                               │
                          │  Reads resolved relative paths│
                          │  from ERP API                 │
-                         │  Prepends physical root:      │
-                         │  D:\THERMOPAC\                │
+                         │  Full local path =            │
+                         │  allowedRootPath +            │
+                         │  Doc Governance template      │
                          │  Creates actual folders       │
                          └───────────────────────────────┘
 ```
@@ -54,29 +55,45 @@ Problems:
 
 ## 3. ERP-Owned Relative Path Governance
 
-**Rule**: The ERP stores **only relative paths**. The physical root is owned exclusively by the Local Document Agent running on the Windows server.
+**Rule**: The ERP stores **only relative path templates**. The `allowedRootPath` is configured in the Windows agent's `config.json` and is never stored in the ERP database.
+
+**Path resolution formula:**
+```
+Full local path = allowedRootPath + Doc Governance relative template
+```
+
+**Example:**
+```
+allowedRootPath : \\SERVER\d\THERMOPAC
+template        : {COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/3_PID
+resolved        : \\SERVER\d\THERMOPAC\TPEL\IN\MH\BPCL\2526\042\2_Design\3_PID
+```
 
 | Layer | Responsibility | Example |
 |---|---|---|
 | ERP | Relative path template | `{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/1_Sales` |
 | ERP | Resolved relative path | `TPEL/EPC/C10357/ApolloRefinery/2627/017/1_Sales` |
-| Agent | Physical root | `D:\THERMOPAC\` |
-| Agent | Full physical path | `D:\THERMOPAC\TPEL\EPC\C10357\...` |
+| Agent config | `allowedRootPath` | `\\SERVER\d\THERMOPAC` |
+| Agent | Full local path | `\\SERVER\d\THERMOPAC\TPEL\EPC\C10357\...` |
+
+> **Important:** `{COMPANY}` is a real token that resolves to the company code (e.g. `TPEL`). It is **not** the Windows root and must not be stripped from templates.
 
 ---
 
 ## 4. Agent-Owned Physical Root Path
 
-The Local Windows Document Agent owns the physical root path. It is **never stored in the ERP database**.
+The `allowedRootPath` is owned by the Windows agent and is **never stored in the ERP database**.
 
 The agent config file (on the Windows server) contains:
 ```json
 {
-  "physical_root": "D:\\THERMOPAC\\",
-  "erp_api_base": "https://erp.thermopac.in/api",
-  "poll_interval_seconds": 30
+  "allowedRootPath": "\\\\SERVER\\d\\THERMOPAC",
+  "erpBaseUrl": "https://erp.thermopac.in/api",
+  "pollIntervalSeconds": 30
 }
 ```
+
+The agent prepends `allowedRootPath` to every resolved relative template at runtime to form the full local path.
 
 ---
 

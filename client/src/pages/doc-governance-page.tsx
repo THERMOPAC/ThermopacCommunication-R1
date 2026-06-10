@@ -278,10 +278,20 @@ export default function DocGovernancePage() {
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-blue-800">Document Path Governance — ERP Phase Only</p>
+                <p className="text-sm font-semibold text-blue-800">Document Path Governance — Relative Paths Only</p>
                 <p className="text-xs text-blue-700 mt-0.5">
-                  ERP stores only relative paths. No UNC paths, no drive letters, no local filesystem writes.
-                  The Local Windows Document Agent (future phase) will prepend the physical root and create actual folders.
+                  ERP stores only relative path templates. No UNC paths, no drive letters, no local filesystem writes.
+                  The Local Windows Document Agent resolves the full local path at runtime:
+                </p>
+                <p className="text-xs font-mono text-blue-800 mt-1.5 bg-blue-100 rounded px-2 py-1">
+                  Full local path = allowedRootPath + Doc Governance relative template
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Example: <span className="font-mono">\\SERVER\d\THERMOPAC</span> + <span className="font-mono">TPEL/{"{CC}"}/{"{CO}"}/{"{Cust}"}/{"{FY}"}/{"{NNN}"}/2_Design/3_PID</span>
+                  {" → "}<span className="font-mono">\\SERVER\d\THERMOPAC\TPEL\IN\MH\BPCL\2526\042\2_Design\3_PID</span>
+                </p>
+                <p className="text-[10px] text-blue-600 mt-1">
+                  Note: <span className="font-mono">{"{COMPANY}"}</span> is a real token that resolves to the company code (e.g. <span className="font-mono">TPEL</span>). It is not the Windows root.
                 </p>
               </div>
             </div>

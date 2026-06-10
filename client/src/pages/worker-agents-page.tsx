@@ -850,7 +850,7 @@ function DocAgentRow() {
                       { n: "1", t: "Register agent in ERP", d: "Click Register Agent, enter Agent Code + API Key. Save the API key." },
                       { n: "2", t: "Download the package", d: "Click Download Package above — ready-to-run ZIP, no build step needed." },
                       { n: "3", t: "Install Node.js 18 LTS", d: "Only prerequisite on the Windows server. Download from nodejs.org." },
-                      { n: "4", t: "Configure", d: "Unzip to C:\\ThermopacDocAgent\\. Copy config.json.example → config.json, fill in agentCode, erpBaseUrl, apiKey, allowedRootPath." },
+                      { n: "4", t: "Configure", d: "Unzip to C:\\ThermopacDocAgent\\. Copy config.json.example → config.json, fill in agentCode, erpBaseUrl, apiKey, and allowedRootPath (e.g. \\\\SERVER\\d\\THERMOPAC). Full local path = allowedRootPath + Doc Governance relative template." },
                       { n: "5", t: "Install service", d: "Run install-service.bat as Administrator — registers auto-start Windows Service." },
                       { n: "6", t: "Verify online", d: "Run start-service.bat. Agent appears Online in this panel within 20 seconds." },
                     ].map(({ n, t, d }) => (
