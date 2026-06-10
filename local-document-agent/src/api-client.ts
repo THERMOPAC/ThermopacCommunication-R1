@@ -2,6 +2,7 @@
  * api-client.ts
  *
  * All outbound HTTPS calls to the ERP cloud API.
+ * Uses Node 20 native global fetch — no node-fetch dependency.
  * No inbound connections — agent is always the initiator.
  */
 
@@ -9,13 +10,13 @@ import { AgentConfig } from './config';
 import { info, warn, error } from './logger';
 
 export interface AgentJob {
-  id:            number;
-  jobType:       string;
-  relativePath:  string;
-  fileUrl?:      string;
-  fileName?:     string;
+  id:             number;
+  jobType:        string;
+  relativePath:   string;
+  fileUrl?:       string;
+  fileName?:      string;
   expectedSha256?:string;
-  sourceRef?:    string;
+  sourceRef?:     string;
 }
 
 export interface HeartbeatPayload {
@@ -26,24 +27,23 @@ export interface HeartbeatPayload {
 }
 
 export interface JobResultPayload {
-  jobId:           number;
-  success:         boolean;
-  actualSha256?:   string;
-  resultLocalPath?:string;
-  resultPayload?:  Record<string, unknown>;
-  failedReason?:   string;
+  jobId:            number;
+  success:          boolean;
+  actualSha256?:    string;
+  resultLocalPath?: string;
+  resultPayload?:   Record<string, unknown>;
+  failedReason?:    string;
 }
 
 async function post(config: AgentConfig, endpoint: string, body: unknown): Promise<unknown> {
-  const { default: fetch } = await import('node-fetch') as any;
   const url = `${config.erpBaseUrl}/api/local-agent${endpoint}`;
 
   const response = await fetch(url, {
     method:  'POST',
     headers: {
-      'Content-Type':  'application/json',
-      'x-agent-code':  config.agentCode,
-      'x-api-key':     config.apiKey,
+      'Content-Type': 'application/json',
+      'x-agent-code': config.agentCode,
+      'x-api-key':    config.apiKey,
     },
     body: JSON.stringify(body),
   });
@@ -57,7 +57,6 @@ async function post(config: AgentConfig, endpoint: string, body: unknown): Promi
 }
 
 async function get(config: AgentConfig, endpoint: string): Promise<unknown> {
-  const { default: fetch } = await import('node-fetch') as any;
   const url = `${config.erpBaseUrl}/api/local-agent${endpoint}`;
 
   const response = await fetch(url, {
