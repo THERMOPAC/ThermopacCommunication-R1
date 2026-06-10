@@ -43,6 +43,7 @@ An enterprise-grade Quality Management System optimizing operations, enhancing e
 - **EPC Project Naming Governance v2**: Canonical project display name = `{code} — {customer_name} — {offer_subject}` (em dash U+2014, never hyphen). Three source fields (`offer_subject`, `customer_name`, `project_display_name`) stored in `projects` table. `project_display_name` is computed server-side by `computeProjectDisplayName()` on every create/update — **read-only outside Project Master; never accepted raw from client**. All UI modules MUST use `getProjectDisplayName(p)` from `client/src/lib/project-utils.ts`; direct string concatenation of `code + name` is prohibited. `offer_subject` is sourced from the offer's `subject` field at conversion time. Legacy records backfilled 2026-05-18. `ProjectLike` type in `project-utils.ts` retains `shortDescription`/`short_description` as legacy fallback aliases for backward compat with old API responses.
 - **Vendor Classification via SAP UDF**: `vendor_type` is sourced exclusively from the SAP Business Partner UDF field `U_ERP_Group` at sync time. Single-char code stored in DB; full label derived from the mapping. Do NOT manually assign or infer from SAP GroupCode/GroupName. Mapping: `R`=Raw Materials, `P`=Pumps Blowers, `M`=Motors, `I`=Instruments, `V`=Valves, `E`=Electrical Control, `B`=Packages. Vendors with a null/blank `U_ERP_Group` are synced with `vendor_type = null`. SAP sync excludes GroupCodes 105 (Employees) and 106 (Employees Loan).
 - **SAP Service Layer UDF Behaviour (SQL Server)**: SAP B1 on MS SQL Server returns `U_ERP_Group` ONLY on bulk list fetches with NO `$select` and NO `$orderby`. Adding either parameter causes SAP to strip all UDF columns from the response silently. Filtering via `$filter=U_ERP_Group eq 'R'` is also silently ignored (all records returned). The `Test SAP` button always forces a fresh login (`invalidateSharedSapSession()` before login) to prevent session contamination from Full Sync (which uses `$select`). Full Scan paginates all vendors in memory and filters by `U_ERP_Group` locally. These rules are non-negotiable — do NOT add `$select` or `$orderby` to the Test SAP bulk scan query.
+- **Dual-Storage Policy (Approved)**: Every GCS-governed document — user-uploaded or system-generated — must be mirrored to the Windows file server via the Local Document Agent. Control rules: (1) GCS is always written first. (2) GCS failure → reject operation, no DB record created, no agent job created. (3) GCS success → create DB record, enqueue `SAVE_FILE` agent job (`document_agent_jobs`). (4) Mirror failure → document remains valid (GCS authoritative); `mirror_status = failed` on source record; retry allowed by original uploader or Superuser. (5) GCS is never rolled back on mirror failure. (6) No signed URL stored in DB — generated fresh on `jobs/claim`. (7) GCS relative path = agent `local_relative_path` (identical strings; no translation). Full policy: `docs/dual-storage-policy-proposal-v1.0.md`.
 
 ## Product
 - **Core Modules**: Project & Quality Management, Finance & HR Management, Document Management.
@@ -52,6 +53,7 @@ An enterprise-grade Quality Management System optimizing operations, enhancing e
 - **Automation**: EPC Execution Plan for automated DO/WO/PO/IO draft generation, BOM creation, dispatch/billing readiness.
 - **Security**: Role-based access control, TOTP 2FA, EPC Permission Control Dashboard, record-level ownership filtering.
 - **Reporting & Analytics**: EPC Control Tower dashboard, EPC Cutover Readiness Dashboard, employee appraisal PDF generation.
+- **Mirror Health Dashboard** (Document Control → Mirror Health Dashboard): Monitors GCS ↔ Windows mirror status across all governed modules. Shows pending mirrors, failed mirrors, per-module mirror KPIs, and provides retry controls. This is a Document Control function — NOT part of Worker Agents Dashboard. Worker Agents Dashboard covers only: agent health, heartbeats, connectivity, version management, and agent job processing.
 
 ## User preferences
 Preferred communication style: Simple, everyday language.
@@ -63,6 +65,8 @@ Preferred communication style: Simple, everyday language.
 - **Cost Roll-up Freezing**: Freezing BOM cost roll-up (`POST /api/projects/:id/cost-rollup/freeze`) writes `rolledUpCost` to the database; ensure costs are approved before freezing.
 - **Test Data Visibility**: Test records (`is_test = true`) are hidden by default from UI and API responses unless the "Show/Hide Test Data" toggle is active (Superuser only).
 - **Tag No Control (PPPC)**: Tags auto-generated using `server/tag-generation-service.ts`; prefix map: PT/TT/FT/LT/XV/CV/PSV/P/CT/JB/M. Raw Materials group → no tag. Qty>1 on taggable subgroups → N separate lines each qty=1 with sequential tags. All tag generation uses `pg_advisory_xact_lock(projectId)`. Manual changes audited in `tag_no_audit_log`. Project-wide uniqueness enforced by partial unique index + 409 responses. Taggable subgroup codes defined in both `tag-generation-service.ts` and `TAGGABLE_SUBGROUP_CODES` constant in buy-list-control-page.
+- **Dual-Storage Control Rules**: Every GCS write (upload or generate) must follow this sequence: (1) Write to GCS first. (2) GCS fail → abort entirely, no DB record, no agent job. (3) GCS success → INSERT DB record, then INSERT `document_agent_jobs` row (job_type=SAVE_FILE). Never reverse this order. Never create the DB record before GCS succeeds. Mirror failure never invalidates the DB record or GCS copy.
+- **Mirror Health Dashboard vs Worker Agents Dashboard**: Mirror Health Dashboard lives under Document Control and shows GCS↔Windows mirror job status (pending/failed/retry). Worker Agents Dashboard is Agent Management only (health, heartbeat, connectivity, version, job processing). Do NOT merge these two dashboards or move mirror status into Worker Agents.
 
 ## Operating Protocol
 All discussion and implementation work follows **`docs/operating-protocol-v1.0.md`**.  
@@ -82,6 +86,7 @@ Read it before starting any discussion or implementation.
 - **EPC Project Naming Governance v1.0**: `docs/epc-project-naming-governance-v1.0.md`
 - **BP Sync Governance Baseline v1.0**: `docs/bp-sync-governance-baseline-v1.md`
 - **UI Product Identity Display Standard v1.0**: `docs/ui-product-identity-display-standard.md`
+- **Dual-Storage Policy v1.0 (Approved)**: `docs/dual-storage-policy-proposal-v1.0.md`
 - **Drizzle ORM Docs**: `https://orm.drizzle.team/`
 - **Radix UI Docs**: `https://www.radix-ui.com/`
 - **TanStack Query Docs**: `https://tanstack.com/query/latest`
