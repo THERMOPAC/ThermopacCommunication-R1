@@ -43,6 +43,7 @@ import {
   HardDrive,
   FolderOpen,
   FileCheck2,
+  FilePlus,
   ServerCrash,
   Wifi,
   WifiOff,
@@ -402,7 +403,7 @@ function DocAgentRow() {
     onError: (e: any) => toast({ title: e?.message || "Enqueue failed", variant: "destructive" }),
   });
 
-  function enqueueTest(jobType: "VERIFY_FOLDER_EXISTS" | "LIST_DIRECTORY") {
+  function enqueueTest(jobType: "VERIFY_FOLDER_EXISTS" | "LIST_DIRECTORY" | "SAVE_TEST_FILE") {
     const root = docStatus?.nodes?.[0]?.allowedRootPath || "";
     const relativePath = computeRelativePath(testPath, root);
     enqueueMutation.mutate({ jobType, relativePath });
@@ -647,6 +648,16 @@ function DocAgentRow() {
                         <FolderTree className="h-3 w-3 mr-1" />
                         List Directory
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-green-500 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950"
+                        disabled={enqueueMutation.isPending}
+                        onClick={() => enqueueTest("SAVE_TEST_FILE")}
+                      >
+                        <FilePlus className="h-3 w-3 mr-1" />
+                        Save Test File
+                      </Button>
                     </div>
                   </div>
 
@@ -686,6 +697,30 @@ function DocAgentRow() {
                             <span className="text-green-700 dark:text-green-300">
                               Folder accessible — <span className="font-mono">{job.resultPayload?.fullPath || job.relativePath}</span>
                             </span>
+                          </div>
+                        )}
+
+                        {job.status === "completed" && job.jobType === "SAVE_TEST_FILE" && job.resultPayload && (
+                          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded px-3 py-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                              <span className="text-xs font-medium text-green-700 dark:text-green-300">File created successfully</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                              <span className="text-muted-foreground">File name</span>
+                              <span className="font-mono">{job.resultPayload.fileName}</span>
+                              <span className="text-muted-foreground">Full path</span>
+                              <span className="font-mono truncate" title={job.resultPayload.filePath}>{job.resultPayload.filePath}</span>
+                              <span className="text-muted-foreground">File size</span>
+                              <span className="font-mono">{job.resultPayload.fileSize != null ? formatBytes(job.resultPayload.fileSize) : "—"}</span>
+                              <span className="text-muted-foreground">Created at</span>
+                              <span className="font-mono">{job.resultPayload.createdAt ? format(new Date(job.resultPayload.createdAt), "dd/MM/yyyy HH:mm:ss") + " UTC" : "—"}</span>
+                            </div>
+                            <a href={`/api/local-agent/jobs/${job.id}/test-file`} download={job.resultPayload.fileName} target="_blank">
+                              <Button size="sm" variant="outline" className="h-7 text-xs mt-1 border-green-500 text-green-700 dark:text-green-300">
+                                <Download className="h-3 w-3 mr-1" /> Download PDF to verify
+                              </Button>
+                            </a>
                           </div>
                         )}
 
