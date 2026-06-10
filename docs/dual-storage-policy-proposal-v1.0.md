@@ -206,16 +206,19 @@ The Retry button is visible to the original uploader and Superuser. Retry dispat
 
 ## 10. Exclusions
 
-The following are explicitly excluded from this policy and must never trigger a `SAVE_FILE` agent job:
+**Rule**: Every GCS-governed document type must have a corresponding local mirror copy. If a document type has an active GCS governance rule, it is covered by this policy and must not be excluded.
+
+The following are explicitly excluded because they are **not GCS-governed documents**:
 
 | Item | Reason |
 |---|---|
-| Branding assets (company logo, seal, signature) | Internal ERP display only; not a governed document |
-| SolidWorks extraction job results | Ephemeral processing artefacts under `epc-slddrw/`; 30-day TTL |
-| RFQ attachment snapshots (`plc_rfq_attachments`) | Reference copies of already-governed DATASHEET paths; no new GCS object created |
+| SolidWorks extraction job results | Ephemeral processing artefacts under `epc-slddrw/`; 30-day TTL; no GCS governance rule |
+| RFQ attachment snapshots (`plc_rfq_attachments`) | Reference copies of already-governed DATASHEET paths; no new GCS object created by this flow |
 | GCS-to-Windows sync of pre-existing historical files | Out of scope; handled by a separate migration plan |
 | Read operations (downloads, previews) | No change; GCS signed URL used for all reads |
 | Windows-to-GCS sync | Not in scope; ERP is the sole write authority |
+
+> **Note**: Branding assets (COMPANY_LOGO, COMPANY_SEAL, COMPANY_SIGNATURE) have active GCS governance rules and are therefore **included** in this policy — they are not excluded.
 
 ---
 
