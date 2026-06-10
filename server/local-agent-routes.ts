@@ -24,7 +24,7 @@ import { db } from './db';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { documentAgentNodes, documentAgentJobs } from '@shared/schema';
 
-const AGENT_VERSION = '1.0.0';
+const AGENT_VERSION = '1.0.1';
 const AGENT_DIR = path.join(process.cwd(), 'local-document-agent');
 
 const router = Router();
@@ -332,6 +332,9 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
       { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions CI — install, type-check, build, validate' },
     ],
     releaseNotes: [
+      'v1.0.1 — Added LIST_DIRECTORY and SAVE_TEST_FILE job types',
+      'SAVE_TEST_FILE: writes a timestamped PDF to the target folder; download from ERP to verify write access',
+      'LIST_DIRECTORY: returns up to 100 entries (name, type, size, modified) from any allowed folder',
       'v1.0.0 — Initial release',
       'Supports: CREATE_FOLDER, SAVE_FILE, SAVE_PDF, VERIFY_FILE_EXISTS, VERIFY_FOLDER_EXISTS, HASH_VALIDATE',
       'SHA-256 verification on every file save (.tmp → rename after hash check)',
