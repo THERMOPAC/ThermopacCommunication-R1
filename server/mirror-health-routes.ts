@@ -27,7 +27,7 @@ router.get('/mirror-health/summary', requireSession, async (_req: Request, res: 
     const totalsResult = await pool.query(`
       SELECT status, COUNT(*)::int AS cnt
       FROM document_agent_jobs
-      WHERE job_type = 'SAVE_FILE'
+      WHERE job_type = 'SAVE_FILE' AND status != 'dismissed'
       GROUP BY status
     `);
 
@@ -37,7 +37,7 @@ router.get('/mirror-health/summary', requireSession, async (_req: Request, res: 
         status,
         COUNT(*)::int AS cnt
       FROM document_agent_jobs
-      WHERE job_type = 'SAVE_FILE'
+      WHERE job_type = 'SAVE_FILE' AND status != 'dismissed'
       GROUP BY source_module, status
       ORDER BY source_module, status
     `);
@@ -78,7 +78,7 @@ router.get('/mirror-health/jobs', requireSession, async (req: Request, res: Resp
     const limit        = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const offset       = (page - 1) * limit;
 
-    const conditions: string[] = ["j.job_type = 'SAVE_FILE'"];
+    const conditions: string[] = ["j.job_type = 'SAVE_FILE'", "j.status != 'dismissed'"];
     const params: any[]        = [];
 
     if (statusFilter) { params.push(statusFilter); conditions.push(`j.status = $${params.length}`); }
@@ -107,6 +107,29 @@ router.get('/mirror-health/jobs', requireSession, async (req: Request, res: Resp
   } catch (err: any) {
     console.error('[mirror-health] jobs list error:', err);
     res.status(500).json({ error: 'Failed to fetch jobs' });
+  }
+});
+
+// ── POST /api/mirror-health/jobs/clear-failed ─────────────────────────────────
+// Superuser-only: mark all failed mirror jobs as 'dismissed' so they vanish
+// from the default view. Records are never deleted (immutability policy).
+
+router.post('/mirror-health/jobs/clear-failed', requireSession, async (req: Request, res: Response) => {
+  const role = (req as any).user?.role ?? '';
+  if (role !== 'Superuser') {
+    return res.status(403).json({ error: 'Only Superuser can clear failed mirror jobs' });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE document_agent_jobs
+       SET status = 'dismissed'
+       WHERE job_type = 'SAVE_FILE' AND status = 'failed'
+       RETURNING id`,
+    );
+    res.json({ ok: true, cleared: result.rowCount ?? 0 });
+  } catch (err: any) {
+    console.error('[mirror-health] clear-failed error:', err);
+    res.status(500).json({ error: 'Failed to clear jobs' });
   }
 });
 

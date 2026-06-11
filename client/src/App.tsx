@@ -107,9 +107,9 @@ function Router() {
       {/* Agent Dashboard */}
       <ProtectedRoute path="/agent-dashboard" component={() => <Agents.AgentDashboardPage />} />
       <ProtectedRoute path="/worker-agents" component={() => <Agents.WorkerAgentsPage />} />
-      <ProtectedRoute path="/document-control/doc-governance" component={() => <Agents.DocGovernancePage />} />
-      <ProtectedRoute path="/document-control/gcs-doc-governance" component={() => <Agents.GcsDocGovernancePage />} />
-      <ProtectedRoute path="/document-control/mirror-health" component={() => <Agents.MirrorHealthPage />} />
+      <ProtectedRoute path="/document-control/doc-governance" component={() => <Layout><Agents.DocGovernancePage /></Layout>} />
+      <ProtectedRoute path="/document-control/gcs-doc-governance" component={() => <Layout><Agents.GcsDocGovernancePage /></Layout>} />
+      <ProtectedRoute path="/document-control/mirror-health" component={() => <Layout><Agents.MirrorHealthPage /></Layout>} />
       <PageProtectedRoute path="/epc-risks" pageKey="epc-risks" component={() => <Agents.EpcRisksDashboardPage />} />
       
       {/* Finance Module Routes */}

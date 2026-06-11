@@ -31,6 +31,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 
 interface MirrorSummary {
@@ -121,6 +122,18 @@ export default function MirrorHealthPage() {
     },
     onError: (err: any) => {
       toast({ variant: "destructive", title: "Retry failed", description: err.message ?? "Unknown error" });
+    },
+  });
+
+  const clearFailedMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/mirror-health/jobs/clear-failed`),
+    onSuccess: (data: any) => {
+      toast({ title: "Failed jobs cleared", description: `${data?.cleared ?? 0} failed job(s) have been dismissed.` });
+      qc.invalidateQueries({ queryKey: ["/api/mirror-health/summary"] });
+      qc.invalidateQueries({ queryKey: ["/api/mirror-health/jobs"] });
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Clear failed", description: err.message ?? "Unknown error" });
     },
   });
 
@@ -232,7 +245,21 @@ export default function MirrorHealthPage() {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="text-sm font-medium text-gray-700">Mirror Jobs</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {totals.failed > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 text-xs border-red-300 text-red-600 hover:bg-red-50"
+                  disabled={clearFailedMutation.isPending}
+                  onClick={() => clearFailedMutation.mutate()}
+                >
+                  {clearFailedMutation.isPending
+                    ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    : <Trash2 className="h-3 w-3 mr-1" />}
+                  Clear All Failed ({totals.failed})
+                </Button>
+              )}
               <Select
                 value={statusFilter}
                 onValueChange={(v) => { setStatusFilter(v); handleFilterChange(); }}
