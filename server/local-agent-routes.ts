@@ -608,6 +608,21 @@ router.get('/local-agent/download-source-package', requireSession, requireSuperu
       archive.file(ciYml, { name: '.github/workflows/ci.yml' });
     }
 
+    // installer-tools/nssm.exe — bundled NSSM binary (win64).
+    // REQUIRED: CI build gate fails if this file is absent from the repo.
+    const nssmExe = path.join(AGENT_DIR, 'installer-tools', 'nssm.exe');
+    if (fs.existsSync(nssmExe)) {
+      archive.file(nssmExe, { name: 'installer-tools/nssm.exe' });
+    } else {
+      console.error('[local-agent] WARNING: installer-tools/nssm.exe not found — source package will be missing it and CI will fail');
+    }
+
+    // .gitattributes — marks .exe files as binary to prevent git line-ending corruption
+    const gitattributes = path.join(AGENT_DIR, '.gitattributes');
+    if (fs.existsSync(gitattributes)) {
+      archive.file(gitattributes, { name: '.gitattributes' });
+    }
+
     // VERSION.txt
     archive.append(AGENT_VERSION, { name: 'VERSION.txt' });
 
