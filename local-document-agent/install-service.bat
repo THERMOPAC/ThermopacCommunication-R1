@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 echo ============================================================
 echo  THERMOPAC Local Document Agent -- Install Windows Service
-echo  Wrapper: NSSM (Non-Sucking Service Manager)
+echo  Wrapper: NSSM (bundled)
 echo ============================================================
 echo.
 
@@ -38,36 +38,16 @@ if not exist "%EXE%" (
   pause & exit /b 1
 )
 
-REM ── Locate or download NSSM ────────────────────────────────
+REM ── Check NSSM (must be bundled -- no download) ────────────
 if not exist "%NSSM%" (
-  echo NSSM not found in agent folder.
-  echo Downloading nssm-2.24 from nssm.cc ...
+  echo ERROR: nssm.exe not found.
+  echo Expected: %NSSM%
   echo.
-  powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$ErrorActionPreference='Stop'; ^
-     $zip = Join-Path $env:TEMP 'nssm-2.24.zip'; ^
-     Invoke-WebRequest -Uri 'https://nssm.cc/release/nssm-2.24.zip' -OutFile $zip -UseBasicParsing; ^
-     Add-Type -AssemblyName System.IO.Compression.FileSystem; ^
-     $archive = [System.IO.Compression.ZipFile]::OpenRead($zip); ^
-     foreach ($entry in $archive.Entries) { ^
-       if ($entry.Name -eq 'nssm.exe' -and $entry.FullName -like '*win64*') { ^
-         [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, '%NSSM%', $true); ^
-         break ^
-       } ^
-     }; ^
-     $archive.Dispose()"
-  if not exist "%NSSM%" (
-    echo ERROR: Could not download NSSM automatically.
-    echo.
-    echo Manual fix:
-    echo   1. Download https://nssm.cc/release/nssm-2.24.zip
-    echo   2. Extract win64\nssm.exe to %AGENT_DIR%
-    echo   3. Re-run this script.
-    echo.
-    pause & exit /b 1
-  )
-  echo NSSM downloaded OK.
+  echo nssm.exe must be included in this package.
+  echo Download a fresh copy of the agent package from the ERP
+  echo Worker Agents dashboard -- it includes nssm.exe bundled.
   echo.
+  pause & exit /b 1
 )
 
 REM ── Create logs directory ──────────────────────────────────

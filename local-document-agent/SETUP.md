@@ -8,16 +8,17 @@ A background Windows service that polls the cloud ERP every 20 seconds for file-
 Cloud ERP → `document_agent_jobs` table → Agent polls → Local file server  
 Outbound HTTPS only — no inbound ports required.
 
-**Service wrapper:** NSSM (Non-Sucking Service Manager) — wraps `ThermopacDocAgent.exe` as a proper auto-start Windows Service. Direct `sc.exe` registration is not used because the EXE is a console polling app, not a native Windows Service.
+**Service wrapper:** NSSM (Non-Sucking Service Manager) is bundled inside this package. It wraps `ThermopacDocAgent.exe` as a proper auto-start Windows Service. No internet access is required during installation.
 
 ---
 
 ## Prerequisites
 
-- Windows Server 2016 / Windows 10 or later  
-- **No Node.js required** — `ThermopacDocAgent.exe` has the Node.js runtime bundled  
-- Network access to the cloud ERP URL (outbound HTTPS port 443)  
-- Write access to `\\Server\d\THERMOPAC` (or your configured path)  
+- Windows Server 2016 / Windows 10 or later
+- **No Node.js required** — `ThermopacDocAgent.exe` has the Node.js runtime bundled
+- **No internet access required** — `nssm.exe` is included in this package
+- Network access to the cloud ERP URL (outbound HTTPS port 443)
+- Write access to `\\Server\d\THERMOPAC` (or your configured path)
 - Administrator rights (for Windows Service installation)
 
 ---
@@ -26,10 +27,12 @@ Outbound HTTPS only — no inbound ports required.
 
 ### Step 1 — Copy the package
 
-Copy this entire folder to the Windows server, e.g.:  
+Copy this entire folder to the Windows server, e.g.:
 ```
 C:\ThermopacDocAgent\
 ```
+
+The folder must contain `ThermopacDocAgent.exe`, `nssm.exe`, and all the `.bat` files.
 
 ### Step 2 — Configure
 
@@ -53,14 +56,9 @@ Edit `config.json` and fill in:
 Right-click **`install-service.bat`** → **Run as administrator**.
 
 This will:
-1. Check `ThermopacDocAgent.exe` and `config.json` exist
-2. Locate `nssm.exe` in the agent folder — or download it automatically from nssm.cc
-3. Register `ThermopacLocalDocumentAgent` as a Windows Service (auto-start)
-4. Start the service immediately
-
-> **Note:** If the machine has no internet access, download `nssm-2.24.zip` from  
-> https://nssm.cc/release/nssm-2.24.zip, extract `win64\nssm.exe` and place it  
-> alongside `ThermopacDocAgent.exe` before running the script.
+1. Verify `ThermopacDocAgent.exe`, `config.json`, and `nssm.exe` are present
+2. Register `ThermopacLocalDocumentAgent` as a Windows Service (auto-start) using the bundled `nssm.exe`
+3. Start the service immediately
 
 ### Step 4 — Verify
 
@@ -117,8 +115,8 @@ Rejected (security): `.exe .bat .cmd .ps1 .vbs .msi .dll`
 
 | Issue | Fix |
 |---|---|
-| Error 1053 on service start | Old service registered via `sc.exe` directly — run `uninstall-service.bat`, then `install-service.bat` to re-register via NSSM |
-| "NSSM download failed" | No internet access — download `nssm.exe` manually (see Step 3 note) |
+| Error 1053 on service start | Old service was registered via `sc.exe` directly — run `uninstall-service.bat`, then `install-service.bat` to re-register via NSSM |
+| "nssm.exe not found" | Download a fresh copy of the agent package from the ERP Worker Agents dashboard — it includes `nssm.exe` |
 | Agent shows OFFLINE in ERP | Check `erpBaseUrl` and `apiKey` in `config.json`; run manual test first |
 | "Access denied" writing files | Run service as account with write access to the target path (`nssm edit ThermopacLocalDocumentAgent` → Log on tab) |
 | Service installed but not starting | Check `logs\service-stderr.log` for the error |
@@ -134,9 +132,4 @@ npm run build
 npm run build:exe     # produces ThermopacDocAgent.exe
 ```
 
-For the Inno Setup installer, place `nssm.exe` (win64) alongside `thermopac-doc-agent.iss` before running:
-```
-iscc thermopac-doc-agent.iss
-```
-
-If `nssm.exe` is absent at build time, the installer downloads it at install time automatically.
+`nssm.exe` is fetched automatically by GitHub Actions CI before the installer is built. The build fails if it cannot be downloaded. You do not need to manage it manually.

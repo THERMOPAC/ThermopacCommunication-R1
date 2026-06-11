@@ -4,21 +4,19 @@
 ;
 ;  Builds: ThermopacLocalDocumentAgentSetup-v1.0.1.exe
 ;
-;  Prerequisites (for the GitHub Actions build):
+;  Prerequisites (GitHub Actions CI downloads these before running iscc):
 ;    - ThermopacDocAgent.exe  (built by pkg from dist/index.js)
-;    - nssm.exe               (win64, from nssm-2.24.zip -- see build notes below)
+;    - nssm.exe               (win64 -- fetched by CI from nssm-2.24.zip)
 ;    - config.json.example
 ;    - README.md, SETUP.md, VERSION.txt
 ;
-;  Service management: NSSM wraps ThermopacDocAgent.exe as a proper Windows Service.
-;  Direct sc.exe registration is NOT used -- the EXE is a console polling app,
-;  not a native Windows Service (no ServiceMain), so sc.exe causes Error 1053.
+;  Service registration: NSSM wraps ThermopacDocAgent.exe as a Windows Service.
+;  Direct sc.exe registration is NOT used -- the EXE is a console polling app
+;  (no ServiceMain), so sc.exe would cause Error 1053.
 ;
-;  Build notes:
-;    Before running iscc, download nssm.exe to the same folder as this .iss file:
-;      curl -L https://nssm.cc/release/nssm-2.24.zip -o nssm.zip
-;      unzip -j nssm.zip nssm-2.24/win64/nssm.exe -d .
-;    If nssm.exe is absent at build time, the installer downloads it at install time.
+;  Self-contained: nssm.exe is bundled inside the installer.
+;  No internet access is required on the target machine.
+;  Build FAILS if nssm.exe is absent when iscc runs (no skipifsourcedoesntexist).
 ;
 ;  Uninstall: stops + removes the NSSM-managed service automatically.
 ; ============================================================
@@ -55,20 +53,20 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; Agent executable (Node.js runtime bundled by pkg -- no Node.js required)
-Source: "{#MyExeName}";        DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
-; NSSM service wrapper (win64) -- bundled if present at build time.
-; If absent at build time, installer downloads it automatically at install time.
-Source: "nssm.exe";            DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; NSSM service wrapper (win64) -- REQUIRED at build time.
+; CI downloads nssm.exe before running iscc. Build fails if absent.
+Source: "nssm.exe";     DestDir: "{app}"; Flags: ignoreversion
 
 ; Config -- ship example; copy to config.json only on fresh install
 Source: "config.json.example"; DestDir: "{app}"; Flags: ignoreversion
 Source: "config.json.example"; DestDir: "{app}"; DestName: "config.json"; Flags: onlyifdoesntexist
 
 ; Documentation
-Source: "README.md";           DestDir: "{app}"; Flags: ignoreversion
-Source: "SETUP.md";            DestDir: "{app}"; Flags: ignoreversion
-Source: "VERSION.txt";         DestDir: "{app}"; Flags: ignoreversion
+Source: "README.md";    DestDir: "{app}"; Flags: ignoreversion
+Source: "SETUP.md";     DestDir: "{app}"; Flags: ignoreversion
+Source: "VERSION.txt";  DestDir: "{app}"; Flags: ignoreversion
 
 [Dirs]
 ; Log and temp dirs -- preserved on uninstall
@@ -90,36 +88,6 @@ Filename: "notepad.exe"; \
 
 [Code]
 
-// ── NSSM download helper ───────────────────────────────────────────────────
-// Downloads nssm-2.24 win64 nssm.exe to DestPath via PowerShell.
-// Returns True on success.
-function DownloadNssm(DestPath: String): Boolean;
-var
-  ResultCode: Integer;
-  PS: String;
-begin
-  Result := False;
-  PS :=
-    '$ErrorActionPreference = ''Stop''; ' +
-    '$zip = Join-Path $env:TEMP ''nssm-2.24.zip''; ' +
-    'Invoke-WebRequest -Uri ''https://nssm.cc/release/nssm-2.24.zip'' ' +
-    '  -OutFile $zip -UseBasicParsing; ' +
-    'Add-Type -AssemblyName System.IO.Compression.FileSystem; ' +
-    '$arc = [System.IO.Compression.ZipFile]::OpenRead($zip); ' +
-    'foreach ($e in $arc.Entries) { ' +
-    '  if ($e.Name -eq ''nssm.exe'' -and $e.FullName -like ''*win64*'') { ' +
-    '    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, ''' + DestPath + ''', $true); ' +
-    '    break ' +
-    '  } ' +
-    '}; ' +
-    '$arc.Dispose()';
-
-  if Exec('powershell.exe',
-    '-NoProfile -ExecutionPolicy Bypass -Command "' + PS + '"',
-    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-    Result := (ResultCode = 0) and FileExists(DestPath);
-end;
-
 // ── Register service via NSSM ─────────────────────────────────────────────
 procedure RegisterWithNssm(NssmPath: String);
 var
@@ -127,7 +95,7 @@ var
   ResultCode: Integer;
   NL: String;
 begin
-  NL := Chr(13) + Chr(10);
+  NL      := Chr(13) + Chr(10);
   AppPath := ExpandConstant('{app}\{#MyExeName}');
   AppDir  := ExpandConstant('{app}');
   LogDir  := ExpandConstant('{app}\logs');
@@ -167,30 +135,8 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    NL := Chr(13) + Chr(10);
+    NL       := Chr(13) + Chr(10);
     NssmPath := ExpandConstant('{app}\nssm.exe');
-
-    // If nssm.exe was not bundled, download it now
-    if not FileExists(NssmPath) then
-    begin
-      MsgBox(
-        'nssm.exe was not bundled in this installer.' + NL +
-        'Downloading from nssm.cc now (requires internet access).' + NL +
-        'A brief pause is normal.',
-        mbInformation, MB_OK);
-      if not DownloadNssm(NssmPath) then
-      begin
-        MsgBox(
-          'Could not download NSSM automatically.' + NL +
-          NL +
-          'Manual fix:' + NL +
-          '  1. Download https://nssm.cc/release/nssm-2.24.zip' + NL +
-          '  2. Extract win64\nssm.exe to ' + ExpandConstant('{app}') + NL +
-          '  3. Run install-service.bat as Administrator.',
-          mbError, MB_OK);
-        Exit;
-      end;
-    end;
 
     RegisterWithNssm(NssmPath);
 

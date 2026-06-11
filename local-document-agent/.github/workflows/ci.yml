@@ -88,13 +88,9 @@ jobs:
       - name: Validate package structure (config template + docs)
         shell: pwsh
         run: |
-          # config.json.example is a template — placeholder values are expected here.
-          # Real credentials are never stored in the repo or this workflow.
-          # Actual config.json is generated per-agent from the ERP dashboard.
           $required = @('config.json.example','README.md','SETUP.md')
           $missing = $required | Where-Object { -not (Test-Path $_) }
           if ($missing) { Write-Error "Missing package files: $($missing -join ', ')"; exit 1 }
-          # Must be valid JSON and have the required keys
           $parsed = Get-Content config.json.example | ConvertFrom-Json
           $requiredKeys = @('agentCode','erpBaseUrl','apiKey','allowedRootPath','pollIntervalSeconds')
           foreach ($k in $requiredKeys) {
@@ -115,6 +111,49 @@ jobs:
           echo "zip-name=$zip" >> $env:GITHUB_OUTPUT
           Write-Output "Packaging: $zip"
 
+      # ── Download NSSM (bundled into ZIP and installer — no runtime download) ──
+      # nssm.exe is fetched ONCE here during the CI build and embedded into both
+      # the ZIP package and the setup.exe installer.
+      # The installer is fully self-contained and works on offline customer machines.
+      # BUILD FAILS if nssm.exe cannot be fetched at this point.
+      - name: Download NSSM service wrapper (win64)
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $zip    = "$env:TEMP\nssm-2.24.zip"
+          $outDir = "$env:TEMP\nssm-extract"
+
+          Write-Output "Downloading nssm-2.24.zip ..."
+          Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" `
+            -OutFile $zip -UseBasicParsing -TimeoutSec 60
+          if (-not (Test-Path $zip)) {
+            Write-Error "BUILD FAILED: Could not download nssm-2.24.zip"
+            exit 1
+          }
+
+          Write-Output "Extracting win64/nssm.exe ..."
+          Expand-Archive -Path $zip -DestinationPath $outDir -Force
+
+          $src = "$outDir\nssm-2.24\win64\nssm.exe"
+          if (-not (Test-Path $src)) {
+            Write-Error "BUILD FAILED: nssm.exe not found in archive at: $src"
+            exit 1
+          }
+
+          Copy-Item $src "nssm.exe"
+          $size = [math]::Round((Get-Item "nssm.exe").Length / 1KB, 1)
+          Write-Output "nssm.exe ready ($size KB)"
+
+      - name: Build gate — verify nssm.exe present
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "nssm.exe")) {
+            Write-Error "BUILD GATE FAILED: nssm.exe is missing. Cannot build self-contained installer."
+            exit 1
+          }
+          $size = [math]::Round((Get-Item "nssm.exe").Length / 1KB, 1)
+          Write-Output "Build gate passed — nssm.exe ($size KB) present."
+
       # ── ZIP package ───────────────────────────────────────────────────────────
       - name: Create installable Windows package ZIP
         shell: pwsh
@@ -132,6 +171,7 @@ jobs:
           Copy-Item uninstall-service.bat   "$staging\"
           Copy-Item start-service.bat       "$staging\"
           Copy-Item stop-service.bat        "$staging\"
+          Copy-Item nssm.exe                "$staging\"
           "${{ steps.get-version.outputs.version }}" | Out-File "$staging\VERSION.txt" -Encoding utf8
 
           Compress-Archive -Path "$staging\*" -DestinationPath $zipName -CompressionLevel Optimal
@@ -143,14 +183,16 @@ jobs:
         run: |
           $zip = "${{ steps.get-version.outputs.zip-name }}"
           Expand-Archive -Path $zip -DestinationPath zip-check\ -Force
-          $required = @('dist\index.js','package.json','config.json.example',
-                        'install-service.bat','uninstall-service.bat',
-                        'start-service.bat','stop-service.bat',
-                        'README.md','SETUP.md','VERSION.txt')
+          $required = @(
+            'dist\index.js','package.json','config.json.example',
+            'install-service.bat','uninstall-service.bat',
+            'start-service.bat','stop-service.bat',
+            'nssm.exe','README.md','SETUP.md','VERSION.txt'
+          )
           foreach ($f in $required) {
             if (-not (Test-Path "zip-check\$f")) { Write-Error "ZIP missing: $f"; exit 1 }
           }
-          Write-Output "ZIP validation passed — all required files present."
+          Write-Output "ZIP validation passed — all required files present (including nssm.exe)."
 
       - name: Upload installable package artifact (ZIP)
         uses: actions/upload-artifact@v4
@@ -160,9 +202,6 @@ jobs:
           retention-days: 14
 
       # ── Standalone Windows installer (setup.exe) ─────────────────────────────
-      # config.json.example is installed as a template.
-      # After installation, replace config.json with the file downloaded
-      # from the ERP Worker Agents Dashboard (Registered Agents → Download config.json).
       - name: Cache pkg Node.js binary (node20-win-x64)
         uses: actions/cache@v4
         with:
@@ -216,6 +255,15 @@ jobs:
             -replace '#define MyAppVersion\s+"[^"]+"', "#define MyAppVersion   `"$version`"" |
             Set-Content thermopac-doc-agent.iss
           Write-Output "Version patched to: $version"
+
+      - name: Build gate — verify nssm.exe present before ISCC
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "nssm.exe")) {
+            Write-Error "BUILD GATE FAILED: nssm.exe missing — cannot build self-contained installer."
+            exit 1
+          }
+          Write-Output "Build gate passed — nssm.exe present, ISCC will bundle it."
 
       - name: Build setup.exe (Inno Setup)
         timeout-minutes: 10
