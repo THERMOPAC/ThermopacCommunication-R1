@@ -94,7 +94,7 @@ router.get('/mirror-health/jobs', requireSession, async (req: Request, res: Resp
 
     params.push(limit, offset);
     const jobsRes = await pool.query(
-      `SELECT j.*, u.display_name AS created_by_name
+      `SELECT j.*, TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')) AS created_by_name
        FROM document_agent_jobs j
        LEFT JOIN users u ON u.id = j.created_by
        WHERE ${where}

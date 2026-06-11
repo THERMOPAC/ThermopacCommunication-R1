@@ -106,7 +106,11 @@ export default function MirrorHealthPage() {
 
   const { data: jobsData, isLoading: jobsLoading } = useQuery<JobsResponse>({
     queryKey: ["/api/mirror-health/jobs", statusFilter, moduleFilter, page],
-    queryFn: () => apiRequest("GET", `/api/mirror-health/jobs?${jobsParams}`),
+    queryFn: async () => {
+      const res = await fetch(`/api/mirror-health/jobs?${jobsParams}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json() as Promise<JobsResponse>;
+    },
     refetchInterval: 15_000,
   });
 
