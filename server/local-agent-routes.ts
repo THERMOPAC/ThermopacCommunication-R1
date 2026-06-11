@@ -133,10 +133,23 @@ router.post('/local-agent/jobs/claim', requireAgentAuth, async (req: Request, re
 
     // Dual-Storage Policy: for SAVE_FILE jobs, generate a fresh signed URL at claim time.
     // The URL is returned in the response only — never stored in DB.
+    // If signed URL generation fails, roll the job back to 'pending' so the agent
+    // can retry on the next poll cycle rather than receiving fileUrl: null and failing.
     let responseJob: any = { ...claimed };
     if (claimed.jobType === 'SAVE_FILE') {
       const { generateFreshSignedUrl } = await import('./utils/mirror-job-service');
       const freshUrl = await generateFreshSignedUrl(claimed.relativePath);
+      if (!freshUrl) {
+        // Roll back to pending — agent will pick it up on next poll
+        await db.update(documentAgentJobs).set({
+          status:    'pending',
+          agentCode: null,
+          claimedAt: null,
+          updatedAt: new Date(),
+        }).where(eq(documentAgentJobs.id, claimed.id));
+        console.error(`[local-agent] Signed URL generation failed for job #${claimed.id} (${claimed.relativePath}) — rolled back to pending`);
+        return res.json({ job: null });
+      }
       responseJob = { ...claimed, fileUrl: freshUrl };
     }
     res.json({ job: responseJob });
