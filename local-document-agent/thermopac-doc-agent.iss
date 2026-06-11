@@ -57,8 +57,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; Agent executable (Node.js runtime bundled by pkg -- no Node.js required)
 Source: "{#MyExeName}";        DestDir: "{app}"; Flags: ignoreversion
 
-; NSSM service wrapper (win64) -- bundled if present at build time
-; If absent, installer downloads it automatically at install time.
+; NSSM service wrapper (win64) -- bundled if present at build time.
+; If absent at build time, installer downloads it automatically at install time.
 Source: "nssm.exe";            DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; Config -- ship example; copy to config.json only on fresh install
@@ -90,7 +90,9 @@ Filename: "notepad.exe"; \
 
 [Code]
 
-// ── Download nssm.exe from nssm.cc if not bundled ─────────────────────────
+// ── NSSM download helper ───────────────────────────────────────────────────
+// Downloads nssm-2.24 win64 nssm.exe to DestPath via PowerShell.
+// Returns True on success.
 function DownloadNssm(DestPath: String): Boolean;
 var
   ResultCode: Integer;
@@ -123,7 +125,9 @@ procedure RegisterWithNssm(NssmPath: String);
 var
   AppPath, AppDir, LogDir: String;
   ResultCode: Integer;
+  NL: String;
 begin
+  NL := Chr(13) + Chr(10);
   AppPath := ExpandConstant('{app}\{#MyExeName}');
   AppDir  := ExpandConstant('{app}');
   LogDir  := ExpandConstant('{app}\logs');
@@ -137,8 +141,8 @@ begin
               '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
   begin
     MsgBox(
-      'NSSM could not register the service (code ' + IntToStr(ResultCode) + ').' + #13#10 +
-      #13#10 +
+      'NSSM could not register the service (code ' + IntToStr(ResultCode) + ').' + NL +
+      NL +
       'After editing config.json, run install-service.bat as Administrator to retry.',
       mbError, MB_OK);
     Exit;
@@ -159,27 +163,29 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   NssmPath: String;
+  NL: String;
 begin
   if CurStep = ssPostInstall then
   begin
+    NL := Chr(13) + Chr(10);
     NssmPath := ExpandConstant('{app}\nssm.exe');
 
     // If nssm.exe was not bundled, download it now
     if not FileExists(NssmPath) then
     begin
       MsgBox(
-        'nssm.exe was not bundled in this installer.' + #13#10 +
-        'Downloading from nssm.cc now (requires internet access).' + #13#10 +
+        'nssm.exe was not bundled in this installer.' + NL +
+        'Downloading from nssm.cc now (requires internet access).' + NL +
         'A brief pause is normal.',
         mbInformation, MB_OK);
       if not DownloadNssm(NssmPath) then
       begin
         MsgBox(
-          'Could not download NSSM automatically.' + #13#10 +
-          #13#10 +
-          'Manual fix:' + #13#10 +
-          '  1. Download https://nssm.cc/release/nssm-2.24.zip' + #13#10 +
-          '  2. Extract win64\nssm.exe to ' + ExpandConstant('{app}') + #13#10 +
+          'Could not download NSSM automatically.' + NL +
+          NL +
+          'Manual fix:' + NL +
+          '  1. Download https://nssm.cc/release/nssm-2.24.zip' + NL +
+          '  2. Extract win64\nssm.exe to ' + ExpandConstant('{app}') + NL +
           '  3. Run install-service.bat as Administrator.',
           mbError, MB_OK);
         Exit;
@@ -189,14 +195,14 @@ begin
     RegisterWithNssm(NssmPath);
 
     MsgBox(
-      'THERMOPAC Local Document Agent installed.' + #13#10 +
-      #13#10 +
-      'BEFORE STARTING THE SERVICE:' + #13#10 +
-      '  Edit config.json in ' + ExpandConstant('{app}') + #13#10 +
-      '  Set:  erpBaseUrl, apiKey, allowedRootPath' + #13#10 +
-      #13#10 +
-      'Then start the service:' + #13#10 +
-      '  net start {#MyServiceName}' + #13#10 +
+      'THERMOPAC Local Document Agent installed.' + NL +
+      NL +
+      'BEFORE STARTING THE SERVICE:' + NL +
+      '  Edit config.json in ' + ExpandConstant('{app}') + NL +
+      '  Set:  erpBaseUrl, apiKey, allowedRootPath' + NL +
+      NL +
+      'Then start the service:' + NL +
+      '  net start {#MyServiceName}' + NL +
       '  -- or open Services (services.msc)',
       mbInformation, MB_OK);
   end;
@@ -217,7 +223,7 @@ begin
       Exec(NssmPath, 'remove {#MyServiceName} confirm', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     end else
     begin
-      // Fallback if nssm.exe was already removed
+      // Fallback: nssm.exe already removed by uninstaller file cleanup
       Exec(ExpandConstant('{sys}\net.exe'), 'stop {#MyServiceName}',   '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Exec(ExpandConstant('{sys}\sc.exe'),  'delete {#MyServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     end;
