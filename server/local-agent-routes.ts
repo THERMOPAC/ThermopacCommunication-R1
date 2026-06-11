@@ -19,10 +19,21 @@ import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import * as path from 'path';
 import * as fs from 'fs';
+import { createHmac } from 'crypto';
 import archiver from 'archiver';
 import { db } from './db';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { documentAgentNodes, documentAgentJobs } from '@shared/schema';
+
+// ── Download token helpers ────────────────────────────────────────────────────
+// HMAC-SHA256 of the job ID using SESSION_SECRET — stateless, no DB required.
+function makeDownloadToken(jobId: number): string {
+  const secret = process.env.SESSION_SECRET || 'thermopac-dl-secret';
+  return createHmac('sha256', secret).update(String(jobId)).digest('hex');
+}
+function verifyDownloadToken(jobId: number, token: string): boolean {
+  return token === makeDownloadToken(jobId);
+}
 
 const AGENT_VERSION = '1.0.1';
 const AGENT_DIR = path.join(process.cwd(), 'local-document-agent');
@@ -131,26 +142,17 @@ router.post('/local-agent/jobs/claim', requireAgentAuth, async (req: Request, re
 
     if (!claimed) return res.json({ job: null });
 
-    // Dual-Storage Policy: for SAVE_FILE jobs, generate a fresh signed URL at claim time.
-    // The URL is returned in the response only — never stored in DB.
-    // If signed URL generation fails, roll the job back to 'pending' so the agent
-    // can retry on the next poll cycle rather than receiving fileUrl: null and failing.
+    // Dual-Storage Policy: for SAVE_FILE / SAVE_PDF jobs, return a server-proxy
+    // download URL instead of a direct GCS signed URL.  The agent downloads from
+    // our own endpoint; the server streams from GCS.  This avoids 403 errors that
+    // arise when the Windows agent's Node.js HTTP client downloads V4 signed URLs
+    // directly from storage.googleapis.com.
     let responseJob: any = { ...claimed };
-    if (claimed.jobType === 'SAVE_FILE') {
-      const { generateFreshSignedUrl } = await import('./utils/mirror-job-service');
-      const freshUrl = await generateFreshSignedUrl(claimed.relativePath);
-      if (!freshUrl) {
-        // Roll back to pending — agent will pick it up on next poll
-        await db.update(documentAgentJobs).set({
-          status:    'pending',
-          agentCode: null,
-          claimedAt: null,
-          updatedAt: new Date(),
-        }).where(eq(documentAgentJobs.id, claimed.id));
-        console.error(`[local-agent] Signed URL generation failed for job #${claimed.id} (${claimed.relativePath}) — rolled back to pending`);
-        return res.json({ job: null });
-      }
-      responseJob = { ...claimed, fileUrl: freshUrl };
+    if (claimed.jobType === 'SAVE_FILE' || claimed.jobType === 'SAVE_PDF') {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const token   = makeDownloadToken(claimed.id);
+      const proxyUrl = `${baseUrl}/api/local-agent/files/${claimed.id}/download?token=${token}`;
+      responseJob = { ...claimed, fileUrl: proxyUrl };
     }
     res.json({ job: responseJob });
   } catch (err) {
@@ -213,6 +215,47 @@ router.post('/local-agent/jobs/result', requireAgentAuth, async (req: Request, r
   } catch (err) {
     console.error('[local-agent] jobs/result error:', err);
     res.status(500).json({ error: 'Result submission failed' });
+  }
+});
+
+// ── GET /api/local-agent/files/:jobId/download ───────────────────────────────
+// Server-proxy download: agent calls this instead of fetching from GCS directly.
+// Secured by HMAC token (no agent session headers required — designed for plain
+// HTTP GET from the agent's download client).
+
+router.get('/local-agent/files/:jobId/download', async (req: Request, res: Response) => {
+  try {
+    const jobId = parseInt(req.params.jobId, 10);
+    if (isNaN(jobId)) return res.status(400).json({ error: 'Invalid job ID' });
+
+    const token = req.query.token as string | undefined;
+    if (!token || !verifyDownloadToken(jobId, token)) {
+      return res.status(401).json({ error: 'Invalid or missing download token' });
+    }
+
+    const [job] = await db.select().from(documentAgentJobs).where(eq(documentAgentJobs.id, jobId)).limit(1);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (job.status !== 'processing') return res.status(409).json({ error: 'Job not in processing state' });
+
+    const { initializeGCS } = await import('./utils/gcs-operations');
+    const { bucket } = await initializeGCS();
+    if (!bucket) return res.status(500).json({ error: 'GCS unavailable' });
+
+    const file = bucket.file(job.relativePath);
+    const [exists] = await file.exists();
+    if (!exists) return res.status(404).json({ error: 'File not found in GCS' });
+
+    const [meta] = await file.getMetadata();
+    res.setHeader('Content-Type', (meta as any).contentType || 'application/octet-stream');
+    const fileName = job.fileName || path.basename(job.relativePath);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    if ((meta as any).size) res.setHeader('Content-Length', String((meta as any).size));
+
+    console.log(`[local-agent] Proxying GCS → agent: job #${jobId} path=${job.relativePath}`);
+    file.createReadStream().pipe(res);
+  } catch (err) {
+    console.error('[local-agent] files/download error:', err);
+    res.status(500).json({ error: 'Download failed' });
   }
 });
 
