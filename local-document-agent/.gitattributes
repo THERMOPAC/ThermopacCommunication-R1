@@ -1,0 +1,2 @@
+# Treat Windows executables as binary — prevent git from mangling line endings
+*.exe binary

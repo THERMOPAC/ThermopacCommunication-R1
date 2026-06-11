@@ -33,7 +33,7 @@ jobs:
           Get-ChildItem -Name | Sort-Object
           Write-Output ""
           Write-Output "=== Key file presence ==="
-          @('package.json','tsconfig.json','src','config.json.example','thermopac-doc-agent.iss') | ForEach-Object {
+          @('package.json','tsconfig.json','src','config.json.example','thermopac-doc-agent.iss','installer-tools\nssm.exe') | ForEach-Object {
             $exists = (Test-Path $_)
             Write-Output "  $_ : $(if ($exists) { 'EXISTS' } else { 'MISSING' })"
           }
@@ -44,6 +44,27 @@ jobs:
             Write-Output "  name:    $($pkg.name)"
             Write-Output "  version: $($pkg.version)"
           }
+
+      # ── Build gate: nssm.exe must be committed in installer-tools/ ───────────
+      # No downloads from external sites. The installer is reproducible and works
+      # on offline customer machines. If nssm.exe is missing from the repo, fail now.
+      - name: Build gate — verify installer-tools/nssm.exe is committed
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "installer-tools\nssm.exe")) {
+            Write-Error "BUILD GATE FAILED: installer-tools\nssm.exe is not committed in the repository."
+            Write-Error "Add the nssm win64 binary to installer-tools\nssm.exe and push."
+            exit 1
+          }
+          $size = [math]::Round((Get-Item "installer-tools\nssm.exe").Length / 1KB, 1)
+          Write-Output "Build gate passed — installer-tools\nssm.exe ($size KB) present."
+
+      # ── Stage nssm.exe at workspace root (required by Inno Setup Source: line) ─
+      - name: Copy nssm.exe to build root
+        shell: pwsh
+        run: |
+          Copy-Item "installer-tools\nssm.exe" "nssm.exe"
+          Write-Output "nssm.exe copied to build root."
 
       # ── Dependencies ──────────────────────────────────────────────────────────
       - name: Install dependencies
@@ -111,49 +132,6 @@ jobs:
           echo "zip-name=$zip" >> $env:GITHUB_OUTPUT
           Write-Output "Packaging: $zip"
 
-      # ── Download NSSM (bundled into ZIP and installer — no runtime download) ──
-      # nssm.exe is fetched ONCE here during the CI build and embedded into both
-      # the ZIP package and the setup.exe installer.
-      # The installer is fully self-contained and works on offline customer machines.
-      # BUILD FAILS if nssm.exe cannot be fetched at this point.
-      - name: Download NSSM service wrapper (win64)
-        timeout-minutes: 5
-        shell: pwsh
-        run: |
-          $zip    = "$env:TEMP\nssm-2.24.zip"
-          $outDir = "$env:TEMP\nssm-extract"
-
-          Write-Output "Downloading nssm-2.24.zip ..."
-          Invoke-WebRequest -Uri "https://nssm.cc/release/nssm-2.24.zip" `
-            -OutFile $zip -UseBasicParsing -TimeoutSec 60
-          if (-not (Test-Path $zip)) {
-            Write-Error "BUILD FAILED: Could not download nssm-2.24.zip"
-            exit 1
-          }
-
-          Write-Output "Extracting win64/nssm.exe ..."
-          Expand-Archive -Path $zip -DestinationPath $outDir -Force
-
-          $src = "$outDir\nssm-2.24\win64\nssm.exe"
-          if (-not (Test-Path $src)) {
-            Write-Error "BUILD FAILED: nssm.exe not found in archive at: $src"
-            exit 1
-          }
-
-          Copy-Item $src "nssm.exe"
-          $size = [math]::Round((Get-Item "nssm.exe").Length / 1KB, 1)
-          Write-Output "nssm.exe ready ($size KB)"
-
-      - name: Build gate — verify nssm.exe present
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "nssm.exe")) {
-            Write-Error "BUILD GATE FAILED: nssm.exe is missing. Cannot build self-contained installer."
-            exit 1
-          }
-          $size = [math]::Round((Get-Item "nssm.exe").Length / 1KB, 1)
-          Write-Output "Build gate passed — nssm.exe ($size KB) present."
-
       # ── ZIP package ───────────────────────────────────────────────────────────
       - name: Create installable Windows package ZIP
         shell: pwsh
@@ -162,16 +140,16 @@ jobs:
           $staging = "staging-release"
           New-Item -ItemType Directory -Force -Path $staging | Out-Null
 
-          Copy-Item -Recurse dist           "$staging\dist"
-          Copy-Item package.json            "$staging\"
-          Copy-Item config.json.example     "$staging\"
-          Copy-Item README.md               "$staging\"
-          Copy-Item SETUP.md                "$staging\"
-          Copy-Item install-service.bat     "$staging\"
-          Copy-Item uninstall-service.bat   "$staging\"
-          Copy-Item start-service.bat       "$staging\"
-          Copy-Item stop-service.bat        "$staging\"
-          Copy-Item nssm.exe                "$staging\"
+          Copy-Item -Recurse dist               "$staging\dist"
+          Copy-Item package.json                "$staging\"
+          Copy-Item config.json.example         "$staging\"
+          Copy-Item README.md                   "$staging\"
+          Copy-Item SETUP.md                    "$staging\"
+          Copy-Item install-service.bat         "$staging\"
+          Copy-Item uninstall-service.bat       "$staging\"
+          Copy-Item start-service.bat           "$staging\"
+          Copy-Item stop-service.bat            "$staging\"
+          Copy-Item "installer-tools\nssm.exe"  "$staging\"
           "${{ steps.get-version.outputs.version }}" | Out-File "$staging\VERSION.txt" -Encoding utf8
 
           Compress-Archive -Path "$staging\*" -DestinationPath $zipName -CompressionLevel Optimal
@@ -255,15 +233,6 @@ jobs:
             -replace '#define MyAppVersion\s+"[^"]+"', "#define MyAppVersion   `"$version`"" |
             Set-Content thermopac-doc-agent.iss
           Write-Output "Version patched to: $version"
-
-      - name: Build gate — verify nssm.exe present before ISCC
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "nssm.exe")) {
-            Write-Error "BUILD GATE FAILED: nssm.exe missing — cannot build self-contained installer."
-            exit 1
-          }
-          Write-Output "Build gate passed — nssm.exe present, ISCC will bundle it."
 
       - name: Build setup.exe (Inno Setup)
         timeout-minutes: 10
