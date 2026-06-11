@@ -14147,7 +14147,7 @@ export type PlcRfqDispatchLog = typeof plcRfqDispatchLog.$inferSelect;
 // ─── 1. Document Path Templates ───────────────────────────────────────────
 export const documentPathTemplates = pgTable('document_path_templates', {
   id:                     serial('id').primaryKey(),
-  templateCode:           varchar('template_code', { length: 50 }).notNull().unique(),
+  templateCode:           varchar('template_code', { length: 120 }).notNull().unique(),
   documentType:           varchar('document_type', { length: 50 }).notNull(),
   documentCategory:       varchar('document_category', { length: 80 }),
   relativePathTemplate:   text('relative_path_template').notNull(),
@@ -14167,7 +14167,7 @@ export type DocumentPathTemplate = typeof documentPathTemplates.$inferSelect;
 // ─── 2. Folder Templates ──────────────────────────────────────────────────
 export const folderTemplates = pgTable('folder_templates', {
   id:           serial('id').primaryKey(),
-  templateCode: varchar('template_code', { length: 50 }).notNull().unique(),
+  templateCode: varchar('template_code', { length: 120 }).notNull().unique(),
   templateName: varchar('template_name', { length: 120 }).notNull(),
   description:  text('description'),
   companyCode:  varchar('company_code', { length: 20 }).notNull().default('TPEL'),
