@@ -537,6 +537,20 @@ router.get('/local-agent/download-package', requireSession, requireSuperuser, as
     const ciYml = path.join(AGENT_DIR, '.github', 'workflows', 'ci.yml');
     if (fs.existsSync(ciYml)) archive.file(ciYml, { name: root + '.github/workflows/ci.yml' });
 
+    // installer-tools/nssm.exe — NSSM win64 binary, required by CI build gate and install-service.bat
+    const nssmExe = path.join(AGENT_DIR, 'installer-tools', 'nssm.exe');
+    if (fs.existsSync(nssmExe)) {
+      archive.file(nssmExe, { name: root + 'installer-tools/nssm.exe' });
+    } else {
+      console.error('[local-agent] WARNING: installer-tools/nssm.exe not found — package will be incomplete');
+    }
+
+    // .gitattributes — marks .exe as binary so git never corrupts nssm.exe
+    const gitattributes = path.join(AGENT_DIR, '.gitattributes');
+    if (fs.existsSync(gitattributes)) {
+      archive.file(gitattributes, { name: root + '.gitattributes' });
+    }
+
     // VERSION.txt — plain-text version stamp for easy identification
     archive.append(AGENT_VERSION, { name: root + 'VERSION.txt' });
 
