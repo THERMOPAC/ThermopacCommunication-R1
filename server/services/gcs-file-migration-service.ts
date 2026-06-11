@@ -204,6 +204,43 @@ const HANDLERS: Record<string, MigrationHandler> = {
       await db.execute(sql`UPDATE visa_records SET file_path = ${newPath} WHERE id = ${id}`);
     },
   },
+
+  COMPANY_GST_CERTIFICATE: {
+    tableName: 'company_documents',
+
+    async fetchAllRecords() {
+      const rows = await db.execute(sql`
+        SELECT
+          cd.id,
+          cd.gcs_path         AS "filePath",
+          cd.revision_number  AS "revisionNumber",
+          cd.file_name        AS "fileName",
+          cm.company_code     AS "companyCode"
+        FROM company_documents cd
+        JOIN company_master    cm ON cm.id = cd.company_id
+        WHERE cd.doc_type = 'COMPANY_GST_CERTIFICATE'
+          AND cd.gcs_path IS NOT NULL
+          AND cd.gcs_path <> ''
+        ORDER BY cd.id
+      `);
+      return rows.rows as any[];
+    },
+
+    buildNewPath(record, template) {
+      const revNo = String(record.revisionNumber).padStart(2, '0');
+      const ext   = path.extname(record.fileName).replace('.', '') || 'pdf';
+      return resolvePathTemplate(template, {
+        CompanyCode: record.companyCode,
+        RevNo:       revNo,
+        Seq:         '001',
+        Ext:         ext,
+      });
+    },
+
+    async updateFilePath(id, newPath) {
+      await db.execute(sql`UPDATE company_documents SET gcs_path = ${newPath} WHERE id = ${id}`);
+    },
+  },
 };
 
 // ── GCS copy → verify → DB update → delete (best-effort) ─────────────────────
