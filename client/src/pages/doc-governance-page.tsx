@@ -26,6 +26,7 @@ import {
   Link2,
   Pencil,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -102,6 +103,7 @@ export default function DocGovernancePage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [searchText, setSearchText] = useState("");
   const [newPath, setNewPath] = useState({
     templateCode: '', documentType: '', documentCategory: '',
     relativePathTemplate: '', fileNameTemplate: '', revisionMode: 'folder', fileExtension: 'pdf',
@@ -296,6 +298,16 @@ export default function DocGovernancePage() {
     if (filterCategory !== "all" && pt.documentCategory?.toLowerCase() !== filterCategory.toLowerCase()) return false;
     if (filterStatus === "active" && !pt.active) return false;
     if (filterStatus === "inactive" && pt.active) return false;
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      const match =
+        pt.templateCode.toLowerCase().includes(q) ||
+        pt.documentType.toLowerCase().includes(q) ||
+        pt.relativePathTemplate.toLowerCase().includes(q) ||
+        (pt.fileNameTemplate ?? "").toLowerCase().includes(q) ||
+        (pt.documentCategory ?? "").toLowerCase().includes(q);
+      if (!match) return false;
+    }
     return true;
   });
 
@@ -362,6 +374,23 @@ export default function DocGovernancePage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    className="h-8 text-xs pl-7 w-52"
+                    placeholder="Search code, type, path…"
+                    value={searchText}
+                    onChange={e => setSearchText(e.target.value)}
+                  />
+                  {searchText && (
+                    <button
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setSearchText("")}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
                 <Select value={filterCategory} onValueChange={setFilterCategory}>
                   <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All modules" /></SelectTrigger>
                   <SelectContent>
