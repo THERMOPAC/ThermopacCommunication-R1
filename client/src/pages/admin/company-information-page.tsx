@@ -558,8 +558,7 @@ function DocumentsTab({ documents, companyId, canWrite, canWriteLegal, toast, qc
   const download = async (docId: number, fileName: string) => {
     setDownloading(docId);
     try {
-      const data: any = await apiRequest('GET', `/api/company/doc/${docId}/download`);
-      const body = await data.json();
+      const body: any = await apiRequest('GET', `/api/company/doc/${docId}/download`);
       window.open(body.url, '_blank');
     } catch (e: any) { toast({ title: 'Download failed', description: e.message, variant: 'destructive' }); }
     finally { setDownloading(null); }
