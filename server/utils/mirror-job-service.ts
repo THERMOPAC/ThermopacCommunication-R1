@@ -59,6 +59,7 @@ export async function generateFreshSignedUrl(gcsPath: string): Promise<string | 
     }
     const file = bucket.file(gcsPath);
     const [url] = await file.getSignedUrl({
+      version: 'v4',
       action:  'read',
       expires: Date.now() + 60 * 60 * 1000,  // 1 hour
     });
