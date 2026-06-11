@@ -39,6 +39,13 @@ import {
   runDryRunSimulation,
   checkActivationFreeze,
 } from './services/gcs-governance-zero-trust';
+import {
+  syncOnCreate,
+  syncOnUpdate,
+  syncOnDeactivate,
+  syncOnActivate,
+  backfillAllGcsRules,
+} from './services/gcs-doc-sync-service';
 
 function superuserOnly(req: Request, res: Response): boolean {
   const user = (req as any).user;
@@ -192,7 +199,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       });
       if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
       const [created] = await db.insert(gcsGovernanceRules).values(parsed.data).returning();
-      res.status(201).json(created);
+      const createSync = await syncOnCreate(created);
+      const createResponse: any = { ...created };
+      if (createSync.error) createResponse.docTemplateSyncError = createSync.error;
+      else createResponse.docTemplate = { id: createSync.templateId, templateCode: createSync.templateCode, action: createSync.action };
+      res.status(201).json(createResponse);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -286,7 +297,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         }
       }
 
-      res.json({ ...updated, ...(migrationJob ? { migrationJobId: migrationJob.jobId } : {}) });
+      const patchSync = await syncOnUpdate(updated);
+      const patchResponse: any = { ...updated, ...(migrationJob ? { migrationJobId: migrationJob.jobId } : {}) };
+      if (patchSync.error) patchResponse.docTemplateSyncError = patchSync.error;
+      else patchResponse.docTemplate = { id: patchSync.templateId, templateCode: patchSync.templateCode, action: patchSync.action };
+      res.json(patchResponse);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -301,7 +316,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         .where(eq(gcsGovernanceRules.id, id))
         .returning();
       if (!updated) return res.status(404).json({ error: 'Rule not found' });
-      res.json(updated);
+      const deactSync = await syncOnDeactivate(updated);
+      const deactResponse: any = { ...updated };
+      if (deactSync.error) deactResponse.docTemplateSyncError = deactSync.error;
+      else deactResponse.docTemplate = { id: deactSync.templateId, templateCode: deactSync.templateCode, action: deactSync.action };
+      res.json(deactResponse);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -316,7 +335,23 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         .where(eq(gcsGovernanceRules.id, id))
         .returning();
       if (!updated) return res.status(404).json({ error: 'Rule not found' });
-      res.json(updated);
+      const actSync = await syncOnActivate(updated);
+      const actResponse: any = { ...updated };
+      if (actSync.error) actResponse.docTemplateSyncError = actSync.error;
+      else actResponse.docTemplate = { id: actSync.templateId, templateCode: actSync.templateCode, action: actSync.action };
+      res.json(actResponse);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Backfill: sync all existing GCS rules → doc_path_templates ────────────
+  app.post('/api/gcs-governance/backfill-doc-templates', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const result = await backfillAllGcsRules();
+      console.log(`[GCS-DocSync] Admin backfill triggered by user ${(req as any).user?.id}: ${JSON.stringify(result)}`);
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

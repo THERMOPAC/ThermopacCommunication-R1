@@ -23,6 +23,9 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Link2,
+  Pencil,
+  RefreshCw,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -42,6 +45,7 @@ interface DocPathTemplate {
   revisionMode: string;
   fileExtension: string | null;
   active: boolean;
+  gcsRuleId?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,6 +107,15 @@ export default function DocGovernancePage() {
     relativePathTemplate: '', fileNameTemplate: '', revisionMode: 'folder', fileExtension: 'pdf',
   });
 
+  // ── GCS sync / backfill state ──
+  const [showBackfillConfirm, setShowBackfillConfirm] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<{ processed: number; created: number; linked: number; updated: number; skipped: number; errors: string[] } | null>(null);
+
+  // ── Edit extensions (GCS-managed templates) ──
+  const [editExtOpen, setEditExtOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<DocPathTemplate | null>(null);
+  const [editExtValues, setEditExtValues] = useState({ fileExtension: '', fileNameTemplate: '' });
+
   // ── Folder Templates state ──
   const [selectedFolderTemplate, setSelectedFolderTemplate] = useState<FolderTemplate | null>(null);
   const [folderPreview, setFolderPreview] = useState<FolderTreePreview | null>(null);
@@ -131,6 +144,7 @@ export default function DocGovernancePage() {
   const toggleActiveMutation = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/doc-path-templates/${id}/toggle-active`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/doc-path-templates"] }); },
+    onError: (e: any) => toast({ title: "Cannot toggle", description: e.message, variant: "destructive" }),
   });
 
   const createPathMutation = useMutation({
@@ -140,6 +154,31 @@ export default function DocGovernancePage() {
       setShowAddPath(false);
       setNewPath({ templateCode: '', documentType: '', documentCategory: '', relativePathTemplate: '', fileNameTemplate: '', revisionMode: 'folder', fileExtension: 'pdf' });
       toast({ title: "Template created" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const backfillMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/gcs-governance/backfill-doc-templates"),
+    onSuccess: (data: any) => {
+      setBackfillResult(data);
+      setShowBackfillConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/doc-path-templates"] });
+    },
+    onError: (e: any) => {
+      setShowBackfillConfirm(false);
+      toast({ title: "Backfill failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const editExtMutation = useMutation({
+    mutationFn: ({ id, values }: { id: number; values: { fileExtension: string; fileNameTemplate: string } }) =>
+      apiRequest("PATCH", `/api/doc-path-templates/${id}`, values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/doc-path-templates"] });
+      setEditExtOpen(false);
+      setEditingTemplate(null);
+      toast({ title: "Template updated" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -341,6 +380,15 @@ export default function DocGovernancePage() {
                   </SelectContent>
                 </Select>
                 <span className="text-xs text-slate-400">{filteredPathTemplates.length} template{filteredPathTemplates.length !== 1 ? "s" : ""}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setBackfillResult(null); setShowBackfillConfirm(true); }}
+                  className="flex items-center gap-1.5"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Sync GCS Rules
+                </Button>
                 <Button size="sm" onClick={() => setShowAddPath(true)} className="flex items-center gap-1.5">
                   <Plus className="h-4 w-4" />
                   Add Template
@@ -384,6 +432,12 @@ export default function DocGovernancePage() {
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
                               {pt.revisionMode === 'folder' ? 'rev-in-folder' : 'rev-in-filename'}
                             </Badge>
+                            {pt.gcsRuleId && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-purple-700 border-purple-300 bg-purple-50 flex items-center gap-0.5">
+                                <Link2 className="h-2.5 w-2.5" />
+                                GCS-managed
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-xs font-mono text-blue-700 mt-1.5 bg-blue-50 rounded px-2 py-1 break-all">
                             📁 {pt.relativePathTemplate}
@@ -405,16 +459,33 @@ export default function DocGovernancePage() {
                             <Eye className="h-3.5 w-3.5 mr-1" />
                             Preview
                           </Button>
+                          {pt.gcsRuleId && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs text-purple-700 hover:text-purple-900"
+                              onClick={() => {
+                                setEditingTemplate(pt);
+                                setEditExtValues({ fileExtension: pt.fileExtension ?? '', fileNameTemplate: pt.fileNameTemplate ?? '' });
+                                setEditExtOpen(true);
+                              }}
+                              title="Edit file extension and filename template"
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-1" />
+                              Extensions
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2"
-                            onClick={() => toggleActiveMutation.mutate(pt.id)}
-                            title={pt.active ? "Deactivate" : "Activate"}
+                            onClick={() => !pt.gcsRuleId && toggleActiveMutation.mutate(pt.id)}
+                            title={pt.gcsRuleId ? "Managed by GCS Doc Governance — use the GCS Governance page to change active state" : (pt.active ? "Deactivate" : "Activate")}
+                            disabled={!!pt.gcsRuleId}
                           >
                             {pt.active
-                              ? <ToggleRight className="h-4 w-4 text-green-600" />
-                              : <ToggleLeft className="h-4 w-4 text-slate-400" />}
+                              ? <ToggleRight className={`h-4 w-4 ${pt.gcsRuleId ? 'text-green-400 opacity-50' : 'text-green-600'}`} />
+                              : <ToggleLeft className={`h-4 w-4 ${pt.gcsRuleId ? 'opacity-50' : 'text-slate-400'}`} />}
                           </Button>
                         </div>
                       </div>
@@ -724,6 +795,144 @@ export default function DocGovernancePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Edit Extensions Dialog (GCS-managed templates) ── */}
+      <Dialog open={editExtOpen} onOpenChange={(open) => { setEditExtOpen(open); if (!open) setEditingTemplate(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-purple-600" />
+              Edit Extensions — {editingTemplate?.templateCode}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5 mb-1">
+            <div className="flex items-center gap-2 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded px-3 py-2">
+              <Link2 className="h-3.5 w-3.5 shrink-0" />
+              This template is managed by GCS Doc Governance. Only the file extension and filename template can be edited here. Path and revision mode are controlled by GCS rules.
+            </div>
+          </div>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">File Extension <span className="text-muted-foreground">(e.g. pdf, xlsx, dwg)</span></Label>
+              <Input
+                placeholder="pdf"
+                value={editExtValues.fileExtension}
+                onChange={(e) => setEditExtValues(v => ({ ...v, fileExtension: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') }))}
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">File Name Template <span className="text-muted-foreground">(optional — tokens like &#123;DocNum&#125;, &#123;rev&#125; allowed)</span></Label>
+              <Input
+                placeholder="e.g. OFR-{FY}-{NNN}-rev-{rev}.pdf"
+                value={editExtValues.fileNameTemplate}
+                onChange={(e) => setEditExtValues(v => ({ ...v, fileNameTemplate: e.target.value }))}
+                className="font-mono text-sm"
+              />
+            </div>
+            {editingTemplate && (
+              <div className="text-xs text-muted-foreground bg-slate-50 rounded px-3 py-2 space-y-0.5">
+                <p className="font-semibold text-slate-600 mb-1">Current path (read-only):</p>
+                <p className="font-mono text-blue-700 break-all">📁 {editingTemplate.relativePathTemplate}</p>
+                <p className="text-slate-500">Revision mode: {editingTemplate.revisionMode}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditExtOpen(false); setEditingTemplate(null); }}>Cancel</Button>
+            <Button
+              onClick={() => editingTemplate && editExtMutation.mutate({ id: editingTemplate.id, values: editExtValues })}
+              disabled={editExtMutation.isPending || !editingTemplate}
+            >
+              {editExtMutation.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Backfill Confirm Dialog ── */}
+      <Dialog open={showBackfillConfirm} onOpenChange={setShowBackfillConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-blue-600" />
+              Sync GCS Rules to Doc Governance
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm text-muted-foreground">
+            <p>
+              This will scan every GCS Governance Rule and ensure a matching Doc Path Template exists and is up to date.
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>New GCS rules without a doc template → template is <strong>created</strong></li>
+              <li>Existing unlinked templates with a matching code → <strong>linked</strong> to the GCS rule</li>
+              <li>Already-linked templates → path and revision mode <strong>updated</strong></li>
+              <li>No existing templates are ever <strong>deleted</strong></li>
+            </ul>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Superuser only. This operation is safe to run multiple times.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBackfillConfirm(false)}>Cancel</Button>
+            <Button
+              onClick={() => backfillMutation.mutate()}
+              disabled={backfillMutation.isPending}
+              className="flex items-center gap-1.5"
+            >
+              {backfillMutation.isPending
+                ? <><RefreshCw className="h-4 w-4 animate-spin" />Syncing…</>
+                : <><RefreshCw className="h-4 w-4" />Run Sync</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Backfill Result Dialog ── */}
+      {backfillResult && (
+        <Dialog open={!!backfillResult} onOpenChange={() => setBackfillResult(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                Sync Complete
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-slate-50 rounded p-3 text-center">
+                  <p className="text-2xl font-bold text-slate-700">{backfillResult.processed}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">GCS Rules scanned</p>
+                </div>
+                <div className="bg-green-50 rounded p-3 text-center">
+                  <p className="text-2xl font-bold text-green-700">{backfillResult.created}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Templates created</p>
+                </div>
+                <div className="bg-blue-50 rounded p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{backfillResult.linked}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Templates linked</p>
+                </div>
+                <div className="bg-purple-50 rounded p-3 text-center">
+                  <p className="text-2xl font-bold text-purple-700">{backfillResult.updated}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Templates updated</p>
+                </div>
+              </div>
+              {backfillResult.skipped > 0 && (
+                <p className="text-xs text-slate-500">{backfillResult.skipped} skipped (already up to date or conflicts)</p>
+              )}
+              {backfillResult.errors.length > 0 && (
+                <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 space-y-1">
+                  <p className="font-semibold">Errors ({backfillResult.errors.length}):</p>
+                  {backfillResult.errors.map((e, i) => <p key={i}>{e}</p>)}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setBackfillResult(null)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Layout>
   );
 }

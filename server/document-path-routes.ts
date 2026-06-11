@@ -80,14 +80,28 @@ router.post('/doc-path-templates', ensureAuthenticated, async (req, res) => {
 // PATCH /api/doc-path-templates/:id
 router.patch('/doc-path-templates/:id', ensureAuthenticated, async (req, res) => {
   try {
+    const [existing] = await db.select().from(documentPathTemplates).where(eq(documentPathTemplates.id, Number(req.params.id)));
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+
     const { id, createdAt, ...rest } = req.body;
-    if (rest.relativePathTemplate) {
-      const errs = validateTemplateTokens(rest.relativePathTemplate);
-      if (errs.length > 0) return res.status(400).json({ error: `Unknown tokens: {${errs.join('}, {')}}` });
+
+    // GCS-managed templates: only fileExtension and fileNameTemplate are user-editable
+    let allowedUpdates: Record<string, any>;
+    if (existing.gcsRuleId) {
+      allowedUpdates = {};
+      if (rest.fileExtension    !== undefined) allowedUpdates.fileExtension    = rest.fileExtension;
+      if (rest.fileNameTemplate !== undefined) allowedUpdates.fileNameTemplate = rest.fileNameTemplate;
+    } else {
+      allowedUpdates = rest;
+      if (allowedUpdates.relativePathTemplate) {
+        const errs = validateTemplateTokens(allowedUpdates.relativePathTemplate);
+        if (errs.length > 0) return res.status(400).json({ error: `Unknown tokens: {${errs.join('}, {')}}` });
+      }
     }
+
     const [updated] = await db
       .update(documentPathTemplates)
-      .set({ ...rest, updatedAt: new Date() })
+      .set({ ...allowedUpdates, updatedAt: new Date() })
       .where(eq(documentPathTemplates.id, Number(req.params.id)))
       .returning();
     res.json(updated);
@@ -101,6 +115,12 @@ router.post('/doc-path-templates/:id/toggle-active', ensureAuthenticated, async 
   try {
     const [row] = await db.select().from(documentPathTemplates).where(eq(documentPathTemplates.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ error: 'Not found' });
+    if (row.gcsRuleId) {
+      return res.status(400).json({
+        error: 'This template is managed by GCS Doc Governance. Use the GCS Doc Governance page to change its active state.',
+        gcsManaged: true,
+      });
+    }
     const [updated] = await db
       .update(documentPathTemplates)
       .set({ active: !row.active, updatedAt: new Date() })
