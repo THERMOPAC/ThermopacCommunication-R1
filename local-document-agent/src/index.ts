@@ -10,6 +10,7 @@
  */
 
 import * as os from 'os';
+import * as fs from 'fs';
 import * as path from 'path';
 import { loadConfig } from './config';
 import { setLogDir, info, warn, error } from './logger';
@@ -20,6 +21,29 @@ import { ServiceHealth } from './service-health';
 const AGENT_VERSION = '1.0.4';
 const MACHINE_NAME  = os.hostname();
 
+function logIdentity(allowedRoot: string): void {
+  // Who is this process running as?
+  info(`[IDENTITY] USERNAME   = ${process.env.USERNAME   ?? '(undefined)'}`);
+  info(`[IDENTITY] USERDOMAIN = ${process.env.USERDOMAIN ?? '(undefined)'}`);
+  try {
+    const u = os.userInfo();
+    info(`[IDENTITY] os.userInfo = ${u.username} (uid=${u.uid})`);
+  } catch (e) {
+    info(`[IDENTITY] os.userInfo = (error: ${e})`);
+  }
+
+  // Can this process read/write the allowed root?
+  const rootExists = fs.existsSync(allowedRoot);
+  info(`[IDENTITY] allowedRoot "${allowedRoot}"  exists=${rootExists}`);
+  if (rootExists) {
+    let readable = false;
+    let writable = false;
+    try { fs.accessSync(allowedRoot, fs.constants.R_OK); readable = true; } catch { /* no */ }
+    try { fs.accessSync(allowedRoot, fs.constants.W_OK); writable = true; } catch { /* no */ }
+    info(`[IDENTITY] allowedRoot readable=${readable}  writable=${writable}`);
+  }
+}
+
 async function main() {
   const args   = process.argv.slice(2);
   const config = loadConfig();
@@ -28,6 +52,7 @@ async function main() {
   info(`THERMOPAC Local Document Agent v${AGENT_VERSION} starting on ${MACHINE_NAME}`);
   info(`Allowed root: ${config.allowedRootPath}`);
   info(`ERP base URL: ${config.erpBaseUrl}`);
+  logIdentity(config.allowedRootPath);
 
   if (args.includes('--install-service')) {
     await installWindowsService();
