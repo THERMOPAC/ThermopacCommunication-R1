@@ -92,13 +92,14 @@ function requireSuperuser(req: Request, res: Response, next: NextFunction) {
 router.post('/local-agent/heartbeat', requireAgentAuth, async (req: Request, res: Response) => {
   try {
     const node = (req as any).agentNode;
-    const { agentState, agentVersion, machineName, lastError } = req.body;
+    const { agentState, agentVersion, machineName, lastError, environment } = req.body;
 
     await db.update(documentAgentNodes).set({
       agentState:      agentState    || node.agentState,
       agentVersion:    agentVersion  || node.agentVersion,
       machineName:     machineName   || node.machineName,
       lastError:       lastError     || null,
+      ...(environment === 'prod' || environment === 'dev' ? { environment } : {}),
       lastHeartbeatAt: new Date(),
       updatedAt:       new Date(),
     }).where(eq(documentAgentNodes.id, node.id));

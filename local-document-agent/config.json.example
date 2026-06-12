@@ -1,4 +1,5 @@
 {
+  "environment": "prod",
   "agentCode": "THERMOPAC-DOC-AGENT-01",
   "erpBaseUrl": "https://your-erp.replit.app",
   "apiKey": "PASTE_API_KEY_FROM_ERP_DASHBOARD",

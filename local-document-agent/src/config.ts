@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface AgentConfig {
+  environment:        'prod' | 'dev';
   agentCode:          string;
   erpBaseUrl:         string;
   apiKey:             string;
@@ -33,7 +34,11 @@ export function loadConfig(configPath?: string): AgentConfig {
     throw new Error('Config error: apiKey must be changed from the example value');
   }
 
+  const rawEnv = (cfg as any).environment;
+  const environment: 'prod' | 'dev' = rawEnv === 'dev' ? 'dev' : 'prod';
+
   return {
+    environment,
     agentCode:          cfg.agentCode,
     erpBaseUrl:         cfg.erpBaseUrl.replace(/\/$/, ''),
     apiKey:             cfg.apiKey,

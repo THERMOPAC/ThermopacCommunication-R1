@@ -20,6 +20,7 @@ export interface AgentJob {
 }
 
 export interface HeartbeatPayload {
+  environment:  string;
   agentState:   string;
   agentVersion: string;
   machineName:  string;

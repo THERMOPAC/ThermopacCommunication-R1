@@ -563,6 +563,10 @@ function DocAgentRow() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-sm">{node.agentCode}</span>
+                              {node.environment === 'dev'
+                                ? <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900 dark:text-amber-200">DEV</Badge>
+                                : <Badge className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-200">PROD</Badge>
+                              }
                               {node.machineName && <span className="text-xs text-muted-foreground">{node.machineName}</span>}
                               {node.agentVersion && <Badge variant="outline" className="text-[10px] px-1.5 py-0">v{node.agentVersion}</Badge>}
                             </div>

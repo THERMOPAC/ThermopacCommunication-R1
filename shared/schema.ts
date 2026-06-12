@@ -14432,6 +14432,7 @@ export const documentAgentNodes = pgTable('document_agent_nodes', {
   machineName:      varchar('machine_name', { length: 255 }),
   agentVersion:     varchar('agent_version', { length: 50 }),
   allowedRootPath:  varchar('allowed_root_path', { length: 500 }),
+  environment:      varchar('environment', { length: 10 }).notNull().default('prod'),
   agentState:       varchar('agent_state', { length: 50 }).default('OFFLINE'),
   lastHeartbeatAt:  timestamp('last_heartbeat_at'),
   lastError:        text('last_error'),

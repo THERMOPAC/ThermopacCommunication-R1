@@ -49,6 +49,7 @@ async function main() {
   while (running) {
     try {
       const hb = await sendHeartbeat(config, {
+        environment:  config.environment,
         agentState:   health.state,
         agentVersion: AGENT_VERSION,
         machineName:  MACHINE_NAME,
@@ -81,6 +82,7 @@ async function main() {
       health.transition('RETRY_WAIT', msg);
 
       await sendHeartbeat(config, {
+        environment:  config.environment,
         agentState:   'RETRY_WAIT',
         agentVersion: AGENT_VERSION,
         machineName:  MACHINE_NAME,
