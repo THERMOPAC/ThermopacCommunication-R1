@@ -35,7 +35,7 @@ function verifyDownloadToken(jobId: number, token: string): boolean {
   return token === makeDownloadToken(jobId);
 }
 
-const AGENT_VERSION = '1.0.3';
+const AGENT_VERSION = '1.0.4';
 const AGENT_DIR = path.join(process.cwd(), 'local-document-agent');
 
 const router = Router();
@@ -439,6 +439,7 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
       { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions CI — install, type-check, build, validate' },
     ],
     releaseNotes: [
+      'v1.0.4 — Add pre-mkdir diagnostics (USERNAME, USERDOMAIN, UNC path visibility, write-access per ancestor)',
       'v1.0.3 — Fix SAVE_FILE destination path bug',
       'relative_path already ends with the canonical GCS filename — never append job.fileName (original upload name) to avoid double-filename paths and incorrect mkdir calls',
       'v1.0.2 — Dual-environment support (PROD / DEV)',

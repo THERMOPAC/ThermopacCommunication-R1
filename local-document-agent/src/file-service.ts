@@ -33,6 +33,30 @@ export async function downloadAndSave(
 
   const parentDir = path.dirname(destFullPath);
   if (!fs.existsSync(parentDir)) {
+    // ── DIAGNOSTIC: run before mkdir to identify permission root cause ──────
+    info(`[DIAG] process.env.USERNAME  = ${process.env.USERNAME ?? '(undefined)'}`);
+    info(`[DIAG] process.env.USERDOMAIN = ${process.env.USERDOMAIN ?? '(undefined)'}`);
+    info(`[DIAG] os.userInfo().username = ${(() => { try { return require('os').userInfo().username; } catch { return '(error)'; } })()}`);
+
+    // Walk up the path tree — find which ancestor is visible and writable
+    const ancestors: string[] = [];
+    let cur = parentDir;
+    while (true) {
+      ancestors.unshift(cur);
+      const parent = path.dirname(cur);
+      if (parent === cur) break; // filesystem root
+      cur = parent;
+    }
+    for (const seg of ancestors) {
+      const exists = fs.existsSync(seg);
+      let writable = false;
+      if (exists) {
+        try { fs.accessSync(seg, fs.constants.W_OK); writable = true; } catch { writable = false; }
+      }
+      info(`[DIAG] ${seg}  exists=${exists}  writable=${writable}`);
+    }
+    // ── END DIAGNOSTIC ───────────────────────────────────────────────────────
+
     info(`Auto-creating folder: ${parentDir}`);
     fs.mkdirSync(parentDir, { recursive: true });
   }
