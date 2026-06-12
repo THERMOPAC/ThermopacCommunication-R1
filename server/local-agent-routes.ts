@@ -35,7 +35,7 @@ function verifyDownloadToken(jobId: number, token: string): boolean {
   return token === makeDownloadToken(jobId);
 }
 
-const AGENT_VERSION = '1.0.1';
+const AGENT_VERSION = '1.0.2';
 const AGENT_DIR = path.join(process.cwd(), 'local-document-agent');
 
 const router = Router();
@@ -407,6 +407,8 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
       { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions CI — install, type-check, build, validate' },
     ],
     releaseNotes: [
+      'v1.0.2 — Dual-environment support (PROD / DEV)',
+      'config.json gains "environment" field ("prod" or "dev"); heartbeat reports it to ERP; Worker Agents dashboard shows PROD/DEV badge per node',
       'v1.0.1 — Added LIST_DIRECTORY and SAVE_TEST_FILE job types',
       'SAVE_TEST_FILE: writes a timestamped PDF to the target folder; download from ERP to verify write access',
       'LIST_DIRECTORY: returns up to 100 entries (name, type, size, modified) from any allowed folder',
