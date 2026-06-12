@@ -388,7 +388,7 @@ router.post('/local-agent/admin/agents/:agentCode/rotate-key', requireSession, r
 // request host as erpBaseUrl (resolves to the .replit.dev testing URL).
 
 const DEV_AGENT_CODE    = 'THERMOPAC-DOC-AGENT-DEV-01';
-const DEV_ERP_URL       = 'https://5d05ae61-8225-4651-b7b6-b4e20a4ddabb-00-3mex6zilhmftjaneway.replit.dev';
+const DEV_ERP_URL       = 'https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev';
 const DEV_API_KEY       = 'Oe2WYKAoc4JMsvj65Y9qtLP0xD1yb5Pu';
 const DEV_ALLOWED_ROOT  = '\\\\Server\\d\\THERMOPAC';
 
