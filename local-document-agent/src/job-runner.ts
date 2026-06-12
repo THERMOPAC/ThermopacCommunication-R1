@@ -189,11 +189,32 @@ export async function runJob(
           });
           return;
         }
-        const now   = new Date();
-        const pad2  = (n: number) => String(n).padStart(2, '0');
-        const ts    = `${now.getUTCFullYear()}${pad2(now.getUTCMonth() + 1)}${pad2(now.getUTCDate())}_${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}`;
-        const fileName = `THERMOPAC_AGENT_TEST_${ts}.pdf`;
-        const destPath = path.join(fullPath, fileName);
+
+        const now  = new Date();
+        const pad2 = (n: number) => String(n).padStart(2, '0');
+        const ts   = `${now.getUTCFullYear()}${pad2(now.getUTCMonth() + 1)}${pad2(now.getUTCDate())}_${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}`;
+
+        // ── 1. Test folder creation ──────────────────────────────────────────
+        const testSubfolder = path.join(fullPath, `AGENT_TEST_${ts}`);
+        let folderCreateOk  = false;
+        let folderCreateErr = '';
+        try {
+          fs.mkdirSync(testSubfolder, { recursive: true });
+          folderCreateOk = true;
+          info(`Test subfolder created: ${testSubfolder}`);
+        } catch (mkdirErr: any) {
+          const code = mkdirErr?.code ?? 'UNKNOWN';
+          folderCreateErr = (code === 'EPERM' || code === 'EACCES')
+            ? `CREATE_FOLDER_PERMISSION_DENIED: cannot create "${testSubfolder}" (${code})`
+            : `CREATE_FOLDER_FAILED: cannot create "${testSubfolder}" (${code}: ${mkdirErr?.message})`;
+          warn(`Test subfolder creation failed: ${folderCreateErr}`);
+        }
+
+        // ── 2. Test file write (into test subfolder if created, else root) ───
+        const writeTarget = folderCreateOk ? testSubfolder : fullPath;
+        const fileName    = `THERMOPAC_AGENT_TEST_${ts}.pdf`;
+        const destPath    = path.join(writeTarget, fileName);
+
         if (fs.existsSync(destPath)) {
           await submitResult(config, {
             jobId: job.id, success: false,
@@ -201,15 +222,47 @@ export async function runJob(
           });
           return;
         }
-        const pdfBuf = generateTestPdf(config.agentCode, now.toISOString());
+
+        const pdfBuf   = generateTestPdf(config.agentCode, now.toISOString());
         fs.writeFileSync(destPath, pdfBuf);
         const { size } = fs.statSync(destPath);
+
+        // ── 3. Clean up test subfolder ───────────────────────────────────────
+        if (folderCreateOk) {
+          try {
+            fs.rmSync(testSubfolder, { recursive: true, force: true });
+            info(`Test subfolder removed: ${testSubfolder}`);
+          } catch { /* cleanup failure is non-fatal */ }
+        }
+
+        // Fail the job if folder creation failed — that's the real capability gap
+        if (!folderCreateOk) {
+          health.recordFailure(folderCreateErr);
+          await submitResult(config, {
+            jobId:        job.id,
+            success:      false,
+            failedReason: folderCreateErr,
+            resultPayload: {
+              fileWriteOk:      true,
+              folderCreateOk:   false,
+              folderCreateError: folderCreateErr,
+              fileName,
+              filePath: destPath,
+              fileSize: size,
+              createdAt: now.toISOString(),
+            },
+          });
+          return;
+        }
+
         health.recordSuccess();
         await submitResult(config, {
           jobId:           job.id,
           success:         true,
           resultLocalPath: destPath,
           resultPayload: {
+            folderCreateOk: true,
+            fileWriteOk:    true,
             fileName,
             filePath:   destPath,
             fileSize:   size,

@@ -32,24 +32,18 @@ export async function downloadAndSave(
   }
 
   const parentDir = path.dirname(destFullPath);
-
-  // ── PRE-MKDIR DIAGNOSTIC ─────────────────────────────────────────────────
-  info(`[MKDIR-DIAG] fullPath          = ${destFullPath}`);
-  info(`[MKDIR-DIAG] parentDir         = ${parentDir}`);
-  info(`[MKDIR-DIAG] existsSync(parent)= ${fs.existsSync(parentDir)}`);
-  info(`[MKDIR-DIAG] existsSync(dest)  = ${fs.existsSync(destFullPath)}`);
-  const mkdirOpts = { recursive: true };
-  info(`[MKDIR-DIAG] mkdirSync options = ${JSON.stringify(mkdirOpts)}`);
-  // ─────────────────────────────────────────────────────────────────────────
-
   if (!fs.existsSync(parentDir)) {
     info(`Auto-creating folder: ${parentDir}`);
     try {
-      fs.mkdirSync(parentDir, mkdirOpts);
-      info(`[MKDIR-DIAG] mkdirSync succeeded`);
+      fs.mkdirSync(parentDir, { recursive: true });
     } catch (mkdirErr: any) {
-      info(`[MKDIR-DIAG] mkdirSync failed: code=${mkdirErr?.code} syscall=${mkdirErr?.syscall} path=${mkdirErr?.path}`);
-      throw mkdirErr;
+      const code = mkdirErr?.code ?? 'UNKNOWN';
+      const denied = code === 'EPERM' || code === 'EACCES';
+      throw new Error(
+        denied
+          ? `CREATE_FOLDER_PERMISSION_DENIED: cannot create "${parentDir}" (${code})`
+          : `CREATE_FOLDER_FAILED: cannot create "${parentDir}" (${code}: ${mkdirErr?.message})`
+      );
     }
   }
 

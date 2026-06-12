@@ -439,7 +439,7 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
       { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions CI — install, type-check, build, validate' },
     ],
     releaseNotes: [
-      'v1.0.4 — Add pre-mkdir diagnostics (USERNAME, USERDOMAIN, UNC path visibility, write-access per ancestor)',
+      'v1.0.4 — SAVE_FILE: auto-create missing folders, clear CREATE_FOLDER_PERMISSION_DENIED error on EPERM/EACCES; SAVE_TEST_FILE: tests subfolder creation + cleanup, fails job if folder creation blocked',
       'v1.0.3 — Fix SAVE_FILE destination path bug',
       'relative_path already ends with the canonical GCS filename — never append job.fileName (original upload name) to avoid double-filename paths and incorrect mkdir calls',
       'v1.0.2 — Dual-environment support (PROD / DEV)',
