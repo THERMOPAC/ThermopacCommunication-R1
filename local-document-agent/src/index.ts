@@ -1,6 +1,6 @@
 /**
  * THERMOPAC Local Windows Document Agent
- * Version: 1.0.0
+ * Version: 1.0.2
  *
  * Cloud ERP → document_agent_jobs → Local Windows Document Agent → \\Server\d\THERMOPAC
  *
@@ -17,7 +17,7 @@ import { sendHeartbeat, claimJob } from './api-client';
 import { runJob } from './job-runner';
 import { ServiceHealth } from './service-health';
 
-const AGENT_VERSION = '1.0.0';
+const AGENT_VERSION = '1.0.2';
 const MACHINE_NAME  = os.hostname();
 
 async function main() {
