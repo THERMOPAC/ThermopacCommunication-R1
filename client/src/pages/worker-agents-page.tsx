@@ -490,8 +490,11 @@ function DocAgentRow() {
                   e.stopPropagation();
                   try {
                     const r = await fetch('/api/local-agent/admin/dev-config', { method: 'POST' });
-                    if (!r.ok) {
-                      const err = await r.json().catch(() => ({}));
+                    const contentType = r.headers.get('content-type') || '';
+                    if (!r.ok || contentType.includes('text/html')) {
+                      const err = contentType.includes('text/html')
+                        ? { error: 'Server not ready — please try again in a moment.' }
+                        : await r.json().catch(() => ({}));
                       toast({ title: err.error || 'Dev config generation failed', variant: 'destructive' });
                       return;
                     }
