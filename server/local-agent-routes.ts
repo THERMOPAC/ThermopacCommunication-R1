@@ -387,52 +387,29 @@ router.post('/local-agent/admin/agents/:agentCode/rotate-key', requireSession, r
 // ready-to-use config.json pre-filled with environment=dev and the current
 // request host as erpBaseUrl (resolves to the .replit.dev testing URL).
 
-const DEV_AGENT_CODE = 'THERMOPAC-DOC-AGENT-DEV-01';
-const DEV_ERP_URL    = 'https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev';
+const DEV_AGENT_CODE    = 'THERMOPAC-DOC-AGENT-DEV-01';
+const DEV_ERP_URL       = 'https://5d05ae61-8225-4651-b7b6-b4e20a4ddabb-00-3mex6zilhmftjaneway.replit.dev';
+const DEV_API_KEY       = 'Oe2WYKAoc4JMsvj65Y9qtLP0xD1yb5Pu';
+const DEV_ALLOWED_ROOT  = '\\\\Server\\d\\THERMOPAC';
 
-router.post('/local-agent/admin/dev-config', requireSession, requireSuperuser, async (req: Request, res: Response) => {
-  try {
-    const [node] = await db.select().from(documentAgentNodes)
-      .where(eq(documentAgentNodes.agentCode, DEV_AGENT_CODE)).limit(1);
+router.post('/local-agent/admin/dev-config', requireSession, requireSuperuser, (_req: Request, res: Response) => {
+  const config = {
+    environment:         'dev',
+    agentCode:           DEV_AGENT_CODE,
+    erpBaseUrl:          DEV_ERP_URL,
+    apiKey:              DEV_API_KEY,
+    allowedRootPath:     DEV_ALLOWED_ROOT,
+    pollIntervalSeconds: 20,
+    maxConcurrentJobs:   1,
+    logDir:              'C:\\ThermopacDocAgent\\logs',
+    tempDir:             'C:\\ThermopacDocAgent\\temp',
+  };
 
-    if (!node) {
-      return res.status(404).json({
-        error: `Agent "${DEV_AGENT_CODE}" is not registered. Register it in the Worker Agents dashboard first, then use this button.`,
-        code: 'DEV_AGENT_NOT_REGISTERED',
-      });
-    }
-
-    const crypto = await import('crypto');
-    const newApiKey = crypto.randomBytes(24).toString('base64url').slice(0, 32);
-    const newHash   = await bcrypt.hash(newApiKey, 12);
-
-    await db.update(documentAgentNodes)
-      .set({ apiKeyHash: newHash, updatedAt: new Date() })
-      .where(eq(documentAgentNodes.agentCode, DEV_AGENT_CODE));
-
-    const erpBaseUrl = DEV_ERP_URL;
-
-    const config = {
-      environment:         'dev',
-      agentCode:           DEV_AGENT_CODE,
-      erpBaseUrl,
-      apiKey:              newApiKey,
-      allowedRootPath:     node.allowedRootPath,
-      pollIntervalSeconds: 20,
-      maxConcurrentJobs:   1,
-      logDir:              'C:\\ThermopacDocAgent\\logs',
-      tempDir:             'C:\\ThermopacDocAgent\\temp',
-    };
-
-    const json = JSON.stringify(config, null, 2);
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename="config.json"');
-    res.setHeader('Cache-Control', 'no-store');
-    res.send(json);
-  } catch (err) {
-    console.error('[local-agent] dev-config error:', err);
-    res.status(500).json({ error: 'Dev config generation failed' });
-  }
+  const json = JSON.stringify(config, null, 2);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="config.json"');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(json);
 });
 
 // ── GET /api/local-agent/package-info ── (session auth) ──────────────────────
