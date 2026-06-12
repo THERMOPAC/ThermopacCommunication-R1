@@ -114,7 +114,9 @@ export async function runJob(
           return;
         }
 
-        const destPath = fullPath.endsWith(job.fileName) ? fullPath : `${fullPath}\\${job.fileName}`;
+        // relative_path always ends with the canonical destination filename (from GCS path).
+        // job.fileName is the original upload name and may differ — never append it to fullPath.
+        const destPath = fullPath;
         const saveResult = await downloadAndSave(job.fileUrl, destPath, config.tempDir);
 
         if (!saveResult.ok) throw new Error(saveResult.error);
