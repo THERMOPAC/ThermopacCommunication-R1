@@ -7,6 +7,7 @@ import {
   VENDOR_COMPLIANCE_DOC_TYPES,
   VENDOR_COMPLIANCE_MANDATORY,
 } from '@shared/schema';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 
 const router = Router();
 router.use(ensureAuthenticated);
@@ -114,11 +115,14 @@ router.post(
       const nextRev = (revRes.rows[0].max_rev as number) + 1;
       const revLabel = `rev-${zeroPad(nextRev, 2)}`;
 
-      // Build GCS path: TPEL/VENDORS/{bpCode}/{docType}/rev-NN/001-label.ext
       const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
-      const label = slugify(docType);
-      const fileName = `001-${label}.${ext}`;
-      const gcsPath = `TPEL/VENDORS/${bpCode}/${docType}/${revLabel}/${fileName}`;
+      let gcsPath: string;
+      try {
+        gcsPath = await resolveGcsPath(docType, { BPCode: bpCode, RevNo: zeroPad(nextRev, 2), Seq: '001', Ext: ext });
+      } catch (err: any) {
+        if (err instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: err.message });
+        throw err;
+      }
 
       // Upload to GCS
       const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);

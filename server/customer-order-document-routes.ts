@@ -8,6 +8,7 @@ import { resolveProjectGeoCodes } from './epc-coding';
 import { pool } from './db';
 import { validateLabel } from '../shared/gcs-label-vocabulary';
 import gcsClient, { bucketName } from './utils/storage-config';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -65,24 +66,22 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
     const revSuffix = `rev-${revisionCode?.trim() || '00'}`;
     const filename = `${seq}-${labelSlug}-${revSuffix}.pdf`;
 
-    const coRuleRow = await pool.query(
-      `SELECT path_template FROM gcs_governance_rules
-       WHERE document_type = 'CO_DOCUMENT' AND (active IS NULL OR active = true)
-       ORDER BY id ASC LIMIT 1`
-    );
-    const coTemplate: string | null = coRuleRow.rows[0]?.path_template ?? null;
-    const gcsObjectPath = coTemplate
-      ? coTemplate
-          .replace('{CC}',    geo.continentCode)
-          .replace('{CO}',    geo.countryCode)
-          .replace('{Cust}',  geo.customerShortCode)
-          .replace('{FY}',    geo.fyCode)
-          .replace('{Code}',  geo.projectCode)
-          .replace('{Seq}',   seq)
-          .replace('{Label}', labelSlug)
-          .replace('{rev}',   revisionCode?.trim() || '00')
-      // fallback if DB rule missing (should never happen in production)
-      : `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/SOR_${geo.projectCode}/1_Sales/3_Order_Contract/${filename}`;
+    let gcsObjectPath: string;
+    try {
+      gcsObjectPath = await resolveGcsPath('CO_DOCUMENT', {
+        CC:    geo.continentCode,
+        CO:    geo.countryCode,
+        Cust:  geo.customerShortCode,
+        FY:    geo.fyCode,
+        Code:  geo.projectCode,
+        Seq:   seq,
+        Label: labelSlug,
+        rev:   revisionCode?.trim() || '00',
+      });
+    } catch (err: any) {
+      if (err instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: err.message });
+      throw err;
+    }
 
     const bucket = gcsClient.bucket(bucketName);
     const gcsFile = bucket.file(gcsObjectPath);

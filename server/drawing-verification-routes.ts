@@ -31,6 +31,7 @@ import {
   runAgentReview,
   deriveOverallAssessment,
 } from './utils/agent-reviewer';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 
 const router = express.Router();
 
@@ -158,7 +159,18 @@ router.post('/upload', ensureAuthenticated, upload.single('file'), async (req: R
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
 
     const safeFilename = file.originalname.replace(/[^a-zA-Z0-9._\-]/g, '_');
-    const gcsPath = `TPEL/STAGING/DRAWINGS/${projectCode}/${drawingNumber.trim()}/rev-${revision.trim()}/original/${safeFilename}`;
+    let gcsPath: string;
+    try {
+      gcsPath = await resolveGcsPath('DVS_STAGING', {
+        ProjectCode: projectCode,
+        DrawingNo:   drawingNumber.trim(),
+        rev:         revision.trim(),
+        filename:    safeFilename,
+      });
+    } catch (err: any) {
+      if (err instanceof GcsGovernanceError) return res.status(503).json({ error: 'DVS_GOVERNANCE_ERROR', message: err.message });
+      throw err;
+    }
 
     const gcsFile = gcsClient.bucket(bucketName).file(gcsPath);
     await gcsFile.save(file.buffer, {

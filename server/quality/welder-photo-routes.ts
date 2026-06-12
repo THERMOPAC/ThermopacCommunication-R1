@@ -5,6 +5,7 @@ import { db } from '../db';
 import * as schema from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { Storage } from '@google-cloud/storage';
+import { resolveGcsPath, GcsGovernanceError } from '../utils/gcs-path-resolver';
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
@@ -200,7 +201,13 @@ export function registerWelderPhotoRoutes(app: any) {
         const fileExt = originalname.split('.').pop() || 'jpg';
         const timestamp = Date.now();
         const standardFilename = `${welderCode}.${fileExt}`;
-        const standardPath = `QMS/WELDERS/${welderCode}/${standardFilename}`;
+        let standardPath: string;
+        try {
+          standardPath = await resolveGcsPath('WELDER_PHOTO', { WelderCode: welderCode, filename: standardFilename });
+        } catch (err: any) {
+          if (err instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: err.message });
+          throw err;
+        }
         
         // We'll add a version query parameter to the URL for cache busting
         
@@ -389,7 +396,13 @@ export function registerWelderPhotoRoutes(app: any) {
         // This will ensure we always overwrite the existing file
         const fileExt = originalname.split('.').pop() || 'jpg';
         const standardFilename = `${welderCode}.${fileExt}`;
-        const standardPath = `QMS/WELDERS/${welderCode}/${standardFilename}`;
+        let standardPath: string;
+        try {
+          standardPath = await resolveGcsPath('WELDER_PHOTO', { WelderCode: welderCode, filename: standardFilename });
+        } catch (err: any) {
+          if (err instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: err.message });
+          throw err;
+        }
         
         // Generate timestamp just for cache busting in URLs
         const timestamp = Date.now();

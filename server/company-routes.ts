@@ -16,6 +16,7 @@ import {
   COMPANY_ADDRESS_TYPES,
   ISO4217_ALLOWLIST,
 } from '@shared/schema';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 
 const router = Router();
 router.use(ensureAuthenticated);
@@ -537,9 +538,15 @@ async function handleBrandingAsset(req: any, res: any, assetType: 'logo' | 'sign
   const code = master.rows[0].company_code;
 
   const col = assetType === 'logo' ? 'logo_gcs_path' : assetType === 'signature' ? 'signature_gcs_path' : 'seal_gcs_path';
-  const folder = assetType.toUpperCase();
   const sanitized = sanitizeFileName(req.file.originalname);
-  const gcsPath = `TPEL/COMPANY/${code}/BRANDING/${folder}/${sanitized}.${ext}`;
+  const brandingDocType = `COMPANY_${assetType.toUpperCase()}`;
+  let gcsPath: string;
+  try {
+    gcsPath = await resolveGcsPath(brandingDocType, { CompanyCode: code, filename: `${sanitized}.${ext}` });
+  } catch (err: any) {
+    if (err instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: err.message });
+    throw err;
+  }
 
   const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
   if (!uploadResult.success) return res.status(500).json({ error: 'INTERNAL_ERROR', message: `GCS upload failed: ${uploadResult.message}` });
@@ -593,8 +600,13 @@ router.post('/:id(\\d+)/documents/:docType', uploadLimiter, docUpload.single('fi
   const nextRev = (revRes.rows[0].max_rev as number) + 1;
   const revLabel = zeroPad(nextRev, 2);
   const ext = req.file.mimetype === 'image/jpeg' ? 'jpg' : req.file.mimetype === 'image/png' ? 'png' : req.file.mimetype === 'image/webp' ? 'webp' : 'pdf';
-  const label = slugify(docType);
-  const gcsPath = `TPEL/COMPANY/${code}/${docType}/rev-${revLabel}/001-${label}.${ext}`;
+  let gcsPath: string;
+  try {
+    gcsPath = await resolveGcsPath(`COMPANY_${docType}`, { CompanyCode: code, RevNo: revLabel, Seq: '001', Ext: ext });
+  } catch (err: any) {
+    if (err instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: err.message });
+    throw err;
+  }
   const sanitizedName = sanitizeFileName(req.file.originalname);
 
   const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
