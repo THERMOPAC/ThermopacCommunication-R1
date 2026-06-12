@@ -376,7 +376,7 @@ function DocAgentRow() {
   });
   const { data: pkgInfo } = useQuery<any>({
     queryKey: ["/api/local-agent/package-info"],
-    staleTime: 60_000,
+    staleTime: 0,
   });
 
   const registerMutation = useMutation({
