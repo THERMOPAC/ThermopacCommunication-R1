@@ -32,9 +32,25 @@ export async function downloadAndSave(
   }
 
   const parentDir = path.dirname(destFullPath);
+
+  // ── PRE-MKDIR DIAGNOSTIC ─────────────────────────────────────────────────
+  info(`[MKDIR-DIAG] fullPath          = ${destFullPath}`);
+  info(`[MKDIR-DIAG] parentDir         = ${parentDir}`);
+  info(`[MKDIR-DIAG] existsSync(parent)= ${fs.existsSync(parentDir)}`);
+  info(`[MKDIR-DIAG] existsSync(dest)  = ${fs.existsSync(destFullPath)}`);
+  const mkdirOpts = { recursive: true };
+  info(`[MKDIR-DIAG] mkdirSync options = ${JSON.stringify(mkdirOpts)}`);
+  // ─────────────────────────────────────────────────────────────────────────
+
   if (!fs.existsSync(parentDir)) {
     info(`Auto-creating folder: ${parentDir}`);
-    fs.mkdirSync(parentDir, { recursive: true });
+    try {
+      fs.mkdirSync(parentDir, mkdirOpts);
+      info(`[MKDIR-DIAG] mkdirSync succeeded`);
+    } catch (mkdirErr: any) {
+      info(`[MKDIR-DIAG] mkdirSync failed: code=${mkdirErr?.code} syscall=${mkdirErr?.syscall} path=${mkdirErr?.path}`);
+      throw mkdirErr;
+    }
   }
 
   try {
