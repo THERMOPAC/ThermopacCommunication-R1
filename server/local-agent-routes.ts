@@ -360,6 +360,7 @@ router.post('/local-agent/admin/agents/:agentCode/rotate-key', requireSession, r
 
     // Build the config object with all real values
     const config = {
+      environment:         node.environment ?? 'prod',
       agentCode:           node.agentCode,
       erpBaseUrl:          'https://thermopac-communication-thermopacllp.replit.app',
       apiKey:              newApiKey,
@@ -378,6 +379,59 @@ router.post('/local-agent/admin/agents/:agentCode/rotate-key', requireSession, r
   } catch (err) {
     console.error('[local-agent] rotate-key error:', err);
     res.status(500).json({ error: 'Key rotation failed' });
+  }
+});
+
+// ── POST /api/local-agent/admin/dev-config ── (Superuser) ────────────────────
+// Generates a fresh API key for THERMOPAC-DOC-AGENT-DEV-01 and returns a
+// ready-to-use config.json pre-filled with environment=dev and the current
+// request host as erpBaseUrl (resolves to the .replit.dev testing URL).
+
+const DEV_AGENT_CODE = 'THERMOPAC-DOC-AGENT-DEV-01';
+
+router.post('/local-agent/admin/dev-config', requireSession, requireSuperuser, async (req: Request, res: Response) => {
+  try {
+    const [node] = await db.select().from(documentAgentNodes)
+      .where(eq(documentAgentNodes.agentCode, DEV_AGENT_CODE)).limit(1);
+
+    if (!node) {
+      return res.status(404).json({
+        error: `Agent "${DEV_AGENT_CODE}" is not registered. Register it in the Worker Agents dashboard first, then use this button.`,
+        code: 'DEV_AGENT_NOT_REGISTERED',
+      });
+    }
+
+    const crypto = await import('crypto');
+    const newApiKey = crypto.randomBytes(24).toString('base64url').slice(0, 32);
+    const newHash   = await bcrypt.hash(newApiKey, 12);
+
+    await db.update(documentAgentNodes)
+      .set({ apiKeyHash: newHash, updatedAt: new Date() })
+      .where(eq(documentAgentNodes.agentCode, DEV_AGENT_CODE));
+
+    // Use the current request origin so the config points to the .replit.dev URL
+    const erpBaseUrl = `${req.protocol}://${req.get('host')}`;
+
+    const config = {
+      environment:         'dev',
+      agentCode:           DEV_AGENT_CODE,
+      erpBaseUrl,
+      apiKey:              newApiKey,
+      allowedRootPath:     node.allowedRootPath,
+      pollIntervalSeconds: 20,
+      maxConcurrentJobs:   1,
+      logDir:              'C:\\ThermopacDocAgent\\logs',
+      tempDir:             'C:\\ThermopacDocAgent\\temp',
+    };
+
+    const json = JSON.stringify(config, null, 2);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="config.json"');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(json);
+  } catch (err) {
+    console.error('[local-agent] dev-config error:', err);
+    res.status(500).json({ error: 'Dev config generation failed' });
   }
 });
 
