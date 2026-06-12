@@ -420,6 +420,7 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
     ? Math.round(fs.statSync(distFile).size / 1024)
     : 0;
 
+  res.setHeader('Cache-Control', 'no-store');
   res.json({
     version:      AGENT_VERSION,
     packageName:  `thermopac-doc-agent-v${AGENT_VERSION}.zip`,
