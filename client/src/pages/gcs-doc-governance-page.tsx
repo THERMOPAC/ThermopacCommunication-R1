@@ -108,7 +108,8 @@ interface FileMigrationJob {
   migratedFiles: number;
   skippedFiles: number;
   failedFiles: number;
-  errorLog: Array<{ fileId: number; oldPath: string; error: string }> | null;
+  missingSrcFiles: number;
+  errorLog: Array<{ fileId: number; oldPath: string; error: string; type?: string }> | null;
   startedAt: string;
   completedAt: string | null;
 }
@@ -1317,10 +1318,13 @@ function FileMigrationPanel({ rule }: { rule: GcsGovernanceRule }) {
                   style={{ width: `${pct ?? 0}%` }}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-1 text-[10px]">
+              <div className={`grid gap-1 text-[10px] ${(latest.missingSrcFiles ?? 0) > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <span className="text-green-700">✓ {latest.migratedFiles} migrated</span>
                 <span className="text-slate-500">→ {latest.skippedFiles} skipped</span>
                 <span className={latest.failedFiles > 0 ? 'text-red-600' : 'text-slate-400'}>✗ {latest.failedFiles} failed</span>
+                {(latest.missingSrcFiles ?? 0) > 0 && (
+                  <span className="text-amber-600">⚠ {latest.missingSrcFiles} src missing</span>
+                )}
               </div>
             </div>
           )}
@@ -1329,16 +1333,38 @@ function FileMigrationPanel({ rule }: { rule: GcsGovernanceRule }) {
             <p className="text-[10px] text-green-700">All files already at canonical path — nothing to migrate.</p>
           )}
 
-          {latest.errorLog && latest.errorLog.length > 0 && (
-            <details className="text-[10px]">
-              <summary className="cursor-pointer text-red-600 font-medium">{latest.errorLog.length} error(s) — expand</summary>
-              <div className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
-                {latest.errorLog.map((e, i) => (
-                  <div key={i} className="font-mono text-red-500 truncate" title={e.error}>id={e.fileId}: {e.error}</div>
-                ))}
-              </div>
-            </details>
-          )}
+          {(() => {
+            const missingSrcItems = latest.errorLog?.filter(e => e.type === 'missing_source') ?? [];
+            const actualErrors    = latest.errorLog?.filter(e => e.type !== 'missing_source') ?? [];
+            return (
+              <>
+                {missingSrcItems.length > 0 && (
+                  <details className="text-[10px]">
+                    <summary className="cursor-pointer text-amber-600 font-medium">
+                      ⚠ {missingSrcItems.length} source object{missingSrcItems.length !== 1 ? 's' : ''} not found in GCS — DB path unchanged
+                    </summary>
+                    <div className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                      {missingSrcItems.map((e, i) => (
+                        <div key={i} className="font-mono text-amber-700 truncate" title={e.oldPath}>
+                          id={e.fileId}: {e.oldPath}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+                {actualErrors.length > 0 && (
+                  <details className="text-[10px]">
+                    <summary className="cursor-pointer text-red-600 font-medium">{actualErrors.length} error(s) — expand</summary>
+                    <div className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
+                      {actualErrors.map((e, i) => (
+                        <div key={i} className="font-mono text-red-500 truncate" title={e.error}>id={e.fileId}: {e.error}</div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </>
+            );
+          })()}
         </div>
       ) : (
         <p className="text-[10px] text-green-700">No migration jobs yet. Click "Migrate Now" to move existing files to the canonical path.</p>

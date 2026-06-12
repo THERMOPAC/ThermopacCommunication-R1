@@ -95,7 +95,7 @@ function slugType(raw: string): string {
 //                              → failed
 //          → skipped
 
-type ItemStatus = 'pending' | 'copying' | 'verified' | 'completed' | 'skipped' | 'failed';
+type ItemStatus = 'pending' | 'copying' | 'verified' | 'completed' | 'skipped' | 'failed' | 'missing_source';
 
 // ── Handler registry interface ────────────────────────────────────────────────
 
@@ -371,9 +371,10 @@ async function runMigrationBackground(
     `${candidates.length} candidates, ${skippedByRegex} already compliant`
   );
 
-  let migrated = 0;
-  let skipped  = skippedByRegex;
-  let failed   = 0;
+  let migrated  = 0;
+  let skipped   = skippedByRegex;
+  let failed    = 0;
+  let missingSrc = 0;
 
   // ── 3. Migrate each candidate ─────────────────────────────────────────────
   for (let i = 0; i < candidates.length; i++) {
@@ -403,6 +404,31 @@ async function runMigrationBackground(
 
     // ── GCS: copy → verify → delete ──────────────────────────────────────
     if (bucket) {
+      // 1. Check source exists before attempting copy — do not retry on missing source
+      let srcExists: boolean;
+      try {
+        [srcExists] = await bucket.file(oldPath).exists();
+      } catch (existErr: any) {
+        // exists() itself failed — treat as a real error, not missing_source
+        console.warn(`${TAG} [job=${jobId}] exists() check failed id=${record.id}: ${existErr.message}`);
+        errors.push({ fileId: record.id, oldPath, error: `GCS exists check: ${existErr.message}` });
+        failed++;
+        await upsertItem(jobId, record.id, handler.tableName, oldPath, 'failed', newPath, `GCS exists check: ${existErr.message}`);
+        await updateJob(jobId, { processedFiles: i + 1, failedFiles: failed, errorLog: errors });
+        continue;
+      }
+
+      if (!srcExists) {
+        // Source was deleted externally — record it, leave DB path untouched, do not retry
+        console.warn(`${TAG} [job=${jobId}] Source not in GCS id=${record.id}: ${oldPath}`);
+        missingSrc++;
+        errors.push({ fileId: record.id, oldPath, error: 'Source object not found in GCS', type: 'missing_source' });
+        await upsertItem(jobId, record.id, handler.tableName, oldPath, 'missing_source', undefined, 'Source object not found in GCS');
+        await updateJob(jobId, { processedFiles: i + 1, missingSrcFiles: missingSrc, errorLog: errors });
+        continue;
+      }
+
+      // 2. Source exists — copy → verify → delete source
       await upsertItem(jobId, record.id, handler.tableName, oldPath, 'copying', newPath);
       try {
         await gcsCopyVerifyDelete(bucket, oldPath, newPath);
@@ -438,18 +464,19 @@ async function runMigrationBackground(
   }
 
   const finalStatus =
-    failed > 0 && migrated === 0 ? 'failed' :
-    failed > 0                   ? 'partial' :
+    failed > 0 && migrated === 0 && missingSrc === 0 ? 'failed' :
+    failed > 0 || missingSrc > 0                      ? 'partial' :
     'completed';
 
   await updateJob(jobId, {
-    status:        finalStatus,
-    processedFiles: candidates.length,
-    migratedFiles:  migrated,
-    skippedFiles:   skipped,
-    failedFiles:    failed,
-    errorLog:       errors.length ? errors : undefined,
-    completedAt:    new Date(),
+    status:          finalStatus,
+    processedFiles:  candidates.length,
+    migratedFiles:   migrated,
+    skippedFiles:    skipped,
+    failedFiles:     failed,
+    missingSrcFiles: missingSrc,
+    errorLog:        errors.length ? errors : undefined,
+    completedAt:     new Date(),
   });
 
   console.log(

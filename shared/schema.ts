@@ -14399,7 +14399,8 @@ export const gcsFileMigrationJobs = pgTable('gcs_file_migration_jobs', {
   migratedFiles:  integer('migrated_files').notNull().default(0),
   skippedFiles:   integer('skipped_files').notNull().default(0),
   failedFiles:    integer('failed_files').notNull().default(0),
-  errorLog:       jsonb('error_log').$type<Array<{fileId: number; oldPath: string; error: string}>>(),
+  missingSrcFiles: integer('missing_src_files').notNull().default(0),
+  errorLog:       jsonb('error_log').$type<Array<{fileId: number; oldPath: string; error: string; type?: string}>>(),
   startedAt:      timestamp('started_at').notNull().defaultNow(),
   completedAt:    timestamp('completed_at'),
 });
