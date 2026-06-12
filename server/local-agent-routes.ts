@@ -409,8 +409,13 @@ router.post('/local-agent/admin/dev-config', requireSession, requireSuperuser, a
       .set({ apiKeyHash: newHash, updatedAt: new Date() })
       .where(eq(documentAgentNodes.agentCode, DEV_AGENT_CODE));
 
-    // Use the current request origin so the config points to the .replit.dev URL
-    const erpBaseUrl = `${req.protocol}://${req.get('host')}`;
+    // Use forwarded headers so the URL reflects what the browser actually sees
+    // (Replit proxy sets x-forwarded-host / x-forwarded-proto)
+    const fwdHost  = (req.headers['x-forwarded-host']  as string | undefined)?.split(',')[0].trim();
+    const fwdProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0].trim();
+    const host     = fwdHost  || req.get('host') || 'unknown-host';
+    const proto    = fwdProto || req.protocol;
+    const erpBaseUrl = `${proto}://${host}`;
 
     const config = {
       environment:         'dev',
