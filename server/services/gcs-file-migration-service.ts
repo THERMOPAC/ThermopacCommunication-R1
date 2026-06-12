@@ -218,7 +218,7 @@ const HANDLERS: Record<string, MigrationHandler> = {
           cm.company_code     AS "companyCode"
         FROM company_documents cd
         JOIN company_master    cm ON cm.id = cd.company_id
-        WHERE cd.doc_type = 'COMPANY_GST_CERTIFICATE'
+        WHERE cd.doc_type = 'GST_CERTIFICATE'
           AND cd.gcs_path IS NOT NULL
           AND cd.gcs_path <> ''
         ORDER BY cd.id
