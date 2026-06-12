@@ -388,6 +388,7 @@ router.post('/local-agent/admin/agents/:agentCode/rotate-key', requireSession, r
 // request host as erpBaseUrl (resolves to the .replit.dev testing URL).
 
 const DEV_AGENT_CODE = 'THERMOPAC-DOC-AGENT-DEV-01';
+const DEV_ERP_URL    = 'https://5d05ae61-8225-4651-bb76-b4e20a4ddabb-00-3mex6zlihlmft.janeway.replit.dev';
 
 router.post('/local-agent/admin/dev-config', requireSession, requireSuperuser, async (req: Request, res: Response) => {
   try {
@@ -409,13 +410,7 @@ router.post('/local-agent/admin/dev-config', requireSession, requireSuperuser, a
       .set({ apiKeyHash: newHash, updatedAt: new Date() })
       .where(eq(documentAgentNodes.agentCode, DEV_AGENT_CODE));
 
-    // Use forwarded headers so the URL reflects what the browser actually sees
-    // (Replit proxy sets x-forwarded-host / x-forwarded-proto)
-    const fwdHost  = (req.headers['x-forwarded-host']  as string | undefined)?.split(',')[0].trim();
-    const fwdProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0].trim();
-    const host     = fwdHost  || req.get('host') || 'unknown-host';
-    const proto    = fwdProto || req.protocol;
-    const erpBaseUrl = `${proto}://${host}`;
+    const erpBaseUrl = DEV_ERP_URL;
 
     const config = {
       environment:         'dev',
