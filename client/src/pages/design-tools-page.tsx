@@ -13899,6 +13899,94 @@ const OPC_KAPPA_PRESETS: Record<string, { label: string; k: string }> = {
   custom:   { label: "Custom",                     k: "" },
 };
 
+// ── Pure helpers shared across all OPC calculation modes ──────────────────────
+const opcComputeEps = (beta: number, dP: number, P1_Pa: number, k: number, isGas: boolean): number => {
+  if (!isGas || P1_Pa <= 0) return 1;
+  const pr = (P1_Pa - dP) / P1_Pa;
+  if (pr <= 0) return 1;
+  return 1 - (0.351 + 0.256 * Math.pow(beta, 4) + 0.93 * Math.pow(beta, 8)) * (1 - Math.pow(pr, 1 / k));
+};
+
+const opcIterateCd = (
+  beta: number, rho: number, mu: number, D: number,
+  eps: number, E: number, Aorifice: number, Apipe: number,
+  dP: number, L1: number, L2p: number
+): number => {
+  let Cd = 0.61;
+  const sqrtTerm = Math.sqrt(2 * dP / rho);
+  for (let i = 0; i < 40; i++) {
+    const vD_i = Cd * eps * E * Aorifice * sqrtTerm / Apipe;
+    const Re_i = rho * vD_i * D / mu;
+    if (Re_i < 1) break;
+    const A_r = Math.pow(19000 * beta / Re_i, 0.8);
+    const M2p = 2 * L2p / (1 - beta);
+    const CdN =
+      0.5961 + 0.0261*beta*beta - 0.216*Math.pow(beta,8)
+      + 0.000521*Math.pow(1e6*beta/Re_i, 0.7)
+      + (0.0188 + 0.0063*A_r)*Math.pow(beta,3.5)*Math.pow(1e6/Re_i, 0.3)
+      + (0.043 + 0.080*Math.exp(-10*L1) - 0.123*Math.exp(-7*L1))
+        *(1 - 0.11*A_r)*Math.pow(beta,4)/(1 - Math.pow(beta,4))
+      - 0.031*(M2p - 0.8*Math.pow(M2p,1.1))*Math.pow(beta,1.3);
+    if (Math.abs(CdN - Cd) < 1e-8) { Cd = CdN; break; }
+    Cd = CdN;
+  }
+  return Cd;
+};
+
+const opcComputeQ = (
+  d: number, D: number, rho: number, mu: number,
+  dP: number, isGas: boolean, P1_Pa: number, k: number, L1: number, L2p: number
+): { Q: number; Cd: number; eps: number; Re: number; pressureRatio: number } => {
+  const beta     = d / D;
+  const Apipe    = Math.PI * D * D / 4;
+  const Aorifice = Math.PI * d * d / 4;
+  const E        = 1 / Math.sqrt(1 - Math.pow(beta, 4));
+  const eps      = opcComputeEps(beta, dP, P1_Pa, k, isGas);
+  const Cd       = opcIterateCd(beta, rho, mu, D, eps, E, Aorifice, Apipe, dP, L1, L2p);
+  const Q        = Cd * eps * E * Aorifice * Math.sqrt(2 * dP / rho);
+  const Re       = rho * (Q / Apipe) * D / mu;
+  const pressureRatio = isGas && P1_Pa > 0 ? (P1_Pa - dP) / P1_Pa : 1;
+  return { Q, Cd, eps, Re, pressureRatio };
+};
+
+// Bisection: find bore d (m) that gives Qreq (m³/s) for known ΔP
+const opcSolveBore = (
+  Qreq: number, D: number, rho: number, mu: number,
+  dP: number, isGas: boolean, P1_Pa: number, k: number, L1: number, L2p: number
+): { d: number; Cd: number; eps: number; Re: number } | null => {
+  const f = (d: number) => opcComputeQ(d, D, rho, mu, dP, isGas, P1_Pa, k, L1, L2p).Q - Qreq;
+  const lo0 = 0.1 * D, hi0 = 0.75 * D;
+  if (f(lo0) > 0 || f(hi0) < 0) return null;
+  let lo = lo0, hi = hi0;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) < 0) lo = mid; else hi = mid;
+    if ((hi - lo) < 1e-9) break;
+  }
+  const d = (lo + hi) / 2;
+  const { Cd, eps, Re } = opcComputeQ(d, D, rho, mu, dP, isGas, P1_Pa, k, L1, L2p);
+  return { d, Cd, eps, Re };
+};
+
+// Bisection: find ΔP (Pa) that gives Qreq (m³/s) for known bore d
+const opcSolveDp = (
+  Qreq: number, d: number, D: number, rho: number, mu: number,
+  isGas: boolean, P1_Pa: number, k: number, L1: number, L2p: number
+): { dP: number; Cd: number; eps: number; Re: number } | null => {
+  const dpMax = isGas ? P1_Pa * 0.95 : 5e6;
+  const f     = (dP: number) => opcComputeQ(d, D, rho, mu, dP, isGas, P1_Pa, k, L1, L2p).Q - Qreq;
+  if (f(dpMax) < 0) return null;
+  let lo = 0.1, hi = dpMax;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) < 0) lo = mid; else hi = mid;
+    if ((hi - lo) < 0.01) break;
+  }
+  const dP = (lo + hi) / 2;
+  const { Cd, eps, Re } = opcComputeQ(d, D, rho, mu, dP, isGas, P1_Pa, k, L1, L2p);
+  return { dP, Cd, eps, Re };
+};
+
 // ── Orifice Plate Flow Calculator (ISO 5167-2 + ISO 5167-4 expansibility) ─────
 function OrificeFlowCalculator() {
   // ── Geometry & differential pressure ────────────────────────────────────
@@ -13924,6 +14012,16 @@ function OrificeFlowCalculator() {
   const [kappa, setKappa]             = useState("1.4");
   const [kappaPreset, setKappaPreset] = useState("air");
   const [zFactor, setZFactor]         = useState("1.0");
+
+  // ── Calculation mode ──────────────────────────────────────────────────────
+  const [calcMode, setCalcMode] = useState<"flow" | "sizing" | "dpPred" | "recommend">("flow");
+
+  // ── Flow rate inputs (Modes 2, 3, 4) ─────────────────────────────────────
+  const [reqFlow, setReqFlow]         = useState("10");
+  const [reqFlowUnit, setReqFlowUnit] = useState<"m3h" | "lmin" | "kgh">("m3h");
+  const [qMin, setQMin]               = useState("5");
+  const [qNormal, setQNormal]         = useState("10");
+  const [qMax, setQMax]               = useState("15");
 
   // ── Results ───────────────────────────────────────────────────────────────
   const [result, setResult] = useState<any>(null);
@@ -14001,6 +14099,13 @@ function OrificeFlowCalculator() {
     }
   };
 
+  // ── Flow rate unit conversion → m³/s ─────────────────────────────────────
+  const toM3s = (val: number, unit: string, rho: number): number => {
+    if (unit === "lmin") return val / (1000 * 60);
+    if (unit === "kgh")  return val / rho / 3600;
+    return val / 3600; // default m³/h
+  };
+
   // ── Sync Auto → Manual when switching mode ────────────────────────────────
   const handlePropModeSwitch = (mode: "auto" | "manual") => {
     if (mode === "manual" && liveProps) {
@@ -14010,140 +14115,262 @@ function OrificeFlowCalculator() {
     setPropMode(mode);
   };
 
-  // ── Calculate ─────────────────────────────────────────────────────────────
+  // ── Calculate (dispatches to 4 modes) ────────────────────────────────────
   const calculate = () => {
     setError("");
     setResult(null);
 
-    const D   = parseFloat(pipeD) / 1000;
-    const d   = parseFloat(orificeD) / 1000;
-    const dP  = toPa(parseFloat(diffP), diffPUnit);
+    // === Common setup ===
+    const D = parseFloat(pipeD) / 1000;
+    if (isNaN(D) || D <= 0) { setError("Pipe ID must be a positive number."); return; }
+
     const isGas = fluidPhase === "gas";
+    const eff   = getEffProps();
+    const rho   = eff.rho;
+    const mu    = eff.mu / 1000; // mPa·s → Pa·s
 
-    const eff = getEffProps();
-    const rho = eff.rho;
-    const mu  = eff.mu / 1000;   // mPa·s → Pa·s
-
-    // Validation
-    if (isNaN(D) || D <= 0 || isNaN(d) || d <= 0)
-      { setError("Pipe ID and orifice bore must be positive numbers."); return; }
-    if (isNaN(dP) || dP <= 0)
-      { setError("Differential pressure must be a positive number."); return; }
     if (fluidKey === "custom" && (isNaN(rho) || rho <= 0 || isNaN(mu) || mu <= 0))
       { setError("Custom fluid — enter both density (kg/m³) and dynamic viscosity (mPa·s) manually."); return; }
     if (isNaN(rho) || rho <= 0 || isNaN(mu) || mu <= 0)
       { setError("Could not determine fluid properties. Check temperature and pressure inputs."); return; }
-    if (d >= D) { setError("Orifice bore (d) must be smaller than pipe ID (D)."); return; }
-    const beta = d / D;
-    if (beta < 0.1 || beta > 0.75)
-      { setError(`Beta ratio β = ${beta.toFixed(4)} is outside ISO 5167 valid range (0.10 – 0.75).`); return; }
 
-    // Gas-specific
     let P1_Pa = 0, k = 0, Z = 1;
     if (isGas) {
       P1_Pa = getP1AbsPa();
       k     = parseFloat(kappa);
       Z     = parseFloat(zFactor) || 1;
-      if (isNaN(P1_Pa) || P1_Pa <= 0)
-        { setError("Upstream absolute pressure P₁ is required for gas/steam."); return; }
-      if (isNaN(k) || k <= 1)
-        { setError("Isentropic exponent κ must be > 1 (typical range: 1.13–1.41)."); return; }
-      if (dP >= P1_Pa)
-        { setError("ΔP ≥ P₁ abs — physically impossible. Check inputs."); return; }
+      if (isNaN(P1_Pa) || P1_Pa <= 0) { setError("Upstream absolute pressure P₁ is required for gas/steam."); return; }
+      if (isNaN(k) || k <= 1)         { setError("Isentropic exponent κ must be > 1 (typical range: 1.13–1.41)."); return; }
     }
 
-    // Tap geometry (ISO 5167-2)
     let L1 = 0, L2p = 0;
     if (tapType === "flangeD") { L1 = 0.0254 / D; L2p = 0.0254 / D; }
-    if (tapType === "DD2")     { L1 = 1.0;          L2p = 0.47;      }
+    if (tapType === "DD2")     { L1 = 1.0;         L2p = 0.47;       }
 
-    const Apipe    = Math.PI * D * D / 4;
-    const Aorifice = Math.PI * d * d / 4;
-    const E        = 1 / Math.sqrt(1 - Math.pow(beta, 4));
-
-    // Expansibility ε (ISO 5167-4)
-    let eps = 1, pressureRatio = 0;
-    if (isGas) {
-      pressureRatio = (P1_Pa - dP) / P1_Pa;
-      eps = 1 - (0.351 + 0.256 * Math.pow(beta, 4) + 0.93 * Math.pow(beta, 8))
-              * (1 - Math.pow(pressureRatio, 1 / k));
-    }
-
-    const sqrtTerm = Math.sqrt(2 * dP / rho);
-
-    // Iterative Cd — RHG equation (ISO 5167-2)
-    let Cd = 0.61;
-    for (let i = 0; i < 30; i++) {
-      const vD_i = Cd * eps * E * Aorifice * sqrtTerm / Apipe;
-      const Re_i = rho * vD_i * D / mu;
-      if (Re_i < 1) break;
-      const A_r = Math.pow(19000 * beta / Re_i, 0.8);
-      const M2p = 2 * L2p / (1 - beta);
-      const CdN =
-        0.5961 + 0.0261*beta*beta - 0.216*Math.pow(beta,8)
-        + 0.000521*Math.pow(1e6*beta/Re_i, 0.7)
-        + (0.0188 + 0.0063*A_r)*Math.pow(beta,3.5)*Math.pow(1e6/Re_i, 0.3)
-        + (0.043 + 0.080*Math.exp(-10*L1) - 0.123*Math.exp(-7*L1))
-          *(1 - 0.11*A_r)*Math.pow(beta,4)/(1 - Math.pow(beta,4))
-        - 0.031*(M2p - 0.8*Math.pow(M2p,1.1))*Math.pow(beta,1.3);
-      if (Math.abs(CdN - Cd) < 1e-8) { Cd = CdN; break; }
-      Cd = CdN;
-    }
-
-    const Q    = Cd * eps * E * Aorifice * sqrtTerm;
-    const mdot = Q * rho;
-    const vD   = Q / Apipe;
-    const ReD  = rho * vD * D / mu;
-    const kinVis = (mu / rho) * 1e6;   // m²/s → cSt (= mm²/s)
-
-    // Warnings
-    const warnings: { level: "error" | "warn" | "info"; text: string }[] = [];
-    const ReMin = beta >= 0.56 ? 50000 : beta >= 0.50 ? 16000 : 5000;
-    if (ReD < ReMin)
-      warnings.push({ level: "warn", text: `Re = ${ReD.toExponential(3)} < ISO minimum (Re ≥ ${ReMin.toLocaleString()}) for β = ${beta.toFixed(4)}. Extrapolated outside calibration range.` });
-    if (ReD > 1e7)
-      warnings.push({ level: "warn", text: `Re = ${ReD.toExponential(3)} > ISO 5167 upper limit 10⁷. Cd accuracy may be reduced.` });
-    if (isGas) {
-      const dpPct = (dP / P1_Pa) * 100;
-      if (pressureRatio < 0.75)
-        warnings.push({ level: "error", text: `ΔP/P₁ = ${dpPct.toFixed(1)}% exceeds 25% ISO 5167 limit. ε equation extrapolated — results unreliable.` });
-      else if (dpPct > 10)
-        warnings.push({ level: "warn", text: `ΔP/P₁ = ${dpPct.toFixed(1)}% — significant compressibility. Ensure ρ₁ is at upstream P₁, T₁ conditions.` });
-      if (eps < 0.90)
-        warnings.push({ level: "warn", text: `ε = ${eps.toFixed(4)} — ${((1-eps)*100).toFixed(1)}% correction. Verify κ and upstream pressure.` });
-      if (!isNaN(Z) && (Z < 0.95 || Z > 1.05))
-        warnings.push({ level: "warn", text: `Z = ${Z.toFixed(3)} deviates from ideal (1.0). Ensure density entered is at actual upstream conditions.` });
-    }
-    // Steam: always flag ideal-gas approximation
+    type Warn = { level: "error" | "warn" | "info"; text: string };
+    const fluidWarns: Warn[] = [];
     if (fluidKey === "steam")
-      warnings.push({ level: "warn", text: "Steam properties are approximate (ideal-gas model only). Verify density and viscosity against steam tables before use in engineering sizing." });
-    // Natural gas: flag Z=1 default
+      fluidWarns.push({ level: "warn", text: "Steam properties are approximate (ideal-gas model only). Verify against steam tables before use in engineering sizing." });
     if (fluidKey === "naturalGas" && isGas) {
       const Zv = parseFloat(zFactor);
       if (isNaN(Zv) || Math.abs(Zv - 1.0) < 0.001)
-        warnings.push({ level: "info", text: "Natural gas: Z = 1.0 (ideal gas assumed). At pressures above ~15 bar verify Z using an equation of state (e.g. AGA-8 or Peng-Robinson)." });
+        fluidWarns.push({ level: "info", text: "Natural gas: Z = 1.0 (ideal gas assumed). At pressures above ~15 bar verify Z using an equation of state (e.g. AGA-8 or Peng-Robinson)." });
     }
-    // Base oils and vacuum residue: always require lab verification
-    if (["sn150", "sn300", "sn500", "vacResidue"].includes(fluidKey))
-      warnings.push({ level: "warn", text: "Use lab-measured density and viscosity for final equipment sizing. Correlations are approximate reference values only." });
-    // General property note from auto correlation
+    if (["sn150","sn300","sn500","vacResidue"].includes(fluidKey))
+      fluidWarns.push({ level: "warn", text: "Use lab-measured density and viscosity for final equipment sizing. Correlations are approximate reference values only." });
     if (eff.isRef && eff.note && !["sn150","sn300","sn500","vacResidue"].includes(fluidKey))
-      warnings.push({ level: "info", text: eff.note });
+      fluidWarns.push({ level: "info", text: eff.note });
 
-    setResult({
-      beta: beta.toFixed(4), E: E.toFixed(4), Cd: Cd.toFixed(4),
-      eps: eps.toFixed(4), epsIsOne: !isGas, ReD: ReD.toExponential(3),
-      Qm3h: (Q*3600).toFixed(4), Qlmin: (Q*1000*60).toFixed(3),
-      mdotKgh: (mdot*3600).toFixed(3),
-      vPipe: vD.toFixed(3), vOrifice: (Q/Aorifice).toFixed(2),
-      rhoUsed: rho.toFixed(3), muUsed: (mu*1000).toFixed(4),
-      kinVis: kinVis.toFixed(3),
-      pressureRatio: isGas ? pressureRatio.toFixed(4) : null,
-      dpP1pct: isGas ? ((dP/P1_Pa)*100).toFixed(2) : null,
-      opTempUsed: opTemp,
-      isGas, warnings,
-      reOk: ReD >= ReMin && ReD <= 1e7, reMin: ReMin.toLocaleString(),
-    });
+    const reMinFor = (b: number) => b >= 0.56 ? 50000 : b >= 0.50 ? 16000 : 5000;
+
+    // ── Mode 1: Flow Calculation ──────────────────────────────────────────
+    if (calcMode === "flow") {
+      const d  = parseFloat(orificeD) / 1000;
+      const dP = toPa(parseFloat(diffP), diffPUnit);
+      if (isNaN(d) || d <= 0)   { setError("Orifice bore must be a positive number."); return; }
+      if (isNaN(dP) || dP <= 0) { setError("Differential pressure must be a positive number."); return; }
+      if (d >= D)                { setError("Orifice bore (d) must be smaller than pipe ID (D)."); return; }
+      const beta = d / D;
+      if (beta < 0.1 || beta > 0.75)
+        { setError(`Beta ratio β = ${beta.toFixed(4)} is outside ISO 5167 valid range (0.10 – 0.75).`); return; }
+      if (isGas && dP >= P1_Pa)  { setError("ΔP ≥ P₁ abs — physically impossible. Check inputs."); return; }
+
+      const Apipe    = Math.PI * D * D / 4;
+      const Aorifice = Math.PI * d * d / 4;
+      const E        = 1 / Math.sqrt(1 - Math.pow(beta, 4));
+      const eps      = opcComputeEps(beta, dP, P1_Pa, k, isGas);
+      const Cd       = opcIterateCd(beta, rho, mu, D, eps, E, Aorifice, Apipe, dP, L1, L2p);
+      const Q        = Cd * eps * E * Aorifice * Math.sqrt(2 * dP / rho);
+      const mdot     = Q * rho;
+      const vD       = Q / Apipe;
+      const ReD      = rho * vD * D / mu;
+      const kinVis   = (mu / rho) * 1e6;
+      const pressureRatio = isGas ? (P1_Pa - dP) / P1_Pa : 0;
+      const ReMin    = reMinFor(beta);
+
+      const warnings: Warn[] = [...fluidWarns];
+      if (ReD < ReMin) warnings.push({ level: "warn", text: `Re = ${ReD.toExponential(3)} < ISO minimum (Re ≥ ${ReMin.toLocaleString()}) for β = ${beta.toFixed(4)}. Extrapolated outside calibration range.` });
+      if (ReD > 1e7)   warnings.push({ level: "warn", text: `Re = ${ReD.toExponential(3)} > ISO 5167 upper limit 10⁷. Cd accuracy may be reduced.` });
+      if (isGas) {
+        const dpPct = (dP / P1_Pa) * 100;
+        if (pressureRatio < 0.75)  warnings.push({ level: "error", text: `ΔP/P₁ = ${dpPct.toFixed(1)}% exceeds 25% ISO 5167 limit. ε equation extrapolated — results unreliable.` });
+        else if (dpPct > 10)       warnings.push({ level: "warn",  text: `ΔP/P₁ = ${dpPct.toFixed(1)}% — significant compressibility. Ensure ρ₁ is at upstream P₁, T₁ conditions.` });
+        if (eps < 0.90)            warnings.push({ level: "warn",  text: `ε = ${eps.toFixed(4)} — ${((1-eps)*100).toFixed(1)}% correction. Verify κ and upstream pressure.` });
+        if (!isNaN(Z) && (Z < 0.95 || Z > 1.05)) warnings.push({ level: "warn", text: `Z = ${Z.toFixed(3)} deviates from ideal (1.0). Ensure density entered is at actual upstream conditions.` });
+      }
+      setResult({
+        mode: "flow",
+        beta: beta.toFixed(4), E: E.toFixed(4), Cd: Cd.toFixed(4),
+        eps: eps.toFixed(4), epsIsOne: !isGas, ReD: ReD.toExponential(3),
+        Qm3h: (Q*3600).toFixed(4), Qlmin: (Q*1000*60).toFixed(3), mdotKgh: (mdot*3600).toFixed(3),
+        vPipe: vD.toFixed(3), vOrifice: (Q/Aorifice).toFixed(2),
+        rhoUsed: rho.toFixed(3), muUsed: (mu*1000).toFixed(4), kinVis: kinVis.toFixed(3),
+        pressureRatio: isGas ? pressureRatio.toFixed(4) : null,
+        dpP1pct: isGas ? ((dP/P1_Pa)*100).toFixed(2) : null,
+        opTempUsed: opTemp, isGas, warnings,
+        reOk: ReD >= ReMin && ReD <= 1e7, reMin: ReMin.toLocaleString(),
+      });
+      return;
+    }
+
+    // ── Mode 2: Orifice Bore Sizing ────────────────────────────────────────
+    if (calcMode === "sizing") {
+      const Qraw = parseFloat(reqFlow);
+      const dP   = toPa(parseFloat(diffP), diffPUnit);
+      if (isNaN(Qraw) || Qraw <= 0) { setError("Required flow rate must be a positive number."); return; }
+      if (isNaN(dP)   || dP   <= 0) { setError("Available differential pressure must be a positive number."); return; }
+      if (isGas && dP >= P1_Pa)     { setError("ΔP ≥ P₁ abs — physically impossible. Check inputs."); return; }
+      const Qreq = toM3s(Qraw, reqFlowUnit, rho);
+      const sol  = opcSolveBore(Qreq, D, rho, mu, dP, isGas, P1_Pa, k, L1, L2p);
+      if (!sol) { setError("No valid orifice bore found in ISO range β = 0.10–0.75 for these conditions. Adjust flow rate or available ΔP."); return; }
+      const { d, Cd, eps, Re: ReD } = sol;
+      const beta     = d / D;
+      const Apipe    = Math.PI * D * D / 4;
+      const Aorifice = Math.PI * d * d / 4;
+      const E        = 1 / Math.sqrt(1 - Math.pow(beta, 4));
+      const ReMin    = reMinFor(beta);
+
+      const warnings: Warn[] = [...fluidWarns];
+      if (ReD < ReMin) warnings.push({ level: "warn",  text: `Re = ${ReD.toExponential(3)} < ISO minimum (Re ≥ ${ReMin.toLocaleString()}) for β = ${beta.toFixed(4)}.` });
+      if (ReD > 1e7)   warnings.push({ level: "warn",  text: `Re = ${ReD.toExponential(3)} > ISO 5167 upper limit 10⁷.` });
+      if (beta < 0.2)  warnings.push({ level: "warn",  text: `β = ${beta.toFixed(4)} < 0.20 — very low beta ratio. Consider a smaller pipe diameter or higher available ΔP.` });
+      if (beta > 0.65) warnings.push({ level: "warn",  text: `β = ${beta.toFixed(4)} > 0.65 — high beta ratio. Cd sensitivity increases; consider raising available ΔP.` });
+      if (isGas) {
+        const dpPct = (dP / P1_Pa) * 100;
+        if ((P1_Pa - dP) / P1_Pa < 0.75) warnings.push({ level: "error", text: `ΔP/P₁ = ${dpPct.toFixed(1)}% exceeds 25% ISO limit.` });
+        else if (dpPct > 10)              warnings.push({ level: "warn",  text: `ΔP/P₁ = ${dpPct.toFixed(1)}% — significant compressibility.` });
+      }
+      setResult({
+        mode: "sizing",
+        d_mm: (d*1000).toFixed(2), beta: beta.toFixed(4),
+        Cd: Cd.toFixed(4), eps: eps.toFixed(4), E: E.toFixed(4),
+        ReD: ReD.toExponential(3),
+        Qreq_m3h: (Qreq*3600).toFixed(4), Qlmin: (Qreq*1000*60).toFixed(3),
+        mdotKgh: ((Qreq*rho)*3600).toFixed(3),
+        dP_kPa: (dP/1000).toFixed(3), dP_mmH2O: (dP/9.80665).toFixed(1), dP_bar: (dP/1e5).toFixed(5),
+        vPipe: (Qreq/(Math.PI*D*D/4)).toFixed(3), vOrifice: (Qreq/Aorifice).toFixed(2),
+        rhoUsed: rho.toFixed(3), muUsed: (mu*1000).toFixed(4), kinVis: ((mu/rho)*1e6).toFixed(3),
+        opTempUsed: opTemp, isGas, epsIsOne: !isGas,
+        reOk: ReD >= ReMin && ReD <= 1e7, reMin: ReMin.toLocaleString(),
+        warnings,
+      });
+      return;
+    }
+
+    // ── Mode 3: Differential Pressure Prediction ───────────────────────────
+    if (calcMode === "dpPred") {
+      const d    = parseFloat(orificeD) / 1000;
+      const Qraw = parseFloat(reqFlow);
+      if (isNaN(d) || d <= 0)           { setError("Orifice bore must be a positive number."); return; }
+      if (d >= D)                        { setError("Orifice bore (d) must be smaller than pipe ID (D)."); return; }
+      if (isNaN(Qraw) || Qraw <= 0)     { setError("Required flow rate must be a positive number."); return; }
+      const beta = d / D;
+      if (beta < 0.1 || beta > 0.75)
+        { setError(`Beta ratio β = ${beta.toFixed(4)} is outside ISO 5167 valid range (0.10 – 0.75).`); return; }
+      const Qreq = toM3s(Qraw, reqFlowUnit, rho);
+      const sol  = opcSolveDp(Qreq, d, D, rho, mu, isGas, P1_Pa, k, L1, L2p);
+      if (!sol) { setError("Could not determine ΔP for these conditions. Flow rate may be too high for this orifice and pipe size."); return; }
+      const { dP, Cd, eps, Re: ReD } = sol;
+      const Apipe    = Math.PI * D * D / 4;
+      const Aorifice = Math.PI * d * d / 4;
+      const E        = 1 / Math.sqrt(1 - Math.pow(beta, 4));
+      const ReMin    = reMinFor(beta);
+
+      const warnings: Warn[] = [...fluidWarns];
+      if (ReD < ReMin) warnings.push({ level: "warn",  text: `Re = ${ReD.toExponential(3)} < ISO minimum (Re ≥ ${ReMin.toLocaleString()}) for β = ${beta.toFixed(4)}.` });
+      if (ReD > 1e7)   warnings.push({ level: "warn",  text: `Re = ${ReD.toExponential(3)} > ISO 5167 upper limit 10⁷.` });
+      if (isGas && P1_Pa > 0) {
+        const dpPct = (dP / P1_Pa) * 100;
+        if ((P1_Pa - dP) / P1_Pa < 0.75) warnings.push({ level: "error", text: `ΔP/P₁ = ${dpPct.toFixed(1)}% exceeds 25% ISO limit. ε equation extrapolated — results unreliable.` });
+        else if (dpPct > 10)              warnings.push({ level: "warn",  text: `ΔP/P₁ = ${dpPct.toFixed(1)}% — significant compressibility.` });
+        if (eps < 0.90)                   warnings.push({ level: "warn",  text: `ε = ${eps.toFixed(4)} — ${((1-eps)*100).toFixed(1)}% correction. Verify κ and upstream pressure.` });
+      }
+      setResult({
+        mode: "dpPred",
+        d_mm: (d*1000).toFixed(2), beta: beta.toFixed(4),
+        dP_Pa: dP.toFixed(2), dP_mmH2O: (dP/9.80665).toFixed(1),
+        dP_kPa: (dP/1000).toFixed(4), dP_mbar: (dP/100).toFixed(2),
+        dP_bar: (dP/1e5).toFixed(5), dP_psi: (dP/6894.76).toFixed(4),
+        Cd: Cd.toFixed(4), eps: eps.toFixed(4), E: E.toFixed(4),
+        ReD: ReD.toExponential(3),
+        Qreq_m3h: (Qreq*3600).toFixed(4), Qlmin: (Qreq*1000*60).toFixed(3),
+        mdotKgh: ((Qreq*rho)*3600).toFixed(3),
+        vPipe: (Qreq/Apipe).toFixed(3), vOrifice: (Qreq/Aorifice).toFixed(2),
+        rhoUsed: rho.toFixed(3), muUsed: (mu*1000).toFixed(4), kinVis: ((mu/rho)*1e6).toFixed(3),
+        opTempUsed: opTemp, isGas, epsIsOne: !isGas,
+        dpP1pct: isGas && P1_Pa > 0 ? ((dP/P1_Pa)*100).toFixed(2) : null,
+        reOk: ReD >= ReMin && ReD <= 1e7, reMin: ReMin.toLocaleString(),
+        warnings,
+      });
+      return;
+    }
+
+    // ── Mode 4: Recommended Orifice Selection ─────────────────────────────
+    if (calcMode === "recommend") {
+      const Qmin_r = parseFloat(qMin), Qn_r = parseFloat(qNormal), Qmax_r = parseFloat(qMax);
+      if (isNaN(Qmin_r) || Qmin_r <= 0)  { setError("Minimum flow must be a positive number."); return; }
+      if (isNaN(Qn_r)   || Qn_r   <= 0)  { setError("Normal flow must be a positive number."); return; }
+      if (isNaN(Qmax_r) || Qmax_r <= 0)  { setError("Maximum flow must be a positive number."); return; }
+      if (Qmin_r >= Qmax_r)               { setError("Minimum flow must be less than maximum flow."); return; }
+      const Qmin = toM3s(Qmin_r, reqFlowUnit, rho);
+      const Qn   = toM3s(Qn_r,   reqFlowUnit, rho);
+      const Qmax = toM3s(Qmax_r,  reqFlowUnit, rho);
+      const Apipe = Math.PI * D * D / 4;
+
+      type Cand = { beta: number; d: number; dpMin: number; dpNormal: number; dpMax: number; ReMax: number; ReNormal: number; ReMin_: number; CdN: number; epsN: number };
+      const cands: Cand[] = [];
+      for (let bi = 200; bi <= 700; bi += 5) {
+        const b = bi / 1000;
+        const dd = b * D;
+        const sMax = opcSolveDp(Qmax, dd, D, rho, mu, isGas, P1_Pa, k, L1, L2p);
+        if (!sMax) continue;
+        const sMin = opcSolveDp(Qmin, dd, D, rho, mu, isGas, P1_Pa, k, L1, L2p);
+        const sN   = opcSolveDp(Qn,   dd, D, rho, mu, isGas, P1_Pa, k, L1, L2p);
+        if (!sMin || !sN) continue;
+        cands.push({
+          beta: b, d: dd,
+          dpMin: sMin.dP, dpNormal: sN.dP, dpMax: sMax.dP,
+          ReMax:    rho * (Qmax / Apipe) * D / mu,
+          ReNormal: rho * (Qn   / Apipe) * D / mu,
+          ReMin_:   rho * (Qmin / Apipe) * D / mu,
+          CdN: sN.Cd, epsN: sN.eps,
+        });
+      }
+      if (cands.length === 0) { setError("No valid orifice found in β = 0.20–0.70 range for the specified flow conditions. Check fluid properties and pipe diameter."); return; }
+
+      const dpLimit = isGas ? P1_Pa * 0.25 : 5e5; // 25% P1 or 500 kPa
+      const pref    = cands.filter(c => c.beta >= 0.4 && c.beta <= 0.65 && c.dpMax <= dpLimit);
+      const pool    = (pref.length > 0 ? pref : cands.filter(c => c.dpMax <= dpLimit));
+      const best    = (pool.length > 0 ? pool : cands).reduce((a, b) => Math.abs(b.beta - 0.52) < Math.abs(a.beta - 0.52) ? b : a);
+      const rMin    = reMinFor(best.beta);
+
+      const warnings: Warn[] = [...fluidWarns];
+      if (best.ReMin_ < rMin)        warnings.push({ level: "warn",  text: `Re at Qmin = ${best.ReMin_.toExponential(3)} < ISO minimum ${rMin.toLocaleString()}. Low-flow Cd accuracy reduced.` });
+      if (best.ReMax > 1e7)          warnings.push({ level: "warn",  text: `Re at Qmax = ${best.ReMax.toExponential(3)} > ISO 5167 upper limit 10⁷.` });
+      if (best.beta < 0.2 || best.beta > 0.7) warnings.push({ level: "error", text: `Recommended β = ${best.beta.toFixed(4)} outside ISO 5167 valid range. Review pipe diameter or flow conditions.` });
+      else if (best.beta < 0.4 || best.beta > 0.65) warnings.push({ level: "warn", text: `Recommended β = ${best.beta.toFixed(4)} is outside preferred range 0.40–0.65. Acceptable but not optimal.` });
+      if (isGas && best.dpMax / P1_Pa > 0.25) warnings.push({ level: "error", text: `ΔP at Qmax = ${(best.dpMax/P1_Pa*100).toFixed(1)}% of P₁ — exceeds 25% ISO compressible-flow limit.` });
+      if (!isGas && best.dpMax > 5e5)         warnings.push({ level: "warn",  text: `ΔP at Qmax = ${(best.dpMax/1000).toFixed(1)} kPa — high differential pressure. Verify transmitter range.` });
+
+      const dpFmt = (v: number) => isGas
+        ? `${(v/1000).toFixed(2)} kPa  (${(v/9.80665).toFixed(0)} mmH₂O)`
+        : `${(v/9.80665).toFixed(1)} mmH₂O  (${(v/1000).toFixed(2)} kPa)`;
+
+      setResult({
+        mode: "recommend",
+        d_mm: (best.d*1000).toFixed(2), beta: best.beta.toFixed(4),
+        CdNormal: best.CdN.toFixed(4), epsNormal: best.epsN.toFixed(4),
+        dpMin_fmt: dpFmt(best.dpMin), dpNormal_fmt: dpFmt(best.dpNormal), dpMax_fmt: dpFmt(best.dpMax),
+        dpMax: best.dpMax,
+        ReMin: best.ReMin_.toExponential(3), ReNormal: best.ReNormal.toExponential(3), ReMax: best.ReMax.toExponential(3),
+        Qmin_m3h: (Qmin*3600).toFixed(3), Qnormal_m3h: (Qn*3600).toFixed(3), Qmax_m3h: (Qmax*3600).toFixed(3),
+        rhoUsed: rho.toFixed(3), muUsed: (mu*1000).toFixed(4),
+        opTempUsed: opTemp, isGas, epsIsOne: !isGas,
+        reMinForBeta: rMin.toLocaleString(),
+        dpLimitOk: best.dpMax <= dpLimit,
+        warnings,
+      });
+    }
   };
 
   const isGasMode = fluidPhase === "gas";
@@ -14156,24 +14383,50 @@ function OrificeFlowCalculator() {
       {/* Header */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
         <strong>ISO 5167-2</strong> — Reader-Harris/Gallagher iterative Cd &nbsp;·&nbsp;
-        <strong>ISO 5167-4</strong> — expansibility factor ε for compressible fluids &nbsp;·&nbsp;
+        Expansibility ε for compressible flow &nbsp;·&nbsp;
         β = 0.10–0.75 · Re 5,000–10⁷ · ΔP/P₁ ≤ 25%
       </div>
 
+      {/* ── Calculation Mode selector ── */}
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Calculation Mode</label>
+        <div className="flex rounded-md border overflow-hidden text-sm">
+          {([
+            { key: "flow",      label: "1 — Flow Rate",       desc: "Known d + ΔP → Q" },
+            { key: "sizing",    label: "2 — Bore Sizing",      desc: "Known Q + ΔP → d" },
+            { key: "dpPred",    label: "3 — ΔP Prediction",   desc: "Known d + Q → ΔP" },
+            { key: "recommend", label: "4 — Recommended Bore", desc: "Known Qmin/Qmax → d" },
+          ] as const).map(m => (
+            <button key={m.key} onClick={() => { setCalcMode(m.key); setResult(null); setError(""); }}
+              title={m.desc}
+              className={`flex-1 py-2 px-1 font-medium transition-colors leading-tight ${calcMode === m.key ? "bg-blue-600 text-white" : "bg-white text-muted-foreground hover:bg-muted"}`}>
+              <div>{m.label}</div>
+              <div className={`text-xs font-normal ${calcMode === m.key ? "text-blue-200" : "text-muted-foreground"}`}>{m.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* ── Left: geometry & ΔP ── */}
+        {/* ── Left: geometry & conditional inputs ── */}
         <div className="space-y-4">
           <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Geometry</h4>
+
+          {/* Pipe ID — always shown */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">Pipe ID (D) [mm]</label>
               <Input value={pipeD} onChange={e => setPipeD(e.target.value)} placeholder="100" />
             </div>
-            <div>
-              <label className="text-sm font-medium">Orifice Bore (d) [mm]</label>
-              <Input value={orificeD} onChange={e => setOrificeD(e.target.value)} placeholder="60" />
-            </div>
+            {/* Orifice Bore — shown when d is an INPUT (modes 1 and 3) */}
+            {(calcMode === "flow" || calcMode === "dpPred") && (
+              <div>
+                <label className="text-sm font-medium">Orifice Bore (d) [mm]</label>
+                <Input value={orificeD} onChange={e => setOrificeD(e.target.value)} placeholder="60" />
+              </div>
+            )}
           </div>
+
           <div>
             <label className="text-sm font-medium">Tap Type</label>
             <Select value={tapType} onValueChange={setTapType}>
@@ -14185,27 +14438,77 @@ function OrificeFlowCalculator() {
               </SelectContent>
             </Select>
           </div>
-          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide pt-1">Differential Pressure</h4>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium">ΔP</label>
-              <Input value={diffP} onChange={e => setDiffP(e.target.value)} placeholder="250" />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Unit</label>
-              <Select value={diffPUnit} onValueChange={setDiffPUnit}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mmH2O">mmH₂O</SelectItem>
-                  <SelectItem value="inH2O">inH₂O</SelectItem>
-                  <SelectItem value="mbar">mbar</SelectItem>
-                  <SelectItem value="kPa">kPa</SelectItem>
-                  <SelectItem value="bar">bar</SelectItem>
-                  <SelectItem value="psi">psi</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+
+          {/* ΔP — shown when ΔP is an INPUT (modes 1 and 2) */}
+          {(calcMode === "flow" || calcMode === "sizing") && (
+            <>
+              <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide pt-1">
+                {calcMode === "sizing" ? "Available Differential Pressure" : "Differential Pressure"}
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium">ΔP</label>
+                  <Input value={diffP} onChange={e => setDiffP(e.target.value)} placeholder="250" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Unit</label>
+                  <Select value={diffPUnit} onValueChange={setDiffPUnit}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mmH2O">mmH₂O</SelectItem>
+                      <SelectItem value="inH2O">inH₂O</SelectItem>
+                      <SelectItem value="mbar">mbar</SelectItem>
+                      <SelectItem value="kPa">kPa</SelectItem>
+                      <SelectItem value="bar">bar</SelectItem>
+                      <SelectItem value="psi">psi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Flow rate — shown for modes 2, 3, 4 */}
+          {(calcMode === "sizing" || calcMode === "dpPred" || calcMode === "recommend") && (
+            <>
+              <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide pt-1">
+                {calcMode === "recommend" ? "Flow Rate Range" : "Required Flow Rate"}
+              </h4>
+              {/* Flow unit selector — shared */}
+              <div>
+                <label className="text-sm font-medium">Flow Unit</label>
+                <Select value={reqFlowUnit} onValueChange={v => setReqFlowUnit(v as "m3h" | "lmin" | "kgh")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="m3h">m³/h</SelectItem>
+                    <SelectItem value="lmin">L/min</SelectItem>
+                    <SelectItem value="kgh">kg/h (mass)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {calcMode !== "recommend" ? (
+                <div>
+                  <label className="text-sm font-medium">Flow Rate</label>
+                  <Input value={reqFlow} onChange={e => setReqFlow(e.target.value)} placeholder="10" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Q min</label>
+                    <Input value={qMin} onChange={e => setQMin(e.target.value)} placeholder="5" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Q normal</label>
+                    <Input value={qNormal} onChange={e => setQNormal(e.target.value)} placeholder="10" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Q max</label>
+                    <Input value={qMax} onChange={e => setQMax(e.target.value)} placeholder="15" />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* ── Right: fluid ── */}
@@ -14362,7 +14665,10 @@ function OrificeFlowCalculator() {
 
       <Button onClick={calculate} className="w-full">
         <Calculator className="h-4 w-4 mr-2" />
-        {isGasMode ? "Calculate Flow Rate (Compressible — ISO 5167-2 + 5167-4)" : "Calculate Flow Rate (Liquid — ISO 5167-2)"}
+        {calcMode === "flow"      && (isGasMode ? "Calculate Flow Rate — Gas/Steam (ISO 5167-2)"   : "Calculate Flow Rate — Liquid (ISO 5167-2)")}
+        {calcMode === "sizing"    && "Size Orifice Bore (ISO 5167-2 Iterative)"}
+        {calcMode === "dpPred"    && "Predict Differential Pressure (ISO 5167-2 Iterative)"}
+        {calcMode === "recommend" && "Find Recommended Orifice Bore (ISO 5167-2)"}
       </Button>
 
       {error && (
@@ -14373,70 +14679,12 @@ function OrificeFlowCalculator() {
 
       {result && (
         <div className="space-y-4">
-          {/* Primary flow results */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: "Volumetric Flow", value: `${result.Qm3h} m³/h`, sub: `${result.Qlmin} L/min`, hi: true },
-              { label: "Mass Flow Rate",  value: `${result.mdotKgh} kg/h`, sub: "", hi: true },
-              { label: "Pipe Velocity",   value: `${result.vPipe} m/s`, sub: "" },
-              { label: "Orifice Velocity",value: `${result.vOrifice} m/s`, sub: "" },
-            ].map((r, i) => (
-              <div key={i} className={`rounded-lg p-3 text-center ${r.hi ? "bg-blue-50 border border-blue-200" : "bg-muted"}`}>
-                <div className="text-xs text-muted-foreground">{r.label}</div>
-                <div className={`font-bold ${r.hi ? "text-blue-700 text-lg" : "text-base"}`}>{r.value}</div>
-                {r.sub && <div className="text-xs text-muted-foreground">{r.sub}</div>}
-              </div>
-            ))}
-          </div>
 
-          {/* Fluid properties used */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="bg-muted px-4 py-2 font-semibold text-sm">
-              Operating Fluid Properties Used &nbsp;
-              <span className="font-normal text-muted-foreground">at {result.opTempUsed}°C</span>
-            </div>
-            <div className="grid grid-cols-3 gap-0">
-              {[
-                { label: "Density (ρ)",            value: `${result.rhoUsed} kg/m³` },
-                { label: "Dyn. Viscosity (μ)",     value: `${result.muUsed} cP` },
-                { label: "Kin. Viscosity (ν)",     value: `${result.kinVis} cSt` },
-              ].map((r, i) => (
-                <div key={i} className="px-4 py-3 border-r last:border-r-0 border-b">
-                  <div className="text-xs text-muted-foreground">{r.label}</div>
-                  <div className="font-mono font-semibold">{r.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ISO 5167 calculation parameters */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="bg-muted px-4 py-2 font-semibold text-sm">ISO 5167 Calculation Parameters</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
-              {[
-                { label: "Beta Ratio (β)",       value: result.beta },
-                { label: "Approach Factor (E)",  value: result.E },
-                { label: "Discharge Coeff. (Cd)",value: result.Cd },
-                { label: result.epsIsOne ? "Expansibility (ε)" : "Expansibility (ε)", value: result.eps, amber: !result.epsIsOne },
-                { label: "Pipe Reynolds No.",    value: result.ReD },
-                ...(result.isGas ? [
-                  { label: "P₂/P₁ ratio",        value: result.pressureRatio },
-                  { label: "ΔP / P₁",            value: `${result.dpP1pct}%` },
-                ] : []),
-              ].map((r, i) => (
-                <div key={i} className="px-4 py-3 border-r border-b">
-                  <div className="text-xs text-muted-foreground">{r.label}</div>
-                  <div className={`font-mono font-semibold ${'amber' in r && r.amber ? "text-amber-700" : ""}`}>{r.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Validity / warnings */}
+          {/* ── Shared: warnings block ── */}
           {result.warnings.length === 0 ? (
             <div className="rounded-lg p-3 text-sm flex items-start gap-2 bg-green-50 border border-green-200 text-green-800">
               <span className="font-bold shrink-0">✓ Valid</span>
-              <span>All ISO 5167 conditions satisfied — β = {result.beta}, Re = {result.ReD}{result.isGas ? `, ΔP/P₁ = ${result.dpP1pct}%` : ""}.</span>
+              <span>All ISO 5167 conditions satisfied — β = {result.beta}, Re = {result.mode === "recommend" ? result.ReNormal : result.ReD}.</span>
             </div>
           ) : (
             <div className="space-y-2">
@@ -14446,34 +14694,248 @@ function OrificeFlowCalculator() {
                   w.level === "info"  ? "bg-blue-50 border border-blue-200 text-blue-800" :
                                         "bg-amber-50 border border-amber-200 text-amber-800"
                 }`}>
-                  <span className="font-bold shrink-0">
-                    {w.level === "error" ? "✕" : w.level === "info" ? "ℹ" : "⚠"}
-                  </span>
+                  <span className="font-bold shrink-0">{w.level === "error" ? "✕" : w.level === "info" ? "ℹ" : "⚠"}</span>
                   <span>{w.text}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Equation mode note */}
-          <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${result.isGas ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-green-50 border border-green-200 text-green-800"}`}>
-            <span className="font-bold shrink-0">{result.isGas ? "⚡ Gas/Steam mode" : "💧 Liquid mode"}</span>
-            <span>
-              {result.isGas
-                ? `Expansibility factor ε = ${result.eps} applied for compressible-flow orifice calculation. Flow equation: q = Cd × ε × E × A₂ × √(2ΔP/ρ₁).`
-                : "Incompressible flow — ε = 1.000 (no compressibility correction). Upstream pressure does not affect density calculation."}
-            </span>
-          </div>
+          {/* ══════════════ MODE 1: Flow Calculation ══════════════ */}
+          {result.mode === "flow" && (<>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Volumetric Flow", value: `${result.Qm3h} m³/h`, sub: `${result.Qlmin} L/min`, hi: true },
+                { label: "Mass Flow Rate",  value: `${result.mdotKgh} kg/h`, sub: "", hi: true },
+                { label: "Pipe Velocity",   value: `${result.vPipe} m/s`, sub: "" },
+                { label: "Orifice Velocity",value: `${result.vOrifice} m/s`, sub: "" },
+              ].map((r, i) => (
+                <div key={i} className={`rounded-lg p-3 text-center ${r.hi ? "bg-blue-50 border border-blue-200" : "bg-muted"}`}>
+                  <div className="text-xs text-muted-foreground">{r.label}</div>
+                  <div className={`font-bold ${r.hi ? "text-blue-700 text-lg" : "text-base"}`}>{r.value}</div>
+                  {r.sub && <div className="text-xs text-muted-foreground">{r.sub}</div>}
+                </div>
+              ))}
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">Fluid Properties Used <span className="font-normal text-muted-foreground">at {result.opTempUsed}°C</span></div>
+              <div className="grid grid-cols-3 gap-0">
+                {[
+                  { label: "Density (ρ)", value: `${result.rhoUsed} kg/m³` },
+                  { label: "Dyn. Viscosity (μ)", value: `${result.muUsed} cP` },
+                  { label: "Kin. Viscosity (ν)", value: `${result.kinVis} cSt` },
+                ].map((r, i) => (
+                  <div key={i} className="px-4 py-3 border-r last:border-r-0">
+                    <div className="text-xs text-muted-foreground">{r.label}</div>
+                    <div className="font-mono font-semibold">{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">ISO 5167 Parameters</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+                {[
+                  { label: "Beta Ratio (β)",        value: result.beta },
+                  { label: "Approach Factor (E)",    value: result.E },
+                  { label: "Discharge Coeff. (Cd)",  value: result.Cd },
+                  { label: "Expansibility (ε)",      value: result.eps, amber: !result.epsIsOne },
+                  { label: "Pipe Reynolds No.",      value: result.ReD },
+                  ...(result.isGas ? [
+                    { label: "P₂/P₁ ratio",          value: result.pressureRatio },
+                    { label: "ΔP / P₁",              value: `${result.dpP1pct}%` },
+                  ] : []),
+                ].map((r, i) => (
+                  <div key={i} className="px-4 py-3 border-r border-b">
+                    <div className="text-xs text-muted-foreground">{r.label}</div>
+                    <div className={`font-mono font-semibold ${'amber' in r && r.amber ? "text-amber-700" : ""}`}>{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${result.isGas ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-green-50 border border-green-200 text-green-800"}`}>
+              <span className="font-bold shrink-0">{result.isGas ? "⚡ Gas/Steam" : "💧 Liquid"}</span>
+              <span>{result.isGas ? `ε = ${result.eps} applied. q = Cd × ε × E × A₂ × √(2ΔP/ρ₁).` : "ε = 1.000 — incompressible (ISO 5167-2 §5.4)."}</span>
+            </div>
+          </>)}
 
-          {/* Formula reference */}
+          {/* ══════════════ MODE 2: Bore Sizing ══════════════ */}
+          {result.mode === "sizing" && (<>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Recommended Bore (d)", value: `${result.d_mm} mm`, sub: `β = ${result.beta}`, hi: true },
+                { label: "Flow Confirmed",        value: `${result.Qreq_m3h} m³/h`, sub: `${result.Qlmin} L/min`, hi: true },
+                { label: "Mass Flow Rate",        value: `${result.mdotKgh} kg/h`, sub: "" },
+                { label: "Pipe Velocity",         value: `${result.vPipe} m/s`, sub: `Orifice: ${result.vOrifice} m/s` },
+              ].map((r, i) => (
+                <div key={i} className={`rounded-lg p-3 text-center ${r.hi ? "bg-blue-50 border border-blue-200" : "bg-muted"}`}>
+                  <div className="text-xs text-muted-foreground">{r.label}</div>
+                  <div className={`font-bold ${r.hi ? "text-blue-700 text-lg" : "text-base"}`}>{r.value}</div>
+                  {r.sub && <div className="text-xs text-muted-foreground">{r.sub}</div>}
+                </div>
+              ))}
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">ΔP Confirmation</div>
+              <div className="grid grid-cols-3 gap-0">
+                {[
+                  { label: "ΔP (kPa)",    value: `${result.dP_kPa} kPa` },
+                  { label: "ΔP (mmH₂O)",  value: `${result.dP_mmH2O} mmH₂O` },
+                  { label: "ΔP (bar)",     value: `${result.dP_bar} bar` },
+                ].map((r, i) => (
+                  <div key={i} className="px-4 py-3 border-r last:border-r-0">
+                    <div className="text-xs text-muted-foreground">{r.label}</div>
+                    <div className="font-mono font-semibold">{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">ISO 5167 Parameters</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+                {[
+                  { label: "Beta Ratio (β)",       value: result.beta },
+                  { label: "Approach Factor (E)",   value: result.E },
+                  { label: "Discharge Coeff. (Cd)", value: result.Cd },
+                  { label: "Expansibility (ε)",     value: result.eps, amber: !result.epsIsOne },
+                  { label: "Pipe Reynolds No.",     value: result.ReD },
+                  { label: "Fluid ρ",               value: `${result.rhoUsed} kg/m³` },
+                  { label: "Fluid μ",               value: `${result.muUsed} cP` },
+                  { label: "Fluid ν",               value: `${result.kinVis} cSt` },
+                ].map((r, i) => (
+                  <div key={i} className="px-4 py-3 border-r border-b">
+                    <div className="text-xs text-muted-foreground">{r.label}</div>
+                    <div className={`font-mono font-semibold ${'amber' in r && r.amber ? "text-amber-700" : ""}`}>{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>)}
+
+          {/* ══════════════ MODE 3: ΔP Prediction ══════════════ */}
+          {result.mode === "dpPred" && (<>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { label: "ΔP (mmH₂O)", value: `${result.dP_mmH2O} mmH₂O`, hi: true },
+                { label: "ΔP (kPa)",   value: `${result.dP_kPa} kPa`,      hi: true },
+                { label: "ΔP (mbar)",  value: `${result.dP_mbar} mbar`,     hi: false },
+                { label: "ΔP (bar)",   value: `${result.dP_bar} bar`,       hi: false },
+                { label: "ΔP (psi)",   value: `${result.dP_psi} psi`,       hi: false },
+                { label: "ΔP (Pa)",    value: `${result.dP_Pa} Pa`,         hi: false },
+              ].map((r, i) => (
+                <div key={i} className={`rounded-lg p-3 text-center ${r.hi ? "bg-blue-50 border border-blue-200" : "bg-muted"}`}>
+                  <div className="text-xs text-muted-foreground">{r.label}</div>
+                  <div className={`font-bold ${r.hi ? "text-blue-700 text-lg" : "text-base"}`}>{r.value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">Flow Condition Confirmed</div>
+              <div className="grid grid-cols-3 gap-0">
+                {[
+                  { label: "Bore (d)",        value: `${result.d_mm} mm  β = ${result.beta}` },
+                  { label: "Flow (m³/h)",     value: `${result.Qreq_m3h} m³/h` },
+                  { label: "Mass Flow",       value: `${result.mdotKgh} kg/h` },
+                  { label: "Pipe Velocity",   value: `${result.vPipe} m/s` },
+                  { label: "Orifice Velocity",value: `${result.vOrifice} m/s` },
+                  { label: "Reynolds No.",    value: result.ReD },
+                ].map((r, i) => (
+                  <div key={i} className="px-4 py-3 border-r border-b last:border-r-0">
+                    <div className="text-xs text-muted-foreground">{r.label}</div>
+                    <div className="font-mono font-semibold">{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">ISO 5167 Parameters</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+                {[
+                  { label: "Discharge Coeff. (Cd)", value: result.Cd },
+                  { label: "Expansibility (ε)",     value: result.eps, amber: !result.epsIsOne },
+                  { label: "Approach Factor (E)",   value: result.E },
+                  ...(result.isGas && result.dpP1pct ? [{ label: "ΔP / P₁", value: `${result.dpP1pct}%` }] : []),
+                ].map((r, i) => (
+                  <div key={i} className="px-4 py-3 border-r border-b">
+                    <div className="text-xs text-muted-foreground">{r.label}</div>
+                    <div className={`font-mono font-semibold ${'amber' in r && r.amber ? "text-amber-700" : ""}`}>{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>)}
+
+          {/* ══════════════ MODE 4: Recommended Bore ══════════════ */}
+          {result.mode === "recommend" && (<>
+            {/* Headline recommendation */}
+            <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 flex flex-col md:flex-row items-center gap-4">
+              <div className="text-center">
+                <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Recommended Orifice Bore</div>
+                <div className="text-4xl font-bold text-blue-700">{result.d_mm} mm</div>
+                <div className="text-sm text-blue-600">β = {result.beta}</div>
+              </div>
+              <div className="flex-1 grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="text-xs text-muted-foreground">Cd (at normal flow)</div>
+                  <div className="font-mono font-semibold">{result.CdNormal}</div>
+                  {!result.epsIsOne && <><div className="text-xs text-muted-foreground mt-1">ε (at normal flow)</div><div className="font-mono font-semibold">{result.epsNormal}</div></>}
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="text-xs text-muted-foreground">ΔP limit status</div>
+                  <div className={`font-semibold ${result.dpLimitOk ? "text-green-700" : "text-red-600"}`}>
+                    {result.dpLimitOk ? "✓ Within limit" : "✕ Exceeds limit"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ΔP across flow range */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">Differential Pressure Across Flow Range</div>
+              <div className="grid grid-cols-3 gap-0">
+                {[
+                  { label: "ΔP at Q min",    value: result.dpMin_fmt,    q: `${result.Qmin_m3h} m³/h` },
+                  { label: "ΔP at Q normal", value: result.dpNormal_fmt, q: `${result.Qnormal_m3h} m³/h` },
+                  { label: "ΔP at Q max",    value: result.dpMax_fmt,    q: `${result.Qmax_m3h} m³/h` },
+                ].map((r, i) => (
+                  <div key={i} className={`px-4 py-3 border-r last:border-r-0 ${i === 2 && !result.dpLimitOk ? "bg-red-50" : ""}`}>
+                    <div className="text-xs text-muted-foreground">{r.label} <span className="text-blue-600">({r.q})</span></div>
+                    <div className="font-mono font-semibold text-sm">{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Reynolds numbers */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted px-4 py-2 font-semibold text-sm">Reynolds Number Across Flow Range <span className="font-normal text-muted-foreground">(ISO min ≥ {result.reMinForBeta})</span></div>
+              <div className="grid grid-cols-3 gap-0">
+                {[
+                  { label: "Re at Q min",    value: result.ReMin },
+                  { label: "Re at Q normal", value: result.ReNormal },
+                  { label: "Re at Q max",    value: result.ReMax },
+                ].map((r, i) => (
+                  <div key={i} className="px-4 py-3 border-r last:border-r-0">
+                    <div className="text-xs text-muted-foreground">{r.label}</div>
+                    <div className="font-mono font-semibold">{r.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground border-t pt-2 space-y-1">
+              <p>Selection: preferred β 0.40–0.65, closest to β = 0.52. Scanned β = 0.200–0.700 (step 0.005). Fluid ρ = {result.rhoUsed} kg/m³, μ = {result.muUsed} cP at {result.opTempUsed}°C.</p>
+              <p><strong>Note:</strong> Verify transmitter range against ΔP at Q max. Specify nominal bore to the nearest 0.5 mm per manufacturer standard.</p>
+            </div>
+          </>)}
+
+          {/* ── Shared formula reference ── */}
           <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
-            <p><strong>Flow:</strong> q = Cd × ε × E × (π/4)d² × √(2ΔP/ρ₁) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
+            <p><strong>Flow equation:</strong> q = Cd × ε × E × (π/4)d² × √(2ΔP/ρ₁) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
             {result.isGas
-              ? <p><strong>ε (orifice, compressible):</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (P₂/P₁)^(1/κ)] — valid ΔP/P₁ ≤ 25%</p>
-              : <p><strong>ε:</strong> = 1 for all liquid calculations (ISO 5167-2 §5.4)</p>
-            }
-            <p><strong>Cd:</strong> ISO 5167-2:2022 RHG iterative (convergence &lt;10⁻⁸)</p>
-            <p><strong>Taps:</strong> Corner L₁=L₂'=0 &nbsp;|&nbsp; Flange L₁=L₂'=25.4/D &nbsp;|&nbsp; D&D/2 L₁=1, L₂'=0.47</p>
+              ? <p><strong>ε (compressible):</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1−(P₂/P₁)^(1/κ)] — ISO 5167-4; valid ΔP/P₁ ≤ 25%</p>
+              : <p><strong>ε = 1</strong> for all liquid calculations (ISO 5167-2 §5.4)</p>}
+            <p><strong>Cd:</strong> ISO 5167-2:2022 RHG iterative (convergence &lt;10⁻⁸) &nbsp;|&nbsp; Taps: Corner L₁=L₂'=0 · Flange L₁=L₂'=25.4/D · D&amp;D/2 L₁=1, L₂'=0.47</p>
           </div>
         </div>
       )}
