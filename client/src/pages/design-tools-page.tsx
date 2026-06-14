@@ -13759,6 +13759,284 @@ function SurfaceFinishChart() {
   );
 }
 
+// ── Orifice Plate Flow Calculator (ISO 5167-2) ────────────────────────────────
+function OrificeFlowCalculator() {
+  const [pipeD, setPipeD]     = useState("100");      // mm
+  const [orificeD, setOrificeD] = useState("60");     // mm
+  const [diffP, setDiffP]     = useState("250");       // in selected unit
+  const [diffPUnit, setDiffPUnit] = useState("mmH2O");
+  const [tapType, setTapType] = useState("corner");
+  const [density, setDensity] = useState("1000");      // kg/m³
+  const [viscosity, setViscosity] = useState("1.0");   // mPa·s (cP)
+  const [fluidPreset, setFluidPreset] = useState("water");
+  const [result, setResult]   = useState<any>(null);
+  const [error, setError]     = useState("");
+
+  const fluidPresets: Record<string, { name: string; density: number; viscosity: number }> = {
+    water:      { name: "Water (20°C)",         density: 998.2,  viscosity: 1.002 },
+    water80:    { name: "Water (80°C)",          density: 971.8,  viscosity: 0.355 },
+    thermalOil: { name: "Thermal Oil (150°C)",   density: 850,    viscosity: 5.0   },
+    air:        { name: "Air (20°C, 1 bar)",     density: 1.204,  viscosity: 0.0182 },
+    steam:      { name: "Steam (150°C, 5 bar)",  density: 2.67,   viscosity: 0.0143 },
+    diesel:     { name: "Diesel (20°C)",         density: 840,    viscosity: 3.0   },
+    naturalGas: { name: "Natural Gas (20°C, 1 bar)", density: 0.717, viscosity: 0.011 },
+    custom:     { name: "Custom",               density: 0,      viscosity: 0     },
+  };
+
+  const handleFluidPreset = (key: string) => {
+    setFluidPreset(key);
+    if (key !== "custom") {
+      const p = fluidPresets[key];
+      setDensity(String(p.density));
+      setViscosity(String(p.viscosity));
+    }
+  };
+
+  // Convert differential pressure to Pa
+  const toPa = (val: number, unit: string): number => {
+    switch (unit) {
+      case "mmH2O": return val * 9.80665;
+      case "mbar":  return val * 100;
+      case "kPa":   return val * 1000;
+      case "bar":   return val * 100000;
+      case "inH2O": return val * 249.089;
+      case "psi":   return val * 6894.76;
+      default:      return val;
+    }
+  };
+
+  const calculate = () => {
+    setError("");
+    setResult(null);
+
+    const D  = parseFloat(pipeD)    / 1000; // m
+    const d  = parseFloat(orificeD) / 1000; // m
+    const dP = toPa(parseFloat(diffP), diffPUnit); // Pa
+    const rho = parseFloat(density);   // kg/m³
+    const mu  = parseFloat(viscosity) / 1000; // Pa·s
+
+    if ([D, d, dP, rho, mu].some(v => isNaN(v) || v <= 0)) {
+      setError("All inputs must be positive numbers."); return;
+    }
+    if (d >= D) { setError("Orifice bore must be smaller than pipe diameter."); return; }
+
+    const beta = d / D;
+    if (beta < 0.1 || beta > 0.75) {
+      setError(`Beta ratio β = ${beta.toFixed(4)} is outside ISO 5167 valid range (0.1 – 0.75).`); return;
+    }
+    if (dP <= 0) { setError("Differential pressure must be positive."); return; }
+
+    // Tap type: L1 and L2' (normalised to D)
+    let L1 = 0, L2p = 0;
+    if (tapType === "corner")  { L1 = 0;          L2p = 0;          }
+    if (tapType === "flangeD") { L1 = 0.0254 / D;  L2p = 0.0254 / D; } // 25.4mm / D
+    if (tapType === "DD2")     { L1 = 1.0;         L2p = 0.47;       }
+
+    const Apipe   = Math.PI * D * D / 4;
+    const Aorifice = Math.PI * d * d / 4;
+    const E       = 1 / Math.sqrt(1 - Math.pow(beta, 4)); // approach factor
+    const sqrtTerm = Math.sqrt(2 * dP / rho);
+
+    // Iterate: start Cd = 0.61, compute Re_D, update Cd (RHG equation ISO 5167-2)
+    let Cd = 0.61;
+    for (let i = 0; i < 20; i++) {
+      const Q   = Cd * E * Aorifice * sqrtTerm;
+      const v_D = Q / Apipe;
+      const ReD = (rho * v_D * D) / mu;
+      if (ReD < 1) break;
+
+      const A   = Math.pow(19000 * beta / ReD, 0.8);
+      const M2p = 2 * L2p / (1 - beta);
+
+      const CdNew =
+        0.5961
+        + 0.0261 * beta * beta
+        - 0.216  * Math.pow(beta, 8)
+        + 0.000521 * Math.pow(1e6 * beta / ReD, 0.7)
+        + (0.0188 + 0.0063 * A) * Math.pow(beta, 3.5) * Math.pow(1e6 / ReD, 0.3)
+        + (0.043 + 0.080 * Math.exp(-10 * L1) - 0.123 * Math.exp(-7 * L1))
+          * (1 - 0.11 * A) * Math.pow(beta, 4) / (1 - Math.pow(beta, 4))
+        - 0.031 * (M2p - 0.8 * Math.pow(M2p, 1.1)) * Math.pow(beta, 1.3);
+
+      if (Math.abs(CdNew - Cd) < 1e-7) { Cd = CdNew; break; }
+      Cd = CdNew;
+    }
+
+    const Q    = Cd * E * Aorifice * sqrtTerm;   // m³/s
+    const mdot = Q * rho;                         // kg/s
+    const vD   = Q / Apipe;                       // m/s pipe velocity
+    const ReD  = (rho * vD * D) / mu;
+
+    // Re validity check (ISO 5167)
+    const ReMin = beta >= 0.56 ? 50000 : (beta >= 0.50 ? 16000 : 5000);
+    const reOk  = ReD >= ReMin && ReD <= 1e7;
+
+    setResult({
+      beta:    beta.toFixed(4),
+      E:       E.toFixed(4),
+      Cd:      Cd.toFixed(4),
+      ReD:     ReD.toExponential(3),
+      ReDRaw:  ReD,
+      Qm3h:    (Q * 3600).toFixed(3),
+      Qlmin:   (Q * 1000 * 60).toFixed(2),
+      mdotKgh: (mdot * 3600).toFixed(2),
+      vPipe:   vD.toFixed(3),
+      vOrifice: (Q / Aorifice).toFixed(2),
+      reOk,
+      reMin: ReMin.toLocaleString(),
+      betaOk: beta >= 0.1 && beta <= 0.75,
+    });
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+        <strong>ISO 5167-2</strong> — Reader-Harris/Gallagher equation. Valid for β = 0.1–0.75, Re = 5,000–10⁷.
+        Iterative Cd convergence (&lt;1×10⁻⁷).
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Left column – geometry & pressure */}
+        <div className="space-y-4">
+          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Geometry</h4>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">Pipe ID (D) [mm]</label>
+              <Input value={pipeD} onChange={e => setPipeD(e.target.value)} placeholder="100" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Orifice Bore (d) [mm]</label>
+              <Input value={orificeD} onChange={e => setOrificeD(e.target.value)} placeholder="60" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Tap Type</label>
+            <Select value={tapType} onValueChange={setTapType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="corner">Corner Taps</SelectItem>
+                <SelectItem value="flangeD">Flange Taps (25.4 mm)</SelectItem>
+                <SelectItem value="DD2">D & D/2 Taps</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide pt-2">Differential Pressure</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">ΔP Value</label>
+              <Input value={diffP} onChange={e => setDiffP(e.target.value)} placeholder="250" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Unit</label>
+              <Select value={diffPUnit} onValueChange={setDiffPUnit}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mmH2O">mmH₂O</SelectItem>
+                  <SelectItem value="inH2O">inH₂O</SelectItem>
+                  <SelectItem value="mbar">mbar</SelectItem>
+                  <SelectItem value="kPa">kPa</SelectItem>
+                  <SelectItem value="bar">bar</SelectItem>
+                  <SelectItem value="psi">psi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Right column – fluid */}
+        <div className="space-y-4">
+          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Fluid Properties</h4>
+          <div>
+            <label className="text-sm font-medium">Fluid Preset</label>
+            <Select value={fluidPreset} onValueChange={handleFluidPreset}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(fluidPresets).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Density (ρ) [kg/m³]</label>
+            <Input value={density} onChange={e => { setDensity(e.target.value); setFluidPreset("custom"); }} />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Dynamic Viscosity (μ) [mPa·s = cP]</label>
+            <Input value={viscosity} onChange={e => { setViscosity(e.target.value); setFluidPreset("custom"); }} />
+          </div>
+        </div>
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" /> Calculate Flow Rate
+      </Button>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">{error}</div>
+      )}
+
+      {result && (
+        <div className="space-y-4">
+          {/* Primary Results */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Volumetric Flow", value: `${result.Qm3h} m³/h`, sub: `${result.Qlmin} L/min`, highlight: true },
+              { label: "Mass Flow Rate",  value: `${result.mdotKgh} kg/h`, sub: "", highlight: true },
+              { label: "Pipe Velocity",   value: `${result.vPipe} m/s`, sub: "" },
+              { label: "Orifice Velocity",value: `${result.vOrifice} m/s`, sub: "" },
+            ].map((r, i) => (
+              <div key={i} className={`rounded-lg p-3 text-center ${r.highlight ? "bg-blue-50 border border-blue-200" : "bg-muted"}`}>
+                <div className="text-xs text-muted-foreground">{r.label}</div>
+                <div className={`font-bold ${r.highlight ? "text-blue-700 text-lg" : "text-base"}`}>{r.value}</div>
+                {r.sub && <div className="text-xs text-muted-foreground">{r.sub}</div>}
+              </div>
+            ))}
+          </div>
+
+          {/* Calculation Parameters */}
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted px-4 py-2 font-semibold text-sm">Calculation Parameters (ISO 5167-2)</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+              {[
+                { label: "Beta Ratio (β = d/D)", value: result.beta },
+                { label: "Approach Factor (E)",  value: result.E },
+                { label: "Discharge Coeff. (Cd)", value: result.Cd },
+                { label: "Pipe Reynolds No.",    value: result.ReD },
+              ].map((r, i) => (
+                <div key={i} className="px-4 py-3 border-r border-b last:border-r-0">
+                  <div className="text-xs text-muted-foreground">{r.label}</div>
+                  <div className="font-mono font-semibold">{r.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Validity banner */}
+          <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${result.reOk ? "bg-green-50 border border-green-200 text-green-800" : "bg-amber-50 border border-amber-200 text-amber-800"}`}>
+            <span className="font-bold">{result.reOk ? "✓ Valid" : "⚠ Warning"}</span>
+            <span>
+              {result.reOk
+                ? `Reynolds number ${result.ReD} is within ISO 5167 valid range for β = ${result.beta}.`
+                : `Reynolds number ${result.ReD} is below the ISO 5167 minimum (Re ≥ ${result.reMin}) for this beta ratio. Results are extrapolated.`}
+            </span>
+          </div>
+
+          {/* Formula reference */}
+          <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
+            <p><strong>Formula:</strong> q = Cd × E × (π/4)d² × √(2ΔP/ρ) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
+            <p><strong>Standard:</strong> ISO 5167-2:2022 — Reader-Harris/Gallagher equation (iterative Cd)</p>
+            <p><strong>Tap types:</strong> Corner — L₁=L₂'=0 &nbsp;|&nbsp; Flange — L₁=L₂'=25.4/D &nbsp;|&nbsp; D & D/2 — L₁=1, L₂'=0.47</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DesignToolsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpenTool, setSearchOpenTool] = useState<{ id: string; name: string } | null>(null);
@@ -13801,6 +14079,7 @@ export default function DesignToolsPage() {
     { id: "pump-sizing", name: "Pump Sizing Calculator", description: "Size centrifugal pumps for piping systems", category: "piping", tags: ["pump", "sizing", "centrifugal", "head", "flow"] },
     { id: "expansion-joint", name: "Expansion Joint Calculator", description: "Calculate thermal expansion in piping", category: "piping", tags: ["expansion", "joint", "thermal", "stress", "displacement"] },
     { id: "pipe-support", name: "Pipe Support Calculator", description: "Design pipe supports and hangers", category: "piping", tags: ["pipe", "support", "hanger", "spacing", "load"] },
+    { id: "orifice-flow", name: "Orifice Plate Flow Calculator", description: "Calculate flow rate from differential pressure using ISO 5167-2 (RHG equation, iterative Cd)", category: "piping", tags: ["orifice", "plate", "flow", "differential", "pressure", "iso", "5167", "transmitter", "flowmeter", "beta", "discharge"] },
     
     // Electrical Design Tools
     { id: "cable-sizing", name: "Cable Sizing Calculator", description: "Size electrical cables based on current and voltage drop", category: "electrical", tags: ["cable", "sizing", "current", "voltage", "drop", "conductor"] },
@@ -13973,6 +14252,7 @@ export default function DesignToolsPage() {
                searchOpenTool.id === "combustion-air" ? <CombustionAirCalculator /> :
                searchOpenTool.id === "burner-capacity" ? <BurnerCapacityCalculator /> :
                searchOpenTool.id === "stack-design" ? <ChimneyDiameterHeightCalculator /> :
+               searchOpenTool.id === "orifice-flow" ? <OrificeFlowCalculator /> :
                searchOpenTool.id === "pressure-drop" ? <PressureDropCalculator /> :
                searchOpenTool.id === "pipe-support" ? <PipeSupportSpanEstimator /> :
                searchOpenTool.id === "motor-starter" ? <MotorStarterSizing /> :
@@ -16447,6 +16727,37 @@ export default function DesignToolsPage() {
                         <DialogTitle>Flash Calculation Tool</DialogTitle>
                       </DialogHeader>
                       <FlashCalculationTool />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Orifice Plate Flow Calculator */}
+              <Card className="hover:shadow-md transition-shadow border-blue-100">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Orifice Plate Flow Calculator</CardTitle>
+                    <CardDescription>
+                      ISO 5167-2 — flow from ΔP, iterative Cd (RHG)
+                    </CardDescription>
+                  </div>
+                  <Calculator className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Corner, flange &amp; D&amp;D/2 taps · β = 0.1–0.75 · liquid &amp; gas
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" /> Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Orifice Plate Flow Calculator (ISO 5167-2)</DialogTitle>
+                      </DialogHeader>
+                      <OrificeFlowCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
