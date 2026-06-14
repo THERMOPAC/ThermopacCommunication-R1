@@ -13900,6 +13900,7 @@ const OPC_KAPPA_PRESETS: Record<string, { label: string; k: string }> = {
 };
 
 // ── Pure helpers shared across all OPC calculation modes ──────────────────────
+// Orifice plate compressible-flow expansibility factor ε
 const opcComputeEps = (beta: number, dP: number, P1_Pa: number, k: number, isGas: boolean): number => {
   if (!isGas || P1_Pa <= 0) return 1;
   const pr = (P1_Pa - dP) / P1_Pa;
@@ -13987,7 +13988,7 @@ const opcSolveDp = (
   return { dP, Cd, eps, Re };
 };
 
-// ── Orifice Plate Flow Calculator (ISO 5167-2 + ISO 5167-4 expansibility) ─────
+// ── Orifice Plate Flow Calculator (ISO 5167-2 RHG + compressible-flow expansibility) ─────
 function OrificeFlowCalculator() {
   // ── Geometry & differential pressure ────────────────────────────────────
   const [pipeD, setPipeD]         = useState("100");
@@ -14319,7 +14320,8 @@ function OrificeFlowCalculator() {
 
       type Cand = { beta: number; d: number; dpMin: number; dpNormal: number; dpMax: number; ReMax: number; ReNormal: number; ReMin_: number; CdN: number; epsN: number };
       const cands: Cand[] = [];
-      for (let bi = 200; bi <= 700; bi += 5) {
+      // Scan full ISO 5167-2 valid range β = 0.100 – 0.750 (step 0.005)
+      for (let bi = 100; bi <= 750; bi += 5) {
         const b = bi / 1000;
         const dd = b * D;
         const sMax = opcSolveDp(Qmax, dd, D, rho, mu, isGas, P1_Pa, k, L1, L2p);
@@ -14336,19 +14338,27 @@ function OrificeFlowCalculator() {
           CdN: sN.Cd, epsN: sN.eps,
         });
       }
-      if (cands.length === 0) { setError("No valid orifice found in β = 0.20–0.70 range for the specified flow conditions. Check fluid properties and pipe diameter."); return; }
+      if (cands.length === 0) { setError("No ISO-valid orifice recommendation found for these inputs."); return; }
 
-      const dpLimit = isGas ? P1_Pa * 0.25 : 5e5; // 25% P1 or 500 kPa
-      const pref    = cands.filter(c => c.beta >= 0.4 && c.beta <= 0.65 && c.dpMax <= dpLimit);
-      const pool    = (pref.length > 0 ? pref : cands.filter(c => c.dpMax <= dpLimit));
-      const best    = (pool.length > 0 ? pool : cands).reduce((a, b) => Math.abs(b.beta - 0.52) < Math.abs(a.beta - 0.52) ? b : a);
-      const rMin    = reMinFor(best.beta);
+      // dpLimit: 25% of P1 for gas (compressible-flow ε validity); 500 kPa for liquids
+      const dpLimit = isGas ? P1_Pa * 0.25 : 5e5;
+      // reOk: Re at Qmax must be within ISO 5167-2 calibrated range
+      const validCands = cands.filter(c => {
+        if (c.dpMax > dpLimit) return false;
+        const rm = reMinFor(c.beta);
+        return c.ReMax >= rm && c.ReMax <= 1e7;
+      });
+      if (validCands.length === 0) { setError("No ISO-valid orifice recommendation found for these inputs."); return; }
+
+      const pref = validCands.filter(c => c.beta >= 0.4 && c.beta <= 0.65);
+      const pool = pref.length > 0 ? pref : validCands;
+      const best = pool.reduce((a, b) => Math.abs(b.beta - 0.52) < Math.abs(a.beta - 0.52) ? b : a);
+      const rMin = reMinFor(best.beta);
 
       const warnings: Warn[] = [...fluidWarns];
-      if (best.ReMin_ < rMin)        warnings.push({ level: "warn",  text: `Re at Qmin = ${best.ReMin_.toExponential(3)} < ISO minimum ${rMin.toLocaleString()}. Low-flow Cd accuracy reduced.` });
-      if (best.ReMax > 1e7)          warnings.push({ level: "warn",  text: `Re at Qmax = ${best.ReMax.toExponential(3)} > ISO 5167 upper limit 10⁷.` });
-      if (best.beta < 0.2 || best.beta > 0.7) warnings.push({ level: "error", text: `Recommended β = ${best.beta.toFixed(4)} outside ISO 5167 valid range. Review pipe diameter or flow conditions.` });
-      else if (best.beta < 0.4 || best.beta > 0.65) warnings.push({ level: "warn", text: `Recommended β = ${best.beta.toFixed(4)} is outside preferred range 0.40–0.65. Acceptable but not optimal.` });
+      if (best.ReMin_ < rMin) warnings.push({ level: "warn", text: `Re at Qmin = ${best.ReMin_.toExponential(3)} < ISO minimum ${rMin.toLocaleString()}. Low-flow Cd accuracy reduced.` });
+      if (best.ReMax > 1e7)   warnings.push({ level: "warn", text: `Re at Qmax = ${best.ReMax.toExponential(3)} > ISO 5167 upper limit 10⁷.` });
+      if (best.beta < 0.4 || best.beta > 0.65) warnings.push({ level: "warn", text: `Recommended β = ${best.beta.toFixed(4)} is outside preferred range 0.40–0.65. Acceptable but consider adjusting pipe diameter.` });
       if (isGas && best.dpMax / P1_Pa > 0.25) warnings.push({ level: "error", text: `ΔP at Qmax = ${(best.dpMax/P1_Pa*100).toFixed(1)}% of P₁ — exceeds 25% ISO compressible-flow limit.` });
       if (!isGas && best.dpMax > 5e5)         warnings.push({ level: "warn",  text: `ΔP at Qmax = ${(best.dpMax/1000).toFixed(1)} kPa — high differential pressure. Verify transmitter range.` });
 
@@ -14933,7 +14943,7 @@ function OrificeFlowCalculator() {
           <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
             <p><strong>Flow equation:</strong> q = Cd × ε × E × (π/4)d² × √(2ΔP/ρ₁) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
             {result.isGas
-              ? <p><strong>ε (compressible):</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1−(P₂/P₁)^(1/κ)] — ISO 5167-4; valid ΔP/P₁ ≤ 25%</p>
+              ? <p><strong>ε (compressible orifice):</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1−(P₂/P₁)^(1/κ)] — valid ΔP/P₁ ≤ 25%</p>
               : <p><strong>ε = 1</strong> for all liquid calculations (ISO 5167-2 §5.4)</p>}
             <p><strong>Cd:</strong> ISO 5167-2:2022 RHG iterative (convergence &lt;10⁻⁸) &nbsp;|&nbsp; Taps: Corner L₁=L₂'=0 · Flange L₁=L₂'=25.4/D · D&amp;D/2 L₁=1, L₂'=0.47</p>
           </div>
