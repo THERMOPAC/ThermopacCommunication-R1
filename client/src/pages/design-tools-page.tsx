@@ -14460,7 +14460,7 @@ function OrificeFlowCalculator() {
             <span className="font-bold shrink-0">{result.isGas ? "⚡ Gas/Steam mode" : "💧 Liquid mode"}</span>
             <span>
               {result.isGas
-                ? `Expansibility factor ε = ${result.eps} applied (ISO 5167-4). Flow equation: q = Cd × ε × E × A₂ × √(2ΔP/ρ₁).`
+                ? `Expansibility factor ε = ${result.eps} applied for compressible-flow orifice calculation. Flow equation: q = Cd × ε × E × A₂ × √(2ΔP/ρ₁).`
                 : "Incompressible flow — ε = 1.000 (no compressibility correction). Upstream pressure does not affect density calculation."}
             </span>
           </div>
@@ -14469,7 +14469,7 @@ function OrificeFlowCalculator() {
           <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
             <p><strong>Flow:</strong> q = Cd × ε × E × (π/4)d² × √(2ΔP/ρ₁) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
             {result.isGas
-              ? <p><strong>ε (ISO 5167-4):</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (P₂/P₁)^(1/κ)] — valid ΔP/P₁ ≤ 25%</p>
+              ? <p><strong>ε (orifice, compressible):</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (P₂/P₁)^(1/κ)] — valid ΔP/P₁ ≤ 25%</p>
               : <p><strong>ε:</strong> = 1 for all liquid calculations (ISO 5167-2 §5.4)</p>
             }
             <p><strong>Cd:</strong> ISO 5167-2:2022 RHG iterative (convergence &lt;10⁻⁸)</p>
