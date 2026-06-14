@@ -14114,7 +14114,20 @@ function OrificeFlowCalculator() {
       if (!isNaN(Z) && (Z < 0.95 || Z > 1.05))
         warnings.push({ level: "warn", text: `Z = ${Z.toFixed(3)} deviates from ideal (1.0). Ensure density entered is at actual upstream conditions.` });
     }
-    if (eff.isRef && eff.note)
+    // Steam: always flag ideal-gas approximation
+    if (fluidKey === "steam")
+      warnings.push({ level: "warn", text: "Steam properties are approximate (ideal-gas model only). Verify density and viscosity against steam tables before use in engineering sizing." });
+    // Natural gas: flag Z=1 default
+    if (fluidKey === "naturalGas" && isGas) {
+      const Zv = parseFloat(zFactor);
+      if (isNaN(Zv) || Math.abs(Zv - 1.0) < 0.001)
+        warnings.push({ level: "info", text: "Natural gas: Z = 1.0 (ideal gas assumed). At pressures above ~15 bar verify Z using an equation of state (e.g. AGA-8 or Peng-Robinson)." });
+    }
+    // Base oils and vacuum residue: always require lab verification
+    if (["sn150", "sn300", "sn500", "vacResidue"].includes(fluidKey))
+      warnings.push({ level: "warn", text: "Use lab-measured density and viscosity for final equipment sizing. Correlations are approximate reference values only." });
+    // General property note from auto correlation
+    if (eff.isRef && eff.note && !["sn150","sn300","sn500","vacResidue"].includes(fluidKey))
       warnings.push({ level: "info", text: eff.note });
 
     setResult({
@@ -14238,18 +14251,23 @@ function OrificeFlowCalculator() {
             </div>
             <div>
               <label className="text-sm font-medium">
-                Operating Pressure{isGasMode ? " (required)" : " (optional)"}
+                {isGasMode ? "Upstream Pressure P₁ (required)" : "Operating Pressure (optional)"}
               </label>
               <div className="flex gap-1">
-                <Input value={p1Val} onChange={e => setP1Val(e.target.value)} placeholder="1.01" className="flex-1 min-w-0" />
+                <Input value={p1Val} onChange={e => setP1Val(e.target.value)} placeholder="1.01325" className="flex-1 min-w-0" />
                 <Select value={p1Unit} onValueChange={v => setP1Unit(v as "bara" | "barg")}>
                   <SelectTrigger className="w-20 shrink-0"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="bara">bara</SelectItem>
-                    <SelectItem value="barg">barg</SelectItem>
+                    <SelectItem value="bara">bar a</SelectItem>
+                    <SelectItem value="barg">bar g</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {isGasMode && p1Unit === "barg" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  abs = {p1Val && !isNaN(parseFloat(p1Val)) ? (parseFloat(p1Val) + 1.01325).toFixed(4) : "—"} bar a
+                </p>
+              )}
             </div>
           </div>
 
@@ -14437,11 +14455,24 @@ function OrificeFlowCalculator() {
             </div>
           )}
 
+          {/* Equation mode note */}
+          <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${result.isGas ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-green-50 border border-green-200 text-green-800"}`}>
+            <span className="font-bold shrink-0">{result.isGas ? "⚡ Gas/Steam mode" : "💧 Liquid mode"}</span>
+            <span>
+              {result.isGas
+                ? `Expansibility factor ε = ${result.eps} applied (ISO 5167-4). Flow equation: q = Cd × ε × E × A₂ × √(2ΔP/ρ₁).`
+                : "Incompressible flow — ε = 1.000 (no compressibility correction). Upstream pressure does not affect density calculation."}
+            </span>
+          </div>
+
           {/* Formula reference */}
           <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
             <p><strong>Flow:</strong> q = Cd × ε × E × (π/4)d² × √(2ΔP/ρ₁) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
-            {result.isGas && <p><strong>ε:</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (P₂/P₁)^(1/κ)] &nbsp;|&nbsp; Liquid: ε = 1</p>}
-            <p><strong>Cd:</strong> ISO 5167-2:2022 RHG iterative (convergence &lt;10⁻⁸) &nbsp;|&nbsp; <strong>ε:</strong> ISO 5167-4 (valid ΔP/P₁ ≤ 25%)</p>
+            {result.isGas
+              ? <p><strong>ε (ISO 5167-4):</strong> 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (P₂/P₁)^(1/κ)] — valid ΔP/P₁ ≤ 25%</p>
+              : <p><strong>ε:</strong> = 1 for all liquid calculations (ISO 5167-2 §5.4)</p>
+            }
+            <p><strong>Cd:</strong> ISO 5167-2:2022 RHG iterative (convergence &lt;10⁻⁸)</p>
             <p><strong>Taps:</strong> Corner L₁=L₂'=0 &nbsp;|&nbsp; Flange L₁=L₂'=25.4/D &nbsp;|&nbsp; D&D/2 L₁=1, L₂'=0.47</p>
           </div>
         </div>
