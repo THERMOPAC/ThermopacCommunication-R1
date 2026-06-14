@@ -13759,28 +13759,55 @@ function SurfaceFinishChart() {
   );
 }
 
-// ── Orifice Plate Flow Calculator (ISO 5167-2) ────────────────────────────────
+// ── Orifice Plate Flow Calculator (ISO 5167-2 + ISO 5167-4 expansibility) ─────
 function OrificeFlowCalculator() {
-  const [pipeD, setPipeD]     = useState("100");      // mm
-  const [orificeD, setOrificeD] = useState("60");     // mm
-  const [diffP, setDiffP]     = useState("250");       // in selected unit
+  // ── Geometry & pressure ──────────────────────────────────────────────────
+  const [pipeD, setPipeD]         = useState("100");
+  const [orificeD, setOrificeD]   = useState("60");
+  const [diffP, setDiffP]         = useState("250");
   const [diffPUnit, setDiffPUnit] = useState("mmH2O");
-  const [tapType, setTapType] = useState("corner");
-  const [density, setDensity] = useState("1000");      // kg/m³
-  const [viscosity, setViscosity] = useState("1.0");   // mPa·s (cP)
-  const [fluidPreset, setFluidPreset] = useState("water");
-  const [result, setResult]   = useState<any>(null);
-  const [error, setError]     = useState("");
+  const [tapType, setTapType]     = useState("corner");
 
-  const fluidPresets: Record<string, { name: string; density: number; viscosity: number }> = {
-    water:      { name: "Water (20°C)",         density: 998.2,  viscosity: 1.002 },
-    water80:    { name: "Water (80°C)",          density: 971.8,  viscosity: 0.355 },
-    thermalOil: { name: "Thermal Oil (150°C)",   density: 850,    viscosity: 5.0   },
-    air:        { name: "Air (20°C, 1 bar)",     density: 1.204,  viscosity: 0.0182 },
-    steam:      { name: "Steam (150°C, 5 bar)",  density: 2.67,   viscosity: 0.0143 },
-    diesel:     { name: "Diesel (20°C)",         density: 840,    viscosity: 3.0   },
-    naturalGas: { name: "Natural Gas (20°C, 1 bar)", density: 0.717, viscosity: 0.011 },
-    custom:     { name: "Custom",               density: 0,      viscosity: 0     },
+  // ── Fluid ────────────────────────────────────────────────────────────────
+  const [fluidPreset, setFluidPreset] = useState("water");
+  const [fluidPhase, setFluidPhase]   = useState<"liquid" | "gas">("liquid");
+  const [density, setDensity]         = useState("998.2");
+  const [viscosity, setViscosity]     = useState("1.002");
+
+  // ── Gas-only compressibility inputs ──────────────────────────────────────
+  const [p1Bar, setP1Bar]   = useState("5.0");    // upstream abs pressure, bar
+  const [kappa, setKappa]   = useState("1.4");    // isentropic exponent
+  const [kappaPreset, setKappaPreset] = useState("air");
+  const [zFactor, setZFactor] = useState("1.0"); // compressibility factor Z
+
+  // ── Results ───────────────────────────────────────────────────────────────
+  const [result, setResult] = useState<any>(null);
+  const [error, setError]   = useState("");
+
+  // ─────────────────────────────────────────────────────────────────────────
+  type FluidPreset = { name: string; density: number; viscosity: number; phase: "liquid" | "gas"; kPreset?: string };
+  const fluidPresets: Record<string, FluidPreset> = {
+    water:      { name: "Water (20°C)",              density: 998.2,  viscosity: 1.002,  phase: "liquid" },
+    water80:    { name: "Water (80°C)",               density: 971.8,  viscosity: 0.355,  phase: "liquid" },
+    thermalOil: { name: "Thermal Oil (150°C)",        density: 850,    viscosity: 5.0,    phase: "liquid" },
+    diesel:     { name: "Diesel (20°C)",              density: 840,    viscosity: 3.0,    phase: "liquid" },
+    air:        { name: "Air (20°C, 1 bar abs)",      density: 1.204,  viscosity: 0.0182, phase: "gas",   kPreset: "air" },
+    steam150:   { name: "Steam (150°C, 5 bar abs)",   density: 2.67,   viscosity: 0.0143, phase: "gas",   kPreset: "steamSup" },
+    naturalGas: { name: "Natural Gas (20°C, 1 bar)", density: 0.717,  viscosity: 0.011,  phase: "gas",   kPreset: "natGas" },
+    co2:        { name: "CO₂ (20°C, 1 bar abs)",      density: 1.842,  viscosity: 0.0147, phase: "gas",   kPreset: "co2" },
+    custom:     { name: "Custom",                     density: 0,      viscosity: 0,      phase: "liquid" },
+  };
+
+  type KappaEntry = { label: string; k: string };
+  const kappaPresets: Record<string, KappaEntry> = {
+    air:      { label: "Air / N₂ / O₂ (diatomic)",  k: "1.400" },
+    natGas:   { label: "Natural Gas (methane-rich)", k: "1.270" },
+    steamSup: { label: "Superheated Steam",          k: "1.300" },
+    steamSat: { label: "Saturated Steam",            k: "1.135" },
+    co2:      { label: "CO₂",                        k: "1.289" },
+    propane:  { label: "Propane (C₃H₈)",             k: "1.130" },
+    h2:       { label: "Hydrogen (H₂)",              k: "1.410" },
+    custom:   { label: "Custom",                     k: "" },
   };
 
   const handleFluidPreset = (key: string) => {
@@ -13789,10 +13816,20 @@ function OrificeFlowCalculator() {
       const p = fluidPresets[key];
       setDensity(String(p.density));
       setViscosity(String(p.viscosity));
+      setFluidPhase(p.phase);
+      if (p.phase === "gas" && p.kPreset) {
+        setKappaPreset(p.kPreset);
+        setKappa(kappaPresets[p.kPreset].k);
+      }
     }
   };
 
-  // Convert differential pressure to Pa
+  const handleKappaPreset = (key: string) => {
+    setKappaPreset(key);
+    if (key !== "custom") setKappa(kappaPresets[key].k);
+  };
+
+  // ── Unit conversions ──────────────────────────────────────────────────────
   const toPa = (val: number, unit: string): number => {
     switch (unit) {
       case "mmH2O": return val * 9.80665;
@@ -13805,101 +13842,160 @@ function OrificeFlowCalculator() {
     }
   };
 
+  // ── Calculate ─────────────────────────────────────────────────────────────
   const calculate = () => {
     setError("");
     setResult(null);
 
-    const D  = parseFloat(pipeD)    / 1000; // m
-    const d  = parseFloat(orificeD) / 1000; // m
-    const dP = toPa(parseFloat(diffP), diffPUnit); // Pa
-    const rho = parseFloat(density);   // kg/m³
-    const mu  = parseFloat(viscosity) / 1000; // Pa·s
+    const D   = parseFloat(pipeD)    / 1000;              // m
+    const d   = parseFloat(orificeD) / 1000;              // m
+    const dP  = toPa(parseFloat(diffP), diffPUnit);       // Pa
+    const rho = parseFloat(density);                       // kg/m³
+    const mu  = parseFloat(viscosity) / 1000;             // Pa·s
+    const isGas = fluidPhase === "gas";
 
+    // ── Basic validation ──────────────────────────────────────────────────
     if ([D, d, dP, rho, mu].some(v => isNaN(v) || v <= 0)) {
-      setError("All inputs must be positive numbers."); return;
+      setError("All geometry, pressure, and fluid inputs must be positive numbers."); return;
     }
-    if (d >= D) { setError("Orifice bore must be smaller than pipe diameter."); return; }
+    if (d >= D) { setError("Orifice bore (d) must be smaller than pipe internal diameter (D)."); return; }
 
     const beta = d / D;
     if (beta < 0.1 || beta > 0.75) {
-      setError(`Beta ratio β = ${beta.toFixed(4)} is outside ISO 5167 valid range (0.1 – 0.75).`); return;
+      setError(`Beta ratio β = ${beta.toFixed(4)} is outside the ISO 5167 valid range (0.10 – 0.75). Adjust orifice bore or pipe diameter.`); return;
     }
-    if (dP <= 0) { setError("Differential pressure must be positive."); return; }
 
-    // Tap type: L1 and L2' (normalised to D)
+    // ── Gas-specific inputs ───────────────────────────────────────────────
+    let P1_Pa = 0, k = 0, Z = 1;
+    if (isGas) {
+      P1_Pa = parseFloat(p1Bar) * 1e5;   // bar abs → Pa
+      k     = parseFloat(kappa);
+      Z     = parseFloat(zFactor) || 1;
+      if (isNaN(P1_Pa) || P1_Pa <= 0) {
+        setError("Upstream absolute pressure P₁ is required for gas/vapour/steam — enter a value in bar (abs)."); return;
+      }
+      if (isNaN(k) || k <= 1) {
+        setError("Isentropic exponent κ must be > 1 (typically 1.13–1.41 for common gases)."); return;
+      }
+      if (dP >= P1_Pa) {
+        setError(`ΔP (${(dP / 1e5).toFixed(4)} bar) ≥ P₁ (${p1Bar} bar abs). This is physically impossible — choked or critical flow. Check inputs.`); return;
+      }
+    }
+
+    // ── Tap geometry parameters (ISO 5167-2, normalised to D) ────────────
     let L1 = 0, L2p = 0;
-    if (tapType === "corner")  { L1 = 0;          L2p = 0;          }
-    if (tapType === "flangeD") { L1 = 0.0254 / D;  L2p = 0.0254 / D; } // 25.4mm / D
-    if (tapType === "DD2")     { L1 = 1.0;         L2p = 0.47;       }
+    if (tapType === "corner")  { L1 = 0;           L2p = 0;          }
+    if (tapType === "flangeD") { L1 = 0.0254 / D;  L2p = 0.0254 / D; }
+    if (tapType === "DD2")     { L1 = 1.0;          L2p = 0.47;       }
 
-    const Apipe   = Math.PI * D * D / 4;
+    const Apipe    = Math.PI * D * D / 4;
     const Aorifice = Math.PI * d * d / 4;
-    const E       = 1 / Math.sqrt(1 - Math.pow(beta, 4)); // approach factor
+    const E        = 1 / Math.sqrt(1 - Math.pow(beta, 4));
+
+    // ── Expansibility factor ε (ISO 5167-4 / ISO 5167-2 Annex) ───────────
+    // For liquids: ε = 1
+    // For gases: ε = 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (P₂/P₁)^(1/κ)]
+    //   where P₂ = P₁ − ΔP  (absolute downstream pressure)
+    // Valid range: P₂/P₁ ≥ 0.75  (i.e. ΔP/P₁ ≤ 0.25)
+    let eps = 1;
+    let pressureRatio = 0;
+    if (isGas) {
+      const P2_Pa = P1_Pa - dP;
+      pressureRatio = P2_Pa / P1_Pa;   // should be 0.75 – 1.0 for validity
+      eps = 1 - (0.351 + 0.256 * Math.pow(beta, 4) + 0.93 * Math.pow(beta, 8))
+              * (1 - Math.pow(pressureRatio, 1 / k));
+    }
+
     const sqrtTerm = Math.sqrt(2 * dP / rho);
 
-    // Iterate: start Cd = 0.61, compute Re_D, update Cd (RHG equation ISO 5167-2)
+    // ── Iterative Cd (RHG equation, ISO 5167-2) ───────────────────────────
+    // Q = Cd × ε × E × A_orifice × √(2ΔP/ρ)
     let Cd = 0.61;
-    for (let i = 0; i < 20; i++) {
-      const Q   = Cd * E * Aorifice * sqrtTerm;
-      const v_D = Q / Apipe;
-      const ReD = (rho * v_D * D) / mu;
-      if (ReD < 1) break;
+    for (let i = 0; i < 30; i++) {
+      const Q_iter = Cd * eps * E * Aorifice * sqrtTerm;
+      const vD_iter = Q_iter / Apipe;
+      const ReD_iter = (rho * vD_iter * D) / mu;
+      if (ReD_iter < 1) break;
 
-      const A   = Math.pow(19000 * beta / ReD, 0.8);
-      const M2p = 2 * L2p / (1 - beta);
+      const A_rhg = Math.pow(19000 * beta / ReD_iter, 0.8);
+      const M2p   = 2 * L2p / (1 - beta);
 
       const CdNew =
         0.5961
         + 0.0261 * beta * beta
         - 0.216  * Math.pow(beta, 8)
-        + 0.000521 * Math.pow(1e6 * beta / ReD, 0.7)
-        + (0.0188 + 0.0063 * A) * Math.pow(beta, 3.5) * Math.pow(1e6 / ReD, 0.3)
+        + 0.000521 * Math.pow(1e6 * beta / ReD_iter, 0.7)
+        + (0.0188 + 0.0063 * A_rhg) * Math.pow(beta, 3.5) * Math.pow(1e6 / ReD_iter, 0.3)
         + (0.043 + 0.080 * Math.exp(-10 * L1) - 0.123 * Math.exp(-7 * L1))
-          * (1 - 0.11 * A) * Math.pow(beta, 4) / (1 - Math.pow(beta, 4))
+          * (1 - 0.11 * A_rhg) * Math.pow(beta, 4) / (1 - Math.pow(beta, 4))
         - 0.031 * (M2p - 0.8 * Math.pow(M2p, 1.1)) * Math.pow(beta, 1.3);
 
-      if (Math.abs(CdNew - Cd) < 1e-7) { Cd = CdNew; break; }
+      if (Math.abs(CdNew - Cd) < 1e-8) { Cd = CdNew; break; }
       Cd = CdNew;
     }
 
-    const Q    = Cd * E * Aorifice * sqrtTerm;   // m³/s
-    const mdot = Q * rho;                         // kg/s
-    const vD   = Q / Apipe;                       // m/s pipe velocity
+    const Q    = Cd * eps * E * Aorifice * sqrtTerm;   // m³/s (at upstream conditions)
+    const mdot = Q * rho;                               // kg/s
+    const vD   = Q / Apipe;
     const ReD  = (rho * vD * D) / mu;
 
-    // Re validity check (ISO 5167)
+    // ── ISO 5167 validity checks → warning list ───────────────────────────
+    const warnings: { level: "error" | "warn"; text: string }[] = [];
+
     const ReMin = beta >= 0.56 ? 50000 : (beta >= 0.50 ? 16000 : 5000);
-    const reOk  = ReD >= ReMin && ReD <= 1e7;
+    if (ReD < ReMin)
+      warnings.push({ level: "warn", text: `Reynolds number Re = ${ReD.toExponential(3)} is below the ISO 5167 minimum (Re ≥ ${ReMin.toLocaleString()}) for β = ${beta.toFixed(4)}. Results are extrapolated outside the standard's calibration range.` });
+    if (ReD > 1e7)
+      warnings.push({ level: "warn", text: `Reynolds number Re = ${ReD.toExponential(3)} exceeds the ISO 5167 upper limit of 10⁷. Cd accuracy may be reduced.` });
+
+    if (isGas) {
+      const dpP1ratio = dP / P1_Pa;
+      if (pressureRatio < 0.75)
+        warnings.push({ level: "error", text: `ΔP/P₁ = ${(dpP1ratio * 100).toFixed(1)}% exceeds the ISO 5167 expansibility formula limit of 25% (P₂/P₁ < 0.75). The ε equation is extrapolated; consider a different flow element or reduce ΔP.` });
+      else if (dpP1ratio > 0.10)
+        warnings.push({ level: "warn", text: `ΔP/P₁ = ${(dpP1ratio * 100).toFixed(1)}%. Compressibility correction is significant (>10%). Ensure upstream density ρ₁ at P₁, T₁ is used, not standard/reference conditions.` });
+      if (eps < 0.90)
+        warnings.push({ level: "warn", text: `Expansibility factor ε = ${eps.toFixed(4)} — a ${((1 - eps) * 100).toFixed(1)}% correction. High compressibility effect; verify κ and P₁.` });
+      if (Z < 0.95 || Z > 1.05)
+        warnings.push({ level: "warn", text: `Compressibility factor Z = ${Z.toFixed(4)} deviates significantly from 1.0. Ensure the upstream density entered already accounts for real-gas behaviour at P₁, T₁.` });
+    }
 
     setResult({
-      beta:    beta.toFixed(4),
-      E:       E.toFixed(4),
-      Cd:      Cd.toFixed(4),
-      ReD:     ReD.toExponential(3),
-      ReDRaw:  ReD,
-      Qm3h:    (Q * 3600).toFixed(3),
-      Qlmin:   (Q * 1000 * 60).toFixed(2),
-      mdotKgh: (mdot * 3600).toFixed(2),
-      vPipe:   vD.toFixed(3),
-      vOrifice: (Q / Aorifice).toFixed(2),
-      reOk,
+      beta:          beta.toFixed(4),
+      E:             E.toFixed(4),
+      Cd:            Cd.toFixed(4),
+      eps:           eps.toFixed(4),
+      epsIsOne:      !isGas,
+      ReD:           ReD.toExponential(3),
+      Qm3h:          (Q * 3600).toFixed(4),
+      Qlmin:         (Q * 1000 * 60).toFixed(3),
+      mdotKgh:       (mdot * 3600).toFixed(3),
+      vPipe:         vD.toFixed(3),
+      vOrifice:      (Q / Aorifice).toFixed(2),
+      pressureRatio: isGas ? pressureRatio.toFixed(4) : null,
+      dpP1pct:       isGas ? ((dP / P1_Pa) * 100).toFixed(2) : null,
+      isGas,
+      warnings,
+      reOk: ReD >= ReMin && ReD <= 1e7,
       reMin: ReMin.toLocaleString(),
-      betaOk: beta >= 0.1 && beta <= 0.75,
     });
   };
 
+  const isGasMode = fluidPhase === "gas";
+
   return (
     <div className="space-y-5">
+      {/* Header banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-        <strong>ISO 5167-2</strong> — Reader-Harris/Gallagher equation. Valid for β = 0.1–0.75, Re = 5,000–10⁷.
-        Iterative Cd convergence (&lt;1×10⁻⁷).
+        <strong>ISO 5167-2</strong> — Reader-Harris/Gallagher iterative Cd.&nbsp;
+        <strong>ISO 5167-4</strong> — expansibility factor ε for compressible fluids.&nbsp;
+        Valid: β = 0.10–0.75, Re = 5,000–10⁷, ΔP/P₁ ≤ 25%.
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Left column – geometry & pressure */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* ── Left: geometry & pressure ── */}
         <div className="space-y-4">
           <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Geometry</h4>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">Pipe ID (D) [mm]</label>
@@ -13910,7 +14006,6 @@ function OrificeFlowCalculator() {
               <Input value={orificeD} onChange={e => setOrificeD(e.target.value)} placeholder="60" />
             </div>
           </div>
-
           <div>
             <label className="text-sm font-medium">Tap Type</label>
             <Select value={tapType} onValueChange={setTapType}>
@@ -13923,7 +14018,7 @@ function OrificeFlowCalculator() {
             </Select>
           </div>
 
-          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide pt-2">Differential Pressure</h4>
+          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide pt-1">Differential Pressure</h4>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium">ΔP Value</label>
@@ -13946,47 +14041,123 @@ function OrificeFlowCalculator() {
           </div>
         </div>
 
-        {/* Right column – fluid */}
+        {/* ── Right: fluid ── */}
         <div className="space-y-4">
-          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Fluid Properties</h4>
+          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Fluid</h4>
+
+          {/* Phase toggle */}
+          <div>
+            <label className="text-sm font-medium">Phase</label>
+            <div className="flex rounded-md border overflow-hidden mt-1">
+              {(["liquid", "gas"] as const).map(ph => (
+                <button
+                  key={ph}
+                  onClick={() => setFluidPhase(ph)}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                    fluidPhase === ph
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {ph === "liquid" ? "💧 Liquid" : "💨 Gas / Vapour / Steam"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="text-sm font-medium">Fluid Preset</label>
             <Select value={fluidPreset} onValueChange={handleFluidPreset}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {Object.entries(fluidPresets).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v.name}</SelectItem>
-                ))}
+                <SelectItem value="water">Water (20°C)</SelectItem>
+                <SelectItem value="water80">Water (80°C)</SelectItem>
+                <SelectItem value="thermalOil">Thermal Oil (150°C)</SelectItem>
+                <SelectItem value="diesel">Diesel (20°C)</SelectItem>
+                <SelectItem value="air">Air (20°C, 1 bar abs)</SelectItem>
+                <SelectItem value="steam150">Steam (150°C, 5 bar abs)</SelectItem>
+                <SelectItem value="naturalGas">Natural Gas (20°C, 1 bar)</SelectItem>
+                <SelectItem value="co2">CO₂ (20°C, 1 bar abs)</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <label className="text-sm font-medium">Density (ρ) [kg/m³]</label>
-            <Input value={density} onChange={e => { setDensity(e.target.value); setFluidPreset("custom"); }} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium">Density ρ₁ [kg/m³]</label>
+              <Input value={density} onChange={e => { setDensity(e.target.value); setFluidPreset("custom"); }} />
+              {isGasMode && <p className="text-xs text-muted-foreground mt-1">At upstream P₁, T₁</p>}
+            </div>
+            <div>
+              <label className="text-sm font-medium">Viscosity μ [mPa·s]</label>
+              <Input value={viscosity} onChange={e => { setViscosity(e.target.value); setFluidPreset("custom"); }} />
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium">Dynamic Viscosity (μ) [mPa·s = cP]</label>
-            <Input value={viscosity} onChange={e => { setViscosity(e.target.value); setFluidPreset("custom"); }} />
-          </div>
+
+          {/* ── Gas-only compressibility panel ── */}
+          {isGasMode && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-3">
+              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Compressibility Inputs (Gas / Steam)</p>
+
+              <div>
+                <label className="text-sm font-medium">Upstream Abs. Pressure P₁ [bar abs]</label>
+                <Input
+                  value={p1Bar}
+                  onChange={e => setP1Bar(e.target.value)}
+                  placeholder="5.0"
+                  className="border-amber-300 focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Isentropic Exponent (κ) — Preset</label>
+                <Select value={kappaPreset} onValueChange={handleKappaPreset}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(kappaPresets).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v.label}{k !== "custom" ? ` — κ = ${v.k}` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium">κ (manual override)</label>
+                  <Input value={kappa} onChange={e => { setKappa(e.target.value); setKappaPreset("custom"); }} placeholder="1.4" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Z factor</label>
+                  <Input value={zFactor} onChange={e => setZFactor(e.target.value)} placeholder="1.0" />
+                  <p className="text-xs text-muted-foreground mt-1">Ideal gas = 1.0</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <Button onClick={calculate} className="w-full">
-        <Calculator className="h-4 w-4 mr-2" /> Calculate Flow Rate
+        <Calculator className="h-4 w-4 mr-2" />
+        {isGasMode ? "Calculate Flow Rate (Compressible)" : "Calculate Flow Rate (Liquid)"}
       </Button>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">{error}</div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800 flex gap-2">
+          <span className="font-bold shrink-0">✕ Error:</span>
+          <span>{error}</span>
+        </div>
       )}
 
       {result && (
         <div className="space-y-4">
-          {/* Primary Results */}
+          {/* ── Primary flow results ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: "Volumetric Flow", value: `${result.Qm3h} m³/h`, sub: `${result.Qlmin} L/min`, highlight: true },
               { label: "Mass Flow Rate",  value: `${result.mdotKgh} kg/h`, sub: "", highlight: true },
-              { label: "Pipe Velocity",   value: `${result.vPipe} m/s`, sub: "" },
+              { label: "Pipe Velocity",   value: `${result.vPipe} m/s`,    sub: "" },
               { label: "Orifice Velocity",value: `${result.vOrifice} m/s`, sub: "" },
             ].map((r, i) => (
               <div key={i} className={`rounded-lg p-3 text-center ${r.highlight ? "bg-blue-50 border border-blue-200" : "bg-muted"}`}>
@@ -13997,39 +14168,56 @@ function OrificeFlowCalculator() {
             ))}
           </div>
 
-          {/* Calculation Parameters */}
+          {/* ── Calculation parameters ── */}
           <div className="border rounded-lg overflow-hidden">
-            <div className="bg-muted px-4 py-2 font-semibold text-sm">Calculation Parameters (ISO 5167-2)</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+            <div className="bg-muted px-4 py-2 font-semibold text-sm">ISO 5167 Calculation Parameters</div>
+            <div className={`grid gap-0 ${result.isGas ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-4"}`}>
               {[
-                { label: "Beta Ratio (β = d/D)", value: result.beta },
-                { label: "Approach Factor (E)",  value: result.E },
-                { label: "Discharge Coeff. (Cd)", value: result.Cd },
-                { label: "Pipe Reynolds No.",    value: result.ReD },
+                { label: "Beta Ratio (β = d/D)",   value: result.beta },
+                { label: "Approach Factor (E)",     value: result.E },
+                { label: "Discharge Coeff. (Cd)",  value: result.Cd },
+                ...(!result.epsIsOne ? [{ label: "Expansibility (ε)", value: result.eps }] : []),
+                { label: "Pipe Reynolds No.",       value: result.ReD },
+                ...(result.isGas ? [{ label: "P₂/P₁ ratio", value: result.pressureRatio }, { label: "ΔP / P₁", value: `${result.dpP1pct}%` }] : []),
               ].map((r, i) => (
-                <div key={i} className="px-4 py-3 border-r border-b last:border-r-0">
+                <div key={i} className="px-4 py-3 border-r border-b">
                   <div className="text-xs text-muted-foreground">{r.label}</div>
-                  <div className="font-mono font-semibold">{r.value}</div>
+                  <div className={`font-mono font-semibold ${r.label === "Expansibility (ε)" ? "text-amber-700" : ""}`}>{r.value}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Validity banner */}
-          <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${result.reOk ? "bg-green-50 border border-green-200 text-green-800" : "bg-amber-50 border border-amber-200 text-amber-800"}`}>
-            <span className="font-bold">{result.reOk ? "✓ Valid" : "⚠ Warning"}</span>
-            <span>
-              {result.reOk
-                ? `Reynolds number ${result.ReD} is within ISO 5167 valid range for β = ${result.beta}.`
-                : `Reynolds number ${result.ReD} is below the ISO 5167 minimum (Re ≥ ${result.reMin}) for this beta ratio. Results are extrapolated.`}
-            </span>
-          </div>
+          {/* ── Validity warnings ── */}
+          {result.warnings.length === 0 ? (
+            <div className="rounded-lg p-3 text-sm flex items-start gap-2 bg-green-50 border border-green-200 text-green-800">
+              <span className="font-bold shrink-0">✓ Valid</span>
+              <span>All ISO 5167 validity conditions satisfied for β = {result.beta}, Re = {result.ReD}{result.isGas ? `, ΔP/P₁ = ${result.dpP1pct}%` : ""}.</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {result.warnings.map((w: { level: string; text: string }, i: number) => (
+                <div key={i} className={`rounded-lg p-3 text-sm flex items-start gap-2 ${
+                  w.level === "error"
+                    ? "bg-red-50 border border-red-200 text-red-800"
+                    : "bg-amber-50 border border-amber-200 text-amber-800"
+                }`}>
+                  <span className="font-bold shrink-0">{w.level === "error" ? "✕ Exceeds limit" : "⚠ Warning"}</span>
+                  <span>{w.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
-          {/* Formula reference */}
+          {/* ── Formula reference ── */}
           <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
-            <p><strong>Formula:</strong> q = Cd × E × (π/4)d² × √(2ΔP/ρ) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
-            <p><strong>Standard:</strong> ISO 5167-2:2022 — Reader-Harris/Gallagher equation (iterative Cd)</p>
-            <p><strong>Tap types:</strong> Corner — L₁=L₂'=0 &nbsp;|&nbsp; Flange — L₁=L₂'=25.4/D &nbsp;|&nbsp; D & D/2 — L₁=1, L₂'=0.47</p>
+            <p><strong>Flow equation:</strong> q = Cd × ε × E × (π/4)d² × √(2ΔP/ρ₁) &nbsp;|&nbsp; E = 1/√(1−β⁴)</p>
+            {result.isGas && (
+              <p><strong>Expansibility:</strong> ε = 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (P₂/P₁)^(1/κ)] &nbsp;|&nbsp; For liquids: ε = 1</p>
+            )}
+            <p><strong>Cd standard:</strong> ISO 5167-2:2022 — Reader-Harris/Gallagher (iterative, convergence &lt;10⁻⁸)</p>
+            <p><strong>ε standard:</strong> ISO 5167-4 / ISO 5167-2 Annex — valid for ΔP/P₁ ≤ 25%</p>
+            <p><strong>Tap geometry:</strong> Corner — L₁=L₂'=0 &nbsp;|&nbsp; Flange — L₁=L₂'=25.4/D &nbsp;|&nbsp; D & D/2 — L₁=1, L₂'=0.47</p>
           </div>
         </div>
       )}
