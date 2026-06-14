@@ -14079,7 +14079,7 @@ export default function DesignToolsPage() {
     { id: "pump-sizing", name: "Pump Sizing Calculator", description: "Size centrifugal pumps for piping systems", category: "piping", tags: ["pump", "sizing", "centrifugal", "head", "flow"] },
     { id: "expansion-joint", name: "Expansion Joint Calculator", description: "Calculate thermal expansion in piping", category: "piping", tags: ["expansion", "joint", "thermal", "stress", "displacement"] },
     { id: "pipe-support", name: "Pipe Support Calculator", description: "Design pipe supports and hangers", category: "piping", tags: ["pipe", "support", "hanger", "spacing", "load"] },
-    { id: "orifice-flow", name: "Orifice Plate Flow Calculator", description: "Calculate flow rate from differential pressure using ISO 5167-2 (RHG equation, iterative Cd)", category: "piping", tags: ["orifice", "plate", "flow", "differential", "pressure", "iso", "5167", "transmitter", "flowmeter", "beta", "discharge"] },
+    { id: "orifice-flow", name: "Orifice Plate Calculator", description: "Calculate flow rate from differential pressure using ISO 5167-2 (RHG equation, iterative Cd). Orifice plate flowmeter sizing, beta ratio, discharge coefficient.", category: "piping", tags: ["orifice", "plate", "flow", "differential", "pressure", "iso", "5167", "transmitter", "flowmeter", "beta", "discharge", "calculator"] },
     
     // Electrical Design Tools
     { id: "cable-sizing", name: "Cable Sizing Calculator", description: "Size electrical cables based on current and voltage drop", category: "electrical", tags: ["cable", "sizing", "current", "voltage", "drop", "conductor"] },
@@ -16736,7 +16736,7 @@ export default function DesignToolsPage() {
               <Card className="hover:shadow-md transition-shadow border-blue-100">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Orifice Plate Flow Calculator</CardTitle>
+                    <CardTitle className="text-base">Orifice Plate Calculator</CardTitle>
                     <CardDescription>
                       ISO 5167-2 — flow from ΔP, iterative Cd (RHG)
                     </CardDescription>
@@ -16755,7 +16755,7 @@ export default function DesignToolsPage() {
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Orifice Plate Flow Calculator (ISO 5167-2)</DialogTitle>
+                        <DialogTitle>Orifice Plate Calculator (ISO 5167-2)</DialogTitle>
                       </DialogHeader>
                       <OrificeFlowCalculator />
                     </DialogContent>
