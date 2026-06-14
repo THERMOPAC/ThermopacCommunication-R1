@@ -18,7 +18,7 @@ import { sendHeartbeat, claimJob } from './api-client';
 import { runJob } from './job-runner';
 import { ServiceHealth } from './service-health';
 
-const AGENT_VERSION = '1.0.4';
+const AGENT_VERSION = '1.0.5';
 const MACHINE_NAME  = os.hostname();
 
 function logIdentity(allowedRoot: string): void {
@@ -32,15 +32,46 @@ function logIdentity(allowedRoot: string): void {
     info(`[IDENTITY] os.userInfo = (error: ${e})`);
   }
 
-  // Can this process read/write the allowed root?
+  // ── Share-level diagnostic ────────────────────────────────────────────────
+  // Purpose: distinguish "share is unreachable" from "THERMOPAC folder denied"
+  const shareRoot   = '\\\\Server\\d';
+  const thermopac   = '\\\\Server\\d\\THERMOPAC';
+
+  const shareExists = fs.existsSync(shareRoot);
+  info(`[DIAG] fs.existsSync('${shareRoot}')      = ${shareExists}`);
+
+  const thermopacExists = fs.existsSync(thermopac);
+  info(`[DIAG] fs.existsSync('${thermopac}') = ${thermopacExists}`);
+
+  if (shareExists) {
+    try {
+      const entries = fs.readdirSync(shareRoot);
+      info(`[DIAG] fs.readdirSync('${shareRoot}') = [${entries.join(', ')}]`);
+    } catch (e: any) {
+      info(`[DIAG] fs.readdirSync('${shareRoot}') ERROR code=${e.code ?? '?'} msg=${e.message}`);
+    }
+  } else {
+    info(`[DIAG] fs.readdirSync('${shareRoot}') skipped — share not visible`);
+  }
+
+  // ── allowedRoot access diagnostic ────────────────────────────────────────
   const rootExists = fs.existsSync(allowedRoot);
   info(`[IDENTITY] allowedRoot "${allowedRoot}"  exists=${rootExists}`);
+
   if (rootExists) {
     let readable = false;
     let writable = false;
     try { fs.accessSync(allowedRoot, fs.constants.R_OK); readable = true; } catch { /* no */ }
     try { fs.accessSync(allowedRoot, fs.constants.W_OK); writable = true; } catch { /* no */ }
     info(`[IDENTITY] allowedRoot readable=${readable}  writable=${writable}`);
+  } else {
+    // allowedRoot not found — capture the exact error code from accessSync
+    try {
+      fs.accessSync(allowedRoot, fs.constants.F_OK);
+      info(`[IDENTITY] allowedRoot accessSync(F_OK) unexpectedly succeeded`);
+    } catch (e: any) {
+      info(`[IDENTITY] allowedRoot accessSync(F_OK) ERROR code=${e.code ?? '?'} msg=${e.message}`);
+    }
   }
 }
 
