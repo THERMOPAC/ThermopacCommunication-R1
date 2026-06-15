@@ -20,7 +20,7 @@ import {
   offers,
   customers,
 } from '@shared/schema';
-import { triggerFileMigration, hasMigrationHandler } from './services/gcs-file-migration-service';
+import { triggerFileMigration, hasMigrationHandler, previewMigration } from './services/gcs-file-migration-service';
 import { eq, desc, and, or, ilike, isNull, isNotNull, count, sql, ne } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import {
@@ -420,11 +420,64 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
-  // ── File Migration Jobs — manual trigger ─────────────────────────────────
+  // ── File Migration — dry-run preview (read-only, no GCS/DB changes) ─────
+  app.post('/api/gcs-governance/rules/:id/migrate-files/dry-run', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      const ruleId = parseInt(req.params.id);
+      const ruleRows = await db.execute(sql`
+        SELECT document_type, path_template, root_prefix, governance_mode FROM gcs_governance_rules WHERE id = ${ruleId} AND active = true
+      `).then((r: any) => r.rows);
+      const rule = ruleRows[0] as any;
+      if (!rule) return res.status(404).json({ error: 'Rule not found or inactive' });
+      if (!hasMigrationHandler(rule.document_type)) {
+        return res.status(422).json({ error: `No migration handler available for documentType=${rule.document_type}` });
+      }
+      const preview = await previewMigration({
+        ruleId,
+        documentType: rule.document_type,
+        pathTemplate: rule.path_template,
+        rootPrefix:   rule.root_prefix,
+        triggeredBy:  (req as any).user?.id ?? undefined,
+      });
+      // 200 (synchronous) — preview is computed inline, no background job
+      res.status(200).json(preview);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── File Migration — actual run (requires prior dry-run approval) ─────────
+  // Body must include { approvedDryRunJobId: <number> } referencing a
+  // dry_run job for this rule with status='preview'.  This prevents accidental
+  // migration without first reviewing the dry-run output.
   app.post('/api/gcs-governance/rules/:id/migrate-files', ensureAuthenticated, async (req, res) => {
     if (!superuserOnly(req, res)) return;
     try {
       const ruleId = parseInt(req.params.id);
+      const { approvedDryRunJobId } = req.body ?? {};
+
+      // ── Approval gate ──────────────────────────────────────────────────────
+      if (!approvedDryRunJobId || typeof approvedDryRunJobId !== 'number') {
+        return res.status(400).json({
+          error: 'approvedDryRunJobId is required. Run the dry-run preview first and pass its jobId here.',
+        });
+      }
+      const dryRunRows = await db.execute(sql`
+        SELECT id FROM gcs_file_migration_jobs
+        WHERE id           = ${approvedDryRunJobId}
+          AND rule_id      = ${ruleId}
+          AND trigger_reason = 'dry_run'
+          AND status       = 'preview'
+      `).then((r: any) => r.rows);
+      if (!dryRunRows.length) {
+        return res.status(400).json({
+          error: `No approved dry-run found (jobId=${approvedDryRunJobId}) for this rule. ` +
+                 'Run the dry-run preview and pass its jobId to confirm.',
+        });
+      }
+
+      // ── Proceed with actual migration ──────────────────────────────────────
       const ruleRows = await db.execute(sql`
         SELECT document_type, path_template, root_prefix, governance_mode FROM gcs_governance_rules WHERE id = ${ruleId} AND active = true
       `).then((r: any) => r.rows);

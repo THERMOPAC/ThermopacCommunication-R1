@@ -90,12 +90,44 @@ function slugType(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
 }
 
+/**
+ * Sanitise a raw document_name for use as a GCS object-name segment.
+ * - Preserves the original file extension (e.g. .pdf)
+ * - Spaces → underscores
+ * - Retains: a-z A-Z 0-9  .  -  _  (  )
+ * - Everything else → _
+ * - Collapses consecutive underscores; trims leading/trailing underscores
+ * - Falls back to "document" if the base becomes empty after sanitisation
+ */
+function sanitizeFilenameForGCS(raw: string): string {
+  const ext      = path.extname(raw);
+  const base     = path.basename(raw, ext);
+  const cleanBase = base
+    .replace(/\s+/g, '_')
+    .replace(/[^\w\-().]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return (cleanBase || 'document') + ext;
+}
+
 // ── Per-item status values ────────────────────────────────────────────────────
 // pending → copying → verified → completed
 //                              → failed
 //          → skipped
 
 type ItemStatus = 'pending' | 'copying' | 'verified' | 'completed' | 'skipped' | 'failed' | 'missing_source';
+
+// ── Dry-run preview item ──────────────────────────────────────────────────────
+
+export interface MigrationPreviewItem {
+  fileId:       number;
+  tableName:    string;
+  oldPath:      string;
+  newPath:      string | null;
+  sourceExists: boolean | null;   // null = GCS not available (dev env)
+  filenameUsed: string | null;
+  error?:       string;
+}
 
 // ── Handler registry interface ────────────────────────────────────────────────
 
@@ -119,6 +151,7 @@ const HANDLERS: Record<string, MigrationHandler> = {
           td.id,
           td.file_path      AS "filePath",
           td.document_type  AS "documentType",
+          td.document_name  AS "documentName",
           bt.destination,
           bt.from_date      AS "fromDate",
           u.first_name      AS "firstName",
@@ -145,7 +178,9 @@ const HANDLERS: Record<string, MigrationHandler> = {
       );
       const destination = slugName(record.destination);
       const docType     = slugType(record.documentType);
-      const filename    = path.basename(record.filePath);
+      // Use document_name (original filename) sanitised for GCS; fall back to basename if null
+      const rawFilename = record.documentName || path.basename(record.filePath);
+      const filename    = sanitizeFilenameForGCS(rawFilename);
       return resolvePathTemplate(template, {
         CompanyFY: companyFY,
         EmployeeName: employeeName,
@@ -243,9 +278,16 @@ const HANDLERS: Record<string, MigrationHandler> = {
   },
 };
 
-// ── GCS copy → verify → DB update → delete (best-effort) ─────────────────────
+// ── GCS copy → verify (source intentionally preserved) ───────────────────────
+//
+// Policy: the original GCS object is NEVER deleted during migration.
+// After migration the file exists at both the old path (historical reference)
+// and the new governed path.  The DB record is updated to point to the new
+// path so all application access goes through the canonical location.
+// Old objects can be cleaned up manually by an administrator after confirming
+// the migration is correct and all parties have reviewed the dry-run.
 
-async function gcsCopyVerifyDelete(
+async function gcsCopyVerify(
   bucket: any,
   sourcePath: string,
   destPath:   string
@@ -271,12 +313,7 @@ async function gcsCopyVerifyDelete(
     );
   }
 
-  // 4. Delete source (best-effort — a failed delete is logged but never fails the migration)
-  try {
-    await sourceFile.delete();
-  } catch (delErr: any) {
-    console.warn(`${TAG} Source delete failed (orphaned object at ${sourcePath}): ${delErr.message}`);
-  }
+  // Source is intentionally NOT deleted — old object kept for audit/safety.
 }
 
 // ── Job progress helpers ───────────────────────────────────────────────────────
@@ -428,10 +465,10 @@ async function runMigrationBackground(
         continue;
       }
 
-      // 2. Source exists — copy → verify → delete source
+      // 2. Source exists — copy → verify (source preserved at old path)
       await upsertItem(jobId, record.id, handler.tableName, oldPath, 'copying', newPath);
       try {
-        await gcsCopyVerifyDelete(bucket, oldPath, newPath);
+        await gcsCopyVerify(bucket, oldPath, newPath);
         console.log(`${TAG} [job=${jobId}] GCS: ${oldPath} → ${newPath}`);
       } catch (err: any) {
         console.warn(`${TAG} [job=${jobId}] GCS error id=${record.id}: ${err.message}`);
@@ -491,7 +528,7 @@ export async function triggerFileMigration(params: {
   documentType:  string;
   pathTemplate:  string;
   rootPrefix:    string;
-  triggerReason: 'auto_db_driven' | 'auto_template_change' | 'manual';
+  triggerReason: 'auto_db_driven' | 'auto_template_change' | 'manual' | 'dry_run';
   triggeredBy?:  number;
 }): Promise<{ jobId: number }> {
   const [job] = await db.insert(gcsFileMigrationJobs).values({
@@ -525,4 +562,107 @@ export async function triggerFileMigration(params: {
 
 export function hasMigrationHandler(documentType: string): boolean {
   return documentType in HANDLERS;
+}
+
+// ── Dry-run preview (read-only — no GCS writes, no DB changes) ────────────────
+//
+// Creates a job record with trigger_reason='dry_run' and status='preview'
+// so it can be used as an approval token for the actual migration.
+// Returns an array of MigrationPreviewItem so the caller can render the table.
+
+export async function previewMigration(params: {
+  ruleId:        number;
+  documentType:  string;
+  pathTemplate:  string;
+  rootPrefix:    string;
+  triggeredBy?:  number;
+}): Promise<{ jobId: number; alreadyCompliant: number; items: MigrationPreviewItem[] }> {
+  const handler = HANDLERS[params.documentType];
+  if (!handler) {
+    throw new Error(`No migration handler for documentType=${params.documentType}`);
+  }
+
+  // Create the dry-run job record — used as approval token by the real migration route
+  const [job] = await db.insert(gcsFileMigrationJobs).values({
+    ruleId:         params.ruleId,
+    documentType:   params.documentType,
+    triggerReason:  'dry_run',
+    triggeredBy:    params.triggeredBy ?? null,
+    status:         'preview',
+    totalFiles:     0,
+    processedFiles: 0,
+    migratedFiles:  0,
+    skippedFiles:   0,
+    failedFiles:    0,
+  }).returning();
+
+  console.log(`${TAG} Dry-run job ${job.id} started for ${params.documentType}`);
+
+  const bucket = getBucket();
+  const regex  = templateToRegex(params.pathTemplate);
+
+  let allRecords: Array<{ id: number; filePath: string; [k: string]: any }> = [];
+  try {
+    allRecords = await handler.fetchAllRecords();
+  } catch (err: any) {
+    await db.update(gcsFileMigrationJobs)
+      .set({ status: 'failed', completedAt: new Date() })
+      .where(eq(gcsFileMigrationJobs.id, job.id));
+    throw err;
+  }
+
+  const candidates     = allRecords.filter(r => r.filePath && !regex.test(r.filePath));
+  const alreadyCompliant = allRecords.length - candidates.length;
+  const items: MigrationPreviewItem[] = [];
+
+  for (const record of candidates) {
+    // Build the new governed path
+    let newPath: string | null = null;
+    let buildError: string | undefined;
+    try {
+      newPath = handler.buildNewPath(record, params.pathTemplate);
+    } catch (err: any) {
+      buildError = `Path build failed: ${err.message}`;
+    }
+
+    // Check whether the source GCS object actually exists (no changes made)
+    let sourceExists: boolean | null = null;
+    if (bucket && !buildError) {
+      try {
+        [sourceExists] = await bucket.file(record.filePath).exists();
+      } catch {
+        sourceExists = null;   // GCS check itself failed — surface as null
+      }
+    }
+
+    items.push({
+      fileId:       record.id,
+      tableName:    handler.tableName,
+      oldPath:      record.filePath,
+      newPath,
+      sourceExists,
+      filenameUsed: newPath ? path.basename(newPath) : null,
+      ...(buildError ? { error: buildError } : {}),
+    });
+  }
+
+  // Persist summary counts to the job record
+  const failedCount = items.filter(i => i.error).length;
+  const missingCount = items.filter(i => !i.error && i.sourceExists === false).length;
+  await db.update(gcsFileMigrationJobs)
+    .set({
+      totalFiles:     candidates.length,
+      skippedFiles:   alreadyCompliant,
+      failedFiles:    failedCount,
+      missingSrcFiles: missingCount,
+      completedAt:    new Date(),
+    })
+    .where(eq(gcsFileMigrationJobs.id, job.id));
+
+  console.log(
+    `${TAG} Dry-run job ${job.id} done. candidates=${candidates.length} ` +
+    `alreadyCompliant=${alreadyCompliant} pathErrors=${failedCount} missingSrc=${missingCount}`
+  );
+
+  return { jobId: job.id, alreadyCompliant, items };
 }
