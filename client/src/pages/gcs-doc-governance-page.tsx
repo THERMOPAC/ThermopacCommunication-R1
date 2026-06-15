@@ -149,12 +149,13 @@ interface MonitorStats {
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 const MODULE_LABELS: Record<string, string> = {
-  epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design", hr: "HR / Admin",
+  company: "Company", epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design", hr: "HR / Admin",
   legal: "Legal", finance: "Finance", sap: "SAP", legacy: "Legacy",
   vendor: "Vendor",
 };
 
 const MODULE_COLORS: Record<string, string> = {
+  company: "bg-sky-100 text-sky-800",
   epc: "bg-blue-100 text-blue-800",
   dvs: "bg-purple-100 text-purple-800",
   qms: "bg-green-100 text-green-800",
