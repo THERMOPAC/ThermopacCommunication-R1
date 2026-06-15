@@ -14546,6 +14546,7 @@ export const COMPANY_DOC_TYPES = [
   'TAN_CERTIFICATE',
   'SHOP_ESTABLISHMENT_CERTIFICATE',
   'SSI_UDYAM_REGISTRATION',
+  'MPCB_CTO',
   'INCORPORATION_CERTIFICATE',
   'FACTORY_LICENSE',
   'PF_ESI_DOCUMENT',
@@ -14565,6 +14566,7 @@ export const COMPANY_DOC_LABELS: Record<string, string> = {
   TAN_CERTIFICATE:              'TAN Certificate',
   SHOP_ESTABLISHMENT_CERTIFICATE:'Shop & Establishment Certificate',
   SSI_UDYAM_REGISTRATION:       'SSI / Udyam Registration',
+  MPCB_CTO:                     'MPCB Consent to Operate',
   INCORPORATION_CERTIFICATE:    'Incorporation Certificate',
   FACTORY_LICENSE:              'Factory License',
   PF_ESI_DOCUMENT:              'PF / ESI Documents',
@@ -14581,6 +14583,7 @@ export const COMPANY_DOC_MANDATORY = [
   'TAN_CERTIFICATE',
   'SHOP_ESTABLISHMENT_CERTIFICATE',
   'SSI_UDYAM_REGISTRATION',
+  'MPCB_CTO',
   'INCORPORATION_CERTIFICATE',
 ];
 
