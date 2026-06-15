@@ -14548,6 +14548,7 @@ export const COMPANY_DOC_TYPES = [
   'SSI_UDYAM_REGISTRATION',
   'MPCB_CTO',
   'INCORPORATION_CERTIFICATE',
+  'FACTORY_DEED_OF_ASSIGNMENT_TRANSFER',
   'FACTORY_LICENSE',
   'PF_ESI_DOCUMENT',
 ] as const;
@@ -14568,6 +14569,7 @@ export const COMPANY_DOC_LABELS: Record<string, string> = {
   SSI_UDYAM_REGISTRATION:       'SSI / Udyam Registration',
   MPCB_CTO:                     'MPCB Consent to Operate',
   INCORPORATION_CERTIFICATE:    'Incorporation Certificate',
+  FACTORY_DEED_OF_ASSIGNMENT_TRANSFER: 'Factory Deed of Assignment & Transfer',
   FACTORY_LICENSE:              'Factory License',
   PF_ESI_DOCUMENT:              'PF / ESI Documents',
 };
