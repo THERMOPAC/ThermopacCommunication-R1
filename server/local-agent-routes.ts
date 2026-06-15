@@ -35,7 +35,7 @@ function verifyDownloadToken(jobId: number, token: string): boolean {
   return token === makeDownloadToken(jobId);
 }
 
-const AGENT_VERSION = '1.0.5';
+const AGENT_VERSION = '1.0.6';
 const AGENT_DIR = path.join(process.cwd(), 'local-document-agent');
 
 const router = Router();
@@ -439,6 +439,7 @@ router.get('/local-agent/package-info', requireSession, (_req: Request, res: Res
       { name: '.github/workflows/ci.yml',              desc: 'GitHub Actions CI — install, type-check, build, validate' },
     ],
     releaseNotes: [
+      'v1.0.6 — SAVE_FILE: on EXDEV (cross-device rename blocked, e.g. C:\\ temp → \\\\Server network share), fall back to copyFile + SHA256 re-verify + unlink temp; mismatch deletes dest and fails job',
       'v1.0.5 — Startup diagnostic: logs fs.existsSync(\\\\Server\\d), fs.existsSync(\\\\Server\\d\\THERMOPAC), fs.readdirSync(\\\\Server\\d), and exact error code from accessSync(allowedRoot, F_OK) to distinguish share-unreachable vs THERMOPAC folder permission denied',
       'v1.0.4 — SAVE_FILE: auto-create missing folders, clear CREATE_FOLDER_PERMISSION_DENIED error on EPERM/EACCES; SAVE_TEST_FILE: tests subfolder creation + cleanup, fails job if folder creation blocked',
       'v1.0.3 — Fix SAVE_FILE destination path bug',

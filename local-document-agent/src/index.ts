@@ -18,7 +18,7 @@ import { sendHeartbeat, claimJob } from './api-client';
 import { runJob } from './job-runner';
 import { ServiceHealth } from './service-health';
 
-const AGENT_VERSION = '1.0.5';
+const AGENT_VERSION = '1.0.6';
 const MACHINE_NAME  = os.hostname();
 
 function logIdentity(allowedRoot: string): void {

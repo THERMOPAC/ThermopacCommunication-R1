@@ -60,7 +60,23 @@ export async function downloadAndSave(
     const sha256 = sha256OfFile(tempPath);
     info(`SHA256: ${sha256}`);
 
-    fs.renameSync(tempPath, destFullPath);
+    // Atomic rename — fails with EXDEV when temp and dest are on different
+    // devices (e.g. C:\ temp dir → \\Server\d network share).
+    // On EXDEV: copy to dest, verify SHA256 matches, then delete temp.
+    try {
+      fs.renameSync(tempPath, destFullPath);
+    } catch (renameErr: any) {
+      if (renameErr?.code !== 'EXDEV') throw renameErr;
+      info(`EXDEV: cross-device rename blocked — falling back to copy+verify+unlink`);
+      fs.copyFileSync(tempPath, destFullPath);
+      const sha256Copy = sha256OfFile(destFullPath);
+      if (sha256Copy !== sha256) {
+        try { fs.unlinkSync(destFullPath); } catch { /* ignore */ }
+        throw new Error(`SHA256 mismatch after cross-device copy: expected ${sha256} got ${sha256Copy}`);
+      }
+      fs.unlinkSync(tempPath);
+      info(`Cross-device copy verified (SHA256 match)`);
+    }
     info(`Saved: ${destFullPath}`);
 
     return { ok: true, localPath: destFullPath, sha256 };
