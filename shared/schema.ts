@@ -14550,6 +14550,7 @@ export const COMPANY_DOC_TYPES = [
   'INCORPORATION_CERTIFICATE',
   'FACTORY_DEED_OF_ASSIGNMENT_TRANSFER',
   'FACTORY_LICENSE',
+  'ESIC_CERTIFICATE',
   'PF_ESI_DOCUMENT',
 ] as const;
 
@@ -14571,6 +14572,7 @@ export const COMPANY_DOC_LABELS: Record<string, string> = {
   INCORPORATION_CERTIFICATE:    'Incorporation Certificate',
   FACTORY_DEED_OF_ASSIGNMENT_TRANSFER: 'Factory Deed of Assignment & Transfer',
   FACTORY_LICENSE:              'Factory License',
+  ESIC_CERTIFICATE:             'ESIC Certificate',
   PF_ESI_DOCUMENT:              'PF / ESI Documents',
 };
 
@@ -14586,6 +14588,7 @@ export const COMPANY_DOC_MANDATORY = [
   'SHOP_ESTABLISHMENT_CERTIFICATE',
   'SSI_UDYAM_REGISTRATION',
   'MPCB_CTO',
+  'ESIC_CERTIFICATE',
   'INCORPORATION_CERTIFICATE',
 ];
 
