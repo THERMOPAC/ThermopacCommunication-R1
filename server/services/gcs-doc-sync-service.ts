@@ -44,20 +44,23 @@ function deriveTemplateCode(rule: GcsGovernanceRule): string {
 }
 
 /**
- * relativePathTemplate = '{COMPANY}' + pathTemplate.substring(rootPrefix.length)
+ * Business Rule (final):
+ *   IF module_key = 'company':
+ *     relative_path_template = '{COMPANY}/' + path_template without leading 'TPEL/'
+ *   ELSE:
+ *     relative_path_template = path_template exactly as-is
  *
- * Example:
- *   rootPrefix   = 'TPEL'
- *   pathTemplate = 'TPEL/COMPANY/{CompanyCode}/GST_CERTIFICATE/rev-{RevNo}/...'
- *   result       = '{COMPANY}/COMPANY/{CompanyCode}/GST_CERTIFICATE/rev-{RevNo}/...'
+ * root_prefix is NOT consulted — it is irrelevant to this formula.
  */
 function deriveRelativePath(rule: GcsGovernanceRule): string {
-  const rootPrefix = rule.rootPrefix ?? '';
   const pathTemplate = rule.pathTemplate ?? '';
-  if (rootPrefix && pathTemplate.startsWith(rootPrefix)) {
-    return '{COMPANY}' + pathTemplate.substring(rootPrefix.length);
+  if (rule.moduleKey === 'company') {
+    if (pathTemplate.startsWith('TPEL/')) {
+      return '{COMPANY}/' + pathTemplate.substring('TPEL/'.length);
+    }
+    return '{COMPANY}/' + pathTemplate;
   }
-  return '{COMPANY}/' + pathTemplate;
+  return pathTemplate;
 }
 
 // ─── sync on CREATE ──────────────────────────────────────────────────────────
