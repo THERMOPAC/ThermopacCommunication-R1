@@ -554,10 +554,8 @@ export const submitTrip = async (req: Request, res: Response) => {
     const userId = (req.user as any)?.id;
     const userRole = (req.user as any)?.role;
 
-    // Check if trip exists
+    // Check if trip exists — admins may submit any trip, others only their own
     let existingTrip;
-    
-    // Allow admins to submit any trip, regular users can only submit their own
     if (userRole === 'Superuser' || userRole === 'General Manager') {
       existingTrip = await db
         .select()
@@ -583,25 +581,53 @@ export const submitTrip = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Trip cannot be submitted in current status' });
     }
 
+    // Look up the trip employee to determine the correct approval path
+    const tripEmployee = await db
+      .select({ role: users.role, reportingManagerId: users.reportingManagerId })
+      .from(users)
+      .where(eq(users.id, existingTrip[0].employeeId))
+      .limit(1);
+
+    if (!tripEmployee.length) {
+      return res.status(400).json({ error: 'Trip employee record not found.' });
+    }
+
+    const employeeRole = tripEmployee[0].role;
+    const isPrivilegedEmployee = employeeRole === 'Superuser' || employeeRole === 'General Manager';
+
+    if (!isPrivilegedEmployee) {
+      // Regular employee — reporting manager is mandatory
+      if (!tripEmployee[0].reportingManagerId) {
+        return res.status(400).json({
+          error: 'No reporting manager is configured for your account. Please contact HR to set up your reporting manager before submitting a trip request.',
+        });
+      }
+    }
+
     // Update trip status to submitted
     await db.update(businessTrips)
-      .set({
-        status: 'submitted',
-        updatedAt: new Date(),
-      })
+      .set({ status: 'submitted', updatedAt: new Date() })
       .where(eq(businessTrips.id, parseInt(id)));
 
-    // Create manager approval record
-    // For now, we'll use the user's reporting manager or admin
-    // In a real system, this would be determined by org structure
-    await db.insert(tripApprovals).values({
-      tripId: parseInt(id),
-      approverId: userId, // TODO: Get actual manager ID
-      approvalType: 'manager',
-      status: 'pending',
-    });
-
-    res.json({ message: 'Trip submitted for approval successfully' });
+    if (isPrivilegedEmployee) {
+      // GM / Superuser: skip manager stage, go directly to admin approval
+      await db.insert(tripApprovals).values({
+        tripId: parseInt(id),
+        approverId: existingTrip[0].employeeId, // placeholder; overwritten by actual approver on approval
+        approvalType: 'admin',
+        status: 'pending',
+      });
+      res.json({ message: 'Trip submitted directly for admin approval.' });
+    } else {
+      // Regular employee: create manager approval record pointing to reporting manager
+      await db.insert(tripApprovals).values({
+        tripId: parseInt(id),
+        approverId: tripEmployee[0].reportingManagerId!,
+        approvalType: 'manager',
+        status: 'pending',
+      });
+      res.json({ message: 'Trip submitted for manager approval successfully.' });
+    }
   } catch (error) {
     console.error('Error submitting trip:', error);
     res.status(500).json({ error: 'Failed to submit trip' });
@@ -610,11 +636,20 @@ export const submitTrip = async (req: Request, res: Response) => {
 
 /**
  * Approve or reject trip
+ *
+ * Role enforcement rules:
+ *  - manager  → designated reporting manager only (approverId on the pending record),
+ *               OR Superuser / GM as an override
+ *  - admin    → Superuser or General Manager only
+ *  - finance  → Finance, Admin, or Superuser only
+ *
+ * Self-approval: blocked for all roles EXCEPT Superuser and General Manager.
  */
 export const approveTrip = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role;
     const { action, comments, approvalType } = req.body;
 
     if (!['approve', 'reject'].includes(action)) {
@@ -625,7 +660,7 @@ export const approveTrip = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid approval type' });
     }
 
-    // Check if trip exists
+    // Fetch the trip
     const existingTrip = await db
       .select()
       .from(businessTrips)
@@ -636,7 +671,48 @@ export const approveTrip = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Trip not found' });
     }
 
-    // Update or create approval record
+    const trip = existingTrip[0];
+    const isGMOrSuperuser = userRole === 'Superuser' || userRole === 'General Manager';
+
+    // ── Self-approval guard ──────────────────────────────────────────────────
+    // A user may not approve their own trip unless they are GM or Superuser.
+    if (trip.employeeId === userId && !isGMOrSuperuser) {
+      return res.status(403).json({ error: 'You cannot approve your own trip request.' });
+    }
+
+    // ── Per-type role enforcement ────────────────────────────────────────────
+    if (approvalType === 'manager') {
+      // GM / Superuser may override manager approval; everyone else must be
+      // the designated reporting manager (approverId on the pending record).
+      if (!isGMOrSuperuser) {
+        const pendingManagerApproval = await db
+          .select()
+          .from(tripApprovals)
+          .where(and(
+            eq(tripApprovals.tripId, parseInt(id)),
+            eq(tripApprovals.approvalType, 'manager')
+          ))
+          .limit(1);
+
+        if (!pendingManagerApproval.length) {
+          return res.status(400).json({ error: 'No manager approval stage exists for this trip.' });
+        }
+        if (pendingManagerApproval[0].approverId !== userId) {
+          return res.status(403).json({ error: 'Only the designated reporting manager may perform manager-stage approval.' });
+        }
+      }
+    } else if (approvalType === 'admin') {
+      if (!isGMOrSuperuser) {
+        return res.status(403).json({ error: 'Only General Manager or Superuser may perform admin-stage approval.' });
+      }
+    } else if (approvalType === 'finance') {
+      const financeRoles = ['Finance', 'Admin', 'Superuser'];
+      if (!financeRoles.includes(userRole)) {
+        return res.status(403).json({ error: 'Only Finance, Admin, or Superuser may perform finance-stage approval.' });
+      }
+    }
+
+    // ── Update or create approval record ────────────────────────────────────
     const existingApproval = await db
       .select()
       .from(tripApprovals)
@@ -647,16 +723,17 @@ export const approveTrip = async (req: Request, res: Response) => {
       .limit(1);
 
     if (existingApproval.length) {
-      // Update existing approval
+      // Update existing record — record the actual approver who acted
       await db.update(tripApprovals)
         .set({
+          approverId: userId,
           status: action === 'approve' ? 'approved' : 'rejected',
           comments,
           approvedAt: action === 'approve' ? new Date() : null,
         })
         .where(eq(tripApprovals.id, existingApproval[0].id));
     } else {
-      // Create new approval
+      // No pre-existing record for this type — create one
       await db.insert(tripApprovals).values({
         tripId: parseInt(id),
         approverId: userId,
@@ -667,8 +744,8 @@ export const approveTrip = async (req: Request, res: Response) => {
       });
     }
 
-    // Update trip status based on approval workflow
-    let newStatus = existingTrip[0].status;
+    // ── Advance trip status ──────────────────────────────────────────────────
+    let newStatus = trip.status;
     if (action === 'reject') {
       newStatus = 'rejected';
     } else if (action === 'approve') {
@@ -680,10 +757,7 @@ export const approveTrip = async (req: Request, res: Response) => {
     }
 
     await db.update(businessTrips)
-      .set({
-        status: newStatus,
-        updatedAt: new Date(),
-      })
+      .set({ status: newStatus, updatedAt: new Date() })
       .where(eq(businessTrips.id, parseInt(id)));
 
     res.json({ message: `Trip ${action}d successfully` });
