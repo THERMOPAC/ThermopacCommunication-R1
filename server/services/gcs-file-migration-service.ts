@@ -531,6 +531,26 @@ export async function triggerFileMigration(params: {
   triggerReason: 'auto_db_driven' | 'auto_template_change' | 'manual' | 'dry_run';
   triggeredBy?:  number;
 }): Promise<{ jobId: number }> {
+  // ── Concurrency guard: don't spawn a second job while one is running ────────
+  // Auto-triggers can fire in rapid succession (e.g. multiple DB updates in one
+  // request). Manual runs are always allowed through.
+  if (params.triggerReason !== 'manual' && params.triggerReason !== 'dry_run') {
+    const activeJobs = await db
+      .select({ id: gcsFileMigrationJobs.id })
+      .from(gcsFileMigrationJobs)
+      .where(
+        sql`${gcsFileMigrationJobs.ruleId} = ${params.ruleId}
+          AND ${gcsFileMigrationJobs.status} IN ('pending', 'running')`
+      )
+      .limit(1);
+    if (activeJobs.length > 0) {
+      console.log(
+        `${TAG} Skipping duplicate job for rule ${params.ruleId} — job ${activeJobs[0].id} already active`
+      );
+      return { jobId: activeJobs[0].id };
+    }
+  }
+
   const [job] = await db.insert(gcsFileMigrationJobs).values({
     ruleId:         params.ruleId,
     documentType:   params.documentType,
