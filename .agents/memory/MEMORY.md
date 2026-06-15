@@ -1,3 +1,4 @@
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
 - [Payroll guard raw SQL pattern](payroll-guard-raw-sql.md) — Drizzle ORM isNull()+and() guards on payroll_records silently failed; raw db.execute(sql`...`) with Number() casts is required for critical blocking checks.
 - [Payroll leave auto-cover deduction](payroll-leave-autocover.md) — Official payroll actually deducts leave balance via payroll_leave_autocover table; trial does not; reversal restores it.
+- [trip_documents path columns](trip-documents-path-columns.md) — file_path is the real GCS key; gcs_path is unreliable. 4 pre-GCS records (ids 5,10,12,69) have ADMIN/Travel/... paths with no GCS object — exclude from all mirror/GCS operations.
