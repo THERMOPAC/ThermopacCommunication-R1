@@ -41,6 +41,7 @@ const APPROVED_ROOTS = [
   'TPEL/LEGAL/',
   'TPEL/HR/',
   'TPEL/ADMIN/HR/',
+  'TPEL/ADMIN/TRIPS/',
   'TPEL/FINANCE/',
   'TPEL/DESIGN/',
   'TPEL/SALES/',
