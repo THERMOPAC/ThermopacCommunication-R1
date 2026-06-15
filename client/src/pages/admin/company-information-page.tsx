@@ -57,14 +57,16 @@ interface CompanyPayload extends CompanyMaster {
   erpConfig?: ErpConfig; branding?: Branding; documents: CompanyDoc[]; }
 
 const DOC_TYPES = ['GST_CERTIFICATE','PAN_CARD','IEC_CERTIFICATE','LUT_COPY','MSME_CERTIFICATE',
-  'CANCELLED_CHEQUE','INCORPORATION_CERTIFICATE','FACTORY_LICENSE','PF_ESI_DOCUMENT'];
+  'CANCELLED_CHEQUE_BOB','CANCELLED_CHEQUE_ICICI','INCORPORATION_CERTIFICATE','FACTORY_LICENSE','PF_ESI_DOCUMENT'];
 const DOC_LABELS: Record<string,string> = {
   GST_CERTIFICATE:'GST Certificate', PAN_CARD:'PAN Card', IEC_CERTIFICATE:'IEC Certificate',
-  LUT_COPY:'LUT Copy', MSME_CERTIFICATE:'MSME Certificate', CANCELLED_CHEQUE:'Cancelled Cheque',
+  LUT_COPY:'LUT Copy', MSME_CERTIFICATE:'MSME Certificate',
+  CANCELLED_CHEQUE_BOB:'Cancelled Cheque - Bank of Baroda',
+  CANCELLED_CHEQUE_ICICI:'Cancelled Cheque - ICICI Bank',
   INCORPORATION_CERTIFICATE:'Incorporation Certificate', FACTORY_LICENSE:'Factory License',
   PF_ESI_DOCUMENT:'PF / ESI Documents',
 };
-const MANDATORY_DOCS = ['GST_CERTIFICATE','PAN_CARD','CANCELLED_CHEQUE','INCORPORATION_CERTIFICATE'];
+const MANDATORY_DOCS = ['GST_CERTIFICATE','PAN_CARD','CANCELLED_CHEQUE_BOB','CANCELLED_CHEQUE_ICICI','INCORPORATION_CERTIFICATE'];
 const ADDRESS_TYPES = ['registered_office','corporate_office','factory','dispatch','billing'];
 const ADDRESS_LABELS: Record<string,string> = {
   registered_office:'Registered Office', corporate_office:'Corporate Office',

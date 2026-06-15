@@ -14538,28 +14538,31 @@ export const COMPANY_DOC_TYPES = [
   'IEC_CERTIFICATE',
   'LUT_COPY',
   'MSME_CERTIFICATE',
-  'CANCELLED_CHEQUE',
+  'CANCELLED_CHEQUE_BOB',
+  'CANCELLED_CHEQUE_ICICI',
   'INCORPORATION_CERTIFICATE',
   'FACTORY_LICENSE',
   'PF_ESI_DOCUMENT',
 ] as const;
 
 export const COMPANY_DOC_LABELS: Record<string, string> = {
-  GST_CERTIFICATE:          'GST Certificate',
-  PAN_CARD:                 'PAN Card',
-  IEC_CERTIFICATE:          'IEC Certificate',
-  LUT_COPY:                 'LUT Copy',
-  MSME_CERTIFICATE:         'MSME Certificate',
-  CANCELLED_CHEQUE:         'Cancelled Cheque',
-  INCORPORATION_CERTIFICATE:'Incorporation Certificate',
-  FACTORY_LICENSE:          'Factory License',
-  PF_ESI_DOCUMENT:          'PF / ESI Documents',
+  GST_CERTIFICATE:            'GST Certificate',
+  PAN_CARD:                   'PAN Card',
+  IEC_CERTIFICATE:            'IEC Certificate',
+  LUT_COPY:                   'LUT Copy',
+  MSME_CERTIFICATE:           'MSME Certificate',
+  CANCELLED_CHEQUE_BOB:       'Cancelled Cheque - Bank of Baroda',
+  CANCELLED_CHEQUE_ICICI:     'Cancelled Cheque - ICICI Bank',
+  INCORPORATION_CERTIFICATE:  'Incorporation Certificate',
+  FACTORY_LICENSE:            'Factory License',
+  PF_ESI_DOCUMENT:            'PF / ESI Documents',
 };
 
 export const COMPANY_DOC_MANDATORY = [
   'GST_CERTIFICATE',
   'PAN_CARD',
-  'CANCELLED_CHEQUE',
+  'CANCELLED_CHEQUE_BOB',
+  'CANCELLED_CHEQUE_ICICI',
   'INCORPORATION_CERTIFICATE',
 ];
 
