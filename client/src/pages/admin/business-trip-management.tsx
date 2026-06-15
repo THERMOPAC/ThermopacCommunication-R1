@@ -1781,6 +1781,7 @@ const TripEditForm = ({ trip, onSuccess }: { trip: any; onSuccess?: () => void }
     parseFloat(form.watch('estimatedMiscCost') || '0');
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Employee Selection */}
@@ -1995,6 +1996,7 @@ const TripEditForm = ({ trip, onSuccess }: { trip: any; onSuccess?: () => void }
         <TripDocumentsList tripId={trip.id} />
       </div>
     </div>
+    </>
   );
 };
 
