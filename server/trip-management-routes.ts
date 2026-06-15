@@ -432,7 +432,6 @@ export const createTrip = async (req: Request, res: Response) => {
       estimatedAccommodationCost,
       estimatedMiscCost,
       advanceRequested,
-      supportingDocumentUrl,
     } = req.body;
 
     // Validate required fields
@@ -451,7 +450,6 @@ export const createTrip = async (req: Request, res: Response) => {
       estimatedAccommodationCost: estimatedAccommodationCost || '0',
       estimatedMiscCost: estimatedMiscCost || '0',
       advanceRequested: advanceRequested || '0',
-      supportingDocumentUrl,
       status: 'draft',
     }).returning();
 
@@ -484,7 +482,6 @@ export const updateTrip = async (req: Request, res: Response) => {
       estimatedAccommodationCost,
       estimatedMiscCost,
       advanceRequested,
-      supportingDocumentUrl,
     } = req.body;
 
     // Check if trip exists
@@ -529,7 +526,6 @@ export const updateTrip = async (req: Request, res: Response) => {
         estimatedAccommodationCost: estimatedAccommodationCost || '0',
         estimatedMiscCost: estimatedMiscCost || '0',
         advanceRequested: advanceRequested || '0',
-        supportingDocumentUrl,
         updatedAt: new Date(),
       })
       .where(eq(businessTrips.id, parseInt(id)))

@@ -84,7 +84,6 @@ const tripFormSchema = z.object({
   estimatedAccommodationCost: z.string().default('0'),
   estimatedMiscCost: z.string().default('0'),
   advanceRequested: z.string().default('0'),
-  supportingDocumentUrl: z.string().optional(),
 });
 
 const approvalFormSchema = z.object({
@@ -554,6 +553,7 @@ const TripReports = () => {
 
 // Document type options
 const documentTypeOptions = [
+  { value: 'supporting_document', label: 'Supporting Document' },
   { value: 'travel_booking', label: 'Travel Booking' },
   { value: 'hotel_confirmation', label: 'Hotel Confirmation' },
   { value: 'meeting_invitation', label: 'Meeting Invitation' },
@@ -802,6 +802,8 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     message: string;
     loading: boolean;
   }>({ valid: false, message: '', loading: false });
+  const [createdTripId, setCreatedTripId] = useState<number | null>(null);
+  const [createdTripTitle, setCreatedTripTitle] = useState<string>('');
   
   // Get employees list for dropdown
   const { data: employees = [] } = useQuery({
@@ -850,20 +852,15 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
       estimatedAccommodationCost: '0',
       estimatedMiscCost: '0',
       advanceRequested: '0',
-      supportingDocumentUrl: '',
     },
   });
 
   const createTripMutation = useMutation({
     mutationFn: (data: TripFormData) => apiRequest('POST', '/api/trips', data),
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Trip request created successfully',
-      });
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
-      form.reset();
-      onSuccess?.();
+      setCreatedTripId(data.trip.id);
+      setCreatedTripTitle(data.trip.tripTitle);
     },
     onError: (error: any) => {
       toast({
@@ -942,7 +939,7 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     parseFloat(form.watch('estimatedAccommodationCost') || '0') +
     parseFloat(form.watch('estimatedMiscCost') || '0');
 
-  return (
+  const phase1 = (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Employee Selection */}
@@ -1138,20 +1135,6 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="supportingDocumentUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Supporting Document URL</FormLabel>
-              <FormControl>
-                <Input placeholder="https://..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <div className="flex justify-end space-x-4">
           <Button type="button" variant="outline" onClick={() => form.reset()}>
             Reset
@@ -1163,6 +1146,38 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
       </form>
     </Form>
   );
+
+  const phase2 = createdTripId ? (
+    <div className="space-y-5">
+      <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3">
+        <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+        <div>
+          <p className="font-medium text-green-800">Trip created — <span className="font-semibold">{createdTripTitle}</span></p>
+          <p className="text-sm text-green-700 mt-0.5">Upload supporting documents below, then click Finish.</p>
+        </div>
+      </div>
+
+      <div className="border rounded-lg p-4 space-y-4">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <Paperclip className="h-4 w-4" />
+          Supporting Documents
+        </h3>
+        <DocumentUploadForm tripId={createdTripId} />
+        <div className="border-t pt-4">
+          <TripDocumentsList tripId={createdTripId} />
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={() => { onSuccess?.(); }}>
+          <CheckSquare className="h-4 w-4 mr-2" />
+          Finish
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
+  return createdTripId ? phase2 : phase1;
 };
 
 // Trip dashboard component with comprehensive search and filter
@@ -1667,7 +1682,7 @@ const TripDashboard = () => {
       {/* Edit Trip Dialog */}
       {editingTrip && (
         <Dialog open={!!editingTrip} onOpenChange={() => setEditingTrip(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Trip Request</DialogTitle>
             </DialogHeader>
@@ -1734,7 +1749,6 @@ const TripEditForm = ({ trip, onSuccess }: { trip: any; onSuccess?: () => void }
       estimatedAccommodationCost: trip.estimatedAccommodationCost?.toString() || '0',
       estimatedMiscCost: trip.estimatedMiscCost?.toString() || '0',
       advanceRequested: trip.advanceRequested?.toString() || '0',
-      supportingDocumentUrl: trip.supportingDocumentUrl || '',
     },
   });
 
@@ -1969,6 +1983,18 @@ const TripEditForm = ({ trip, onSuccess }: { trip: any; onSuccess?: () => void }
         </div>
       </form>
     </Form>
+
+    {/* Supporting Documents — always visible in edit mode */}
+    <div className="border rounded-lg p-4 space-y-4 mt-2">
+      <h3 className="text-sm font-semibold flex items-center gap-2">
+        <Paperclip className="h-4 w-4" />
+        Supporting Documents
+      </h3>
+      <DocumentUploadForm tripId={trip.id} />
+      <div className="border-t pt-4">
+        <TripDocumentsList tripId={trip.id} />
+      </div>
+    </div>
   );
 };
 
@@ -2410,7 +2436,7 @@ const TripList = () => {
       {/* Edit Trip Dialog */}
       {editingTrip && (
         <Dialog open={!!editingTrip} onOpenChange={() => setEditingTrip(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Trip Request</DialogTitle>
             </DialogHeader>
