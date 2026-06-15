@@ -169,7 +169,8 @@ function Layout({ children }: LayoutProps) {
                                   location === '/offer-templates' ||
                                   location === '/offers' ||
                                   location === '/marketing-dashboard' ||
-                                  location === '/marketing-tools';
+                                  location === '/marketing-tools' ||
+                                  location === '/admin/business-trips';
   
   // Check if we're on any project-related page
   const isOnProjectsPage = location.startsWith('/project') || 
@@ -440,7 +441,8 @@ function Layout({ children }: LayoutProps) {
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: FileText, label: "Offer Templates", href: "/offer-templates" },
         { icon: FileText, label: "Offers / Quotations", href: "/offers" },
-        { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" }
+        { icon: Wrench, label: "Marketing Tools", href: "/marketing-tools" },
+        { icon: Plane, label: "Business Trip Management", href: "/admin/business-trips" }
       ]
     }] : []),
     ...(hasViewPermission("Finance") ? [{ 
