@@ -60,7 +60,7 @@ function mimeFromExt(ext: string): string {
 }
 
 // MIME + magic-byte validation
-const DOC_ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+const DOC_ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/zip', 'application/x-zip-compressed'];
 const IMG_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 
 function checkMagicBytes(buf: Buffer, mime: string): boolean {
@@ -70,6 +70,8 @@ function checkMagicBytes(buf: Buffer, mime: string): boolean {
   if (mime === 'image/png') return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47;
   if (mime === 'image/webp') return b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46
     && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50;
+  if (mime === 'application/zip' || mime === 'application/x-zip-compressed')
+    return b[0] === 0x50 && b[1] === 0x4B && b[2] === 0x03 && b[3] === 0x04;
   return false;
 }
 
@@ -599,7 +601,7 @@ router.post('/:id(\\d+)/documents/:docType', uploadLimiter, docUpload.single('fi
   );
   const nextRev = (revRes.rows[0].max_rev as number) + 1;
   const revLabel = zeroPad(nextRev, 2);
-  const ext = req.file.mimetype === 'image/jpeg' ? 'jpg' : req.file.mimetype === 'image/png' ? 'png' : req.file.mimetype === 'image/webp' ? 'webp' : 'pdf';
+  const ext = req.file.mimetype === 'image/jpeg' ? 'jpg' : req.file.mimetype === 'image/png' ? 'png' : req.file.mimetype === 'image/webp' ? 'webp' : (req.file.mimetype === 'application/zip' || req.file.mimetype === 'application/x-zip-compressed') ? 'zip' : 'pdf';
   let gcsPath: string;
   try {
     gcsPath = await resolveGcsPath(`COMPANY_${docType}`, { CompanyCode: code, RevNo: revLabel, Seq: '001', Ext: ext });
