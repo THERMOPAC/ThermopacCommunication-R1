@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/use-auth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,8 +29,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, EyeOff, Pencil } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
+import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { SelectGroup, SelectLabel } from '@/components/ui/select';
 import { roles, roleHierarchy, canManage } from '../../../shared/roles';
@@ -136,12 +134,8 @@ interface UserEditDialogProps {
 
 export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [correctionOpen, setCorrectionOpen] = useState(false);
-  const [correctionCode, setCorrectionCode] = useState('');
-  const [correctionReason, setCorrectionReason] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user: authUser } = useAuth();
 
   const { data: allUsers = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/users'],
@@ -344,24 +338,6 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         description: error.message || 'Failed to update user',
         variant: 'destructive',
       });
-    },
-  });
-
-  const correctionMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error('No user selected');
-      return apiRequest('POST', `/api/admin/users/${user.id}/employee-code/correct`, {
-        newEmployeeCode: correctionCode.trim(),
-        reason: correctionReason.trim(),
-      });
-    },
-    onSuccess: () => {
-      toast({ title: 'Employee Code Corrected', description: `Code updated to ${correctionCode.trim()}` });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      setCorrectionOpen(false);
-    },
-    onError: (error: any) => {
-      toast({ title: 'Correction Failed', description: error?.message || 'Failed to correct employee code.', variant: 'destructive' });
     },
   });
 
@@ -675,77 +651,14 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                 )}
               />
 
-              {/* Employee Code — read-only; Superuser correction via modal */}
+              {/* Employee Code — read-only, auto-generated permanent identifier */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium leading-none">Employee Code</label>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm px-3 py-2 bg-muted rounded-md border min-w-[130px] select-all">
-                    {user.employeeCode || '—'}
-                  </span>
-                  {authUser?.role === 'Superuser' && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setCorrectionCode(user.employeeCode || '');
-                        setCorrectionReason('');
-                        setCorrectionOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-3 w-3 mr-1" />
-                      Correct
-                    </Button>
-                  )}
-                </div>
+                <span className="block font-mono text-sm px-3 py-2 bg-muted rounded-md border select-all w-fit">
+                  {user.employeeCode || '—'}
+                </span>
                 <p className="text-xs text-muted-foreground">Permanent identifier — assigned once, never changes on promotion.</p>
               </div>
-
-              {/* Superuser correction dialog */}
-              <Dialog open={correctionOpen} onOpenChange={setCorrectionOpen}>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Correct Employee Code</DialogTitle>
-                    <DialogDescription>
-                      This action is permanently audited. Retired codes are never reused.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">Current Code</label>
-                      <p className="font-mono text-sm px-3 py-2 bg-muted rounded-md border">{user.employeeCode || '—'}</p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">New Code *</label>
-                      <Input
-                        placeholder="e.g. TPEL-302"
-                        value={correctionCode}
-                        onChange={e => setCorrectionCode(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">Must be in the correct band for this employee's role.</p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">Reason *</label>
-                      <Textarea
-                        placeholder="Mandatory justification for this correction"
-                        value={correctionReason}
-                        onChange={e => setCorrectionReason(e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="outline" onClick={() => setCorrectionOpen(false)}>Cancel</Button>
-                    <Button
-                      type="button"
-                      onClick={() => correctionMutation.mutate()}
-                      disabled={correctionMutation.isPending || !correctionCode.trim() || !correctionReason.trim()}
-                    >
-                      {correctionMutation.isPending ? 'Saving…' : 'Apply Correction'}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
 
               <FormField
                 control={form.control}
