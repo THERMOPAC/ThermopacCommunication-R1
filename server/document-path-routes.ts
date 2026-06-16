@@ -320,9 +320,9 @@ const GCS_MIRROR_SEEDS: Array<{
   { templateCode: 'TRANSMITTAL',     documentType: 'TRANSMITTAL',     documentCategory: 'Design',  relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/TRANSMITTAL/{DocNum}',                    revisionMode: 'none',     active: true  },
   { templateCode: 'DESIGN_BACKUP',   documentType: 'DESIGN_BACKUP',   documentCategory: 'Design',  relativePathTemplate: '{COMPANY}/{CC}/{CO}/{Cust}/{FY}/{NNN}/2_Design/BACKUP/{DocumentType}',                  revisionMode: 'none',     active: true  },
   { templateCode: 'DESIGN_STANDARD', documentType: 'DESIGN_STANDARD', documentCategory: 'Design',  relativePathTemplate: '{COMPANY}/DESIGN/STANDARDS/{DocumentType}',                                             revisionMode: 'none',     active: true  },
-  // ── HR ───────────────────────────────────────────────────────────────────
-  { templateCode: 'TRIP_DOCUMENT',   documentType: 'TRIP_DOCUMENT',   documentCategory: 'HR',      relativePathTemplate: '{COMPANY}/ADMIN/HR/{FY}/TRIPS/{DocNum}',                                                 revisionMode: 'none',     active: true  },
-  { templateCode: 'VISA_DOCUMENT',   documentType: 'VISA_DOCUMENT',   documentCategory: 'HR',      relativePathTemplate: '{COMPANY}/ADMIN/HR/{FY}/VISA/{DocNum}',                                                  revisionMode: 'none',     active: true  },
+  // ── Admin ─────────────────────────────────────────────────────────────────
+  { templateCode: 'TRIP_DOCUMENT',   documentType: 'TRIP_DOCUMENT',   documentCategory: 'admin',   relativePathTemplate: '{COMPANY}/ADMIN/TRIPS/{CompanyFY}/{EmployeeName}/{Destination}/{DocType}/{filename}',     revisionMode: 'none',     active: false },
+  { templateCode: 'VISA_DOCUMENT',   documentType: 'VISA_DOCUMENT',   documentCategory: 'admin',   relativePathTemplate: '{COMPANY}/ADMIN/VISA/{CompanyFY}/{EmployeeName}/{Category}/{filename}',                   revisionMode: 'none',     active: false },
   // ── Legal ─────────────────────────────────────────────────────────────────
   { templateCode: 'LEGAL_DOCUMENT',  documentType: 'LEGAL_DOCUMENT',  documentCategory: 'Legal',   relativePathTemplate: '{COMPANY}/LEGAL/{FY}/{DocumentType}/{DocNum}',                                           revisionMode: 'none',     active: true  },
   // ── Finance ───────────────────────────────────────────────────────────────

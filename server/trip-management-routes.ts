@@ -1226,7 +1226,7 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
     const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `${timestamp}_${originalName}`;
 
-    // Generate DB-driven canonical GCS path (TPEL/ADMIN/HR/{CompanyFY}/TRIPS/...)
+    // Generate DB-driven canonical GCS path (TPEL/ADMIN/TRIPS/{CompanyFY}/...)
     const gcsPath = await buildTripGCSPath({
       employeeFirstName: employee[0].firstName ?? null,
       employeeLastName: employee[0].lastName ?? null,
