@@ -838,6 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Trip Document Management routes
   app.post('/api/trips/:tripId/documents', ensureAuthenticated, tripManagementRoutes.upload.single('file'), tripManagementRoutes.uploadTripDocument);
   app.get('/api/trips/:tripId/documents', ensureAuthenticated, tripManagementRoutes.getTripDocuments);
+  app.get('/api/trips/:tripId/report', ensureAuthenticated, tripManagementRoutes.getTripReport);
   app.delete('/api/trip-documents/:documentId', ensureAuthenticated, tripManagementRoutes.deleteTripDocument);
   app.get('/api/trip-documents/:documentId/download', ensureAuthenticated, tripManagementRoutes.downloadTripDocument);
   

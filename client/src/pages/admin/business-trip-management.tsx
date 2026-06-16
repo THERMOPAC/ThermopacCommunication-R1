@@ -69,7 +69,11 @@ import {
   RefreshCw,
   Target,
   CheckSquare,
-  Send
+  Send,
+  ClipboardList,
+  History,
+  FileCheck2,
+  ShieldAlert
 } from 'lucide-react';
 
 // Form schemas
@@ -3067,6 +3071,7 @@ const TripDocTableRow = ({
   });
   const uploadedTypes = new Set((documents as any[]).map((d: any) => d.documentType));
   const missingCount = MANDATORY_DOC_TYPES_DOCS.filter(m => !uploadedTypes.has(m.type)).length;
+  const hasReport = uploadedTypes.has('trip_report');
   const lastDoc = (documents as any[]).length > 0
     ? (documents as any[]).reduce((a: any, b: any) =>
         new Date(a.uploadedAt) > new Date(b.uploadedAt) ? a : b)
@@ -3090,7 +3095,22 @@ const TripDocTableRow = ({
         </div>
       </TableCell>
       <TableCell className="text-sm">{formatDate(trip.fromDate)}</TableCell>
-      <TableCell><StatusBadge status={trip.status} /></TableCell>
+      <TableCell>
+        <div className="flex flex-col gap-1">
+          <StatusBadge status={trip.status} />
+          {(trip.status === 'final_approved' || trip.status === 'concluded') && (
+            hasReport ? (
+              <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
+                <FileCheck2 className="h-3 w-3" />Report
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-medium">
+                <ClipboardList className="h-3 w-3" />Pending
+              </span>
+            )
+          )}
+        </div>
+      </TableCell>
       <TableCell className="text-center">
         <span className="font-medium text-sm">{(documents as any[]).length}</span>
       </TableCell>
@@ -3155,6 +3175,7 @@ const TripDocMobileCard = ({
   });
   const uploadedTypes = new Set((documents as any[]).map((d: any) => d.documentType));
   const missingCount = MANDATORY_DOC_TYPES_DOCS.filter(m => !uploadedTypes.has(m.type)).length;
+  const hasReport = uploadedTypes.has('trip_report');
   const lastDoc = (documents as any[]).length > 0
     ? (documents as any[]).reduce((a: any, b: any) =>
         new Date(a.uploadedAt) > new Date(b.uploadedAt) ? a : b)
@@ -3199,6 +3220,19 @@ const TripDocMobileCard = ({
             )}
           </div>
         </div>
+        {(trip.status === 'final_approved' || trip.status === 'concluded') && (
+          <div className="flex items-center gap-1 text-xs">
+            {hasReport ? (
+              <span className="text-green-600 flex items-center gap-1">
+                <FileCheck2 className="h-3 w-3" />Report submitted
+              </span>
+            ) : (
+              <span className="text-amber-600 flex items-center gap-1">
+                <ClipboardList className="h-3 w-3" />Report pending
+              </span>
+            )}
+          </div>
+        )}
         {lastDoc && (
           <div className="text-xs text-muted-foreground">Last updated: {formatDate(lastDoc.uploadedAt)}</div>
         )}
@@ -3482,7 +3516,270 @@ const TripDocumentsTab = () => {
   );
 };
 
-// Trip Details with Documents Component
+// ── Trip Report Upload Form ───────────────────────────────────────────────────
+const TripReportUploadForm = ({ tripId, onSuccess }: { tripId: number; onSuccess: () => void }) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [description, setDescription] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      toast({ title: 'Error', description: 'Please select a file', variant: 'destructive' });
+      return;
+    }
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('documentType', 'trip_report');
+    if (description.trim()) formData.append('description', description.trim());
+    try {
+      const response = await fetch(`/api/trips/${tripId}/documents`, { method: 'POST', body: formData });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Upload failed');
+      }
+      toast({ title: 'Success', description: 'Business Trip Report submitted successfully' });
+      queryClient.invalidateQueries({ queryKey: [`/api/trips/${tripId}/report`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/trips/${tripId}/documents`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/all'] });
+      onSuccess();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label>Report File <span className="text-destructive">*</span></Label>
+        <Input
+          type="file"
+          accept=".pdf,.docx,.xlsx,.doc,.txt"
+          onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+          className="cursor-pointer"
+        />
+        <p className="text-xs text-muted-foreground">Accepted formats: PDF, Word, Excel, Text</p>
+      </div>
+      <div className="space-y-2">
+        <Label>Description <span className="text-muted-foreground text-xs">(optional)</span></Label>
+        <Textarea
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="Brief description of this report version..."
+          rows={3}
+        />
+      </div>
+      <div className="flex justify-end">
+        <Button type="submit" disabled={isUploading || !selectedFile}>
+          {isUploading
+            ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Uploading...</>
+            : <><Upload className="h-4 w-4 mr-2" />Submit Report</>}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+// ── Business Trip Report Card ─────────────────────────────────────────────────
+const REPORT_ELIGIBLE_STATUSES = ['final_approved', 'concluded'];
+const REPORT_UPLOAD_ROLES = ['Superuser', 'Admin'];
+const REPORT_VIEW_ROLES = ['Superuser', 'Admin', 'Manager', 'Finance', 'General Manager', 'Senior Manager'];
+
+const BusinessTripReportCard = ({ trip }: { trip: any }) => {
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const currentUser = (window as any).currentUser;
+
+  const { data: reportData, isLoading } = useQuery({
+    queryKey: [`/api/trips/${trip.id}/report`],
+    queryFn: () => apiRequest('GET', `/api/trips/${trip.id}/report`),
+    enabled: REPORT_ELIGIBLE_STATUSES.includes(trip.status),
+  });
+
+  if (!REPORT_ELIGIBLE_STATUSES.includes(trip.status)) return null;
+
+  const active = reportData?.active ?? null;
+  const history: any[] = reportData?.history ?? [];
+
+  const canUpload =
+    REPORT_UPLOAD_ROLES.includes(currentUser?.role) ||
+    trip.employeeId === currentUser?.id;
+
+  const canView =
+    REPORT_VIEW_ROLES.includes(currentUser?.role) ||
+    trip.employeeId === currentUser?.id;
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <Card className="border-l-4 border-l-indigo-500">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClipboardList className="h-5 w-5 text-indigo-600" />
+            Business Trip Report
+            {active ? (
+              <Badge className="bg-green-600 text-white text-xs">
+                <FileCheck2 className="h-3 w-3 mr-1" />Report Submitted
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-amber-600 border-amber-400 text-xs">
+                <AlertCircle className="h-3 w-3 mr-1" />Pending Report
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {history.length > 0 && (
+              <Button size="sm" variant="ghost" className="text-xs text-muted-foreground h-8"
+                onClick={() => setHistoryDialogOpen(true)}>
+                <History className="h-3.5 w-3.5 mr-1" />
+                History ({history.length})
+              </Button>
+            )}
+            {canUpload && (
+              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant={active ? 'outline' : 'default'} className="h-8">
+                    <Upload className="h-4 w-4 mr-2" />
+                    {active ? 'Replace Report' : 'Upload Report'}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {active ? 'Replace Business Trip Report' : 'Upload Business Trip Report'}
+                    </DialogTitle>
+                    {active && (
+                      <p className="text-sm text-amber-600 mt-1">
+                        Current version (v{active.seq ?? 1}) will be superseded. Previous version is retained for audit.
+                      </p>
+                    )}
+                  </DialogHeader>
+                  <TripReportUploadForm tripId={trip.id} onSuccess={() => setUploadDialogOpen(false)} />
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">Loading...</div>
+        ) : active && canView ? (
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileText className="h-8 w-8 text-indigo-500 shrink-0" />
+              <div className="min-w-0">
+                <div className="font-medium text-sm truncate">{active.documentName}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
+                  <span className="font-semibold text-indigo-600">v{active.seq ?? 1}</span>
+                  <span>·</span>
+                  <span>{active.uploadedByName}</span>
+                  <span>·</span>
+                  <span>{fmtDate(active.uploadedAt)}</span>
+                  {active.fileSize ? <><span>·</span><span>{formatBytes(active.fileSize)}</span></> : null}
+                </div>
+                {active.description && (
+                  <div className="text-xs text-muted-foreground mt-1 italic truncate">{active.description}</div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
+                <a href={active.fileUrl} target="_blank" rel="noopener noreferrer">
+                  <Eye className="h-3.5 w-3.5 mr-1" />View
+                </a>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
+                <a href={active.fileUrl} download={active.documentName}>
+                  <Download className="h-3.5 w-3.5 mr-1" />Download
+                </a>
+              </Button>
+            </div>
+          </div>
+        ) : !active ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+            <ClipboardList className="h-10 w-10 text-muted-foreground/30" />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">No report submitted yet</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Upload the post-trip report for this business trip
+              </p>
+            </div>
+            {canUpload && (
+              <Button size="sm" onClick={() => setUploadDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />Upload Report
+              </Button>
+            )}
+          </div>
+        ) : null}
+      </CardContent>
+
+      {/* Version History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />Report Version History
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Superseded versions are retained for audit. Only the current version is active.
+            </p>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto">
+            {history.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No previous versions</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Version</TableHead>
+                    <TableHead>File</TableHead>
+                    <TableHead>Uploaded By</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">v{r.seq ?? '—'}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm max-w-[200px] truncate">{r.documentName}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{r.uploadedByName}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {fmtDate(r.uploadedAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" asChild>
+                          <a href={r.fileUrl} target="_blank" rel="noopener noreferrer">
+                            <Eye className="h-3.5 w-3.5 mr-1" />View
+                          </a>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+};
+
 const TripDetailsWithDocuments = ({ tripId }: { tripId: number }) => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   
@@ -3564,6 +3861,9 @@ const TripDetailsWithDocuments = ({ tripId }: { tripId: number }) => {
           <TripDocumentsList tripId={tripId} />
         </CardContent>
       </Card>
+
+      {/* Business Trip Report Section */}
+      <BusinessTripReportCard trip={trip} />
     </div>
   );
 };

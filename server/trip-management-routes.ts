@@ -266,6 +266,12 @@ export const getAllTrips = async (req: Request, res: Response) => {
         employeeName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`,
         employeeId: businessTrips.employeeId,
         employeeDepartment: users.department,
+        hasReport: sql<boolean>`EXISTS (
+          SELECT 1 FROM trip_documents td
+          WHERE td.trip_id = ${businessTrips.id}
+            AND td.document_type = 'trip_report'
+            AND td.is_active = true
+        )`,
       })
       .from(businessTrips)
       .leftJoin(users, eq(businessTrips.employeeId, users.id))
@@ -1264,6 +1270,25 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
       routeFile: 'trip-management-routes.ts',
     });
 
+    // For trip_report: supersede any existing active version before inserting
+    let nextSeq: number | null = null;
+    if (documentType === 'trip_report') {
+      const seqResult = await db.execute(sql`
+        SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq
+        FROM trip_documents
+        WHERE trip_id = ${parseInt(tripId)} AND document_type = 'trip_report'
+      `);
+      nextSeq = Number((seqResult.rows[0] as any).next_seq);
+
+      await db.execute(sql`
+        UPDATE trip_documents
+        SET is_active = false
+        WHERE trip_id = ${parseInt(tripId)}
+          AND document_type = 'trip_report'
+          AND is_active = true
+      `);
+    }
+
     // Save document record to database
     const result = await db.insert(tripDocuments).values({
       tripId: parseInt(tripId),
@@ -1275,6 +1300,7 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
       fileType: file.mimetype,
       description: description || null,
       uploadedBy: userId,
+      ...(nextSeq !== null ? { seq: nextSeq } : {}),
     }).returning();
 
     res.status(201).json({
@@ -1412,6 +1438,52 @@ export const downloadTripDocument = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Get the active Business Trip Report + version history for a trip.
+ * Returns { active: TripDocument | null, history: TripDocument[] }
+ * active  = is_active = true row (latest)
+ * history = is_active = false rows (superseded), newest first
+ */
+export const getTripReport = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params;
+
+    const allReports = await db
+      .select({
+        id: tripDocuments.id,
+        documentType: tripDocuments.documentType,
+        documentName: tripDocuments.documentName,
+        filePath: tripDocuments.filePath,
+        fileUrl: tripDocuments.fileUrl,
+        fileSize: tripDocuments.fileSize,
+        fileType: tripDocuments.fileType,
+        description: tripDocuments.description,
+        uploadedAt: tripDocuments.uploadedAt,
+        isActive: tripDocuments.isActive,
+        seq: tripDocuments.seq,
+        uploadedByName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.username})`,
+        uploadedBy: tripDocuments.uploadedBy,
+      })
+      .from(tripDocuments)
+      .leftJoin(users, eq(tripDocuments.uploadedBy, users.id))
+      .where(
+        and(
+          eq(tripDocuments.tripId, parseInt(tripId)),
+          eq(tripDocuments.documentType, 'trip_report')
+        )
+      )
+      .orderBy(desc(tripDocuments.uploadedAt));
+
+    const active = allReports.find(r => r.isActive) ?? null;
+    const history = allReports.filter(r => !r.isActive);
+
+    res.json({ active, history });
+  } catch (error) {
+    console.error('Error fetching trip report:', error);
+    res.status(500).json({ error: 'Failed to fetch trip report' });
+  }
+};
+
 export default {
   getUserTrips,
   getAllTrips,
@@ -1426,6 +1498,7 @@ export default {
   getTripReports,
   uploadTripDocument,
   getTripDocuments,
+  getTripReport,
   deleteTripDocument,
   downloadTripDocument,
   upload, // Export multer upload middleware
