@@ -17,6 +17,7 @@ import {
 } from '@shared/schema';
 import { eq, desc, and, or, ilike, isNull, sql, lt, isNotNull, gte } from 'drizzle-orm';
 import { randomBytes, createHash } from 'crypto';
+import { syncOnCreate } from './gcs-doc-sync-service';
 
 // ─── Token substitution ───────────────────────────────────────────────────
 
@@ -345,11 +346,13 @@ export async function seedGovernanceData(): Promise<void> {
       const derivedTokens = extractTemplateTokens(rule.pathTemplate);
 
       if (existing.length === 0) {
-        await db.insert(gcsGovernanceRules).values({
+        const [inserted] = await db.insert(gcsGovernanceRules).values({
           ...rule,
           allowedTokens: derivedTokens,
           requiredTokens: [],
-        });
+        }).returning();
+        // Mirror new GCS rule into document_path_templates (GCS-to-Doc sync policy)
+        await syncOnCreate(inserted);
       } else {
         // Refresh metadata only — pathTemplate is NOT overwritten here so that
         // admin edits made via the GCS Governance UI are preserved across restarts.
