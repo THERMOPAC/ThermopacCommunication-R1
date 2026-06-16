@@ -16518,3 +16518,16 @@ export const hazopBaselineApprovals = pgTable('hazop_baseline_approvals', {
 }));
 export const insertHazopBaselineApprovalSchema = createInsertSchema(hazopBaselineApprovals).omit({ id: true, createdAt: true });
 export type HazopBaselineApproval = typeof hazopBaselineApprovals.$inferSelect;
+
+// ── employee_code_audit_log ───────────────────────────────────────────────────
+export const employeeCodeAuditLog = pgTable('employee_code_audit_log', {
+  id:              serial('id').primaryKey(),
+  userId:          integer('user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  oldEmployeeCode: text('old_employee_code'),
+  newEmployeeCode: text('new_employee_code').notNull(),
+  reason:          text('reason').notNull(),
+  changedBy:       integer('changed_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  changedAt:       timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const insertEmployeeCodeAuditLogSchema = createInsertSchema(employeeCodeAuditLog).omit({ id: true, changedAt: true });
+export type EmployeeCodeAuditLog = typeof employeeCodeAuditLog.$inferSelect;

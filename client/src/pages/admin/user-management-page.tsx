@@ -87,7 +87,6 @@ const userFormSchema = z.object({
   jobTitle: z.string().optional(),
   department: z.string().min(1, "Department is required"),
   branch: z.string().optional(),
-  employeeCode: z.string().min(1, "Employee Code is required"),
   cardCode: z.string().min(1, "Card Code is required"),
   cardName: z.string().min(1, "Card Name is required"),
   loanCardCode: z.string().optional(),
@@ -200,18 +199,20 @@ export default function UserManagementPage() {
     mutationFn: async (userData: UserFormValues) => {
       return apiRequest('POST', '/api/admin/users', userData);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       setIsAddDialogOpen(false);
       toast({
         title: "User Created",
-        description: "New user has been successfully created.",
+        description: data?.employeeCode
+          ? `Employee created. Code assigned: ${data.employeeCode}`
+          : "New user has been successfully created.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to create user. Please try again.",
+        description: error?.message || "Failed to create user. Please try again.",
         variant: "destructive",
       });
     },
@@ -234,7 +235,6 @@ export default function UserManagementPage() {
         jobTitle: rawData.jobTitle?.trim() || undefined,
         department: rawData.department?.trim() || undefined,
         branch: rawData.branch?.trim() || undefined,
-        employeeCode: rawData.employeeCode?.trim() || undefined,
         phone: rawData.phone?.trim() || undefined,
         fax: rawData.fax?.trim() || undefined,
         linkedVendor: rawData.linkedVendor?.trim() || undefined,
@@ -328,7 +328,6 @@ export default function UserManagementPage() {
       firstName: "",
       lastName: "",
       department: "",
-      employeeCode: "",
       cardCode: "",
       cardName: "",
       loanCardCode: "",
@@ -374,7 +373,6 @@ export default function UserManagementPage() {
       jobTitle: user.jobTitle || "",
       department: user.department || "",
       branch: user.branch || "",
-      employeeCode: user.employeeCode || "",
       cardCode: user.cardCode || "",
       cardName: user.cardName || "",
       loanCardCode: user.loanCardCode || "",
@@ -601,19 +599,6 @@ export default function UserManagementPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="employeeCode"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Employee Code *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter employee code" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <FormField
             control={form.control}
             name="role"

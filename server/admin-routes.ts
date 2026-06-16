@@ -41,7 +41,7 @@ import {
   payrollSettings,
   payrollLeaveAutocover,
 } from '../shared/schema';
-import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray, notInArray, or } from 'drizzle-orm';
+import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, isNull, ne, inArray, notInArray, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { requireReauth, checkReauth } from './middleware/require-reauth';
@@ -51,7 +51,8 @@ import { buildSalarySlipData } from './salary-slip-builder';
 import * as nodemailer from 'nodemailer';
 import { applySalaryIncrement, autoApplyDueIncrements } from './salary-increment-service';
 import { verifyPayslipRelease } from './payroll-calculation-verifier';
-import { glAccountMappings } from '../shared/schema';
+import { glAccountMappings, employeeCodeAuditLog } from '../shared/schema';
+import { generateEmployeeCode, EMPLOYEE_CODE_BANDS } from './utils/employee-code-generator';
 import { sapSession } from './sap-b1-integration/sap-central-session';
 import {
   adminCreateLeave,
@@ -205,7 +206,6 @@ router.post('/users', ensureAuthenticated, async (req: Request, res: Response) =
       jobTitle,
       department,
       branch,
-      employeeCode,
       cardCode,
       cardName,
       panNumber,
@@ -227,44 +227,54 @@ router.post('/users', ensureAuthenticated, async (req: Request, res: Response) =
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        username,
-        email,
-        password: hashedPassword,
-        firstName,
-        middleName,
-        lastName,
-        jobTitle,
-        department,
-        branch,
-        employeeCode,
-        cardCode,
-        cardName,
-        panNumber,
-        dateOfJoining,
-        role,
-        mobileNumber,
-        countryCode,
-        phone,
-        fax,
-        linkedVendor,
-        epfNo,
-        esicNo,
-        stdCode,
-        reportingManagerId,
-        workLocationId,
-        employeeType: employeeType || 'PERMANENT',
-        isActive: true
-      })
-      .returning();
+    const newUser = await db.transaction(async (tx) => {
+      // Auto-generate employee code — advisory lock prevents race conditions
+      const generatedCode = await generateEmployeeCode(role, tx);
+
+      const [created] = await tx
+        .insert(users)
+        .values({
+          username,
+          email,
+          password: hashedPassword,
+          firstName,
+          middleName,
+          lastName,
+          jobTitle,
+          department,
+          branch,
+          employeeCode: generatedCode,
+          cardCode,
+          cardName,
+          panNumber,
+          dateOfJoining,
+          role,
+          mobileNumber,
+          countryCode,
+          phone,
+          fax,
+          linkedVendor,
+          epfNo,
+          esicNo,
+          stdCode,
+          reportingManagerId,
+          workLocationId,
+          employeeType: employeeType || 'PERMANENT',
+          isActive: true
+        })
+        .returning();
+
+      return created;
+    });
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = newUser;
     res.status(201).json(userWithoutPassword);
   } catch (error: any) {
     console.error('Error creating user:', error);
+    if (error?.message?.includes('EMPLOYEE_CODE_BAND_EXHAUSTED')) {
+      return res.status(409).json({ error: error.message });
+    }
     if (error?.code === '23505') {
       const detail = error?.detail || '';
       if (detail.includes('email')) {
@@ -286,6 +296,10 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
   try {
     const userId = parseInt(req.params.id);
     const updateData = req.body;
+
+    // employeeCode is immutable after creation — strip silently
+    delete updateData.employeeCode;
+    delete updateData.employee_code;
     
     console.log('=== USER UPDATE REQUEST ===');
     console.log('PUT /users/:id - User ID:', userId);
@@ -422,6 +436,101 @@ router.post('/users/:id/reset-password', ensureAuthenticated, async (req: Reques
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
     console.error('Error resetting password:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * Superuser-only: correct an employee's code with full audit trail.
+ */
+router.post('/users/:id/employee-code/correct', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    if ((req.user as any)?.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Only Superusers may correct employee codes.' });
+    }
+
+    const targetUserId = parseInt(req.params.id);
+    if (isNaN(targetUserId)) return res.status(400).json({ error: 'Invalid user ID.' });
+
+    const { newEmployeeCode, reason } = req.body;
+
+    if (!newEmployeeCode || typeof newEmployeeCode !== 'string') {
+      return res.status(400).json({ error: 'newEmployeeCode is required.' });
+    }
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return res.status(400).json({ error: 'reason is required.' });
+    }
+
+    // Validate format: TPEL-NNN or TPEL-NNNN
+    const codeMatch = newEmployeeCode.trim().match(/^TPEL-(\d+)$/);
+    if (!codeMatch) {
+      return res.status(400).json({ error: 'Invalid format. Must match TPEL-NNN.' });
+    }
+    const codeNumber = parseInt(codeMatch[1], 10);
+
+    // Load target employee to validate band
+    const [target] = await db.select({ role: users.role, employeeCode: users.employeeCode })
+      .from(users).where(eq(users.id, targetUserId));
+    if (!target) return res.status(404).json({ error: 'Employee not found.' });
+
+    // Validate band matches the employee's current role
+    const band = EMPLOYEE_CODE_BANDS[target.role];
+    if (!band) {
+      return res.status(400).json({ error: `No band defined for role: ${target.role}` });
+    }
+    const [min, max] = band;
+    if (codeNumber < min || codeNumber > max) {
+      return res.status(400).json({
+        error: `Code ${newEmployeeCode} is outside the allowed band (TPEL-${String(min).padStart(3,'0')} – TPEL-${String(max).padStart(3,'0')}) for role "${target.role}".`
+      });
+    }
+
+    // Duplicate check — must not exist in users
+    const [duplicate] = await db.select({ id: users.id })
+      .from(users).where(eq(users.employeeCode, newEmployeeCode.trim()));
+    if (duplicate) {
+      return res.status(409).json({ error: `Employee code ${newEmployeeCode} is already assigned to another employee.` });
+    }
+
+    // Reuse check — must not exist as a retired (old) code in audit log
+    const retiredRows = await db.execute(sql`
+      SELECT id FROM employee_code_audit_log
+      WHERE old_employee_code = ${newEmployeeCode.trim()}
+      LIMIT 1
+    `);
+    if ((retiredRows.rows as any[]).length > 0) {
+      return res.status(409).json({ error: `Employee code ${newEmployeeCode} was previously used and cannot be reused.` });
+    }
+
+    const oldCode = target.employeeCode;
+    const changedBy = (req.user as any).id;
+
+    await db.transaction(async (tx) => {
+      // Update primary record
+      await tx.update(users)
+        .set({ employeeCode: newEmployeeCode.trim() })
+        .where(eq(users.id, targetUserId));
+
+      // Update appraisal snapshots
+      await tx.update(employeeAppraisals)
+        .set({ employeeCode: newEmployeeCode.trim() })
+        .where(eq(employeeAppraisals.employeeId, targetUserId));
+
+      // Write audit log
+      await tx.insert(employeeCodeAuditLog).values({
+        userId: targetUserId,
+        oldEmployeeCode: oldCode ?? null,
+        newEmployeeCode: newEmployeeCode.trim(),
+        reason: reason.trim(),
+        changedBy,
+      });
+    });
+
+    const [updated] = await db.select().from(users).where(eq(users.id, targetUserId));
+    const { password, ...safe } = updated as any;
+    res.json({ message: 'Employee code corrected successfully.', user: safe });
+  } catch (error) {
+    console.error('Error correcting employee code:', error);
     sendError(res, error);
   }
 });
