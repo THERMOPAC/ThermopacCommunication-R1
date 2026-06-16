@@ -290,7 +290,8 @@ export default function DocGovernancePage() {
   };
 
   const MODULE_LABELS: Record<string, string> = {
-    epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design", hr: "HR / Admin",
+    epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design",
+    hr: "HR", admin: "Admin",
     legal: "Legal", finance: "Finance", sap: "SAP", legacy: "Legacy",
   };
 

@@ -1262,7 +1262,7 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
     // Log to GCS governance monitor (non-blocking)
     void logUploadEvent({
       gcsPath,
-      moduleKey: 'hr_admin',
+      moduleKey: 'admin',
       documentType: 'TRIP_DOCUMENT',
       fileSizeBytes: file.size,
       mimeType: file.mimetype,
