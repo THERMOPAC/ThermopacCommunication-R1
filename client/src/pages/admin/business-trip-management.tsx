@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -100,6 +101,27 @@ const documentUploadSchema = z.object({
   documentType: z.string().min(1, 'Document type is required'),
   description: z.string().optional(),
 });
+
+// Shared confirm dialog state type
+type ConfirmState = { open: boolean; title: string; description: string; action: () => void };
+const CONFIRM_CLOSED: ConfirmState = { open: false, title: '', description: '', action: () => {} };
+
+const ConfirmDialog = ({ state, onClose }: { state: ConfirmState; onClose: () => void }) => (
+  <AlertDialog open={state.open} onOpenChange={(v) => !v && onClose()}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{state.title}</AlertDialogTitle>
+        <AlertDialogDescription>{state.description}</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+        <AlertDialogAction onClick={() => { state.action(); onClose(); }}>
+          Confirm
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
 
 type TripFormData = z.infer<typeof tripFormSchema>;
 type ApprovalFormData = z.infer<typeof approvalFormSchema>;
@@ -1195,6 +1217,7 @@ const TripDashboard = () => {
   const [toDateFilter, setToDateFilter] = useState('');
   const [viewingTrip, setViewingTrip] = useState<any>(null);
   const [editingTrip, setEditingTrip] = useState<any>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmState>(CONFIRM_CLOSED);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1357,25 +1380,35 @@ const TripDashboard = () => {
   };
 
   const handleDelete = (trip: any) => {
-    if (window.confirm(`Are you sure you want to delete the trip "${trip.tripTitle}"?`)) {
-      deleteTripMutation.mutate(trip.id);
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Trip',
+      description: `Are you sure you want to delete the trip "${trip.tripTitle}"? This cannot be undone.`,
+      action: () => deleteTripMutation.mutate(trip.id),
+    });
   };
 
   const handleSubmit = (trip: any) => {
-    if (confirm(`Are you sure you want to submit the trip "${trip.tripTitle}" for approval? Once submitted, you cannot edit the trip details.`)) {
-      submitTripMutation.mutate(trip.id);
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Submit for Approval',
+      description: `Submit the trip "${trip.tripTitle}" for approval? Once submitted, you cannot edit the trip details.`,
+      action: () => submitTripMutation.mutate(trip.id),
+    });
   };
 
   const handleConclude = (trip: any) => {
-    if (confirm(`Are you sure you want to mark this trip "${trip.tripTitle}" as concluded? This action cannot be undone and will automatically create a travel entry in the EU 180-Day Tracker if the destination is in the Schengen Area.`)) {
-      concludeTripMutation.mutate(trip.id);
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Conclude Trip',
+      description: `Mark trip "${trip.tripTitle}" as concluded? This cannot be undone and will automatically create a travel entry in the EU 180-Day Tracker if the destination is in the Schengen Area.`,
+      action: () => concludeTripMutation.mutate(trip.id),
+    });
   };
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog state={confirmDialog} onClose={() => setConfirmDialog(CONFIRM_CLOSED)} />
       {/* Search and Filter Section - Top Priority */}
       <Card>
         <CardHeader>
@@ -2010,6 +2043,7 @@ const TripList = () => {
   const queryClient = useQueryClient();
   const [editingTrip, setEditingTrip] = useState<any>(null);
   const [viewingTrip, setViewingTrip] = useState<any>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmState>(CONFIRM_CLOSED);
   
   // Filter and search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -2160,27 +2194,37 @@ const TripList = () => {
   };
 
   const handleSubmit = (trip: any) => {
-    if (confirm(`Are you sure you want to submit the trip "${trip.tripTitle}" for approval? Once submitted, you cannot edit the trip details.`)) {
-      submitTripMutation.mutate(trip.id);
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Submit for Approval',
+      description: `Submit the trip "${trip.tripTitle}" for approval? Once submitted, you cannot edit the trip details.`,
+      action: () => submitTripMutation.mutate(trip.id),
+    });
   };
 
   const handleDelete = (trip: any) => {
-    if (confirm(`Are you sure you want to delete the trip request "${trip.tripTitle}"?`)) {
-      deleteTripMutation.mutate(trip.id);
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Trip',
+      description: `Are you sure you want to delete the trip "${trip.tripTitle}"? This cannot be undone.`,
+      action: () => deleteTripMutation.mutate(trip.id),
+    });
   };
 
   const handleConclude = (trip: any) => {
-    if (confirm(`Are you sure you want to mark this trip "${trip.tripTitle}" as concluded? This action cannot be undone and will automatically create a travel entry in the EU 180-Day Tracker if the destination is in the Schengen Area.`)) {
-      concludeTripMutation.mutate(trip.id);
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Conclude Trip',
+      description: `Mark trip "${trip.tripTitle}" as concluded? This cannot be undone and will automatically create a travel entry in the EU 180-Day Tracker if the destination is in the Schengen Area.`,
+      action: () => concludeTripMutation.mutate(trip.id),
+    });
   };
 
   if (isLoading) return <div>Loading trips...</div>;
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog state={confirmDialog} onClose={() => setConfirmDialog(CONFIRM_CLOSED)} />
       {/* Search and Filter Controls */}
       <Card>
         <CardHeader>
@@ -3268,6 +3312,7 @@ const TripDocumentsTab = () => {
   const [page, setPage] = useState(1);
   const [uploadTripId, setUploadTripId] = useState<number | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmState>(CONFIRM_CLOSED);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -3316,9 +3361,12 @@ const TripDocumentsTab = () => {
   };
 
   const handleDelete = (trip: any) => {
-    if (window.confirm(`Delete trip "${trip.tripTitle}"? This cannot be undone.`)) {
-      deleteTripMutation.mutate(trip.id);
-    }
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Trip',
+      description: `Delete trip "${trip.tripTitle}"? This cannot be undone.`,
+      action: () => deleteTripMutation.mutate(trip.id),
+    });
   };
 
   const handleUpload = (trip: any) => {
@@ -3377,6 +3425,7 @@ const TripDocumentsTab = () => {
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog state={confirmDialog} onClose={() => setConfirmDialog(CONFIRM_CLOSED)} />
       {/* Search & Filter Bar */}
       <Card>
         <CardContent className="pt-4 pb-4">
