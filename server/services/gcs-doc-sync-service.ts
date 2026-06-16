@@ -18,7 +18,7 @@ import { eq } from 'drizzle-orm';
 import type { GcsGovernanceRule } from '@shared/schema';
 
 export interface DocSyncResult {
-  action: 'created' | 'updated' | 'linked' | 'deactivated' | 'activated' | 'not_found' | 'skipped';
+  action: 'created' | 'updated' | 'linked' | 'unchanged' | 'deactivated' | 'activated' | 'not_found' | 'skipped';
   templateId?: number;
   templateCode?: string;
   error?: string;
@@ -29,6 +29,7 @@ export interface BackfillResult {
   created: number;
   linked: number;
   updated: number;
+  unchanged: number;
   skipped: number;
   errors: string[];
 }
@@ -154,6 +155,17 @@ export async function syncOnUpdate(rule: GcsGovernanceRule): Promise<DocSyncResu
     }
 
     const relativePathTemplate = deriveRelativePath(rule);
+
+    // Diff: only write if at least one field has changed
+    const unchanged =
+      linked.relativePathTemplate === relativePathTemplate &&
+      linked.revisionMode         === rule.revisionMode   &&
+      linked.active               === rule.active;
+
+    if (unchanged) {
+      return { action: 'unchanged', templateId: linked.id, templateCode: linked.templateCode ?? undefined };
+    }
+
     const [updated] = await db
       .update(documentPathTemplates)
       .set({
@@ -230,7 +242,7 @@ export async function backfillAllGcsRules(): Promise<BackfillResult> {
     .from(gcsGovernanceRules)
     .orderBy(gcsGovernanceRules.id);
 
-  const result: BackfillResult = { processed: rules.length, created: 0, linked: 0, updated: 0, skipped: 0, errors: [] };
+  const result: BackfillResult = { processed: rules.length, created: 0, linked: 0, updated: 0, unchanged: 0, skipped: 0, errors: [] };
 
   for (const rule of rules) {
     // Check if already linked
@@ -241,9 +253,10 @@ export async function backfillAllGcsRules(): Promise<BackfillResult> {
       .limit(1);
 
     if (already) {
-      // Linked: sync it (update path/revisionMode/active)
+      // Linked: diff and sync only if changed
       const sr = await syncOnUpdate(rule);
-      if (sr.error) { result.errors.push(`Rule #${rule.id}: ${sr.error}`); }
+      if (sr.action === 'unchanged') { result.unchanged++; }
+      else if (sr.error) { result.errors.push(`Rule #${rule.id}: ${sr.error}`); }
       else { result.updated++; }
     } else {
       // Not yet linked: create or link by templateCode
