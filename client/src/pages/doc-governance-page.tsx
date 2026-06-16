@@ -293,6 +293,7 @@ export default function DocGovernancePage() {
     epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design",
     hr: "HR", admin: "Admin",
     legal: "Legal", finance: "Finance", sap: "SAP", legacy: "Legacy",
+    sales: "Sales",
   };
 
   const filteredPathTemplates = pathTemplates.filter(pt => {
