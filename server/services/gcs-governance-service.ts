@@ -314,16 +314,6 @@ const SEED_RULES = [
 
 export async function seedGovernanceData(): Promise<void> {
   try {
-    // Remove retired Sales module rules from DB (CUSTOMER_ORDER, SALES_CONTRACT, OFFER_TEMPLATE
-    // were removed 2026-05 — delete versions (FK child) before rules (FK parent).
-    const salesRules = await db.select({ id: gcsGovernanceRules.id })
-      .from(gcsGovernanceRules)
-      .where(eq(gcsGovernanceRules.moduleKey, 'sales'));
-    for (const r of salesRules) {
-      await db.delete(gcsGovernanceRuleVersions).where(eq(gcsGovernanceRuleVersions.ruleId, r.id));
-    }
-    await db.delete(gcsGovernanceRules).where(eq(gcsGovernanceRules.moduleKey, 'sales'));
-
     // Seed tokens (upsert by tokenName)
     for (const token of SEED_TOKENS) {
       await db.insert(gcsGovernanceTokenRegistry)

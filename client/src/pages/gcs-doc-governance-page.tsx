@@ -162,7 +162,7 @@ const MODULE_LABELS: Record<string, string> = {
   company: "Company", epc: "EPC", dvs: "DVS", qms: "QMS", design: "Design",
   hr: "HR", admin: "Admin",
   legal: "Legal", finance: "Finance", sap: "SAP", legacy: "Legacy",
-  vendor: "Vendor",
+  vendor: "Vendor", sales: "Sales",
 };
 
 const MODULE_COLORS: Record<string, string> = {
@@ -178,6 +178,7 @@ const MODULE_COLORS: Record<string, string> = {
   sap: "bg-teal-100 text-teal-800",
   legacy: "bg-gray-100 text-gray-700",
   vendor: "bg-amber-100 text-amber-800",
+  sales: "bg-emerald-100 text-emerald-800",
 };
 
 const REVISION_MODES = ["none", "numeric", "alphabetic"];
