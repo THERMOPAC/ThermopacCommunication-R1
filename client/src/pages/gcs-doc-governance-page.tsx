@@ -109,7 +109,17 @@ interface FileMigrationJob {
   skippedFiles: number;
   failedFiles: number;
   missingSrcFiles: number;
-  errorLog: Array<{ fileId: number; oldPath: string; error: string; type?: string }> | null;
+  /** Computed server-side: missing_source entries whose DB record is still active */
+  activeMissingSrcFiles?: number;
+  errorLog: Array<{
+    fileId: number;
+    oldPath: string;
+    error: string;
+    type?: string;
+    /** null = source table has no is_active or record not found */
+    isRecordActive?: boolean | null;
+    deletedAt?: string | null;
+  }> | null;
   startedAt: string;
   completedAt: string | null;
 }
@@ -1339,21 +1349,56 @@ function FileMigrationPanel({ rule }: { rule: GcsGovernanceRule }) {
           {(() => {
             const missingSrcItems = latest.errorLog?.filter(e => e.type === 'missing_source') ?? [];
             const actualErrors    = latest.errorLog?.filter(e => e.type !== 'missing_source') ?? [];
+
+            const activeMissing   = missingSrcItems.filter(e => e.isRecordActive !== false);
+            const closedMissing   = missingSrcItems.filter(e => e.isRecordActive === false);
+            const allClosed       = missingSrcItems.length > 0 && activeMissing.length === 0;
+
             return (
               <>
                 {missingSrcItems.length > 0 && (
-                  <details className="text-[10px]">
-                    <summary className="cursor-pointer text-amber-600 font-medium">
-                      ⚠ {missingSrcItems.length} source object{missingSrcItems.length !== 1 ? 's' : ''} not found in GCS — DB path unchanged
-                    </summary>
-                    <div className="mt-1 space-y-0.5 max-h-24 overflow-y-auto">
-                      {missingSrcItems.map((e, i) => (
-                        <div key={i} className="font-mono text-amber-700 truncate" title={e.oldPath}>
-                          id={e.fileId}: {e.oldPath}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
+                  <>
+                    {allClosed ? (
+                      <div className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded bg-slate-100 border border-slate-200">
+                        <span className="text-slate-400">✓</span>
+                        <span className="text-slate-600 font-medium">
+                          {missingSrcItems.length} source object{missingSrcItems.length !== 1 ? 's' : ''} were missing —
+                        </span>
+                        <span className="text-green-700 font-semibold">closed: all records deactivated</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded bg-amber-50 border border-amber-200">
+                        <span className="text-amber-600 font-medium">
+                          ⚠ {activeMissing.length} active source object{activeMissing.length !== 1 ? 's' : ''} not found in GCS
+                        </span>
+                        {closedMissing.length > 0 && (
+                          <span className="text-slate-400">· {closedMissing.length} deactivated</span>
+                        )}
+                      </div>
+                    )}
+                    <details className="text-[10px]">
+                      <summary className="cursor-pointer text-slate-500 font-medium pl-0.5">
+                        Show {missingSrcItems.length} missing record{missingSrcItems.length !== 1 ? 's' : ''}
+                      </summary>
+                      <div className="mt-1 space-y-0.5 max-h-28 overflow-y-auto pl-1">
+                        {missingSrcItems.map((e, i) => (
+                          <div
+                            key={i}
+                            className={`font-mono truncate flex items-center gap-1 ${e.isRecordActive === false ? 'text-slate-400' : 'text-amber-700'}`}
+                            title={e.oldPath}
+                          >
+                            {e.isRecordActive === false
+                              ? <span className="shrink-0 text-slate-400">✓</span>
+                              : <span className="shrink-0 text-amber-500">⚠</span>}
+                            <span>id={e.fileId}: {e.oldPath}</span>
+                            {e.isRecordActive === false && (
+                              <span className="shrink-0 text-[9px] text-slate-400 italic">(deactivated)</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </>
                 )}
                 {actualErrors.length > 0 && (
                   <details className="text-[10px]">

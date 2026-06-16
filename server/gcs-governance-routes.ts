@@ -414,7 +414,54 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         .where(eq(gcsFileMigrationJobs.ruleId, ruleId))
         .orderBy(desc(gcsFileMigrationJobs.startedAt))
         .limit(20);
-      res.json(jobs);
+
+      // ── Enrich error_log entries with current record active status ──────────
+      // Maps document_type → source table name (subset that support is_active)
+      const SOURCE_TABLE_MAP: Record<string, string> = {
+        TRIP_DOCUMENT:  'trip_documents',
+        VISA_DOCUMENT:  'visa_records',
+      };
+
+      const enriched = await Promise.all(jobs.map(async (job) => {
+        const errorLog = job.errorLog as Array<{ fileId: number; oldPath: string; error: string; type?: string; isRecordActive?: boolean; deletedAt?: string | null }> | null;
+        if (!errorLog || errorLog.length === 0) return job;
+
+        const sourceTable = SOURCE_TABLE_MAP[job.documentType ?? ''];
+        if (!sourceTable) return job;
+
+        const missingSrcIds = errorLog
+          .filter(e => e.type === 'missing_source')
+          .map(e => e.fileId)
+          .filter((id): id is number => typeof id === 'number');
+
+        if (missingSrcIds.length === 0) return job;
+
+        const rows = await db.execute(sql`
+          SELECT id, is_active, deleted_at
+          FROM ${sql.raw(sourceTable)}
+          WHERE id IN (${sql.join(missingSrcIds.map(id => sql`${id}`), sql`, `)})
+        `).then((r: any) => r.rows as Array<{ id: number; is_active: boolean; deleted_at: string | null }>);
+
+        const activeMap = new Map(rows.map(r => [r.id, { isActive: r.is_active, deletedAt: r.deleted_at }]));
+
+        const enrichedLog = errorLog.map(e => {
+          if (e.type !== 'missing_source') return e;
+          const rec = activeMap.get(e.fileId);
+          return {
+            ...e,
+            isRecordActive: rec ? rec.isActive : null,
+            deletedAt: rec ? rec.deletedAt : null,
+          };
+        });
+
+        const activeMissingSrcFiles = enrichedLog.filter(
+          e => e.type === 'missing_source' && e.isRecordActive !== false
+        ).length;
+
+        return { ...job, errorLog: enrichedLog, activeMissingSrcFiles };
+      }));
+
+      res.json(enriched);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
