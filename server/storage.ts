@@ -519,7 +519,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Optimized method for user selection - only returns essential fields
-  async getUsersForSelection(): Promise<{id: number, username: string, role: string, firstName?: string, lastName?: string, department?: string, cardCode?: string, employeeCode?: string}[]> {
+  async getUsersForSelection(): Promise<{id: number, username: string, role: string, firstName?: string, lastName?: string, department?: string, cardCode?: string, employeeCode?: string, loanCardCode?: string, loanCardName?: string}[]> {
     const usersList = await db.select({
       id: users.id,
       username: users.username,
@@ -529,6 +529,8 @@ export class DatabaseStorage implements IStorage {
       department: users.department,
       cardCode: users.cardCode,
       employeeCode: users.employeeCode,
+      loanCardCode: users.loanCardCode,
+      loanCardName: users.loanCardName,
     }).from(users).where(eq(users.isActive, true));
     
     console.log(`Getting ${usersList.length} users for selection (optimized)`);

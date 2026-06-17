@@ -740,6 +740,23 @@ export default function LoansAdvancesPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {(() => {
+                if (!loanForm.employeeId) return null;
+                const emp = users.find((u: any) => String(u.id) === loanForm.employeeId);
+                if (!emp) return null;
+                const missingFields: string[] = [];
+                if (!emp.loanCardCode?.trim()) missingFields.push('Loan Card Code');
+                if (!emp.loanCardName?.trim()) missingFields.push('Loan Card Name');
+                if (missingFields.length === 0) return null;
+                return (
+                  <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+                    <span>
+                      This employee is missing <strong>{missingFields.join(' and ')}</strong>. Please set these in User Management before creating a loan.
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
             <div>
               <Label>Loan Type</Label>
@@ -825,7 +842,12 @@ export default function LoansAdvancesPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLoanDialog(false)}>Cancel</Button>
             <Button
-              disabled={!loanForm.approvedRequestReference.trim() || !loanForm.employeeId || !loanForm.principalAmount || !loanForm.emiAmount || !loanForm.tenureMonths || !loanForm.disbursementDate || !loanForm.startDeductionDate}
+              disabled={(() => {
+                if (!loanForm.approvedRequestReference.trim() || !loanForm.employeeId || !loanForm.principalAmount || !loanForm.emiAmount || !loanForm.tenureMonths || !loanForm.disbursementDate || !loanForm.startDeductionDate) return true;
+                const emp = users.find((u: any) => String(u.id) === loanForm.employeeId);
+                if (!emp?.loanCardCode?.trim() || !emp?.loanCardName?.trim()) return true;
+                return false;
+              })()}
               onClick={() => createLoanMutation.mutate({
                 employeeId: Number(loanForm.employeeId),
                 loanType: loanForm.loanType,
