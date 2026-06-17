@@ -156,11 +156,12 @@ export async function syncOnUpdate(rule: GcsGovernanceRule): Promise<DocSyncResu
 
     const relativePathTemplate = deriveRelativePath(rule);
 
-    // Diff: only write if at least one field has changed
+    // Diff: only write if at least one GCS-governed field has changed
     const unchanged =
       linked.relativePathTemplate === relativePathTemplate &&
       linked.revisionMode         === rule.revisionMode   &&
-      linked.active               === rule.active;
+      linked.active               === rule.active         &&
+      linked.documentCategory     === rule.moduleKey;
 
     if (unchanged) {
       return { action: 'unchanged', templateId: linked.id, templateCode: linked.templateCode ?? undefined };
@@ -170,9 +171,10 @@ export async function syncOnUpdate(rule: GcsGovernanceRule): Promise<DocSyncResu
       .update(documentPathTemplates)
       .set({
         relativePathTemplate,
-        revisionMode: rule.revisionMode,
-        active:       rule.active,
-        updatedAt:    new Date(),
+        revisionMode:     rule.revisionMode,
+        active:           rule.active,
+        documentCategory: rule.moduleKey,
+        updatedAt:        new Date(),
       })
       .where(eq(documentPathTemplates.id, linked.id))
       .returning();
