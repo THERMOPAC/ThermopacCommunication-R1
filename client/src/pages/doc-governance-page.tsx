@@ -301,13 +301,15 @@ export default function DocGovernancePage() {
     if (filterStatus === "active" && !pt.active) return false;
     if (filterStatus === "inactive" && pt.active) return false;
     if (searchText.trim()) {
-      const q = searchText.toLowerCase();
+      const q = searchText.trim().toLowerCase().replace(/^#/, '');
       const match =
         pt.templateCode.toLowerCase().includes(q) ||
         pt.documentType.toLowerCase().includes(q) ||
         pt.relativePathTemplate.toLowerCase().includes(q) ||
         (pt.fileNameTemplate ?? "").toLowerCase().includes(q) ||
-        (pt.documentCategory ?? "").toLowerCase().includes(q);
+        (pt.documentCategory ?? "").toLowerCase().includes(q) ||
+        String(pt.id).includes(q) ||
+        (pt.gcsRuleId ? String(pt.gcsRuleId).includes(q) : false);
       if (!match) return false;
     }
     return true;
@@ -452,6 +454,7 @@ export default function DocGovernancePage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono font-semibold text-sm">{pt.templateCode}</span>
+                            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{pt.id}</span>
                             {pt.documentCategory && (
                               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${categoryColors[pt.documentCategory] ?? ''}`}>
                                 {pt.documentCategory}
@@ -466,7 +469,7 @@ export default function DocGovernancePage() {
                             {pt.gcsRuleId && (
                               <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-purple-700 border-purple-300 bg-purple-50 flex items-center gap-0.5">
                                 <Link2 className="h-2.5 w-2.5" />
-                                GCS-managed
+                                GCS Rule #{pt.gcsRuleId}
                               </Badge>
                             )}
                           </div>

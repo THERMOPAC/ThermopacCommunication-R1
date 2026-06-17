@@ -1674,7 +1674,12 @@ function GovernanceRulesTab() {
     if (filterActive === "inactive" && r.active) return false;
     if (filterActive === "issues" && !hasWarning(r)) return false;
     if (filterActive === "db-driven" && r.governanceMode !== "db_driven") return false;
-    if (searchName.trim() && !r.displayName.toLowerCase().includes(searchName.trim().toLowerCase())) return false;
+    if (searchName.trim()) {
+      const q = searchName.trim().toLowerCase().replace(/^#/, '');
+      const matchesName = r.displayName.toLowerCase().includes(q);
+      const matchesId   = String(r.id).includes(q);
+      if (!matchesName && !matchesId) return false;
+    }
     return true;
   });
 
@@ -1706,7 +1711,7 @@ function GovernanceRulesTab() {
             <Input
               value={searchName}
               onChange={e => setSearchName(e.target.value)}
-              placeholder="Search display name…"
+              placeholder="Search name or #ID…"
               className="h-8 text-xs pl-7 w-48"
             />
           </div>
@@ -1733,6 +1738,7 @@ function GovernanceRulesTab() {
                       {rule.submoduleKey && (
                         <span className="text-[11px] text-slate-400">{rule.submoduleKey}</span>
                       )}
+                      <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{rule.id}</span>
                       <span className="text-xs font-semibold text-slate-700">{rule.displayName}</span>
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1 rounded">{rule.documentType}</span>
                       {!rule.active && <Badge variant="outline" className="text-[10px] h-4">Inactive</Badge>}
