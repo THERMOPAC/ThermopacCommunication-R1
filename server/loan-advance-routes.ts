@@ -412,57 +412,41 @@ async function postDisbursementJE(
     }
   }
 
-  // ── Loan disbursement path (GL-mapped) ──
-  const debitContext = 'loan_disbursement';
-  const creditContext = debitContext;
-  const creditCode = 'LOAN_ADVANCE_BANK';
+  // ── Loan disbursement path (BP-to-BP, same structure as advance) ──
+  // Dr: loanCardCode (employee's loan receivable BP account in SAP)
+  // Cr: cardCode    (employee's own BP account in SAP)
 
-  const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
-
-  const debitMapping = allMappings.find(
-    m => m.componentCode === 'LOAN_RECEIVABLE' && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
-  );
-  const creditMapping = allMappings.find(
-    m => m.componentCode === creditCode && m.postingContext === creditContext && m.glAccountCode && m.glAccountCode.trim() !== ''
-  );
-
-  const missingMappings: string[] = [];
-  if (!debitMapping) missingMappings.push(`LOAN_RECEIVABLE (${debitContext})`);
-  if (!creditMapping) missingMappings.push(`${creditCode} (${creditContext})`);
-
-  if (missingMappings.length > 0) {
+  if (!employee.loanCardCode || employee.loanCardCode.trim() === '') {
     await db.update(table).set({
       sapPostingStatus: 'failed',
-      sapErrorMessage: `GL mappings missing: ${missingMappings.join(', ')}. Go to Finance > GL Mapping to set them up.`,
+      sapErrorMessage: `Employee ${empName} has no Loan Card Code linked. Please assign a Loan Card Code before posting a loan.`,
       updatedAt: new Date(),
     } as any).where(eq(table.id, recordId));
-    return { success: false, error: `GL mappings missing: ${missingMappings.join(', ')}` };
+    return { success: false, error: `Employee ${empName} has no Loan Card Code linked.` };
   }
 
   const disbAmount = parseFloat(amount);
-  const typeLabel = 'Loan';
   const postingDate = disbursementDate || new Date().toISOString().split('T')[0];
-
-  const loanCardCode = employee.loanCardCode || null;
-  const debitLine: any = { Line_ID: 0, AccountCode: debitMapping!.glAccountCode };
-  if (loanCardCode) debitLine.ShortName = loanCardCode;
-  debitLine.Debit = disbAmount;
-  debitLine.Credit = 0;
-  debitLine.LineMemo = `${typeLabel} Disbursement - ${empName} - ${reference}`;
 
   const jePayload = {
     ReferenceDate: postingDate,
-    Memo: `${typeLabel} Disbursement - ${empName} - ${reference}`,
+    Memo: `Loan Disbursement - ${empName} - ${reference}`,
     Reference2: employee.cardCode,
     Reference3: reference,
     JournalEntryLines: [
-      debitLine,
+      {
+        Line_ID: 0,
+        ShortName: employee.loanCardCode,
+        Debit: disbAmount,
+        Credit: 0,
+        LineMemo: `Loan Disbursement - ${empName} - ${reference}`,
+      },
       {
         Line_ID: 1,
-        AccountCode: creditMapping!.glAccountCode,
+        ShortName: employee.cardCode,
         Debit: 0,
         Credit: disbAmount,
-        LineMemo: `${typeLabel} Disbursement - ${empName} - ${reference}`,
+        LineMemo: `Loan Disbursement - ${empName} - ${reference}`,
       },
     ],
   };
