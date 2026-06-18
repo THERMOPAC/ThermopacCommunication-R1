@@ -309,6 +309,31 @@ export function registerWelderPhotoRoutes(app: any) {
                 .set({ photoPath: standardPath })
                 .where(eq(schema.welders.id, welderIdNum));
               console.log('Database update result:', dbUpdateResult);
+
+              // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job
+              try {
+                const { createHash: _chw } = await import('crypto');
+                const sha256 = _chw('sha256').update(buffer).digest('hex');
+                const uploaderUserId = (req as any).user?.id ?? null;
+                const { pool: _pool } = await import('../db');
+                const mjRes = await _pool.query(
+                  `INSERT INTO document_agent_jobs
+                     (job_type, status, relative_path, file_url, file_name, expected_sha256,
+                      source_module, source_record_id, created_by)
+                   VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'welders', $4, $5)
+                   RETURNING id`,
+                  [standardPath, originalname, sha256, welderIdNum, uploaderUserId],
+                );
+                const mirrorJobId = mjRes.rows[0].id as number;
+                // G3: mark mirror_status on welders record (best-effort — columns added by migration)
+                await _pool.query(
+                  `UPDATE welders SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+                  [mirrorJobId, welderIdNum],
+                ).catch(() => { /* welders table may not have mirror columns yet — non-fatal */ });
+              } catch (mirrorErr) {
+                // Mirror failure NEVER invalidates the GCS copy (Dual-Storage Policy)
+                console.error(`[welder-photo] Mirror job enqueue failed for welder ${welderIdNum} — GCS copy remains valid:`, mirrorErr);
+              }
             }
           } catch (dbError) {
             console.error('Database update error:', dbError);

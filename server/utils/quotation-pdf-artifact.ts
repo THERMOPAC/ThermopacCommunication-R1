@@ -199,6 +199,27 @@ export async function storeQuotationPdfArtifact(
 
   console.log(`[quotation-pdf] Artifact ${artifactId} stored at ${gcsObjectPath} (${fileSize} bytes, sha256=${checksum})`);
 
+  // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job
+  try {
+    const mirrorJobRes = await pool.query(
+      `INSERT INTO document_agent_jobs
+         (job_type, status, relative_path, file_url, file_name, expected_sha256,
+          source_module, source_record_id, created_by)
+       VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'quotation_pdf_artifacts', $4, $5)
+       RETURNING id`,
+      [gcsObjectPath, `${offerNumber}-rev${revision}-${priceMode}.pdf`, checksum, artifactId, userId],
+    );
+    const mirrorJobId = mirrorJobRes.rows[0].id as number;
+    // G3: mark mirror_status on source record
+    await pool.query(
+      `UPDATE quotation_pdf_artifacts SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+      [mirrorJobId, artifactId],
+    );
+  } catch (mirrorErr) {
+    // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+    console.error(`[quotation-pdf] Mirror job enqueue failed for artifact ${artifactId} — GCS copy remains valid:`, mirrorErr);
+  }
+
   return { artifactId, gcsObjectPath, checksum };
 }
 
@@ -332,6 +353,27 @@ export async function storeQuotationPdfArtifactTwoPhase(
     `UPDATE quotation_pdf_artifacts SET artifact_status = 'active' WHERE id = $1`,
     [artifactId]
   );
+
+  // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job after GCS success
+  try {
+    const mirrorJobRes = await pool.query(
+      `INSERT INTO document_agent_jobs
+         (job_type, status, relative_path, file_url, file_name, expected_sha256,
+          source_module, source_record_id, created_by)
+       VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'quotation_pdf_artifacts', $4, $5)
+       RETURNING id`,
+      [gcsObjectPath, `${offerNumber}-rev${revision}-${priceMode}.pdf`, checksum, artifactId, userId],
+    );
+    const mirrorJobId = mirrorJobRes.rows[0].id as number;
+    // G3: mark mirror_status on source record
+    await pool.query(
+      `UPDATE quotation_pdf_artifacts SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+      [mirrorJobId, artifactId],
+    );
+  } catch (mirrorErr) {
+    // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+    console.error(`[quotation-pdf] [2-phase] Mirror job enqueue failed for artifact ${artifactId} — GCS copy remains valid:`, mirrorErr);
+  }
 
   console.log(`[quotation-pdf] [2-phase] Artifact ${artifactId} active at ${gcsObjectPath} (seq=${attachmentSeq})`);
   return { artifactId, gcsObjectPath, attachmentSeq, checksum };
@@ -723,15 +765,40 @@ export async function storeConfirmationDocToGcs(
     // Insert customer_order_documents record
     const { createHash } = await import('crypto');
     const checksum = createHash('sha256').update(stagedBuffer).digest('hex');
-    await pool.query(
+    const insertRes = await pool.query(
       `INSERT INTO customer_order_documents
          (project_id, customer_order_number, document_label, revision_code,
           attachment_seq, gcs_bucket, gcs_object_path, original_file_name,
           mime_type, file_size_bytes, checksum_sha256, status, is_current, uploaded_by)
        VALUES ($1, $2, 'purchase-order', '00', 1, $3, $4, $5, 'application/pdf', $6, $7, 'active', true, $8)
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
       [projectId, orderNumber, bucketName, gcsPath, originalFilename, stagedBuffer.length, checksum, userId]
     );
+
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job
+    try {
+      const coDocId: number | null = insertRes.rows.length > 0 ? (insertRes.rows[0].id as number) : null;
+      const mirrorJobRes = await pool.query(
+        `INSERT INTO document_agent_jobs
+           (job_type, status, relative_path, file_url, file_name, expected_sha256,
+            source_module, source_record_id, created_by)
+         VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'customer_order_documents', $4, $5)
+         RETURNING id`,
+        [gcsPath, originalFilename, checksum, coDocId, userId],
+      );
+      const mirrorJobId = mirrorJobRes.rows[0].id as number;
+      // G3: mark mirror_status on source record if we have the ID
+      if (coDocId !== null) {
+        await pool.query(
+          `UPDATE customer_order_documents SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+          [mirrorJobId, coDocId],
+        );
+      }
+    } catch (mirrorErr) {
+      // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+      console.error('[co-doc] Mirror job enqueue failed — GCS copy remains valid:', mirrorErr);
+    }
 
     console.log(`[co-doc] Customer Order snapshot saved → ${gcsPath}`);
     return { success: true, gcsPath };

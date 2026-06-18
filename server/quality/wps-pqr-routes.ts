@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
-import { db } from '../db';
+import { db, pool } from '../db';
+import { createHash as _wpsCreateHash } from 'crypto';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { eq, sql, and, or, desc, SQL } from 'drizzle-orm';
 import { wpsDocuments, users } from '@shared/schema';
@@ -221,7 +222,24 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
     `);
     
     const newWpsDocument = result.rows && result.rows.length > 0 ? result.rows[0] : null;
-    
+
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job (only if file uploaded)
+    if (req.file && documentFilePath && newWpsDocument?.id) {
+      try {
+        const sha256 = _wpsCreateHash('sha256').update(req.file.buffer).digest('hex');
+        const mjRes = await pool.query(
+          `INSERT INTO document_agent_jobs (job_type, status, relative_path, file_url, file_name, expected_sha256, source_module, source_record_id, created_by)
+           VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'wps_documents', $4, $5) RETURNING id`,
+          [documentFilePath, req.file.originalname, sha256, newWpsDocument.id, req.user!.id],
+        );
+        const mirrorJobId = mjRes.rows[0].id as number;
+        await pool.query(`UPDATE wps_documents SET mirror_status='pending', mirror_job_id=$1 WHERE id=$2`, [mirrorJobId, newWpsDocument.id])
+          .catch(() => { /* mirror columns may not be present yet — non-fatal */ });
+      } catch (mirrorErr) {
+        console.error('[wps-pqr] Mirror job enqueue failed — GCS copy remains valid:', mirrorErr);
+      }
+    }
+
     res.status(201).json(newWpsDocument);
   } catch (error) {
     console.error('Error creating WPS document:', error);
@@ -282,7 +300,24 @@ router.put('/wps/:id', ensureAuthenticated, uploadWpsPqrDocument.single('documen
       })
       .where(eq(wpsDocuments.id, wpsId))
       .returning();
-    
+
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job (only if file uploaded)
+    if (req.file && documentFilePath && updatedWpsDocument?.id) {
+      try {
+        const sha256 = _wpsCreateHash('sha256').update(req.file.buffer).digest('hex');
+        const mjRes = await pool.query(
+          `INSERT INTO document_agent_jobs (job_type, status, relative_path, file_url, file_name, expected_sha256, source_module, source_record_id, created_by)
+           VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'wps_documents', $4, $5) RETURNING id`,
+          [documentFilePath, req.file.originalname, sha256, updatedWpsDocument.id, (req as any).user?.id ?? null],
+        );
+        const mirrorJobId = mjRes.rows[0].id as number;
+        await pool.query(`UPDATE wps_documents SET mirror_status='pending', mirror_job_id=$1 WHERE id=$2`, [mirrorJobId, updatedWpsDocument.id])
+          .catch(() => { /* mirror columns may not be present yet — non-fatal */ });
+      } catch (mirrorErr) {
+        console.error('[wps-pqr] Mirror job enqueue failed — GCS copy remains valid:', mirrorErr);
+      }
+    }
+
     res.json(updatedWpsDocument);
   } catch (error) {
     console.error(`Error updating WPS document ${req.params.id}:`, error);
@@ -390,6 +425,23 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
       .where(eq(wpsDocuments.id, documentId))
       .returning();
     
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job (only if file uploaded)
+    if (req.file && uploadResult.combined_document_file_path && updatedWpsDocument?.id) {
+      try {
+        const sha256 = _wpsCreateHash('sha256').update(req.file.buffer).digest('hex');
+        const mjRes = await pool.query(
+          `INSERT INTO document_agent_jobs (job_type, status, relative_path, file_url, file_name, expected_sha256, source_module, source_record_id, created_by)
+           VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'wps_documents', $4, $5) RETURNING id`,
+          [uploadResult.combined_document_file_path, req.file.originalname, sha256, updatedWpsDocument.id, (req as any).user?.id ?? null],
+        );
+        const mirrorJobId = mjRes.rows[0].id as number;
+        await pool.query(`UPDATE wps_documents SET mirror_status='pending', mirror_job_id=$1 WHERE id=$2`, [mirrorJobId, updatedWpsDocument.id])
+          .catch(() => { /* mirror columns may not be present yet — non-fatal */ });
+      } catch (mirrorErr) {
+        console.error('[wps-pqr] Mirror job enqueue failed (combined) — GCS copy remains valid:', mirrorErr);
+      }
+    }
+
     res.status(200).json({
       message: 'Combined WPS/PQR document uploaded successfully',
       document: updatedWpsDocument
@@ -457,7 +509,24 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
     `);
     
     const updatedWpsDocument = pqrResult.rows && pqrResult.rows.length > 0 ? pqrResult.rows[0] : null;
-    
+
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job (only if file uploaded)
+    if (req.file && documentFilePath && updatedWpsDocument?.id) {
+      try {
+        const sha256 = _wpsCreateHash('sha256').update(req.file.buffer).digest('hex');
+        const mjRes = await pool.query(
+          `INSERT INTO document_agent_jobs (job_type, status, relative_path, file_url, file_name, expected_sha256, source_module, source_record_id, created_by)
+           VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'wps_documents', $4, $5) RETURNING id`,
+          [documentFilePath, req.file.originalname, sha256, updatedWpsDocument.id, req.user!.id],
+        );
+        const mirrorJobId = mjRes.rows[0].id as number;
+        await pool.query(`UPDATE wps_documents SET mirror_status='pending', mirror_job_id=$1 WHERE id=$2`, [mirrorJobId, updatedWpsDocument.id])
+          .catch(() => { /* mirror columns may not be present yet — non-fatal */ });
+      } catch (mirrorErr) {
+        console.error('[wps-pqr] Mirror job enqueue failed (pqr) — GCS copy remains valid:', mirrorErr);
+      }
+    }
+
     res.status(201).json(updatedWpsDocument);
   } catch (error) {
     console.error('Error creating PQR document:', error);

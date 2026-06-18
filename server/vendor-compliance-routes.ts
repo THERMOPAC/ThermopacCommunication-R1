@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { createHash } from 'crypto';
 import { db, pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { uploadFileToGCS, initializeGCS } from './utils/gcs-operations';
@@ -167,6 +168,29 @@ router.post(
           notes,
         ],
       );
+
+      const docId = insertRes.rows[0].id as number;
+      // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job
+      try {
+        const sha256 = createHash('sha256').update(req.file.buffer).digest('hex');
+        const mirrorJobRes = await pool.query(
+          `INSERT INTO document_agent_jobs
+             (job_type, status, relative_path, file_url, file_name, expected_sha256,
+              source_module, source_record_id, created_by)
+           VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'vendor_compliance_docs', $4, $5)
+           RETURNING id`,
+          [gcsPath, req.file.originalname, sha256, docId, uploadedBy],
+        );
+        const mirrorJobId = mirrorJobRes.rows[0].id as number;
+        // G3: mark mirror_status on source record
+        await pool.query(
+          `UPDATE vendor_compliance_docs SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+          [mirrorJobId, docId],
+        );
+      } catch (mirrorErr) {
+        // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+        console.error(`[vendor-compliance] Mirror job enqueue failed for doc ${docId} — GCS copy remains valid:`, mirrorErr);
+      }
 
       console.log(`[vendor-compliance] Uploaded ${docType} rev-${nextRev} for vendor ${vendorId} (${bpCode}): ${gcsPath}`);
       res.json({ success: true, doc: insertRes.rows[0] });

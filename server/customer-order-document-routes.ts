@@ -115,6 +115,27 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
       uploadedBy: user.id,
     }).returning();
 
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job
+    try {
+      const mirrorJobRows = await db.execute(sql`
+        INSERT INTO document_agent_jobs
+          (job_type, status, relative_path, file_url, file_name, expected_sha256,
+           source_module, source_record_id, created_by)
+        VALUES ('SAVE_FILE', 'pending', ${gcsObjectPath}, NULL, ${req.file.originalname}, ${checksum},
+                'customer_order_documents', ${doc.id}, ${user.id})
+        RETURNING id
+      `);
+      const mirrorJobId = (mirrorJobRows.rows[0] as any).id as number;
+      // G3: mark mirror_status on source record
+      await db.execute(sql`
+        UPDATE customer_order_documents SET mirror_status = 'pending', mirror_job_id = ${mirrorJobId}
+        WHERE id = ${doc.id}
+      `);
+    } catch (mirrorErr) {
+      // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+      console.error(`[CO-docs] Mirror job enqueue failed for doc ${doc.id} — GCS copy remains valid:`, mirrorErr);
+    }
+
     res.status(201).json(doc);
   } catch (err: any) {
     console.error('[CO-docs] Upload error:', err);

@@ -28,6 +28,7 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { epcAgentNodes, epcSlddrwExtractionJobs, epcDrawingControls } from '@shared/schema';
 import { RELEASE_GATE_CONFIG } from './utils/release-gate-config';
 import gcsClient, { bucketName } from './utils/storage-config';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 import { buildDrawingGcsPath, resolveProjectGeoCodes } from './epc-coding';
 
 const upload = multer({
@@ -564,7 +565,19 @@ router.post(
     const sha256 = createHash('sha256').update(file.buffer).digest('hex');
     const timestamp = Date.now();
     const safeFilename = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const gcsPath = `epc-slddrw/${drawingControlId}/${timestamp}-${safeFilename}`;
+
+    // G1: Canonical GCS path via governance resolver (Dual-Storage Policy)
+    let gcsPath: string;
+    try {
+      gcsPath = await resolveGcsPath('SLDDRW', {
+        DrawingControlId: String(drawingControlId),
+        Timestamp:        String(timestamp),
+        filename:         safeFilename,
+      });
+    } catch (e: any) {
+      if (e instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: e.message });
+      throw e;
+    }
 
     try {
       await gcsClient.bucket(bucketName).file(gcsPath).save(file.buffer, {
@@ -588,6 +601,28 @@ router.post(
         createdBy:      user?.username ?? user?.email ?? null,
       })
       .returning({ id: epcSlddrwExtractionJobs.id });
+
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job
+    try {
+      const mirrorJobRows = await db.execute(sql`
+        INSERT INTO document_agent_jobs
+          (job_type, status, relative_path, file_url, file_name, expected_sha256,
+           source_module, source_record_id, created_by)
+        VALUES ('SAVE_FILE', 'pending', ${gcsPath}, NULL, ${safeFilename}, ${sha256},
+                'epc_slddrw_extraction_jobs', ${job.id}, ${user?.id ?? null})
+        RETURNING id
+      `);
+      const mirrorJobId = (mirrorJobRows.rows[0] as any).id as number;
+      // G3: mark mirror_status on source record
+      await db.execute(sql`
+        UPDATE epc_slddrw_extraction_jobs
+        SET mirror_status = 'pending', mirror_job_id = ${mirrorJobId}
+        WHERE id = ${job.id}
+      `);
+    } catch (mirrorErr) {
+      // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+      console.error('[UploadSlddrw] Mirror job enqueue failed — GCS copy remains valid:', mirrorErr);
+    }
 
     console.log(`[UploadSlddrw] Job ${job.id} created for drawing_control ${drawingControlId} — file=${file.originalname}`);
     return res.status(201).json({ ok: true, jobId: job.id });

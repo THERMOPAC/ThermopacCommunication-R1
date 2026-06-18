@@ -1464,6 +1464,39 @@ router.post('/upload/gcs', ensureAuthenticated, async (req: Request, res: Respon
           routeFile:    'finance-routes-fixed.ts',
         });
 
+        // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job after GCS success
+        try {
+          const { createHash: _ch2 } = await import('crypto');
+          const fileSha256 = _ch2('sha256').update(req.file!.buffer).digest('hex');
+          const uploaderId = (req as any).user?.id ?? null;
+          // Look up BRC record ID by the resolved GCS path (best-effort; null if not yet saved to BRC table)
+          const brcRow = await pool.query(
+            `SELECT id FROM bank_realization_certificates WHERE gcs_document_path = $1 LIMIT 1`,
+            [resolvedPath]
+          );
+          const brcId: number | null = brcRow.rows.length > 0 ? (brcRow.rows[0].id as number) : null;
+
+          const mirrorJobRes = await pool.query(
+            `INSERT INTO document_agent_jobs
+               (job_type, status, relative_path, file_url, file_name, expected_sha256,
+                source_module, source_record_id, created_by)
+             VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'bank_realization_certificates', $4, $5)
+             RETURNING id`,
+            [resolvedPath, req.file!.originalname, fileSha256, brcId, uploaderId],
+          );
+          const mirrorJobId = mirrorJobRes.rows[0].id as number;
+          // G3: mark mirror_status on source record if we have the ID
+          if (brcId !== null) {
+            await pool.query(
+              `UPDATE bank_realization_certificates SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+              [mirrorJobId, brcId],
+            );
+          }
+        } catch (mirrorErr) {
+          // Mirror failure NEVER invalidates the GCS copy (Dual-Storage Policy)
+          console.error('[Finance-BRC] Mirror job enqueue failed — GCS copy remains valid:', mirrorErr);
+        }
+
         return res.json({
           success:  true,
           filePath: resolvedPath,

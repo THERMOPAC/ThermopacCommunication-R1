@@ -336,6 +336,28 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         expires: Date.now() + 15 * 60 * 1000,
       });
 
+      // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job after GCS success
+      try {
+        const mirrorJobRows = await db.execute(sql`
+          INSERT INTO document_agent_jobs
+            (job_type, status, relative_path, file_url, file_name, expected_sha256,
+             source_module, source_record_id, created_by)
+          VALUES ('SAVE_FILE', 'pending', ${txResult.gcsObjectPath}, NULL,
+                  ${req.file!.originalname}, ${checksum},
+                  'epc_document_attachments', ${txResult.inserted.id}, ${userId})
+          RETURNING id
+        `);
+        const mirrorJobId = (mirrorJobRows.rows[0] as any).id as number;
+        // G3: mark mirror_status on source record
+        await db.execute(sql`
+          UPDATE epc_document_attachments SET mirror_status = 'pending', mirror_job_id = ${mirrorJobId}
+          WHERE id = ${txResult.inserted.id}
+        `);
+      } catch (mirrorErr) {
+        // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+        console.error(`[EPC-DOC] Mirror job enqueue failed for attachment ${txResult.inserted.id} — GCS copy remains valid:`, mirrorErr);
+      }
+
       await db.insert(epcDocumentAccessLog).values({
         attachmentId: txResult.inserted.id,
         documentNumber,

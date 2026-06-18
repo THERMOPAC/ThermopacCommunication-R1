@@ -3974,6 +3974,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupGcsGovernanceRoutes(app);
   const { seedGovernanceData } = await import('./services/gcs-governance-service');
   seedGovernanceData();
+  const { initMirrorStatusColumns } = await import('./utils/mirror-status-migration');
+  initMirrorStatusColumns();
   const { seedCompanyData } = await import('./company-seed');
   seedCompanyData();
 

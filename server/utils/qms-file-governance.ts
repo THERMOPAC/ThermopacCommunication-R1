@@ -3,7 +3,7 @@ import { qmsDocumentRevisions, qmsDocumentAuditLog } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import { Storage } from '@google-cloud/storage';
-import { issueUploadToken, validateUploadToken } from '../services/gcs-governance-service';
+import { resolveGcsPath } from './gcs-path-resolver';
 
 const MANAGER_PLUS_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 const ADMIN_ROLES = ['Superuser'];
@@ -205,27 +205,26 @@ export async function createRevision(params: {
   const nextRev = await getNextRevisionNumber(params.module, params.documentNumber);
   const ext = extractExtension(params.originalFileName, params.contentType);
 
-  // Resolve GCS path — via governance token if ruleId provided; otherwise legacy path builder
+  // G1: Resolve GCS path — via canonical governance resolver if ruleId provided;
+  //     otherwise legacy generateQmsPath (fallback for callers without a DB rule).
   let gcsPath: string;
-  let _tokenRaw: string | undefined;
 
   if (params.ruleId != null) {
-    const tokenResult = await issueUploadToken({
-      ruleId: params.ruleId,
-      tokenValues: { DocNumber: params.documentNumber, rev: String(nextRev), Seq: '1', Label: params.label, ext },
-      issuedTo: params.userId,
-      ttlSeconds: 60,
-      notes: `QMS internal upload: ${params.module}/${params.documentNumber} rev ${nextRev}`,
-    });
-    const expectedPath = generateQmsPath(params.module, params.documentNumber, nextRev, 1, params.label, ext);
-    if (tokenResult.resolvedPath !== expectedPath) {
-      throw new Error(
-        `[QMS Gov] Path parity failure: token resolved "${tokenResult.resolvedPath}", expected "${expectedPath}". ` +
-        `Governance seed template is out of sync for module=${params.module}.`
-      );
+    // Look up document_type from the active governance rule, then call resolveGcsPath canonically
+    const ruleRow = await db.execute(
+      sql`SELECT document_type FROM gcs_governance_rules WHERE id = ${params.ruleId} AND active = true LIMIT 1`
+    );
+    if (!ruleRow.rows.length) {
+      throw new Error(`[QMS Gov] No active GCS governance rule found for ruleId=${params.ruleId}`);
     }
-    gcsPath = tokenResult.resolvedPath;
-    _tokenRaw = tokenResult.rawToken;
+    const documentType = (ruleRow.rows[0] as any).document_type as string;
+    gcsPath = await resolveGcsPath(documentType, {
+      DocNumber: params.documentNumber,
+      Seq:       '1',
+      Label:     params.label,
+      rev:       String(nextRev),
+      ext,
+    });
   } else {
     gcsPath = generateQmsPath(params.module, params.documentNumber, nextRev, 1, params.label, ext);
   }
@@ -238,14 +237,6 @@ export async function createRevision(params: {
   }
 
   await file.save(params.fileBuffer, { contentType: params.contentType, resumable: false });
-
-  // Validate and consume governance token — records used_at in gcs_upload_tokens ledger
-  if (_tokenRaw != null) {
-    const validation = await validateUploadToken({ rawToken: _tokenRaw, actualPath: gcsPath });
-    if (!validation.valid) {
-      console.error(`[QMS Gov] Token post-validation failed (${validation.reason}) for ${gcsPath} — upload succeeded, token ledger may be inconsistent`);
-    }
-  }
 
   const verified = await verifyUploadedChecksum(gcsPath, checksumSha256);
   if (!verified) {
@@ -306,6 +297,28 @@ export async function createRevision(params: {
       previousRevisionId: previousLatest?.revisionId || null,
     },
   });
+
+  // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job after DB record created
+  try {
+    const mirrorJobRows = await db.execute(sql`
+      INSERT INTO document_agent_jobs
+        (job_type, status, relative_path, file_url, file_name, expected_sha256,
+         source_module, source_record_id, created_by)
+      VALUES ('SAVE_FILE', 'pending', ${gcsPath}, NULL, ${params.originalFileName}, ${checksumSha256},
+              'qms_document_revisions', ${inserted.id}, ${params.userId})
+      RETURNING id
+    `);
+    const mirrorJobId = (mirrorJobRows.rows[0] as any).id as number;
+    // G3: mark mirror_status on source record
+    await db.execute(sql`
+      UPDATE qms_document_revisions
+      SET mirror_status = 'pending', mirror_job_id = ${mirrorJobId}
+      WHERE id = ${inserted.id}
+    `);
+  } catch (mirrorErr) {
+    // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+    console.error(`[QMS Gov] Mirror job enqueue failed for revision ${inserted.id} — GCS copy remains valid:`, mirrorErr);
+  }
 
   return { revisionId: inserted.id, gcsPath, revisionNumber: nextRev, checksumSha256 };
 }

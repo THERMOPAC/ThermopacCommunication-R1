@@ -3,6 +3,8 @@ import { db } from './db';
 import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, tripDocuments, users, schengenTravelLog, schengenCountries } from '@shared/schema';
 import { eq, and, or, desc, asc, sql, sum, count } from 'drizzle-orm';
 import { resolvePathTemplate, logUploadEvent } from './services/gcs-governance-service';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
+import { createHash } from 'crypto';
 import { z } from 'zod';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
@@ -1226,16 +1228,36 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
     const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `${timestamp}_${originalName}`;
 
-    // Generate DB-driven canonical GCS path (TPEL/ADMIN/TRIPS/{CompanyFY}/...)
-    const gcsPath = await buildTripGCSPath({
-      employeeFirstName: employee[0].firstName ?? null,
-      employeeLastName: employee[0].lastName ?? null,
-      employeeUsername: employee[0].username,
-      destination: trip[0].destination,
-      fromDate: trip[0].fromDate.toString(),
-      documentType,
-      fileName,
-    });
+    // SHA-256 for Dual-Storage Policy mirror job
+    const sha256 = createHash('sha256').update(file.buffer).digest('hex');
+
+    // G1: Canonical GCS path via governance resolver (replaces buildTripGCSPath)
+    const tripDate = new Date(trip[0].fromDate.toString());
+    const companyFY = getCompanyFY(tripDate);
+    const employeeNameToken = (
+      employee[0].firstName && employee[0].lastName
+        ? `${employee[0].firstName}-${employee[0].lastName}`
+        : employee[0].username
+    ).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const destinationToken = trip[0].destination
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    const docTypeToken = documentType.toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+    let gcsPath: string;
+    try {
+      gcsPath = await resolveGcsPath('TRIP_DOCUMENT', {
+        CompanyFY:    companyFY,
+        EmployeeName: employeeNameToken,
+        Destination:  destinationToken,
+        DocType:      docTypeToken,
+        filename:     fileName,
+      });
+    } catch (e: any) {
+      if (e instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: e.message });
+      throw e;
+    }
 
     // Upload to Google Cloud Storage
     const gcsFile = bucket.file(gcsPath);
@@ -1302,6 +1324,27 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
       uploadedBy: userId,
       ...(nextSeq !== null ? { seq: nextSeq } : {}),
     }).returning();
+
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job
+    try {
+      const mirrorJobRows = await db.execute(sql`
+        INSERT INTO document_agent_jobs
+          (job_type, status, relative_path, file_url, file_name, expected_sha256,
+           source_module, source_record_id, created_by)
+        VALUES ('SAVE_FILE', 'pending', ${gcsPath}, NULL, ${file.originalname}, ${sha256},
+                'trip_documents', ${result[0].id}, ${userId})
+        RETURNING id
+      `);
+      const mirrorJobId = (mirrorJobRows.rows[0] as any).id as number;
+      // G3: mark mirror_status on source record
+      await db.execute(sql`
+        UPDATE trip_documents SET mirror_status = 'pending', mirror_job_id = ${mirrorJobId}
+        WHERE id = ${result[0].id}
+      `);
+    } catch (mirrorErr) {
+      // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+      console.error('[TripDocs] Mirror job enqueue failed — GCS copy remains valid:', mirrorErr);
+    }
 
     res.status(201).json({
       message: 'Document uploaded successfully',

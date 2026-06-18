@@ -1,5 +1,37 @@
 import { Router } from "express";
-import { db } from "./db";
+import { db, pool } from "./db";
+import { createHash as _legalCreateHash } from 'crypto';
+
+// ── Dual-Storage Policy helper: G2+G3 for all legal upload routes ─────────────
+async function enqueueLegalMirrorJob(
+  req: any,
+  filePath: string | null,
+  tableName: string,
+  recordId: number,
+  userId: number | null,
+): Promise<void> {
+  if (!filePath || !req?.file?.buffer) return;
+  try {
+    const sha256 = _legalCreateHash('sha256').update(req.file.buffer).digest('hex');
+    const mjRes = await pool.query(
+      `INSERT INTO document_agent_jobs
+         (job_type, status, relative_path, file_url, file_name, expected_sha256,
+          source_module, source_record_id, created_by)
+       VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [filePath, req.file.originalname, sha256, tableName, recordId, userId],
+    );
+    const mirrorJobId = mjRes.rows[0].id as number;
+    // G3: best-effort — legal tables may not have mirror columns yet
+    await pool.query(
+      `UPDATE ${tableName} SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+      [mirrorJobId, recordId],
+    ).catch(() => { /* non-fatal — columns may not exist yet */ });
+  } catch (mirrorErr) {
+    console.error(`[legal] Mirror job enqueue failed for ${tableName}#${recordId} — GCS copy remains valid:`, mirrorErr);
+  }
+}
+
 import { 
   contracts, 
   legalCases, 
@@ -167,12 +199,14 @@ router.post("/contracts", ensureAuthenticated, upload.single("file"), async (req
     
     let filePath = null;
     let fileUrl = null;
+    let contractFileBuffer: Buffer | null = null;
     
     if (req.file) {
       const fileName = `contracts/${Date.now()}-${req.file.originalname}`;
       const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
       filePath = uploadResult.fileName;
       fileUrl = uploadResult.publicUrl;
+      contractFileBuffer = req.file.buffer;
     }
 
     const [newContract] = await db
@@ -185,6 +219,31 @@ router.post("/contracts", ensureAuthenticated, upload.single("file"), async (req
         updatedAt: new Date()
       })
       .returning();
+
+    // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job (only if file was uploaded)
+    if (contractFileBuffer && filePath) {
+      try {
+        const { createHash: _chLegal } = await import('crypto');
+        const sha256 = _chLegal('sha256').update(contractFileBuffer).digest('hex');
+        const mjRes = await pool.query(
+          `INSERT INTO document_agent_jobs
+             (job_type, status, relative_path, file_url, file_name, expected_sha256,
+              source_module, source_record_id, created_by)
+           VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'contracts', $4, $5)
+           RETURNING id`,
+          [filePath, req.file!.originalname, sha256, newContract.id, userId],
+        );
+        const mirrorJobId = mjRes.rows[0].id as number;
+        // G3: mark mirror_status on source record
+        await pool.query(
+          `UPDATE contracts SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+          [mirrorJobId, newContract.id],
+        ).catch(() => { /* contracts table may not have mirror columns yet — non-fatal */ });
+      } catch (mirrorErr) {
+        // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+        console.error(`[legal] Mirror job enqueue failed for contract ${newContract.id} — GCS copy remains valid:`, mirrorErr);
+      }
+    }
 
     res.status(201).json(newContract);
   } catch (error) {
@@ -233,6 +292,7 @@ router.put("/contracts/:id", ensureAuthenticated, upload.single("file"), async (
       return res.status(404).json({ error: "Contract not found" });
     }
 
+    await enqueueLegalMirrorJob(req, filePath ?? null, 'contracts', updatedContract.id, userId ?? null);
     res.json(updatedContract);
   } catch (error) {
     console.error("Error updating contract:", error);
@@ -505,6 +565,7 @@ router.post("/compliance", ensureAuthenticated, upload.single("file"), async (re
       })
       .returning();
 
+    await enqueueLegalMirrorJob(req, filePath, 'compliance_register', newCompliance.id, userId);
     res.status(201).json(newCompliance);
   } catch (error) {
     console.error("Error creating compliance item:", error);
@@ -547,6 +608,7 @@ router.put("/compliance/:id", ensureAuthenticated, upload.single("file"), async 
       return res.status(404).json({ error: "Compliance item not found" });
     }
 
+    await enqueueLegalMirrorJob(req, filePath ?? null, 'compliance_register', updatedCompliance.id, (req as any).user?.id ?? null);
     res.json(updatedCompliance);
   } catch (error) {
     console.error("Error updating compliance item:", error);
@@ -682,6 +744,7 @@ router.post("/posh-cases", ensureAuthenticated, upload.single("file"), async (re
       })
       .returning();
 
+    await enqueueLegalMirrorJob(req, filePath, 'posh_cases', newPoshCase.id, userId);
     res.status(201).json(newPoshCase);
   } catch (error) {
     console.error("Error creating POSH case:", error);
@@ -724,6 +787,7 @@ router.put("/posh-cases/:id", ensureAuthenticated, upload.single("file"), async 
       return res.status(404).json({ error: "POSH case not found" });
     }
 
+    await enqueueLegalMirrorJob(req, filePath ?? null, 'posh_cases', updatedPoshCase.id, (req as any).user?.id ?? null);
     res.json(updatedPoshCase);
   } catch (error) {
     console.error("Error updating POSH case:", error);
@@ -853,6 +917,7 @@ router.post("/notices", ensureAuthenticated, upload.single("file"), async (req, 
       })
       .returning();
 
+    await enqueueLegalMirrorJob(req, filePath, 'legal_notices', newNotice.id, userId);
     res.status(201).json(newNotice);
   } catch (error) {
     console.error("Error creating legal notice:", error);
@@ -895,6 +960,7 @@ router.put("/notices/:id", ensureAuthenticated, upload.single("file"), async (re
       return res.status(404).json({ error: "Legal notice not found" });
     }
 
+    await enqueueLegalMirrorJob(req, filePath ?? null, 'legal_notices', updatedNotice.id, (req as any).user?.id ?? null);
     res.json(updatedNotice);
   } catch (error) {
     console.error("Error updating legal notice:", error);
@@ -1165,6 +1231,7 @@ router.post("/policy-templates", ensureAuthenticated, upload.single("file"), asy
       })
       .returning();
 
+    await enqueueLegalMirrorJob(req, filePath, 'policy_templates', newTemplate.id, userId);
     res.status(201).json(newTemplate);
   } catch (error) {
     console.error("Error creating policy template:", error);
@@ -1207,6 +1274,7 @@ router.put("/policy-templates/:id", ensureAuthenticated, upload.single("file"), 
       return res.status(404).json({ error: "Policy template not found" });
     }
 
+    await enqueueLegalMirrorJob(req, filePath ?? null, 'policy_templates', updatedTemplate.id, (req as any).user?.id ?? null);
     res.json(updatedTemplate);
   } catch (error) {
     console.error("Error updating policy template:", error);
@@ -1621,6 +1689,7 @@ router.post("/nda-agreements", ensureAuthenticated, upload.single("file"), async
       .returning();
 
     if (newNdaAgreement) {
+      await enqueueLegalMirrorJob(req, filePath ?? null, 'nda_agreements', newNdaAgreement.id, userId ?? null);
       res.status(201).json(newNdaAgreement);
     } else {
       res.status(500).json({ error: "Failed to create NDA agreement" });
@@ -1666,6 +1735,7 @@ router.put("/nda-agreements/:id", ensureAuthenticated, upload.single("file"), as
       return res.status(404).json({ error: "NDA agreement not found" });
     }
 
+    await enqueueLegalMirrorJob(req, filePath ?? null, 'nda_agreements', updatedNdaAgreement.id, (req as any).user?.id ?? null);
     res.json(updatedNdaAgreement);
   } catch (error) {
     console.error("Error updating NDA agreement:", error);
@@ -1802,6 +1872,7 @@ router.post("/exclusivity-agreements", ensureAuthenticated, upload.single("file"
       .returning();
 
     if (newExclusivityAgreement) {
+      await enqueueLegalMirrorJob(req, filePath ?? null, 'exclusivity_agreements', newExclusivityAgreement.id, userId ?? null);
       res.status(201).json(newExclusivityAgreement);
     } else {
       res.status(500).json({ error: "Failed to create exclusivity agreement" });
@@ -1847,6 +1918,7 @@ router.put("/exclusivity-agreements/:id", ensureAuthenticated, upload.single("fi
       return res.status(404).json({ error: "Exclusivity agreement not found" });
     }
 
+    await enqueueLegalMirrorJob(req, filePath ?? null, 'exclusivity_agreements', updatedExclusivityAgreement.id, (req as any).user?.id ?? null);
     res.json(updatedExclusivityAgreement);
   } catch (error) {
     console.error("Error updating exclusivity agreement:", error);

@@ -29,6 +29,7 @@ import { seedPppcMasterData, validateSubgroupBelongsToGroup } from './utils/pppc
 import { agentEventBus } from './agents/framework/event-bus';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { bucketName as GCS_BUCKET } from './utils/storage-config';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 import { isProjectFrozen } from './utils/epc-project-cascade';
 import { getNextDocSeq } from './doc-sequence-service';
 import {
@@ -2039,24 +2040,41 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           revisionSeq = sel.datasheet_revision_seq + 1;
         }
 
-        // Build GCS object path — all segments resolved server-side
+        // G1: Canonical GCS path via governance resolver (Dual-Storage Policy)
         const custSegment = await resolveCustomerSegment(ctx.customerId, '');
         const safeTag = sanitizeTagNo(ctx.tagNo) || 'NO_TAG';
         const ext = mimeToExt(file.mimetype);
-        const gcsObjectPath = `TPEL/${ctx.continentCode}/${ctx.countryCode}/${custSegment}/${ctx.fyCode}/${ctx.projectSeq}/PROCUREMENT/DATASHEETS/${ctx.listNumber}/${safeTag}/${lineId}_ds-rev-${revisionSeq}.${ext}`;
+        let gcsObjectPath: string;
+        try {
+          gcsObjectPath = await resolveGcsPath('PPPC_DATASHEET', {
+            CC:     ctx.continentCode,
+            CO:     ctx.countryCode,
+            Cust:   custSegment,
+            FY:     ctx.fyCode,
+            NNN:    ctx.projectSeq,
+            ListNo: ctx.listNumber,
+            Tag:    safeTag,
+            Seq:    String(lineId),
+            rev:    String(revisionSeq),
+            ext,
+          });
+        } catch (e: any) {
+          if (e instanceof GcsGovernanceError) return res.status(503).json({ error: 'GCS_GOVERNANCE_ERROR', message: e.message });
+          throw e;
+        }
         const gcsBucket = GCS_BUCKET ?? 'thermopac_storage';
 
         // SHA-256 checksum
         const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex');
 
-        // Upload to GCS
+        // Upload to GCS (G1 write — must succeed before any DB record is created)
         const uploadResult = await uploadFileWithDiagnostics(gcsObjectPath, file.buffer, file.mimetype);
         if (!uploadResult.successful) {
           console.error('[PPPC Phase3] GCS upload failed:', uploadResult.error);
           return res.status(502).json({ error: 'GCS upload failed.', detail: String(uploadResult.error) });
         }
 
-        // Update selection record
+        // Update selection record (DB record created AFTER GCS success)
         await pool.query(
           `UPDATE buy_list_line_selections SET
              datasheet_uploaded         = true,
@@ -2075,6 +2093,27 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
            WHERE id = $9`,
           [gcsBucket, gcsObjectPath, file.originalname, file.mimetype, file.size, checksum, revisionSeq, userId, sel.id],
         );
+
+        // G2: Enqueue SAVE_FILE mirror job (Dual-Storage Policy — GCS → Windows)
+        try {
+          const mirrorJobRes = await pool.query(
+            `INSERT INTO document_agent_jobs
+               (job_type, status, relative_path, file_url, file_name, expected_sha256,
+                source_module, source_record_id, created_by)
+             VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'buy_list_line_selections', $4, $5)
+             RETURNING id`,
+            [gcsObjectPath, file.originalname, checksum, sel.id, userId],
+          );
+          const mirrorJobId = mirrorJobRes.rows[0].id as number;
+          // G3: Mark mirror_status on source record
+          await pool.query(
+            `UPDATE buy_list_line_selections SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+            [mirrorJobId, sel.id],
+          );
+        } catch (mirrorErr) {
+          // Mirror failure NEVER invalidates the GCS copy or DB record (Dual-Storage Policy)
+          console.error('[PPPC] Mirror job enqueue failed — GCS copy remains valid:', mirrorErr);
+        }
 
         // Update line status to datasheet_submitted
         await pool.query(
