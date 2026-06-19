@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import storage, { bucketName } from './storage-config';
 import { pool } from '../db';
 import { buildQuotationGcsPath, buildEpcQtnGcsPath, CONTINENT_NAME_TO_CODE, COUNTRY_NAME_TO_CODE } from '../epc-coding';
+import { resolveGcsPath } from './gcs-path-resolver';
 
 
 function slugifySubject(subject: string): string {
@@ -573,7 +574,10 @@ export async function attachConfirmedArtifactToEpc(
 
 /**
  * Saves an immutable "Final Offer" snapshot to GCS when an offer is converted
- * to an order. Reads the path template from the FINAL_OFFER governance rule in DB.
+ * to an order.
+ *
+ * Compliance: G1 (resolveGcsPath), G2 (document_agent_jobs SAVE_FILE),
+ *             G3 (offers.final_offer_gcs_path / mirror_status / mirror_job_id).
  *
  * Token mapping:
  *   {CC}      → continentCode
@@ -621,28 +625,24 @@ export async function storeFinalOfferPdfToGcs(
       return { success: false, error: 'Customer geography codes missing for FINAL_OFFER path resolution' };
     }
 
-    const ruleRow = await pool.query(
-      `SELECT path_template FROM gcs_governance_rules
-       WHERE document_type = 'FINAL_OFFER' AND (active IS NULL OR active = true)
-       ORDER BY id ASC LIMIT 1`
-    );
-    const template: string | null = ruleRow.rows[0]?.path_template ?? null;
-    if (!template) return { success: false, error: 'No active FINAL_OFFER governance rule found in DB' };
-
     const rev         = String(revision).padStart(2, '0');
     const safeOfferNo = offerNumber.replace(/\//g, '-');
 
-    const gcsPath = template
-      .replace('{CC}',      continentCode)
-      .replace('{CO}',      countryCode)
-      .replace('{Cust}',    proj.short_code)
-      .replace('{FY}',      proj.fy_code)
-      .replace('{Code}',    projectCode)
-      .replace('{OfferNo}', safeOfferNo)
-      .replace('{Seq}',     '001')
-      .replace('{Label}',   'final-offer')
-      .replace('{rev}',     rev);
+    // G1 — resolveGcsPath reads path_template from gcs_governance_rules and
+    //       validates all tokens are resolved. No manual template substitution.
+    const gcsPath = await resolveGcsPath('FINAL_OFFER', {
+      CC:      continentCode,
+      CO:      countryCode,
+      Cust:    proj.short_code,
+      FY:      proj.fy_code,
+      Code:    projectCode,
+      OfferNo: safeOfferNo,
+      Seq:     '001',
+      Label:   'final-offer',
+      rev,
+    });
 
+    // GCS save — must succeed before any DB write
     const bucket = storage.bucket(bucketName);
     await bucket.file(gcsPath).save(sourceBuffer, {
       contentType: 'application/pdf',
@@ -660,10 +660,41 @@ export async function storeFinalOfferPdfToGcs(
       },
     });
 
-    console.log(`[final-offer-pdf] Snapshot saved → ${gcsPath}`);
+    // G3 (path) — record GCS path on the offer row immediately after GCS success
+    await pool.query(
+      `UPDATE offers SET final_offer_gcs_path = $1 WHERE id = $2`,
+      [gcsPath, offerId]
+    );
+
+    // G2 + G3 (mirror) — create mirror job and stamp mirror columns
+    try {
+      const jobResult = await pool.query(
+        `INSERT INTO document_agent_jobs
+           (job_type, relative_path, source_module, source_record_id, status, created_at)
+         VALUES ('SAVE_FILE', $1, 'offer_conversion', $2, 'pending', NOW())
+         RETURNING id`,
+        [gcsPath, offerId]
+      );
+      const mirrorJobId: number = jobResult.rows[0].id;
+      await pool.query(
+        `UPDATE offers
+         SET final_offer_mirror_status = 'pending', final_offer_mirror_job_id = $1
+         WHERE id = $2`,
+        [mirrorJobId, offerId]
+      );
+      console.log(`[final-offer-pdf] Snapshot saved → ${gcsPath} | mirror job #${mirrorJobId}`);
+    } catch (mirrorErr: any) {
+      // Mirror job failure does not invalidate the GCS save — mark as failed for retry
+      await pool.query(
+        `UPDATE offers SET final_offer_mirror_status = 'failed' WHERE id = $1`,
+        [offerId]
+      );
+      console.error(`[final-offer-pdf] Mirror job creation failed for offer ${offerId} (GCS save OK):`, mirrorErr.message);
+    }
+
     return { success: true, gcsPath };
   } catch (err: any) {
-    console.error('[final-offer-pdf] Failed to save Final Offer snapshot:', err);
+    console.error(`[final-offer-pdf] Failed to save Final Offer snapshot for offer ${offerId}:`, err);
     return { success: false, error: err.message };
   }
 }

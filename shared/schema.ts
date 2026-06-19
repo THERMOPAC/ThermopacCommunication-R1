@@ -10334,6 +10334,11 @@ export const offers = pgTable('offers', {
   // Mandatory confirmation document — must be uploaded before Order Confirmed transition
   confirmationDocGcsPath: text('confirmation_doc_gcs_path'),
   confirmationDocFilename: text('confirmation_doc_filename'),
+
+  // Locked final offer snapshot — immutable copy saved at offer-to-order conversion
+  finalOfferGcsPath:      text('final_offer_gcs_path'),
+  finalOfferMirrorStatus: varchar('final_offer_mirror_status', { length: 20 }),
+  finalOfferMirrorJobId:  integer('final_offer_mirror_job_id'),
 });
 
 export const insertOfferSchema = createInsertSchema(offers).omit({
