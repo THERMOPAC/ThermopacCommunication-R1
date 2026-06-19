@@ -55,8 +55,29 @@ router.get('/doc-path-templates/:id', ensureAuthenticated, async (req, res) => {
 // POST /api/doc-path-templates
 router.post('/doc-path-templates', ensureAuthenticated, async (req, res) => {
   try {
+    // gcs_rule_id is mandatory — every template must be linked to a GCS Governance Rule
+    if (req.body.gcsRuleId == null && req.body.gcs_rule_id == null) {
+      return res.status(400).json({
+        error: 'gcsRuleId is required. Every Document Path Template must be linked to an active GCS Governance Rule.',
+      });
+    }
+
     const parsed = insertDocumentPathTemplateSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+    // Verify the referenced GCS rule exists
+    const { gcsGovernanceRules } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    const [rule] = await db.select({ id: gcsGovernanceRules.id, active: gcsGovernanceRules.active })
+      .from(gcsGovernanceRules)
+      .where(eq(gcsGovernanceRules.id, parsed.data.gcsRuleId))
+      .limit(1);
+    if (!rule) {
+      return res.status(409).json({ error: `GCS Governance Rule #${parsed.data.gcsRuleId} does not exist.` });
+    }
+    if (!rule.active) {
+      return res.status(409).json({ error: `GCS Governance Rule #${parsed.data.gcsRuleId} is inactive. Only active rules may receive templates.` });
+    }
 
     // Validate tokens in templates
     const pathErrors = validateTemplateTokens(parsed.data.relativePathTemplate);

@@ -14156,7 +14156,7 @@ export const documentPathTemplates = pgTable('document_path_templates', {
   // folder = revision embedded in path segment (rev-{rev}), suffix = revision in filename
   fileExtension:          varchar('file_extension', { length: 20 }),
   active:                 boolean('active').notNull().default(true),
-  gcsRuleId:              integer('gcs_rule_id'),
+  gcsRuleId:              integer('gcs_rule_id').notNull(),
   createdAt:              timestamp('created_at').notNull().defaultNow(),
   updatedAt:              timestamp('updated_at').notNull().defaultNow(),
 });

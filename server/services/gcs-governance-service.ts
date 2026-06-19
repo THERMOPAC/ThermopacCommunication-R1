@@ -11,6 +11,7 @@ import {
   gcsUploadMonitorLog,
   gcsUploadTokens,
   gcsGovernanceRuleVersions,
+  documentPathTemplates,
   type GcsGovernanceRule,
   type GcsUploadToken,
   type InsertGcsUploadMonitorLog,
@@ -323,6 +324,16 @@ export async function seedGovernanceData(): Promise<void> {
         .onConflictDoNothing();
     }
 
+    // Pre-flight: verify SEED_RULES has no internal duplicates on (module_key, submodule_key, document_type)
+    const seedKeysSeen = new Set<string>();
+    for (const rule of SEED_RULES) {
+      const key = `${rule.moduleKey}|${rule.submoduleKey ?? ''}|${rule.documentType}`;
+      if (seedKeysSeen.has(key)) {
+        throw new Error(`[GCS-Governance] SEED_RULES duplicate detected: ${key}. Fix SEED_RULES before server can start.`);
+      }
+      seedKeysSeen.add(key);
+    }
+
     // Seed rules (insert new / refresh correctable fields on existing rows)
     for (const rule of SEED_RULES) {
       const existing = await db.select({ id: gcsGovernanceRules.id })
@@ -330,6 +341,9 @@ export async function seedGovernanceData(): Promise<void> {
         .where(
           and(
             eq(gcsGovernanceRules.moduleKey, rule.moduleKey),
+            rule.submoduleKey
+              ? eq(gcsGovernanceRules.submoduleKey, rule.submoduleKey)
+              : isNull(gcsGovernanceRules.submoduleKey),
             eq(gcsGovernanceRules.documentType, rule.documentType),
           )
         )
@@ -362,6 +376,9 @@ export async function seedGovernanceData(): Promise<void> {
           .where(
             and(
               eq(gcsGovernanceRules.moduleKey, rule.moduleKey),
+              rule.submoduleKey
+                ? eq(gcsGovernanceRules.submoduleKey, rule.submoduleKey)
+                : isNull(gcsGovernanceRules.submoduleKey),
               eq(gcsGovernanceRules.documentType, rule.documentType),
             )
           );
@@ -400,6 +417,63 @@ export async function seedGovernanceData(): Promise<void> {
     console.log('[GCS-Governance] Seed complete — tokens, rules, and v1 versions loaded.');
   } catch (err) {
     console.warn('[GCS-Governance] Seed failed (non-fatal):', err);
+  }
+}
+
+// ─── Startup Governance Parity Check ─────────────────────────────────────
+
+/**
+ * Runs after seedGovernanceData(). Logs ERROR for any parity violation.
+ * Non-fatal — server continues, but violations are clearly visible in logs.
+ */
+export async function runGovernanceParityCheck(): Promise<void> {
+  console.log('[GCS-Governance] Running startup parity check...');
+  try {
+    const rows = await db.execute(sql`
+      SELECT
+        (SELECT COUNT(*)::int FROM gcs_governance_rules)                             AS rules_total,
+        (SELECT COUNT(*)::int FROM document_path_templates)                          AS templates_total,
+        (SELECT COUNT(*)::int FROM document_path_templates WHERE gcs_rule_id IS NULL) AS unlinked,
+        (SELECT COUNT(*)::int FROM gcs_governance_rules r
+         WHERE NOT EXISTS (
+           SELECT 1 FROM document_path_templates t WHERE t.gcs_rule_id = r.id
+         ))                                                                           AS orphan_rules,
+        (SELECT COUNT(*)::int FROM (
+          SELECT module_key, submodule_key, document_type
+          FROM gcs_governance_rules
+          GROUP BY module_key, submodule_key, document_type
+          HAVING COUNT(*) > 1
+        ) dups)                                                                       AS duplicate_doc_types
+    `);
+
+    const r = rows.rows[0] as {
+      rules_total: number; templates_total: number; unlinked: number;
+      orphan_rules: number; duplicate_doc_types: number;
+    };
+
+    const pass =
+      r.rules_total === r.templates_total &&
+      r.unlinked === 0 &&
+      r.orphan_rules === 0 &&
+      r.duplicate_doc_types === 0;
+
+    if (pass) {
+      console.log(
+        `[GCS-Governance] PARITY OK — rules=${r.rules_total}, templates=${r.templates_total}, unlinked=0, orphan_rules=0, duplicates=0`
+      );
+    } else {
+      console.error('[GCS-Governance] PARITY FAILED:');
+      if (r.rules_total !== r.templates_total)
+        console.error(`  rules=${r.rules_total} != templates=${r.templates_total}`);
+      if (r.unlinked > 0)
+        console.error(`  unlinked templates=${r.unlinked} (gcs_rule_id IS NULL)`);
+      if (r.orphan_rules > 0)
+        console.error(`  orphan_rules=${r.orphan_rules} (rules with no linked template)`);
+      if (r.duplicate_doc_types > 0)
+        console.error(`  duplicate_doc_types=${r.duplicate_doc_types}`);
+    }
+  } catch (err) {
+    console.warn('[GCS-Governance] Parity check failed to run:', err);
   }
 }
 

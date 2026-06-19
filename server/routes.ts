@@ -3972,8 +3972,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── GCS Document Governance (Phase 0 — Monitor Mode) ─────────────────────
   const { setupGcsGovernanceRoutes } = await import('./gcs-governance-routes');
   setupGcsGovernanceRoutes(app);
-  const { seedGovernanceData } = await import('./services/gcs-governance-service');
-  seedGovernanceData();
+  const { seedGovernanceData, runGovernanceParityCheck } = await import('./services/gcs-governance-service');
+  seedGovernanceData().then(() => runGovernanceParityCheck());
   const { initMirrorStatusColumns } = await import('./utils/mirror-status-migration');
   initMirrorStatusColumns();
   const { seedCompanyData } = await import('./company-seed');
