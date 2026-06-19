@@ -219,15 +219,17 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const [current] = await db.select().from(gcsGovernanceRules).where(eq(gcsGovernanceRules.id, id)).limit(1);
       if (!current) return res.status(404).json({ error: 'Rule not found' });
 
-      // Reject changes to immutable governance keys
-      if (updates.moduleKey !== undefined && slugify(updates.moduleKey) !== current.moduleKey) {
-        return res.status(400).json({ error: 'module_key is a permanent governance identifier and cannot be changed after creation. Create a new rule with the correct key instead.' });
+      // Normalize module_key / submodule_key if provided
+      if (updates.moduleKey !== undefined) {
+        updates.moduleKey = slugify(updates.moduleKey);
+        if (!SLUG_RE.test(updates.moduleKey)) {
+          return res.status(400).json({ error: 'module_key must be slug-safe: lowercase letters, digits, underscores only (e.g. sales, qms)' });
+        }
       }
-      if (updates.submoduleKey !== undefined) {
-        const normalizedNew = updates.submoduleKey ? slugify(updates.submoduleKey) : null;
-        const normalizedCurrent = current.submoduleKey ?? null;
-        if (normalizedNew !== normalizedCurrent) {
-          return res.status(400).json({ error: 'submodule_key is a permanent governance identifier and cannot be changed after creation. Create a new rule with the correct key instead.' });
+      if (updates.submoduleKey !== undefined && updates.submoduleKey !== null) {
+        updates.submoduleKey = slugify(updates.submoduleKey);
+        if (!SLUG_RE.test(updates.submoduleKey)) {
+          return res.status(400).json({ error: 'submodule_key must be slug-safe: lowercase letters, digits, underscores only' });
         }
       }
 
