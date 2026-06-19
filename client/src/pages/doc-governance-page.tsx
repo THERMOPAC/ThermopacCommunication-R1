@@ -459,13 +459,8 @@ export default function DocGovernancePage() {
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono font-semibold text-sm">{pt.templateCode}</span>
+                            <span className="font-mono font-semibold text-sm text-slate-800">{pt.documentType}</span>
                             <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{pt.id}</span>
-                            {pt.documentCategory && (
-                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${categoryColors[pt.documentCategory] ?? ''}`}>
-                                {pt.documentCategory}
-                              </Badge>
-                            )}
                             <Badge variant={pt.active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
                               {pt.active ? "Active" : "Inactive"}
                             </Badge>
@@ -480,9 +475,9 @@ export default function DocGovernancePage() {
                             )}
                           </div>
                           {pt.ruleDisplayName && (
-                            <p className="text-xs text-slate-700 font-medium mt-1">{pt.ruleDisplayName}</p>
+                            <p className="text-xs text-slate-600 mt-1">{pt.ruleDisplayName}</p>
                           )}
-                          {(pt.moduleKey || pt.submoduleKey || pt.documentType) && (
+                          {(pt.moduleKey || pt.submoduleKey) && (
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                               {pt.moduleKey && (
                                 <span className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono">
@@ -494,11 +489,11 @@ export default function DocGovernancePage() {
                                   submodule: {pt.submoduleKey}
                                 </span>
                               )}
-                              <span className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono">
-                                type: {pt.documentType}
-                              </span>
                             </div>
                           )}
+                          <p className="text-[10px] font-mono text-slate-400 mt-1 break-all">
+                            {pt.templateCode}{pt.documentCategory ? ` · ${pt.documentCategory}` : ''}
+                          </p>
                           <p className="text-xs font-mono text-blue-700 mt-1.5 bg-blue-50 rounded px-2 py-1 break-all">
                             📁 {pt.relativePathTemplate}
                           </p>

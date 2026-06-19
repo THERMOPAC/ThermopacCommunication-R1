@@ -1733,16 +1733,18 @@ function GovernanceRulesTab() {
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <ModuleBadge module={rule.moduleKey} />
-                      {rule.submoduleKey && (
-                        <span className="text-[11px] text-slate-400">{rule.submoduleKey}</span>
-                      )}
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="font-mono font-semibold text-sm text-slate-800">{rule.documentType}</span>
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{rule.id}</span>
-                      <span className="text-xs font-semibold text-slate-700">{rule.displayName}</span>
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1 rounded">{rule.documentType}</span>
                       {!rule.active && <Badge variant="outline" className="text-[10px] h-4">Inactive</Badge>}
                       <GovernanceStateBadge mode={rule.governanceMode ?? 'hardcoded'} />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-xs text-slate-600">{rule.displayName}</span>
+                      <ModuleBadge module={rule.moduleKey} />
+                      {rule.submoduleKey && (
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded">{rule.submoduleKey}</span>
+                      )}
                     </div>
                     <p className="text-[11px] font-mono text-slate-500 break-all mb-1">{rule.pathTemplate}</p>
                     <div className="flex items-center gap-3 text-[11px] text-slate-400">
