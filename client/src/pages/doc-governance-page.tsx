@@ -41,6 +41,9 @@ interface DocPathTemplate {
   templateCode: string;
   documentType: string;
   documentCategory: string | null;
+  ruleDisplayName: string | null;
+  moduleKey: string | null;
+  submoduleKey: string | null;
   relativePathTemplate: string;
   fileNameTemplate: string | null;
   revisionMode: string;
@@ -308,6 +311,9 @@ export default function DocGovernancePage() {
         pt.relativePathTemplate.toLowerCase().includes(q) ||
         (pt.fileNameTemplate ?? "").toLowerCase().includes(q) ||
         (pt.documentCategory ?? "").toLowerCase().includes(q) ||
+        (pt.ruleDisplayName ?? "").toLowerCase().includes(q) ||
+        (pt.moduleKey ?? "").toLowerCase().includes(q) ||
+        (pt.submoduleKey ?? "").toLowerCase().includes(q) ||
         String(pt.id).includes(q) ||
         (pt.gcsRuleId ? String(pt.gcsRuleId).includes(q) : false);
       if (!match) return false;
@@ -473,6 +479,26 @@ export default function DocGovernancePage() {
                               </Badge>
                             )}
                           </div>
+                          {pt.ruleDisplayName && (
+                            <p className="text-xs text-slate-700 font-medium mt-1">{pt.ruleDisplayName}</p>
+                          )}
+                          {(pt.moduleKey || pt.submoduleKey || pt.documentType) && (
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              {pt.moduleKey && (
+                                <span className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono">
+                                  module: {pt.moduleKey}
+                                </span>
+                              )}
+                              {pt.submoduleKey && (
+                                <span className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono">
+                                  submodule: {pt.submoduleKey}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono">
+                                type: {pt.documentType}
+                              </span>
+                            </div>
+                          )}
                           <p className="text-xs font-mono text-blue-700 mt-1.5 bg-blue-50 rounded px-2 py-1 break-all">
                             📁 {pt.relativePathTemplate}
                           </p>
