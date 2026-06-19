@@ -88,12 +88,15 @@ export async function syncOnCreate(rule: GcsGovernanceRule): Promise<DocSyncResu
         const [linked] = await db
           .update(documentPathTemplates)
           .set({
-            gcsRuleId: rule.id,
+            gcsRuleId:           rule.id,
             relativePathTemplate,
-            revisionMode: rule.revisionMode,
-            documentCategory: rule.moduleKey,
-            active: rule.active,
-            updatedAt: new Date(),
+            revisionMode:        rule.revisionMode,
+            documentCategory:    rule.moduleKey,
+            ruleDisplayName:     rule.displayName,
+            moduleKey:           rule.moduleKey,
+            submoduleKey:        rule.submoduleKey ?? null,
+            active:              rule.active,
+            updatedAt:           new Date(),
           })
           .where(eq(documentPathTemplates.id, existing.id))
           .returning();
@@ -117,6 +120,9 @@ export async function syncOnCreate(rule: GcsGovernanceRule): Promise<DocSyncResu
         templateCode,
         documentType:         rule.documentType,
         documentCategory:     rule.moduleKey,
+        ruleDisplayName:      rule.displayName,
+        moduleKey:            rule.moduleKey,
+        submoduleKey:         rule.submoduleKey ?? null,
         relativePathTemplate,
         fileNameTemplate:     null,
         revisionMode:         rule.revisionMode,
@@ -158,10 +164,13 @@ export async function syncOnUpdate(rule: GcsGovernanceRule): Promise<DocSyncResu
 
     // Diff: only write if at least one GCS-governed field has changed
     const unchanged =
-      linked.relativePathTemplate === relativePathTemplate &&
-      linked.revisionMode         === rule.revisionMode   &&
-      linked.active               === rule.active         &&
-      linked.documentCategory     === rule.moduleKey;
+      linked.relativePathTemplate === relativePathTemplate   &&
+      linked.revisionMode         === rule.revisionMode      &&
+      linked.active               === rule.active            &&
+      linked.documentCategory     === rule.moduleKey         &&
+      linked.ruleDisplayName      === rule.displayName       &&
+      linked.moduleKey            === rule.moduleKey         &&
+      linked.submoduleKey         === (rule.submoduleKey ?? null);
 
     if (unchanged) {
       return { action: 'unchanged', templateId: linked.id, templateCode: linked.templateCode ?? undefined };
@@ -174,6 +183,9 @@ export async function syncOnUpdate(rule: GcsGovernanceRule): Promise<DocSyncResu
         revisionMode:     rule.revisionMode,
         active:           rule.active,
         documentCategory: rule.moduleKey,
+        ruleDisplayName:  rule.displayName,
+        moduleKey:        rule.moduleKey,
+        submoduleKey:     rule.submoduleKey ?? null,
         updatedAt:        new Date(),
       })
       .where(eq(documentPathTemplates.id, linked.id))

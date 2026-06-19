@@ -14150,6 +14150,10 @@ export const documentPathTemplates = pgTable('document_path_templates', {
   templateCode:           varchar('template_code', { length: 120 }).notNull().unique(),
   documentType:           varchar('document_type', { length: 50 }).notNull(),
   documentCategory:       varchar('document_category', { length: 80 }),
+  // GCS identity fields — synced from gcs_governance_rules on every create/update
+  ruleDisplayName:        varchar('rule_display_name', { length: 200 }),
+  moduleKey:              varchar('module_key', { length: 80 }),
+  submoduleKey:           varchar('submodule_key', { length: 80 }),
   relativePathTemplate:   text('relative_path_template').notNull(),
   fileNameTemplate:       varchar('file_name_template', { length: 255 }),
   revisionMode:           varchar('revision_mode', { length: 20 }).notNull().default('folder'),
