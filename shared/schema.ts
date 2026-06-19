@@ -10232,6 +10232,8 @@ export const offerTemplates = pgTable('offer_templates', {
   checksumSha256: text('checksum_sha256'),
   versionSeq: integer('version_seq').default(1).notNull(),
   currentLabel: text('current_label'),
+  mirrorStatus: varchar('mirror_status', { length: 20 }).default('pending').notNull(),
+  mirrorJobId: integer('mirror_job_id'),
 });
 
 export const insertOfferTemplateSchema = createInsertSchema(offerTemplates).omit({

@@ -12,6 +12,8 @@ import { storeQuotationPdfArtifact, storeQuotationPdfArtifactTwoPhase, getActive
 import crypto from 'crypto';
 import gcsClient, { bucketName as gcsBucketName } from './utils/storage-config';
 import { validateLabel } from '../shared/gcs-label-vocabulary';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
+import { enqueueMirrorJob } from './utils/mirror-job-service';
 
 async function getTemplateSignedUrl(gcsObjectPath: string): Promise<string> {
   const bucket = gcsClient.bucket(gcsBucketName);
@@ -20,20 +22,13 @@ async function getTemplateSignedUrl(gcsObjectPath: string): Promise<string> {
   return url;
 }
 
-async function uploadTemplateToGcs(
+async function uploadOfferTemplateToGcs(
   buffer: Buffer,
-  name: string,
+  templateSlug: string,
+  seq: string,
   ext: string,
-  versionSeq: number = 1,
-  _labelValue?: string,
 ): Promise<string> {
-  // Governed path: TPEL/SALES/TEMPLATES/{TemplateSlug}/{TemplateSlug}_{Seq}.{ext}
-  const templateSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const seq = String(versionSeq).padStart(3, '0');
-  const gcsPath = `TPEL/SALES/TEMPLATES/${templateSlug}/${templateSlug}_${seq}.${ext}`;
-  // Zero-Trust: assert path is governed before any GCS write
-  const { assertGcsPath } = await import('./epc-guardrails');
-  assertGcsPath(gcsPath, 'uploadTemplateToGcs');
+  const gcsPath = await resolveGcsPath('OFFER_TEMPLATE', { TemplateSlug: templateSlug, Seq: seq, ext });
   const bucket = gcsClient.bucket(gcsBucketName);
   const file = bucket.file(gcsPath);
   await file.save(buffer, { contentType: 'application/pdf', metadata: { contentType: 'application/pdf' } });
@@ -1160,27 +1155,34 @@ export function setupSalesMarketingRoutes(app: Express) {
       const { name, subject, description, position, language, startPage, endPage } = req.body;
       if (!name || !subject) return res.status(400).json({ error: 'Name and subject are required' });
 
-      // Auto-derive label from template name slug (no user input required)
-      const templateLabel = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
-
+      const versionSeq = 1;
+      const templateSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
       const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
-      let gcsObjectPath: string | undefined;
-      let checksumSha256: string | undefined;
-      const versionSeq = 1; // New templates always start at v1
+      const seq = String(versionSeq).padStart(3, '0');
+      const fileBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
+      const checksumSha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+
+      // G1 — resolve governed GCS path; fail hard if no active rule
+      let gcsObjectPath: string;
       try {
-        const fileBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
-        gcsObjectPath = await uploadTemplateToGcs(fileBuffer, name, ext, versionSeq, templateLabel);
-        checksumSha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+        gcsObjectPath = await uploadOfferTemplateToGcs(fileBuffer, templateSlug, seq, ext);
       } catch (gcsErr) {
-        console.warn('[offer-templates] GCS upload failed, using local FS fallback:', gcsErr);
+        if (gcsErr instanceof GcsGovernanceError) {
+          console.error('[offer-templates] Governance error on create:', gcsErr.message);
+          return res.status(503).json({ code: 'GCS_GOVERNANCE_ERROR', error: gcsErr.message });
+        }
+        console.error('[offer-templates] GCS upload failed on create:', gcsErr);
+        return res.status(502).json({ error: 'GCS upload failed. Template not saved.' });
       }
 
       const userId = (req.user as any)?.id || null;
+
+      // G3 — DB record only after GCS success
       const [template] = await db.insert(offerTemplates).values({
         name,
         subject,
         description: description || null,
-        filePath: req.file.path,
+        filePath: '',
         fileName: req.file.originalname,
         fileSize: req.file.size,
         position: position || 'after',
@@ -1189,19 +1191,38 @@ export function setupSalesMarketingRoutes(app: Express) {
         endPage: endPage ? parseInt(endPage) : null,
         isActive: true,
         createdBy: userId,
-        gcsObjectPath: gcsObjectPath || null,
-        gcsBucket: gcsObjectPath ? gcsBucketName : null,
-        checksumSha256: checksumSha256 || null,
+        gcsObjectPath,
+        gcsBucket: gcsBucketName,
+        checksumSha256,
         versionSeq,
+        mirrorStatus: 'pending',
+        mirrorJobId: null,
       }).returning();
 
-      // Audit: template created
+      // G2 — enqueue SAVE_FILE mirror job
+      try {
+        const jobId = await enqueueMirrorJob({
+          gcsPath: gcsObjectPath,
+          sourceModule: 'offer_templates',
+          sourceRecordId: template.id,
+          sha256: checksumSha256,
+          fileName: req.file.originalname,
+          createdBy: userId,
+        });
+        await db.update(offerTemplates).set({ mirrorJobId: jobId }).where(eq(offerTemplates.id, template.id));
+        template.mirrorJobId = jobId;
+      } catch (jobErr) {
+        console.error('[MIRROR-JOB-FAIL] offer_templates create id=' + template.id + ':', jobErr);
+        await db.update(offerTemplates).set({ mirrorStatus: 'failed' }).where(eq(offerTemplates.id, template.id));
+      }
+
+      // Audit
       await db.insert(offerTemplateAuditLog).values({
         templateId: template.id,
         action: 'template_created',
         performedBy: userId,
         versionSeq,
-        meta: JSON.stringify({ fileName: template.fileName, gcsObjectPath: template.gcsObjectPath }),
+        meta: JSON.stringify({ fileName: template.fileName, gcsObjectPath }),
       });
 
       res.json(template);
@@ -1244,8 +1265,28 @@ export function setupSalesMarketingRoutes(app: Express) {
       const [existing] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
       if (!existing) return res.status(404).json({ error: 'Template not found' });
 
-      // Archive current version to revision history BEFORE replacing
-      // Do NOT delete the old GCS file — revision history must be preserved
+      const nextSeq = (existing.versionSeq ?? 1) + 1;
+      const templateSlug = existing.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'template';
+      const replaceExt = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
+      const seq = String(nextSeq).padStart(3, '0');
+      const replaceBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
+      const newChecksum = crypto.createHash('sha256').update(replaceBuffer).digest('hex');
+
+      // G1 — resolve governed GCS path; fail hard if no active rule or GCS error
+      let newGcsPath: string;
+      try {
+        newGcsPath = await uploadOfferTemplateToGcs(replaceBuffer, templateSlug, seq, replaceExt);
+      } catch (gcsErr) {
+        if (gcsErr instanceof GcsGovernanceError) {
+          console.error('[offer-templates] Governance error on replace:', gcsErr.message);
+          return res.status(503).json({ code: 'GCS_GOVERNANCE_ERROR', error: gcsErr.message });
+        }
+        console.error('[offer-templates] GCS upload failed on replace:', gcsErr);
+        return res.status(502).json({ error: 'GCS upload failed. Template not replaced.' });
+      }
+
+      // Archive current version to revision history BEFORE updating row
+      // Old GCS file is preserved — never overwritten
       await db.insert(offerTemplateRevisions).values({
         templateId: existing.id,
         versionSeq: existing.versionSeq ?? 1,
@@ -1257,40 +1298,43 @@ export function setupSalesMarketingRoutes(app: Express) {
         uploadedBy: existing.createdBy || null,
         uploadedAt: existing.updatedAt || existing.createdAt || new Date(),
         status: 'superseded',
-        notes: `Superseded by v${(existing.versionSeq ?? 1) + 1}`,
+        notes: `Superseded by v${nextSeq}`,
       });
 
-      // Clean up old local disk file (local temp only; GCS file is preserved)
-      if (existing.filePath && fs.existsSync(existing.filePath)) {
-        try { fs.unlinkSync(existing.filePath); } catch {}
-      }
-
-      const nextSeq = (existing.versionSeq ?? 1) + 1;
-      const replaceExt = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
-      let newGcsPath: string | undefined;
-      let newChecksum: string | undefined;
-
-      try {
-        const replaceBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
-        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.name, replaceExt, nextSeq);
-        newChecksum = crypto.createHash('sha256').update(replaceBuffer).digest('hex');
-      } catch (gcsErr) {
-        console.warn('[offer-templates] GCS upload on replace failed:', gcsErr);
-      }
-
       const userId = (req.user as any)?.id || null;
+
+      // G3 — update source row only after GCS success; reset mirror fields
       const [template] = await db.update(offerTemplates).set({
-        filePath: req.file.path,
+        filePath: '',
         fileName: req.file.originalname,
         fileSize: req.file.size,
-        gcsObjectPath: newGcsPath || null,
-        gcsBucket: newGcsPath ? gcsBucketName : null,
-        checksumSha256: newChecksum || null,
+        gcsObjectPath: newGcsPath,
+        gcsBucket: gcsBucketName,
+        checksumSha256: newChecksum,
         versionSeq: nextSeq,
+        mirrorStatus: 'pending',
+        mirrorJobId: null,
         updatedAt: new Date(),
       }).where(eq(offerTemplates.id, id)).returning();
 
-      // Audit: new version uploaded
+      // G2 — enqueue SAVE_FILE mirror job for new version
+      try {
+        const jobId = await enqueueMirrorJob({
+          gcsPath: newGcsPath,
+          sourceModule: 'offer_templates',
+          sourceRecordId: template.id,
+          sha256: newChecksum,
+          fileName: req.file.originalname,
+          createdBy: userId,
+        });
+        await db.update(offerTemplates).set({ mirrorJobId: jobId }).where(eq(offerTemplates.id, id));
+        template.mirrorJobId = jobId;
+      } catch (jobErr) {
+        console.error('[MIRROR-JOB-FAIL] offer_templates replace id=' + id + ':', jobErr);
+        await db.update(offerTemplates).set({ mirrorStatus: 'failed' }).where(eq(offerTemplates.id, id));
+      }
+
+      // Audit
       await db.insert(offerTemplateAuditLog).values({
         templateId: id,
         action: 'version_uploaded',
@@ -1441,21 +1485,14 @@ export function setupSalesMarketingRoutes(app: Express) {
       const [template] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
       if (!template) return res.status(404).json({ error: 'Template not found' });
 
-      if (template.gcsObjectPath) {
-        try {
-          const signedUrl = await getTemplateSignedUrl(template.gcsObjectPath);
-          return res.redirect(302, signedUrl);
-        } catch (gcsErr) {
-          console.warn('[offer-templates] GCS signed URL failed, falling back to local FS:', gcsErr);
-        }
+      if (!template.gcsObjectPath) {
+        return res.status(404).json({
+          error: 'Template file not available in GCS. This template was uploaded before GCS governance was enforced and requires re-upload.',
+        });
       }
 
-      if (!fs.existsSync(template.filePath)) {
-        return res.status(404).json({ error: 'Template file not found' });
-      }
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${template.fileName}"`);
-      fs.createReadStream(template.filePath).pipe(res);
+      const signedUrl = await getTemplateSignedUrl(template.gcsObjectPath);
+      return res.redirect(302, signedUrl);
     } catch (error) {
       console.error('Error downloading template:', error);
       res.status(500).json({ error: 'Failed to download template' });
