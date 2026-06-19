@@ -1676,9 +1676,10 @@ function GovernanceRulesTab() {
     if (filterActive === "db-driven" && r.governanceMode !== "db_driven") return false;
     if (searchName.trim()) {
       const q = searchName.trim().toLowerCase().replace(/^#/, '');
-      const matchesName = r.displayName.toLowerCase().includes(q);
-      const matchesId   = String(r.id).includes(q);
-      if (!matchesName && !matchesId) return false;
+      const matchesName     = r.displayName.toLowerCase().includes(q);
+      const matchesDocType  = r.documentType.toLowerCase().includes(q);
+      const matchesId       = String(r.id).includes(q);
+      if (!matchesName && !matchesDocType && !matchesId) return false;
     }
     return true;
   });
