@@ -688,33 +688,36 @@ export async function storeFinalOfferPdfToGcs(
       },
     });
 
-    // G3 (path) — record GCS path on the offer row immediately after GCS success
+    // G3 (path) — record GCS path on the snapshot row immediately after GCS success.
+    // Uses offer_conversion_snapshots (not offers) because offers is locked by the
+    // prevent_offer_update_after_confirmed trigger at this point in the flow.
     await pool.query(
-      `UPDATE offers SET final_offer_gcs_path = $1 WHERE id = $2`,
+      `UPDATE offer_conversion_snapshots SET final_offer_gcs_path = $1 WHERE offer_id = $2`,
       [gcsPath, offerId]
     );
 
-    // G2 + G3 (mirror) — create mirror job and stamp mirror columns
+    // G2 + G3 (mirror) — create mirror job and stamp mirror columns on snapshot
+    const fileName = gcsPath.split('/').pop() || `final-offer-${offerId}.pdf`;
     try {
       const jobResult = await pool.query(
         `INSERT INTO document_agent_jobs
-           (job_type, relative_path, source_module, source_record_id, status, created_at)
-         VALUES ('SAVE_FILE', $1, 'offer_conversion', $2, 'pending', NOW())
+           (job_type, relative_path, file_name, source_module, source_record_id, status, created_at)
+         VALUES ('SAVE_FILE', $1, $2, 'offer_conversion', $3, 'pending', NOW())
          RETURNING id`,
-        [gcsPath, offerId]
+        [gcsPath, fileName, offerId]
       );
       const mirrorJobId: number = jobResult.rows[0].id;
       await pool.query(
-        `UPDATE offers
+        `UPDATE offer_conversion_snapshots
          SET final_offer_mirror_status = 'pending', final_offer_mirror_job_id = $1
-         WHERE id = $2`,
+         WHERE offer_id = $2`,
         [mirrorJobId, offerId]
       );
       console.log(`[final-offer-pdf] Snapshot saved → ${gcsPath} | mirror job #${mirrorJobId}`);
     } catch (mirrorErr: any) {
       // Mirror job failure does not invalidate the GCS save — mark as failed for retry
       await pool.query(
-        `UPDATE offers SET final_offer_mirror_status = 'failed' WHERE id = $1`,
+        `UPDATE offer_conversion_snapshots SET final_offer_mirror_status = 'failed' WHERE offer_id = $1`,
         [offerId]
       );
       console.error(`[final-offer-pdf] Mirror job creation failed for offer ${offerId} (GCS save OK):`, mirrorErr.message);

@@ -223,7 +223,7 @@ router.post('/local-agent/jobs/result', requireAgentAuth, async (req: Request, r
         );
       } else if (existing.sourceModule === 'offer_conversion') {
         await db.execute(
-          sql`UPDATE offers SET final_offer_mirror_status = ${mirrorStatus} WHERE id = ${existing.sourceRecordId}`
+          sql`UPDATE offer_conversion_snapshots SET final_offer_mirror_status = ${mirrorStatus} WHERE offer_id = ${existing.sourceRecordId}`
         );
       }
     }

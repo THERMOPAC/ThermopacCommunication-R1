@@ -6028,4 +6028,64 @@ router.post('/payroll/verify/trial-vs-official', ensureAuthenticated, async (req
   }
 });
 
+// ── POST /api/admin/offers/:offerId/backfill-final-offer-gcs ─────────────────
+// Repair endpoint: re-runs storeFinalOfferPdfToGcs for a converted offer whose
+// final_offer_gcs_path is NULL on offer_conversion_snapshots (e.g. because the
+// conversion ran before the offer-lock fix was deployed).
+router.post('/offers/:offerId/backfill-final-offer-gcs', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user || user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Superuser only' });
+    }
+    const offerId = Number(req.params.offerId);
+    if (!offerId) return res.status(400).json({ error: 'Invalid offerId' });
+
+    const { pool } = await import('./db');
+
+    const snap = await pool.query(
+      `SELECT ocs.id, ocs.project_id, ocs.final_offer_gcs_path
+       FROM offer_conversion_snapshots ocs WHERE ocs.offer_id = $1`,
+      [offerId]
+    );
+    if (snap.rows.length === 0) return res.status(404).json({ error: 'No conversion snapshot found for this offer' });
+    if (snap.rows[0].final_offer_gcs_path) {
+      return res.json({ ok: true, skipped: true, message: 'Already filled', gcsPath: snap.rows[0].final_offer_gcs_path });
+    }
+
+    const artRow = await pool.query(
+      `SELECT a.id, a.revision FROM quotation_pdf_artifacts a
+       WHERE a.offer_id = $1 AND a.is_confirmed = true ORDER BY a.id DESC LIMIT 1`,
+      [offerId]
+    );
+    if (artRow.rows.length === 0) return res.status(404).json({ error: 'No confirmed artifact found for this offer' });
+
+    const offerRow = await pool.query(`SELECT offer_number, revision FROM offers WHERE id = $1`, [offerId]);
+    if (offerRow.rows.length === 0) return res.status(404).json({ error: 'Offer not found' });
+
+    const projRow = await pool.query(`SELECT code FROM projects WHERE id = $1`, [snap.rows[0].project_id]);
+    if (projRow.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+
+    const { storeFinalOfferPdfToGcs } = await import('./utils/quotation-pdf-artifact');
+    const result = await storeFinalOfferPdfToGcs(
+      artRow.rows[0].id,
+      snap.rows[0].project_id,
+      projRow.rows[0].code,
+      offerId,
+      offerRow.rows[0].offer_number,
+      offerRow.rows[0].revision || 0,
+      user.id
+    );
+
+    if (result.success) {
+      console.log(`[admin-backfill] final_offer_gcs_path backfilled for offer ${offerId} → ${result.gcsPath}`);
+      return res.json({ ok: true, gcsPath: result.gcsPath });
+    } else {
+      return res.status(500).json({ error: result.error });
+    }
+  } catch (err: any) {
+    sendError(res, err);
+  }
+});
+
 export default router;

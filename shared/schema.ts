@@ -12529,6 +12529,9 @@ export const offerConversionSnapshots = pgTable('offer_conversion_snapshots', {
   errorDetail: text('error_detail'),
   convertedBy: integer('converted_by').notNull().references(() => users.id),
   convertedAt: timestamp('converted_at').notNull().defaultNow(),
+  finalOfferGcsPath: text('final_offer_gcs_path'),
+  finalOfferMirrorStatus: varchar('final_offer_mirror_status', { length: 20 }),
+  finalOfferMirrorJobId: integer('final_offer_mirror_job_id'),
 });
 
 export const insertOfferConversionSnapshotSchema = createInsertSchema(offerConversionSnapshots).omit({ id: true });
