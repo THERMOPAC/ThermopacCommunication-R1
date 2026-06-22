@@ -2,7 +2,8 @@ import { execSync } from 'child_process';
 import { createHash } from 'crypto';
 import puppeteer from 'puppeteer-core';
 import gcsClient, { bucketName } from './utils/storage-config';
-import { buildDdsGcsPath, resolveProjectGeoCodes } from './epc-coding';
+import { resolveProjectGeoCodes } from './epc-coding';
+import { resolveGcsPath } from './utils/gcs-path-resolver';
 import { generateDdsHtml } from './dds-html-template';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
@@ -44,16 +45,18 @@ export async function generateAndUploadDdsPdf(
     const drawingNumber = dwgControl.dwg_control_number || 'UNKNOWN';
     const revision = dwgControl.revision_code || '00';
 
-    const gcsPath = buildDdsGcsPath(
-      geo.continentCode,
-      geo.countryCode,
-      geo.customerCustToken,
-      geo.fyCode,
-      geo.projectSeq,
-      itemCode,
-      drawingNumber,
-      revision
-    );
+    // G1: Resolve canonical path from GCS Governance Rule (document_type='DDS').
+    // Throws GcsGovernanceError if rule is missing/inactive or any token is unresolved.
+    const gcsPath = await resolveGcsPath('DDS', {
+      CC: geo.continentCode,
+      CO: geo.countryCode,
+      Cust: geo.customerCustToken,
+      FY: geo.fyCode,
+      NNN: geo.projectSeq,
+      ItemCode: itemCode,
+      DrawingNo: drawingNumber,
+      rev: revision,
+    });
 
     const html = generateDdsHtml(sheet, {
       drawingNumber,
