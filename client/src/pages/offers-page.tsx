@@ -1512,6 +1512,7 @@ export function OffersContent() {
                         );
                       })}
                     </div>
+                    <DocumentHealthSection projectId={pollingProjectId} />
                     <DialogFooter className="pt-1">
                       <Button variant="outline" disabled>
                         <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Pipeline running…
