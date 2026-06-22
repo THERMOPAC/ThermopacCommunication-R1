@@ -408,6 +408,33 @@ export function setupGcsGovernanceRoutes(app: Express): void {
     }
   });
 
+  // ── File Migration Jobs — batch: latest job per rule (all rules) ──────────
+  app.get('/api/gcs-governance/migration-jobs/all', ensureAuthenticated, async (req, res) => {
+    if (!superuserOnly(req, res)) return;
+    try {
+      // One query: latest job per rule_id using DISTINCT ON
+      const rows = await db.execute(sql`
+        SELECT DISTINCT ON (rule_id)
+          id, rule_id, document_type, trigger_reason, triggered_by,
+          status, total_files, processed_files, migrated_files,
+          skipped_files, failed_files, missing_src_files,
+          error_log, started_at, completed_at
+        FROM gcs_file_migration_jobs
+        ORDER BY rule_id, started_at DESC
+      `).then((r: any) => r.rows);
+
+      // Group by rule_id: Record<ruleId, job[]>
+      const grouped: Record<string, any[]> = {};
+      for (const row of rows) {
+        const key = String(row.rule_id);
+        grouped[key] = [row];
+      }
+      res.json(grouped);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── File Migration Jobs — list jobs for a rule ────────────────────────────
   app.get('/api/gcs-governance/rules/:id/migration-jobs', ensureAuthenticated, async (req, res) => {
     if (!superuserOnly(req, res)) return;

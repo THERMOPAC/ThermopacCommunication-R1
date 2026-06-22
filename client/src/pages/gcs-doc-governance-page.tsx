@@ -1240,13 +1240,13 @@ const JOB_STATUS_STYLE: Record<string, string> = {
   failed:    'bg-red-100 text-red-600',
 };
 
-function FileMigrationPanel({ rule }: { rule: GcsGovernanceRule }) {
+function FileMigrationPanel({ rule, prefetchedJobs }: { rule: GcsGovernanceRule; prefetchedJobs?: FileMigrationJob[] }) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const queryKey = [`/api/gcs-governance/rules/${rule.id}/migration-jobs`];
 
-  const { data: jobs = [], isLoading, refetch } = useQuery<FileMigrationJob[]>({
+  const { data: ownJobs = [], isLoading, refetch } = useQuery<FileMigrationJob[]>({
     queryKey,
     queryFn: () => apiRequest('GET', `/api/gcs-governance/rules/${rule.id}/migration-jobs`),
     refetchInterval: (data: any) => {
@@ -1254,8 +1254,10 @@ function FileMigrationPanel({ rule }: { rule: GcsGovernanceRule }) {
       const hasActive = list.some(j => j.status === 'pending' || j.status === 'running');
       return hasActive ? 3000 : false;
     },
-    enabled: rule.governanceMode === 'db_driven',
+    enabled: rule.governanceMode === 'db_driven' && prefetchedJobs === undefined,
   });
+
+  const jobs = prefetchedJobs ?? ownJobs;
 
   const triggerMutation = useMutation({
     mutationFn: () => apiRequest('POST', `/api/gcs-governance/rules/${rule.id}/migrate-files`, {}),
@@ -1666,6 +1668,18 @@ function GovernanceRulesTab() {
     queryKey: ["/api/gcs-governance/rules"],
   });
 
+  // Batch-fetch latest migration job per rule — one request instead of one per rule
+  const { data: allMigrationJobs = {} } = useQuery<Record<string, FileMigrationJob[]>>({
+    queryKey: ["/api/gcs-governance/migration-jobs/all"],
+    refetchInterval: (data: any) => {
+      const map = (data?.state?.data ?? {}) as Record<string, FileMigrationJob[]>;
+      const hasActive = Object.values(map).some(jobs =>
+        jobs.some(j => j.status === 'pending' || j.status === 'running')
+      );
+      return hasActive ? 5000 : false;
+    },
+  });
+
   const hasWarning = (r: GcsGovernanceRule) => r.notes?.startsWith("⚠") || r.notes?.startsWith("🚨");
 
   const filtered = rules.filter(r => {
@@ -1763,7 +1777,7 @@ function GovernanceRulesTab() {
                     <div className="mt-1.5">
                       <EnableGovernanceButton rule={rule} />
                     </div>
-                    <FileMigrationPanel rule={rule} />
+                    <FileMigrationPanel rule={rule} prefetchedJobs={allMigrationJobs[String(rule.id)]} />
                     <GovernanceDetailsPanel rule={rule} />
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
