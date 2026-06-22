@@ -10,6 +10,17 @@ import { executeFullAutoPipeline } from './full-auto-orchestrator';
 
 const router = Router();
 
+// Startup migration: add parent_run_id to automation_pipeline_runs
+pool.query(
+  `ALTER TABLE automation_pipeline_runs ADD COLUMN IF NOT EXISTS parent_run_id uuid`
+).then(() => {
+  console.log('[PipelineMigration] parent_run_id column ensured on automation_pipeline_runs');
+}).catch((e: any) => {
+  if (!e.message?.includes('already exists')) {
+    console.error('[PipelineMigration] parent_run_id migration error:', e.message);
+  }
+});
+
 function requireAuth(req: Request, res: Response): any | null {
   const user = (req as any).user;
   if (!user) {
@@ -292,6 +303,35 @@ router.post('/api/projects/:projectId/full-auto-pipeline', async (req: Request, 
   }
 });
 
+router.get('/api/projects/:projectId/pipeline-runs', async (req: Request, res: Response) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const projectId = parseInt(req.params.projectId);
+  if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+  try {
+    const result = await pool.query(
+      `SELECT apr.run_id, apr.status, apr.current_phase, apr.current_step,
+              apr.trigger_user_id, apr.started_at, apr.heartbeat_at,
+              apr.completed_at, apr.failed_at,
+              apr.failure_step, apr.failure_message,
+              apr.step_results, apr.parent_run_id,
+              u.username AS trigger_username
+       FROM   automation_pipeline_runs apr
+       LEFT JOIN users u ON u.id = apr.trigger_user_id
+       WHERE  apr.project_id = $1
+       ORDER  BY apr.started_at DESC
+       LIMIT  5`,
+      [projectId]
+    );
+    res.json({ runs: result.rows });
+  } catch (error: any) {
+    console.error('[pipeline-routes] Error fetching pipeline runs:', error);
+    res.status(500).json({ error: 'Failed to fetch pipeline runs' });
+  }
+});
+
 router.get('/api/projects/:projectId/automation-status', async (req: Request, res: Response) => {
   const user = requireAuth(req, res);
   if (!user) return;
@@ -507,6 +547,70 @@ router.get('/api/projects/:projectId/document-health', async (req: Request, res:
 
     res.json({ docs });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/projects/:projectId/pipeline-runs/:runId/retry', async (req: Request, res: Response) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!['Superuser', 'General Manager', 'Senior Manager'].includes(user.role)) {
+    return res.status(403).json({ error: 'Insufficient role. Senior Manager or above required.' });
+  }
+
+  const projectId = parseInt(req.params.projectId);
+  const { runId } = req.params;
+
+  if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+  try {
+    // 1. Validate the referenced run exists for this project
+    const runRes = await pool.query(
+      `SELECT run_id, status, failure_step, current_phase
+       FROM   automation_pipeline_runs
+       WHERE  run_id = $1 AND project_id = $2`,
+      [runId, projectId]
+    );
+    if (runRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Pipeline run not found' });
+    }
+    const run = runRes.rows[0];
+
+    // 2. Must be in a retryable state
+    if (run.status !== 'failed' && run.status !== 'stale') {
+      return res.status(409).json({ error: `Run is not in a retryable state (status: ${run.status})` });
+    }
+
+    // 3. Must be the most recent run for this project
+    const latestRes = await pool.query(
+      `SELECT run_id FROM automation_pipeline_runs
+       WHERE  project_id = $1
+       ORDER  BY started_at DESC LIMIT 1`,
+      [projectId]
+    );
+    if (latestRes.rows[0]?.run_id !== runId) {
+      return res.status(409).json({ error: 'Only the most recent pipeline run can be retried' });
+    }
+
+    // 4. Derive fromPhase from failure_step
+    let fromPhase = 1;
+    if (run.failure_step) {
+      const m1 = run.failure_step.match(/^phase(\d+)_/);
+      const m2 = run.failure_step.match(/^retry_init_phase(\d+)/);
+      if (m1) fromPhase = parseInt(m1[1]);
+      else if (m2) fromPhase = parseInt(m2[1]);
+    }
+
+    console.log(`[pipeline-routes] Phase retry: project=${projectId} run=${runId} fromPhase=${fromPhase} user=${user.id}`);
+
+    // 5. Execute (synchronous — same pattern as full-auto-pipeline trigger)
+    const { retryPipelineFromPhase } = await import('./full-auto-orchestrator');
+    const result = await retryPipelineFromPhase(projectId, user.id, runId, fromPhase);
+
+    res.json({ ...result, fromPhase });
+  } catch (error: any) {
+    console.error('[pipeline-routes] Error in pipeline retry:', error);
     res.status(500).json({ error: error.message });
   }
 });

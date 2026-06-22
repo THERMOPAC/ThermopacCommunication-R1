@@ -12785,6 +12785,7 @@ export const automationPipelineRuns = pgTable('automation_pipeline_runs', {
   failureEntityType: varchar('failure_entity_type', { length: 50 }),
   stepResults: jsonb('step_results').notNull().default({}),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  parentRunId: uuid('parent_run_id'),
 });
 
 export const insertAutomationPipelineRunSchema = createInsertSchema(automationPipelineRuns).omit({ id: true, createdAt: true });

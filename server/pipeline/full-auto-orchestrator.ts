@@ -24,7 +24,7 @@ export async function executeFullAutoPipeline(
     actorType: 'system',
     actorRef: 'full_auto_orchestrator',
     startedAt,
-    currentPhase: 0,
+    currentPhase: 1,
     currentStep: 'init',
   };
 
@@ -100,7 +100,7 @@ export async function executeFullAutoPipeline(
   }
 }
 
-async function acquirePipelineLock(ctx: AutomationContext): Promise<void> {
+async function acquirePipelineLock(ctx: AutomationContext, parentRunId?: string): Promise<void> {
   const staleCheck = await pool.query(
     `UPDATE automation_pipeline_runs
      SET status = 'stale', failure_message = 'Recovered by new run'
@@ -131,9 +131,9 @@ async function acquirePipelineLock(ctx: AutomationContext): Promise<void> {
 
   await pool.query(
     `INSERT INTO automation_pipeline_runs
-     (run_id, project_id, status, current_phase, current_step, trigger_user_id, started_at, heartbeat_at, step_results)
-     VALUES ($1, $2, 'running', 1, 'init', $3, NOW(), NOW(), '{}')`,
-    [ctx.runId, ctx.projectId, ctx.triggerUserId]
+     (run_id, project_id, status, current_phase, current_step, trigger_user_id, started_at, heartbeat_at, step_results, parent_run_id)
+     VALUES ($1, $2, 'running', $3, $4, $5, NOW(), NOW(), '{}', $6)`,
+    [ctx.runId, ctx.projectId, ctx.currentPhase, ctx.currentStep, ctx.triggerUserId, parentRunId || null]
   );
 
   await pool.query(
@@ -205,6 +205,184 @@ async function emitEvent(ctx: AutomationContext, eventName: string, payload: Rec
 
 function addResult(results: StepResult[], step: string, phase: number, data: Partial<StepResult>): void {
   results.push({ step, phase, success: true, timestamp: new Date().toISOString(), ...data });
+}
+
+
+async function validateRetryPrerequisites(
+  projectId: number,
+  fromPhase: number,
+): Promise<{ ok: boolean; reason?: string }> {
+  if (fromPhase <= 1) return { ok: true };
+
+  if (fromPhase === 2) {
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM execution_drafts
+       WHERE project_id = $1 AND doc_type IN ('DO','PO') AND applicable = true
+         AND approval_status IN ('draft','pending_approval')`,
+      [projectId]
+    );
+    const c = Number(r.rows[0]?.c ?? 0);
+    if (c > 0) {
+      return { ok: false, reason: `Phase 1 is incomplete: ${c} DO/PO draft(s) still require approval.` };
+    }
+    return { ok: true };
+  }
+
+  if (fromPhase === 3) {
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM execution_drafts
+       WHERE project_id = $1 AND doc_type = 'WO' AND applicable = true
+         AND approval_status IN ('draft','pending_approval')
+         AND dependency_status != 'blocked'`,
+      [projectId]
+    );
+    const c = Number(r.rows[0]?.c ?? 0);
+    if (c > 0) {
+      return { ok: false, reason: `Phase 2 is incomplete: ${c} WO draft(s) still require approval.` };
+    }
+    return { ok: true };
+  }
+
+  if (fromPhase === 4) {
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM epc_work_orders
+       WHERE project_id = $1 AND status = 'released' AND created_source_type = 'system'`,
+      [projectId]
+    );
+    const c = Number(r.rows[0]?.c ?? 0);
+    if (c === 0) {
+      return { ok: false, reason: 'Phase 3 is incomplete: no released Work Orders found.' };
+    }
+    return { ok: true };
+  }
+
+  if (fromPhase === 5) {
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM quality_planning_records
+       WHERE project_id = $1 AND status != 'canceled'`,
+      [projectId]
+    );
+    const c = Number(r.rows[0]?.c ?? 0);
+    if (c === 0) {
+      return { ok: false, reason: 'Phase 4 is incomplete: no quality planning records found.' };
+    }
+    return { ok: true };
+  }
+
+  return { ok: true };
+}
+
+
+export async function retryPipelineFromPhase(
+  projectId: number,
+  triggerUserId: number,
+  parentRunId: string,
+  fromPhase: number,
+): Promise<PipelineResult> {
+  const runId = uuidv4();
+  const startedAt = new Date();
+  const stepResults: StepResult[] = [];
+
+  const ctx: AutomationContext = {
+    runId, projectId, triggerUserId,
+    actorType: 'system',
+    actorRef: 'full_auto_orchestrator_retry',
+    startedAt,
+    currentPhase: fromPhase,
+    currentStep: `retry_init_phase${fromPhase}`,
+  };
+
+  console.log(`${LOG_PREFIX} [Retry] Starting phase-retry run=${runId} project=${projectId} fromPhase=${fromPhase} parent=${parentRunId}`);
+
+  const prereq = await validateRetryPrerequisites(projectId, fromPhase);
+  if (!prereq.ok) {
+    console.error(`${LOG_PREFIX} [Retry] Prerequisite check failed: ${prereq.reason}`);
+    return {
+      success: false, runId, projectId, phasesCompleted: 0, stepResults,
+      failedStep: 'prerequisite_check', failedError: prereq.reason!, duration: 0,
+    };
+  }
+
+  try {
+    await acquirePipelineLock(ctx, parentRunId);
+  } catch (lockErr: any) {
+    console.error(`${LOG_PREFIX} [Retry] Lock acquisition failed: ${lockErr.message}`);
+    return {
+      success: false, runId, projectId, phasesCompleted: 0, stepResults,
+      failedStep: 'acquire_lock', failedError: lockErr.message, duration: 0,
+    };
+  }
+
+  try {
+    await emitEvent(ctx, 'full_auto.pipeline_retry_started', {
+      runId, projectId, triggerUserId, fromPhase, parentRunId,
+    });
+
+    // Mark skipped phases (phases before fromPhase carried from parent run)
+    for (let ph = 1; ph < fromPhase; ph++) {
+      addResult(stepResults, `phase${ph}_skipped`, ph, { skipped: true, skipReason: 'retry_resume' });
+    }
+
+    // Execute only phases from fromPhase onwards
+    if (fromPhase <= 1) await executePhase1(ctx, stepResults);
+
+    if (fromPhase <= 2) {
+      await updateHeartbeat(ctx, 2, 'phase2_cascade');
+      await executePhase2(ctx, stepResults);
+    }
+
+    if (fromPhase <= 3) {
+      await updateHeartbeat(ctx, 3, 'phase3_activation');
+      await executePhase3(ctx, stepResults);
+    }
+
+    if (fromPhase <= 4) {
+      await updateHeartbeat(ctx, 4, 'phase4_quality');
+      await executePhase4(ctx, stepResults);
+    }
+
+    // Phase 5 always runs — it is verification only (no writes)
+    await updateHeartbeat(ctx, 5, 'phase5_complete');
+    await executePhase5(ctx, stepResults);
+
+    // BOM sweep (non-blocking)
+    ctx.currentStep = 'ensure_all_boms';
+    try {
+      const bomResult = await ensureBomsForAllProjectItems(projectId, triggerUserId);
+      if (bomResult.created > 0) {
+        console.log(`${LOG_PREFIX} [Retry] BOM sweep: ${bomResult.created} BOMs created`);
+      }
+      if (bomResult.errors.length > 0) {
+        console.warn(`${LOG_PREFIX} [Retry] BOM sweep errors:`, bomResult.errors);
+      }
+    } catch (bomErr: any) {
+      console.error(`${LOG_PREFIX} [Retry] BOM sweep failed (non-blocking): ${bomErr.message}`);
+    }
+
+    await completePipelineRun(ctx, stepResults);
+
+    const duration = Date.now() - startedAt.getTime();
+    await emitEvent(ctx, 'full_auto.pipeline_complete', {
+      runId, projectId, phasesCompleted: 5, duration, isRetry: true, parentRunId,
+    });
+
+    console.log(`${LOG_PREFIX} [Retry] Complete run=${runId} duration=${duration}ms`);
+    return { success: true, runId, projectId, phasesCompleted: 5, stepResults, duration };
+
+  } catch (error: any) {
+    const duration = Date.now() - startedAt.getTime();
+    const failedStep = ctx.currentStep;
+    console.error(`${LOG_PREFIX} [Retry] FAILED run=${runId} step=${failedStep}: ${error.message}`);
+    await failPipelineRun(ctx, failedStep, error.message, stepResults);
+    await emitEvent(ctx, 'full_auto.pipeline_failed', {
+      runId, projectId, failedStep, error: error.message, isRetry: true, parentRunId,
+    });
+    return {
+      success: false, runId, projectId,
+      phasesCompleted: ctx.currentPhase - 1, stepResults,
+      failedStep, failedError: error.message, duration,
+    };
+  }
 }
 
 

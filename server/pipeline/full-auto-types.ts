@@ -3,7 +3,7 @@ export interface AutomationContext {
   projectId: number;
   triggerUserId: number;
   actorType: 'system';
-  actorRef: 'full_auto_orchestrator';
+  actorRef: string;
   startedAt: Date;
   currentPhase: number;
   currentStep: string;

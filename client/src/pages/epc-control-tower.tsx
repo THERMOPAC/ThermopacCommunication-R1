@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -19,7 +20,8 @@ import {
   Activity, AlertTriangle, ArrowRight, BarChart3, CheckCircle2, 
   ChevronRight, ChevronDown, Clock, Eye, FileWarning, Layers, 
   ShieldAlert, Users, XCircle, Radar, ExternalLink, GitBranch,
-  Search, Zap, Target, Timer, Hammer, RefreshCw, HardDrive, Loader2, Archive
+  Search, Zap, Target, Timer, Hammer, RefreshCw, HardDrive, Loader2, Archive,
+  History, RotateCcw
 } from "lucide-react";
 
 function HealthBadge({ health }: { health: string }) {
@@ -150,6 +152,25 @@ export default function EpcControlTower() {
     },
   });
 
+  const { data: pipelineRuns, isLoading: loadingPipelineRuns, refetch: refetchPipelineRuns } = useQuery<{ runs: any[] }>({
+    queryKey: ['/api/projects', projectId, 'pipeline-runs'],
+    queryFn: async () => {
+      const r = await fetch(`/api/projects/${projectId}/pipeline-runs`, { credentials: 'include' });
+      if (!r.ok) throw new Error('Failed to fetch pipeline runs');
+      return r.json();
+    },
+    enabled: !!projectId,
+    refetchInterval: (q) => {
+      const runs = (q.state.data as any)?.runs ?? [];
+      const hasRunning = runs.some((r: any) => r.status === 'running');
+      return hasRunning ? 5000 : false;
+    },
+  });
+
+  const { data: currentUser } = useQuery<{ id: number; role: string }>({
+    queryKey: ['/api/user'],
+  });
+
   const { data: legacyAccess } = useQuery({
     queryKey: ["/api/epc-monitoring/legacy-access"],
   });
@@ -216,7 +237,7 @@ export default function EpcControlTower() {
             queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/stage-gates"] });
             queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/blocking-analysis"] });
             queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/risk-indicators"] });
-            if (projectId) refetchDocHealth();
+            if (projectId) { refetchDocHealth(); refetchPipelineRuns(); }
           }}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
@@ -1030,6 +1051,19 @@ export default function EpcControlTower() {
           onRefetch={refetchDocHealth}
         />
       )}
+      {/* Pipeline Run History — last 5 runs with phase-level retry */}
+      {projectId && (
+        <PipelineRunHistoryCard
+          projectId={projectId}
+          runs={pipelineRuns?.runs ?? []}
+          isLoading={loadingPipelineRuns}
+          canRetry={['Superuser', 'General Manager', 'Senior Manager'].includes(currentUser?.role ?? '')}
+          onRetrySuccess={() => {
+            refetchPipelineRuns();
+            queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'automation-status'] });
+          }}
+        />
+      )}
     </div>
     </Layout>
   );
@@ -1180,6 +1214,271 @@ function DocHealthCard({
             ))}
             <p className="text-[10px] text-muted-foreground mt-1">
               GCS is the authoritative archive. Windows mirror is a secondary copy — mirror failure does not affect document availability.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
+// ── PipelineRunHistoryCard ────────────────────────────────────────────────────
+const PHASE_NAMES = [
+  'DO/PO Approval',
+  'WO Approval',
+  'Activation & Release',
+  'Quality Plans',
+  'Verification',
+];
+
+function getFailedPhase(run: any): number | null {
+  if (!run.failure_step) return null;
+  const m1 = run.failure_step.match(/^phase(\d+)_/);
+  if (m1) return parseInt(m1[1]);
+  const m2 = run.failure_step.match(/^retry_init_phase(\d+)/);
+  if (m2) return parseInt(m2[1]);
+  return 1;
+}
+
+function phaseStatus(run: any, phase: number): 'pass' | 'fail' | 'running' | 'skip' {
+  if (run.status === 'completed') return 'pass';
+  if (run.status === 'running') {
+    if (phase < run.current_phase) return 'pass';
+    if (phase === run.current_phase) return 'running';
+    return 'skip';
+  }
+  if (run.status === 'failed' || run.status === 'stale') {
+    const fp = getFailedPhase(run);
+    if (fp === null) return 'skip';
+    if (phase < fp) return 'pass';
+    if (phase === fp) return 'fail';
+    return 'skip';
+  }
+  return 'skip';
+}
+
+function isPhaseSkippedRetry(run: any, phase: number): boolean {
+  if (!run.step_results || !Array.isArray(run.step_results)) return false;
+  return run.step_results.some((s: any) => s.phase === phase && s.skipped && s.skipReason === 'retry_resume');
+}
+
+function PipelineRunHistoryCard({
+  projectId,
+  runs,
+  isLoading,
+  canRetry,
+  onRetrySuccess,
+}: {
+  projectId: number;
+  runs: any[];
+  isLoading: boolean;
+  canRetry: boolean;
+  onRetrySuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const retryMutation = useMutation({
+    mutationFn: async ({ runId }: { runId: string }) => {
+      const res = await apiRequest('POST', `/api/projects/${projectId}/pipeline-runs/${runId}/retry`, {});
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Retry failed');
+      }
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      const outcome = data.success ? 'Completed successfully.' : 'Pipeline failed — check run history.';
+      toast({
+        title: `Pipeline retry complete — Phase ${data.fromPhase}`,
+        description: outcome,
+        variant: data.success ? 'default' : 'destructive',
+      });
+      onRetrySuccess();
+    },
+    onError: (err: any) => {
+      toast({ title: 'Retry failed', description: err.message || 'Unknown error', variant: 'destructive' });
+    },
+  });
+
+  const mostRecentRun = runs[0] ?? null;
+  const isLatestFailed = mostRecentRun?.status === 'failed' || mostRecentRun?.status === 'stale';
+  const retryPhase = isLatestFailed ? (getFailedPhase(mostRecentRun) ?? 1) : null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <History className="h-4 w-4 text-muted-foreground" />
+          Pipeline Run History
+          {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-1" />}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : runs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No pipeline runs for this project yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {runs.map((run: any, idx: number) => {
+              const isFirst = idx === 0;
+              const failed = run.status === 'failed' || run.status === 'stale';
+              const completed = run.status === 'completed';
+              const running = run.status === 'running';
+              const fp = getFailedPhase(run);
+              const phaseName = fp ? (PHASE_NAMES[fp - 1] ?? `Phase ${fp}`) : '';
+              const startedAt = run.started_at ? new Date(run.started_at) : null;
+              const endedAt = run.completed_at
+                ? new Date(run.completed_at)
+                : run.failed_at
+                ? new Date(run.failed_at)
+                : null;
+              const durationMs = startedAt && endedAt ? endedAt.getTime() - startedAt.getTime() : null;
+              const durationStr = durationMs !== null
+                ? durationMs > 60000 ? `${Math.round(durationMs / 60000)}m` : `${Math.round(durationMs / 1000)}s`
+                : null;
+              const isRetryRun = !!run.parent_run_id;
+
+              return (
+                <div
+                  key={run.run_id}
+                  className={`rounded-lg border p-3 ${
+                    failed ? 'border-red-200 bg-red-50/50' :
+                    completed ? 'border-green-200 bg-green-50/30' :
+                    running ? 'border-blue-200 bg-blue-50/30' :
+                    'border-muted bg-muted/10'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      {/* Header row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Run #{runs.length - idx}
+                          {isRetryRun && (
+                            <span className="ml-1 text-[10px] text-blue-600 font-normal">(retry)</span>
+                          )}
+                        </span>
+                        <Badge
+                          variant={failed ? 'destructive' : 'outline'}
+                          className={`text-[10px] ${completed ? 'bg-green-600 text-white border-green-600' : running ? 'border-blue-400 text-blue-700' : ''}`}
+                        >
+                          {run.status}
+                        </Badge>
+                        {startedAt && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {fmtDateTime(run.started_at)}
+                            {durationStr && <span className="ml-1">· {durationStr}</span>}
+                          </span>
+                        )}
+                        {run.trigger_username && (
+                          <span className="text-[10px] text-muted-foreground">by {run.trigger_username}</span>
+                        )}
+                      </div>
+
+                      {/* Phase dots */}
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        {[1, 2, 3, 4, 5].map(ph => {
+                          const skippedRetry = isPhaseSkippedRetry(run, ph);
+                          const st = skippedRetry ? 'skip_resume' : phaseStatus(run, ph);
+                          return (
+                            <span key={ph} className="flex items-center gap-0.5">
+                              {st === 'pass' && (
+                                <span title={`Ph${ph}: ${PHASE_NAMES[ph - 1]} — passed`} className="text-[10px] font-mono text-green-700 flex items-center gap-0.5">
+                                  <CheckCircle2 className="h-3 w-3 shrink-0" />Ph{ph}
+                                </span>
+                              )}
+                              {st === 'fail' && (
+                                <span title={`Ph${ph}: ${PHASE_NAMES[ph - 1]} — failed`} className="text-[10px] font-mono text-red-700 flex items-center gap-0.5">
+                                  <XCircle className="h-3 w-3 shrink-0" />Ph{ph}
+                                </span>
+                              )}
+                              {st === 'running' && (
+                                <span title={`Ph${ph}: ${PHASE_NAMES[ph - 1]} — in progress`} className="text-[10px] font-mono text-blue-600 flex items-center gap-0.5">
+                                  <Loader2 className="h-3 w-3 shrink-0 animate-spin" />Ph{ph}
+                                </span>
+                              )}
+                              {st === 'skip' && (
+                                <span title={`Ph${ph}: ${PHASE_NAMES[ph - 1]} — not reached`} className="text-[10px] font-mono text-muted-foreground/40">
+                                  Ph{ph}
+                                </span>
+                              )}
+                              {st === 'skip_resume' && (
+                                <span title={`Ph${ph}: ${PHASE_NAMES[ph - 1]} — skipped (completed in parent run)`} className="text-[10px] font-mono text-blue-500/70 flex items-center gap-0.5">
+                                  ↻Ph{ph}
+                                </span>
+                              )}
+                              {ph < 5 && <span className="text-muted-foreground/20 text-[10px]">·</span>}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      {/* Failure message */}
+                      {failed && run.failure_message && (
+                        <p className="text-[10px] text-red-600 mt-1 line-clamp-2">
+                          {fp && <span className="font-semibold">Ph{fp} error: </span>}
+                          {run.failure_message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Retry button — most recent failed run, authorized users only */}
+                    {isFirst && isLatestFailed && canRetry && retryPhase !== null && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px] px-2.5 shrink-0 border-amber-400 text-amber-700 hover:bg-amber-50"
+                            disabled={retryMutation.isPending}
+                          >
+                            {retryMutation.isPending
+                              ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              : <RotateCcw className="h-3 w-3 mr-1" />
+                            }
+                            Retry Ph{retryPhase}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Retry Pipeline from Phase {retryPhase}?</AlertDialogTitle>
+                            <AlertDialogDescription asChild>
+                              <div className="space-y-2 text-sm">
+                                <p>
+                                  This will resume the EPC Execution Pipeline from{' '}
+                                  <strong>Phase {retryPhase} — {phaseName}</strong>.
+                                </p>
+                                <p>
+                                  Work completed in Phases 1–{retryPhase - 1} will be skipped.
+                                  Idempotent skip checks ensure no duplicate DOs, WOs, BOMs, POs, or Inspection Orders are created.
+                                </p>
+                                <p className="text-muted-foreground">
+                                  This may take several minutes. The pipeline runs synchronously — do not close this page while it is in progress.
+                                </p>
+                              </div>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => retryMutation.mutate({ runId: run.run_id })}
+                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                              Retry from Phase {retryPhase}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Retry resumes from the exact failed phase. Phases completed in the parent run are skipped automatically.
             </p>
           </div>
         )}
