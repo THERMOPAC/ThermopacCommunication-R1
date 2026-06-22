@@ -33,6 +33,24 @@ const CONTINENT_NAME_TO_CODE: Record<string, string> = {
   'Africa': 'AF', 'Asia': 'AS', 'Europe': 'EU',
   'North America': 'NA', 'South America': 'SA', 'Oceania': 'OC',
 };
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  'united arab emirates':'AE','argentina':'AR','australia':'AU','azerbaijan':'AZ',
+  'bulgaria':'BG','bahrain':'BH','brazil':'BR','germany':'DE','algeria':'DZ',
+  'ecuador':'EC','ethiopia':'ET','united kingdom':'GB','guinea':'GN','india':'IN',
+  'kuwait':'KW','mexico':'MX','nigeria':'NG','new zealand':'NZ','panama':'PA',
+  'poland':'PL','qatar':'QA','saudi arabia':'SA','sudan':'SD','turkey':'TR',
+  'trinidad & tobago':'TT','united states':'US','canada':'CA','france':'FR',
+  'italy':'IT','spain':'ES','china':'CN','japan':'JP','south korea':'KR',
+  'singapore':'SG','malaysia':'MY','thailand':'TH','indonesia':'ID','philippines':'PH',
+  'vietnam':'VN','south africa':'ZA','kenya':'KE','ghana':'GH','tanzania':'TZ',
+  'egypt':'EG','morocco':'MA','tunisia':'TN','libya':'LY','oman':'OM',
+  'yemen':'YE','jordan':'JO','lebanon':'LB','iraq':'IQ','iran':'IR',
+  'pakistan':'PK','bangladesh':'BD','sri lanka':'LK','nepal':'NP','myanmar':'MM',
+  'chile':'CL','colombia':'CO','peru':'PE','venezuela':'VE','uruguay':'UY',
+  'paraguay':'PY','bolivia':'BO','romania':'RO','hungary':'HU','czech republic':'CZ',
+  'slovakia':'SK','croatia':'HR','serbia':'RS','ukraine':'UA','belarus':'BY',
+  'georgia':'GE','armenia':'AM','kazakhstan':'KZ','uzbekistan':'UZ',
+};
 const COUNTRY_TO_CONTINENT: Record<string, string> = {
   'AE':'AS','BH':'AS','IN':'AS','IQ':'AS','IR':'AS','JO':'AS','KW':'AS','LB':'AS',
   'OM':'AS','PK':'AS','QA':'AS','SA':'AS','SY':'AS','TR':'AS','YE':'AS','AZ':'AS',
@@ -1187,11 +1205,13 @@ export function OffersContent() {
                               const managerId = offer.approvedBy || offer.createdBy || 0;
                               const rawCC = customer?.continentCode || '';
                               const rawCO = customer?.countryCode || '';
+                              const derivedCO = rawCO
+                                || (customer?.countryName ? COUNTRY_NAME_TO_CODE[customer.countryName.toLowerCase()] || '' : '')
+                                || '';
                               const derivedCC = rawCC
                                 || (customer?.continent ? CONTINENT_NAME_TO_CODE[customer.continent] : '')
-                                || (rawCO ? COUNTRY_TO_CONTINENT[rawCO] : '')
+                                || (derivedCO ? COUNTRY_TO_CONTINENT[derivedCO] : '')
                                 || '';
-                              const derivedCO = rawCO || '';
                               setEpcFormData({
                                 continentCode: derivedCC,
                                 countryCode: derivedCO,
