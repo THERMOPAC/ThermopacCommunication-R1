@@ -1603,6 +1603,7 @@ export function OffersContent() {
                       <p className="text-xs text-muted-foreground px-1">Manual mode — pipeline not triggered automatically.</p>
                     )
                   )}
+                  <DocumentHealthSection projectId={conversionResult!.project?.id ?? null} />
                   <DialogFooter className="pt-1">
                     <Button variant="outline" onClick={() => { setConfirmOrderOffer(null); setConversionResult(null); setConversionPhase0(null); setPollingProjectId(null); }}>Close</Button>
                     <Button onClick={() => { window.location.href = `/projects/${conversionResult!.project?.id}`; }}>
@@ -2868,6 +2869,142 @@ export function OffersContent() {
   );
 
   return offersContent;
+}
+
+// ── Document Health Section (inside conversion result dialog) ────────────────
+function DocumentHealthSection({ projectId }: { projectId: number | null }) {
+  const [expanded, setExpanded] = useState(true);
+  const [retryingId, setRetryingId] = useState<number | null>(null);
+  const { toast } = useToast();
+
+  const { data, refetch } = useQuery<{ docs: any[] }>({
+    queryKey: ['/api/projects', projectId, 'document-health'],
+    queryFn: async () => {
+      const r = await fetch(`/api/projects/${projectId}/document-health`, { credentials: 'include' });
+      if (!r.ok) throw new Error('Failed to fetch document health');
+      return r.json();
+    },
+    enabled: !!projectId,
+    refetchInterval: (q) => {
+      const docs = (q.state.data as any)?.docs ?? [];
+      const hasActive = docs.some((d: any) => d.mirrorStatus === 'pending' || d.mirrorStatus === 'processing');
+      return hasActive ? 8000 : false;
+    },
+  });
+
+  const docs: any[] = data?.docs ?? [];
+  const hasIssue = docs.some(d => d.present && (d.mirrorStatus === 'pending' || d.mirrorStatus === 'processing' || d.mirrorStatus === 'failed'));
+
+  useEffect(() => {
+    if (hasIssue) setExpanded(true);
+  }, [hasIssue]);
+
+  const handleRetry = async (jobId: number) => {
+    setRetryingId(jobId);
+    try {
+      const res = await apiRequest('POST', `/api/mirror-health/jobs/${jobId}/retry`);
+      if (res.ok) {
+        toast({ title: 'Mirror retry queued', description: 'The document mirror job has been re-queued.' });
+        refetch();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Retry failed', description: (err as any).error || 'Unknown error', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Retry failed', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  if (!projectId) return null;
+
+  const mirrorChip = (status: string | null, retryCount: number) => {
+    if (!status)                  return <span className="text-[10px] text-muted-foreground italic">No job</span>;
+    if (status === 'completed')   return <span className="text-[10px] font-semibold text-green-700 flex items-center gap-0.5"><CheckCircle className="h-3 w-3" /> Mirrored</span>;
+    if (status === 'failed')      return <span className="text-[10px] font-semibold text-red-700 flex items-center gap-0.5"><XCircle className="h-3 w-3" /> Failed{retryCount > 0 ? ` (×${retryCount})` : ''}</span>;
+    if (status === 'processing')  return <span className="text-[10px] font-semibold text-blue-700 flex items-center gap-0.5"><Loader2 className="h-3 w-3 animate-spin" /> Mirroring…</span>;
+    return                               <span className="text-[10px] font-semibold text-amber-700 flex items-center gap-0.5"><Loader2 className="h-3 w-3 animate-spin" /> Pending…</span>;
+  };
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-3 py-2 text-left bg-muted/20 hover:bg-muted/40 transition-colors"
+        onClick={() => setExpanded(e => !e)}
+      >
+        <span className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground">
+          <Archive className="h-3.5 w-3.5" />
+          Document Archive Status
+          {hasIssue && (
+            <Badge variant="outline" className="text-[10px] ml-1 border-amber-400 text-amber-700 bg-amber-50">Mirroring in progress</Badge>
+          )}
+        </span>
+        {expanded
+          ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+      </button>
+      {expanded && (
+        <div className="px-3 py-2 space-y-1.5">
+          {docs.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2 text-center">
+              <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1.5" />Loading archive status…
+            </p>
+          ) : docs.map((doc: any) => (
+            <div key={doc.docType} className={`rounded border px-3 py-2 ${
+              !doc.present
+                ? 'bg-muted/10 border-dashed border-muted-foreground/20'
+                : doc.mirrorStatus === 'failed'
+                ? 'bg-red-50 border-red-200'
+                : doc.mirrorStatus === 'completed'
+                ? 'bg-green-50/60 border-green-200'
+                : 'bg-amber-50 border-amber-200'
+            }`}>
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs font-medium ${!doc.present ? 'text-muted-foreground' : ''}`}>{doc.docType}</p>
+                  {doc.present ? (
+                    <>
+                      <p className="text-[10px] text-muted-foreground/80 font-mono truncate mt-0.5">{doc.gcsPath}</p>
+                      {doc.windowsRelPath && (
+                        <p className="text-[10px] text-muted-foreground/70 font-mono truncate">⊞ {doc.windowsRelPath}</p>
+                      )}
+                      {doc.failedReason && (
+                        <p className="text-[10px] text-red-700 mt-0.5 break-words">{doc.failedReason}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground italic">Not provided</p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  {doc.present && (
+                    <span className="text-[10px] font-semibold text-green-700 flex items-center gap-0.5">
+                      <CheckCircle className="h-3 w-3" /> GCS ✓
+                    </span>
+                  )}
+                  {doc.present && mirrorChip(doc.mirrorStatus, doc.retryCount)}
+                  {doc.present && doc.mirrorStatus === 'failed' && doc.mirrorJobId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 mt-0.5 border-red-300 text-red-700 hover:bg-red-50"
+                      onClick={() => handleRetry(doc.mirrorJobId)}
+                      disabled={retryingId === doc.mirrorJobId}
+                    >
+                      <RefreshCw className={`h-2.5 w-2.5 mr-1 ${retryingId === doc.mirrorJobId ? 'animate-spin' : ''}`} />
+                      Retry Mirror
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function OffersPage() {

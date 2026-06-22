@@ -17,9 +17,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useProjectFilter } from "@/hooks/use-project-filter";
 import { 
   Activity, AlertTriangle, ArrowRight, BarChart3, CheckCircle2, 
-  ChevronRight, Clock, Eye, FileWarning, Layers, 
+  ChevronRight, ChevronDown, Clock, Eye, FileWarning, Layers, 
   ShieldAlert, Users, XCircle, Radar, ExternalLink, GitBranch,
-  Search, Zap, Target, Timer, Hammer, RefreshCw
+  Search, Zap, Target, Timer, Hammer, RefreshCw, HardDrive, Loader2, Archive
 } from "lucide-react";
 
 function HealthBadge({ health }: { health: string }) {
@@ -135,6 +135,21 @@ export default function EpcControlTower() {
     queryKey: ["/api/epc-monitoring/cutover-readiness"],
   });
 
+  const { data: docHealth, isLoading: loadingDocHealth, refetch: refetchDocHealth } = useQuery<{ docs: any[] }>({
+    queryKey: ["/api/projects", projectId, "document-health"],
+    queryFn: async () => {
+      const r = await fetch(`/api/projects/${projectId}/document-health`, { credentials: 'include' });
+      if (!r.ok) throw new Error('Failed to fetch document health');
+      return r.json();
+    },
+    enabled: !!projectId,
+    refetchInterval: (q) => {
+      const docs = (q.state.data as any)?.docs ?? [];
+      const hasActive = docs.some((d: any) => d.mirrorStatus === 'pending' || d.mirrorStatus === 'processing');
+      return hasActive ? 30000 : false;
+    },
+  });
+
   const { data: legacyAccess } = useQuery({
     queryKey: ["/api/epc-monitoring/legacy-access"],
   });
@@ -201,6 +216,7 @@ export default function EpcControlTower() {
             queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/stage-gates"] });
             queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/blocking-analysis"] });
             queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/risk-indicators"] });
+            if (projectId) refetchDocHealth();
           }}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
@@ -1005,7 +1021,169 @@ export default function EpcControlTower() {
           </CardContent>
         </Card>
       </div>
+      {/* Document Health — project-scoped conversion archive status */}
+      {projectId && (
+        <DocHealthCard
+          projectId={projectId}
+          data={docHealth}
+          isLoading={loadingDocHealth}
+          onRefetch={refetchDocHealth}
+        />
+      )}
     </div>
     </Layout>
+  );
+}
+
+// ── DocHealthCard ─────────────────────────────────────────────────────────────
+function DocHealthCard({
+  projectId,
+  data,
+  isLoading,
+  onRefetch,
+}: {
+  projectId: number;
+  data: { docs: any[] } | undefined;
+  isLoading: boolean;
+  onRefetch: () => void;
+}) {
+  const [retryingId, setRetryingId] = useState<number | null>(null);
+  const { toast } = useToast();
+
+  const docs: any[] = data?.docs ?? [];
+  const pending   = docs.filter(d => d.present && (d.mirrorStatus === 'pending' || d.mirrorStatus === 'processing')).length;
+  const failed    = docs.filter(d => d.present && d.mirrorStatus === 'failed').length;
+  const mirrored  = docs.filter(d => d.present && d.mirrorStatus === 'completed').length;
+
+  const handleRetry = async (jobId: number) => {
+    setRetryingId(jobId);
+    try {
+      const res = await apiRequest('POST', `/api/mirror-health/jobs/${jobId}/retry`);
+      if (res.ok) {
+        toast({ title: 'Mirror retry queued', description: 'The mirror job has been re-queued.' });
+        onRefetch();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Retry failed', description: (err as any).error || 'Unknown error', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Retry failed', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  const mirrorChip = (status: string | null, retryCount: number) => {
+    if (!status)                  return <span className="text-[10px] text-muted-foreground italic">No job</span>;
+    if (status === 'completed')   return <Badge variant="outline" className="text-[10px] border-green-300 text-green-700 bg-green-50">Mirrored</Badge>;
+    if (status === 'failed')      return <Badge variant="outline" className="text-[10px] border-red-300 text-red-700 bg-red-50">Failed{retryCount > 0 ? ` ×${retryCount}` : ''}</Badge>;
+    if (status === 'processing')  return <Badge variant="outline" className="text-[10px] border-blue-300 text-blue-700 bg-blue-50"><Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />Mirroring</Badge>;
+    return                               <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50"><Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />Pending</Badge>;
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <HardDrive className="h-4 w-4 text-blue-600" />
+          Document Archive Status
+          <div className="flex gap-1.5 ml-auto">
+            {pending > 0 && (
+              <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50">
+                {pending} mirroring
+              </Badge>
+            )}
+            {failed > 0 && (
+              <Badge variant="destructive" className="text-[10px]">
+                {failed} failed
+              </Badge>
+            )}
+            {failed === 0 && pending === 0 && docs.length > 0 && (
+              <Badge variant="outline" className="text-[10px] border-green-300 text-green-700 bg-green-50">
+                <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{mirrored}/{docs.filter(d => d.present).length} mirrored
+              </Badge>
+            )}
+            <Button size="sm" variant="ghost" className="h-5 w-5 p-0 ml-1" onClick={onRefetch} title="Refresh">
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            {[0,1,2,3].map(i => <Skeleton key={i} className="h-12" />)}
+          </div>
+        ) : docs.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <Archive className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+            <p className="text-sm">No conversion documents found for this project.</p>
+            <p className="text-xs mt-1">Documents are created when an offer is converted to a project.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {docs.map((doc: any) => (
+              <div key={doc.docType} className={`rounded-lg border px-4 py-3 ${
+                !doc.present
+                  ? 'bg-muted/10 border-dashed border-muted-foreground/20'
+                  : doc.mirrorStatus === 'failed'
+                  ? 'bg-red-50 border-red-200'
+                  : doc.mirrorStatus === 'completed'
+                  ? 'bg-green-50/50 border-green-200'
+                  : doc.mirrorStatus
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-muted/10 border-muted'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className={`text-sm font-medium ${!doc.present ? 'text-muted-foreground' : ''}`}>{doc.docType}</p>
+                      {doc.present && (
+                        <Badge variant="outline" className="text-[10px] border-green-300 text-green-700 bg-green-50">
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> GCS ✓
+                        </Badge>
+                      )}
+                      {doc.present && mirrorChip(doc.mirrorStatus, doc.retryCount)}
+                      {!doc.present && (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">Not provided</Badge>
+                      )}
+                    </div>
+                    {doc.present && doc.gcsPath && (
+                      <p className="text-[11px] text-muted-foreground font-mono truncate mt-1">{doc.gcsPath}</p>
+                    )}
+                    {doc.present && doc.windowsRelPath && (
+                      <p className="text-[11px] text-muted-foreground/70 font-mono truncate">
+                        <span className="text-muted-foreground not-italic mr-1">⊞</span>{doc.windowsRelPath}
+                      </p>
+                    )}
+                    {doc.present && doc.mirrorStatus === 'completed' && doc.mirroredAt && (
+                      <p className="text-[10px] text-green-700 mt-0.5">Mirrored {fmtDateTime(doc.mirroredAt)}</p>
+                    )}
+                    {doc.present && doc.failedReason && (
+                      <p className="text-[11px] text-red-700 mt-1 break-words">{doc.failedReason}</p>
+                    )}
+                  </div>
+                  {doc.present && doc.mirrorStatus === 'failed' && doc.mirrorJobId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs px-3 shrink-0 border-red-300 text-red-700 hover:bg-red-50"
+                      onClick={() => handleRetry(doc.mirrorJobId)}
+                      disabled={retryingId === doc.mirrorJobId}
+                    >
+                      <RefreshCw className={`h-3 w-3 mr-1.5 ${retryingId === doc.mirrorJobId ? 'animate-spin' : ''}`} />
+                      Retry Mirror
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <p className="text-[10px] text-muted-foreground mt-1">
+              GCS is the authoritative archive. Windows mirror is a secondary copy — mirror failure does not affect document availability.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
