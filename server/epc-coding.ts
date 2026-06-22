@@ -1,6 +1,7 @@
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { assertGcsPath } from './epc-guardrails';
+import { buildCustToken } from './utils/cust-token';
 
 export const CONTINENT_CODES: Record<string, string> = {
   'AF': 'Africa',
@@ -192,12 +193,13 @@ export function buildEpcGcsPath(
 }
 
 export async function resolveProjectGeoCodes(projectId: number, txOrDb?: any): Promise<{
-  continentCode: string; countryCode: string; customerShortCode: string; fyCode: string; projectCode: string; projectSeq: string;
+  continentCode: string; countryCode: string; customerShortCode: string; customerCustToken: string; fyCode: string; projectCode: string; projectSeq: string;
 }> {
   const executor = txOrDb || db;
   const result = await executor.execute(
     sql`SELECT p.code, p.fy_code, p.project_seq,
-               c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+               c.continent_code, c.country_code, c.short_code, c.continent, c.country_name,
+               c.bp_code, c.bp_name
         FROM projects p
         JOIN customers c ON c.id = p.customer_id
         WHERE p.id = ${projectId}`
@@ -221,6 +223,7 @@ export async function resolveProjectGeoCodes(projectId: number, txOrDb?: any): P
     continentCode,
     countryCode,
     customerShortCode: row.short_code,
+    customerCustToken: buildCustToken(row.bp_code || row.short_code, row.bp_name || ''),
     fyCode: row.fy_code,
     projectCode: row.code,
     projectSeq: row.project_seq,

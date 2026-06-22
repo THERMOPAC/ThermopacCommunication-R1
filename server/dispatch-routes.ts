@@ -414,7 +414,7 @@ export function setupDispatchRoutes(app: Router) {
           const attachmentLabel = dspLabel;
 
           const gcsObjectPath = epcCoding.buildEpcGcsPath(
-            geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
+            geo.continentCode, geo.countryCode, geo.customerCustToken, geo.fyCode,
             geo.projectSeq, 'DSP', documentNumber,
             null, attachmentSeq, attachmentLabel, fileName
           );

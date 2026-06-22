@@ -6,6 +6,7 @@ import { inspectionDocuments, inspectionOrders, materialIdentification } from '@
 import { eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm/sql';
 import { cleanupShopInspectionOrphanedFile } from '../utils/cleanup-orphaned-files';
+import { buildCustToken } from '../utils/cust-token';
 
 const router = express.Router();
 
@@ -263,7 +264,7 @@ router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticate
         let epcLegacyPrefix: string | null = null;
         try {
           const projResult = await db.execute(
-            sql`SELECT p.code, p.project_seq, p.fy_code, c.continent_code, c.country_code, c.short_code
+            sql`SELECT p.code, p.project_seq, p.fy_code, c.continent_code, c.country_code, c.short_code, c.bp_code, c.bp_name
                 FROM projects p JOIN customers c ON c.id = p.customer_id
                 WHERE p.id = ${inspection.projectId} LIMIT 1`
           );
@@ -272,7 +273,8 @@ router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticate
             if (pr.code) {
               epcLegacyPrefix = `EPC/${pr.code}/INS/${inspectionOrderNumber}/`;
               if (pr.continent_code && pr.country_code && pr.short_code && pr.fy_code) {
-                epcTpelPrefix = `TPEL/${pr.continent_code}/${pr.country_code}/${pr.short_code}/${pr.fy_code}/${pr.project_seq}/INS/${inspectionOrderNumber}/`;
+                const prCustToken = pr.bp_code ? buildCustToken(pr.bp_code, pr.bp_name || '') : pr.short_code;
+                epcTpelPrefix = `TPEL/${pr.continent_code}/${pr.country_code}/${prCustToken}/${pr.fy_code}/${pr.project_seq}/INS/${inspectionOrderNumber}/`;
               }
             }
           }
@@ -555,7 +557,7 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
           let epcLegacyPrefix2: string | null = null;
           try {
             const projRes2 = await db.execute(
-              sql`SELECT p.code, p.project_seq, p.fy_code, c.continent_code, c.country_code, c.short_code
+              sql`SELECT p.code, p.project_seq, p.fy_code, c.continent_code, c.country_code, c.short_code, c.bp_code, c.bp_name
                   FROM projects p JOIN customers c ON c.id = p.customer_id
                   WHERE p.id = ${inspection.projectId} LIMIT 1`
             );
@@ -564,7 +566,8 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
               if (pr2.code) {
                 epcLegacyPrefix2 = `EPC/${pr2.code}/INS/${inspectionOrderNumber}/`;
                 if (pr2.continent_code && pr2.country_code && pr2.short_code && pr2.fy_code) {
-                  epcTpelPrefix2 = `TPEL/${pr2.continent_code}/${pr2.country_code}/${pr2.short_code}/${pr2.fy_code}/${pr2.project_seq}/INS/${inspectionOrderNumber}/`;
+                  const pr2CustToken = pr2.bp_code ? buildCustToken(pr2.bp_code, pr2.bp_name || '') : pr2.short_code;
+                  epcTpelPrefix2 = `TPEL/${pr2.continent_code}/${pr2.country_code}/${pr2CustToken}/${pr2.fy_code}/${pr2.project_seq}/INS/${inspectionOrderNumber}/`;
                 }
               }
             }

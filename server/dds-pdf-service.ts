@@ -47,7 +47,7 @@ export async function generateAndUploadDdsPdf(
     const gcsPath = buildDdsGcsPath(
       geo.continentCode,
       geo.countryCode,
-      geo.customerShortCode,
+      geo.customerCustToken,
       geo.fyCode,
       geo.projectSeq,
       itemCode,

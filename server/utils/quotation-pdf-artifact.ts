@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import storage, { bucketName } from './storage-config';
 import { pool } from '../db';
 import { buildQuotationGcsPath, buildEpcQtnGcsPath, CONTINENT_NAME_TO_CODE, COUNTRY_NAME_TO_CODE } from '../epc-coding';
+import { buildCustToken } from './cust-token';
 import { resolveGcsPath } from './gcs-path-resolver';
 
 
@@ -25,10 +26,10 @@ function deriveFyCode(): string {
 }
 
 async function resolveCustomerGeoCodes(customerId: number): Promise<{
-  continentCode: string; countryCode: string; shortCode: string;
+  continentCode: string; countryCode: string; shortCode: string; custToken: string;
 }> {
   const result = await pool.query(
-    `SELECT continent_code, country_code, short_code, continent, country_name
+    `SELECT continent_code, country_code, short_code, continent, country_name, bp_code, bp_name
      FROM customers WHERE id = $1`,
     [customerId]
   );
@@ -47,7 +48,8 @@ async function resolveCustomerGeoCodes(customerId: number): Promise<{
   if (!continentCode || !countryCode) {
     throw new Error(`Customer ${customerId} missing geography codes (continent_code=${continentCode}, country_code=${countryCode})`);
   }
-  return { continentCode, countryCode, shortCode: row.short_code };
+  const custToken = row.bp_code ? buildCustToken(row.bp_code, row.bp_name || '') : (row.short_code ?? 'UNKNOWN');
+  return { continentCode, countryCode, shortCode: row.short_code, custToken };
 }
 
 /**
@@ -159,7 +161,7 @@ export async function storeQuotationPdfArtifact(
 
     gcsObjectPath = await resolveQuotationGcsPathFromDb(
       'QUOTATION',
-      geo.continentCode, geo.countryCode, geo.shortCode,
+      geo.continentCode, geo.countryCode, geo.custToken,
       fy, offerNumber, revision, attachmentSeq, subjectSlug
     );
 
@@ -290,7 +292,7 @@ export async function storeQuotationPdfArtifactTwoPhase(
 
     gcsObjectPath = await resolveQuotationGcsPathFromDb(
       'QUOTATION',
-      geo.continentCode, geo.countryCode, geo.shortCode,
+      geo.continentCode, geo.countryCode, geo.custToken,
       fy, offerNumber, revision, attachmentSeq, subjectSlug
     );
 
@@ -459,7 +461,7 @@ export async function attachConfirmedArtifactToEpc(
     }
 
     const projResult = await pool.query(
-      `SELECT p.customer_id, p.fy_code, p.project_seq, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+      `SELECT p.customer_id, p.fy_code, p.project_seq, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name, c.bp_code, c.bp_name
        FROM projects p JOIN customers c ON c.id = p.customer_id
        WHERE p.id = $1`,
       [projectId]
@@ -501,7 +503,7 @@ export async function attachConfirmedArtifactToEpc(
 
     const epcGcsPath = await resolveQuotationGcsPathFromDb(
       'EPC_QUOTATION',
-      continentCode, countryCode, proj.short_code,
+      continentCode, countryCode, proj.bp_code ? buildCustToken(proj.bp_code, proj.bp_name || '') : proj.short_code,
       proj.fy_code, offerNumber,
       artifact.revision,
       attachmentSeq, epcSubjectSlug
@@ -610,7 +612,7 @@ export async function storeFinalOfferPdfToGcs(
     const sourceBuffer = await downloadArtifactBuffer(artifact.gcs_object_path);
 
     const projResult = await pool.query(
-      `SELECT p.fy_code, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+      `SELECT p.fy_code, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name, c.bp_code, c.bp_name
        FROM projects p JOIN customers c ON c.id = p.customer_id WHERE p.id = $1`,
       [projectId]
     );
@@ -624,6 +626,7 @@ export async function storeFinalOfferPdfToGcs(
     if (!continentCode || !countryCode || !proj.short_code) {
       return { success: false, error: 'Customer geography codes missing for FINAL_OFFER path resolution' };
     }
+    const finalOfferCustToken = proj.bp_code ? buildCustToken(proj.bp_code, proj.bp_name || '') : proj.short_code;
 
     const rev         = String(revision).padStart(2, '0');
     const safeOfferNo = offerNumber.replace(/\//g, '-');
@@ -633,7 +636,7 @@ export async function storeFinalOfferPdfToGcs(
     const gcsPath = await resolveGcsPath('FINAL_OFFER', {
       CC:      continentCode,
       CO:      countryCode,
-      Cust:    proj.short_code,
+      Cust:    finalOfferCustToken,
       FY:      proj.fy_code,
       Code:    projectCode,
       OfferNo: safeOfferNo,
@@ -742,7 +745,7 @@ export async function storeConfirmationDocToGcs(
 
     // Resolve project geo codes
     const projResult = await pool.query(
-      `SELECT p.fy_code, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+      `SELECT p.fy_code, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name, c.bp_code, c.bp_name
        FROM projects p JOIN customers c ON c.id = p.customer_id WHERE p.id = $1`,
       [projectId]
     );
@@ -756,6 +759,7 @@ export async function storeConfirmationDocToGcs(
     if (!continentCode || !countryCode || !proj.short_code) {
       return { success: false, error: 'Customer geography codes missing for CO_DOCUMENT path resolution' };
     }
+    const coCustToken = proj.bp_code ? buildCustToken(proj.bp_code, proj.bp_name || '') : proj.short_code;
 
     // Read CO_DOCUMENT rule from DB
     const ruleRow = await pool.query(
@@ -769,7 +773,7 @@ export async function storeConfirmationDocToGcs(
     const gcsPath = template
       .replace('{CC}',    continentCode)
       .replace('{CO}',    countryCode)
-      .replace('{Cust}',  proj.short_code)
+      .replace('{Cust}',  coCustToken)
       .replace('{FY}',    proj.fy_code)
       .replace('{Code}',  projectCode)
       .replace('{Seq}',   '001')

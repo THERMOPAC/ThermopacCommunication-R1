@@ -71,7 +71,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
       gcsObjectPath = await resolveGcsPath('CO_DOCUMENT', {
         CC:    geo.continentCode,
         CO:    geo.countryCode,
-        Cust:  geo.customerShortCode,
+        Cust:  geo.customerCustToken,
         FY:    geo.fyCode,
         Code:  geo.projectCode,
         Seq:   seq,

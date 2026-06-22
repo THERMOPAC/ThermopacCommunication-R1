@@ -342,7 +342,7 @@ export function setupDocumentControlRoutes(app: Express) {
           const gcsPath = buildSlotGcsPath(
             geo.continentCode,
             geo.countryCode,
-            geo.customerShortCode,
+            geo.customerCustToken,
             geo.fyCode,
             geo.projectSeq,
             docType.code,

@@ -319,7 +319,7 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       const geo = await resolveProjectGeoCodes(designProjectDbId);
       const itemCode = (disciplineCode || 'PROJ').toUpperCase();
       gcsPath = buildDrawingGcsPath(
-        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.continentCode, geo.countryCode, geo.customerCustToken,
         geo.fyCode, geo.projectSeq,
         itemCode, drawingNumber, finalRevision, fileExtension
       );
@@ -482,7 +482,7 @@ router.post('/drawings/:id/versions', authenticateUser, upload.single('file'), a
     try {
       const geo = await resolveProjectGeoCodes(drawing[0].projectDbId);
       gcsPath = buildDrawingGcsPath(
-        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.continentCode, geo.countryCode, geo.customerCustToken,
         geo.fyCode, geo.projectSeq,
         'PROJ', drawing[0].drawingNumber, newRevision, fileExtB
       );

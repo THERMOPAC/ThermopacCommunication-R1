@@ -216,13 +216,13 @@ export function setupEpcDocumentRoutes(app: express.Express) {
             const ext = req.file!.originalname.split('.').pop()?.toLowerCase() || 'pdf';
             const rev = effectiveRevisionCode || 'A';
             gcsObjectPath = epcCoding.buildDrawingGcsPath(
-              geo.continentCode, geo.countryCode, geo.customerShortCode,
+              geo.continentCode, geo.countryCode, geo.customerCustToken,
               geo.fyCode, geo.projectSeq,
               piData.item_code, piData.code_bars, rev, ext
             );
           } else {
             gcsObjectPath = epcCoding.buildEpcGcsPath(
-              geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
+              geo.continentCode, geo.countryCode, geo.customerCustToken, geo.fyCode,
               geo.projectSeq, docType, documentNumber,
               effectiveRevisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
             );
@@ -231,7 +231,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           // INS: pass drawing_no so buildEpcGcsPath generates {seq}-{drawingNumber}-{label}.{ext} per spec
           const insDrawingNo = (docType === 'INS') ? (parent.drawing_no || undefined) : undefined;
           gcsObjectPath = epcCoding.buildEpcGcsPath(
-            geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
+            geo.continentCode, geo.countryCode, geo.customerCustToken, geo.fyCode,
             geo.projectSeq, docType, documentNumber,
             revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname,
             insDrawingNo

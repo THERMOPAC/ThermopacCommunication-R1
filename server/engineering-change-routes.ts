@@ -408,7 +408,7 @@ export function setupEngineeringChangeRoutes(app: Router) {
       );
       const attachmentSeq = (seqResult.rows[0] as any).next_seq;
       const storagePath = buildEpcGcsPath(
-        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.continentCode, geo.countryCode, geo.customerCustToken,
         geo.fyCode, geo.projectSeq, 'ECR', ecr.document_number,
         null, attachmentSeq, ecrLabel, file.originalname
       );
@@ -488,7 +488,7 @@ export function setupEngineeringChangeRoutes(app: Router) {
       );
       const attachmentSeq = (seqResult.rows[0] as any).next_seq;
       const storagePath = buildEpcGcsPath(
-        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.continentCode, geo.countryCode, geo.customerCustToken,
         geo.fyCode, geo.projectSeq, 'ECN', ecn.document_number,
         null, attachmentSeq, ecnLabel, file.originalname
       );

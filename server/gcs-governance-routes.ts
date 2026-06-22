@@ -33,6 +33,7 @@ import {
   extractTemplateTokens,
 } from './services/gcs-governance-service';
 import { buildQuotationGcsPath, buildEpcQtnGcsPath, resolveProjectGeoCodes } from './epc-coding';
+import { buildCustToken } from './utils/cust-token';
 import { pool } from './db';
 import {
   runZeroTrustValidation,
@@ -1224,9 +1225,11 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         id: number; offer_number: string; customer_name: string; revision: number;
         subject: string; offer_type: string; customer_id: number;
         continent_code: string; country_code: string; short_code: string;
+        bp_code: string; bp_name: string;
       }>(
         `SELECT o.id, o.offer_number, o.customer_name, o.revision, o.subject, o.offer_type,
-                o.customer_id, c.continent_code, c.country_code, c.short_code
+                o.customer_id, c.continent_code, c.country_code, c.short_code,
+                c.bp_code, c.bp_name
          FROM offers o
          LEFT JOIN customers c ON c.id = o.customer_id
          WHERE o.id = $1`,
@@ -1243,6 +1246,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const cc  = offer.continent_code ?? null;
       const co  = offer.country_code   ?? null;
       const sc  = offer.short_code     ?? null;
+      const custToken = offer.bp_code ? buildCustToken(offer.bp_code, offer.bp_name || '') : (sc ?? null);
       const missingGeo = !cc || !co || !sc;
 
       // Real subject slug (mirrors slugifySubject in quotation-pdf-artifact.ts)
@@ -1270,7 +1274,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         qtnGeoResolvedTemplate = qtnPathTemplate
           .replace('{CC}',      cc!)
           .replace('{CO}',      co!)
-          .replace('{Cust}',    sc!)
+          .replace('{Cust}',    custToken!)
           .replace('{FY}',      fy)
           .replace('{OfferNo}', offer.offer_number);
         const lastSlash = qtnGeoResolvedTemplate.lastIndexOf('/');
@@ -1393,7 +1397,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         geoResolvedTemplate = pathTemplate
           .replace('{CC}',   geo.continentCode)
           .replace('{CO}',   geo.countryCode)
-          .replace('{Cust}', geo.customerShortCode)
+          .replace('{Cust}', geo.customerCustToken)
           .replace('{FY}',   geo.fyCode)
           .replace('{Code}', geo.projectCode)
           .replace('{NNN}',  geo.projectSeq); // legacy fallback
@@ -1474,7 +1478,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         geoResolvedTemplate = pathTemplate
           .replace('{CC}',   geo.continentCode)
           .replace('{CO}',   geo.countryCode)
-          .replace('{Cust}', geo.customerShortCode)
+          .replace('{Cust}', geo.customerCustToken)
           .replace('{FY}',   geo.fyCode)
           .replace('{Code}', geo.projectCode)
           .replace('{NNN}',  geo.projectSeq); // legacy fallback

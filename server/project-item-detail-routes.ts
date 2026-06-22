@@ -153,7 +153,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
       if (!pi.codeBars) return res.status(400).json({ message: 'Project item has no CodeBars assigned' });
 
       const geo = await resolveProjectGeoCodes(pi.projectId);
-      const basePath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/${pi.itemCode}/DWG`;
+      const basePath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerCustToken}/${geo.fyCode}/${geo.projectSeq}/${pi.itemCode}/DWG`;
       const examplePath = `${basePath}/${pi.codeBars}_rev-00.pdf`;
 
       res.json({
@@ -217,7 +217,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
         const geo = await resolveProjectGeoCodes(pi.projectId);
         const ext = 'pdf';
         gcsObjectPath = buildDrawingGcsPath(
-          geo.continentCode, geo.countryCode, geo.customerShortCode,
+          geo.continentCode, geo.countryCode, geo.customerCustToken,
           geo.fyCode, geo.projectSeq,
           pi.itemCode!, pi.codeBars!, revision, ext
         );

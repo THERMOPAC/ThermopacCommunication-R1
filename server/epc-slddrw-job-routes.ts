@@ -870,7 +870,7 @@ router.post('/epc-drawing-controls/:id/release/manufacturing', async (req: Reque
       const ext = (latestJob.slddrwFilename?.split('.').pop() ?? 'slddrw').toLowerCase();
       const revision = dc.revisionCode ?? 'A';
       const canonicalPath = buildDrawingGcsPath(
-        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.continentCode, geo.countryCode, geo.customerCustToken,
         geo.fyCode, geo.projectSeq,
         pi.item_code, pi.code_bars,
         revision, ext
