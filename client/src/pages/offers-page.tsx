@@ -1513,7 +1513,15 @@ export function OffersContent() {
                       })}
                     </div>
                     <DocumentHealthSection projectId={pollingProjectId} />
-                    <DialogFooter className="pt-1">
+                    <DialogFooter className="pt-1 flex items-center justify-between gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground text-xs"
+                        onClick={() => { setConfirmOrderOffer(null); setConversionResult(null); setConversionPhase0(null); setPollingProjectId(null); }}
+                      >
+                        Close
+                      </Button>
                       <Button variant="outline" disabled>
                         <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Pipeline running…
                       </Button>
@@ -2878,7 +2886,7 @@ function DocumentHealthSection({ projectId }: { projectId: number | null }) {
   const [retryingId, setRetryingId] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const { data, refetch } = useQuery<{ docs: any[] }>({
+  const { data, refetch, isLoading, isError } = useQuery<{ docs: any[] }>({
     queryKey: ['/api/projects', projectId, 'document-health'],
     queryFn: async () => {
       const r = await fetch(`/api/projects/${projectId}/document-health`, { credentials: 'include' });
@@ -2886,6 +2894,7 @@ function DocumentHealthSection({ projectId }: { projectId: number | null }) {
       return r.json();
     },
     enabled: !!projectId,
+    retry: 2,
     refetchInterval: (q) => {
       const docs = (q.state.data as any)?.docs ?? [];
       const hasActive = docs.some((d: any) => d.mirrorStatus === 'pending' || d.mirrorStatus === 'processing');
@@ -2948,10 +2957,17 @@ function DocumentHealthSection({ projectId }: { projectId: number | null }) {
       </button>
       {expanded && (
         <div className="px-3 py-2 space-y-1.5">
-          {docs.length === 0 ? (
+          {isLoading ? (
             <p className="text-xs text-muted-foreground py-2 text-center">
               <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1.5" />Loading archive status…
             </p>
+          ) : isError ? (
+            <p className="text-xs text-red-600 py-2 text-center flex items-center justify-center gap-1">
+              <XCircle className="h-3.5 w-3.5" /> Unable to load archive status
+              <button type="button" className="underline ml-1" onClick={() => refetch()}>Retry</button>
+            </p>
+          ) : docs.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2 text-center italic">No conversion documents found for this project.</p>
           ) : docs.map((doc: any) => (
             <div key={doc.docType} className={`rounded border px-3 py-2 ${
               !doc.present

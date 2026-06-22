@@ -362,7 +362,7 @@ router.get('/api/projects/:projectId/document-health', async (req: Request, res:
          FROM   offer_conversion_snapshots ocs
          LEFT JOIN quotation_pdf_artifacts qpa ON qpa.offer_id = ocs.offer_id
          WHERE  ocs.project_id = $1
-         ORDER  BY ocs.created_at DESC, qpa.id DESC
+         ORDER  BY ocs.converted_at DESC, qpa.id DESC
          LIMIT  1`,
         [projectId]
       ),
