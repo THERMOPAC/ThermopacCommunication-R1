@@ -972,17 +972,13 @@ export async function executeOfferConversion(
       console.error(`[offer-conversion] Execution draft generation failed (non-blocking):`, draftErr);
     }
 
-    let automationResult = null;
     const automationMode = epcParams.automationMode || 'full_auto';
-    if (automationMode === 'full_auto' && executionDraftSummary) {
-      try {
-        console.log(`[offer-conversion] Full-auto mode: triggering pipeline for project ${project.id}`);
-        automationResult = await executeFullAutoPipeline(project.id, userId);
-        console.log(`[offer-conversion] Full-auto pipeline ${automationResult.success ? 'completed' : 'failed'}: run=${automationResult.runId}`);
-      } catch (autoErr: any) {
-        console.error(`[offer-conversion] Full-auto pipeline error (non-blocking):`, autoErr);
-        automationResult = { success: false, error: autoErr.message };
-      }
+    const pipelineAsync = automationMode === 'full_auto' && !!executionDraftSummary;
+    if (pipelineAsync) {
+      console.log(`[offer-conversion] Full-auto mode: firing pipeline async for project ${project.id}`);
+      executeFullAutoPipeline(project.id, userId).catch((err: any) => {
+        console.error(`[offer-conversion] Full-auto pipeline async error (project ${project.id}):`, err.message);
+      });
     }
 
     // ── End-of-flow GCS snapshots ────────────────────────────────────────────
@@ -1033,7 +1029,7 @@ export async function executeOfferConversion(
       itemsCreated,
       itemsPendingMapping,
       executionDraftSummary,
-      automationResult,
+      pipelineAsync,
     };
   } catch (error: any) {
     await client.query('ROLLBACK');

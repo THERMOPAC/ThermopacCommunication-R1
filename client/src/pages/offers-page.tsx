@@ -305,6 +305,8 @@ export function OffersContent() {
   const [gcsLastResult, setGcsLastResult] = useState<{ mode: string; gcsObjectPath: string; attachmentSeq: number } | null>(null);
   const [confirmOrderOffer, setConfirmOrderOffer] = useState<any>(null);
   const [conversionResult, setConversionResult] = useState<any>(null);
+  const [conversionPhase0, setConversionPhase0] = useState<any>(null);
+  const [pollingProjectId, setPollingProjectId] = useState<number | null>(null);
   const [confirmDocFile, setConfirmDocFile] = useState<File | null>(null);
   const [confirmDocUploading, setConfirmDocUploading] = useState(false);
   const [confirmDocUploaded, setConfirmDocUploaded] = useState(false);
@@ -482,14 +484,19 @@ export function OffersContent() {
     mutationFn: async ({ id, epcParams }: { id: number; epcParams: any }) =>
       apiRequest('PATCH', `/api/sales-marketing/offers/${id}/status`, { status: 'Order Confirmed', epcParams }),
     onSuccess: (result: any) => {
-      if (result.alreadyConverted) {
-        toast({ title: "Already Converted", description: `Project ${result.project?.code} already exists for this offer.` });
-      } else {
-        toast({ title: "Order Confirmed", description: `EPC Project ${result.project?.code} created. Order: ${result.orderNumber}` });
-      }
-      setConversionResult(result);
       setConversionErrors([]);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+      if (result.alreadyConverted) {
+        toast({ title: "Already Converted", description: `Project ${result.project?.code} already exists for this offer.` });
+        setConversionResult(result);
+      } else if (result.pipelineAsync) {
+        toast({ title: "Order Confirmed", description: `Project ${result.project?.code} created — pipeline running…` });
+        setConversionPhase0(result);
+        setPollingProjectId(result.project.id);
+      } else {
+        toast({ title: "Order Confirmed", description: `EPC Project ${result.project?.code} created. Order: ${result.orderNumber}` });
+        setConversionResult(result);
+      }
     },
     onError: (error: any) => {
       let msg = error.message || 'Conversion failed';
@@ -511,6 +518,37 @@ export function OffersContent() {
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     },
   });
+
+  // ── Live pipeline progress polling ───────────────────────────────────────
+  const { data: pipelineStatusData } = useQuery<any>({
+    queryKey: ['/api/projects', pollingProjectId, 'automation-status'],
+    enabled: !!pollingProjectId,
+    refetchInterval: pollingProjectId ? 1200 : false,
+  });
+  const liveRun = pollingProjectId ? (pipelineStatusData?.runs?.[0] ?? null) : null;
+
+  // Detect pipeline completion and transition to final result display
+  useEffect(() => {
+    if (!liveRun || !conversionPhase0) return;
+    if (liveRun.status === 'completed' || liveRun.status === 'failed') {
+      const stepResults = Array.isArray(liveRun.step_results) ? liveRun.step_results : [];
+      const phasesCompleted = liveRun.status === 'completed' ? 5 : Math.max(0, (liveRun.current_phase ?? 1) - 1);
+      setConversionResult({
+        ...conversionPhase0,
+        automationResult: {
+          success: liveRun.status === 'completed',
+          phasesCompleted,
+          stepResults,
+          failedStep: liveRun.failure_step ?? null,
+          failedError: liveRun.failure_message ?? null,
+          runId: liveRun.run_id,
+        },
+      });
+      setPollingProjectId(null);
+      setConversionPhase0(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveRun?.status, liveRun?.current_phase, liveRun?.run_id]);
 
   const resetAndClose = () => {
     setIsFormOpen(false);
@@ -1353,8 +1391,8 @@ export function OffersContent() {
         </Dialog>
 
         {/* CONFIRM ORDER DIALOG */}
-        <Dialog open={!!confirmOrderOffer} onOpenChange={(open) => { if (!open) { setConfirmOrderOffer(null); setConversionResult(null); setConversionErrors([]); setConfirmDocFile(null); setConfirmDocUploaded(false); } }}>
-          <DialogContent className={conversionResult ? "max-w-xl" : "max-w-lg"}>
+        <Dialog open={!!confirmOrderOffer} onOpenChange={(open) => { if (!open) { setConfirmOrderOffer(null); setConversionResult(null); setConversionPhase0(null); setPollingProjectId(null); setConversionErrors([]); setConfirmDocFile(null); setConfirmDocUploaded(false); } }}>
+          <DialogContent className={(conversionResult || conversionPhase0) ? "max-w-xl" : "max-w-lg"}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Rocket className="h-5 w-5 text-indigo-600" />
@@ -1365,158 +1403,215 @@ export function OffersContent() {
               </DialogDescription>
             </DialogHeader>
 
-            {conversionResult ? (
-              <div className="space-y-3">
+            {(conversionResult || conversionPhase0) ? (() => {
+              // ── Helpers shared by both live and final display ─────────────
+              const baseResult = conversionResult ?? conversionPhase0;
 
-                {/* ── Phase 0: Project & Items ─────────────────────────────── */}
-                <div className="flex items-start gap-2.5 rounded-lg border bg-green-50 border-green-200 px-3 py-2.5">
-                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-green-900">Project &amp; Items Created</p>
-                    <p className="text-xs text-green-700 mt-0.5">
-                      {conversionResult.alreadyConverted
-                        ? 'This offer was already converted — returning existing project.'
-                        : `Project ${conversionResult.project?.code} · Order ${conversionResult.orderNumber} · ${conversionResult.itemsCreated} item${conversionResult.itemsCreated !== 1 ? 's' : ''} created`}
-                    </p>
-                    {(conversionResult.itemsPendingMapping?.length > 0) && (
-                      <p className="text-xs text-amber-700 mt-1 font-medium">
-                        ⚠ {conversionResult.itemsPendingMapping.length} custom item{conversionResult.itemsPendingMapping.length !== 1 ? 's' : ''} created as stub{conversionResult.itemsPendingMapping.length !== 1 ? 's' : ''} — mapping tasks raised for project manager.
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-green-100 text-green-700">Done</span>
-                </div>
+              const humanizeStep = (step: string | null | undefined): string => {
+                if (!step) return 'Processing…';
+                const s = step.replace(/^phase\d+_/, '');
+                if (s.startsWith('approve_DO_'))   return `Approving DO draft ${s.slice(11)}`;
+                if (s.startsWith('approve_PO_'))   return `Approving PO draft ${s.slice(11)}`;
+                if (s.startsWith('approve_WO_'))   return `Approving WO draft ${s.slice(11)}`;
+                if (s.startsWith('activate_DO_'))  return `Activating DO ${s.slice(12)}`;
+                if (s.startsWith('activate_WO_'))  return `Activating WO ${s.slice(12)}`;
+                if (s.startsWith('activate_PO_'))  return `Activating PO ${s.slice(12)}`;
+                if (s.startsWith('release_wo_'))   return `Releasing WO ${s.slice(11)}`;
+                if (s.startsWith('issue_po_'))     return `Issuing PO ${s.slice(9)}`;
+                if (s.startsWith('create_qpl_'))   return `Creating quality plan ${s.slice(11)}`;
+                if (s.startsWith('create_inspection_')) return `Creating inspection record ${s.slice(19)}`;
+                if (s === 'verify_completion')     return 'Verifying completion';
+                return s.replace(/_/g, ' ');
+              };
 
-                {/* ── Pipeline phases ───────────────────────────────────────── */}
-                {!conversionResult.alreadyConverted && (() => {
-                  const ar = conversionResult.automationResult;
-                  if (!ar) return (
-                    <p className="text-xs text-muted-foreground px-1">Manual mode — pipeline not triggered automatically.</p>
-                  );
+              const phaseDefs = [
+                { n: 1, label: 'Phase 1 — DO & PO Draft Approval',
+                  detail: (steps: any[]) => {
+                    const done = steps.filter((x: any) => !x.skipped);
+                    const dos = done.filter((x: any) => x.step?.includes('_DO_')).length;
+                    const pos = done.filter((x: any) => x.step?.includes('_PO_')).length;
+                    const parts = [dos && `${dos} DO`, pos && `${pos} PO`].filter(Boolean);
+                    return parts.length ? `${parts.join(', ')} draft${done.length !== 1 ? 's' : ''} approved` : `${done.length} drafts approved`;
+                  },
+                },
+                { n: 2, label: 'Phase 2 — WO Draft Approval',
+                  detail: (steps: any[]) => { const n = steps.filter((x: any) => !x.skipped).length; return `${n} WO draft${n !== 1 ? 's' : ''} approved`; },
+                },
+                { n: 3, label: 'Phase 3 — Activation & Release',
+                  detail: (steps: any[]) => {
+                    const act = (t: string) => steps.filter((x: any) => x.step?.startsWith(`activate_${t}`) && !x.skipped).length;
+                    const released = steps.filter((x: any) => x.step?.startsWith('release_wo') && !x.skipped).length;
+                    const issued   = steps.filter((x: any) => x.step?.startsWith('issue_po')   && !x.skipped).length;
+                    const dos = act('DO'), wos = act('WO'), pos = act('PO');
+                    return [
+                      dos  && `${dos} DO${dos  !== 1 ? 's' : ''} activated`,
+                      wos  && `${wos} WO${wos  !== 1 ? 's' : ''} activated`,
+                      released && `${released} WO${released !== 1 ? 's' : ''} released`,
+                      pos  && `${pos} PO${pos  !== 1 ? 's' : ''} activated`,
+                      issued   && `${issued} PO${issued   !== 1 ? 's' : ''} issued`,
+                    ].filter(Boolean).join(' · ') || 'Activation complete';
+                  },
+                },
+                { n: 4, label: 'Phase 4 — Quality Plans & Inspections',
+                  detail: (steps: any[]) => {
+                    const qpls = steps.filter((x: any) => x.step?.startsWith('create_qpl')        && !x.skipped).length;
+                    const ins  = steps.filter((x: any) => x.step?.startsWith('create_inspection') && !x.skipped).length;
+                    return [qpls && `${qpls} quality plan${qpls !== 1 ? 's' : ''}`, ins && `${ins} inspection record${ins !== 1 ? 's' : ''}`].filter(Boolean).join(' · ') || 'Quality plans created';
+                  },
+                },
+                { n: 5, label: 'Phase 5 — Completion Verification',
+                  detail: (steps: any[]) => steps.some((x: any) => !x.skipped) ? 'All gates verified' : 'Verification complete',
+                },
+              ];
 
-                  const steps: any[] = ar.stepResults || [];
-                  const completed: number = ar.phasesCompleted ?? 0;
-
-                  const getStatus = (n: number): 'completed' | 'failed' | 'skipped' => {
-                    if (n <= completed) return 'completed';
-                    if (!ar.success && n === completed + 1) return 'failed';
-                    return 'skipped';
-                  };
-
-                  const ps = (n: number) => steps.filter((s: any) => s.phase === n);
-
-                  const phaseDefs = [
-                    {
-                      n: 1,
-                      label: 'Phase 1 — DO & PO Draft Approval',
-                      detail: (s: any[]) => {
-                        const done = s.filter((x: any) => !x.skipped);
-                        const dos = done.filter((x: any) => x.step?.includes('_DO_')).length;
-                        const pos = done.filter((x: any) => x.step?.includes('_PO_')).length;
-                        const parts = [dos && `${dos} DO`, pos && `${pos} PO`].filter(Boolean);
-                        return parts.length ? `${parts.join(', ')} draft${done.length !== 1 ? 's' : ''} approved` : `${done.length} drafts approved`;
-                      },
-                    },
-                    {
-                      n: 2,
-                      label: 'Phase 2 — WO Draft Approval',
-                      detail: (s: any[]) => {
-                        const n = s.filter((x: any) => !x.skipped).length;
-                        return `${n} WO draft${n !== 1 ? 's' : ''} approved`;
-                      },
-                    },
-                    {
-                      n: 3,
-                      label: 'Phase 3 — Activation & Release',
-                      detail: (s: any[]) => {
-                        const act = (t: string) => s.filter((x: any) => x.step?.startsWith(`activate_${t}`) && !x.skipped).length;
-                        const released = s.filter((x: any) => x.step?.startsWith('release_wo') && !x.skipped).length;
-                        const issued   = s.filter((x: any) => x.step?.startsWith('issue_po')   && !x.skipped).length;
-                        const dos = act('DO'), wos = act('WO'), pos = act('PO');
-                        return [
-                          dos  && `${dos} DO${dos  !== 1 ? 's' : ''} activated`,
-                          wos  && `${wos} WO${wos  !== 1 ? 's' : ''} activated`,
-                          released && `${released} WO${released !== 1 ? 's' : ''} released`,
-                          pos  && `${pos} PO${pos  !== 1 ? 's' : ''} activated`,
-                          issued   && `${issued} PO${issued   !== 1 ? 's' : ''} issued`,
-                        ].filter(Boolean).join(' · ') || 'Activation complete';
-                      },
-                    },
-                    {
-                      n: 4,
-                      label: 'Phase 4 — Quality Plans & Inspections',
-                      detail: (s: any[]) => {
-                        const qpls = s.filter((x: any) => x.step?.startsWith('create_qpl')         && !x.skipped).length;
-                        const ins  = s.filter((x: any) => x.step?.startsWith('create_inspection')  && !x.skipped).length;
-                        return [
-                          qpls && `${qpls} quality plan${qpls !== 1 ? 's' : ''}`,
-                          ins  && `${ins} inspection record${ins !== 1 ? 's' : ''}`,
-                        ].filter(Boolean).join(' · ') || 'Quality plans created';
-                      },
-                    },
-                    {
-                      n: 5,
-                      label: 'Phase 5 — Completion Verification',
-                      detail: (s: any[]) => s.some((x: any) => !x.skipped) ? 'All gates verified' : 'Verification complete',
-                    },
-                  ];
-
-                  return (
+              // ── LIVE DISPLAY (polling, pipeline still running) ────────────
+              if (!conversionResult && conversionPhase0) {
+                const curPhase: number = liveRun?.current_phase ?? 0;
+                const curStep: string | null = liveRun?.current_step ?? null;
+                return (
+                  <div className="space-y-3">
+                    {/* Phase 0 */}
+                    <div className="flex items-start gap-2.5 rounded-lg border bg-green-50 border-green-200 px-3 py-2.5">
+                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-green-900">Project &amp; Items Created</p>
+                        <p className="text-xs text-green-700 mt-0.5">
+                          Project {baseResult.project?.code} · Order {baseResult.orderNumber} · {baseResult.itemsCreated} item{baseResult.itemsCreated !== 1 ? 's' : ''} created
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-green-100 text-green-700">Done</span>
+                    </div>
+                    {/* Phases 1–5 live */}
                     <div className="space-y-1.5">
-                      {phaseDefs.map(({ n, label, detail }) => {
-                        const status = getStatus(n);
-                        const s = ps(n);
+                      {phaseDefs.map(({ n, label }) => {
+                        const isRunning   = n === curPhase;
+                        const isDone      = n < curPhase;
                         return (
                           <div key={n} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 ${
-                            status === 'failed'   ? 'bg-red-50 border-red-200'     :
-                            status === 'skipped'  ? 'bg-muted/30 border-border'    :
-                                                    'bg-green-50 border-green-200'
+                            isDone    ? 'bg-green-50 border-green-200' :
+                            isRunning ? 'bg-blue-50 border-blue-200'  :
+                                        'bg-muted/30 border-border'
                           }`}>
-                            {status === 'failed'  ? <XCircle  className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />            :
-                             status === 'skipped' ? <Circle   className="h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0" /> :
-                                                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />}
+                            {isDone    ? <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" /> :
+                             isRunning ? <Loader2     className="h-4 w-4 text-blue-500 mt-0.5 shrink-0 animate-spin" /> :
+                                         <Circle     className="h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0" />}
                             <div className="min-w-0 flex-1">
-                              <p className={`text-sm font-medium ${
-                                status === 'failed'  ? 'text-red-900'          :
-                                status === 'skipped' ? 'text-muted-foreground' :
-                                                       'text-green-900'
-                              }`}>{label}</p>
-                              <p className={`text-xs mt-0.5 ${
-                                status === 'failed'  ? 'text-red-700'          :
-                                status === 'skipped' ? 'text-muted-foreground' :
-                                                       'text-green-700'
-                              }`}>
-                                {status === 'skipped' ? 'Not reached' :
-                                 status === 'failed'  ? (
-                                   <>
-                                     <span className="font-semibold">Error: </span>{ar.failedError || 'Unknown error'}
-                                     {ar.failedStep && <><br /><span className="font-mono text-[10px] opacity-60">{ar.failedStep}</span></>}
-                                   </>
-                                 ) : detail(s)}
-                              </p>
+                              <p className={`text-sm font-medium ${isDone ? 'text-green-900' : isRunning ? 'text-blue-900' : 'text-muted-foreground'}`}>{label}</p>
+                              {isRunning && curStep && (
+                                <p className="text-xs text-blue-700 mt-0.5">{humanizeStep(curStep)}</p>
+                              )}
                             </div>
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 mt-0.5 ${
-                              status === 'failed'  ? 'bg-red-100 text-red-700'           :
-                              status === 'skipped' ? 'bg-muted text-muted-foreground'    :
-                                                     'bg-green-100 text-green-700'
+                              isDone    ? 'bg-green-100 text-green-700'  :
+                              isRunning ? 'bg-blue-100 text-blue-700'   :
+                                          'bg-muted text-muted-foreground'
                             }`}>
-                              {status === 'failed' ? 'Failed' : status === 'skipped' ? 'Skipped' : 'Done'}
+                              {isDone ? 'Done' : isRunning ? 'Running…' : 'Pending'}
                             </span>
                           </div>
                         );
                       })}
                     </div>
-                  );
-                })()}
+                    <DialogFooter className="pt-1">
+                      <Button variant="outline" disabled>
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Pipeline running…
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                );
+              }
 
-                <DialogFooter className="pt-1">
-                  <Button variant="outline" onClick={() => { setConfirmOrderOffer(null); setConversionResult(null); }}>Close</Button>
-                  <Button onClick={() => { window.location.href = `/projects/${conversionResult.project?.id}`; }}>
-                    <ExternalLink className="h-4 w-4 mr-1" /> Open Project
-                  </Button>
-                </DialogFooter>
-              </div>
-            ) : (
+              // ── FINAL DISPLAY (pipeline complete or already converted) ────
+              const ar = conversionResult!.automationResult;
+              const steps: any[] = ar?.stepResults || [];
+              const completed: number = ar?.phasesCompleted ?? 0;
+              const getFinalStatus = (n: number): 'completed' | 'failed' | 'skipped' => {
+                if (n <= completed) return 'completed';
+                if (ar && !ar.success && n === completed + 1) return 'failed';
+                return 'skipped';
+              };
+              const ps = (n: number) => steps.filter((s: any) => s.phase === n);
+
+              return (
+                <div className="space-y-3">
+                  {/* Phase 0 */}
+                  <div className="flex items-start gap-2.5 rounded-lg border bg-green-50 border-green-200 px-3 py-2.5">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-green-900">Project &amp; Items Created</p>
+                      <p className="text-xs text-green-700 mt-0.5">
+                        {conversionResult!.alreadyConverted
+                          ? 'This offer was already converted — returning existing project.'
+                          : `Project ${conversionResult!.project?.code} · Order ${conversionResult!.orderNumber} · ${conversionResult!.itemsCreated} item${conversionResult!.itemsCreated !== 1 ? 's' : ''} created`}
+                      </p>
+                      {(conversionResult!.itemsPendingMapping?.length > 0) && (
+                        <p className="text-xs text-amber-700 mt-1 font-medium">
+                          ⚠ {conversionResult!.itemsPendingMapping.length} custom item{conversionResult!.itemsPendingMapping.length !== 1 ? 's' : ''} created as stub{conversionResult!.itemsPendingMapping.length !== 1 ? 's' : ''} — mapping tasks raised for project manager.
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-green-100 text-green-700">Done</span>
+                  </div>
+                  {/* Phases 1–5 final */}
+                  {!conversionResult!.alreadyConverted && (
+                    ar ? (
+                      <div className="space-y-1.5">
+                        {phaseDefs.map(({ n, label, detail }) => {
+                          const status = getFinalStatus(n);
+                          const s = ps(n);
+                          return (
+                            <div key={n} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 ${
+                              status === 'failed'  ? 'bg-red-50 border-red-200'  :
+                              status === 'skipped' ? 'bg-muted/30 border-border' :
+                                                     'bg-green-50 border-green-200'
+                            }`}>
+                              {status === 'failed'  ? <XCircle  className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />            :
+                               status === 'skipped' ? <Circle   className="h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0" /> :
+                                                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />}
+                              <div className="min-w-0 flex-1">
+                                <p className={`text-sm font-medium ${
+                                  status === 'failed'  ? 'text-red-900'          :
+                                  status === 'skipped' ? 'text-muted-foreground' :
+                                                         'text-green-900'
+                                }`}>{label}</p>
+                                <p className={`text-xs mt-0.5 ${
+                                  status === 'failed'  ? 'text-red-700'          :
+                                  status === 'skipped' ? 'text-muted-foreground' :
+                                                         'text-green-700'
+                                }`}>
+                                  {status === 'skipped' ? 'Not reached' :
+                                   status === 'failed'  ? (
+                                     <>
+                                       <span className="font-semibold">Error: </span>{ar.failedError || 'Unknown error'}
+                                       {ar.failedStep && <><br /><span className="font-mono text-[10px] opacity-60">{ar.failedStep}</span></>}
+                                     </>
+                                   ) : detail(s)}
+                                </p>
+                              </div>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 mt-0.5 ${
+                                status === 'failed'  ? 'bg-red-100 text-red-700'        :
+                                status === 'skipped' ? 'bg-muted text-muted-foreground' :
+                                                       'bg-green-100 text-green-700'
+                              }`}>
+                                {status === 'failed' ? 'Failed' : status === 'skipped' ? 'Skipped' : 'Done'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground px-1">Manual mode — pipeline not triggered automatically.</p>
+                    )
+                  )}
+                  <DialogFooter className="pt-1">
+                    <Button variant="outline" onClick={() => { setConfirmOrderOffer(null); setConversionResult(null); setConversionPhase0(null); setPollingProjectId(null); }}>Close</Button>
+                    <Button onClick={() => { window.location.href = `/projects/${conversionResult!.project?.id}`; }}>
+                      <ExternalLink className="h-4 w-4 mr-1" /> Open Project
+                    </Button>
+                  </DialogFooter>
+                </div>
+              );
+            })() : (
               <div className="space-y-4">
                 {/* ── Step 1: Mandatory confirmation document ──────────────── */}
                 {(() => {
