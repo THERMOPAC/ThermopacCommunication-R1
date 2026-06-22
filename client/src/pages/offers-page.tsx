@@ -444,6 +444,7 @@ export function OffersContent() {
     onSuccess: (updatedOffer: any) => {
       toast({ title: "Offer updated", description: "Offer has been updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+      form.reset(form.getValues());
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -2126,7 +2127,11 @@ export function OffersContent() {
                       </Button>
                     )}
                     <Button type="submit" size="sm" className="h-8 min-w-[110px]"
-                      disabled={createMutation.isPending || updateMutation.isPending}>
+                      disabled={
+                        createMutation.isPending ||
+                        updateMutation.isPending ||
+                        (!!editingOffer && !form.formState.isDirty)
+                      }>
                       {(createMutation.isPending || updateMutation.isPending)
                         ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving…</>
                         : editingOffer ? "Update Offer" : "Save Offer"
