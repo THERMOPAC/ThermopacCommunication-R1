@@ -547,7 +547,7 @@ export async function attachConfirmedArtifactToEpc(
        RETURNING id`,
       [
         offerId, projectId, offerNumber,
-        epcLabel,
+        attachmentLabel ?? null,
         attachmentSeq,
         bucketName, epcGcsPath,
         `${offerNumber.replace(/\//g, '-')}_Quotation.pdf`,
@@ -555,6 +555,31 @@ export async function attachConfirmedArtifactToEpc(
       ]
     );
     const epcAttachmentId = attachResult.rows[0].id;
+
+    // G2 — enqueue SAVE_FILE mirror job for epc_document_attachments (Dual-Storage Policy)
+    try {
+      const epcFileName = epcGcsPath.split('/').pop() || `${offerNumber.replace(/\//g, '-')}_Quotation.pdf`;
+      const mirrorJobResult = await pool.query(
+        `INSERT INTO document_agent_jobs
+           (job_type, status, relative_path, file_name, expected_sha256, source_module, source_record_id, created_at)
+         VALUES ('SAVE_FILE', 'pending', $1, $2, $3, 'epc_document_attachments', $4, NOW())
+         RETURNING id`,
+        [epcGcsPath, epcFileName, artifact.checksum_sha256, epcAttachmentId]
+      );
+      const mirrorJobId: number = mirrorJobResult.rows[0].id;
+      // G3 — stamp mirror columns on source record
+      await pool.query(
+        `UPDATE epc_document_attachments SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+        [mirrorJobId, epcAttachmentId]
+      );
+      console.log(`[quotation-pdf] EPC mirror job #${mirrorJobId} created for attachment ${epcAttachmentId}`);
+    } catch (mirrorErr: any) {
+      console.error(`[quotation-pdf] Mirror job creation failed for EPC attachment ${epcAttachmentId} (non-blocking):`, mirrorErr.message);
+      await pool.query(
+        `UPDATE epc_document_attachments SET mirror_status = 'failed' WHERE id = $1`,
+        [epcAttachmentId]
+      );
+    }
 
     await pool.query(
       `UPDATE quotation_pdf_artifacts SET epc_attachment_status = 'attached', epc_attachment_id = $1 WHERE id = $2`,

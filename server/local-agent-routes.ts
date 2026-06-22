@@ -209,6 +209,22 @@ router.post('/local-agent/jobs/result', requireAgentAuth, async (req: Request, r
         await db.execute(
           sql`UPDATE company_documents SET mirror_status = ${mirrorStatus} WHERE id = ${existing.sourceRecordId}`
         );
+      } else if (existing.sourceModule === 'epc_document_attachments') {
+        await db.execute(
+          sql`UPDATE epc_document_attachments SET mirror_status = ${mirrorStatus} WHERE id = ${existing.sourceRecordId}`
+        );
+      } else if (existing.sourceModule === 'quotation_pdf_artifacts') {
+        await db.execute(
+          sql`UPDATE quotation_pdf_artifacts SET mirror_status = ${mirrorStatus} WHERE id = ${existing.sourceRecordId}`
+        );
+      } else if (existing.sourceModule === 'customer_order_documents') {
+        await db.execute(
+          sql`UPDATE customer_order_documents SET mirror_status = ${mirrorStatus} WHERE id = ${existing.sourceRecordId}`
+        );
+      } else if (existing.sourceModule === 'offer_conversion') {
+        await db.execute(
+          sql`UPDATE offers SET final_offer_mirror_status = ${mirrorStatus} WHERE id = ${existing.sourceRecordId}`
+        );
       }
     }
 
