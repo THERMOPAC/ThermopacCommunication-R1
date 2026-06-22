@@ -35,7 +35,7 @@ interface ConversionResult {
   snapshotId: number;
   conversionId: string;
   itemsCreated: number;
-  itemsPendingMapping: Array<{ offerItemId: number; description: string; taskId: number }>;
+  itemsPendingMapping: Array<{ offerItemId: number; description: string; taskId: number; customItemCode?: string; stubMasterItemId?: number }>;
   alreadyConverted?: boolean;
   automationResult?: any;
 }
@@ -661,11 +661,24 @@ export async function executeOfferConversion(
       const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
       const codeBars = await epcCoding.generateCodeBars(customerBpCode, fyCode, projectSeq, client);
       const masterItemId = isCustomItem
-        ? null
+        ? await findOrCreateMasterItem(
+            client, baseItemCode, offerItem.description,
+            offerItem.unit, offerItem.total_price, offerItem.hsn_sac_code, customerBpCode
+          )
         : await findOrCreateMasterItem(
             client, offerItem.product_code, offerItem.description,
             offerItem.unit, offerItem.total_price, offerItem.hsn_sac_code, customerBpCode
           );
+
+      if (isCustomItem) {
+        itemsPendingMapping.push({
+          offerItemId: offerItem.id,
+          description: offerItem.description || '',
+          taskId: 0,
+          customItemCode: baseItemCode,
+          stubMasterItemId: masterItemId,
+        });
+      }
 
       let itemMakeOrBuy = 'Make';
       if (masterItemId) {

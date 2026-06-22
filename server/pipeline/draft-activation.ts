@@ -192,6 +192,12 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     }
 
     try {
+      if (!liveMasterItemId) {
+        throw new Error(
+          `Cannot create BOM for DO draft ${draft.doc_number} (project item ${draft.project_item_id}): ` +
+          `master_item_id is NULL. Assign a master item to this project item before activating.`
+        );
+      }
       // Use resolveEpcAssignee (not require) so BOM is always created even if assignee resolution fails
       let bomAssigneeId: number | null = null;
       try {
@@ -348,6 +354,13 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   let woPrepId: number | null = null;
 
   if (!isService) {
+    if (!masterItemId) {
+      throw new Error(
+        `Cannot activate WO draft ${draft.doc_number} (project item ${projectItemId}): ` +
+        `master_item_id is NULL. Assign a master item to this project item before activating.`
+      );
+    }
+
     let productionNumber: string | null = null;
     try {
       productionNumber = await generateDocumentNumber(draft.project_id, 'MFG', db);
