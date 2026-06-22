@@ -474,3 +474,21 @@ id = "T-JtRG9M5Il4gNLGyoXGr"
 uri = "file://docs/hazop-phase4-execution-plan-v1.3.md"
 type = "text"
 title = "HAZOP Phase 4 Execution Plan v1.3 (Final Architecture)"
+
+[[outputs]]
+id = "Pha8MwKIKyZSGOhVTmzpC"
+uri = "file://uploads/offer-templates/template_1773132640992_UOR_Offer_Template.pdf"
+type = "pdf"
+title = "UOR Standard Offer — UOR_Offer_Template.pdf (1.3 MB, 10 pages)"
+
+[[outputs]]
+id = "PdtH5OvB_Cfs7ROfF0UIX"
+uri = "file://uploads/offer-templates/template_1773145766973_CPS_Offer.pdf"
+type = "pdf"
+title = "CPS Offer Template — CPS_Offer.pdf (800 KB, 20 pages)"
+
+[[outputs]]
+id = "RPEXITcUdnr0QQDMT2qLz"
+uri = "file://uploads/offer-templates/template_1773215624237_Automatic_Lubricant_Blending_Plant.pdf"
+type = "pdf"
+title = "Automatic Lubricant Blending Plant — Automatic_Lubricant_Blending_Plant.pdf (1.4 MB, 37 pages)"
