@@ -21,7 +21,7 @@ import { apiRequest, queryClient, getErrorMessage } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
-  CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
+  CheckCircle, XCircle, Circle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
   Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw, FlaskConical, EyeOff,
   FileSpreadsheet, UploadCloud, ShoppingCart, FileSignature, FolderSearch, CloudLightning
 } from "lucide-react";
@@ -1354,7 +1354,7 @@ export function OffersContent() {
 
         {/* CONFIRM ORDER DIALOG */}
         <Dialog open={!!confirmOrderOffer} onOpenChange={(open) => { if (!open) { setConfirmOrderOffer(null); setConversionResult(null); setConversionErrors([]); setConfirmDocFile(null); setConfirmDocUploaded(false); } }}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className={conversionResult ? "max-w-xl" : "max-w-lg"}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Rocket className="h-5 w-5 text-indigo-600" />
@@ -1366,46 +1366,150 @@ export function OffersContent() {
             </DialogHeader>
 
             {conversionResult ? (
-              <div className="space-y-4">
-                <Alert className="border-green-300 bg-green-50">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription>
-                    {conversionResult.alreadyConverted
-                      ? 'This offer was already converted.'
-                      : 'Project created successfully. SAP item sync has been initiated. Check Project Items for SAP sync status. Failed items can be retried manually.'}
-                  </AlertDescription>
-                </Alert>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <Label className="text-muted-foreground">Project Code</Label>
-                    <p className="font-mono font-medium">{conversionResult.project?.code}</p>
+              <div className="space-y-3">
+
+                {/* ── Phase 0: Project & Items ─────────────────────────────── */}
+                <div className="flex items-start gap-2.5 rounded-lg border bg-green-50 border-green-200 px-3 py-2.5">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-green-900">Project &amp; Items Created</p>
+                    <p className="text-xs text-green-700 mt-0.5">
+                      {conversionResult.alreadyConverted
+                        ? 'This offer was already converted — returning existing project.'
+                        : `Project ${conversionResult.project?.code} · Order ${conversionResult.orderNumber} · ${conversionResult.itemsCreated} item${conversionResult.itemsCreated !== 1 ? 's' : ''} created`}
+                    </p>
+                    {(conversionResult.itemsPendingMapping?.length > 0) && (
+                      <p className="text-xs text-amber-700 mt-1 font-medium">
+                        ⚠ {conversionResult.itemsPendingMapping.length} custom item{conversionResult.itemsPendingMapping.length !== 1 ? 's' : ''} created as stub{conversionResult.itemsPendingMapping.length !== 1 ? 's' : ''} — mapping tasks raised for project manager.
+                      </p>
+                    )}
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">Order Number</Label>
-                    <p className="font-mono font-medium">{conversionResult.orderNumber}</p>
-                  </div>
-                  {!conversionResult.alreadyConverted && (
-                    <>
-                      <div>
-                        <Label className="text-muted-foreground">Items Created</Label>
-                        <p className="font-medium">{conversionResult.itemsCreated}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Items Pending Mapping</Label>
-                        <p className="font-medium">{conversionResult.itemsPendingMapping?.length || 0}</p>
-                      </div>
-                    </>
-                  )}
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-green-100 text-green-700">Done</span>
                 </div>
-                {conversionResult.itemsPendingMapping?.length > 0 && (
-                  <Alert className="border-yellow-300 bg-yellow-50">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-xs">
-                      {conversionResult.itemsPendingMapping.length} item(s) could not be mapped to master items. Tasks have been created for the project manager.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                <DialogFooter>
+
+                {/* ── Pipeline phases ───────────────────────────────────────── */}
+                {!conversionResult.alreadyConverted && (() => {
+                  const ar = conversionResult.automationResult;
+                  if (!ar) return (
+                    <p className="text-xs text-muted-foreground px-1">Manual mode — pipeline not triggered automatically.</p>
+                  );
+
+                  const steps: any[] = ar.stepResults || [];
+                  const completed: number = ar.phasesCompleted ?? 0;
+
+                  const getStatus = (n: number): 'completed' | 'failed' | 'skipped' => {
+                    if (n <= completed) return 'completed';
+                    if (!ar.success && n === completed + 1) return 'failed';
+                    return 'skipped';
+                  };
+
+                  const ps = (n: number) => steps.filter((s: any) => s.phase === n);
+
+                  const phaseDefs = [
+                    {
+                      n: 1,
+                      label: 'Phase 1 — DO & PO Draft Approval',
+                      detail: (s: any[]) => {
+                        const done = s.filter((x: any) => !x.skipped);
+                        const dos = done.filter((x: any) => x.step?.includes('_DO_')).length;
+                        const pos = done.filter((x: any) => x.step?.includes('_PO_')).length;
+                        const parts = [dos && `${dos} DO`, pos && `${pos} PO`].filter(Boolean);
+                        return parts.length ? `${parts.join(', ')} draft${done.length !== 1 ? 's' : ''} approved` : `${done.length} drafts approved`;
+                      },
+                    },
+                    {
+                      n: 2,
+                      label: 'Phase 2 — WO Draft Approval',
+                      detail: (s: any[]) => {
+                        const n = s.filter((x: any) => !x.skipped).length;
+                        return `${n} WO draft${n !== 1 ? 's' : ''} approved`;
+                      },
+                    },
+                    {
+                      n: 3,
+                      label: 'Phase 3 — Activation & Release',
+                      detail: (s: any[]) => {
+                        const act = (t: string) => s.filter((x: any) => x.step?.startsWith(`activate_${t}`) && !x.skipped).length;
+                        const released = s.filter((x: any) => x.step?.startsWith('release_wo') && !x.skipped).length;
+                        const issued   = s.filter((x: any) => x.step?.startsWith('issue_po')   && !x.skipped).length;
+                        const dos = act('DO'), wos = act('WO'), pos = act('PO');
+                        return [
+                          dos  && `${dos} DO${dos  !== 1 ? 's' : ''} activated`,
+                          wos  && `${wos} WO${wos  !== 1 ? 's' : ''} activated`,
+                          released && `${released} WO${released !== 1 ? 's' : ''} released`,
+                          pos  && `${pos} PO${pos  !== 1 ? 's' : ''} activated`,
+                          issued   && `${issued} PO${issued   !== 1 ? 's' : ''} issued`,
+                        ].filter(Boolean).join(' · ') || 'Activation complete';
+                      },
+                    },
+                    {
+                      n: 4,
+                      label: 'Phase 4 — Quality Plans & Inspections',
+                      detail: (s: any[]) => {
+                        const qpls = s.filter((x: any) => x.step?.startsWith('create_qpl')         && !x.skipped).length;
+                        const ins  = s.filter((x: any) => x.step?.startsWith('create_inspection')  && !x.skipped).length;
+                        return [
+                          qpls && `${qpls} quality plan${qpls !== 1 ? 's' : ''}`,
+                          ins  && `${ins} inspection record${ins !== 1 ? 's' : ''}`,
+                        ].filter(Boolean).join(' · ') || 'Quality plans created';
+                      },
+                    },
+                    {
+                      n: 5,
+                      label: 'Phase 5 — Completion Verification',
+                      detail: (s: any[]) => s.some((x: any) => !x.skipped) ? 'All gates verified' : 'Verification complete',
+                    },
+                  ];
+
+                  return (
+                    <div className="space-y-1.5">
+                      {phaseDefs.map(({ n, label, detail }) => {
+                        const status = getStatus(n);
+                        const s = ps(n);
+                        return (
+                          <div key={n} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 ${
+                            status === 'failed'   ? 'bg-red-50 border-red-200'     :
+                            status === 'skipped'  ? 'bg-muted/30 border-border'    :
+                                                    'bg-green-50 border-green-200'
+                          }`}>
+                            {status === 'failed'  ? <XCircle  className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />            :
+                             status === 'skipped' ? <Circle   className="h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0" /> :
+                                                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />}
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-sm font-medium ${
+                                status === 'failed'  ? 'text-red-900'          :
+                                status === 'skipped' ? 'text-muted-foreground' :
+                                                       'text-green-900'
+                              }`}>{label}</p>
+                              <p className={`text-xs mt-0.5 ${
+                                status === 'failed'  ? 'text-red-700'          :
+                                status === 'skipped' ? 'text-muted-foreground' :
+                                                       'text-green-700'
+                              }`}>
+                                {status === 'skipped' ? 'Not reached' :
+                                 status === 'failed'  ? (
+                                   <>
+                                     <span className="font-semibold">Error: </span>{ar.failedError || 'Unknown error'}
+                                     {ar.failedStep && <><br /><span className="font-mono text-[10px] opacity-60">{ar.failedStep}</span></>}
+                                   </>
+                                 ) : detail(s)}
+                              </p>
+                            </div>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 mt-0.5 ${
+                              status === 'failed'  ? 'bg-red-100 text-red-700'           :
+                              status === 'skipped' ? 'bg-muted text-muted-foreground'    :
+                                                     'bg-green-100 text-green-700'
+                            }`}>
+                              {status === 'failed' ? 'Failed' : status === 'skipped' ? 'Skipped' : 'Done'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                <DialogFooter className="pt-1">
                   <Button variant="outline" onClick={() => { setConfirmOrderOffer(null); setConversionResult(null); }}>Close</Button>
                   <Button onClick={() => { window.location.href = `/projects/${conversionResult.project?.id}`; }}>
                     <ExternalLink className="h-4 w-4 mr-1" /> Open Project
