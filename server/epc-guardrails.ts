@@ -1,6 +1,9 @@
 const PROJECT_CODE_RE = /^\d{4}-\d{3}$/;
 const CHILD_DOC_RE = /^\d{4}-\d{3}-[A-Z]{2,4}-\d{4}$/;
-const GCS_PATH_RE = /^TPEL\/[A-Z]{2}\/[A-Z]{2}\/[A-Z0-9]{3,5}\/\d{4}\/\d{3}\//;
+// Matches both path structures:
+//   TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/...           (inspection / legacy project paths)
+//   TPEL/PROJECTS/{CC}/{CO}/{Cust}/{FY}/SOR_{NNN}/ (document-control / CO / DC_SLOT paths)
+const GCS_PATH_RE = /^TPEL\/(PROJECTS\/)?[A-Z]{2}\/[A-Z]{2}\/[A-Za-z0-9._-]+\/\d{4}\/(SOR_)?\d{3}\//;
 const LEGACY_TP_PREFIX_RE = /^TP-/;
 
 function logViolation(type: string, value: string, context: string, error: string): void {
