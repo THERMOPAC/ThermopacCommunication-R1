@@ -481,42 +481,6 @@ function DocAgentRow() {
                 </Button>
               </a>
             ) : null}
-            {isAdmin ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs border-amber-500 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950"
-                title="Generates a new API key for THERMOPAC-DOC-AGENT-DEV-01 and downloads config.json pre-filled with environment=dev and the current .replit.dev URL."
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    const r = await fetch('/api/local-agent/admin/dev-config', { method: 'POST' });
-                    const contentType = r.headers.get('content-type') || '';
-                    if (!r.ok || contentType.includes('text/html')) {
-                      const err = contentType.includes('text/html')
-                        ? { error: 'Server not ready — please try again in a moment.' }
-                        : await r.json().catch(() => ({}));
-                      toast({ title: err.error || 'Dev config generation failed', variant: 'destructive' });
-                      return;
-                    }
-                    const blob = await r.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = 'config.json'; a.click();
-                    URL.revokeObjectURL(url);
-                    toast({
-                      title: 'Dev config.json downloaded',
-                      description: 'Copy to C:\\ThermopacDocAgent\\config.json on the DEV machine and restart the service.',
-                    });
-                  } catch {
-                    toast({ title: 'Download failed', variant: 'destructive' });
-                  }
-                }}
-              >
-                <Download className="h-3 w-3 mr-1" />
-                Dev Config
-              </Button>
-            ) : null}
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setExpanded(e => !e)}>
               {expanded ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
               {expanded ? "Collapse" : "Details"}
