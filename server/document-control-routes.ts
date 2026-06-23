@@ -264,10 +264,7 @@ export function setupDocumentControlRoutes(app: Express) {
           for (const checksum of checksums) {
             const match = activeDocsInSlot.find(d => d.checksumSha256 === checksum);
             if (match) {
-              return res.status(409).json({
-                error: `File is identical to the current active revision (rev-${match.revision}). New revision must differ from current.`,
-                existingRevision: match.revision,
-              });
+              console.warn(`[DOC_CTRL] Identical content re-issued as new revision: checksum ${checksum.substring(0, 16)}... matches rev-${match.revision} in folder ${folderCode}. Proceeding.`);
             }
           }
         }
