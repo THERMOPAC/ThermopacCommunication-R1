@@ -241,10 +241,16 @@ router.post('/local-agent/jobs/result', requireAgentAuth, async (req: Request, r
 });
 
 // ── GET /api/local-agent/files/:jobId/download ───────────────────────────────
-// Returns a 302 redirect to a short-lived GCS signed URL.
-// Signed URL generation uses local RSA crypto on the private key — it never
-// calls Google's token endpoint, so it is immune to container clock-skew
-// (invalid_grant) that would break an access-token-based proxy.
+// Streams the GCS file through the server to the agent.
+//
+// Auth strategy by environment:
+//   production — new Storage() uses Replit ADC (metadata-server token).
+//                This is clock-independent and works even when the
+//                GOOGLE_CLOUD_CREDENTIALS private key is wrong/stale.
+//   development — new Storage({ credentials }) from GOOGLE_CLOUD_CREDENTIALS.
+//
+// This mirrors the pattern used by every other working GCS route in the app
+// (e.g. wpqr-routes.ts, welder-certificate-routes.ts).
 // Secured by HMAC token (no agent session headers required).
 
 router.get('/local-agent/files/:jobId/download', async (req: Request, res: Response) => {
@@ -262,32 +268,39 @@ router.get('/local-agent/files/:jobId/download', async (req: Request, res: Respo
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (job.status !== 'processing') return res.status(409).json({ error: 'Job not in processing state' });
 
-    const credStr = process.env.GOOGLE_CLOUD_CREDENTIALS;
-    if (!credStr) return res.status(500).json({ error: 'GCS credentials not configured' });
-
-    const creds = JSON.parse(credStr);
     const { Storage } = await import('@google-cloud/storage');
-    const signingStorage = new Storage({
-      projectId: creds.project_id,
-      credentials: { client_email: creds.client_email, private_key: creds.private_key },
-    });
+
+    let dlStorage: InstanceType<typeof Storage>;
+    if (process.env.NODE_ENV === 'production') {
+      // Production: use ADC (Replit metadata-server token) — no private key needed,
+      // completely immune to GOOGLE_CLOUD_CREDENTIALS key issues.
+      dlStorage = new Storage();
+      console.log(`[local-agent] download using ADC (production)`);
+    } else {
+      const credStr = process.env.GOOGLE_CLOUD_CREDENTIALS;
+      if (!credStr) return res.status(500).json({ error: 'GCS credentials not configured' });
+      const creds = JSON.parse(credStr);
+      dlStorage = new Storage({
+        projectId: creds.project_id,
+        credentials: { client_email: creds.client_email, private_key: creds.private_key },
+      });
+      console.log(`[local-agent] download using explicit credentials (development)`);
+    }
 
     const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
-    const file = signingStorage.bucket(bucketName).file(job.relativePath);
+    const file = dlStorage.bucket(bucketName).file(job.relativePath);
 
-    // V2 signed URLs do not embed the current date in the string-to-sign,
-    // so they are immune to server clock skew (unlike V4 which embeds
-    // X-Goog-Date and requires ±15 min tolerance at GCS).
-    // Expiry is set to 60 min; even if the container clock is ahead by
-    // 30+ min the URL will still be valid from GCS real-time perspective.
-    const [signedUrl] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 60 * 60 * 1000,
-      version: 'v2',
-    });
+    const [exists] = await file.exists();
+    if (!exists) return res.status(404).json({ error: 'File not found in GCS' });
 
-    console.log(`[local-agent] Signed-URL redirect: job #${jobId} path=${job.relativePath}`);
-    return res.redirect(302, signedUrl);
+    const [meta] = await file.getMetadata();
+    const fileName = job.fileName || path.basename(job.relativePath);
+    res.setHeader('Content-Type', (meta as any).contentType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    if ((meta as any).size) res.setHeader('Content-Length', String((meta as any).size));
+
+    console.log(`[local-agent] streaming job #${jobId} path=${job.relativePath}`);
+    file.createReadStream().pipe(res);
   } catch (err) {
     console.error('[local-agent] files/download error:', err);
     res.status(500).json({ error: 'Download failed' });
