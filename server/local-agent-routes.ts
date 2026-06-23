@@ -241,6 +241,11 @@ router.post('/local-agent/jobs/result', requireAgentAuth, async (req: Request, r
 // Secured by HMAC token (no agent session headers required — designed for plain
 // HTTP GET from the agent's download client).
 
+function isGcsAuthError(err: unknown): boolean {
+  const msg = (err as any)?.message || '';
+  return msg.includes('invalid_grant') || msg.includes('Invalid JWT') || msg.includes('UNAUTHENTICATED');
+}
+
 router.get('/local-agent/files/:jobId/download', async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.jobId, 10);
@@ -255,11 +260,42 @@ router.get('/local-agent/files/:jobId/download', async (req: Request, res: Respo
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (job.status !== 'processing') return res.status(409).json({ error: 'Job not in processing state' });
 
-    const bucket = gcsBucket;
+    // Resolve bucket: prefer shared instance; if it is null or the first
+    // API call throws an auth error, re-initialise once and retry.
+    const { initializeGCS } = await import('./utils/gcs-operations');
+
+    let activeBucket = gcsBucket;
+
+    const getBucket = async () => {
+      if (!activeBucket) {
+        console.warn('[local-agent] shared gcsBucket is null — re-initialising GCS');
+        const fresh = await initializeGCS();
+        activeBucket = fresh.bucket;
+      }
+      return activeBucket;
+    };
+
+    let bucket = await getBucket();
     if (!bucket) return res.status(500).json({ error: 'GCS unavailable' });
 
-    const file = bucket.file(job.relativePath);
-    const [exists] = await file.exists();
+    let file = bucket.file(job.relativePath);
+    let exists: boolean;
+    try {
+      [exists] = await file.exists();
+    } catch (authErr) {
+      if (isGcsAuthError(authErr)) {
+        console.warn('[local-agent] GCS auth stale (invalid_grant) — re-initialising and retrying');
+        const fresh = await initializeGCS();
+        if (!fresh.bucket) return res.status(500).json({ error: 'GCS unavailable after re-init' });
+        activeBucket = fresh.bucket;
+        bucket = fresh.bucket;
+        file = bucket.file(job.relativePath);
+        [exists] = await file.exists();
+      } else {
+        throw authErr;
+      }
+    }
+
     if (!exists) return res.status(404).json({ error: 'File not found in GCS' });
 
     const [meta] = await file.getMetadata();
