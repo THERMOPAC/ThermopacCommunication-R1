@@ -7,6 +7,7 @@ import { epcDocTypes, epcDocuments } from '@shared/schema';
 import { resolveProjectGeoCodes } from './epc-coding';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { gcsStorage } from './utils/gcs-storage';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -22,30 +23,6 @@ function computeChecksum(buffer: Buffer): string {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
-function buildSlotGcsPath(
-  continentCode: string,
-  countryCode: string,
-  customerCustToken: string,
-  fyCode: string,
-  projectSeq: string,
-  docTypeCode: string,
-  revision: string,
-  seqNumber: number,
-  originalFileName: string,
-  projectCode: string,
-  uploadMode: string
-): string {
-  const rev = `rev-${revision}`;
-  const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
-  // G7-aligned: filename encodes document identity, not the user's arbitrary file name.
-  // Single-file slot:  {projectCode}-{docTypeCode}-rev-{revision}.{ext}
-  // Multi-file slot:   {projectCode}-{docTypeCode}-rev-{revision}-{seq}.{ext}
-  const seq = String(seqNumber).padStart(3, '0');
-  const filename = uploadMode === 'multi'
-    ? `${projectCode}-${docTypeCode}-rev-${revision}-${seq}.${ext}`
-    : `${projectCode}-${docTypeCode}-rev-${revision}.${ext}`;
-  return `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/${projectSeq}/${docTypeCode}/${rev}/${filename}`;
-}
 
 function validateExtension(fileName: string, allowedExtensions: string[]): { valid: boolean; ext: string; message?: string } {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
@@ -110,11 +87,6 @@ function validateMimeType(ext: string, mimetype: string): { valid: boolean; mess
   return { valid: true };
 }
 
-const TPEL_PATH_REGEX = /^TPEL\/[A-Z]{2}\/[A-Z]{2}\/[A-Z0-9]{2,8}\/\d{4}\/\d{3}\/[A-Z0-9]+\/rev-\d{2}\//;
-
-function validateTpelPath(path: string): boolean {
-  return TPEL_PATH_REGEX.test(path);
-}
 
 async function cleanupGcsObjects(paths: string[]): Promise<void> {
   for (const path of paths) {
@@ -339,26 +311,34 @@ export function setupDocumentControlRoutes(app: Express) {
           const file = files[i];
           const seqNumber = i + 1;
 
-          const gcsPath = buildSlotGcsPath(
-            geo.continentCode,
-            geo.countryCode,
-            geo.customerCustToken,
-            geo.fyCode,
-            geo.projectSeq,
-            docType.code,
-            nextRevision,
-            seqNumber,
-            file.originalname,
-            geo.projectCode,
-            docType.uploadMode
-          );
+          const ext = file.originalname.split('.').pop()?.toLowerCase() || 'bin';
+          const seq = String(seqNumber).padStart(3, '0');
+          const baseFilename = docType.uploadMode === 'multi'
+            ? `${geo.projectCode}-${docType.code}-${seq}`
+            : `${geo.projectCode}-${docType.code}`;
 
-          if (!validateTpelPath(gcsPath)) {
-            await cleanupGcsObjects(uploadedPaths);
-            return res.status(500).json({
-              error: 'Generated path does not conform to TPEL structure',
-              path: gcsPath,
+          let gcsPath: string;
+          try {
+            gcsPath = await resolveGcsPath('DC_SLOT', {
+              CC:       geo.continentCode,
+              CO:       geo.countryCode,
+              Cust:     geo.customerCustToken,
+              FY:       geo.fyCode,
+              NNN:      geo.projectSeq,
+              DocType:  docType.code,
+              filename: baseFilename,
+              Revision: nextRevision,
+              ext,
             });
+          } catch (govErr) {
+            if (govErr instanceof GcsGovernanceError) {
+              await cleanupGcsObjects(uploadedPaths);
+              return res.status(503).json({
+                error: 'GCS_GOVERNANCE_ERROR',
+                message: (govErr as Error).message,
+              });
+            }
+            throw govErr;
           }
 
           const { assertGcsPath } = await import('./epc-guardrails');
