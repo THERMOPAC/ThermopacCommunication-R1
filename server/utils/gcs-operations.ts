@@ -15,8 +15,14 @@ let gcsBucket: Bucket | null = null;
  */
 export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket: Bucket | null }> => {
   try {
-    // Always try to use GOOGLE_CLOUD_CREDENTIALS if available (for both production and development)
-    if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+    // Production: use ADC (Replit metadata-server token) — immune to private-key issues.
+    // Development: use explicit credentials from GOOGLE_CLOUD_CREDENTIALS.
+    // This mirrors the pattern used by wpqr-routes.ts and welder-certificate-routes.ts.
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Using ADC (Application Default Credentials) for GCS in production');
+      gcsStorage = new Storage();
+      console.log('✅ GCS client initialized successfully');
+    } else if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
       console.log('Using explicit credentials from GOOGLE_CLOUD_CREDENTIALS');
       
       const credentialsString = process.env.GOOGLE_CLOUD_CREDENTIALS;
@@ -30,7 +36,6 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
       
       console.log('✅ Successfully validated credentials');
       
-      // Create GCS client with explicit credentials
       gcsStorage = new Storage({
         projectId: credentials.project_id,
         credentials: {
@@ -39,10 +44,9 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
         }
       });
       
-      console.log(`✅ GCS client initialized successfully`);
+      console.log('✅ GCS client initialized successfully');
     } else {
-      // Fall back to default credentials as a last resort
-      console.log('Using default GCS credentials');
+      console.log('Using default GCS credentials (ADC fallback)');
       gcsStorage = new Storage();
     }
     
