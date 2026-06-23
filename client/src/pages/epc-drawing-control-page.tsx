@@ -1154,8 +1154,11 @@ function GcsPathDisplay({ projectId, parentEntityId }: { projectId: number; pare
 }
 
 function DwgDocumentPanelWithGcs({ projectId, rec, userRole }: { projectId: number; rec: any; userRole: string }) {
-  const { data: gcsInfo } = useGcsPath(rec.project_item_id);
-  const gcsPreview = gcsInfo ? `${gcsInfo.basePath}/${gcsInfo.codeBars}_rev-${rec.revision_code || 'XX'}.pdf` : undefined;
+  // gcsPathPreview is sourced from the stored gcs_object_path on the active attachment,
+  // not reconstructed client-side. This ensures it always reflects the actual Rule 34
+  // EPC_DRAWING governance path written at upload time.
+  const { activeAtt } = useActiveAttachment(projectId, rec.id);
+  const gcsPreview = activeAtt?.gcsPath ?? undefined;
 
   return (
     <EpcDocumentPanel

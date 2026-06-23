@@ -9,6 +9,7 @@ import { requireProjectMembership } from './utils/permission-utils';
 import * as epcCoding from './epc-coding';
 import { initializeGCS } from './utils/gcs-operations';
 import { validateLabel, getDocTypeLabelFamily } from '../shared/gcs-label-vocabulary';
+import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -215,11 +216,18 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           if (piData?.code_bars) {
             const ext = req.file!.originalname.split('.').pop()?.toLowerCase() || 'pdf';
             const rev = effectiveRevisionCode || 'A';
-            gcsObjectPath = epcCoding.buildDrawingGcsPath(
-              geo.continentCode, geo.countryCode, geo.customerCustToken,
-              geo.fyCode, geo.projectSeq,
-              piData.item_code, piData.code_bars, rev, ext
-            );
+            // G1: Resolve GCS path via Rule 34 EPC_DRAWING governance rule — no hardcoded paths
+            gcsObjectPath = await resolveGcsPath('EPC_DRAWING', {
+              CC: geo.continentCode,
+              CO: geo.countryCode,
+              Cust: geo.customerCustToken,
+              FY: geo.fyCode,
+              NNN: geo.projectSeq,
+              ItemCode: piData.item_code,
+              DrawingNo: piData.code_bars,
+              rev,
+              ext,
+            });
           } else {
             gcsObjectPath = epcCoding.buildEpcGcsPath(
               geo.continentCode, geo.countryCode, geo.customerCustToken, geo.fyCode,
@@ -358,6 +366,20 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         console.error(`[EPC-DOC] Mirror job enqueue failed for attachment ${txResult.inserted.id} — GCS copy remains valid:`, mirrorErr);
       }
 
+      // Requirement 10: Write resolved revision back to epc_drawing_controls after GCS success
+      if (docType === 'DWG' && txResult.effectiveRevisionCode) {
+        try {
+          await db.execute(sql`
+            UPDATE epc_drawing_controls
+            SET revision_code = ${txResult.effectiveRevisionCode}
+            WHERE id = ${parentEntityId}
+          `);
+        } catch (revErr) {
+          // Non-fatal — GCS and attachment record are authoritative
+          console.error(`[EPC-DOC] Failed to update epc_drawing_controls.revision_code for id=${parentEntityId}:`, revErr);
+        }
+      }
+
       await db.insert(epcDocumentAccessLog).values({
         attachmentId: txResult.inserted.id,
         documentNumber,
@@ -378,6 +400,9 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         warning: uploadWarning,
       });
     } catch (error: any) {
+      if (error instanceof GcsGovernanceError) {
+        return res.status(503).json({ error: error.message });
+      }
       console.error('[EPC-DOC] Upload error:', error);
       res.status(500).json({ error: 'Failed to upload EPC document attachment' });
     }
