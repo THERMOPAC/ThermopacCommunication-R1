@@ -611,7 +611,7 @@ export async function attachConfirmedArtifactToEpc(
  *   {CO}      → countryCode
  *   {Cust}    → customerCustToken (buildCustToken — e.g. C10357-INDUSTRIA)
  *   {FY}      → fyCode (from the project record)
- *   {Code}    → projectCode (e.g. 2627-019)
+ *   {NNN}     → project sequence extracted from projectCode (e.g. '019' from '2627-019')
  *   {OfferNo} → offerNumber with slashes replaced by dashes
  *   {Seq}     → '001' (single file per conversion)
  *   {Label}   → 'final-offer'
@@ -663,7 +663,7 @@ export async function storeFinalOfferPdfToGcs(
       CO:      countryCode,
       Cust:    finalOfferCustToken,
       FY:      proj.fy_code,
-      Code:    projectCode,
+      NNN:     projectCode.split('-')[1] ?? projectCode,
       OfferNo: safeOfferNo,
       Seq:     '001',
       Label:   'final-offer',

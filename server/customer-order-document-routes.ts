@@ -73,7 +73,7 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
         CO:    geo.countryCode,
         Cust:  geo.customerCustToken,
         FY:    geo.fyCode,
-        Code:  geo.projectCode,
+        NNN:   geo.projectSeq,
         Seq:   seq,
         Label: labelSlug,
         rev:   revisionCode?.trim() || '00',
