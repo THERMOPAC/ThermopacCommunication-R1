@@ -11547,8 +11547,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot approve: review recommendation is "reject". Revert to draft or supersede.');
       }
 
-      const approverRole = (req as any).user?.role;
-      if (rec.submitted_by && rec.submitted_by === userId && approverRole !== 'Superuser') {
+      if (rec.submitted_by && rec.submitted_by === userId && userRole !== 'Superuser') {
         return sendBusinessError(res, 'Self-approval not allowed: the person who submitted this drawing for review cannot also approve it. A different Senior Manager, General Manager, or Superuser must approve.');
       }
 
