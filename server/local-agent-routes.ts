@@ -151,9 +151,13 @@ router.post('/local-agent/jobs/claim', requireAgentAuth, async (req: Request, re
     // directly from storage.googleapis.com.
     let responseJob: any = { ...claimed };
     if (claimed.jobType === 'SAVE_FILE' || claimed.jobType === 'SAVE_PDF') {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      // Use APP_BASE_URL env var if set (guarantees externally reachable URL);
+      // fall back to reconstructing from the request headers.
+      const appBase = process.env.APP_BASE_URL?.replace(/\/$/, '');
+      const baseUrl = appBase || `${req.protocol}://${req.get('host')}`;
       const token   = makeDownloadToken(claimed.id);
       const proxyUrl = `${baseUrl}/api/local-agent/files/${claimed.id}/download?token=${token}`;
+      console.log(`[local-agent] claim #${claimed.id} — download URL: ${proxyUrl}`);
       responseJob = { ...claimed, fileUrl: proxyUrl };
     }
     res.json({ job: responseJob });
@@ -249,6 +253,7 @@ function isGcsAuthError(err: unknown): boolean {
 router.get('/local-agent/files/:jobId/download', async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.jobId, 10);
+    console.log(`[local-agent] download hit — jobId param: ${req.params.jobId} parsed: ${jobId}`);
     if (isNaN(jobId)) return res.status(400).json({ error: 'Invalid job ID' });
 
     const token = req.query.token as string | undefined;
