@@ -143,6 +143,7 @@ export default function DocumentControl({ projectId }: { projectId: number }) {
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadKey, setUploadKey] = useState(0);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -247,14 +248,23 @@ export default function DocumentControl({ projectId }: { projectId: number }) {
         onBack={() => setSelectedFolder(null)}
         onUpload={() => {
           const folder = folders.find((f) => f.folderCode === selectedFolder);
+          setUploadFiles(null);
           setUploadTitle(folder?.name || "");
+          setUploadKey(k => k + 1);
           setUploadDialogOpen(true);
         }}
         onDownload={handleDownload}
         uploadDialog={
           <UploadDialog
+            key={uploadKey}
             open={uploadDialogOpen}
-            onOpenChange={setUploadDialogOpen}
+            onOpenChange={(open) => {
+              setUploadDialogOpen(open);
+              if (!open) {
+                setUploadFiles(null);
+                setUploadTitle("");
+              }
+            }}
             folder={folders.find((f) => f.folderCode === selectedFolder)!}
             files={uploadFiles}
             onFilesChange={setUploadFiles}
