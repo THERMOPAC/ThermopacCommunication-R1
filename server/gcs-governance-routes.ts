@@ -228,9 +228,13 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         }
       }
       if (updates.submoduleKey !== undefined && updates.submoduleKey !== null) {
-        updates.submoduleKey = slugify(updates.submoduleKey);
-        if (!SLUG_RE.test(updates.submoduleKey)) {
-          return res.status(400).json({ error: 'submodule_key must be slug-safe: lowercase letters, digits, underscores only' });
+        if (updates.submoduleKey === '') {
+          updates.submoduleKey = null; // treat empty string as no submodule
+        } else {
+          updates.submoduleKey = slugify(updates.submoduleKey);
+          if (!SLUG_RE.test(updates.submoduleKey)) {
+            return res.status(400).json({ error: 'submodule_key must be slug-safe: lowercase letters, digits, underscores only' });
+          }
         }
       }
 
