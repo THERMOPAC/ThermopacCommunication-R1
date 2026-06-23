@@ -1499,7 +1499,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       // leave per-document tokens ({Seq},{Label},{rev}) as-is.
       // Template driven from DB: CO_DOCUMENT governance rule (e.g. 1_Sales/3_Order_Contract)
       // {CC}=continent, {CO}=country, {Cust}=short code, {FY}=financial year,
-      // {Code}=EPC project code (e.g. 2627-018) — folder becomes SOR_2627-018
+      // {NNN}=EPC project sequence (e.g. '018') — folder becomes SOR_018
       let geoResolvedTemplate: string | null = null;
       if (!missingGeo && geo) {
         geoResolvedTemplate = pathTemplate
@@ -1507,8 +1507,8 @@ export function setupGcsGovernanceRoutes(app: Express): void {
           .replace('{CO}',   geo.countryCode)
           .replace('{Cust}', geo.customerCustToken)
           .replace('{FY}',   geo.fyCode)
-          .replace('{Code}', geo.projectCode)
-          .replace('{NNN}',  geo.projectSeq); // legacy fallback
+          .replace('{NNN}',  geo.projectSeq)
+          .replace('{Code}', geo.projectCode); // legacy fallback — no current template uses {Code}
       }
 
       // Get project code from DB for display when geo resolution fails
