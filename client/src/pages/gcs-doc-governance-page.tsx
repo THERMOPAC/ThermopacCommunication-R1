@@ -391,7 +391,7 @@ function RuleForm({ open, onClose, initial, existingRules }: RuleFormProps) {
       const normalized = {
         ...data,
         moduleKey: toSlug(data.moduleKey ?? ""),
-        submoduleKey: data.submoduleKey ? toSlug(data.submoduleKey) : "",
+        submoduleKey: data.submoduleKey ? toSlug(data.submoduleKey) : null,
         documentType: (data.documentType ?? "").trim().toUpperCase(),
         displayName: data.displayName?.trim(),
         rootPrefix: data.rootPrefix?.trim(),
