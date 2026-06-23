@@ -11344,7 +11344,7 @@ export function setupProjectRoutes(app: express.Express) {
 
         const inserted = await tx.insert(epcDrawingControls).values({
           dwgControlNumber,
-          revisionCode: '00',
+          revisionCode: 'A',
           isCurrent: true,
           revisionStatus: 'draft',
           projectId,
