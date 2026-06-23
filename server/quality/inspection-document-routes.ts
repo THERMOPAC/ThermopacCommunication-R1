@@ -273,7 +273,7 @@ router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticate
             if (pr.code) {
               epcLegacyPrefix = `EPC/${pr.code}/INS/${inspectionOrderNumber}/`;
               if (pr.continent_code && pr.country_code && pr.short_code && pr.fy_code) {
-                const prCustToken = pr.bp_code ? buildCustToken(pr.bp_code, pr.bp_name || '') : pr.short_code;
+                const prCustToken = buildCustToken(pr.bp_code || pr.short_code, pr.bp_name || '');
                 epcTpelPrefix = `TPEL/${pr.continent_code}/${pr.country_code}/${prCustToken}/${pr.fy_code}/${pr.project_seq}/INS/${inspectionOrderNumber}/`;
               }
             }
@@ -566,7 +566,7 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
               if (pr2.code) {
                 epcLegacyPrefix2 = `EPC/${pr2.code}/INS/${inspectionOrderNumber}/`;
                 if (pr2.continent_code && pr2.country_code && pr2.short_code && pr2.fy_code) {
-                  const pr2CustToken = pr2.bp_code ? buildCustToken(pr2.bp_code, pr2.bp_name || '') : pr2.short_code;
+                  const pr2CustToken = buildCustToken(pr2.bp_code || pr2.short_code, pr2.bp_name || '');
                   epcTpelPrefix2 = `TPEL/${pr2.continent_code}/${pr2.country_code}/${pr2CustToken}/${pr2.fy_code}/${pr2.project_seq}/INS/${inspectionOrderNumber}/`;
                 }
               }

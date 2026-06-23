@@ -157,7 +157,7 @@ export const REVISION_CONTROLLED_TYPES = new Set(['DWG', 'BOM']);
 export function buildEpcGcsPath(
   continentCode: string,
   countryCode: string,
-  customerShortCode: string,
+  customerCustToken: string,
   fyCode: string,
   projectSeq: string,
   docType: string,
@@ -187,7 +187,7 @@ export function buildEpcGcsPath(
     filename = `${seq}-${label}-${revSuffix}.${ext}`;
   }
 
-  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${filename}`;
+  const path = `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${filename}`;
   assertGcsPath(path, 'epc-coding.buildEpcGcsPath');
   return path;
 }
@@ -241,7 +241,7 @@ export const COUNTRY_NAME_TO_CODE: Record<string, string> = Object.fromEntries(
 export function buildQuotationGcsPath(
   continentCode: string,
   countryCode: string,
-  customerShortCode: string,
+  customerCustToken: string,
   fyCode: string,
   offerNumber: string,
   revision: number,
@@ -252,13 +252,13 @@ export function buildQuotationGcsPath(
   const seq = String(attachmentSeq).padStart(3, '0');
   const safeName = offerNumber.replace(/\//g, '-');
   const label = subjectSlug || 'offer';
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
+  return `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
 }
 
 export function buildDrawingGcsPath(
   continentCode: string,
   countryCode: string,
-  customerShortCode: string,
+  customerCustToken: string,
   fyCode: string,
   projectSeq: string,
   itemCode: string,
@@ -266,7 +266,7 @@ export function buildDrawingGcsPath(
   revision: string,
   ext: string
 ): string {
-  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
+  const path = `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/${projectSeq}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
   assertGcsPath(path, 'epc-coding.buildDrawingGcsPath');
   return path;
 }
@@ -274,14 +274,14 @@ export function buildDrawingGcsPath(
 export function buildDdsGcsPath(
   continentCode: string,
   countryCode: string,
-  customerShortCode: string,
+  customerCustToken: string,
   fyCode: string,
   projectSeq: string,
   itemCode: string,
   drawingNumber: string,
   revision: string
 ): string {
-  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${itemCode}/DDS/${drawingNumber}_dds-rev-${revision}.pdf`;
+  const path = `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/${projectSeq}/${itemCode}/DDS/${drawingNumber}_dds-rev-${revision}.pdf`;
   assertGcsPath(path, 'epc-coding.buildDdsGcsPath');
   return path;
 }
@@ -289,7 +289,7 @@ export function buildDdsGcsPath(
 export function buildEpcQtnGcsPath(
   continentCode: string,
   countryCode: string,
-  customerShortCode: string,
+  customerCustToken: string,
   fyCode: string,
   offerNumber: string,
   revision: number,
@@ -304,7 +304,7 @@ export function buildEpcQtnGcsPath(
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'offer';
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
+  return `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
 }
 
 export async function resolveContextualRevision(

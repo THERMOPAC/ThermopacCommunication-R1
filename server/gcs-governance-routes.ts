@@ -1273,7 +1273,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
       const cc  = offer.continent_code ?? null;
       const co  = offer.country_code   ?? null;
       const sc  = offer.short_code     ?? null;
-      const custToken = offer.bp_code ? buildCustToken(offer.bp_code, offer.bp_name || '') : (sc ?? null);
+      const custToken = buildCustToken(offer.bp_code || sc || '', offer.bp_name || '');
       const missingGeo = !cc || !co || !sc;
 
       // Real subject slug (mirrors slugifySubject in quotation-pdf-artifact.ts)

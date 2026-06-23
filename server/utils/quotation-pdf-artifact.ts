@@ -48,7 +48,7 @@ async function resolveCustomerGeoCodes(customerId: number): Promise<{
   if (!continentCode || !countryCode) {
     throw new Error(`Customer ${customerId} missing geography codes (continent_code=${continentCode}, country_code=${countryCode})`);
   }
-  const custToken = row.bp_code ? buildCustToken(row.bp_code, row.bp_name || '') : (row.short_code ?? 'UNKNOWN');
+  const custToken = buildCustToken(row.bp_code || row.short_code || 'UNKNOWN', row.bp_name || '');
   return { continentCode, countryCode, shortCode: row.short_code, custToken };
 }
 
@@ -60,7 +60,7 @@ async function resolveCustomerGeoCodes(customerId: number): Promise<{
  * Token mapping (template → runtime value):
  *   {CC}      → continentCode
  *   {CO}      → countryCode
- *   {Cust}    → customerShortCode
+ *   {Cust}    → customerCustToken (buildCustToken — e.g. C10357-INDUSTRIA)
  *   {FY}      → fyCode
  *   {OfferNo} → offerNumber (slashes replaced with dashes)
  *   {Seq}     → attachmentSeq zero-padded to 3 digits
@@ -71,7 +71,7 @@ async function resolveQuotationGcsPathFromDb(
   documentType: 'QUOTATION' | 'EPC_QUOTATION',
   continentCode: string,
   countryCode: string,
-  customerShortCode: string,
+  customerCustToken: string,
   fyCode: string,
   offerNumber: string,
   revision: number,
@@ -90,8 +90,8 @@ async function resolveQuotationGcsPathFromDb(
     // Safety fallback — should never happen after seed runs
     console.warn(`[quotation-pdf] No active DB rule for ${documentType} — falling back to hardcoded builder`);
     return documentType === 'EPC_QUOTATION'
-      ? buildEpcQtnGcsPath(continentCode, countryCode, customerShortCode, fyCode, offerNumber, revision, attachmentSeq, subjectSlug)
-      : buildQuotationGcsPath(continentCode, countryCode, customerShortCode, fyCode, offerNumber, revision, attachmentSeq, subjectSlug);
+      ? buildEpcQtnGcsPath(continentCode, countryCode, customerCustToken, fyCode, offerNumber, revision, attachmentSeq, subjectSlug)
+      : buildQuotationGcsPath(continentCode, countryCode, customerCustToken, fyCode, offerNumber, revision, attachmentSeq, subjectSlug);
   }
 
   const seq = String(attachmentSeq).padStart(3, '0');
@@ -102,7 +102,7 @@ async function resolveQuotationGcsPathFromDb(
   return template
     .replace('{CC}',      continentCode)
     .replace('{CO}',      countryCode)
-    .replace('{Cust}',    customerShortCode)
+    .replace('{Cust}',    customerCustToken)
     .replace('{FY}',      fyCode)
     .replace('{OfferNo}', safeOfferNo)
     .replace('{Seq}',     seq)
@@ -503,7 +503,7 @@ export async function attachConfirmedArtifactToEpc(
 
     const epcGcsPath = await resolveQuotationGcsPathFromDb(
       'EPC_QUOTATION',
-      continentCode, countryCode, proj.bp_code ? buildCustToken(proj.bp_code, proj.bp_name || '') : proj.short_code,
+      continentCode, countryCode, buildCustToken(proj.bp_code || proj.short_code, proj.bp_name || ''),
       proj.fy_code, offerNumber,
       artifact.revision,
       attachmentSeq, epcSubjectSlug
@@ -609,7 +609,7 @@ export async function attachConfirmedArtifactToEpc(
  * Token mapping:
  *   {CC}      → continentCode
  *   {CO}      → countryCode
- *   {Cust}    → customerShortCode
+ *   {Cust}    → customerCustToken (buildCustToken — e.g. C10357-INDUSTRIA)
  *   {FY}      → fyCode (from the project record)
  *   {Code}    → projectCode (e.g. 2627-019)
  *   {OfferNo} → offerNumber with slashes replaced by dashes
@@ -651,7 +651,7 @@ export async function storeFinalOfferPdfToGcs(
     if (!continentCode || !countryCode || !proj.short_code) {
       return { success: false, error: 'Customer geography codes missing for FINAL_OFFER path resolution' };
     }
-    const finalOfferCustToken = proj.bp_code ? buildCustToken(proj.bp_code, proj.bp_name || '') : proj.short_code;
+    const finalOfferCustToken = buildCustToken(proj.bp_code || proj.short_code, proj.bp_name || '');
 
     const rev         = String(revision).padStart(2, '0');
     const safeOfferNo = offerNumber.replace(/\//g, '-');
@@ -737,7 +737,7 @@ export async function storeFinalOfferPdfToGcs(
  * Token mapping (CO_DOCUMENT rule):
  *   {CC}      → continentCode
  *   {CO}      → countryCode
- *   {Cust}    → customerShortCode
+ *   {Cust}    → customerCustToken (buildCustToken — e.g. C10357-INDUSTRIA)
  *   {FY}      → fyCode
  *   {Code}    → projectCode (now known after project creation)
  *   {Seq}     → '001'
@@ -787,7 +787,7 @@ export async function storeConfirmationDocToGcs(
     if (!continentCode || !countryCode || !proj.short_code) {
       return { success: false, error: 'Customer geography codes missing for CO_DOCUMENT path resolution' };
     }
-    const coCustToken = proj.bp_code ? buildCustToken(proj.bp_code, proj.bp_name || '') : proj.short_code;
+    const coCustToken = buildCustToken(proj.bp_code || proj.short_code, proj.bp_name || '');
 
     // Read CO_DOCUMENT rule from DB
     const ruleRow = await pool.query(

@@ -25,7 +25,7 @@ function computeChecksum(buffer: Buffer): string {
 function buildSlotGcsPath(
   continentCode: string,
   countryCode: string,
-  customerShortCode: string,
+  customerCustToken: string,
   fyCode: string,
   projectSeq: string,
   docTypeCode: string,
@@ -44,7 +44,7 @@ function buildSlotGcsPath(
   const filename = uploadMode === 'multi'
     ? `${projectCode}-${docTypeCode}-rev-${revision}-${seq}.${ext}`
     : `${projectCode}-${docTypeCode}-rev-${revision}.${ext}`;
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docTypeCode}/${rev}/${filename}`;
+  return `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/${projectSeq}/${docTypeCode}/${rev}/${filename}`;
 }
 
 function validateExtension(fileName: string, allowedExtensions: string[]): { valid: boolean; ext: string; message?: string } {
