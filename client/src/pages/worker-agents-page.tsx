@@ -255,86 +255,6 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 `;
 
-function StructuringAgentRow() {
-  const { data: status, isLoading } = useQuery<{ ok: boolean; filenamePattern?: string; error?: string }>({
-    queryKey: ["/api/agent-downloads/structuring-agent-status"],
-    refetchInterval: false,
-    staleTime: 60_000,
-  });
-
-  const verified = status?.ok === true;
-  const blocked  = status?.ok === false;
-
-  return (
-    <tr className="border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-      <td className="py-3 px-4">
-        <div className="flex items-center gap-2.5">
-          <FilePen className="h-4 w-4 text-amber-500 shrink-0" />
-          <div>
-            <p className="font-medium">Thermopac Drawing Structuring Agent</p>
-            <p className="text-xs text-muted-foreground">
-              Creates / updates .slddrw from DDS data — writes custom properties, saves to staging path
-            </p>
-            {verified && (
-              <p className="text-xs text-green-600 dark:text-green-400 font-mono mt-0.5">
-                filename: {"{DrawingNo}.slddrw"} — no revision suffix
-              </p>
-            )}
-            {blocked && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
-                {status?.error}
-              </p>
-            )}
-          </div>
-        </div>
-      </td>
-      <td className="py-3 px-3">
-        <div className="flex flex-col gap-1">
-          <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:text-amber-300">
-            WRITE ONLY
-          </Badge>
-          {isLoading && (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              checking…
-            </Badge>
-          )}
-          {verified && (
-            <Badge variant="outline" className="text-xs border-green-500 text-green-700 dark:text-green-400 flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" /> VERIFIED
-            </Badge>
-          )}
-          {blocked && (
-            <Badge variant="outline" className="text-xs border-red-500 text-red-600">
-              BUILD BLOCKED
-            </Badge>
-          )}
-        </div>
-      </td>
-      <td className="py-3 px-3">
-        <span className="text-xs font-mono text-muted-foreground">v1.0.36</span>
-      </td>
-      <td className="py-3 px-3">
-        <div className="flex flex-wrap gap-1.5">
-          {blocked ? (
-            <Button variant="outline" size="sm" className="h-7 text-xs border-red-400 text-red-500" disabled>
-              <Download className="h-3 w-3 mr-1" />
-              Download Blocked
-            </Button>
-          ) : (
-            <a href="/api/agent-downloads/structuring-agent" download="ThermopacStructuringAgent-v1.0.36-full.zip">
-              <Button variant="default" size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white">
-                <Download className="h-3 w-3 mr-1" />
-                Full Package v1.0.36
-                {verified && <CheckCircle2 className="h-3 w-3 ml-1" />}
-              </Button>
-            </a>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
 function computeRelativePath(fullPath: string, rootPath: string): string {
   if (!rootPath) return fullPath;
   const root = rootPath.replace(/[\\\/]+$/, "");
@@ -1386,49 +1306,7 @@ export default function WorkerAgentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {/* Row 1: Extraction Agent */}
-                <tr className="border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2.5">
-                      <ScanSearch className="h-4 w-4 text-blue-500 shrink-0" />
-                      <div>
-                        <p className="font-medium">Thermopac Extraction Agent</p>
-                        <p className="text-xs text-muted-foreground">
-                          Reads .slddrw files — extracts custom properties, runs Layer 1 verification, uploads JSON
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-3">
-                    <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:text-blue-300">
-                      READ ONLY
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-3">
-                    <span className="text-xs font-mono text-muted-foreground">v1.0.72</span>
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      <a href="/ThermopacAgentInstaller-v1.0.72.zip" download="ThermopacAgentInstaller-v1.0.72.zip">
-                        <Button variant="default" size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white">
-                          <Download className="h-3 w-3 mr-1" />
-                          Full Package v1.0.72
-                        </Button>
-                      </a>
-                      <a href="/ThermopacAgent-v1.0.72.zip" download="ThermopacAgent-v1.0.72.zip">
-                        <Button variant="outline" size="sm" className="h-7 text-xs">
-                          <Download className="h-3 w-3 mr-1" />
-                          Source ZIP
-                        </Button>
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-
-                {/* Row 2: Drawing Structuring Agent */}
-                <StructuringAgentRow />
-
-                {/* Row 3: Local Windows Document Agent */}
+                {/* Local Windows Document Agent */}
                 <DocAgentRow />
               </tbody>
             </table>
@@ -2132,10 +2010,8 @@ export default function WorkerAgentsPage() {
             </Card>
 
             {/* Agent queue summary cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               {[
-                { agent: 'extraction',  label: 'Extraction Agent',   icon: <ScanSearch className="h-4 w-4 text-blue-500" /> },
-                { agent: 'structuring', label: 'Structuring Agent',  icon: <FolderTree className="h-4 w-4 text-purple-500" /> },
                 { agent: 'document',    label: 'Document Agent',     icon: <FilePen className="h-4 w-4 text-teal-500" /> },
               ].map(({ agent, label, icon }) => {
                 const count = agentJobs.filter(j => j.agent === agent).length;
