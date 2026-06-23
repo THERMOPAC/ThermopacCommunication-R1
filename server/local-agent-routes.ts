@@ -24,6 +24,7 @@ import archiver from 'archiver';
 import { db } from './db';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { documentAgentNodes, documentAgentJobs } from '@shared/schema';
+import { gcsBucket } from './utils/gcs-operations';
 
 // ── Download token helpers ────────────────────────────────────────────────────
 // HMAC-SHA256 of the job ID using SESSION_SECRET — stateless, no DB required.
@@ -254,8 +255,7 @@ router.get('/local-agent/files/:jobId/download', async (req: Request, res: Respo
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (job.status !== 'processing') return res.status(409).json({ error: 'Job not in processing state' });
 
-    const { initializeGCS } = await import('./utils/gcs-operations');
-    const { bucket } = await initializeGCS();
+    const bucket = gcsBucket;
     if (!bucket) return res.status(500).json({ error: 'GCS unavailable' });
 
     const file = bucket.file(job.relativePath);
