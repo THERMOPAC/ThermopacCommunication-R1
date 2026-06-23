@@ -2,6 +2,7 @@ import { Express, Request, Response } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
 import { db } from './db';
+import { pool } from './db';
 import { sql, eq, and, desc } from 'drizzle-orm';
 import { epcDocTypes, epcDocuments } from '@shared/schema';
 import { resolveProjectGeoCodes, incrementRevisionCode } from './epc-coding';
@@ -434,6 +435,31 @@ export function setupDocumentControlRoutes(app: Express) {
           await cleanupGcsObjects(uploadedPaths);
           throw txError;
         }
+
+        // ── G2/G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job per file ──
+        for (const doc of createdDocs) {
+          try {
+            const jobResult = await pool.query(
+              `INSERT INTO document_agent_jobs
+                 (job_type, status, relative_path, file_url, file_name, expected_sha256,
+                  source_module, source_record_id, created_by)
+               VALUES ('SAVE_FILE', 'pending', $1, NULL, $2, $3, 'epc_documents', $4, $5)
+               RETURNING id`,
+              [doc.gcsObjectPath, doc.fileName, doc.checksumSha256, doc.id, userId]
+            );
+            const jobId = jobResult.rows[0].id as number;
+            await pool.query(
+              `UPDATE epc_documents SET mirror_status = 'pending', mirror_job_id = $1 WHERE id = $2`,
+              [jobId, doc.id]
+            );
+            doc.mirrorStatus = 'pending';
+            doc.mirrorJobId = jobId;
+          } catch (mirrorErr: any) {
+            console.error(`[DOC_CTRL] Mirror job creation failed for doc ${doc.id}:`, mirrorErr.message);
+            // Mirror failure does not invalidate the upload — GCS is authoritative
+          }
+        }
+        // ── end Dual-Storage ─────────────────────────────────────────────────
 
         console.log(`[DOC_CTRL] Upload success: project=${projectId} folder=${folderCode} docType=${docType.code} rev=${nextRevision} files=${files.length}`);
 

@@ -12623,6 +12623,8 @@ export const epcDocuments = pgTable('epc_documents', {
   uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
   supersededAt: timestamp('superseded_at'),
   supersededById: integer('superseded_by_id'),
+  mirrorStatus: varchar('mirror_status', { length: 20 }).default('pending').notNull(),
+  mirrorJobId: integer('mirror_job_id'),
 });
 
 export const insertEpcDocumentSchema = createInsertSchema(epcDocuments).omit({ id: true, uploadedAt: true });
