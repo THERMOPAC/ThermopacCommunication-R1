@@ -275,10 +275,15 @@ router.get('/local-agent/files/:jobId/download', async (req: Request, res: Respo
     const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
     const file = signingStorage.bucket(bucketName).file(job.relativePath);
 
+    // V2 signed URLs do not embed the current date in the string-to-sign,
+    // so they are immune to server clock skew (unlike V4 which embeds
+    // X-Goog-Date and requires ±15 min tolerance at GCS).
+    // Expiry is set to 60 min; even if the container clock is ahead by
+    // 30+ min the URL will still be valid from GCS real-time perspective.
     const [signedUrl] = await file.getSignedUrl({
       action: 'read',
-      expires: Date.now() + 10 * 60 * 1000,
-      version: 'v4',
+      expires: Date.now() + 60 * 60 * 1000,
+      version: 'v2',
     });
 
     console.log(`[local-agent] Signed-URL redirect: job #${jobId} path=${job.relativePath}`);
