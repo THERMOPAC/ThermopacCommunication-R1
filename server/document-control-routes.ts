@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { db } from './db';
 import { sql, eq, and, desc } from 'drizzle-orm';
 import { epcDocTypes, epcDocuments } from '@shared/schema';
-import { resolveProjectGeoCodes } from './epc-coding';
+import { resolveProjectGeoCodes, incrementRevisionCode } from './epc-coding';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { gcsStorage } from './utils/gcs-storage';
 import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
@@ -285,10 +285,10 @@ export function setupDocumentControlRoutes(app: Express) {
 
         const geo = await resolveProjectGeoCodes(projectId);
 
-        let nextRevision = '00';
+        // Revision: A, B, C … Z, AA, AB … — derive from prior history
+        let nextRevision = 'A';
         if (activeDocsInSlot.length > 0) {
-          const maxRev = Math.max(...activeDocsInSlot.map(d => parseInt(d.revision, 10)));
-          nextRevision = String(maxRev + 1).padStart(2, '0');
+          nextRevision = incrementRevisionCode(activeDocsInSlot[0].revision);
         } else {
           const allDocs = await db.select().from(epcDocuments)
             .where(and(
@@ -296,11 +296,51 @@ export function setupDocumentControlRoutes(app: Express) {
               eq(epcDocuments.folderCode, folderCode)
             ));
           if (allDocs.length > 0) {
-            const maxRev = Math.max(...allDocs.map(d => parseInt(d.revision, 10)));
-            nextRevision = String(maxRev + 1).padStart(2, '0');
+            const sorted = allDocs.map(d => d.revision).sort((a, b) => {
+              if (a.length !== b.length) return a.length - b.length;
+              return a < b ? -1 : a > b ? 1 : 0;
+            });
+            nextRevision = incrementRevisionCode(sorted[sorted.length - 1]);
           }
         }
 
+        // 3D folder: each file requires a DrawingNumber validated against EPC Drawing Controls
+        const is3D = docType.code === '3D';
+        let drawingNumbers: string[] = [];
+        if (is3D) {
+          const raw = req.body.drawingNumbers;
+          drawingNumbers = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+          if (drawingNumbers.length !== files.length) {
+            return res.status(400).json({
+              error: `3D uploads require one drawingNumber per file. Got ${drawingNumbers.length} drawing number(s) for ${files.length} file(s).`,
+            });
+          }
+          const GCS_SAFE = /^[A-Za-z0-9_-]+$/;
+          for (const dn of drawingNumbers) {
+            if (!dn || !GCS_SAFE.test(dn)) {
+              return res.status(400).json({
+                error: `Drawing number "${dn}" is invalid. Use alphanumeric characters, underscores, or hyphens only.`,
+              });
+            }
+          }
+          if (new Set(drawingNumbers).size !== drawingNumbers.length) {
+            return res.status(400).json({ error: 'Duplicate drawing numbers in this upload batch.' });
+          }
+          for (const dn of drawingNumbers) {
+            const exists = await db.execute(
+              sql`SELECT id FROM epc_drawing_controls
+                  WHERE project_id = ${projectId} AND drawing_number = ${dn}
+                  LIMIT 1`
+            );
+            if (exists.rows.length === 0) {
+              return res.status(400).json({
+                error: `Drawing number "${dn}" does not exist in EPC Drawing Controls for this project.`,
+              });
+            }
+          }
+        }
+
+        const gcsFolderName = docType.gcsFolderName || docType.code;
         const title = req.body.title || docType.name;
         const now = new Date();
 
@@ -312,10 +352,7 @@ export function setupDocumentControlRoutes(app: Express) {
           const seqNumber = i + 1;
 
           const ext = file.originalname.split('.').pop()?.toLowerCase() || 'bin';
-          const seq = String(seqNumber).padStart(3, '0');
-          const baseFilename = docType.uploadMode === 'multi'
-            ? `${geo.projectCode}-${docType.code}-${seq}`
-            : `${geo.projectCode}-${docType.code}`;
+          const baseFilename = is3D ? drawingNumbers[i] : docType.code;
 
           let gcsPath: string;
           try {
@@ -325,7 +362,7 @@ export function setupDocumentControlRoutes(app: Express) {
               Cust:     geo.customerCustToken,
               FY:       geo.fyCode,
               NNN:      geo.projectSeq,
-              DocType:  docType.code,
+              DocType:  gcsFolderName,
               filename: baseFilename,
               Revision: nextRevision,
               ext,

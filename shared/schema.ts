@@ -12597,6 +12597,7 @@ export const epcDocTypes = pgTable('epc_doc_types', {
   isSlot: boolean('is_slot').notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),
+  gcsFolderName: varchar('gcs_folder_name', { length: 80 }),
 });
 
 export const insertEpcDocTypeSchema = createInsertSchema(epcDocTypes).omit({ id: true });
