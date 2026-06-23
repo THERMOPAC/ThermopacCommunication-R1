@@ -2124,60 +2124,6 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const autoFields = data?.autoFields || {};
   const warnings = data?.warnings || {};
 
-  // ── Structure jobs (SolidWorks WRITE agent) ────────────────────────────────
-  const { data: structureJobs = [] } = useQuery<any[]>({
-    queryKey: ['/api/epc-drawing-controls', drawingControlId, 'structure-jobs'],
-    queryFn: () => fetch(`/api/epc-drawing-controls/${drawingControlId}/structure-jobs`, { credentials: 'include' }).then(r => r.json()),
-    refetchInterval: 15000,
-  });
-
-  const latestStructureJob   = structureJobs[0] ?? null;
-  const structureJobPending  = latestStructureJob?.status === 'pending' || latestStructureJob?.status === 'processing';
-
-  // Derived revision state from job history — server is source of truth
-  const latestCompleted      = structureJobs.find((j: any) => j.status === 'completed');
-  const hasAnyCompletedJob   = !!latestCompleted;
-  const currentRevision      = latestCompleted?.revision ?? 'A';
-
-  function nextRevCode(rev: string): string {
-    const s = (rev || 'A').toUpperCase().split('');
-    let i = s.length - 1;
-    while (i >= 0) {
-      if (s[i] < 'Z') { s[i] = String.fromCharCode(s[i].charCodeAt(0) + 1); return s.join(''); }
-      s[i] = 'A'; i--;
-    }
-    return 'A' + s.join('');
-  }
-
-  const createStructureMutation = useMutation({
-    mutationFn: (mode: 'create_new' | 'update_existing') =>
-      apiRequest('POST', `/api/epc-drawing-controls/${drawingControlId}/structure-jobs`, {
-        drawing_number:  autoFields.drawingNumber ?? `DWG-${drawingControlId}`,
-        mode,
-        dds:             sheet ?? {},
-        project_context: {
-          drawingNumber:        autoFields.drawingNumber,
-          itemCode:             autoFields.itemCode,
-          tagNo:                autoFields.tagNo,
-          equipmentDescription: autoFields.equipmentDescription,
-        },
-      }),
-    onSuccess: (data: any, mode) => {
-      qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'structure-jobs'] });
-      toast({
-        title: mode === 'create_new' ? `Revision ${data?.revision ?? ''} creation queued` : 'Drawing update queued',
-        description: 'The Structuring Agent will process this job shortly.',
-      });
-      if (Array.isArray(data?.warnings) && data.warnings.length > 0) {
-        for (const w of data.warnings) {
-          toast({ title: 'Hazard Level Missing', description: w, variant: 'destructive', duration: 12000 });
-        }
-      }
-    },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err?.message ?? 'Failed to create structuring job', variant: 'destructive' });
-    },
-  });
 
   const projMdmt = autoFields.projectMdmt || null;
 
@@ -2608,87 +2554,6 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
             </div>
           )}
 
-          {/* ── SolidWorks drawing actions ─────────────────────────────── */}
-          {sheet && (
-            <div className="mt-3 pt-3 border-t space-y-2">
-              {/* Buttons row */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-medium uppercase tracking-wide">
-                  <span>Rev</span>
-                  <span className="font-mono text-slate-600 font-bold">{currentRevision}</span>
-                </div>
-                <div className="flex gap-1.5">
-                  {/* Create Drawing — create_new, Rev A, disabled once any completed job exists */}
-                  <Button
-                    size="sm"
-                    className="h-7 text-[10px] px-2.5 bg-amber-600 hover:bg-amber-700 text-white"
-                    disabled={hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
-                    onClick={() => createStructureMutation.mutate('create_new')}
-                    title={hasAnyCompletedJob ? 'Drawing already created — use Update Drawing' : 'Create first drawing at Rev A'}
-                  >
-                    {(createStructureMutation.isPending || structureJobPending)
-                      ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                      : <FilePen className="h-3 w-3 mr-1" />}
-                    Create Drawing
-                  </Button>
-                  {/* Update Drawing — update_existing, opens working Rev in-place, rewrites DDS properties, NO new file or revision increment */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-[10px] px-2.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950 disabled:opacity-40"
-                    disabled={!hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
-                    onClick={() => createStructureMutation.mutate('update_existing')}
-                    title={hasAnyCompletedJob ? `Open Rev ${currentRevision} working file and rewrite DDS properties in-place (no new revision)` : 'Create the drawing first'}
-                  >
-                    {(createStructureMutation.isPending || structureJobPending)
-                      ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                      : <FilePen className="h-3 w-3 mr-1" />}
-                    Update Drawing
-                  </Button>
-                </div>
-              </div>
-
-              {/* Latest revision — single row showing only the most recent job */}
-              {structureJobs.length > 0 && (() => {
-                const j = structureJobs[0];
-                return (
-                  <div className="rounded border border-slate-100 overflow-hidden">
-                    <table className="w-full text-[9px]">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100">
-                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Rev</th>
-                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Type</th>
-                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">By</th>
-                          <th className="text-left px-2 py-1 font-semibold text-slate-500 uppercase tracking-wide">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="px-2 py-1 font-mono font-bold text-slate-700">{j.revision ?? '—'}</td>
-                          <td className="px-2 py-1">
-                            {j.mode === 'create_new'
-                              ? <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded px-1 py-0.5 font-medium">Create Rev A</span>
-                              : <span className="bg-amber-50 text-amber-700 border border-amber-200 rounded px-1 py-0.5 font-medium">Update → Rev {j.revision ?? '?'}</span>}
-                          </td>
-                          <td className="px-2 py-1">
-                            {j.status === 'completed' && <span className="text-emerald-600 font-medium">Completed</span>}
-                            {j.status === 'pending'   && <span className="text-amber-600 font-medium">Pending</span>}
-                            {j.status === 'processing'&& <span className="text-blue-600 font-medium">Processing</span>}
-                            {j.status === 'failed'    && <span className="text-red-600 font-medium">Failed</span>}
-                          </td>
-                          <td className="px-2 py-1 text-slate-500">{j.createdBy ?? '—'}</td>
-                          <td className="px-2 py-1 text-slate-400">
-                            {j.createdAt ? fmtDate(j.createdAt) : '—'}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -3040,42 +2905,6 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
           </ScrollArea>
 
           <DialogFooter className="px-6 py-3 border-t bg-slate-50 flex-row items-center justify-between">
-            {/* SolidWorks actions — left side */}
-            {sheet && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wide mr-0.5">
-                  Rev <span className="font-mono font-bold text-slate-600">{currentRevision}</span>
-                </span>
-                {/* Create Drawing — create_new, Rev A, disabled once any completed job exists */}
-                <Button
-                  size="sm"
-                  className="h-8 text-[11px] px-3 bg-amber-600 hover:bg-amber-700 text-white"
-                  disabled={hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
-                  onClick={() => createStructureMutation.mutate('create_new')}
-                  title={hasAnyCompletedJob ? 'Drawing already created — use Update Drawing' : 'Create first drawing at Rev A'}
-                >
-                  {(createStructureMutation.isPending || structureJobPending)
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
-                  Create Drawing
-                </Button>
-                {/* Update Drawing — update_existing, opens working Rev in-place, rewrites DDS properties, NO new file or revision increment */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-[11px] px-3 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950 disabled:opacity-40"
-                  disabled={!hasAnyCompletedJob || createStructureMutation.isPending || structureJobPending}
-                  onClick={() => createStructureMutation.mutate('update_existing')}
-                  title={hasAnyCompletedJob ? `Open Rev ${currentRevision} working file and rewrite DDS properties in-place (no new revision)` : 'Create the drawing first'}
-                >
-                  {(createStructureMutation.isPending || structureJobPending)
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    : <FilePen className="h-3.5 w-3.5 mr-1.5" />}
-                  Update Drawing
-                </Button>
-              </div>
-            )}
-
             {/* Cancel + Save — right side */}
             <div className="flex items-center gap-2 ml-auto">
               <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)} disabled={saveMutation.isPending}>

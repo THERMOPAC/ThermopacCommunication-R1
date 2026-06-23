@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Layout from "@/components/layout";
 import EpcDocumentPanel from "@/components/epc-document-panel";
 import DrawingEngineeringChanges from "@/components/drawing-engineering-changes";
-import { DrawingVerificationCard } from "@/components/epc/drawing-verification-card";
 import DesignDataGenerator from "@/components/design-data-generator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -572,19 +571,7 @@ export default function EpcDrawingControlPage() {
                                           disciplineCode={projectDisciplineCode}
                                         />
 
-                                        {/* 2. Drawing Verification */}
-                                        <DrawingVerificationCard
-                                          drawingControlId={rec.id}
-                                          userRole={userRole}
-                                          drawingControlStatus={rec.status}
-                                          manufacturingReleaseRequired={rec.manufacturing_release_required}
-                                          releasedForManufacturing={rec.released_for_manufacturing}
-                                          releasedForManufacturingAt={rec.released_for_manufacturing_at}
-                                          drawingNumber={rec.drawing_number}
-                                          onStatusChange={invalidateAll}
-                                        />
-
-                                        {/* 3. Engineering Changes */}
+                                        {/* 2. Engineering Changes */}
                                         <DrawingEngineeringChanges
                                           drawingControlId={rec.id}
                                           dwgControlNumber={rec.dwg_control_number}
