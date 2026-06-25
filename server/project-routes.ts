@@ -11260,6 +11260,7 @@ export function setupProjectRoutes(app: express.Express) {
       const results = await db.execute(
         sql`SELECT dc.*, COALESCE(att.cnt, 0)::int AS attachment_count,
                    u_assigned.username AS assigned_to_name, u_assigned.department AS assigned_to_department,
+                   p.item_property_1_label AS product_p1_label,
                    p.item_property_2_label AS product_p2_label,
                    p.item_property_3      AS product_p3
             FROM epc_drawing_controls dc

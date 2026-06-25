@@ -492,16 +492,12 @@ export default function EpcDrawingControlPage() {
                                 <div className="truncate max-w-[110px]" title={rec.item_description || ""}>{rec.item_code}</div>
                               </TableCell>
                               <TableCell className="text-[10px] py-1 px-2">
-                                {(rec.product_p1_label || rec.product_p2_label || rec.product_p3) ? (
-                                  <div className="leading-tight">
-                                    {rec.product_p1_label && <div className="truncate max-w-[160px] font-medium" title={rec.product_p1_label}>{rec.product_p1_label}</div>}
-                                    {(rec.product_p2_label || rec.product_p3) && (
-                                      <div className="truncate max-w-[160px] text-blue-600 font-bold" title={[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}>
-                                        {[rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ')}
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : <span className="text-muted-foreground italic">—</span>}
+                                {(() => {
+                                  const identity = [rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ');
+                                  return identity
+                                    ? <div className="truncate max-w-[160px] text-blue-600" title={identity}>{identity}</div>
+                                    : <span className="text-muted-foreground italic">—</span>;
+                                })()}
                               </TableCell>
                               <TableCell className="text-center py-1 px-1"><StatusBadge status={rec.status} /></TableCell>
                               <TableCell className="text-center py-1 px-1"><GateBadge label="P" active={rec.released_for_procurement} required={rec.procurement_release_required} /></TableCell>
