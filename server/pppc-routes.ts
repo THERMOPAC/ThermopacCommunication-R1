@@ -2790,15 +2790,15 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
               const piDedup = await client.query(`SELECT id FROM project_items WHERE project_id=$1 AND item_id=$2 AND tag_no=$3 AND source='buy_list' AND status!='Cancelled' LIMIT 1`, [h.project_id, line.selected_master_item_id, line.tag_no]);
               if (piDedup.rows[0]) {
                 projectItemId = piDedup.rows[0].id;
-                await client.query(`UPDATE project_items SET required_quantity=$1, updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
+                await client.query(`UPDATE project_items SET required_quantity=$1, make_or_buy='Buy', updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
               } else {
-                const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
+                const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,make_or_buy,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list','Buy',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
                   [h.project_id, h.project_code, line.selected_master_item_id, qty, qty, line.tag_no,
                    `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
                 projectItemId = piIns.rows[0].id;
               }
             } else {
-              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,NULL,$3,$4,'buy_list',$5,$6,'Not Started',NOW(),NOW()) RETURNING id`,
+              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,make_or_buy,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,NULL,$3,$4,'buy_list','Buy',$5,$6,'Not Started',NOW(),NOW()) RETURNING id`,
                 [h.project_id, h.project_code, qty, qty, line.tag_no,
                  `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
               projectItemId = piIns.rows[0].id;
@@ -2887,16 +2887,16 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
               const piDedup = await client.query(`SELECT id FROM project_items WHERE project_id=$1 AND item_id=$2 AND tag_no=$3 AND source='buy_list' AND status!='Cancelled' LIMIT 1`, [h.project_id, line.selected_master_item_id, line.tag_no]);
               if (piDedup.rows[0]) {
                 projectItemId = piDedup.rows[0].id;
-                await client.query(`UPDATE project_items SET required_quantity=$1, updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
+                await client.query(`UPDATE project_items SET required_quantity=$1, make_or_buy='Buy', updated_at=NOW() WHERE id=$2`, [qty, projectItemId]);
               } else {
-                const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
+                const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,make_or_buy,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,'buy_list','Buy',$6,$7,'Not Started',NOW(),NOW()) RETURNING id`,
                   [h.project_id, h.project_code, line.selected_master_item_id, qty, qty, line.tag_no,
                    `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
                 projectItemId = piIns.rows[0].id;
               }
             } else {
               // Direct-approved line — no master item yet; create project_item placeholder
-              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,NULL,$3,$4,'buy_list',$5,$6,'Not Started',NOW(),NOW()) RETURNING id`,
+              const piIns = await client.query<{ id: number }>(`INSERT INTO project_items (project_id,project_code,item_id,quantity,required_quantity,source,make_or_buy,tag_no,notes,status,created_at,updated_at) VALUES($1,$2,NULL,$3,$4,'buy_list','Buy',$5,$6,'Not Started',NOW(),NOW()) RETURNING id`,
                 [h.project_id, h.project_code, qty, qty, line.tag_no,
                  `BUY LIST: ${line.tag_no}${line.service_description ? ' | ' + line.service_description : ''}`]);
               projectItemId = piIns.rows[0].id;

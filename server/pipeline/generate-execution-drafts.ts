@@ -228,6 +228,8 @@ export async function generateExecutionDrafts(
     notApplicable: 0,
     blocked: 0,
     failed: 0,
+    skipped: 0,
+    skippedItems: [],
     drafts: [],
   };
 
@@ -283,7 +285,17 @@ export async function generateExecutionDrafts(
       continue;
     }
 
-    const classification = (item.makeOrBuy || 'Make').toLowerCase();
+    if (!item.makeOrBuy) {
+      console.warn(
+        `[ExecutionDrafts] SKIPPED item ${item.id} (project ${projectId}): make_or_buy is NULL. ` +
+        `Cannot generate drafts without an explicit classification. ` +
+        `Populate project_items.make_or_buy before running draft generation.`
+      );
+      summary.skipped++;
+      summary.skippedItems.push({ projectItemId: item.id, reason: 'make_or_buy is NULL' });
+      continue;
+    }
+    const classification = item.makeOrBuy.toLowerCase();
     const isMake = classification === 'make';
     const isService = classification === 'service';
     const docTypes: DraftDocType[] = ['DO', 'WO', 'PO', 'IO'];

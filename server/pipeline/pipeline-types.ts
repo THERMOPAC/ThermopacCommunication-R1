@@ -52,6 +52,8 @@ export interface DraftGenerationSummary {
   notApplicable: number;
   blocked: number;
   failed: number;
+  skipped: number;
+  skippedItems: Array<{ projectItemId: number; reason: string }>;
   drafts: Array<{
     docType: DraftDocType;
     docNumber: string | null;

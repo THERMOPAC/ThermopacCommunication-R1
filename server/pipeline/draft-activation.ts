@@ -118,6 +118,22 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
   const itemDesc = sd.master_item_description || sd.item_description || null;
   const classification = sd.make_or_buy || sd.classification || null;
 
+  const effectiveClassification = classification?.toLowerCase() ?? null;
+  if (!effectiveClassification) {
+    throw new Error(
+      `[DraftActivation] BLOCKED: Cannot activate Drawing Order for unclassified item ` +
+      `(make_or_buy is null on source_data). project_item_id=${draft.project_item_id}, ` +
+      `doc=${draft.doc_number}. Set make_or_buy on the project item before activating.`
+    );
+  }
+  if (effectiveClassification === 'buy') {
+    throw new Error(
+      `[DraftActivation] BLOCKED: Cannot activate Drawing Order for Buy item. ` +
+      `project_item_id=${draft.project_item_id}, doc=${draft.doc_number}. ` +
+      `Drawing Orders and Drawing Controls are only applicable to Make items.`
+    );
+  }
+
   let itemBarcode: string | null = null;
   let liveMasterItemId: number | null = sd.master_item_id || null;
   if (draft.project_item_id) {
@@ -145,8 +161,8 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
 
   try {
     const dwgControlNumber = await generateDocumentNumber(draft.project_id, 'DWG', db);
-    const procReq = classification === 'Buy' || true;
-    const mfgReq = classification === 'Make' || true;
+    const procReq = effectiveClassification === 'buy';
+    const mfgReq = effectiveClassification === 'make';
     const drawingNumber = itemBarcode || itemCode;
 
     let designAssigneeId: number | null = null;
