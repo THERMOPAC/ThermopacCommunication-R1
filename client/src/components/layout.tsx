@@ -136,7 +136,6 @@ function Layout({ children }: LayoutProps) {
   const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(false);
   const [isAdministrationMenuOpen, setIsAdministrationMenuOpen] = useState(false);
   const [isMeetingsMenuOpen, setIsMeetingsMenuOpen] = useState(false);
-  const [isDesignMenuOpen, setIsDesignMenuOpen] = useState(false);
   const [isSapPurchasingMenuOpen, setIsSapPurchasingMenuOpen] = useState(false);
 
   const [isDocumentControlMenuOpen, setIsDocumentControlMenuOpen] = useState(false);
@@ -225,9 +224,6 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on SAP Integration page
   const isOnSapIntegrationPage = location === '/sap-integration';
   
-  // Check if we're on any design management-related page
-  const isOnDesignPage = location.startsWith('/design-management');
-
   // Check if we're on any SAP purchasing-related page
   const isOnSapPurchasingPage = location.startsWith('/sap-purchasing');
 
@@ -283,10 +279,6 @@ function Layout({ children }: LayoutProps) {
       setIsMeetingsMenuOpen(true);
     }
     
-    if (isOnDesignPage && !isDesignMenuOpen) {
-      setIsDesignMenuOpen(true);
-    }
-    
     if (isOnSapPurchasingPage && !isSapPurchasingMenuOpen) {
       setIsSapPurchasingMenuOpen(true);
     }
@@ -303,7 +295,7 @@ function Layout({ children }: LayoutProps) {
     if (isOnHazopPage && !isHazopMenuOpen) {
       setIsHazopMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -524,23 +516,6 @@ function Layout({ children }: LayoutProps) {
         ] : []),
       ]
     }] : []),
-    ...(hasViewPermission("Design Management") ? [{ 
-      icon: Compass, 
-      label: "Design Management", 
-      isSubmenu: true,
-      isOpen: isDesignMenuOpen,
-      toggle: () => setIsDesignMenuOpen(!isDesignMenuOpen),
-      children: [
-        { icon: BarChart3, label: "Design Dashboard", href: "/design-management" },
-        { icon: FolderKanban, label: "Design Projects", href: "/design-management/projects" },
-        { icon: FileText, label: "Drawing Registry", href: "/design-management/drawings" },
-        { icon: CheckSquare, label: "Review & Approval", href: "/design-management/reviews" },
-        { icon: Briefcase, label: "Transmittals", href: "/design-management/transmittals" },
-        { icon: FileCheck, label: "Standards & Templates", href: "/design-management/standards" },
-        { icon: BarChart4, label: "Reports & Analytics", href: "/design-management/reports" },
-        { icon: Palette, label: "Design Tools", href: "/design-tools" }
-      ]
-    }] : []),
     ...(hasViewPermission("SAP B1 Integration") ? [{ 
       icon: Database, 
       label: "SAP B1 Integration", 
@@ -705,7 +680,6 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Project Management' },
                     { type: 'submenu', label: 'HAZOP' },
                     { type: 'submenu', label: 'Drawing Verification', skipPermCheck: true },
-                    { type: 'submenu', label: 'Design Management' },
                     { type: 'submenu', label: 'Procurement Management' },
                     { type: 'submenu', label: 'Production Management' },
                     { type: 'submenu', label: 'Quality Management' },

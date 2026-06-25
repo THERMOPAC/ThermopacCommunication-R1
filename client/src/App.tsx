@@ -203,21 +203,7 @@ function Router() {
       <ProtectedRoute path="/item-master" component={() => <ProjectsProduction.ItemMasterPage />} />
       <ProtectedRoute path="/design-tools" component={() => <Design.DesignToolsPage />} />
       
-      {/* Design Management Module Routes */}
-      <ProtectedRoute path="/design-management" component={() => <Layout><Design.DesignDashboardPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-projects" component={() => <Layout><Design.DesignProjectsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/projects" component={() => <Layout><Design.DesignProjectsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-drawings" component={() => <Layout><Design.DrawingRegistryPage /></Layout>} />
-      <ProtectedRoute path="/design-management/drawings" component={() => <Layout><Design.DrawingRegistryPage /></Layout>} />
-      <ProtectedRoute path="/design-management/drawing-registry" component={() => <Layout><Design.DrawingRegistryPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-reviews" component={() => <Layout><Design.ReviewApprovalPage /></Layout>} />
-      <ProtectedRoute path="/design-management/reviews" component={() => <Layout><Design.ReviewApprovalPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-transmittals" component={() => <Layout><Design.TransmittalsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/transmittals" component={() => <Layout><Design.TransmittalsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-standards" component={() => <Layout><Design.StandardsTemplatesPage /></Layout>} />
-      <ProtectedRoute path="/design-management/standards" component={() => <Layout><Design.StandardsTemplatesPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-reports" component={() => <Layout><Design.ReportsAnalyticsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/reports" component={() => <Layout><Design.ReportsAnalyticsPage /></Layout>} />
+
 
       <ProtectedRoute path="/procurement-planning" component={() => <ProjectsProduction.ProcurementPlanningPage />} />
       <ProtectedRoute path="/procurement-tracking" component={() => <ProjectsProduction.ProcurementTrackingPage />} />
