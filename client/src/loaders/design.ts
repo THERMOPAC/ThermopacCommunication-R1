@@ -9,4 +9,4 @@ export const StandardsTemplatesPage = lazyWithRetry(() => import("@/pages/design
 export const ReportsAnalyticsPage = lazyWithRetry(() => import("@/pages/design-management/reports-analytics"));
 export const DesignToolsPage = lazyWithRetry(() => import("@/pages/design-tools-page"));
 export const DesignManagementPage = lazyWithRetry(() => import("@/pages/design-management-page"));
-export const DrawingVerificationPage = lazyWithRetry(() => import("@/pages/design-management/drawing-verification"));
+

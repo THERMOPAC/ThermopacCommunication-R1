@@ -18,13 +18,12 @@ const SUPERUSER_ROLES = ["Superuser"];
 
 const VALID_ERP_ENTITY_TYPES = [
   "epc_purchase_order","epc_work_order","epc_dispatch_readiness",
-  "epc_commissioning_readiness","inspection_execution","epc_drawing_verification",
+  "epc_commissioning_readiness","inspection_execution",
   "purchase_order","work_order",
 ];
 const VALID_CONTROL_TYPES = [
   "hold_point","qc_hold","dispatch_hold","procurement_hold",
-  "drawing_gate","dvs_gate","fat_block","sat_block","commissioning_block",
-  "dvs_revision_mismatch","dvs_unverified_drawing","dvs_missing_custom_property",
+  "drawing_gate","fat_block","sat_block","commissioning_block",
   "procurement_blocked_vendor","procurement_missing_tbe_cbe",
   "procurement_missing_qc_requirement","procurement_expired_vendor_qualification",
 ];

@@ -683,9 +683,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const designDataRouter = (await import('./design-data-routes')).default;
   app.use('/api/drawing-design-data', designDataRouter);
 
-  // Drawing Verification System
-  const drawingVerificationRouter = (await import('./drawing-verification-routes')).default;
-  app.use('/api/drawing-revisions', drawingVerificationRouter);
   
   // Set up project item detail routes (drawings, ECR/ECN per project item)
   setupProjectItemDetailRoutes(app);

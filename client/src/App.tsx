@@ -28,7 +28,7 @@ import * as SAP from "@/loaders/sap";
 import * as Agents from "@/loaders/agents";
 import * as Employee from "@/loaders/employee";
 import * as System from "@/loaders/system";
-import * as Dvs from "@/loaders/dvs";
+
 import * as OI from "@/loaders/oi";
 import * as Hazop from "@/loaders/hazop";
 
@@ -218,9 +218,7 @@ function Router() {
       <ProtectedRoute path="/design-management/standards" component={() => <Layout><Design.StandardsTemplatesPage /></Layout>} />
       <ProtectedRoute path="/design-management/design-reports" component={() => <Layout><Design.ReportsAnalyticsPage /></Layout>} />
       <ProtectedRoute path="/design-management/reports" component={() => <Layout><Design.ReportsAnalyticsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/drawing-verification" component={() => <Layout><Design.DrawingVerificationPage /></Layout>} />
-      <ProtectedRoute path="/dvs/releases" component={() => <Layout><Dvs.DvsReleasesPage /></Layout>} />
-      <ProtectedRoute path="/dvs" component={() => <Layout><Dvs.DvsVerificationPage /></Layout>} />
+
       <ProtectedRoute path="/procurement-planning" component={() => <ProjectsProduction.ProcurementPlanningPage />} />
       <ProtectedRoute path="/procurement-tracking" component={() => <ProjectsProduction.ProcurementTrackingPage />} />
       <ProtectedRoute path="/production-planning" component={() => <ProjectsProduction.ProductionPlanningPage />} />

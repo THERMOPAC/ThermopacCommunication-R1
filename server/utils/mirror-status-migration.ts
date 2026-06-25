@@ -52,7 +52,6 @@ const TABLES: string[] = [
   'vendor_compliance_docs',
   'customer_order_documents',
   'welder_photos',
-  'dvs_staging_documents',
   // Legal management modules
   'compliance_register',
   'posh_cases',

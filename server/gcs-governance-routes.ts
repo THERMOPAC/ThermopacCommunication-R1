@@ -131,7 +131,7 @@ export function setupGcsGovernanceRoutes(app: Express): void {
         .groupBy(gcsGovernanceRules.moduleKey)
         .orderBy(gcsGovernanceRules.moduleKey);
       const dbModules = rows.map(r => r.moduleKey);
-      const canonical = ['design', 'dvs', 'epc', 'finance', 'hr', 'internal', 'legal', 'legacy', 'qms', 'sales', 'sap'];
+      const canonical = ['design', 'epc', 'finance', 'hr', 'internal', 'legal', 'legacy', 'qms', 'sales', 'sap'];
       const merged = [...new Set([...canonical, ...dbModules])].sort();
       res.json({ modules: merged });
     } catch (err: any) {

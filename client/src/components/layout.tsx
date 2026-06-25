@@ -138,7 +138,7 @@ function Layout({ children }: LayoutProps) {
   const [isMeetingsMenuOpen, setIsMeetingsMenuOpen] = useState(false);
   const [isDesignMenuOpen, setIsDesignMenuOpen] = useState(false);
   const [isSapPurchasingMenuOpen, setIsSapPurchasingMenuOpen] = useState(false);
-  const [isDrawingVerificationMenuOpen, setIsDrawingVerificationMenuOpen] = useState(false);
+
   const [isDocumentControlMenuOpen, setIsDocumentControlMenuOpen] = useState(false);
   const [isOIMenuOpen, setIsOIMenuOpen] = useState(false);
   const [isHazopMenuOpen, setIsHazopMenuOpen] = useState(false);
@@ -231,9 +231,6 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any SAP purchasing-related page
   const isOnSapPurchasingPage = location.startsWith('/sap-purchasing');
 
-  // Check if we're on the Drawing Verification module
-  const isOnDvsPage = location.startsWith('/dvs');
-
   // Check if we're on any Document Control page
   const isOnDocumentControlPage = location.startsWith('/document-control');
 
@@ -294,9 +291,6 @@ function Layout({ children }: LayoutProps) {
       setIsSapPurchasingMenuOpen(true);
     }
 
-    if (isOnDvsPage && !isDrawingVerificationMenuOpen) {
-      setIsDrawingVerificationMenuOpen(true);
-    }
 
     if (isOnDocumentControlPage && !isDocumentControlMenuOpen) {
       setIsDocumentControlMenuOpen(true);
@@ -309,7 +303,7 @@ function Layout({ children }: LayoutProps) {
     if (isOnHazopPage && !isHazopMenuOpen) {
       setIsHazopMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -528,17 +522,6 @@ function Layout({ children }: LayoutProps) {
           { icon: FileText, label: "SRS Register", href: `/hazop/studies/${hazopStudyId}/srs` },
           { icon: FilePen, label: "MOC Register", href: `/hazop/studies/${hazopStudyId}/moc` },
         ] : []),
-      ]
-    }] : []),
-    ...((user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Senior Executive' || user?.role === 'Manager') ? [{
-      icon: BadgeCheck,
-      label: "Drawing Verification",
-      isSubmenu: true,
-      isOpen: isDrawingVerificationMenuOpen,
-      toggle: () => setIsDrawingVerificationMenuOpen(!isDrawingVerificationMenuOpen),
-      children: [
-        { icon: Layers, label: "Verification Pipeline", href: "/dvs" },
-        { icon: FileCheck, label: "Release Register", href: "/dvs/releases" },
       ]
     }] : []),
     ...(hasViewPermission("Design Management") ? [{ 
