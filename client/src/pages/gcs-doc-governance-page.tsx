@@ -318,7 +318,7 @@ interface RuleFormProps {
 
 const BLANK_FORM: Partial<GcsGovernanceRule> = {
   moduleKey: "", submoduleKey: "", documentType: "", displayName: "",
-  rootPrefix: "", pathTemplate: "", revisionMode: "none",
+  rootPrefix: "", pathTemplate: "", revisionMode: "alphabetic",
   maxFileSizeMb: undefined, notes: "", active: true,
 };
 
@@ -636,7 +636,7 @@ function RuleForm({ open, onClose, initial, existingRules }: RuleFormProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Revision Mode</Label>
-              <Select value={form.revisionMode ?? "none"} onValueChange={v => handleChange("revisionMode", v)}>
+              <Select value={form.revisionMode ?? "alphabetic"} onValueChange={v => handleChange("revisionMode", v)}>
                 <SelectTrigger className="h-8 text-xs mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {REVISION_MODES.map(m => <SelectItem key={m} value={m} className="text-xs capitalize">{m}</SelectItem>)}
