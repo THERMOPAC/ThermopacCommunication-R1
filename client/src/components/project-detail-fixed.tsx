@@ -2914,7 +2914,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                         </span>
                                       </div>
                                     </TableCell>
-                                    <TableCell className={depth > 0 ? "text-muted-foreground text-sm" : ""}>
+                                    <TableCell className={`text-blue-600 ${depth > 0 ? "text-sm" : ""}`}>
                                       {[item.product_p1_label, item.product_p2_label, item.product_p3].filter(Boolean).join(' ') || item.description || item.masterItem?.description || item.notes || "—"}
                                     </TableCell>
                                     <TableCell className="font-mono text-xs">{(item as any).codeBars || "-"}</TableCell>
@@ -3815,7 +3815,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                   {(() => {
                                     const identity = [item.product_p1_label, item.product_p2_label, item.product_p3].filter(Boolean).join(' ');
                                     const text = identity || item.description || item.masterItem?.description || item.notes || "—";
-                                    return <div className="truncate" title={text}>{text}</div>;
+                                    return <div className="truncate text-blue-600" title={text}>{text}</div>;
                                   })()}
                                 </TableCell>
                                 <TableCell className="font-mono text-xs">{(item as any).codeBars || "-"}</TableCell>
