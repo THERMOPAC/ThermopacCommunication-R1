@@ -2915,7 +2915,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                       </div>
                                     </TableCell>
                                     <TableCell className={depth > 0 ? "text-muted-foreground text-sm" : ""}>
-                                      {[item.product_p2_label, item.product_p3].filter(Boolean).join(' ') || item.description || item.masterItem?.description || item.notes || "—"}
+                                      {[item.product_p1_label, item.product_p2_label, item.product_p3].filter(Boolean).join(' ') || item.description || item.masterItem?.description || item.notes || "—"}
                                     </TableCell>
                                     <TableCell className="font-mono text-xs">{(item as any).codeBars || "-"}</TableCell>
                                     <TableCell>{item.quantity}</TableCell>
@@ -3813,7 +3813,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <TableCell className="truncate max-w-0">{item.itemCode || item.masterItem?.itemCode || "N/A"}</TableCell>
                                 <TableCell className="truncate max-w-0">
                                   {(() => {
-                                    const identity = [item.product_p2_label, item.product_p3].filter(Boolean).join(' ');
+                                    const identity = [item.product_p1_label, item.product_p2_label, item.product_p3].filter(Boolean).join(' ');
                                     const text = identity || item.description || item.masterItem?.description || item.notes || "—";
                                     return <div className="truncate" title={text}>{text}</div>;
                                   })()}
