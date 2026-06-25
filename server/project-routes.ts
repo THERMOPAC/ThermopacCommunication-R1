@@ -1469,13 +1469,14 @@ export function setupProjectRoutes(app: express.Express) {
       const productCodes = [...new Set(items.map((i: any) => i.productCode || i.product_code).filter(Boolean))];
       let productMap: Record<string, { product_p1_label: string | null; product_p2_label: string | null; product_p3: string | null }> = {};
       if (productCodes.length > 0) {
+        const codeList = sql.join(productCodes.map((c: string) => sql`${c}`), sql`, `);
         const prodResult = await db.execute(sql`
           SELECT product_code,
                  item_property_1_label AS product_p1_label,
                  item_property_2_label AS product_p2_label,
                  item_property_3       AS product_p3
           FROM products
-          WHERE product_code = ANY(${productCodes as string[]})
+          WHERE product_code IN (${codeList})
         `);
         for (const row of prodResult.rows as any[]) {
           productMap[row.product_code] = {
