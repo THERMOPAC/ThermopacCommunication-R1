@@ -1153,8 +1153,25 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <TableBody>
                     {projectItems.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.itemCode}</TableCell>
-                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="font-medium">{item.itemCode || item.item_code}</TableCell>
+                        <TableCell>
+                          {(item.product_p1_label || item.product_p2_label || item.product_p3) ? (
+                            <div className="leading-tight">
+                              {item.product_p1_label && (
+                                <div className="truncate max-w-[220px] font-medium text-[11px]" title={item.product_p1_label}>
+                                  {item.product_p1_label}
+                                </div>
+                              )}
+                              {(item.product_p2_label || item.product_p3) && (
+                                <div className="truncate max-w-[220px] text-blue-600 font-bold text-[11px]" title={[item.product_p2_label, item.product_p3].filter(Boolean).join(' ')}>
+                                  {[item.product_p2_label, item.product_p3].filter(Boolean).join(' ')}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">{item.description || item.item_description || '—'}</span>
+                          )}
+                        </TableCell>
                         <TableCell>{item.specification || '-'}</TableCell>
                         <TableCell>{item.quantity}</TableCell>
                         <TableCell>{item.uom}</TableCell>

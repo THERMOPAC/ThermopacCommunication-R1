@@ -1453,22 +1453,27 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const projectIdParam = req.params.projectId;
       console.log('Fetching items for project ID:', projectIdParam);
-      
-      // Get the project first to ensure it exists
+
       const project = await storage.getProject(projectIdParam);
-      
       if (!project) {
         console.log('Project not found for ID:', projectIdParam);
         return res.status(404).json({ error: 'Project not found' });
       }
-      
-      // Use the numeric ID from the project record
+
       const projectId = project.id;
-      
-      // Get items for the project
-      const items = await storage.getProjectItems(projectId);
-      console.log(`Found ${items.length} items for project ${projectId}`);
-      res.json(items);
+
+      const result = await db.execute(sql`
+        SELECT pi.*,
+               prod.item_property_1_label AS product_p1_label,
+               prod.item_property_2_label AS product_p2_label,
+               prod.item_property_3       AS product_p3
+        FROM project_items pi
+        LEFT JOIN products prod ON prod.product_code = pi.product_code
+        WHERE pi.project_id = ${projectId}
+        ORDER BY pi.id
+      `);
+      console.log(`Found ${result.rows.length} items for project ${projectId}`);
+      res.json(result.rows);
     } catch (error) {
       console.error(`Error fetching items for project ${req.params.projectId}:`, error);
       sendError(res, error);
