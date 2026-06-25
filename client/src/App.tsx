@@ -205,8 +205,6 @@ function Router() {
       
 
 
-      <ProtectedRoute path="/procurement-planning" component={() => <ProjectsProduction.ProcurementPlanningPage />} />
-      <ProtectedRoute path="/procurement-tracking" component={() => <ProjectsProduction.ProcurementTrackingPage />} />
       <ProtectedRoute path="/production-planning" component={() => <ProjectsProduction.ProductionPlanningPage />} />
       <ProtectedRoute path="/production/work-orders/details/:id" component={() => <ProjectsProduction.WorkOrderDetailPage />} />
       <ProtectedRoute path="/production/work-orders/edit/:id" component={() => <ProjectsProduction.WorkOrderEditPage />} />

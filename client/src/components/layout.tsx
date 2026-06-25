@@ -130,7 +130,6 @@ function Layout({ children }: LayoutProps) {
   const [isDigitalMarketingMenuOpen, setIsDigitalMarketingMenuOpen] = useState(false);
   const [isSalesAndMarketingMenuOpen, setIsSalesAndMarketingMenuOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
-  const [isProcurementMenuOpen, setIsProcurementMenuOpen] = useState(false);
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(false);
@@ -176,12 +175,6 @@ function Layout({ children }: LayoutProps) {
                          location === '/item-master' ||
                          location.startsWith('/epc/') ||
                          location === '/epc-risks';
-  
-  // Check if we're on any procurement-related page
-  const isOnProcurementPage = location === '/procurement-planning' ||
-                            location === '/procurement-tracking' ||
-                            location === '/vendors' ||
-                            location.startsWith('/epc/procurement-list-control');
   
   // Check if we're on any production-related page
   const isOnProductionPage = location === '/production-planning' ||
@@ -255,10 +248,6 @@ function Layout({ children }: LayoutProps) {
       setIsProjectMenuOpen(true);
     }
     
-    if (isOnProcurementPage && !isProcurementMenuOpen) {
-      setIsProcurementMenuOpen(true);
-    }
-    
     if (isOnProductionPage && !isProductionMenuOpen) {
       setIsProductionMenuOpen(true);
     }
@@ -295,7 +284,7 @@ function Layout({ children }: LayoutProps) {
     if (isOnHazopPage && !isHazopMenuOpen) {
       setIsHazopMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -472,6 +461,7 @@ function Layout({ children }: LayoutProps) {
         ...(hasPageAccess("planning-control") ? [{ icon: ClipboardList, label: "Planning Control", href: "/epc/planning-control" }] : []),
         ...(hasPageAccess("procurement-production") ? [{ icon: Package, label: "Procurement & Production", href: "/epc/execution-control" }] : []),
         ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY List Control", href: "/epc/buy-list-control" }] : []),
+        ...(hasPageAccess("procurement-list-control") ? [{ icon: ClipboardList, label: "Procurement List Control", href: "/epc/procurement-list-control" }] : []),
         ...(hasPageAccess("bom-controls") ? [{ icon: Layers, label: "BOM Controls", href: "/epc/bom-controls" }] : []),
         ...(hasPageAccess("drawing-controls") ? [{ icon: PenTool, label: "Drawing Controls", href: "/epc/drawing-controls" }] : []),
         ...(hasPageAccess("purchase-orders") ? [{ icon: ShoppingCart, label: "Purchase Orders", href: "/epc/purchase-orders" }] : []),
@@ -533,19 +523,6 @@ function Layout({ children }: LayoutProps) {
         { icon: ShoppingCart, label: "Purchase Orders", href: "/sap-purchasing/orders" },
         { icon: Package, label: "Goods Receipt POs", href: "/sap-purchasing/receipts" },
         { icon: Receipt, label: "Purchase Invoices", href: "/sap-purchasing/invoices" }
-      ]
-    }] : []),
-    ...(hasViewPermission("Procurement Management") ? [{
-      icon: TrendingUp,
-      label: "Procurement Management",
-      isSubmenu: true,
-      isOpen: isProcurementMenuOpen,
-      toggle: () => setIsProcurementMenuOpen(!isProcurementMenuOpen),
-      children: [
-        { icon: Truck, label: "Vendors / Suppliers", href: "/vendors" },
-        { icon: Briefcase, label: "Procurement Planning", href: "/procurement-planning" },
-        { icon: TrendingUp, label: "Procurement Tracking", href: "/procurement-tracking" },
-        ...(hasPageAccess("procurement-list-control") ? [{ icon: ClipboardList, label: "Procurement List Control", href: "/epc/procurement-list-control" }] : []),
       ]
     }] : []),
     ...(hasViewPermission("Production Management") ? [{ 
@@ -680,7 +657,6 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Project Management' },
                     { type: 'submenu', label: 'HAZOP' },
                     { type: 'submenu', label: 'Drawing Verification', skipPermCheck: true },
-                    { type: 'submenu', label: 'Procurement Management' },
                     { type: 'submenu', label: 'Production Management' },
                     { type: 'submenu', label: 'Quality Management' },
                     { type: 'single', href: '/project-commissioning', label: 'Project Commissioning' },
