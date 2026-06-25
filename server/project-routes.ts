@@ -1462,18 +1462,38 @@ export function setupProjectRoutes(app: express.Express) {
 
       const projectId = project.id;
 
-      const result = await db.execute(sql`
-        SELECT pi.*,
-               prod.item_property_1_label AS product_p1_label,
-               prod.item_property_2_label AS product_p2_label,
-               prod.item_property_3       AS product_p3
-        FROM project_items pi
-        LEFT JOIN products prod ON prod.product_code = pi.product_code
-        WHERE pi.project_id = ${projectId}
-        ORDER BY pi.id
-      `);
-      console.log(`Found ${result.rows.length} items for project ${projectId}`);
-      res.json(result.rows);
+      // Get items (camelCase fields preserved via storage layer)
+      const items = await storage.getProjectItems(projectId);
+
+      // Supplement with product identity fields from linked product
+      const productCodes = [...new Set(items.map((i: any) => i.productCode || i.product_code).filter(Boolean))];
+      let productMap: Record<string, { product_p1_label: string | null; product_p2_label: string | null; product_p3: string | null }> = {};
+      if (productCodes.length > 0) {
+        const prodResult = await db.execute(sql`
+          SELECT product_code,
+                 item_property_1_label AS product_p1_label,
+                 item_property_2_label AS product_p2_label,
+                 item_property_3       AS product_p3
+          FROM products
+          WHERE product_code = ANY(${productCodes as string[]})
+        `);
+        for (const row of prodResult.rows as any[]) {
+          productMap[row.product_code] = {
+            product_p1_label: row.product_p1_label,
+            product_p2_label: row.product_p2_label,
+            product_p3: row.product_p3,
+          };
+        }
+      }
+
+      const enriched = items.map((item: any) => {
+        const code = item.productCode || item.product_code;
+        const prod = code ? productMap[code] : undefined;
+        return { ...item, ...(prod ?? { product_p1_label: null, product_p2_label: null, product_p3: null }) };
+      });
+
+      console.log(`Found ${enriched.length} items for project ${projectId}`);
+      res.json(enriched);
     } catch (error) {
       console.error(`Error fetching items for project ${req.params.projectId}:`, error);
       sendError(res, error);
