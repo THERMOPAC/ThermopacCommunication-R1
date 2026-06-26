@@ -609,7 +609,7 @@ export default function EpcDrawingControlPage() {
                                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                                   {rec.item_code && <span className="text-[9px] text-muted-foreground font-mono">{rec.item_code}</span>}
                                                   {projectId
-                                                    ? <LiveRevisionBadge projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
+                                                    ? <LiveRevisionBadge projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} fallback={rec.revision_code} />
                                                     : <span className="text-[9px] font-mono text-foreground/70">Rev {rec.revision_code}{rec.is_current ? <span className="text-green-600"> · current</span> : <span className="text-orange-500"> · superseded</span>}</span>
                                                   }
                                                 </div>
@@ -1091,12 +1091,12 @@ function useActiveAttachment(projectId: number | null, parentEntityId: number | 
   return { activeAtt, revisionCode, isLoading };
 }
 
-function LiveRevisionBadge({ projectId, parentEntityId, isCurrent }: { projectId: number; parentEntityId: number; isCurrent: boolean }) {
+function LiveRevisionBadge({ projectId, parentEntityId, isCurrent, fallback }: { projectId: number; parentEntityId: number; isCurrent: boolean; fallback?: string }) {
   const { revisionCode, isLoading } = useActiveAttachment(projectId, parentEntityId);
   if (isLoading) return <span className="text-muted-foreground text-[9px]">…</span>;
   return (
     <div className="flex items-center gap-1">
-      <span className="font-mono">{revisionCode || "—"}</span>
+      <span className="font-mono">{revisionCode || fallback || "—"}</span>
       {isCurrent
         ? <span className="text-green-600 font-semibold">· current</span>
         : <span className="text-orange-500">· superseded</span>}
