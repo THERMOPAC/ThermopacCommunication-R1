@@ -26,7 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
 import {
   Loader2, Search, Filter, PenTool, Edit, Send, CheckCircle2, ShieldCheck,
-  Unlock, XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
+  Unlock, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, FileText, Eye, UserCheck, UploadCloud, FileX, Clock,
 } from "lucide-react";
 
@@ -155,7 +155,6 @@ const LIFECYCLE_ACTIONS: ActionDef[] = [
   { key: "release-gate-manufacturing", label: "Mark Released for Manufacturing", icon: Unlock, variant: "outline", minRoleLevel: 3, statusRequired: ["released"], extraCheck: (r) => r.manufacturing_release_required && !r.released_for_manufacturing },
   { key: "client-approval", label: "Record Client Approval", icon: UserCheck, variant: "outline", minRoleLevel: 3, statusRequired: ["draft", "under_review"], extraCheck: (r) => r.client_approval_required && r.client_approval_status !== "approved" },
   { key: "revert-to-draft", label: "Revert to Draft", icon: RotateCcw, variant: "secondary", minRoleLevel: 3, statusRequired: ["under_review"] },
-  { key: "cancel", label: "Cancel", icon: XCircle, variant: "destructive", minRoleLevel: 2, statusRequired: ["under_review", "approved"], needsNote: true, noteLabel: "Cancel Reason", noteKey: "cancelReason" },
 ];
 
 export default function EpcDrawingControlPage() {
