@@ -346,7 +346,7 @@ export function PlcLineDetailDrawer({
                       <div>
                         <span className="text-gray-400 mr-1.5">{fmtDateTime(h.changedAt)}</span>
                         <span className="font-medium mr-1">{h.changedByName ?? "System"}</span>
-                        <span className="text-gray-700">{h.eventType.replace(/_/g, " ")}</span>
+                        <span className="text-gray-700">{h.eventType?.replace(/_/g, " ")}</span>
                         {h.oldStatus && h.newStatus && h.oldStatus !== h.newStatus && (
                           <span className="ml-1 text-gray-500">
                             ({h.oldStatus} → {h.newStatus})
