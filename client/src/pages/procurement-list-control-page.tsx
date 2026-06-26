@@ -192,7 +192,7 @@ export default function ProcurementListControlPage() {
   // Projects list
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
-    select: (data) => (data as Project[]).filter((p) => !["Cancelled", "Closed", "Archived"].includes(p.status)),
+    select: (data) => (data as Project[]).filter((p) => p.status === "Active"),
   });
 
   // Buy groups (for Group filter dropdown)
