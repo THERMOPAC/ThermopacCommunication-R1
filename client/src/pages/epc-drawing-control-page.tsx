@@ -454,8 +454,8 @@ export default function EpcDrawingControlPage() {
                         <TableHead className="text-[10px] w-[132px] px-2 whitespace-nowrap">DWG Control #</TableHead>
                         <TableHead className="text-[10px] w-[112px] px-2 whitespace-nowrap">Drawing No</TableHead>
                         <TableHead className="text-[10px] text-center w-10 px-1">Rev</TableHead>
-                        <TableHead className="text-[10px] w-[200px] px-2">Item</TableHead>
-                        <TableHead className="text-[10px] w-[250px] px-2">Product Identity</TableHead>
+                        <TableHead className="text-[10px] w-[250px] px-2">Item</TableHead>
+                        <TableHead className="text-[10px] w-[350px] px-2">Product Identity</TableHead>
                         <TableHead className="text-[10px] text-center w-[72px] px-1">Status</TableHead>
                         <TableHead className="text-[10px] text-center w-[62px] px-1">Proc.</TableHead>
                         <TableHead className="text-[10px] text-center w-[62px] px-1">Mfg.</TableHead>
@@ -489,13 +489,13 @@ export default function EpcDrawingControlPage() {
                                 }
                               </TableCell>
                               <TableCell className="text-[10px] py-1 px-2">
-                                <div className="truncate max-w-[195px]" title={rec.item_description || ""}>{rec.item_code}</div>
+                                <div className="truncate max-w-[245px]" title={rec.item_description || ""}>{rec.item_code}</div>
                               </TableCell>
                               <TableCell className="text-[10px] py-1 px-2">
                                 {(() => {
                                   const identity = [rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ');
                                   return identity
-                                    ? <div className="truncate max-w-[245px] text-blue-600" title={identity}>{identity}</div>
+                                    ? <div className="truncate max-w-[345px] text-blue-600" title={identity}>{identity}</div>
                                     : <span className="text-muted-foreground italic">—</span>;
                                 })()}
                               </TableCell>
