@@ -223,10 +223,7 @@ export default function EpcDrawingControlPage() {
       toast({ title: "Action completed", description: data.message || "Success" });
       invalidateAll();
       setActionDialog({ open: false, action: null, record: null });
-      setSupersedeDialog({ open: false, record: null });
       setActionNote("");
-      setSupersedeReason("");
-      setSupersedeNewRevision("");
     },
     onError: (err: any) => toast({ title: "Action failed", description: err.message, variant: "destructive" }),
   });
