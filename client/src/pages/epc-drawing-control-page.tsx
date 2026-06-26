@@ -156,7 +156,6 @@ const LIFECYCLE_ACTIONS: ActionDef[] = [
   { key: "client-approval", label: "Record Client Approval", icon: UserCheck, variant: "outline", minRoleLevel: 3, statusRequired: ["draft", "under_review"], extraCheck: (r) => r.client_approval_required && r.client_approval_status !== "approved" },
   { key: "revert-to-draft", label: "Revert to Draft", icon: RotateCcw, variant: "secondary", minRoleLevel: 3, statusRequired: ["under_review"] },
   { key: "cancel", label: "Cancel", icon: XCircle, variant: "destructive", minRoleLevel: 2, statusRequired: ["under_review", "approved"], needsNote: true, noteLabel: "Cancel Reason", noteKey: "cancelReason" },
-  { key: "supersede", label: "Supersede", icon: ArrowUpDown, variant: "destructive", minRoleLevel: 2, statusRequired: ["released"], extraCheck: (r) => r.is_current },
 ];
 
 export default function EpcDrawingControlPage() {
@@ -182,10 +181,6 @@ export default function EpcDrawingControlPage() {
   }>({ open: false, action: null, record: null });
   const [actionNote, setActionNote] = useState("");
   const [reviewRecommendation, setReviewRecommendation] = useState("approve");
-
-  const [supersedeDialog, setSupersedeDialog] = useState<{ open: boolean; record: DrawingControl | null }>({ open: false, record: null });
-  const [supersedeReason, setSupersedeReason] = useState("");
-  const [supersedeNewRevision, setSupersedeNewRevision] = useState("");
 
   const [clientApprovalStatus, setClientApprovalStatus] = useState("approved");
   const [clientApprovedBy, setClientApprovedBy] = useState("");
@@ -279,10 +274,6 @@ export default function EpcDrawingControlPage() {
   }
 
   function executeAction(action: ActionDef, rec: DrawingControl) {
-    if (action.key === "supersede") {
-      setSupersedeDialog({ open: true, record: rec });
-      return;
-    }
     if (action.key === "client-approval") {
       setActionDialog({ open: true, action, record: rec });
       setClientApprovalStatus("approved");
@@ -318,15 +309,6 @@ export default function EpcDrawingControlPage() {
     }
 
     lifecycleMutation.mutate({ endpoint, body });
-  }
-
-  function submitSupersede() {
-    const rec = supersedeDialog.record;
-    if (!rec || !supersedeReason.trim()) return;
-    lifecycleMutation.mutate({
-      endpoint: `/api/drawing-controls/${rec.id}/supersede`,
-      body: { supersessionReason: supersedeReason, newDrawingRevision: supersedeNewRevision || null },
-    });
   }
 
   function openEditDialog(rec: DrawingControl) {
@@ -1008,47 +990,6 @@ export default function EpcDrawingControlPage() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={supersedeDialog.open} onOpenChange={(open) => { if (!open) { setSupersedeDialog({ open: false, record: null }); setSupersedeReason(""); setSupersedeNewRevision(""); } }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-orange-600">
-                  <AlertTriangle className="h-4 w-4" /> Supersede Drawing Control
-                </DialogTitle>
-                <DialogDescription>
-                  This will create a new revision and mark the current revision as superseded. All active attachments on the current revision will also be marked superseded.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3 py-2">
-                <div className="p-2.5 bg-muted/50 rounded text-[10px] space-y-0.5">
-                  <div><span className="font-medium">DWG Control #:</span> {supersedeDialog.record?.dwg_control_number}</div>
-                  <div><span className="font-medium">Current Revision:</span> {supersedeDialog.record?.revision_code}</div>
-                  <div><span className="font-medium">Item:</span> {supersedeDialog.record?.item_code} — <span className="text-blue-600">{supersedeDialog.record?.item_description}</span></div>
-                  <div><span className="font-medium">Status:</span> {supersedeDialog.record?.status?.replace(/_/g, " ")}</div>
-                </div>
-                <div className="p-2 bg-orange-50 rounded text-[10px] text-orange-700 flex items-start gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <div>
-                    A new revision will be created in <strong>draft</strong> status. The current revision ({supersedeDialog.record?.revision_code}) will be marked as <strong>superseded</strong> and become read-only. Downstream tasks referencing this revision will be marked obsolete.
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs font-medium">Supersession Reason *</Label>
-                  <Textarea className="text-xs mt-1 min-h-[60px]" value={supersedeReason} onChange={(e) => setSupersedeReason(e.target.value)} placeholder="Why is this revision being superseded?" />
-                </div>
-                <div>
-                  <Label className="text-xs font-medium">New Drawing Revision (optional)</Label>
-                  <Input className="h-8 text-xs mt-1" value={supersedeNewRevision} onChange={(e) => setSupersedeNewRevision(e.target.value)} placeholder="e.g. 1, B (leave blank to keep same)" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => { setSupersedeDialog({ open: false, record: null }); setSupersedeReason(""); setSupersedeNewRevision(""); }}>Cancel</Button>
-                <Button variant="destructive" onClick={submitSupersede} disabled={lifecycleMutation.isPending || !supersedeReason.trim()}>
-                  {lifecycleMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                  Confirm Supersede
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </TooltipProvider>
     </Layout>

@@ -543,6 +543,92 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
             supersessionReason: `ECN ${ecn.document_number}`, supersededBy: userId,
           })}::jsonb, 'drawing_ecn', NOW())`);
 
+        // ── Step 6: Clone DDS into the new draft revision ────────────────────
+        const ddsResult = await tx.execute(sql`
+          SELECT * FROM design_data_sheets WHERE dwg_control_id = ${drawingControlId}
+        `);
+
+        let clonedDdsId: number | null = null;
+        if (ddsResult.rows.length > 0) {
+          const oldDds = ddsResult.rows[0] as any;
+          const clonedDds = await tx.execute(sql`
+            INSERT INTO design_data_sheets (
+              dwg_control_id, project_id,
+              design_code, material_code, equipment_description, tag_no,
+              equipment_type, manufacture_serial_no, inspection_by,
+              equipment_config, mechanical_data, general_data,
+              applied_code, hazard_data,
+              status, dds_gcs_path, dds_pdf_status,
+              created_by, updated_by, created_at, updated_at
+            ) VALUES (
+              ${inserted[0].id}, ${oldDds.project_id},
+              ${oldDds.design_code}, ${oldDds.material_code}, ${oldDds.equipment_description}, ${oldDds.tag_no},
+              ${oldDds.equipment_type}, ${oldDds.manufacture_serial_no}, ${oldDds.inspection_by},
+              ${oldDds.equipment_config}, ${JSON.stringify(oldDds.mechanical_data)}::jsonb, ${JSON.stringify(oldDds.general_data)}::jsonb,
+              ${oldDds.applied_code}, ${oldDds.hazard_data !== null && oldDds.hazard_data !== undefined ? JSON.stringify(oldDds.hazard_data) : null}::jsonb,
+              'draft', NULL, NULL,
+              ${userId}, ${userId}, NOW(), NOW()
+            ) RETURNING id
+          `);
+          clonedDdsId = (clonedDds.rows[0] as any).id;
+          console.log(`[ECN-IMPL] DDS cloned: old dwg_control_id=${drawingControlId} → new dwg_control_id=${inserted[0].id}, new dds_id=${clonedDdsId}`);
+
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${dwg.project_id}, 'ecn.dds_cloned', ${JSON.stringify({
+              ecnId: id, ecnDocumentNumber: ecn.document_number,
+              oldDwgId: drawingControlId, newDwgId: inserted[0].id,
+              oldDdsId: oldDds.id, newDdsId: clonedDdsId,
+            })}::jsonb, 'drawing_ecn', NOW())`);
+        } else {
+          console.log(`[ECN-IMPL] No DDS on dwg_control_id=${drawingControlId} — skipping DDS clone`);
+        }
+
+        // ── Step 7: Carry forward active DWG attachments ─────────────────────
+        const activeAttachments = await tx.execute(sql`
+          SELECT * FROM epc_document_attachments
+          WHERE document_number = ${dwg.dwg_control_number}
+            AND revision_code = ${dwg.revision_code}
+            AND status = 'active'
+            AND is_current = true
+        `);
+
+        let attachmentCarryCount = 0;
+        for (const att of activeAttachments.rows as any[]) {
+          await tx.execute(sql`
+            INSERT INTO epc_document_attachments (
+              parent_entity_type, parent_entity_id, project_id,
+              doc_type, document_number, is_revision_controlled, revision_code,
+              attachment_label, attachment_seq,
+              gcs_bucket, gcs_object_path, original_file_name,
+              mime_type, file_size_bytes, checksum_sha256,
+              status, is_current, uploaded_by, uploaded_at
+            ) VALUES (
+              ${att.parent_entity_type}, ${inserted[0].id}, ${att.project_id},
+              ${att.doc_type}, ${att.document_number}, ${att.is_revision_controlled}, ${nextRevisionCode},
+              ${att.attachment_label}, ${att.attachment_seq},
+              ${att.gcs_bucket}, ${att.gcs_object_path}, ${att.original_file_name},
+              ${att.mime_type}, ${att.file_size_bytes}, ${att.checksum_sha256},
+              'active', true, ${userId}, NOW()
+            )
+          `);
+          attachmentCarryCount++;
+        }
+
+        if (attachmentCarryCount > 0) {
+          console.log(`[ECN-IMPL] Carried forward ${attachmentCarryCount} attachment(s) from Rev ${dwg.revision_code} → Rev ${nextRevisionCode} on ${dwg.dwg_control_number}`);
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${dwg.project_id}, 'ecn.attachments_carried_forward', ${JSON.stringify({
+              ecnId: id, ecnDocumentNumber: ecn.document_number,
+              oldDwgId: drawingControlId, newDwgId: inserted[0].id,
+              oldRevisionCode: dwg.revision_code, newRevisionCode: nextRevisionCode,
+              attachmentCount: attachmentCarryCount,
+            })}::jsonb, 'drawing_ecn', NOW())`);
+        } else {
+          console.log(`[ECN-IMPL] No active attachments on dwg_control_id=${drawingControlId} — skipping carry-forward`);
+        }
+
+        // ── Step 8: Mark old revision attachments as superseded ───────────────
+        // This runs after carry-forward so we query active attachments first.
         await markAttachmentsSuperseded(dwg.dwg_control_number, dwg.revision_code, userId, dwg.project_id, tx);
 
         return inserted[0];
