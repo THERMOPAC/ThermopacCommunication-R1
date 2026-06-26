@@ -149,7 +149,7 @@ type ActionDef = {
 const LIFECYCLE_ACTIONS: ActionDef[] = [
   { key: "submit-for-review", label: "Submit for Review", icon: Send, variant: "default", minRoleLevel: 4, statusRequired: ["draft"], needsNote: true, noteLabel: "Submission Note", noteKey: "submissionNote", extraCheck: (r) => (r.attachment_count || 0) > 0 },
   { key: "review", label: "Review", icon: Eye, variant: "default", minRoleLevel: 3, statusRequired: ["under_review"], needsNote: true, noteLabel: "Review Note", noteKey: "reviewNote" },
-  { key: "approve", label: "Approve", icon: CheckCircle2, variant: "default", minRoleLevel: 2, statusRequired: ["under_review"] },
+  { key: "approve", label: "Approve", icon: CheckCircle2, variant: "default", minRoleLevel: 2, statusRequired: ["under_review"], extraCheck: (r) => !!r.reviewed_at },
   { key: "release", label: "Release", icon: ShieldCheck, variant: "default", minRoleLevel: 2, statusRequired: ["approved"], needsNote: true, noteLabel: "Release Note", noteKey: "releaseNote" },
   { key: "release-gate-procurement", label: "Mark Released for Procurement", icon: Unlock, variant: "outline", minRoleLevel: 3, statusRequired: ["released"], extraCheck: (r) => r.procurement_release_required && !r.released_for_procurement },
   { key: "release-gate-manufacturing", label: "Mark Released for Manufacturing", icon: Unlock, variant: "outline", minRoleLevel: 3, statusRequired: ["released"], extraCheck: (r) => r.manufacturing_release_required && !r.released_for_manufacturing },
