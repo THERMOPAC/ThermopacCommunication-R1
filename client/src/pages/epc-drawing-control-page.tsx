@@ -481,7 +481,7 @@ export default function EpcDrawingControlPage() {
                               <TableCell className="text-[10px] font-semibold py-1 px-2 whitespace-nowrap overflow-visible">{rec.drawing_number || <span className="text-muted-foreground italic font-normal">—</span>}</TableCell>
                               <TableCell className="text-center py-1 px-1">
                                 {projectId
-                                  ? <LiveRevisionCell projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
+                                  ? <LiveRevisionCell projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} fallback={rec.revision_code} />
                                   : <div className="flex items-center justify-center gap-1">
                                       <Badge variant="outline" className="text-[8px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">{rec.revision_code}</Badge>
                                       {rec.is_current ? <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" /> : <span className="h-1.5 w-1.5 rounded-full bg-orange-400 inline-block" />}
@@ -1113,9 +1113,9 @@ function LiveRevisionReadOnly({ projectId, parentEntityId }: { projectId: number
   );
 }
 
-function LiveRevisionCell({ projectId, parentEntityId, isCurrent }: { projectId: number; parentEntityId: number; isCurrent: boolean }) {
+function LiveRevisionCell({ projectId, parentEntityId, isCurrent, fallback }: { projectId: number; parentEntityId: number; isCurrent: boolean; fallback?: string }) {
   const { revisionCode, isLoading } = useActiveAttachment(projectId, parentEntityId);
-  const display = isLoading ? "…" : (revisionCode || "—");
+  const display = isLoading ? "…" : (revisionCode || fallback || "—");
   return (
     <div className="flex items-center justify-center gap-1">
       <Badge variant="outline" className="text-[8px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">{display}</Badge>
