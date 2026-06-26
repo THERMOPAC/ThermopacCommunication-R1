@@ -196,13 +196,14 @@ export default function EpcDrawingControlPage() {
   const { showAllProjects, setShowAllProjects, filteredProjects } = useProjectFilter(projects, projectId);
   const selectedProject = (projects as any[]).find((p: any) => p.id === projectId);
   const projectDisciplineCode: string | null = selectedProject?.disciplineCode || selectedProject?.discipline_code || null;
-  const { data: drawingControls = [], isLoading, error: recordsError } = useQuery<DrawingControl[]>({
+  const { data: drawingControls = [], isLoading, isFetching, refetch, error: recordsError } = useQuery<DrawingControl[]>({
     queryKey: ["/api/projects", projectId, "drawing-controls"],
     queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/drawing-controls`),
     enabled: !!projectId,
   });
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "drawing-controls"] });
+    refetch();
   }
 
   const editMutation = useMutation({
@@ -358,8 +359,8 @@ export default function EpcDrawingControlPage() {
                 <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
                 <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
               </div>
-              <Button size="sm" variant="outline" className="h-8" onClick={invalidateAll}>
-                <RefreshCw className="h-3.5 w-3.5" />
+              <Button size="sm" variant="outline" className="h-8" onClick={invalidateAll} disabled={isFetching}>
+                <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>
