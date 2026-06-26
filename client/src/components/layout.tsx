@@ -534,6 +534,7 @@ function Layout({ children }: LayoutProps) {
       children: [
         { icon: TrendingUp, label: "Production Planning", href: "/production-planning" },
         { icon: Briefcase, label: "Shop Floor", href: "/shop-floor" },
+        { icon: PenTool, label: "Production Drawings", href: "/production/drawings" },
         { icon: FileText, label: "Daily Production Report", href: "/daily-production-report" },
         { icon: Users, label: "Production Team", href: "/production-team-management" }
       ]

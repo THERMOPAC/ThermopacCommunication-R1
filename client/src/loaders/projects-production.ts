@@ -34,3 +34,4 @@ export const GcsDashboardPage = lazyWithRetry(() => import("@/pages/gcs-dashboar
 export const EpcAssignmentControlPage = lazyWithRetry(() => import("@/pages/epc-assignment-control-page"));
 export const EpcBuyListControlPage = lazyWithRetry(() => import("@/pages/epc-buy-list-control-page"));
 export const EpcProcurementListControlPage = lazyWithRetry(() => import("@/pages/procurement-list-control-page"));
+export const ProductionDrawingsPage = lazyWithRetry(() => import("@/pages/production-drawings-page"));

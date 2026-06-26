@@ -212,6 +212,7 @@ function Router() {
       <ProtectedRoute path="/shop-floor" component={() => <ProjectsProduction.ShopFloorPage />} />
       <ProtectedRoute path="/daily-production-report" component={() => <ProjectsProduction.DailyProductionReportPage />} />
       <ProtectedRoute path="/production-team-management" component={() => <ProjectsProduction.ProductionTeamManagement />} />
+      <ProtectedRoute path="/production/drawings" component={() => <ProjectsProduction.ProductionDrawingsPage />} />
       
       {/* Quality Routes */}
       <ProtectedRoute path="/wps-pqr" component={() => <Quality.WpsPqrPage />} />
