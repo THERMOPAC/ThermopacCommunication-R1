@@ -192,7 +192,7 @@ export default function ProcurementListControlPage() {
   // Projects list
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
-    select: (data) => (data as Project[]).filter((p) => p.status === "Active"),
+    select: (data) => (data as Project[]).filter((p) => p.status === "active"),
   });
 
   // Buy groups (for Group filter dropdown)
