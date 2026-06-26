@@ -489,13 +489,13 @@ export default function EpcDrawingControlPage() {
                                 }
                               </TableCell>
                               <TableCell className="text-[10px] py-1 px-2">
-                                <div className="truncate max-w-[245px]" title={rec.item_description || ""}>{rec.item_code}</div>
+                                <div title={rec.item_description || ""}>{rec.item_code}</div>
                               </TableCell>
                               <TableCell className="text-[10px] py-1 px-2">
                                 {(() => {
                                   const identity = [rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ');
                                   return identity
-                                    ? <div className="truncate max-w-[395px] text-blue-600" title={identity}>{identity}</div>
+                                    ? <div className="text-blue-600">{identity}</div>
                                     : <span className="text-muted-foreground italic">—</span>;
                                 })()}
                               </TableCell>
