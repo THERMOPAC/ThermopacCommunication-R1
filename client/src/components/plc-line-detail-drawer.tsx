@@ -201,7 +201,7 @@ export function PlcLineDetailDrawer({
                 <div>
                   <span className="text-xs text-muted-foreground block">AVL Status</span>
                   <span className={`inline-block px-2 py-0.5 rounded text-xs ${AVL_COLORS[line.avlStatus] ?? "bg-gray-100 text-gray-600"}`}>
-                    {line.avlStatus.replace(/_/g, " ")}
+                    {line.avlStatus?.replace(/_/g, " ")}
                   </span>
                   {line.avlStatus === "bypassed" && line.avlBypassReason && (
                     <p className="text-xs text-muted-foreground mt-0.5 italic">"{line.avlBypassReason}"</p>
