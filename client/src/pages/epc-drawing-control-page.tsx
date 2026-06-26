@@ -451,17 +451,17 @@ export default function EpcDrawingControlPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-[10px] w-6 px-1"></TableHead>
-                        <TableHead className="text-[10px] px-2">DWG Control #</TableHead>
-                        <TableHead className="text-[10px] w-[120px] px-2">Drawing No</TableHead>
+                        <TableHead className="text-[10px] w-[100px] px-2">DWG Control #</TableHead>
+                        <TableHead className="text-[10px] w-[110px] px-2">Drawing No</TableHead>
                         <TableHead className="text-[10px] text-center w-10 px-1">Rev</TableHead>
-                        <TableHead className="text-[10px] w-[120px] px-2">Item</TableHead>
+                        <TableHead className="text-[10px] w-[170px] px-2">Item</TableHead>
                         <TableHead className="text-[10px] px-2">Product Identity</TableHead>
                         <TableHead className="text-[10px] text-center w-[72px] px-1">Status</TableHead>
-                        <TableHead className="text-[10px] text-center w-[80px] px-1">Procurement</TableHead>
-                        <TableHead className="text-[10px] text-center w-[90px] px-1">Manufacturing</TableHead>
-                        <TableHead className="text-[10px] text-center w-[52px] px-1">Client</TableHead>
-                        <TableHead className="text-[10px] w-[70px] px-2">Purpose</TableHead>
-                        <TableHead className="text-[10px] w-[80px] px-2">Assigned To</TableHead>
+                        <TableHead className="text-[10px] text-center w-[62px] px-1">Proc.</TableHead>
+                        <TableHead className="text-[10px] text-center w-[62px] px-1">Mfg.</TableHead>
+                        <TableHead className="text-[10px] text-center w-[48px] px-1">Client</TableHead>
+                        <TableHead className="text-[10px] w-[58px] px-2">Purpose</TableHead>
+                        <TableHead className="text-[10px] w-[68px] px-2">Assigned</TableHead>
                         <TableHead className="text-[10px] text-center px-2">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -489,13 +489,13 @@ export default function EpcDrawingControlPage() {
                                 }
                               </TableCell>
                               <TableCell className="text-[10px] py-1 px-2">
-                                <div className="truncate max-w-[110px]" title={rec.item_description || ""}>{rec.item_code}</div>
+                                <div className="truncate max-w-[160px]" title={rec.item_description || ""}>{rec.item_code}</div>
                               </TableCell>
                               <TableCell className="text-[10px] py-1 px-2">
                                 {(() => {
                                   const identity = [rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ');
                                   return identity
-                                    ? <div className="truncate max-w-[160px] text-blue-600" title={identity}>{identity}</div>
+                                    ? <div className="line-clamp-2 text-blue-600 leading-tight" title={identity}>{identity}</div>
                                     : <span className="text-muted-foreground italic">—</span>;
                                 })()}
                               </TableCell>
