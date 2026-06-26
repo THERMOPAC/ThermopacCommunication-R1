@@ -199,6 +199,8 @@ export default function EpcDrawingControlPage() {
     queryKey: ["/api/projects", projectId, "drawing-controls"],
     queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/drawing-controls`),
     enabled: !!projectId,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "drawing-controls"] });
