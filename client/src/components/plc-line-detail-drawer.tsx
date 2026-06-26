@@ -18,6 +18,15 @@ import {
 } from "@/components/ui/tabs";
 import { Loader2, Clock, AlertTriangle, Save, RotateCcw } from "lucide-react";
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function toCamel(s: string): string {
+  return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+}
+function camelizeKeys(obj: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [toCamel(k), v]));
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface PlcLineDetail {
@@ -84,12 +93,18 @@ export function PlcLineDetailDrawer({
 
   const { data: line, isLoading } = useQuery<PlcLineDetail>({
     queryKey: ["/api/procurement-list-lines", lineId],
-    queryFn: () => apiRequest("GET", `/api/procurement-list-lines/${lineId}`),
+    queryFn: async () => {
+      const raw = await apiRequest("GET", `/api/procurement-list-lines/${lineId}`);
+      return camelizeKeys(raw as Record<string, any>) as unknown as PlcLineDetail;
+    },
   });
 
   const { data: history = [] } = useQuery<AuditEntry[]>({
     queryKey: ["/api/procurement-list-lines", lineId, "history"],
-    queryFn: () => apiRequest("GET", `/api/procurement-list-lines/${lineId}/history`),
+    queryFn: async () => {
+      const raw = await apiRequest("GET", `/api/procurement-list-lines/${lineId}/history`);
+      return (raw as Record<string, any>[]).map(camelizeKeys) as unknown as AuditEntry[];
+    },
     enabled: !!line,
   });
 
