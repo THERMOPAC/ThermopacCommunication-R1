@@ -11585,7 +11585,7 @@ export function setupProjectRoutes(app: express.Express) {
       await db.transaction(async (tx) => {
         // If no one has reviewed yet, auto-record the approver as the reviewer too
         const reviewedBy = rec.reviewed_by || userId;
-        const reviewedAt = rec.reviewed_at || new Date();
+        const reviewedAt = rec.reviewed_at ? new Date(rec.reviewed_at) : new Date();
         const reviewRecommendation = rec.review_recommendation || 'approve';
 
         await tx.update(epcDrawingControls).set({
