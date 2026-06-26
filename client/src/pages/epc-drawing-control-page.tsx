@@ -478,7 +478,7 @@ export default function EpcDrawingControlPage() {
                                 {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                               </TableCell>
                               <TableCell className="text-[10px] font-mono font-medium py-1 px-2 whitespace-nowrap overflow-visible">{rec.dwg_control_number}</TableCell>
-                              <TableCell className="text-[10px] py-1 px-2 whitespace-nowrap overflow-visible">{rec.drawing_number || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                              <TableCell className="text-[10px] font-semibold py-1 px-2 whitespace-nowrap overflow-visible">{rec.drawing_number || <span className="text-muted-foreground italic font-normal">—</span>}</TableCell>
                               <TableCell className="text-center py-1 px-1">
                                 {projectId
                                   ? <LiveRevisionCell projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
@@ -495,7 +495,7 @@ export default function EpcDrawingControlPage() {
                                 {(() => {
                                   const identity = [rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ');
                                   return identity
-                                    ? <div className="text-blue-600">{identity}</div>
+                                    ? <div className="text-blue-600 font-semibold">{identity}</div>
                                     : <span className="text-muted-foreground italic">—</span>;
                                 })()}
                               </TableCell>
