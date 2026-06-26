@@ -451,11 +451,11 @@ export default function EpcDrawingControlPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-[10px] w-6 px-1"></TableHead>
-                        <TableHead className="text-[10px] w-[132px] px-2 whitespace-nowrap">DWG Control #</TableHead>
-                        <TableHead className="text-[10px] w-[112px] px-2 whitespace-nowrap">Drawing No</TableHead>
-                        <TableHead className="text-[10px] text-center w-10 px-1">Rev</TableHead>
-                        <TableHead className="text-[10px] w-[250px] px-2">Item</TableHead>
-                        <TableHead className="text-[10px] w-[400px] px-2">Product Identity</TableHead>
+                        <TableHead className="text-[10px] px-2 whitespace-nowrap">DWG Control #</TableHead>
+                        <TableHead className="text-[10px] px-2 whitespace-nowrap">Drawing No</TableHead>
+                        <TableHead className="text-[10px] text-center w-10 px-1 whitespace-nowrap">Rev</TableHead>
+                        <TableHead className="text-[10px] px-2 whitespace-nowrap">Item</TableHead>
+                        <TableHead className="text-[10px] px-2 whitespace-nowrap">Product Identity</TableHead>
                         <TableHead className="text-[10px] text-center w-[72px] px-1">Status</TableHead>
                         <TableHead className="text-[10px] text-center w-[62px] px-1">Proc.</TableHead>
                         <TableHead className="text-[10px] text-center w-[62px] px-1">Mfg.</TableHead>
@@ -477,8 +477,8 @@ export default function EpcDrawingControlPage() {
                               <TableCell className="py-1 px-1">
                                 {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                               </TableCell>
-                              <TableCell className="text-[10px] font-mono font-medium py-1 px-2 whitespace-nowrap">{rec.dwg_control_number}</TableCell>
-                              <TableCell className="text-[10px] py-1 px-2 whitespace-nowrap">{rec.drawing_number || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                              <TableCell className="text-[10px] font-mono font-medium py-1 px-2 whitespace-nowrap overflow-visible">{rec.dwg_control_number}</TableCell>
+                              <TableCell className="text-[10px] py-1 px-2 whitespace-nowrap overflow-visible">{rec.drawing_number || <span className="text-muted-foreground italic">—</span>}</TableCell>
                               <TableCell className="text-center py-1 px-1">
                                 {projectId
                                   ? <LiveRevisionCell projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
@@ -488,10 +488,10 @@ export default function EpcDrawingControlPage() {
                                     </div>
                                 }
                               </TableCell>
-                              <TableCell className="text-[10px] py-1 px-2">
+                              <TableCell className="text-[10px] py-1 px-2 whitespace-nowrap">
                                 <div title={rec.item_description || ""}>{rec.item_code}</div>
                               </TableCell>
-                              <TableCell className="text-[10px] py-1 px-2">
+                              <TableCell className="text-[10px] py-1 px-2 whitespace-nowrap">
                                 {(() => {
                                   const identity = [rec.product_p1_label, rec.product_p2_label, rec.product_p3].filter(Boolean).join(' ');
                                   return identity
