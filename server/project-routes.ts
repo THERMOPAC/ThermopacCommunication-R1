@@ -4359,8 +4359,8 @@ export function setupProjectRoutes(app: express.Express) {
       let query = sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                               u3.username as reviewed_by_name, u4.username as released_by_name,
                               u5.username as cancelled_by_name,
-                              COALESCE(mi.item_code,   pbll.tag_no)              AS item_code,
-                              COALESCE(mi.description, pbll.generic_requirement) AS item_description,
+                              COALESCE(mi.item_code,   pi.tag_no, pbll.tag_no)              AS item_code,
+                              COALESCE(mi.description, pbll.generic_requirement)             AS item_description,
                               mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                               mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                               mi.standard_cost as item_standard_cost,
@@ -4376,11 +4376,11 @@ export function setupProjectRoutes(app: express.Express) {
                        LEFT JOIN users u3 ON ipr.reviewed_by = u3.id
                        LEFT JOIN users u4 ON ipr.released_by = u4.id
                        LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
-                       LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
+                       LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
+                       LEFT JOIN master_items mi ON mi.id = COALESCE(ipr.master_item_id, pi.item_id)
                        LEFT JOIN project_buy_list_lines pbll ON pbll.id = ipr.source_buy_list_line_id
                        LEFT JOIN uom_master bum ON bum.id = pbll.uom_id
                        LEFT JOIN buy_subgroups bs ON bs.id = pbll.buy_subgroup_id
-                       LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
                        LEFT JOIN products prod ON prod.product_code = pi.product_code
                        WHERE ipr.project_id = ${projectId}`;
 
@@ -4404,8 +4404,8 @@ export function setupProjectRoutes(app: express.Express) {
         sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                    u3.username as reviewed_by_name, u4.username as released_by_name,
                    u5.username as cancelled_by_name,
-                   COALESCE(mi.item_code,   pbll.tag_no)              AS item_code,
-                   COALESCE(mi.description, pbll.generic_requirement) AS item_description,
+                   COALESCE(mi.item_code,   pi.tag_no, pbll.tag_no)              AS item_code,
+                   COALESCE(mi.description, pbll.generic_requirement)             AS item_description,
                    mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                    mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                    mi.standard_cost as item_standard_cost,
@@ -4421,11 +4421,11 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN users u3 ON ipr.reviewed_by = u3.id
             LEFT JOIN users u4 ON ipr.released_by = u4.id
             LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
-            LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
+            LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
+            LEFT JOIN master_items mi ON mi.id = COALESCE(ipr.master_item_id, pi.item_id)
             LEFT JOIN project_buy_list_lines pbll ON pbll.id = ipr.source_buy_list_line_id
             LEFT JOIN uom_master bum ON bum.id = pbll.uom_id
             LEFT JOIN buy_subgroups bs ON bs.id = pbll.buy_subgroup_id
-            LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
             LEFT JOIN products prod ON prod.product_code = pi.product_code
             WHERE ipr.id = ${id}`
       );
