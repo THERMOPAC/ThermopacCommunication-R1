@@ -356,12 +356,18 @@ export default function EpcPlanningControlPage() {
                                       </div>
                                       <div className="px-3 py-2">
                                         <div className="space-y-1">
-                                          <DetailRow label="Planning Number" value={expandedDetail.planning_number} mono />
+                                          <DetailRow label="Planning Number" value={expandedDetail.planning_number || `PLN-${expandedDetail.id}`} mono />
                                           <DetailRow label="Status" value={STATUS_LABELS[expandedDetail.status as StatusType] || expandedDetail.status} />
                                           <DetailRow label="Planning Type" value={expandedDetail.planning_type === "procurement" ? "Procurement (Buy)" : "Production (Make)"} />
-                                          <DetailRow label="Classification" value={expandedDetail.classification_snapshot} />
-                                          <DetailRow label="Quantity" value={expandedDetail.quantity} />
-                                          <DetailRow label="Source" value={expandedDetail.source} />
+                                          <DetailRow label="Classification" value={expandedDetail.classification_snapshot || expandedDetail.item_make_or_buy} />
+                                          <DetailRow label="Quantity" value={expandedDetail.quantity ?? expandedDetail.buy_list_quantity} />
+                                          <DetailRow label="Source" value={
+                                            expandedDetail.source === 'buy_list' ? 'Buy List' :
+                                            expandedDetail.source === 'bom'      ? 'BOM' :
+                                            expandedDetail.source_buy_list_line_id ? 'Buy List' :
+                                            expandedDetail.source_bom_line_id     ? 'BOM' :
+                                            null
+                                          } />
                                           <DetailRow label="Notes" value={expandedDetail.notes} />
                                         </div>
                                       </div>
