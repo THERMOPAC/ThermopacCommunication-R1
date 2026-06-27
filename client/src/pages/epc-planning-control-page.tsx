@@ -360,15 +360,15 @@ export default function EpcPlanningControlPage() {
                                           <DetailRow label="Status" value={STATUS_LABELS[expandedDetail.status as StatusType] || expandedDetail.status} />
                                           <DetailRow label="Planning Type" value={expandedDetail.planning_type === "procurement" ? "Procurement (Buy)" : "Production (Make)"} />
                                           <DetailRow label="Classification" value={expandedDetail.classification_snapshot || expandedDetail.item_make_or_buy} />
-                                          <DetailRow label="Quantity" value={expandedDetail.quantity ?? expandedDetail.buy_list_quantity ?? expandedDetail.project_item_quantity} />
+                                          <DetailRow label="Quantity" value={expandedDetail.quantity} />
                                           <DetailRow label="Source" value={
-                                            expandedDetail.source === 'buy_list' ? 'Buy List' :
-                                            expandedDetail.source === 'bom'      ? 'BOM' :
+                                            expandedDetail.source === 'buy_list'      ? 'Buy List' :
+                                            expandedDetail.source === 'bom'           ? 'BOM' :
                                             expandedDetail.source === 'bom_explosion' ? 'BOM Explosion' :
-                                            expandedDetail.source_buy_list_line_id ? 'Buy List' :
-                                            expandedDetail.source_bom_line_id     ? 'BOM' :
-                                            expandedDetail.planning_type === 'make' ? 'Production' :
-                                            expandedDetail.planning_type === 'procurement' ? 'Buy List' :
+                                            expandedDetail.source === 'wo_draft'      ? 'Production' :
+                                            expandedDetail.source === 'po_draft'      ? 'Purchase' :
+                                            expandedDetail.source_buy_list_line_id    ? 'Buy List' :
+                                            expandedDetail.source_bom_line_id         ? 'BOM' :
                                             null
                                           } />
                                         </div>

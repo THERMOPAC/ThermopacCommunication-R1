@@ -367,8 +367,8 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
 
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
-        (project_id, project_item_id, master_item_id, planning_type, planning_number, status, created_by, assigned_to)
-        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, ${planningType}, ${planningNumber}, 'active', ${userId}, ${planningAssignee})
+        (project_id, project_item_id, master_item_id, planning_type, planning_number, quantity, source, status, created_by, assigned_to)
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, ${planningType}, ${planningNumber}, ${quantity}, 'wo_draft', 'active', ${userId}, ${planningAssignee})
         RETURNING id`
   );
   const planningRecordId = (planningResult.rows[0] as any).id;
@@ -542,8 +542,8 @@ async function activatePurchaseOrder(draft: any, userId: number): Promise<{ enti
 
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
-        (project_id, project_item_id, master_item_id, planning_type, planning_number, status, created_by, assigned_to)
-        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'buy', ${buyPlanningNumber}, 'active', ${userId}, ${purchaseAssignee})
+        (project_id, project_item_id, master_item_id, planning_type, planning_number, quantity, source, status, created_by, assigned_to)
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'buy', ${buyPlanningNumber}, ${quantity}, 'po_draft', 'active', ${userId}, ${purchaseAssignee})
         RETURNING id`
   );
   const planningRecordId = (planningResult.rows[0] as any).id;
