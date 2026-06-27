@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown, Lock, Copy, Check, FilePen } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, FileDown, Lock, Copy, Check, FilePen } from 'lucide-react';
 
 // ─── Copy helper ─────────────────────────────────────────────────────────────
 
@@ -2333,41 +2333,33 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
   // ── PDF state & handlers ───────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [excelLoading, setExcelLoading] = useState(false);
 
   async function handleDownloadPdf() {
     setPdfLoading(true);
+    toast({ title: 'Generating PDF…', description: 'This may take a few seconds.' });
     try {
+      const r = await fetch(`/api/drawing-design-data/${drawingControlId}/pdf-stream`, { credentials: 'include' });
+      if (!r.ok) {
+        toast({ title: 'Error', description: 'PDF generation failed', variant: 'destructive' });
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = `/api/drawing-design-data/${drawingControlId}/pdf-stream`;
+      a.href = url;
       a.download = `DDS-${drawingControlId}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: 'Error', description: 'PDF generation failed', variant: 'destructive' });
     } finally { setPdfLoading(false); }
   }
 
   async function handlePreviewPdf() {
     window.open(`/api/drawing-design-data/${drawingControlId}/pdf-stream`, '_blank', 'noopener');
-  }
-
-  async function handleRegeneratePdf() {
-    setRegenerating(true);
-    try {
-      const r = await fetch(`/api/drawing-design-data/${drawingControlId}/regenerate-pdf`, {
-        method: 'POST', credentials: 'include',
-      });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        toast({ title: 'Regenerate failed', description: j.error || 'PDF generation failed', variant: 'destructive' });
-      } else {
-        toast({ title: 'PDF Ready', description: 'Design Data Sheet PDF regenerated.' });
-        qc.invalidateQueries({ queryKey: ['/api/drawing-design-data', drawingControlId] });
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Regeneration request failed', variant: 'destructive' });
-    } finally { setRegenerating(false); }
   }
 
   async function handleDownloadExcel() {
@@ -2448,21 +2440,6 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
               {/* ── Compact PDF card ────────────────────────────── */}
               <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded px-2.5 py-2 gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  {/* PDF status badge */}
-                  {sheet.dds_pdf_status === 'ready' ? (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-300 shrink-0">
-                      PDF Ready
-                    </Badge>
-                  ) : sheet.dds_pdf_status === 'error' ? (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-red-50 text-red-700 border-red-300 shrink-0">
-                      PDF Failed
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-300 shrink-0">
-                      Generating…
-                    </Badge>
-                  )}
-                  {/* Last saved date */}
                   {sheet.updated_at && (
                     <span className="text-[9px] text-slate-500 truncate">
                       Saved {fmtDate(sheet.updated_at)}
@@ -2481,40 +2458,25 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                     {excelLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FileDown className="h-3 w-3 mr-1" />}
                     Excel
                   </Button>
-                  {sheet.dds_gcs_path && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-[9px] px-2"
-                        onClick={handleDownloadPdf}
-                        disabled={pdfLoading}
-                      >
-                        {pdfLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
-                        Download PDF
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-[9px] px-2"
-                        onClick={handlePreviewPdf}
-                        disabled={pdfLoading}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Preview
-                      </Button>
-                    </>
-                  )}
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 text-[9px] px-2 text-slate-600 border-slate-300"
-                    onClick={handleRegeneratePdf}
-                    disabled={regenerating}
-                    title="Regenerate PDF from current data"
+                    className="h-6 text-[9px] px-2"
+                    onClick={handleDownloadPdf}
+                    disabled={pdfLoading}
                   >
-                    {regenerating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                    Regenerate
+                    {pdfLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+                    Download PDF
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[9px] px-2"
+                    onClick={handlePreviewPdf}
+                    disabled={pdfLoading}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Preview
                   </Button>
                 </div>
               </div>

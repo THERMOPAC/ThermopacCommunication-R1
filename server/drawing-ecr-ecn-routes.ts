@@ -558,7 +558,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
               equipment_type, manufacture_serial_no, inspection_by,
               equipment_config, mechanical_data, general_data,
               applied_code, hazard_data,
-              status, dds_gcs_path, dds_pdf_status,
+              status,
               created_by, updated_by, created_at, updated_at
             ) VALUES (
               ${inserted[0].id}, ${oldDds.project_id},
@@ -566,7 +566,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
               ${oldDds.equipment_type}, ${oldDds.manufacture_serial_no}, ${oldDds.inspection_by},
               ${oldDds.equipment_config}, ${JSON.stringify(oldDds.mechanical_data)}::jsonb, ${JSON.stringify(oldDds.general_data)}::jsonb,
               ${oldDds.applied_code}, ${oldDds.hazard_data !== null && oldDds.hazard_data !== undefined ? JSON.stringify(oldDds.hazard_data) : null}::jsonb,
-              'draft', NULL, NULL,
+              'draft',
               ${userId}, ${userId}, NOW(), NOW()
             ) RETURNING id
           `);
