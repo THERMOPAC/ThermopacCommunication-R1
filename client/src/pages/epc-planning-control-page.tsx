@@ -429,7 +429,7 @@ export default function EpcPlanningControlPage() {
                                       <div className="space-y-1">
                                         <DetailRow label="Created By" value={expandedDetail.created_by_name} />
                                         <DetailRow label="Created" value={formatDate(expandedDetail.created_at)} />
-                                        <DetailRow label="Assigned To" value={expandedDetail.assigned_to_name || (expandedDetail.planning_type === 'procurement' ? 'Senior Executive' : 'Unassigned')} />
+                                        <DetailRow label="Assigned To" value={expandedDetail.assigned_to_name} />
                                         {expandedDetail.reviewed_by_name && (
                                           <>
                                             <Separator className="my-1" />
