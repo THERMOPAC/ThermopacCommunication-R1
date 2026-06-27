@@ -2763,6 +2763,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       req.body = { lineIds };
       // fall through by calling the shared handler inline
       const userId = (req.user as any).id;
+      const seRes = await pool.query(`SELECT id FROM users WHERE role='Senior Executive' AND department='Purchase' AND is_active=true ORDER BY id LIMIT 1`);
+      const purchaseAssigneeId: number | null = seRes.rows[0]?.id ?? null;
       const results: any[] = []; const errors: any[] = [];
       let succeeded = 0;
       const client = await pool.connect();
@@ -2807,8 +2809,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const planningNumber = `${h.project_code}-PLN-${seq}`;
             const notes = [line.tag_no ? `Tag: ${line.tag_no}` : null, line.service_description || null, line.equipment_reference || null].filter(Boolean).join(' | ');
             const plnIns = await client.query<{ id: number }>(
-              `INSERT INTO item_planning_records (project_id,project_item_id,master_item_id,planning_type,source,source_buy_list_header_id,source_buy_list_line_id,quantity,notes,planning_number,status,created_by,created_at,updated_at) VALUES($1,$2,$3,'procurement','buy_list',$4,$5,$6,$7,$8,'draft',$9,NOW(),NOW()) RETURNING id`,
-              [h.project_id, projectItemId, line.selected_master_item_id, headerId, lineId, qty, notes, planningNumber, userId],
+              `INSERT INTO item_planning_records (project_id,project_item_id,master_item_id,planning_type,source,source_buy_list_header_id,source_buy_list_line_id,quantity,notes,planning_number,status,assigned_to,created_by,created_at,updated_at) VALUES($1,$2,$3,'procurement','buy_list',$4,$5,$6,$7,$8,'draft',$9,$10,NOW(),NOW()) RETURNING id`,
+              [h.project_id, projectItemId, line.selected_master_item_id, headerId, lineId, qty, notes, planningNumber, purchaseAssigneeId, userId],
             );
             const planningRecordId = plnIns.rows[0].id;
             await client.query(`UPDATE project_buy_list_lines SET planning_record_id=$1, updated_at=NOW() WHERE id=$2`, [planningRecordId, lineId]);
@@ -2855,6 +2857,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if ((h.cost_lock_status ?? 'unlocked') === 'approved') return sendBusinessError(res, 'Cost is locked — project items cannot be modified.');
 
       const userId = (req.user as any).id;
+      const seRes2 = await pool.query(`SELECT id FROM users WHERE role='Senior Executive' AND department='Purchase' AND is_active=true ORDER BY id LIMIT 1`);
+      const purchaseAssigneeId2: number | null = seRes2.rows[0]?.id ?? null;
       const results: any[] = []; const errors: any[] = [];
       let succeeded = 0;
 
@@ -2907,8 +2911,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const notes = [line.tag_no ? `Tag: ${line.tag_no}` : null, line.service_description || null, line.equipment_reference || null].filter(Boolean).join(' | ');
 
             const plnIns = await client.query<{ id: number }>(
-              `INSERT INTO item_planning_records (project_id,project_item_id,master_item_id,planning_type,source,source_buy_list_header_id,source_buy_list_line_id,quantity,notes,planning_number,status,created_by,created_at,updated_at) VALUES($1,$2,$3,'procurement','buy_list',$4,$5,$6,$7,$8,'draft',$9,NOW(),NOW()) RETURNING id`,
-              [h.project_id, projectItemId, line.selected_master_item_id, headerId, lineId, qty, notes, planningNumber, userId],
+              `INSERT INTO item_planning_records (project_id,project_item_id,master_item_id,planning_type,source,source_buy_list_header_id,source_buy_list_line_id,quantity,notes,planning_number,status,assigned_to,created_by,created_at,updated_at) VALUES($1,$2,$3,'procurement','buy_list',$4,$5,$6,$7,$8,'draft',$9,$10,NOW(),NOW()) RETURNING id`,
+              [h.project_id, projectItemId, line.selected_master_item_id, headerId, lineId, qty, notes, planningNumber, purchaseAssigneeId2, userId],
             );
             const planningRecordId = plnIns.rows[0].id;
             await client.query(`UPDATE project_buy_list_lines SET planning_record_id=$1, updated_at=NOW() WHERE id=$2`, [planningRecordId, lineId]);
