@@ -4365,6 +4365,7 @@ export function setupProjectRoutes(app: express.Express) {
                               mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                               mi.standard_cost as item_standard_cost,
                               pbll.quantity AS buy_list_quantity,
+                              bum.code AS buy_uom,
                               bs.label AS buy_subgroup_label,
                               prod.item_property_1_label AS product_p1_label,
                               prod.item_property_2_label AS product_p2_label,
@@ -4377,6 +4378,7 @@ export function setupProjectRoutes(app: express.Express) {
                        LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
                        LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
                        LEFT JOIN project_buy_list_lines pbll ON pbll.id = ipr.source_buy_list_line_id
+                       LEFT JOIN uom_master bum ON bum.id = pbll.uom_id
                        LEFT JOIN buy_subgroups bs ON bs.id = pbll.buy_subgroup_id
                        LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
                        LEFT JOIN products prod ON prod.product_code = pi.product_code
@@ -4408,6 +4410,7 @@ export function setupProjectRoutes(app: express.Express) {
                    mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                    mi.standard_cost as item_standard_cost,
                    pbll.quantity AS buy_list_quantity,
+                   bum.code AS buy_uom,
                    bs.label AS buy_subgroup_label,
                    prod.item_property_1_label AS product_p1_label,
                    prod.item_property_2_label AS product_p2_label,
@@ -4420,6 +4423,7 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
             LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
             LEFT JOIN project_buy_list_lines pbll ON pbll.id = ipr.source_buy_list_line_id
+            LEFT JOIN uom_master bum ON bum.id = pbll.uom_id
             LEFT JOIN buy_subgroups bs ON bs.id = pbll.buy_subgroup_id
             LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
             LEFT JOIN products prod ON prod.product_code = pi.product_code

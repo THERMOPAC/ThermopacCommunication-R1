@@ -393,8 +393,8 @@ export default function EpcPlanningControlPage() {
                                             </div>
                                           </div>
                                         )}
-                                        <DetailRow label="UOM" value={expandedDetail.item_uom} />
-                                        <DetailRow label="Make / Buy" value={expandedDetail.item_make_or_buy} />
+                                        <DetailRow label="UOM" value={expandedDetail.item_uom || expandedDetail.buy_uom} />
+                                        <DetailRow label="Make / Buy" value={expandedDetail.item_make_or_buy || (expandedDetail.planning_type === 'procurement' ? 'Buy' : null)} />
                                         {expandedDetail.item_specification && (
                                           <DetailRow label="Specification" value={expandedDetail.item_specification} />
                                         )}
@@ -429,7 +429,7 @@ export default function EpcPlanningControlPage() {
                                       <div className="space-y-1">
                                         <DetailRow label="Created By" value={expandedDetail.created_by_name} />
                                         <DetailRow label="Created" value={formatDate(expandedDetail.created_at)} />
-                                        <DetailRow label="Assigned To" value={expandedDetail.assigned_to_name} />
+                                        <DetailRow label="Assigned To" value={expandedDetail.assigned_to_name || 'Unassigned'} />
                                         {expandedDetail.reviewed_by_name && (
                                           <>
                                             <Separator className="my-1" />
