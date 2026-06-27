@@ -8127,6 +8127,7 @@ export function setupProjectRoutes(app: express.Express) {
                              COALESCE(NULLIF(ewo.item_description, ''), mi.description) AS item_description,
                              COALESCE(NULLIF(ewo.item_specification, ''), mi.specification) AS item_specification,
                              COALESCE(NULLIF(ewo.drawing_no, ''), dc.drawing_number) AS drawing_no,
+                             dc.drawing_revision AS drawing_revision_text,
                              u1.username as created_by_name, u2.username as approved_by_name,
                              u3.username as released_by_name
                       FROM epc_work_orders ewo
@@ -8160,6 +8161,7 @@ export function setupProjectRoutes(app: express.Express) {
                    COALESCE(NULLIF(ewo.item_description, ''), mi.description) AS item_description,
                    COALESCE(NULLIF(ewo.item_specification, ''), mi.specification) AS item_specification,
                    COALESCE(NULLIF(ewo.drawing_no, ''), dc.drawing_number) AS drawing_no,
+                   dc.drawing_revision AS drawing_revision_text,
                    u1.username as created_by_name, u2.username as approved_by_name,
                    u3.username as released_by_name
             FROM epc_work_orders ewo

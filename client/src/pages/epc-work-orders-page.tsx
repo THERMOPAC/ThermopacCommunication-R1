@@ -406,7 +406,7 @@ export default function EpcWorkOrdersPage() {
                                       <div className="space-y-1">
                                         <DetailRow label="Classification" value={expandedDetail.make_classification} />
                                         <DetailRow label="Drawing No" value={expandedDetail.drawing_no} mono />
-                                        <DetailRow label="Drawing Rev" value={expandedDetail.drawing_revision} />
+                                        <DetailRow label="Drawing Rev" value={expandedDetail.drawing_revision_text || (expandedDetail.drawing_revision != null ? String(expandedDetail.drawing_revision) : undefined)} />
                                         <DetailRow label="Est. Unit Cost" value={formatAmount(expandedDetail.estimated_unit_cost)} />
                                         <DetailRow label="Est. Total Cost" value={formatAmount(expandedDetail.estimated_total_cost)} />
                                         <DetailRow label="Mfg Notes" value={expandedDetail.manufacturing_notes} />
@@ -447,7 +447,7 @@ export default function EpcWorkOrdersPage() {
                                               {item.item_description && <p className="text-muted-foreground truncate">{item.item_description}</p>}
                                               <div className="flex gap-3 mt-0.5 text-muted-foreground">
                                                 <span>Qty: {item.quantity} {item.uom || ""}</span>
-                                                {item.drawing_no && <span>Dwg: {item.drawing_no} R{item.drawing_revision || 0}</span>}
+                                                {item.drawing_no && <span>Dwg: {item.drawing_no}{(item.drawing_revision_text || item.drawing_revision) ? ` Rev ${item.drawing_revision_text || item.drawing_revision}` : ""}</span>}
                                               </div>
                                             </div>
                                           ))}
