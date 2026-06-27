@@ -7,6 +7,9 @@ import { checkProjectMembership } from './utils/permission-utils';
 import type { MechanicalColumn, MechanicalData, GeneralData, HazardData, ColumnHazardData } from '@shared/schema';
 import { generateDdsPdfBuffer } from './dds-pdf-service';
 import { generateDdsExcel } from './dds-excel-service';
+import { getActiveCompany } from './utils/company-context';
+import { Storage } from '@google-cloud/storage';
+import { bucketName } from './utils/storage-config';
 
 const router = express.Router();
 
@@ -879,6 +882,32 @@ router.get('/:dwgControlId/excel', ensureAuthenticated, async (req: Request, res
     ? JSON.parse(sheetRow.general_data)
     : sheetRow.general_data) || {};
 
+  // Fetch company logo + info for Nameplate sheet
+  let logoBuffer: Buffer | null = null;
+  let companyName: string | null = null;
+  let companyAddress: string | null = null;
+  try {
+    const co = await getActiveCompany();
+    companyName = co.legalName || co.displayName || null;
+    if (co.registeredOffice) {
+      const a = co.registeredOffice;
+      companyAddress = [a.line1, a.line2, a.city, a.state, a.pinCode, a.country]
+        .filter(Boolean).join(', ');
+    }
+    if (co.logoGcsPath) {
+      const creds = process.env.GOOGLE_CLOUD_CREDENTIALS
+        ? JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
+        : null;
+      const gcs = process.env.NODE_ENV === 'production' || !creds
+        ? new Storage()
+        : new Storage({ projectId: creds.project_id, credentials: creds });
+      const [buf] = await gcs.bucket(bucketName).file(co.logoGcsPath).download();
+      logoBuffer = buf;
+    }
+  } catch (err) {
+    console.warn('[DDS Excel] Logo/company fetch failed (nameplate will use defaults):', err);
+  }
+
   try {
     const buffer = await generateDdsExcel({
       sheet: {
@@ -902,6 +931,9 @@ router.get('/:dwgControlId/excel', ensureAuthenticated, async (req: Request, res
       revision,
       generatedBy: user.username || user.email || 'System',
       projectCode: proj?.code || null,
+      logoBuffer,
+      companyName,
+      companyAddress,
     });
 
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
