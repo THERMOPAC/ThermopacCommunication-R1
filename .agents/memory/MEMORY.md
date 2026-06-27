@@ -4,3 +4,4 @@
 - [trip_documents path columns](trip-documents-path-columns.md) — file_path is the real GCS key; gcs_path is unreliable. 4 pre-GCS records (ids 5,10,12,69) have ADMIN/Travel/... paths with no GCS object — exclude from all mirror/GCS operations.
 - [Local Document Agent technical debt](local-doc-agent-tech-debt.md) — node-windows install path in src/index.ts is dead in the .exe (excluded from pkg bundle); NSSM is the only live mechanism. Safe to remove in a future cleanup.
 - [GCS auth in production vs dev](gcs-auth-production-vs-dev.md) — Production autoscale containers must use new Storage() (ADC/metadata-server); GOOGLE_CLOUD_CREDENTIALS private key fails with invalid_grant in production. Dev uses explicit credentials.
+- [Replit publish DB diff pre-flight hang](replit-publish-db-diff-hang.md) — Publishing UI times out on drizzle-kit schema diff (schema too large); retry until it passes. Build pipeline itself has no drizzle step. PROD_DATABASE_URL is not real.
