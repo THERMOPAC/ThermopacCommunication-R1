@@ -895,6 +895,7 @@ router.get('/:dwgControlId/excel', ensureAuthenticated, async (req: Request, res
         .filter(Boolean).join(', ');
     }
     if (co.logoGcsPath) {
+      // Logo stored in GCS — download via SDK
       const creds = process.env.GOOGLE_CLOUD_CREDENTIALS
         ? JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS)
         : null;
@@ -903,6 +904,17 @@ router.get('/:dwgControlId/excel', ensureAuthenticated, async (req: Request, res
         : new Storage({ projectId: creds.project_id, credentials: creds });
       const [buf] = await gcs.bucket(bucketName).file(co.logoGcsPath).download();
       logoBuffer = buf;
+    } else {
+      // Fallback: read logo from local public directory
+      const { readFileSync, existsSync } = await import('fs');
+      const { join } = await import('path');
+      const candidates = [
+        join(process.cwd(), 'client/public/images/thermopac-logo.jpg'),
+        join(process.cwd(), 'client/public/assets/thermopac-logo.jpg'),
+      ];
+      for (const p of candidates) {
+        if (existsSync(p)) { logoBuffer = readFileSync(p); break; }
+      }
     }
   } catch (err) {
     console.warn('[DDS Excel] Logo/company fetch failed (nameplate will use defaults):', err);
