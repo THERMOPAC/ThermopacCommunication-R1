@@ -4359,8 +4359,8 @@ export function setupProjectRoutes(app: express.Express) {
       let query = sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                               u3.username as reviewed_by_name, u4.username as released_by_name,
                               u5.username as cancelled_by_name,
-                              COALESCE(mi.item_code,   pi.tag_no, pbll.tag_no)              AS item_code,
-                              COALESCE(mi.description, pbll.generic_requirement)             AS item_description,
+                              COALESCE(mi.item_code,   pi.tag_no, pbll.tag_no)                           AS item_code,
+                              COALESCE(mi.description, pbll.generic_requirement, pbll_tag.generic_requirement) AS item_description,
                               mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                               mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                               mi.standard_cost as item_standard_cost,
@@ -4379,6 +4379,13 @@ export function setupProjectRoutes(app: express.Express) {
                        LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
                        LEFT JOIN master_items mi ON mi.id = COALESCE(ipr.master_item_id, pi.item_id)
                        LEFT JOIN project_buy_list_lines pbll ON pbll.id = ipr.source_buy_list_line_id
+                       LEFT JOIN LATERAL (
+                         SELECT l2.generic_requirement FROM project_buy_list_lines l2
+                         JOIN project_buy_list_headers h2 ON h2.id = l2.buy_list_header_id
+                         WHERE h2.project_id = ipr.project_id AND l2.tag_no = pi.tag_no
+                           AND pi.tag_no IS NOT NULL AND ipr.source_buy_list_line_id IS NULL
+                         LIMIT 1
+                       ) pbll_tag ON true
                        LEFT JOIN uom_master bum ON bum.id = pbll.uom_id
                        LEFT JOIN buy_subgroups bs ON bs.id = pbll.buy_subgroup_id
                        LEFT JOIN products prod ON prod.product_code = pi.product_code
@@ -4404,8 +4411,8 @@ export function setupProjectRoutes(app: express.Express) {
         sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                    u3.username as reviewed_by_name, u4.username as released_by_name,
                    u5.username as cancelled_by_name,
-                   COALESCE(mi.item_code,   pi.tag_no, pbll.tag_no)              AS item_code,
-                   COALESCE(mi.description, pbll.generic_requirement)             AS item_description,
+                   COALESCE(mi.item_code,   pi.tag_no, pbll.tag_no)                           AS item_code,
+                   COALESCE(mi.description, pbll.generic_requirement, pbll_tag.generic_requirement) AS item_description,
                    mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
                    mi.specification as item_specification, mi.drawing_no as item_drawing_no,
                    mi.standard_cost as item_standard_cost,
@@ -4424,6 +4431,13 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN project_items pi ON pi.id = ipr.project_item_id
             LEFT JOIN master_items mi ON mi.id = COALESCE(ipr.master_item_id, pi.item_id)
             LEFT JOIN project_buy_list_lines pbll ON pbll.id = ipr.source_buy_list_line_id
+            LEFT JOIN LATERAL (
+              SELECT l2.generic_requirement FROM project_buy_list_lines l2
+              JOIN project_buy_list_headers h2 ON h2.id = l2.buy_list_header_id
+              WHERE h2.project_id = ipr.project_id AND l2.tag_no = pi.tag_no
+                AND pi.tag_no IS NOT NULL AND ipr.source_buy_list_line_id IS NULL
+              LIMIT 1
+            ) pbll_tag ON true
             LEFT JOIN uom_master bum ON bum.id = pbll.uom_id
             LEFT JOIN buy_subgroups bs ON bs.id = pbll.buy_subgroup_id
             LEFT JOIN products prod ON prod.product_code = pi.product_code
