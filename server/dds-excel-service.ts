@@ -450,7 +450,7 @@ export async function generateDdsExcel(input: DdsExcelInput): Promise<Buffer> {
 
   // ── Single-value rows below the table ───────────────────────────────────────
   npMergedRow(r4, 'YEAR OF MANUFACTURE', currentYear); r4++;
-  npMergedRow(r4, 'TAG NUMBER',          sheet.tag_no ?? null); r4++;
+  npMergedRow(r4, 'TAG NUMBER',          drawingNumber ?? null); r4++;
   npMergedRow(r4, 'HYDROTEST DATE',      null); r4++;
 
   // ── Weight section: EMPTY and OPERATING always in B/C; unit spans to NP_COLS ─
