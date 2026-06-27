@@ -7,6 +7,8 @@ import { checkProjectMembership } from './utils/permission-utils';
 import type { MechanicalColumn, MechanicalData, GeneralData, HazardData, ColumnHazardData } from '@shared/schema';
 import { generateAndUploadDdsPdf, getDdsPdfSignedUrl } from './dds-pdf-service';
 import { generateDdsExcel } from './dds-excel-service';
+import { Storage } from '@google-cloud/storage';
+import { bucketName } from './utils/storage-config';
 
 const router = express.Router();
 
@@ -837,8 +839,16 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
   });
 });
 
-// GET /api/drawing-design-data/:dwgControlId/pdf-url
+// GET /api/drawing-design-data/:dwgControlId/pdf-url  (legacy — kept for compatibility)
 router.get('/:dwgControlId/pdf-url', ensureAuthenticated, async (req: Request, res: Response) => {
+  const dwgControlId = parseInt(req.params.dwgControlId);
+  if (isNaN(dwgControlId)) return res.status(400).json({ error: 'Invalid dwgControlId' });
+  return res.json({ url: `/api/drawing-design-data/${dwgControlId}/pdf-stream` });
+});
+
+// GET /api/drawing-design-data/:dwgControlId/pdf-stream
+// Streams the DDS PDF through the server using ADC — avoids GCS signed URL signing issues in production.
+router.get('/:dwgControlId/pdf-stream', ensureAuthenticated, async (req: Request, res: Response) => {
   const dwgControlId = parseInt(req.params.dwgControlId);
   if (isNaN(dwgControlId)) return res.status(400).json({ error: 'Invalid dwgControlId' });
 
@@ -855,11 +865,18 @@ router.get('/:dwgControlId/pdf-url', ensureAuthenticated, async (req: Request, r
   if (!sheet?.dds_gcs_path) return res.status(404).json({ error: 'No PDF available for this sheet' });
 
   try {
-    const url = await getDdsPdfSignedUrl(sheet.dds_gcs_path);
-    return res.json({ url });
+    const adcStorage = new Storage();
+    const file = adcStorage.bucket(bucketName).file(sheet.dds_gcs_path as string);
+    const [exists] = await file.exists();
+    if (!exists) return res.status(404).json({ error: 'PDF file not found in storage' });
+
+    const filename = (sheet.dds_gcs_path as string).split('/').pop() || `DDS-${dwgControlId}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    file.createReadStream().pipe(res);
   } catch (err) {
-    console.error('[DDS PDF] Signed URL error:', err);
-    return res.status(500).json({ error: 'Failed to generate signed URL' });
+    console.error('[DDS PDF] Stream error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to stream PDF' });
   }
 });
 

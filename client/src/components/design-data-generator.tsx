@@ -2336,39 +2336,20 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const [regenerating, setRegenerating] = useState(false);
   const [excelLoading, setExcelLoading] = useState(false);
 
-  async function fetchPdfUrl(): Promise<string | null> {
-    try {
-      const r = await fetch(`/api/drawing-design-data/${drawingControlId}/pdf-url`, { credentials: 'include' });
-      if (!r.ok) { toast({ title: 'Error', description: 'PDF not available', variant: 'destructive' }); return null; }
-      const json = await r.json();
-      return json.url || null;
-    } catch {
-      toast({ title: 'Error', description: 'Failed to get PDF link', variant: 'destructive' });
-      return null;
-    }
-  }
-
   async function handleDownloadPdf() {
     setPdfLoading(true);
     try {
-      const url = await fetchPdfUrl();
-      if (url) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `DDS-${drawingControlId}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
+      const a = document.createElement('a');
+      a.href = `/api/drawing-design-data/${drawingControlId}/pdf-stream`;
+      a.download = `DDS-${drawingControlId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } finally { setPdfLoading(false); }
   }
 
   async function handlePreviewPdf() {
-    setPdfLoading(true);
-    try {
-      const url = await fetchPdfUrl();
-      if (url) window.open(url, '_blank', 'noopener');
-    } finally { setPdfLoading(false); }
+    window.open(`/api/drawing-design-data/${drawingControlId}/pdf-stream`, '_blank', 'noopener');
   }
 
   async function handleRegeneratePdf() {

@@ -19,3 +19,6 @@ if (process.env.NODE_ENV === 'production') {
 ```
 
 Note: ADC in production does NOT support local RSA signing for signed URLs (needs signBlob IAM API). Use direct `file.createReadStream().pipe(res)` streaming instead of redirect-to-signed-URL when the download must go through the server.
+
+## DDS PDF download fix (June 2026)
+`getDdsPdfSignedUrl()` caused `SignatureDoesNotMatch` in production because it called `getSignedUrl()` using the broken `GOOGLE_CLOUD_CREDENTIALS` private key. Fix: replaced the `pdf-url` route with a `pdf-stream` route that uses `new Storage()` (ADC) and pipes the file directly. Client now navigates to `/api/drawing-design-data/:id/pdf-stream` (same-origin, session cookie sent automatically) instead of fetching a GCS signed URL.
