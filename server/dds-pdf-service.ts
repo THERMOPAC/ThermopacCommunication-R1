@@ -58,6 +58,8 @@ export async function generateAndUploadDdsPdf(
       rev: revision,
     });
 
+    console.log('[DDS PDF] general_data type:', typeof sheet.general_data, '| weight:', (sheet.general_data as any)?.weightEmptyOperatingHydro, '| wind:', (sheet.general_data as any)?.windDesignVelocity, '| loc:', (sheet.general_data as any)?.location);
+
     const html = generateDdsHtml(sheet, {
       drawingNumber,
       revisionCode: revision,
