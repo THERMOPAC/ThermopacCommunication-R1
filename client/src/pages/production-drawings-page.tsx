@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { getProjectDisplayName } from "@/lib/project-utils";
 import { fmtDate } from "@/lib/date-format";
 import { useQuery } from "@tanstack/react-query";
@@ -142,7 +143,11 @@ function RevInlineBadge({ projectId, parentEntityId, isCurrent, fallback }: {
   );
 }
 
+// Roles permitted to raise an ECR from the Production Drawings page
+const PRODUCTION_ECR_ROLES = new Set(['Superuser', 'General Manager', 'Senior Manager', 'Manager']);
+
 export default function ProductionDrawingsPage() {
+  const { user } = useAuth();
   const [projectId, setProjectId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -454,12 +459,12 @@ export default function ProductionDrawingsPage() {
 
                                     {/* ════ RIGHT ════ */}
                                     <div className="space-y-3">
-                                      {/* Engineering Changes — read-only (userRole="readonly" hides Create ECR) */}
+                                      {/* Engineering Changes — ECR creation allowed for permitted Production roles */}
                                       <DrawingEngineeringChanges
                                         drawingControlId={rec.id}
                                         dwgControlNumber={rec.dwg_control_number}
                                         revisionCode={rec.revision_code}
-                                        userRole="readonly"
+                                        userRole={PRODUCTION_ECR_ROLES.has(user?.role ?? '') ? (user?.role ?? 'readonly') : 'readonly'}
                                         drawingStatus={rec.status}
                                       />
                                     </div>
