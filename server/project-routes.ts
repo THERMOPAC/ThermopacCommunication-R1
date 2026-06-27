@@ -5311,6 +5311,11 @@ export function setupProjectRoutes(app: express.Express) {
         );
         if (existingQP.rows.length === 0) {
           const qualityPlanNumber = await epcCoding.generateDocumentNumber(record.project_id, 'QPL', tx);
+          let qpItemDescription: string | null = record.item_description || null;
+          if (!qpItemDescription && record.master_item_id) {
+            const miRow = await tx.execute(sql`SELECT description FROM master_items WHERE id = ${record.master_item_id} LIMIT 1`);
+            qpItemDescription = (miRow.rows[0] as any)?.description || null;
+          }
           const [qpRec] = await tx.insert(qualityPlanningRecords).values({
             qualityPlanNumber,
             projectId: record.project_id,
@@ -5320,7 +5325,7 @@ export function setupProjectRoutes(app: express.Express) {
             procurementExecId: id,
             planningRecordId: record.planning_record_id,
             itemCode: record.item_code || null,
-            itemDescription: record.item_description || null,
+            itemDescription: qpItemDescription,
             itemSpecification: record.item_specification || null,
             uom: record.uom || null,
             drawingNo: record.drawing_no || null,
@@ -5873,6 +5878,11 @@ export function setupProjectRoutes(app: express.Express) {
         );
         if (existingQP.rows.length === 0) {
           const qualityPlanNumber = await epcCoding.generateDocumentNumber(record.project_id, 'QPL', tx);
+          let qpItemDescription: string | null = record.item_description || null;
+          if (!qpItemDescription && record.master_item_id) {
+            const miRow = await tx.execute(sql`SELECT description FROM master_items WHERE id = ${record.master_item_id} LIMIT 1`);
+            qpItemDescription = (miRow.rows[0] as any)?.description || null;
+          }
           const [qpRec] = await tx.insert(qualityPlanningRecords).values({
             qualityPlanNumber,
             projectId: record.project_id,
@@ -5882,7 +5892,7 @@ export function setupProjectRoutes(app: express.Express) {
             productionExecId: id,
             planningRecordId: record.planning_record_id,
             itemCode: record.item_code || null,
-            itemDescription: record.item_description || null,
+            itemDescription: qpItemDescription,
             itemSpecification: record.item_specification || null,
             uom: record.uom || null,
             drawingNo: record.drawing_no || null,

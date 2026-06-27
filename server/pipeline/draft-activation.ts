@@ -334,7 +334,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
 async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId: number; entityType: string }> {
   const sd = draft.source_data || {};
   const itemCode = sd.item_code || sd.master_item_code || '';
-  const itemDesc = sd.master_item_description || sd.item_description || '';
+  let itemDesc = sd.master_item_description || sd.item_description || '';
   const quantity = parseFloat(sd.quantity) || 1;
   const uom = sd.uom || 'set';
   const classification = sd.make_or_buy || 'Make';
@@ -477,7 +477,9 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
              quality_requirement_type, quality_plan_number, quality_notes,
              status, created_by, created_at, updated_at)
             VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'work_order',
-                    ${itemCode}, ${itemDesc}, ${uom}, ${quantity},
+                    ${itemCode},
+                    COALESCE(NULLIF(${itemDesc}, ''), (SELECT description FROM master_items WHERE id = ${masterItemId})),
+                    ${uom}, ${quantity},
                     'standard_inspection', ${qpNumber},
                     ${'Auto-created from WO activation ' + draft.doc_number},
                     'draft', ${userId}, NOW(), NOW())
