@@ -8127,12 +8127,25 @@ export function setupProjectRoutes(app: express.Express) {
                              COALESCE(NULLIF(ewo.item_description, ''), mi.description) AS item_description,
                              COALESCE(NULLIF(ewo.item_specification, ''), mi.specification) AS item_specification,
                              COALESCE(NULLIF(ewo.drawing_no, ''), dc.drawing_number) AS drawing_no,
-                             dc.revision_code AS drawing_revision_text,
+                             COALESCE(
+                               dwg_att.att_rev_code,
+                               CASE
+                                 WHEN dc.revision_code ~ '^[A-Za-z]$' THEN UPPER(dc.revision_code)
+                                 WHEN dc.revision_code ~ '^\d+$' AND dc.revision_code::int < 26 THEN CHR(65 + dc.revision_code::int)
+                                 ELSE UPPER(dc.revision_code)
+                               END
+                             ) AS drawing_revision_text,
                              u1.username as created_by_name, u2.username as approved_by_name,
                              u3.username as released_by_name
                       FROM epc_work_orders ewo
                       LEFT JOIN master_items mi ON mi.id = ewo.master_item_id
                       LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = ewo.project_item_id AND dc.is_current = true
+                      LEFT JOIN LATERAL (
+                        SELECT eda.revision_code AS att_rev_code
+                        FROM epc_document_attachments eda
+                        WHERE eda.parent_entity_id = dc.id AND eda.doc_type = 'DWG' AND eda.is_current = true
+                        LIMIT 1
+                      ) dwg_att ON true
                       LEFT JOIN users u1 ON ewo.created_by = u1.id
                       LEFT JOIN users u2 ON ewo.approved_by = u2.id
                       LEFT JOIN users u3 ON ewo.released_by = u3.id`;
@@ -8161,12 +8174,25 @@ export function setupProjectRoutes(app: express.Express) {
                    COALESCE(NULLIF(ewo.item_description, ''), mi.description) AS item_description,
                    COALESCE(NULLIF(ewo.item_specification, ''), mi.specification) AS item_specification,
                    COALESCE(NULLIF(ewo.drawing_no, ''), dc.drawing_number) AS drawing_no,
-                   dc.revision_code AS drawing_revision_text,
+                   COALESCE(
+                     dwg_att.att_rev_code,
+                     CASE
+                       WHEN dc.revision_code ~ '^[A-Za-z]$' THEN UPPER(dc.revision_code)
+                       WHEN dc.revision_code ~ '^\d+$' AND dc.revision_code::int < 26 THEN CHR(65 + dc.revision_code::int)
+                       ELSE UPPER(dc.revision_code)
+                     END
+                   ) AS drawing_revision_text,
                    u1.username as created_by_name, u2.username as approved_by_name,
                    u3.username as released_by_name
             FROM epc_work_orders ewo
             LEFT JOIN master_items mi ON mi.id = ewo.master_item_id
             LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = ewo.project_item_id AND dc.is_current = true
+            LEFT JOIN LATERAL (
+              SELECT eda.revision_code AS att_rev_code
+              FROM epc_document_attachments eda
+              WHERE eda.parent_entity_id = dc.id AND eda.doc_type = 'DWG' AND eda.is_current = true
+              LIMIT 1
+            ) dwg_att ON true
             LEFT JOIN users u1 ON ewo.created_by = u1.id
             LEFT JOIN users u2 ON ewo.approved_by = u2.id
             LEFT JOIN users u3 ON ewo.released_by = u3.id
