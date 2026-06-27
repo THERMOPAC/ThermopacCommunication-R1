@@ -1,7 +1,8 @@
 import { execSync } from 'child_process';
 import { createHash } from 'crypto';
 import puppeteer from 'puppeteer-core';
-import gcsClient, { bucketName } from './utils/storage-config';
+import { Storage } from '@google-cloud/storage';
+import { bucketName } from './utils/storage-config';
 import { resolveProjectGeoCodes } from './epc-coding';
 import { resolveGcsPath } from './utils/gcs-path-resolver';
 import { generateDdsHtml } from './dds-html-template';
@@ -14,6 +15,23 @@ function getSystemChromiumPath(): string {
     return execSync('which chromium', { encoding: 'utf8' }).trim();
   } catch {
     return '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium';
+  }
+}
+
+/**
+ * Returns a GCS Storage client.
+ * Production: use ADC (metadata server) — explicit key causes invalid_grant.
+ * Dev: use explicit GOOGLE_CLOUD_CREDENTIALS from env.
+ */
+function getUploadStorage(): Storage {
+  if (process.env.NODE_ENV === 'production') {
+    return new Storage();
+  }
+  try {
+    const creds = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS || '{}');
+    return new Storage({ projectId: creds.project_id, credentials: creds });
+  } catch {
+    return new Storage();
   }
 }
 
@@ -39,6 +57,17 @@ export async function generateAndUploadDdsPdf(
     const sheet = sheetResult.rows[0] as any;
     if (!sheet) return { error: `Sheet ${sheetId} not found` };
 
+    // Ensure JSONB columns are parsed objects (neon driver may return as string)
+    if (typeof sheet.general_data === 'string') {
+      sheet.general_data = JSON.parse(sheet.general_data);
+    }
+    if (typeof sheet.mechanical_data === 'string') {
+      sheet.mechanical_data = JSON.parse(sheet.mechanical_data);
+    }
+    if (typeof sheet.hazard_data === 'string') {
+      sheet.hazard_data = JSON.parse(sheet.hazard_data);
+    }
+
     const geo = await resolveProjectGeoCodes(dwgControl.project_id);
 
     const itemCode = dwgControl.item_code || 'UNKNOWN';
@@ -58,7 +87,7 @@ export async function generateAndUploadDdsPdf(
       rev: revision,
     });
 
-    console.log('[DDS PDF] general_data type:', typeof sheet.general_data, '| weight:', (sheet.general_data as any)?.weightEmptyOperatingHydro, '| wind:', (sheet.general_data as any)?.windDesignVelocity, '| loc:', (sheet.general_data as any)?.location);
+    console.log('[DDS PDF] generating for sheet', sheetId, '| weight:', sheet.general_data?.weightEmptyOperatingHydro, '| path:', gcsPath);
 
     const html = generateDdsHtml(sheet, {
       drawingNumber,
@@ -92,13 +121,18 @@ export async function generateAndUploadDdsPdf(
     }
 
     const sha256 = createHash('sha256').update(pdfBuffer).digest('hex');
-    const file = gcsClient.bucket(bucketName).file(gcsPath);
+
+    // Use ADC in production, explicit creds in dev — matches pdf-stream pattern
+    const uploadStorage = getUploadStorage();
+    const file = uploadStorage.bucket(bucketName).file(gcsPath);
     await file.save(pdfBuffer, {
       contentType: 'application/pdf',
       metadata: {
         contentDisposition: `attachment; filename="${drawingNumber}_dds-rev-${revision}.pdf"`,
       },
     });
+
+    console.log('[DDS PDF] uploaded to GCS:', gcsPath);
 
     // G2 + G3: Dual-Storage Policy — enqueue SAVE_FILE mirror job after GCS success
     try {
@@ -126,19 +160,4 @@ export async function generateAndUploadDdsPdf(
     console.error('[DDS PDF] generation error:', err);
     return { error: err instanceof Error ? err.message : String(err) };
   }
-}
-
-/**
- * Generate a short-lived GCS signed URL (15 min) for the DDS PDF.
- */
-export async function getDdsPdfSignedUrl(gcsPath: string): Promise<string> {
-  const [url] = await gcsClient
-    .bucket(bucketName)
-    .file(gcsPath)
-    .getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 15 * 60 * 1000,
-    });
-  return url;
 }
