@@ -353,6 +353,30 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
     }
   }
 
+  // Live lookup: inject description, specification, drawing_no from master_items + epc_drawing_controls
+  // source_data snapshot never carried these fields reliably — always read live at activation time
+  let liveSpec: string | null = null;
+  let liveDrawingNo: string | null = null;
+  if (masterItemId) {
+    const liveRow = await db.execute(sql`
+      SELECT mi.description AS live_desc, mi.specification AS live_spec,
+             dc.drawing_number AS live_drawing_no
+      FROM master_items mi
+      LEFT JOIN epc_drawing_controls dc
+        ON dc.project_item_id = ${projectItemId} AND dc.is_current = true
+      WHERE mi.id = ${masterItemId}
+      LIMIT 1
+    `);
+    const live = liveRow.rows[0] as any;
+    if (live) {
+      if (!itemDesc && live.live_desc) itemDesc = live.live_desc;
+      liveSpec = live.live_spec || null;
+      liveDrawingNo = live.live_drawing_no || null;
+    }
+  }
+  const itemSpec: string | null = sd.item_specification || liveSpec || null;
+  const drawingNo: string | null = sd.drawing_no || liveDrawingNo || null;
+
   const planningType = isService ? 'service' : 'make';
   const planningAssigneeResult = isService
     ? await requireEpcAssignee('PLN_prepare', draft.project_id, 'full_auto')
@@ -401,8 +425,8 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
            drawing_no, drawing_revision, quantity, make_classification,
            production_number, status, created_by, assigned_to)
           VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${masterItemId},
-                  ${itemCode}, ${itemDesc}, ${sd.item_specification || null}, ${uom},
-                  ${sd.drawing_no || null}, ${sd.drawing_revision || null}, ${quantity}, ${classification},
+                  ${itemCode}, ${itemDesc}, ${itemSpec}, ${uom},
+                  ${drawingNo}, ${sd.drawing_revision || null}, ${quantity}, ${classification},
                   ${productionNumber}, 'active', ${userId}, ${productionAssignee})
           RETURNING id`
     );
@@ -412,11 +436,11 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const woPrepResult = await db.execute(
     sql`INSERT INTO wo_preparation_records
         (project_id, project_item_id, planning_record_id, execution_record_id,
-         master_item_id, item_code, item_description, uom, quantity,
-         make_classification, status, created_by)
+         master_item_id, item_code, item_description, item_specification, uom,
+         drawing_no, quantity, make_classification, status, created_by)
         VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${executionRecordId},
-                ${masterItemId}, ${itemCode}, ${itemDesc}, ${uom}, ${quantity},
-                ${classification}, 'ready', ${userId})
+                ${masterItemId}, ${itemCode}, ${itemDesc}, ${itemSpec}, ${uom},
+                ${drawingNo}, ${quantity}, ${classification}, 'ready', ${userId})
         RETURNING id`
   );
   woPrepId = (woPrepResult.rows[0] as any).id;
@@ -430,13 +454,13 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const epcWoResult = await db.execute(
     sql`INSERT INTO epc_work_orders
         (wo_number, project_id, project_item_id, planning_record_id, execution_record_id,
-         wo_preparation_id, master_item_id, item_code, item_description, uom,
-         quantity, make_classification, status, created_by,
+         wo_preparation_id, master_item_id, item_code, item_description, item_specification,
+         uom, drawing_no, quantity, make_classification, status, created_by,
          wo_notes)
         VALUES (${draft.doc_number}, ${draft.project_id}, ${projectItemId},
                 ${planningRecordId}, ${executionRecordId},
-                ${woPrepId}, ${masterItemId}, ${itemCode}, ${itemDesc}, ${uom},
-                ${quantity}, ${classification}, 'draft', ${woCreatedBy},
+                ${woPrepId}, ${masterItemId}, ${itemCode}, ${itemDesc}, ${itemSpec},
+                ${uom}, ${drawingNo}, ${quantity}, ${classification}, 'draft', ${woCreatedBy},
                 ${'Auto-created from Execution Draft ' + draft.doc_number})
         RETURNING id`
   );
