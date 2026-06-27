@@ -865,8 +865,16 @@ router.get('/:dwgControlId/pdf-stream', ensureAuthenticated, async (req: Request
   if (!sheet?.dds_gcs_path) return res.status(404).json({ error: 'No PDF available for this sheet' });
 
   try {
-    const adcStorage = new Storage();
-    const file = adcStorage.bucket(bucketName).file(sheet.dds_gcs_path as string);
+    // Production: use ADC (metadata server) — explicit key causes SignatureDoesNotMatch.
+    // Dev: use explicit GOOGLE_CLOUD_CREDENTIALS — no ADC metadata server available.
+    let pdfStorage: Storage;
+    if (process.env.NODE_ENV === 'production') {
+      pdfStorage = new Storage();
+    } else {
+      const creds = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS || '{}');
+      pdfStorage = new Storage({ projectId: creds.project_id, credentials: creds });
+    }
+    const file = pdfStorage.bucket(bucketName).file(sheet.dds_gcs_path as string);
     const [exists] = await file.exists();
     if (!exists) return res.status(404).json({ error: 'PDF file not found in storage' });
 
