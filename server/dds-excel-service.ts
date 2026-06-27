@@ -270,6 +270,28 @@ export async function generateDdsExcel(input: DdsExcelInput): Promise<Buffer> {
   }
 
   // ── Sheet 4: Nameplate Data ─────────────────────────────────────────────────
+
+  // Parse pixel dimensions from a JPEG or PNG buffer (no external deps)
+  function readImageDimensions(buf: Buffer, ext: string): { w: number; h: number } | null {
+    try {
+      if (ext === 'png') {
+        return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+      }
+      // JPEG: scan for SOF0/SOF1/SOF2 markers
+      let i = 2;
+      while (i + 4 < buf.length) {
+        if (buf[i] !== 0xFF) break;
+        const marker = buf[i + 1];
+        const segLen = buf.readUInt16BE(i + 2);
+        if (marker === 0xC0 || marker === 0xC1 || marker === 0xC2) {
+          return { w: buf.readUInt16BE(i + 7), h: buf.readUInt16BE(i + 5) };
+        }
+        i += 2 + segLen;
+      }
+    } catch {}
+    return null;
+  }
+
   const ws4 = wb.addWorksheet('Nameplate Data');
 
   // Build list of applicable process sides from the equipment config
@@ -313,16 +335,18 @@ export async function generateDdsExcel(input: DdsExcelInput): Promise<Buffer> {
     ws4.getRow(r).height = rowH;
   }
 
-  // Data table row: label LEFT in A, per-side values CENTER, unit RIGHT in NP_UNIT
+  // Data table row: label LEFT in A, per-side values CENTER, unit CENTER in NP_UNIT
   // Shell-only: shell value merged across B..(NP_UNIT-1) so EMPTY/OPERATING still fit in weight rows
   function npDataRow(r: number, lbl: string, vals: Record<string, string | null>, unit: string) {
     labelCell(ws4, r, 1, lbl);
     if (npSideCols === 1) {
       dataCell(ws4, r, 2, vals['shell']);
+      ws4.getRow(r).getCell(2).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       ws4.mergeCells(r, 2, r, NP_UNIT - 1);
     } else {
       for (let i = 0; i < activeSides.length; i++) {
         dataCell(ws4, r, 2 + i, vals[activeSides[i].key] ?? null);
+        ws4.getRow(r).getCell(2 + i).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       }
     }
     const uc = ws4.getRow(r).getCell(NP_UNIT);
@@ -337,8 +361,17 @@ export async function generateDdsExcel(input: DdsExcelInput): Promise<Buffer> {
   if (input.logoBuffer) {
     const ext = (input.logoBuffer[0] === 0x89 && input.logoBuffer[1] === 0x50) ? 'png' : 'jpeg';
     const imgId = wb.addImage({ buffer: input.logoBuffer, extension: ext });
-    // Logo in col A (0-indexed col 0), anchored rows 1-3
-    ws4.addImage(imgId, { tl: { col: 0, row: 0 }, br: { col: 1, row: 3 }, editAs: 'oneCell' });
+
+    // Fit logo inside col-A area (≈240 × 100 px) while preserving aspect ratio
+    const MAX_W = 240, MAX_H = 100;
+    const dims = readImageDimensions(input.logoBuffer, ext);
+    let imgW = MAX_W, imgH = MAX_H;
+    if (dims && dims.w > 0 && dims.h > 0) {
+      const scale = Math.min(MAX_W / dims.w, MAX_H / dims.h);
+      imgW = Math.round(dims.w * scale);
+      imgH = Math.round(dims.h * scale);
+    }
+    ws4.addImage(imgId, { tl: { col: 0, row: 0 }, ext: { width: imgW, height: imgH }, editAs: 'oneCell' });
 
     // Row 1: "NAMEPLATE DATA" title in cols B..NP_COLS (logo covers col A)
     ws4.getRow(r4).height = 48;
@@ -431,7 +464,9 @@ export async function generateDdsExcel(input: DdsExcelInput): Promise<Buffer> {
 
   labelCell(ws4, r4, 1, 'WEIGHT');
   dataCell(ws4, r4, 2, weightEmpty);
+  ws4.getRow(r4).getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
   dataCell(ws4, r4, 3, weightOperating);
+  ws4.getRow(r4).getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
   { const u = ws4.getRow(r4).getCell(4);
     u.value = 'kgs.'; u.font = BOLD_FONT; u.border = THIN_BORDER;
     u.alignment = { horizontal: 'center', vertical: 'middle' };
