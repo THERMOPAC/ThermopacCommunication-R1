@@ -6088,12 +6088,16 @@ export function setupProjectRoutes(app: express.Express) {
       const qpOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', assignedToColumn: 'assigned_to', mode: 'department' };
       const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, qpOwnershipConfig, 'qp');
 
-      let query = sql`SELECT qp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+      let query = sql`SELECT qp.*,
+                             COALESCE(NULLIF(qp.item_description, ''), mi.description) AS item_description,
+                             u1.username as assigned_to_name, u2.username as created_by_name,
                              u3.username as prepared_by_name
                       FROM quality_planning_records qp
                       LEFT JOIN users u1 ON qp.assigned_to = u1.id
                       LEFT JOIN users u2 ON qp.created_by = u2.id
-                      LEFT JOIN users u3 ON qp.prepared_by = u3.id`;
+                      LEFT JOIN users u3 ON qp.prepared_by = u3.id
+                      LEFT JOIN project_items pi ON pi.id = qp.project_item_id
+                      LEFT JOIN master_items mi ON mi.id = pi.item_id`;
       if (joinSql) query = sql`${query} ${joinSql}`;
       query = sql`${query} WHERE qp.project_id = ${projectId}`;
       if (whereSql) query = sql`${query} AND ${whereSql}`;
@@ -6116,12 +6120,16 @@ export function setupProjectRoutes(app: express.Express) {
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
 
       const result = await db.execute(
-        sql`SELECT qp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+        sql`SELECT qp.*,
+                   COALESCE(NULLIF(qp.item_description, ''), mi.description) AS item_description,
+                   u1.username as assigned_to_name, u2.username as created_by_name,
                    u3.username as prepared_by_name
             FROM quality_planning_records qp
             LEFT JOIN users u1 ON qp.assigned_to = u1.id
             LEFT JOIN users u2 ON qp.created_by = u2.id
             LEFT JOIN users u3 ON qp.prepared_by = u3.id
+            LEFT JOIN project_items pi ON pi.id = qp.project_item_id
+            LEFT JOIN master_items mi ON mi.id = pi.item_id
             WHERE qp.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
