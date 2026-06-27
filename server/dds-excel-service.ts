@@ -272,150 +272,170 @@ export async function generateDdsExcel(input: DdsExcelInput): Promise<Buffer> {
   // ── Sheet 4: Nameplate Data ─────────────────────────────────────────────────
   const ws4 = wb.addWorksheet('Nameplate Data');
 
-  // Always 4 columns: A=label(35), B=shell/value(28), C=tube or merged(28), D=unit(12)
+  // Build list of applicable process sides from the equipment config
+  const activeSides: Array<{ label: string; key: string }> = [
+    { label: 'SHELL', key: 'shell' },
+    ...(hasTube   ? [{ label: 'TUBE',   key: 'tube'   }] : []),
+    ...(hasJacket ? [{ label: 'JACKET', key: 'jacket' }] : []),
+  ];
+  const npSideCols = activeSides.length;           // 1, 2, or 3
+  // NP_COLS: label(1) + side columns + unit(1), minimum 4 (so weight EMPTY/OPERATING fit in B,C)
+  const NP_COLS = Math.max(4, 1 + npSideCols + 1);
+  const NP_UNIT = NP_COLS; // unit is always the last column
+
+  // Column widths: label A=35, side cols scaled, unit col=12
+  const sideW = npSideCols === 3 ? 20 : 25;
   ws4.getColumn(1).width = 35;
-  ws4.getColumn(2).width = 28;
-  ws4.getColumn(3).width = 28;
-  ws4.getColumn(4).width = 12;
-  const NP_COLS = 4;
+  ws4.getColumn(2).width = sideW;
+  ws4.getColumn(3).width = sideW;
+  ws4.getColumn(4).width = NP_COLS === 5 ? sideW : 12; // jacket or unit
+  if (NP_COLS === 5) ws4.getColumn(5).width = 12;
 
   const currentYear = new Date().getFullYear().toString();
 
-  // Parse "330 / 460 / 1200" → take only [0]=empty and [1]=operating; discard hydro [2]
+  // Parse "330 / 460 / 1200" → [0]=empty, [1]=operating; discard hydro [2]
   const weightRaw   = gen.weightEmptyOperatingHydro || '';
   const weightParts = weightRaw.split('/').map((s: string) => s.trim());
   const weightEmpty     = weightParts[0] || null;
   const weightOperating = weightParts[1] || null;
 
-  // ── Sheet-4 helpers ─────────────────────────────────────────────────────────
+  // ── Sheet-4 helpers ──────────────────────────────────────────────────────────
 
-  // Full-width row: label in A, value merged B–D
+  // Full-width merged row: label LEFT in A, value CENTER merged B..NP_COLS
   function npMergedRow(r: number, lbl: string, val: string | null, rowH = 20) {
     labelCell(ws4, r, 1, lbl);
     const vc = ws4.getRow(r).getCell(2);
     vc.value = val ?? '';
     vc.font  = NORMAL_FONT;
     vc.border = THIN_BORDER;
-    vc.alignment = { vertical: 'middle', wrapText: true };
+    vc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     ws4.mergeCells(r, 2, r, NP_COLS);
     ws4.getRow(r).height = rowH;
   }
 
-  // Table data row: label in A, shell in B (merged B-C when shell-only), tube in C (hasTube), unit in D
-  function npDataRow(r: number, lbl: string, shellVal: string | null, tubeVal: string | null, unit: string) {
+  // Data table row: label LEFT in A, per-side values CENTER, unit RIGHT in NP_UNIT
+  // Shell-only: shell value merged across B..(NP_UNIT-1) so EMPTY/OPERATING still fit in weight rows
+  function npDataRow(r: number, lbl: string, vals: Record<string, string | null>, unit: string) {
     labelCell(ws4, r, 1, lbl);
-    dataCell(ws4, r, 2, shellVal);
-    if (hasTube) {
-      dataCell(ws4, r, 3, tubeVal);
+    if (npSideCols === 1) {
+      dataCell(ws4, r, 2, vals['shell']);
+      ws4.mergeCells(r, 2, r, NP_UNIT - 1);
     } else {
-      ws4.mergeCells(r, 2, r, 3);
+      for (let i = 0; i < activeSides.length; i++) {
+        dataCell(ws4, r, 2 + i, vals[activeSides[i].key] ?? null);
+      }
     }
-    const uc = ws4.getRow(r).getCell(4);
-    uc.value = unit;
-    uc.font  = BOLD_FONT;
-    uc.border = THIN_BORDER;
+    const uc = ws4.getRow(r).getCell(NP_UNIT);
+    uc.value = unit; uc.font = BOLD_FONT; uc.border = THIN_BORDER;
     uc.alignment = { horizontal: 'center', vertical: 'middle' };
     ws4.getRow(r).height = 18;
   }
 
   let r4 = 1;
 
-  // ── Logo + header area ───────────────────────────────────────────────────────
+  // ── Logo + company header area ───────────────────────────────────────────────
   if (input.logoBuffer) {
     const ext = (input.logoBuffer[0] === 0x89 && input.logoBuffer[1] === 0x50) ? 'png' : 'jpeg';
     const imgId = wb.addImage({ buffer: input.logoBuffer, extension: ext });
-
-    // Logo spans col A (0-indexed col 0), rows 1-3 (0-indexed rows 0-2)
+    // Logo in col A (0-indexed col 0), anchored rows 1-3
     ws4.addImage(imgId, { tl: { col: 0, row: 0 }, br: { col: 1, row: 3 }, editAs: 'oneCell' });
 
-    // Row 1 — title in cols B-D (logo covers col A)
-    ws4.getRow(r4).height = 50;
+    // Row 1: "NAMEPLATE DATA" title in cols B..NP_COLS (logo covers col A)
+    ws4.getRow(r4).height = 48;
     { const c = ws4.getRow(r4).getCell(1); c.value = ''; c.border = THIN_BORDER; }
     { const c = ws4.getRow(r4).getCell(2); c.value = 'NAMEPLATE DATA';
       c.font = { bold: true, size: 14, color: { argb: 'FF1F3864' } };
       c.border = THIN_BORDER; c.alignment = { horizontal: 'center', vertical: 'middle' };
       ws4.mergeCells(r4, 2, r4, NP_COLS); }
 
-    // Row 2 — company name in cols B-D
+    // Row 2: company legal name
     r4++;
     ws4.getRow(r4).height = 28;
     { const c = ws4.getRow(r4).getCell(1); c.value = ''; c.border = THIN_BORDER; }
     { const c = ws4.getRow(r4).getCell(2);
       c.value = input.companyName || 'THERMOPAC PROCESS ENGINEERING LLP.';
-      c.font = { bold: true, size: 10, color: { argb: 'FF1F3864' } };
-      c.border = THIN_BORDER; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      c.font  = { bold: true, size: 10, color: { argb: 'FF1F3864' } };
+      c.border = THIN_BORDER;
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       ws4.mergeCells(r4, 2, r4, NP_COLS); }
 
-    // Row 3 — address in cols B-D
+    // Row 3: registered office address
     r4++;
     ws4.getRow(r4).height = 32;
     { const c = ws4.getRow(r4).getCell(1); c.value = ''; c.border = THIN_BORDER; }
     { const c = ws4.getRow(r4).getCell(2);
       c.value = input.companyAddress || '405, L4 THE SUMMIT BUSINESS BAY, WESTERN EXPRESS HIGHWAY, VILE PARLE (E), MUMBAI 400057, INDIA';
-      c.font = NORMAL_FONT; c.border = THIN_BORDER;
+      c.font  = NORMAL_FONT; c.border = THIN_BORDER;
       c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       ws4.mergeCells(r4, 2, r4, NP_COLS); }
     r4++;
   } else {
-    // No logo — title row spans all cols, then MANUFACTURER rows
+    // No logo: full-width title, then manufacturer + address rows
     ws4.getRow(r4).height = 26;
     { const c = ws4.getRow(r4).getCell(1); c.value = 'NAMEPLATE DATA';
       c.font = { bold: true, size: 13, color: { argb: 'FF1F3864' } };
       ws4.mergeCells(r4, 1, r4, NP_COLS);
       c.alignment = { horizontal: 'center', vertical: 'middle' }; }
     r4++;
-    npMergedRow(r4, 'MANUFACTURER', input.companyName || 'THERMOPAC PROCESS ENGINEERING LLP.', 22);
-    r4++;
-    npMergedRow(r4, '', input.companyAddress || '405, L4 THE SUMMIT BUSINESS BAY, WESTERN EXPRESS HIGHWAY, VILE PARLE (E), MUMBAI 400057, INDIA', 32);
-    r4++;
+    npMergedRow(r4, 'MANUFACTURER', input.companyName || 'THERMOPAC PROCESS ENGINEERING LLP.', 22); r4++;
+    npMergedRow(r4, '', input.companyAddress || '405, L4 THE SUMMIT BUSINESS BAY, WESTERN EXPRESS HIGHWAY, VILE PARLE (E), MUMBAI 400057, INDIA', 32); r4++;
   }
 
-  // ── Identification rows ──────────────────────────────────────────────────────
-  npMergedRow(r4, 'EQUIPMENT NAME', sheet.equipment_description ?? null, 30); r4++;
-  npMergedRow(r4, 'DESIGN CODE',    sheet.design_code ?? null, 22);            r4++;
+  // ── Equipment identification rows ────────────────────────────────────────────
+  npMergedRow(r4, 'EQUIPMENT NAME', sheet.equipment_description ?? null, 32); r4++;
+  npMergedRow(r4, 'DESIGN CODE',    sheet.design_code ?? null, 20);            r4++;
   npMergedRow(r4, 'INSPECTED BY',   sheet.inspection_by ?? null, 20);          r4++;
 
-  // ── Column sub-headers ───────────────────────────────────────────────────────
+  // ── Column sub-headers — only applicable sides shown ─────────────────────────
   labelCell(ws4, r4, 1, '');
-  headerCell(ws4, r4, 2, 'SHELL');
-  if (hasTube) {
-    headerCell(ws4, r4, 3, 'TUBE');
+  if (npSideCols === 1) {
+    // Shell-only: merge SHELL header across B..(unit-1)
+    headerCell(ws4, r4, 2, 'SHELL');
+    ws4.mergeCells(r4, 2, r4, NP_UNIT - 1);
   } else {
-    // Merge B-C as one SHELL header for shell-only
-    ws4.mergeCells(r4, 2, r4, 3);
+    for (let i = 0; i < activeSides.length; i++) {
+      headerCell(ws4, r4, 2 + i, activeSides[i].label);
+    }
   }
-  headerCell(ws4, r4, 4, 'UNIT');
+  headerCell(ws4, r4, NP_UNIT, 'UNIT');
   ws4.getRow(r4).height = 18;
   r4++;
 
-  // ── Data table ───────────────────────────────────────────────────────────────
-  npDataRow(r4, 'INTERNAL DESIGN PRESS./MAWP (Ps)',  (mech.shell as any)?.internalDesignPressureMawp  ?? null, (mech.tube as any)?.internalDesignPressureMawp  ?? null, 'bar g'); r4++;
-  npDataRow(r4, 'EXTERNAL DESIGN PRESS./MAWP (Ps)',  (mech.shell as any)?.externalDesignPressureMawp  ?? null, (mech.tube as any)?.externalDesignPressureMawp  ?? null, 'bar g'); r4++;
-  npDataRow(r4, 'DESIGN TEMPERATURE (MIN/MAX) (Ts)', (mech.shell as any)?.designTempMinMax            ?? null, (mech.tube as any)?.designTempMinMax            ?? null, '°C');   r4++;
-  npDataRow(r4, 'HYDROTEST PRESSURE (Pt)',            (mech.shell as any)?.hydroTestPressure           ?? null, (mech.tube as any)?.hydroTestPressure           ?? null, 'bar g'); r4++;
-  npDataRow(r4, 'CAPACITY (VOLUME)',                  (mech.shell as any)?.grossVolumeLiters           ?? null, (mech.tube as any)?.grossVolumeLiters           ?? null, 'LTRS');  r4++;
-  npDataRow(r4, 'CONTENTS',                          (mech.shell as any)?.serviceFluid                ?? null, (mech.tube as any)?.serviceFluid                ?? null, '—');    r4++;
+  // ── Pressure / temperature / volume / contents table ────────────────────────
+  const npRow = (lbl: string, key: string, unit: string) => {
+    const vals: Record<string, string | null> = {};
+    for (const s of activeSides) vals[s.key] = (mech as any)[s.key]?.[key] ?? null;
+    npDataRow(r4, lbl, vals, unit);
+    r4++;
+  };
+  npRow('INTERNAL DESIGN PRESS./MAWP (Ps)', 'internalDesignPressureMawp', 'bar g');
+  npRow('EXTERNAL DESIGN PRESS./MAWP (Ps)', 'externalDesignPressureMawp', 'bar g');
+  npRow('DESIGN TEMPERATURE (MIN/MAX) (Ts)', 'designTempMinMax',           '°C');
+  npRow('HYDROTEST PRESSURE (Pt)',           'hydroTestPressure',           'bar g');
+  npRow('CAPACITY (VOLUME)',                 'grossVolumeLiters',           'LTRS');
+  npRow('CONTENTS',                         'serviceFluid',                '—');
 
-  // ── Single-value rows ────────────────────────────────────────────────────────
+  // ── Single-value rows below the table ───────────────────────────────────────
   npMergedRow(r4, 'YEAR OF MANUFACTURE', currentYear); r4++;
   npMergedRow(r4, 'TAG NUMBER',          sheet.tag_no ?? null); r4++;
   npMergedRow(r4, 'HYDROTEST DATE',      null); r4++;
 
-  // ── Weight section ───────────────────────────────────────────────────────────
-  // Sub-headers: always EMPTY in B, OPERATING in C, unit in D
+  // ── Weight section: EMPTY and OPERATING always in B/C; unit spans to NP_COLS ─
   labelCell(ws4, r4, 1, '');
   headerCell(ws4, r4, 2, 'EMPTY');
   headerCell(ws4, r4, 3, 'OPERATING');
   headerCell(ws4, r4, 4, 'kgs.');
+  if (NP_COLS > 4) ws4.mergeCells(r4, 4, r4, NP_COLS);
   ws4.getRow(r4).height = 18;
   r4++;
 
   labelCell(ws4, r4, 1, 'WEIGHT');
   dataCell(ws4, r4, 2, weightEmpty);
   dataCell(ws4, r4, 3, weightOperating);
-  { const uc = ws4.getRow(r4).getCell(4);
-    uc.value = 'kgs.'; uc.font = BOLD_FONT; uc.border = THIN_BORDER;
-    uc.alignment = { horizontal: 'center', vertical: 'middle' }; }
+  { const u = ws4.getRow(r4).getCell(4);
+    u.value = 'kgs.'; u.font = BOLD_FONT; u.border = THIN_BORDER;
+    u.alignment = { horizontal: 'center', vertical: 'middle' };
+    if (NP_COLS > 4) ws4.mergeCells(r4, 4, r4, NP_COLS); }
   ws4.getRow(r4).height = 18;
 
   const buf = await wb.xlsx.writeBuffer();
