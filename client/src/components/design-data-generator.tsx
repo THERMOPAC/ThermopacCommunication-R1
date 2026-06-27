@@ -2505,19 +2505,17 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                       </Button>
                     </>
                   )}
-                  {canEdit && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-[9px] px-2 text-slate-600 border-slate-300"
-                      onClick={handleRegeneratePdf}
-                      disabled={regenerating}
-                      title="Regenerate PDF from current data"
-                    >
-                      {regenerating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                      Regenerate
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[9px] px-2 text-slate-600 border-slate-300"
+                    onClick={handleRegeneratePdf}
+                    disabled={regenerating}
+                    title="Regenerate PDF from current data"
+                  >
+                    {regenerating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                    Regenerate
+                  </Button>
                 </div>
               </div>
             </div>
