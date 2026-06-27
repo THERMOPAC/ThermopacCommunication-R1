@@ -358,10 +358,17 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
     ? await requireEpcAssignee('PLN_prepare', draft.project_id, 'full_auto')
     : await requireEpcAssignee('WO_prepare', draft.project_id, 'full_auto');
   const planningAssignee = planningAssigneeResult.userId;
+  let planningNumber: string | null = null;
+  try {
+    planningNumber = await generateDocumentNumber(draft.project_id, 'PLN', db);
+  } catch (e) {
+    console.warn(`[DraftActivation] Could not generate PLN number, proceeding without it`);
+  }
+
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
-        (project_id, project_item_id, master_item_id, planning_type, status, created_by, assigned_to)
-        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, ${planningType}, 'active', ${userId}, ${planningAssignee})
+        (project_id, project_item_id, master_item_id, planning_type, planning_number, status, created_by, assigned_to)
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, ${planningType}, ${planningNumber}, 'active', ${userId}, ${planningAssignee})
         RETURNING id`
   );
   const planningRecordId = (planningResult.rows[0] as any).id;
@@ -526,10 +533,17 @@ async function activatePurchaseOrder(draft: any, userId: number): Promise<{ enti
   const purchaseAssigneeResult = await requireEpcAssignee('PO_prepare', draft.project_id, 'full_auto');
   const purchaseAssignee = purchaseAssigneeResult.userId;
 
+  let buyPlanningNumber: string | null = null;
+  try {
+    buyPlanningNumber = await generateDocumentNumber(draft.project_id, 'PLN', db);
+  } catch (e) {
+    console.warn(`[DraftActivation] Could not generate PLN number for buy record, proceeding without it`);
+  }
+
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
-        (project_id, project_item_id, master_item_id, planning_type, status, created_by, assigned_to)
-        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'buy', 'active', ${userId}, ${purchaseAssignee})
+        (project_id, project_item_id, master_item_id, planning_type, planning_number, status, created_by, assigned_to)
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'buy', ${buyPlanningNumber}, 'active', ${userId}, ${purchaseAssignee})
         RETURNING id`
   );
   const planningRecordId = (planningResult.rows[0] as any).id;
