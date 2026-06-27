@@ -8123,9 +8123,15 @@ export function setupProjectRoutes(app: express.Express) {
       const woOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', mode: 'strict' };
       const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, woOwnershipConfig, 'ewo');
 
-      let query = sql`SELECT ewo.*, u1.username as created_by_name, u2.username as approved_by_name,
+      let query = sql`SELECT ewo.*,
+                             COALESCE(NULLIF(ewo.item_description, ''), mi.description) AS item_description,
+                             COALESCE(NULLIF(ewo.item_specification, ''), mi.specification) AS item_specification,
+                             COALESCE(NULLIF(ewo.drawing_no, ''), dc.drawing_number) AS drawing_no,
+                             u1.username as created_by_name, u2.username as approved_by_name,
                              u3.username as released_by_name
                       FROM epc_work_orders ewo
+                      LEFT JOIN master_items mi ON mi.id = ewo.master_item_id
+                      LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = ewo.project_item_id AND dc.is_current = true
                       LEFT JOIN users u1 ON ewo.created_by = u1.id
                       LEFT JOIN users u2 ON ewo.approved_by = u2.id
                       LEFT JOIN users u3 ON ewo.released_by = u3.id`;
@@ -8150,9 +8156,15 @@ export function setupProjectRoutes(app: express.Express) {
       if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
 
       const result = await db.execute(
-        sql`SELECT ewo.*, u1.username as created_by_name, u2.username as approved_by_name,
+        sql`SELECT ewo.*,
+                   COALESCE(NULLIF(ewo.item_description, ''), mi.description) AS item_description,
+                   COALESCE(NULLIF(ewo.item_specification, ''), mi.specification) AS item_specification,
+                   COALESCE(NULLIF(ewo.drawing_no, ''), dc.drawing_number) AS drawing_no,
+                   u1.username as created_by_name, u2.username as approved_by_name,
                    u3.username as released_by_name
             FROM epc_work_orders ewo
+            LEFT JOIN master_items mi ON mi.id = ewo.master_item_id
+            LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = ewo.project_item_id AND dc.is_current = true
             LEFT JOIN users u1 ON ewo.created_by = u1.id
             LEFT JOIN users u2 ON ewo.approved_by = u2.id
             LEFT JOIN users u3 ON ewo.released_by = u3.id
@@ -8256,6 +8268,17 @@ export function setupProjectRoutes(app: express.Express) {
         bomBypass = true;
       }
 
+      // Fetch fallback data from master_items and drawing controls for fields prep may not have
+      const woFallbackResult = await db.execute(sql`
+        SELECT mi.description AS mi_description, mi.specification AS mi_specification,
+               dc.drawing_number AS dc_drawing_no
+        FROM master_items mi
+        LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = ${prep.project_item_id} AND dc.is_current = true
+        WHERE mi.id = ${prep.master_item_id}
+        LIMIT 1
+      `);
+      const woFallback = woFallbackResult.rows[0] as any || {};
+
       const existingWO = await db.execute(
         sql`SELECT id, wo_number, status FROM epc_work_orders 
             WHERE wo_preparation_id = ${woPrepId} AND status NOT IN ('canceled', 'superseded')`
@@ -8280,10 +8303,10 @@ export function setupProjectRoutes(app: express.Express) {
           qualityPlanId: prep.quality_plan_id || null,
           masterItemId: prep.master_item_id,
           itemCode: prep.item_code || null,
-          itemDescription: prep.item_description || null,
-          itemSpecification: prep.item_specification || null,
+          itemDescription: prep.item_description || woFallback.mi_description || null,
+          itemSpecification: prep.item_specification || woFallback.mi_specification || null,
           uom: prep.uom || null,
-          drawingNo: prep.drawing_no || null,
+          drawingNo: prep.drawing_no || woFallback.dc_drawing_no || null,
           drawingRevision: prep.drawing_revision || null,
           quantity: prep.quantity,
           estimatedUnitCost: prep.estimated_unit_cost || null,
