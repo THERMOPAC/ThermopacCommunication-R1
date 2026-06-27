@@ -2402,14 +2402,23 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
               Design Data Sheet
             </CardTitle>
             <div className="flex items-center gap-1.5">
-              {sheet && (
-                <Badge
-                  variant="outline"
-                  className={`text-[9px] px-1.5 py-0 ${sheet.status === 'draft' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300'}`}
-                >
-                  {sheet.status}
-                </Badge>
-              )}
+              {sheet && (() => {
+                const statusColour: Record<string, string> = {
+                  draft:       'bg-amber-50 text-amber-700 border-amber-300',
+                  under_review:'bg-blue-50 text-blue-700 border-blue-300',
+                  approved:    'bg-green-50 text-green-700 border-green-300',
+                  released:    'bg-emerald-50 text-emerald-700 border-emerald-300',
+                  superseded:  'bg-gray-100 text-gray-500 border-gray-300',
+                  canceled:    'bg-red-50 text-red-600 border-red-300',
+                };
+                const cls = statusColour[drawingStatus] ?? statusColour['draft'];
+                const label = drawingStatus.replace('_', ' ');
+                return (
+                  <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${cls}`}>
+                    {label}
+                  </Badge>
+                );
+              })()}
               {canEdit && (
                 <Button size="sm" variant="outline" className="h-6 text-[9px] px-2" onClick={handleStartEdit}>
                   <Edit3 className="h-3 w-3 mr-1" />
