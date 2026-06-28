@@ -16377,3 +16377,95 @@ export const employeeCodeAuditLog = pgTable('employee_code_audit_log', {
 });
 export const insertEmployeeCodeAuditLogSchema = createInsertSchema(employeeCodeAuditLog).omit({ id: true, changedAt: true });
 export type EmployeeCodeAuditLog = typeof employeeCodeAuditLog.$inferSelect;
+
+// ── WO Manage: Crew Slots ─────────────────────────────────────────────────────
+export const woCrewSlots = pgTable('wo_crew_slots', {
+  id:               serial('id').primaryKey(),
+  epcWorkOrderId:   integer('epc_work_order_id').notNull().references(() => epcWorkOrders.id, { onDelete: 'cascade' }),
+  roleType:         varchar('role_type', { length: 20 }).notNull(),   // team_leader | fitter | welder | helper | qc_person
+  slotNumber:       smallint('slot_number').notNull(),
+  slotLabel:        varchar('slot_label', { length: 40 }).notNull(),  // e.g. "Fitter-2"
+  assignedName:     varchar('assigned_name', { length: 200 }),
+  isActive:         boolean('is_active').notNull().default(true),
+  addedBy:          integer('added_by').notNull().references(() => users.id),
+  addedAt:          timestamp('added_at').notNull().defaultNow(),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertWoCrewSlotSchema = createInsertSchema(woCrewSlots).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertWoCrewSlot = z.infer<typeof insertWoCrewSlotSchema>;
+export type WoCrewSlot = typeof woCrewSlots.$inferSelect;
+
+// ── WO Manage: Crew Slot History ─────────────────────────────────────────────
+export const woCrewSlotHistory = pgTable('wo_crew_slot_history', {
+  id:           serial('id').primaryKey(),
+  slotId:       integer('slot_id').notNull().references(() => woCrewSlots.id, { onDelete: 'cascade' }),
+  previousName: varchar('previous_name', { length: 200 }),
+  newName:      varchar('new_name', { length: 200 }),
+  changedBy:    integer('changed_by').notNull().references(() => users.id),
+  changedAt:    timestamp('changed_at').notNull().defaultNow(),
+});
+export const insertWoCrewSlotHistorySchema = createInsertSchema(woCrewSlotHistory).omit({ id: true, changedAt: true });
+export type InsertWoCrewSlotHistory = z.infer<typeof insertWoCrewSlotHistorySchema>;
+export type WoCrewSlotHistory = typeof woCrewSlotHistory.$inferSelect;
+
+// ── WO Manage: Schedule ───────────────────────────────────────────────────────
+export const woSchedule = pgTable('wo_schedule', {
+  id:                       serial('id').primaryKey(),
+  epcWorkOrderId:           integer('epc_work_order_id').notNull().unique().references(() => epcWorkOrders.id, { onDelete: 'cascade' }),
+  targetStartDate:          date('target_start_date'),
+  targetCompletionDate:     date('target_completion_date'),
+  actualStartDate:          date('actual_start_date'),
+  actualCompletionDate:     date('actual_completion_date'),
+  scheduleSetBy:            integer('schedule_set_by').references(() => users.id),
+  scheduleSetAt:            timestamp('schedule_set_at'),
+  actualStartRecordedBy:    integer('actual_start_recorded_by').references(() => users.id),
+  actualStartRecordedAt:    timestamp('actual_start_recorded_at'),
+  actualEndRecordedBy:      integer('actual_end_recorded_by').references(() => users.id),
+  actualEndRecordedAt:      timestamp('actual_end_recorded_at'),
+  updatedAt:                timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertWoScheduleSchema = createInsertSchema(woSchedule).omit({ id: true, updatedAt: true });
+export type InsertWoSchedule = z.infer<typeof insertWoScheduleSchema>;
+export type WoSchedule = typeof woSchedule.$inferSelect;
+
+// ── WO Manage: Daily Logs ─────────────────────────────────────────────────────
+export const woDailyLogs = pgTable('wo_daily_logs', {
+  id:                 serial('id').primaryKey(),
+  epcWorkOrderId:     integer('epc_work_order_id').notNull().references(() => epcWorkOrders.id, { onDelete: 'cascade' }),
+  logDate:            date('log_date').notNull(),
+  reportedBy:         integer('reported_by').notNull().references(() => users.id),
+  status:             varchar('status', { length: 20 }).notNull().default('draft'),
+  progressPercent:    smallint('progress_percent').notNull().default(0),
+  workDoneToday:      text('work_done_today'),
+  manpowerCount:      smallint('manpower_count').notNull().default(0),
+  manpowerBreakdown:  jsonb('manpower_breakdown').default({}),
+  hoursWorked:        decimal('hours_worked', { precision: 6, scale: 2 }).notNull().default('0'),
+  issuesEncountered:  text('issues_encountered'),
+  nextDayPlan:        text('next_day_plan'),
+  crewNote:           text('crew_note'),
+  reviewedBy:         integer('reviewed_by').references(() => users.id),
+  reviewedAt:         timestamp('reviewed_at'),
+  createdAt:          timestamp('created_at').notNull().defaultNow(),
+  updatedAt:          timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertWoDailyLogSchema = createInsertSchema(woDailyLogs).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertWoDailyLog = z.infer<typeof insertWoDailyLogSchema>;
+export type WoDailyLog = typeof woDailyLogs.$inferSelect;
+
+// ── WO Manage: Hold Records ───────────────────────────────────────────────────
+export const woHoldRecords = pgTable('wo_hold_records', {
+  id:               serial('id').primaryKey(),
+  epcWorkOrderId:   integer('epc_work_order_id').notNull().references(() => epcWorkOrders.id, { onDelete: 'cascade' }),
+  holdType:         varchar('hold_type', { length: 40 }).notNull(),
+  holdReason:       text('hold_reason').notNull(),
+  heldBy:           integer('held_by').notNull().references(() => users.id),
+  heldAt:           timestamp('held_at').notNull().defaultNow(),
+  resolvedBy:       integer('resolved_by').references(() => users.id),
+  resolvedAt:       timestamp('resolved_at'),
+  resolutionNotes:  text('resolution_notes'),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+});
+export const insertWoHoldRecordSchema = createInsertSchema(woHoldRecords).omit({ id: true, createdAt: true });
+export type InsertWoHoldRecord = z.infer<typeof insertWoHoldRecordSchema>;
+export type WoHoldRecord = typeof woHoldRecords.$inferSelect;

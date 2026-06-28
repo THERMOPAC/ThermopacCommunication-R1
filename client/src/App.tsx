@@ -185,6 +185,7 @@ function Router() {
       <PageProtectedRoute path="/epc/drawing-controls" pageKey="drawing-controls" component={() => <ProjectsProduction.EpcDrawingControlPage />} />
       <PageProtectedRoute path="/epc/purchase-orders" pageKey="purchase-orders" component={() => <ProjectsProduction.EpcPurchaseOrdersPage />} />
       <PageProtectedRoute path="/epc/work-orders" pageKey="work-orders" component={() => <ProjectsProduction.EpcWorkOrdersPage />} />
+      <ProtectedRoute path="/epc/work-orders/:id/manage" component={() => <ProjectsProduction.EpcWoManagePage />} />
       <PageProtectedRoute path="/epc/invoices" pageKey="invoices" component={() => <ProjectsProduction.EpcInvoicesPage />} />
       <PageProtectedRoute path="/epc/planning-control" pageKey="planning-control" component={() => <ProjectsProduction.EpcPlanningControlPage />} />
       <PageProtectedRoute path="/epc/execution-control" pageKey="procurement-production" component={() => <ProjectsProduction.EpcExecutionControlPage />} />

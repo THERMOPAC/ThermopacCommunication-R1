@@ -707,6 +707,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const { setupEpcControlTowerRoutes } = await import('./epc-control-tower-routes');
   setupEpcControlTowerRoutes(app);
+
+  const { setupWoManageRoutes } = await import('./wo-manage-routes');
+  setupWoManageRoutes(app);
   
   app.use(pipelineRoutes);
   app.use(epcAssignmentRoutes);

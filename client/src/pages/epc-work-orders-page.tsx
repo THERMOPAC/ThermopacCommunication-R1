@@ -21,10 +21,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Separator } from "@/components/ui/separator";
 import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
 import { ItemCodeBadge } from "@/components/item-code-badge";
+import { useLocation } from "wouter";
 import {
   Loader2, Search, Filter, Wrench, Edit, CheckCircle2, ShieldCheck,
   XCircle, RotateCcw, ChevronDown, ChevronRight,
-  RefreshCw, AlertTriangle, FileText, Package, Hammer, Ruler,
+  RefreshCw, AlertTriangle, FileText, Package, Hammer, Ruler, Settings2,
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
@@ -94,6 +95,7 @@ function DetailRow({ label, value, mono }: { label: string; value: any; mono?: b
 export default function EpcWorkOrdersPage() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const userRole = (user as any)?.role || "Employee";
   const userLevel = userRoleLevel(userRole);
 
@@ -397,6 +399,11 @@ export default function EpcWorkOrdersPage() {
                             {canEdit && (
                               <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[9px]" onClick={() => openEdit(wo)}>
                                 <Edit className="h-3 w-3 mr-0.5" /> Edit
+                              </Button>
+                            )}
+                            {wo.status === "released" && (
+                              <Button size="sm" variant="outline" className="h-6 px-1.5 text-[9px] border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => navigate(`/epc/work-orders/${wo.id}/manage`)}>
+                                <Settings2 className="h-3 w-3 mr-0.5" /> Manage WO
                               </Button>
                             )}
                             {actions.slice(0, 2).map((a) => (

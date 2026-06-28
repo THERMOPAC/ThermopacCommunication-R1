@@ -21,6 +21,7 @@ export const EpcDrawingControlPage = lazyWithRetry(() => import("@/pages/epc-dra
 export const EpcBomControlPage = lazyWithRetry(() => import("@/pages/epc-bom-control-page"));
 export const EpcPurchaseOrdersPage = lazyWithRetry(() => import("@/pages/epc-purchase-orders-page"));
 export const EpcWorkOrdersPage = lazyWithRetry(() => import("@/pages/epc-work-orders-page"));
+export const EpcWoManagePage = lazyWithRetry(() => import("@/pages/epc-wo-manage-page"));
 export const EpcInvoicesPage = lazyWithRetry(() => import("@/pages/epc-invoices-page"));
 export const EpcPlanningControlPage = lazyWithRetry(() => import("@/pages/epc-planning-control-page"));
 export const EpcExecutionControlPage = lazyWithRetry(() => import("@/pages/epc-execution-control-page"));
